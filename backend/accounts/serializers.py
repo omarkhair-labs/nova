@@ -3,7 +3,7 @@ from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from .models import Follow, Post
+from .models import Comment, Follow, Like, Post
 
 User = get_user_model()
 
@@ -116,6 +116,9 @@ class PostSerializer(serializers.ModelSerializer):
     image = serializers.ImageField(write_only=True, required=True)
     image_url = serializers.SerializerMethodField()
     is_mine = serializers.SerializerMethodField()
+    likes_count = serializers.SerializerMethodField()
+    comments_count = serializers.SerializerMethodField()
+    is_liked = serializers.SerializerMethodField()
 
     class Meta:
         model = Post
@@ -127,8 +130,20 @@ class PostSerializer(serializers.ModelSerializer):
             "caption",
             "created_at",
             "is_mine",
+            "likes_count",
+            "comments_count",
+            "is_liked",
         )
-        read_only_fields = ("id", "author", "image_url", "created_at", "is_mine")
+        read_only_fields = (
+            "id",
+            "author",
+            "image_url",
+            "created_at",
+            "is_mine",
+            "likes_count",
+            "comments_count",
+            "is_liked",
+        )
 
     def get_image_url(self, obj):
         if not obj.image:
@@ -142,6 +157,24 @@ class PostSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         return bool(request and request.user.is_authenticated and obj.author_id == request.user.id)
 
+    def get_likes_count(self, obj):
+        annotated = getattr(obj, "likes_count_value", None)
+        return annotated if annotated is not None else obj.likes.count()
+
+    def get_comments_count(self, obj):
+        annotated = getattr(obj, "comments_count_value", None)
+        return annotated if annotated is not None else obj.comments.count()
+
+    def get_is_liked(self, obj):
+        annotated = getattr(obj, "is_liked_value", None)
+        if annotated is not None:
+            return bool(annotated)
+
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+        return Like.objects.filter(post=obj, user=request.user).exists()
+
     def validate_image(self, value):
         if value.size > 10 * 1024 * 1024:
             raise serializers.ValidationError("Post photo must be 10 MB or smaller.")
@@ -149,6 +182,32 @@ class PostSerializer(serializers.ModelSerializer):
 
     def validate_caption(self, value):
         return value.strip()
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    author = PostAuthorSerializer(read_only=True)
+    is_mine = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Comment
+        fields = (
+            "id",
+            "author",
+            "body",
+            "created_at",
+            "is_mine",
+        )
+        read_only_fields = ("id", "author", "created_at", "is_mine")
+
+    def get_is_mine(self, obj):
+        request = self.context.get("request")
+        return bool(request and request.user.is_authenticated and obj.author_id == request.user.id)
+
+    def validate_body(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Comment can't be empty.")
+        return value
 
 
 class RegisterSerializer(serializers.ModelSerializer):
