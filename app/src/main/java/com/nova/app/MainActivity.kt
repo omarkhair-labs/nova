@@ -1,12 +1,14 @@
 package com.nova.app
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import com.nova.app.core.push.NovaPushOpenSignal
 import com.nova.app.core.push.NovaPushRegistration
 import com.nova.app.ui.theme.NovaTheme
 
@@ -15,6 +17,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        NovaPushOpenSignal.offer(intent)
         NovaPushRegistration.ensureChannel(this)
         NovaPushRegistration.syncForCurrentSession(this)
         requestNotificationPermissionIfNeeded()
@@ -24,6 +27,12 @@ class MainActivity : ComponentActivity() {
                 NovaApp()
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        NovaPushOpenSignal.offer(intent)
     }
 
     private fun requestNotificationPermissionIfNeeded() {
