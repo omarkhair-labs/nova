@@ -80,7 +80,7 @@ class NovaMessagingService : FirebaseMessagingService() {
         )
 
         val notification = NotificationCompat.Builder(this, NovaPushRegistration.CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_nova_notification)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
