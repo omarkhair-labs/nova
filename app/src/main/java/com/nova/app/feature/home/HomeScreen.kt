@@ -46,10 +46,14 @@ fun HomeScreen(
     avatarUrl: String,
     posts: List<NovaPost>,
     isLoading: Boolean,
+    isLoadingMore: Boolean,
+    hasMore: Boolean,
     errorMessage: String?,
     deletingPostId: Long?,
     likingPostId: Long?,
     onCreatePost: () -> Unit,
+    onRefresh: () -> Unit,
+    onLoadMore: () -> Unit,
     onRetry: () -> Unit,
     onDeletePost: (NovaPost) -> Unit,
     onLikeToggle: (NovaPost) -> Unit,
@@ -243,12 +247,34 @@ fun HomeScreen(
                 }
             } else {
                 item {
-                    Text(
-                        text = "Your feed",
-                        color = NovaInk,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "Your feed",
+                            color = NovaInk,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+
+                        Surface(
+                            onClick = {
+                                if (!isLoading && !isLoadingMore) onRefresh()
+                            },
+                            shape = RoundedCornerShape(16.dp),
+                            color = NovaAccentSoft,
+                        ) {
+                            Text(
+                                text = if (isLoading) "Refreshing…" else "Refresh",
+                                modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
+                                color = NovaAccent,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    }
                 }
 
                 items(
@@ -272,6 +298,33 @@ fun HomeScreen(
                     )
                 }
 
+                if (hasMore) {
+                    item {
+                        if (isLoadingMore) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(84.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
+                            ) {
+                                CircularProgressIndicator(color = NovaAccent)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Loading more moments…",
+                                    color = NovaMuted,
+                                    fontSize = 12.sp,
+                                )
+                            }
+                        } else {
+                            NovaSecondaryButton(
+                                text = "Load more",
+                                onClick = onLoadMore,
+                            )
+                        }
+                    }
+                }
+
                 if (errorMessage != null) {
                     item {
                         Surface(
@@ -280,12 +333,18 @@ fun HomeScreen(
                             color = NovaSurface,
                             border = BorderStroke(1.dp, NovaBorder),
                         ) {
-                            Text(
-                                text = errorMessage,
-                                modifier = Modifier.padding(14.dp),
-                                color = NovaMuted,
-                                fontSize = 12.sp,
-                            )
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Text(
+                                    text = errorMessage,
+                                    color = NovaMuted,
+                                    fontSize = 12.sp,
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                NovaSecondaryButton(
+                                    text = "Try again",
+                                    onClick = if (hasMore) onLoadMore else onRefresh,
+                                )
+                            }
                         }
                     }
                 }

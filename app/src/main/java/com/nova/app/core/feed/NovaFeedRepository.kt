@@ -9,6 +9,7 @@ import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.NovaComment
 import com.nova.app.core.network.NovaCommentMutation
 import com.nova.app.core.network.NovaPost
+import com.nova.app.core.network.NovaPostPage
 import com.nova.app.core.network.UploadFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -21,9 +22,9 @@ class NovaFeedRepository(
     private val appContext = context.applicationContext
     private val sessionStore = NovaSessionStore(appContext)
 
-    suspend fun feed(): ApiResult<List<NovaPost>> {
+    suspend fun feed(cursor: String? = null): ApiResult<NovaPostPage> {
         return authenticatedCall { accessToken ->
-            api.feed(accessToken)
+            api.feed(accessToken, cursor)
         }
     }
 

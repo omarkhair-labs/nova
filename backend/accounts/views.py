@@ -19,6 +19,7 @@ from .serializers import (
 )
 
 User = get_user_model()
+FEED_PAGE_SIZE = 20
 
 
 def post_queryset(request):
@@ -42,6 +43,35 @@ def visible_post_queryset(request):
     )
     return public_post_queryset(request).filter(
         Q(author=request.user) | Q(author_id__in=followed_ids)
+    )
+
+
+def paginated_feed_response(request, queryset):
+    cursor = request.query_params.get("cursor", "").strip()
+    if cursor:
+        try:
+            cursor_id = int(cursor)
+        except ValueError:
+            return Response(
+                {"detail": "Invalid feed cursor."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        queryset = queryset.filter(id__lt=cursor_id)
+
+    page_with_extra = list(queryset.order_by("-id")[: FEED_PAGE_SIZE + 1])
+    has_more = len(page_with_extra) > FEED_PAGE_SIZE
+    page = page_with_extra[:FEED_PAGE_SIZE]
+    next_cursor = str(page[-1].id) if has_more and page else None
+
+    return Response(
+        {
+            "results": PostSerializer(
+                page,
+                many=True,
+                context={"request": request},
+            ).data,
+            "next_cursor": next_cursor,
+        }
     )
 
 
@@ -186,13 +216,7 @@ class FeedView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        posts = visible_post_queryset(request).order_by("-created_at", "-id")[:50]
-        serializer = PostSerializer(
-            posts,
-            many=True,
-            context={"request": request},
-        )
-        return Response({"results": serializer.data})
+        return paginated_feed_response(request, visible_post_queryset(request))
 
 
 class PostDetailView(APIView):

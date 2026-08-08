@@ -56,6 +56,12 @@ data class NovaPost(
 )
 
 
+data class NovaPostPage(
+    val posts: List<NovaPost>,
+    val nextCursor: String?,
+)
+
+
 data class NovaComment(
     val id: Long,
     val author: NovaPostAuthor,
@@ -231,9 +237,18 @@ class NovaApiClient(
         }
     }
 
-    suspend fun feed(accessToken: String): ApiResult<List<NovaPost>> {
-        return when (val response = requestJson("feed/", bearerToken = accessToken)) {
-            is ApiResult.Success -> ApiResult.Success(parsePosts(response.value))
+    suspend fun feed(
+        accessToken: String,
+        cursor: String? = null,
+    ): ApiResult<NovaPostPage> {
+        val path = if (cursor.isNullOrBlank()) {
+            "feed/"
+        } else {
+            "feed/?cursor=${encode(cursor)}"
+        }
+
+        return when (val response = requestJson(path, bearerToken = accessToken)) {
+            is ApiResult.Success -> ApiResult.Success(parsePostPage(response.value))
             is ApiResult.Failure -> response
         }
     }
@@ -475,6 +490,15 @@ class NovaApiClient(
         }
     }
 
+    private fun parsePostPage(json: JSONObject): NovaPostPage {
+        val nextCursor = json.optString("next_cursor")
+            .takeIf { it.isNotBlank() && it != "null" }
+        return NovaPostPage(
+            posts = parsePosts(json),
+            nextCursor = nextCursor,
+        )
+    }
+
     private fun parsePost(json: JSONObject): NovaPost {
         val author = json.optJSONObject("author") ?: JSONObject()
         return NovaPost(
@@ -543,7 +567,7 @@ class NovaApiClient(
             readJsonResponse(connection)
         } catch (_: Exception) {
             ApiResult.Failure(
-                message = "Can't reach Nova right now. Make sure the local server is running.",
+                message = "Can't reach Nova right now. Check your connection and try again.",
             )
         } finally {
             connection?.disconnect()
@@ -599,7 +623,7 @@ class NovaApiClient(
             readJsonResponse(connection)
         } catch (_: Exception) {
             ApiResult.Failure(
-                message = "Nova couldn't upload that right now. Check the local server and try again.",
+                message = "Nova couldn't upload that right now. Check your connection and try again.",
             )
         } finally {
             connection?.disconnect()
@@ -657,6 +681,8 @@ class NovaApiClient(
             400 -> "Check your details and try again."
             401 -> "Your session expired. Please log in again."
             404 -> "Nova couldn't find that resource."
+            429 -> "Too many requests. Give Nova a moment and try again."
+            in 500..599 -> "Nova's server had a problem. Try again in a moment."
             else -> "Something went wrong. Please try again."
         }
     }
