@@ -1,5 +1,6 @@
 package com.nova.app.feature.home
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -20,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
 import com.nova.app.ui.components.NovaTab
 import com.nova.app.ui.theme.NovaAccent
@@ -34,6 +36,8 @@ import com.nova.app.ui.theme.NovaSurface
 fun HomeScreen(
     displayName: String,
     username: String,
+    avatarUrl: String,
+    onPeopleClick: () -> Unit,
     onProfileClick: () -> Unit,
 ) {
     Scaffold(
@@ -42,6 +46,7 @@ fun HomeScreen(
             NovaBottomBar(
                 selected = NovaTab.Home,
                 onHomeClick = {},
+                onPeopleClick = onPeopleClick,
                 onProfileClick = onProfileClick,
             )
         },
@@ -77,38 +82,54 @@ fun HomeScreen(
 
                 Surface(
                     onClick = onProfileClick,
-                    shape = RoundedCornerShape(18.dp),
+                    shape = RoundedCornerShape(22.dp),
                     color = NovaAccentSoft,
                 ) {
-                    Text(
-                        text = displayName.firstOrNull()?.uppercase() ?: "N",
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 11.dp),
-                        color = NovaAccent,
-                        fontWeight = FontWeight.Bold,
+                    NovaAvatar(
+                        source = avatarUrl,
+                        fallbackText = displayName.ifBlank { username },
+                        size = 44.dp,
+                        modifier = Modifier.padding(2.dp),
                     )
                 }
             }
 
             Surface(
+                onClick = onPeopleClick,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(28.dp),
                 color = NovaSurface,
-                border = androidx.compose.foundation.BorderStroke(1.dp, NovaBorder),
+                border = BorderStroke(1.dp, NovaBorder),
             ) {
                 Column(modifier = Modifier.padding(22.dp)) {
-                    Text(
-                        text = "Your space is ready",
-                        color = NovaInk,
-                        fontSize = 21.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "@$username · This is your home. Posts, people and moments will live here.",
-                        color = NovaMuted,
-                        fontSize = 14.sp,
-                        lineHeight = 21.sp,
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Find your people",
+                                color = NovaInk,
+                                fontSize = 21.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Spacer(modifier = Modifier.height(7.dp))
+                            Text(
+                                text = "Search real Nova accounts and follow the people you want in your space.",
+                                color = NovaMuted,
+                                fontSize = 14.sp,
+                                lineHeight = 21.sp,
+                            )
+                        }
+                        Text(
+                            text = "◎",
+                            color = NovaAccent,
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(start = 16.dp),
+                        )
+                    }
                 }
             }
 
@@ -120,7 +141,7 @@ fun HomeScreen(
                     .weight(1f),
                 shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
                 color = NovaSurface,
-                border = androidx.compose.foundation.BorderStroke(1.dp, NovaBorder),
+                border = BorderStroke(1.dp, NovaBorder),
             ) {
                 Column(
                     modifier = Modifier
@@ -142,14 +163,14 @@ fun HomeScreen(
                     }
                     Spacer(modifier = Modifier.height(18.dp))
                     Text(
-                        text = "A quiet feed, for now.",
+                        text = "Your feed starts with people.",
                         color = NovaInk,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "The next build will bring real people and posts into this space.",
+                        text = "@$username · Follow a few accounts now; posts will plug into this space next.",
                         color = NovaMuted,
                         fontSize = 14.sp,
                         lineHeight = 21.sp,

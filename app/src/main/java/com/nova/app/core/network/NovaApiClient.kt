@@ -7,6 +7,7 @@ import org.json.JSONObject
 import java.io.DataOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 import java.util.UUID
 
 
@@ -16,6 +17,19 @@ data class NovaUser(
     val username: String,
     val name: String,
     val avatarUrl: String,
+    val followersCount: Int = 0,
+    val followingCount: Int = 0,
+)
+
+
+data class NovaPerson(
+    val id: Long,
+    val username: String,
+    val name: String,
+    val avatarUrl: String,
+    val followersCount: Int,
+    val followingCount: Int,
+    val isFollowing: Boolean,
 )
 
 
@@ -105,6 +119,65 @@ class NovaApiClient(
         }
     }
 
+    suspend fun people(
+        accessToken: String,
+        query: String = "",
+    ): ApiResult<List<NovaPerson>> {
+        val cleanQuery = query.trim()
+        val path = if (cleanQuery.isBlank()) {
+            "people/"
+        } else {
+            "people/?q=${encode(cleanQuery)}"
+        }
+
+        return when (val response = requestJson(path, bearerToken = accessToken)) {
+            is ApiResult.Success -> {
+                val array = response.value.optJSONArray("results") ?: JSONArray()
+                val people = buildList {
+                    for (index in 0 until array.length()) {
+                        array.optJSONObject(index)?.let { add(parsePerson(it)) }
+                    }
+                }
+                ApiResult.Success(people)
+            }
+
+            is ApiResult.Failure -> response
+        }
+    }
+
+    suspend fun person(
+        accessToken: String,
+        username: String,
+    ): ApiResult<NovaPerson> {
+        return when (
+            val response = requestJson(
+                path = "people/${encode(username.trim().lowercase())}/",
+                bearerToken = accessToken,
+            )
+        ) {
+            is ApiResult.Success -> ApiResult.Success(parsePerson(response.value))
+            is ApiResult.Failure -> response
+        }
+    }
+
+    suspend fun setFollowing(
+        accessToken: String,
+        username: String,
+        follow: Boolean,
+    ): ApiResult<NovaPerson> {
+        val path = "people/${encode(username.trim().lowercase())}/follow/"
+        val response = if (follow) {
+            requestJson(path, method = "POST", body = JSONObject(), bearerToken = accessToken)
+        } else {
+            requestJson(path, method = "DELETE", bearerToken = accessToken)
+        }
+
+        return when (response) {
+            is ApiResult.Success -> ApiResult.Success(parsePerson(response.value))
+            is ApiResult.Failure -> response
+        }
+    }
+
     suspend fun refresh(refreshToken: String): ApiResult<String> {
         val body = JSONObject().put("refresh", refreshToken)
 
@@ -148,6 +221,20 @@ class NovaApiClient(
             username = json.optString("username"),
             name = json.optString("name"),
             avatarUrl = resolveMediaUrl(rawAvatar),
+            followersCount = json.optInt("followers_count", 0),
+            followingCount = json.optInt("following_count", 0),
+        )
+    }
+
+    private fun parsePerson(json: JSONObject): NovaPerson {
+        return NovaPerson(
+            id = json.optLong("id"),
+            username = json.optString("username"),
+            name = json.optString("name"),
+            avatarUrl = resolveMediaUrl(json.optString("avatar_url")),
+            followersCount = json.optInt("followers_count", 0),
+            followingCount = json.optInt("following_count", 0),
+            isFollowing = json.optBoolean("is_following", false),
         )
     }
 
@@ -159,6 +246,10 @@ class NovaApiClient(
             val apiUrl = URL(baseUrl)
             URL("${apiUrl.protocol}://${apiUrl.authority}$raw").toString()
         }.getOrDefault(raw)
+    }
+
+    private fun encode(value: String): String {
+        return URLEncoder.encode(value, Charsets.UTF_8.name())
     }
 
     private suspend fun requestJson(
@@ -299,7 +390,7 @@ class NovaApiClient(
         return when (statusCode) {
             400 -> "Check your details and try again."
             401 -> "Your session expired. Please log in again."
-            404 -> "Nova couldn't find that resource."
+            404 -> "Nova couldn't find that person."
             else -> "Something went wrong. Please try again."
         }
     }

@@ -1,0 +1,226 @@
+package com.nova.app.feature.people
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.nova.app.core.network.NovaPerson
+import com.nova.app.ui.components.NovaAvatar
+import com.nova.app.ui.components.NovaHeader
+import com.nova.app.ui.components.NovaPrimaryButton
+import com.nova.app.ui.components.NovaSecondaryButton
+import com.nova.app.ui.theme.NovaAccent
+import com.nova.app.ui.theme.NovaBackground
+import com.nova.app.ui.theme.NovaBorder
+import com.nova.app.ui.theme.NovaInk
+import com.nova.app.ui.theme.NovaMuted
+import com.nova.app.ui.theme.NovaSurface
+
+@Composable
+fun PersonScreen(
+    person: NovaPerson?,
+    isLoading: Boolean,
+    errorMessage: String?,
+    onBack: () -> Unit,
+    onFollowToggle: (NovaPerson) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(NovaBackground)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = 22.dp, vertical = 18.dp),
+    ) {
+        NovaHeader(
+            title = "Profile",
+            subtitle = "A real person on Nova.",
+            onBack = onBack,
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        when {
+            person == null && isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(color = NovaAccent)
+                }
+            }
+
+            person == null -> {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    color = NovaSurface,
+                    border = BorderStroke(1.dp, NovaBorder),
+                ) {
+                    Column(modifier = Modifier.padding(22.dp)) {
+                        Text(
+                            text = "Couldn't open this profile",
+                            color = NovaInk,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = errorMessage ?: "Try again in a moment.",
+                            color = NovaMuted,
+                            fontSize = 13.sp,
+                            lineHeight = 19.sp,
+                        )
+                    }
+                }
+            }
+
+            else -> {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    NovaAvatar(
+                        source = person.avatarUrl,
+                        fallbackText = person.name.ifBlank { person.username },
+                        size = 112.dp,
+                    )
+                    Spacer(modifier = Modifier.height(18.dp))
+                    Text(
+                        text = person.name.ifBlank { person.username },
+                        color = NovaInk,
+                        fontSize = 25.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "@${person.username}",
+                        color = NovaMuted,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(26.dp))
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    color = NovaSurface,
+                    border = BorderStroke(1.dp, NovaBorder),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(vertical = 20.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                    ) {
+                        SocialStat(person.followersCount.toString(), "followers")
+                        SocialStat(person.followingCount.toString(), "following")
+                        SocialStat("0", "posts")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                if (errorMessage != null) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        color = NovaSurface,
+                        border = BorderStroke(1.dp, NovaBorder),
+                    ) {
+                        Text(
+                            text = errorMessage,
+                            modifier = Modifier.padding(14.dp),
+                            color = NovaMuted,
+                            fontSize = 12.sp,
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                if (person.isFollowing) {
+                    NovaSecondaryButton(
+                        text = if (isLoading) "Updating…" else "Following",
+                        onClick = { if (!isLoading) onFollowToggle(person) },
+                    )
+                } else {
+                    NovaPrimaryButton(
+                        text = if (isLoading) "Updating…" else "Follow",
+                        onClick = { if (!isLoading) onFollowToggle(person) },
+                        enabled = !isLoading,
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    color = NovaSurface,
+                    border = BorderStroke(1.dp, NovaBorder),
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Text(
+                            text = if (person.isFollowing) "In your circle" else "A new connection",
+                            color = NovaInk,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = if (person.isFollowing) {
+                                "You'll start seeing more of this person as Nova's feed comes online."
+                            } else {
+                                "Follow people you actually want in your space."
+                            },
+                            color = NovaMuted,
+                            fontSize = 13.sp,
+                            lineHeight = 19.sp,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SocialStat(
+    value: String,
+    label: String,
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = value,
+            color = NovaInk,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = label,
+            color = NovaMuted,
+            fontSize = 12.sp,
+        )
+    }
+}
