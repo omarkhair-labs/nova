@@ -116,9 +116,9 @@ fun HomeScreen(
                 showActivity = false
                 onPersonClick(selectedUsername)
             },
-            onPostClick = { postId ->
+            onPostClick = { post ->
                 showActivity = false
-                posts.firstOrNull { it.id == postId }?.let(onCommentsClick)
+                onCommentsClick(post)
             },
             onUnreadCountChanged = { notificationUnreadCount = it },
             onSessionExpired = { showActivity = false },
