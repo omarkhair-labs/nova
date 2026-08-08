@@ -6,6 +6,8 @@ from .views import (
     FeedView,
     FollowView,
     MeView,
+    NotificationsReadView,
+    NotificationsView,
     NovaTokenObtainPairView,
     PeopleView,
     PersonPostsView,
@@ -32,4 +34,6 @@ urlpatterns = [
     path("posts/<int:post_id>/comments/", PostCommentsView.as_view(), name="post-comments"),
     path("comments/<int:comment_id>/", CommentDetailView.as_view(), name="comment-detail"),
     path("feed/", FeedView.as_view(), name="feed"),
+    path("notifications/", NotificationsView.as_view(), name="notifications"),
+    path("notifications/read/", NotificationsReadView.as_view(), name="notifications-read"),
 ]

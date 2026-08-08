@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.db.models import Count, Exists, OuterRef, Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -8,9 +9,10 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .models import Comment, Follow, Like, Post
+from .models import Comment, Follow, Like, Notification, Post
 from .serializers import (
     CommentSerializer,
+    NotificationSerializer,
     NovaTokenObtainPairSerializer,
     PersonSerializer,
     PostSerializer,
@@ -20,6 +22,7 @@ from .serializers import (
 
 User = get_user_model()
 FEED_PAGE_SIZE = 20
+NOTIFICATION_PAGE_SIZE = 30
 
 
 def post_queryset(request):
@@ -73,6 +76,23 @@ def paginated_feed_response(request, queryset):
             "next_cursor": next_cursor,
         }
     )
+
+
+def create_notification(*, recipient, actor, kind, dedupe_key, post=None, comment=None):
+    if recipient.pk == actor.pk:
+        return None
+
+    notification, _ = Notification.objects.get_or_create(
+        dedupe_key=dedupe_key,
+        defaults={
+            "recipient": recipient,
+            "actor": actor,
+            "kind": kind,
+            "post": post,
+            "comment": comment,
+        },
+    )
+    return notification
 
 
 class RegisterView(APIView):
@@ -182,7 +202,18 @@ class FollowView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        Follow.objects.get_or_create(follower=request.user, following=person)
+        _, created = Follow.objects.get_or_create(
+            follower=request.user,
+            following=person,
+        )
+        if created:
+            create_notification(
+                recipient=person,
+                actor=request.user,
+                kind=Notification.Kind.FOLLOW,
+                dedupe_key=f"follow:{request.user.pk}:{person.pk}",
+            )
+
         return Response(
             PersonSerializer(person, context={"request": request}).data
         )
@@ -240,7 +271,16 @@ class PostLikeView(APIView):
 
     def post(self, request, post_id):
         post = self._post(request, post_id)
-        Like.objects.get_or_create(post_id=post.pk, user=request.user)
+        _, created = Like.objects.get_or_create(post_id=post.pk, user=request.user)
+        if created:
+            create_notification(
+                recipient=post.author,
+                actor=request.user,
+                kind=Notification.Kind.LIKE,
+                dedupe_key=f"like:{request.user.pk}:{post.pk}",
+                post=post,
+            )
+
         refreshed = post_queryset(request).get(pk=post.pk)
         return Response(PostSerializer(refreshed, context={"request": request}).data)
 
@@ -278,6 +318,15 @@ class PostCommentsView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         comment = serializer.save(post=post, author=request.user)
+        create_notification(
+            recipient=post.author,
+            actor=request.user,
+            kind=Notification.Kind.COMMENT,
+            dedupe_key=f"comment:{comment.pk}",
+            post=post,
+            comment=comment,
+        )
+
         refreshed = post_queryset(request).get(pk=post.pk)
         return Response(
             {
@@ -312,5 +361,65 @@ class CommentDetailView(APIView):
                     refreshed,
                     context={"request": request},
                 ).data
+            }
+        )
+
+
+class NotificationsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        notifications = Notification.objects.filter(
+            recipient=request.user,
+        ).select_related("actor", "post", "comment")
+
+        cursor = request.query_params.get("cursor", "").strip()
+        if cursor:
+            try:
+                cursor_id = int(cursor)
+            except ValueError:
+                return Response(
+                    {"detail": "Invalid notification cursor."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            notifications = notifications.filter(id__lt=cursor_id)
+
+        page_with_extra = list(
+            notifications.order_by("-id")[: NOTIFICATION_PAGE_SIZE + 1]
+        )
+        has_more = len(page_with_extra) > NOTIFICATION_PAGE_SIZE
+        page = page_with_extra[:NOTIFICATION_PAGE_SIZE]
+        next_cursor = str(page[-1].id) if has_more and page else None
+        unread_count = Notification.objects.filter(
+            recipient=request.user,
+            read_at__isnull=True,
+        ).count()
+
+        return Response(
+            {
+                "results": NotificationSerializer(
+                    page,
+                    many=True,
+                    context={"request": request},
+                ).data,
+                "next_cursor": next_cursor,
+                "unread_count": unread_count,
+            }
+        )
+
+
+class NotificationsReadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        marked_read = Notification.objects.filter(
+            recipient=request.user,
+            read_at__isnull=True,
+        ).update(read_at=timezone.now())
+
+        return Response(
+            {
+                "marked_read": marked_read,
+                "unread_count": 0,
             }
         )

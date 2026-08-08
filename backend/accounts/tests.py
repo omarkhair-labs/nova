@@ -9,7 +9,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import Post
+from .models import Notification, Post
 
 
 class AuthFlowTests(APITestCase):
@@ -387,3 +387,128 @@ class AuthFlowTests(APITestCase):
 
         invalid = self.client.get(feed_url, {"cursor": "not-a-number"})
         self.assertEqual(invalid.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_notifications_capture_follow_like_comment_and_read_state(self):
+        me = self.register(self.payload)
+        maya = self.register(
+            {
+                "email": "maya@example.com",
+                "password": "StrongNovaPass2026!",
+                "username": "maya",
+                "name": "Maya Noor",
+            }
+        )
+        self.assertEqual(me.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(maya.status_code, status.HTTP_201_CREATED)
+
+        self.authenticate(me.data["access"])
+        mine = self.client.post(
+            reverse("posts"),
+            {"caption": "Notify me", "image": self.image("notify.png")},
+            format="multipart",
+        )
+        post_id = mine.data["id"]
+
+        self.authenticate(maya.data["access"])
+        followed = self.client.post(
+            reverse("person-follow", kwargs={"username": "omar"}),
+            {},
+            format="json",
+        )
+        self.assertEqual(followed.status_code, status.HTTP_200_OK)
+
+        like_url = reverse("post-like", kwargs={"post_id": post_id})
+        self.client.post(like_url, {}, format="json")
+        self.client.post(like_url, {}, format="json")
+
+        comment = self.client.post(
+            reverse("post-comments", kwargs={"post_id": post_id}),
+            {"body": "This should show in activity."},
+            format="json",
+        )
+        self.assertEqual(comment.status_code, status.HTTP_201_CREATED)
+
+        self.authenticate(me.data["access"])
+        activity = self.client.get(reverse("notifications"))
+        self.assertEqual(activity.status_code, status.HTTP_200_OK)
+        self.assertEqual(activity.data["unread_count"], 3)
+        self.assertEqual(len(activity.data["results"]), 3)
+        self.assertIsNone(activity.data["next_cursor"])
+        self.assertEqual(
+            [item["kind"] for item in activity.data["results"]],
+            ["comment", "like", "follow"],
+        )
+        self.assertTrue(all(item["actor"]["username"] == "maya" for item in activity.data["results"]))
+        self.assertEqual(activity.data["results"][0]["post_id"], post_id)
+        self.assertEqual(
+            activity.data["results"][0]["comment_preview"],
+            "This should show in activity.",
+        )
+        self.assertTrue(all(not item["is_read"] for item in activity.data["results"]))
+
+        self.client.post(like_url, {}, format="json")
+        self.client.post(
+            reverse("post-comments", kwargs={"post_id": post_id}),
+            {"body": "My own comment should not notify me."},
+            format="json",
+        )
+        self.assertEqual(
+            Notification.objects.filter(recipient__username="omar").count(),
+            3,
+        )
+
+        marked = self.client.post(reverse("notifications-read"), {}, format="json")
+        self.assertEqual(marked.status_code, status.HTTP_200_OK)
+        self.assertEqual(marked.data["marked_read"], 3)
+        self.assertEqual(marked.data["unread_count"], 0)
+
+        after_read = self.client.get(reverse("notifications"))
+        self.assertEqual(after_read.data["unread_count"], 0)
+        self.assertTrue(all(item["is_read"] for item in after_read.data["results"]))
+
+        invalid = self.client.get(reverse("notifications"), {"cursor": "bad"})
+        self.assertEqual(invalid.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_notification_list_paginates_without_duplicates(self):
+        me = self.register(self.payload)
+        maya = self.register(
+            {
+                "email": "maya@example.com",
+                "password": "StrongNovaPass2026!",
+                "username": "maya",
+                "name": "Maya Noor",
+            }
+        )
+        me_user = get_user_model().objects.get(username="omar")
+        maya_user = get_user_model().objects.get(username="maya")
+
+        Notification.objects.bulk_create(
+            [
+                Notification(
+                    recipient=me_user,
+                    actor=maya_user,
+                    kind=Notification.Kind.FOLLOW,
+                    dedupe_key=f"test-notification:{index}",
+                )
+                for index in range(31)
+            ]
+        )
+
+        self.authenticate(me.data["access"])
+        first = self.client.get(reverse("notifications"))
+        self.assertEqual(first.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(first.data["results"]), 30)
+        self.assertEqual(first.data["unread_count"], 31)
+        self.assertIsNotNone(first.data["next_cursor"])
+
+        second = self.client.get(
+            reverse("notifications"),
+            {"cursor": first.data["next_cursor"]},
+        )
+        self.assertEqual(second.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(second.data["results"]), 1)
+        self.assertIsNone(second.data["next_cursor"])
+
+        ids = [item["id"] for item in first.data["results"] + second.data["results"]]
+        self.assertEqual(len(ids), 31)
+        self.assertEqual(len(set(ids)), 31)

@@ -173,3 +173,49 @@ class Comment(models.Model):
 
     def __str__(self):
         return f"Comment {self.pk} by @{self.author.username}"
+
+
+class Notification(models.Model):
+    class Kind(models.TextChoices):
+        FOLLOW = "follow", "Follow"
+        LIKE = "like", "Like"
+        COMMENT = "comment", "Comment"
+
+    recipient = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+    )
+    actor = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="notification_actions",
+    )
+    kind = models.CharField(max_length=16, choices=Kind.choices)
+    post = models.ForeignKey(
+        Post,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+        null=True,
+        blank=True,
+    )
+    comment = models.ForeignKey(
+        Comment,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+        null=True,
+        blank=True,
+    )
+    dedupe_key = models.CharField(max_length=100, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-created_at", "-id")
+        indexes = [
+            models.Index(fields=("recipient", "-created_at"), name="notif_recipient_created_idx"),
+            models.Index(fields=("recipient", "read_at"), name="notif_recipient_read_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.kind} from @{self.actor.username} to @{self.recipient.username}"
