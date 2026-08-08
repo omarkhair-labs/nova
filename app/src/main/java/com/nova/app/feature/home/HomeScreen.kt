@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -56,6 +57,7 @@ fun HomeScreen(
     errorMessage: String?,
     deletingPostId: Long?,
     likingPostId: Long?,
+    notificationUnreadCount: Int,
     onCreatePost: () -> Unit,
     onRefresh: () -> Unit,
     onLoadMore: () -> Unit,
@@ -64,6 +66,7 @@ fun HomeScreen(
     onLikeToggle: (NovaPost) -> Unit,
     onCommentsClick: (NovaPost) -> Unit,
     onPersonClick: (String) -> Unit,
+    onNotificationsClick: () -> Unit,
     onPeopleClick: () -> Unit,
     onProfileClick: () -> Unit,
 ) {
@@ -144,17 +147,58 @@ fun HomeScreen(
                             )
                         }
 
-                        Surface(
-                            onClick = onProfileClick,
-                            shape = RoundedCornerShape(24.dp),
-                            color = NovaAccentSoft,
-                        ) {
-                            NovaAvatar(
-                                source = avatarUrl,
-                                fallbackText = displayName.ifBlank { username },
-                                size = 46.dp,
-                                modifier = Modifier.padding(2.dp),
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                onClick = onNotificationsClick,
+                                shape = RoundedCornerShape(18.dp),
+                                color = if (notificationUnreadCount > 0) NovaAccentSoft else NovaSurface,
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (notificationUnreadCount > 0) NovaAccent else NovaBorder,
+                                ),
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        text = "Activity",
+                                        color = NovaInk,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                    if (notificationUnreadCount > 0) {
+                                        Spacer(modifier = Modifier.width(7.dp))
+                                        Surface(
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = NovaAccent,
+                                        ) {
+                                            Text(
+                                                text = if (notificationUnreadCount > 99) "99+" else notificationUnreadCount.toString(),
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                color = NovaBackground,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            Surface(
+                                onClick = onProfileClick,
+                                shape = RoundedCornerShape(24.dp),
+                                color = NovaAccentSoft,
+                            ) {
+                                NovaAvatar(
+                                    source = avatarUrl,
+                                    fallbackText = displayName.ifBlank { username },
+                                    size = 46.dp,
+                                    modifier = Modifier.padding(2.dp),
+                                )
+                            }
                         }
                     }
                 }
