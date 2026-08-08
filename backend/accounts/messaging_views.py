@@ -82,7 +82,7 @@ class ConversationsView(APIView):
         )
 
     def post(self, request):
-        username = str(request.data.get("username", "")).strip().lower()
+        username = str(request.data.get("username") or "").strip().lower()
         if not username:
             return Response(
                 {"detail": "Username is required."},
@@ -154,8 +154,8 @@ class ConversationMessagesView(APIView):
 
     def post(self, request, conversation_id):
         conversation = conversation_for_request(request, conversation_id)
-        body = str(request.data.get("body", "")).strip()
-        client_id = str(request.data.get("client_id", "")).strip()
+        body = str(request.data.get("body") or "").strip()
+        client_id = str(request.data.get("client_id") or "").strip()
 
         if not body:
             return Response(
