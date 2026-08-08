@@ -40,10 +40,22 @@ class ConversationsView(APIView):
 
         if query:
             conversations = conversations.filter(
-                Q(participant_one__username__icontains=query)
-                | Q(participant_one__name__icontains=query)
-                | Q(participant_two__username__icontains=query)
-                | Q(participant_two__name__icontains=query)
+                Q(
+                    participant_one=request.user,
+                    participant_two__username__icontains=query,
+                )
+                | Q(
+                    participant_one=request.user,
+                    participant_two__name__icontains=query,
+                )
+                | Q(
+                    participant_two=request.user,
+                    participant_one__username__icontains=query,
+                )
+                | Q(
+                    participant_two=request.user,
+                    participant_one__name__icontains=query,
+                )
             )
 
         conversations = conversations.annotate(
@@ -54,6 +66,10 @@ class ConversationsView(APIView):
         ).order_by("-updated_at", "-id")[:50]
 
         items = list(conversations)
+        total_unread = Message.objects.filter(
+            recipient=request.user,
+            read_at__isnull=True,
+        ).count()
         return Response(
             {
                 "results": ConversationSerializer(
@@ -61,7 +77,7 @@ class ConversationsView(APIView):
                     many=True,
                     context={"request": request},
                 ).data,
-                "unread_count": sum(item.unread_count_value for item in items),
+                "unread_count": total_unread,
             }
         )
 
@@ -81,12 +97,20 @@ class ConversationsView(APIView):
             )
 
         first_id, second_id = sorted((request.user.pk, target.pk))
-        conversation, created = Conversation.objects.get_or_create(
-            participant_one_id=first_id,
-            participant_two_id=second_id,
-        )
-        conversation = conversations_for(request.user).get(pk=conversation.pk)
+        try:
+            with transaction.atomic():
+                conversation, created = Conversation.objects.get_or_create(
+                    participant_one_id=first_id,
+                    participant_two_id=second_id,
+                )
+        except IntegrityError:
+            conversation = Conversation.objects.get(
+                participant_one_id=first_id,
+                participant_two_id=second_id,
+            )
+            created = False
 
+        conversation = conversations_for(request.user).get(pk=conversation.pk)
         return Response(
             ConversationSerializer(conversation, context={"request": request}).data,
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
