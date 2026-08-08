@@ -46,6 +46,24 @@ class AuthFlowTests(APITestCase):
         self.assertIn("access", login_response.data)
         self.assertEqual(login_response.data["user"]["name"], "Omar Khair")
 
+    def test_authenticated_profile_can_be_edited(self):
+        register_response = self.client.post(self.register_url, self.payload, format="json")
+        self.assertEqual(register_response.status_code, status.HTTP_201_CREATED)
+
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {register_response.data['access']}"
+        )
+        response = self.client.patch(
+            self.me_url,
+            {"name": "Omar Nova", "username": "omar.nova"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["name"], "Omar Nova")
+        self.assertEqual(response.data["username"], "omar.nova")
+        self.assertEqual(response.data["avatar_url"], "")
+
     def test_duplicate_username_is_rejected(self):
         first = self.client.post(self.register_url, self.payload, format="json")
         self.assertEqual(first.status_code, status.HTTP_201_CREATED)
