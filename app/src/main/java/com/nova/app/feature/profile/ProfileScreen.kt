@@ -3,7 +3,6 @@ package com.nova.app.feature.profile
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,9 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -24,11 +21,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.components.NovaTab
-import com.nova.app.ui.theme.NovaAccent
-import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
@@ -40,7 +36,9 @@ fun ProfileScreen(
     displayName: String,
     username: String,
     email: String,
+    avatarUrl: String,
     onHomeClick: () -> Unit,
+    onEditProfile: () -> Unit,
     onLogout: () -> Unit,
 ) {
     Scaffold(
@@ -75,20 +73,11 @@ fun ProfileScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(18.dp),
             ) {
-                Surface(
-                    modifier = Modifier.size(86.dp),
-                    shape = CircleShape,
-                    color = NovaAccentSoft,
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = displayName.firstOrNull()?.uppercase() ?: "N",
-                            color = NovaAccent,
-                            fontSize = 30.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                }
+                NovaAvatar(
+                    source = avatarUrl,
+                    fallbackText = displayName.ifBlank { username },
+                    size = 86.dp,
+                )
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -115,7 +104,14 @@ fun ProfileScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(24.dp))
+
+            NovaSecondaryButton(
+                text = "Edit profile",
+                onClick = onEditProfile,
+            )
+
+            Spacer(modifier = Modifier.height(18.dp))
 
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -143,14 +139,14 @@ fun ProfileScreen(
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text(
-                        text = "Your profile is live",
+                        text = "Your profile is yours now",
                         color = NovaInk,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "Photos, bio, links and real social stats come next.",
+                        text = "Your name, username and photo are saved to your real Nova account.",
                         color = NovaMuted,
                         fontSize = 13.sp,
                         lineHeight = 19.sp,

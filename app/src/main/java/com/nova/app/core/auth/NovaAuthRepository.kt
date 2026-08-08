@@ -1,17 +1,23 @@
 package com.nova.app.core.auth
 
 import android.content.Context
+import android.net.Uri
+import android.webkit.MimeTypeMap
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.AuthSession
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.NovaUser
+import com.nova.app.core.network.UploadFile
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 
 class NovaAuthRepository(
     context: Context,
     private val api: NovaApiClient = NovaApiClient(),
 ) {
-    private val sessionStore = NovaSessionStore(context)
+    private val appContext = context.applicationContext
+    private val sessionStore = NovaSessionStore(appContext)
 
     suspend fun register(
         email: String,
@@ -66,8 +72,117 @@ class NovaAuthRepository(
         }
     }
 
+    suspend fun updateProfile(
+        name: String,
+        username: String,
+        avatarUri: Uri?,
+    ): ApiResult<NovaUser> {
+        val stored = sessionStore.load()
+            ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
+
+        val avatar = when (val prepared = prepareAvatar(avatarUri)) {
+            is ApiResult.Success -> prepared.value
+            is ApiResult.Failure -> return prepared
+        }
+
+        return updateProfileWithSession(
+            stored = stored,
+            name = name.trim(),
+            username = username.trim().lowercase(),
+            avatar = avatar,
+        )
+    }
+
     fun logout() {
         sessionStore.clear()
+    }
+
+    private suspend fun updateProfileWithSession(
+        stored: NovaSessionStore.StoredSession,
+        name: String,
+        username: String,
+        avatar: UploadFile?,
+    ): ApiResult<NovaUser> {
+        when (
+            val first = api.updateProfile(
+                accessToken = stored.accessToken,
+                name = name,
+                username = username,
+                avatar = avatar,
+            )
+        ) {
+            is ApiResult.Success -> {
+                sessionStore.updateUser(first.value)
+                return first
+            }
+
+            is ApiResult.Failure -> {
+                if (first.statusCode != 401) return first
+            }
+        }
+
+        return when (val refreshed = api.refresh(stored.refreshToken)) {
+            is ApiResult.Success -> {
+                sessionStore.updateAccessToken(refreshed.value)
+                when (
+                    val retried = api.updateProfile(
+                        accessToken = refreshed.value,
+                        name = name,
+                        username = username,
+                        avatar = avatar,
+                    )
+                ) {
+                    is ApiResult.Success -> {
+                        sessionStore.updateUser(retried.value)
+                        retried
+                    }
+
+                    is ApiResult.Failure -> {
+                        if (retried.statusCode == 401) sessionStore.clear()
+                        retried
+                    }
+                }
+            }
+
+            is ApiResult.Failure -> {
+                if (refreshed.statusCode == 400 || refreshed.statusCode == 401) {
+                    sessionStore.clear()
+                }
+                refreshed
+            }
+        }
+    }
+
+    private suspend fun prepareAvatar(uri: Uri?): ApiResult<UploadFile?> {
+        if (uri == null) return ApiResult.Success(null)
+
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                val resolver = appContext.contentResolver
+                val mimeType = resolver.getType(uri)?.takeIf { it.startsWith("image/") }
+                    ?: "image/jpeg"
+                val extension = MimeTypeMap.getSingleton()
+                    .getExtensionFromMimeType(mimeType)
+                    ?.takeIf { it.isNotBlank() }
+                    ?: "jpg"
+                val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
+                    ?: throw IllegalStateException("Couldn't read that photo.")
+
+                if (bytes.size > 5 * 1024 * 1024) {
+                    return@withContext ApiResult.Failure("Photo must be 5 MB or smaller.")
+                }
+
+                ApiResult.Success(
+                    UploadFile(
+                        bytes = bytes,
+                        fileName = "nova-avatar-${System.currentTimeMillis()}.$extension",
+                        mimeType = mimeType,
+                    ),
+                )
+            }.getOrElse {
+                ApiResult.Failure("Nova couldn't read that photo. Pick another image and try again.")
+            }
+        }
     }
 
     private suspend fun restoreWithRefresh(

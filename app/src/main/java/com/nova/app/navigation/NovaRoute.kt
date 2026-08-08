@@ -7,4 +7,5 @@ sealed interface NovaRoute {
     data object ProfileSetup : NovaRoute
     data object Home : NovaRoute
     data object Profile : NovaRoute
+    data object EditProfile : NovaRoute
 }

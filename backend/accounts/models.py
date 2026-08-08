@@ -47,7 +47,7 @@ class User(AbstractUser):
         validators=[username_validator],
     )
     name = models.CharField(max_length=80, blank=True)
-    avatar_url = models.URLField(blank=True)
+    avatar = models.ImageField(upload_to="avatars/%Y/%m/", blank=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username"]
