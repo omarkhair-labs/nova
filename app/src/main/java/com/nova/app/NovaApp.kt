@@ -26,11 +26,15 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import com.nova.app.core.auth.NovaAuthRepository
 import com.nova.app.core.network.ApiResult
+import com.nova.app.core.network.NovaPerson
 import com.nova.app.core.network.NovaUser
+import com.nova.app.core.social.NovaSocialRepository
 import com.nova.app.feature.auth.CreateAccountScreen
 import com.nova.app.feature.auth.LoginScreen
 import com.nova.app.feature.home.HomeScreen
 import com.nova.app.feature.onboarding.ProfileSetupScreen
+import com.nova.app.feature.people.PeopleScreen
+import com.nova.app.feature.people.PersonScreen
 import com.nova.app.feature.profile.EditProfileScreen
 import com.nova.app.feature.profile.ProfileScreen
 import com.nova.app.feature.welcome.WelcomeScreen
@@ -46,6 +50,9 @@ fun NovaApp() {
     val authRepository = remember(context) {
         NovaAuthRepository(context.applicationContext)
     }
+    val socialRepository = remember(context) {
+        NovaSocialRepository(context.applicationContext)
+    }
     val scope = rememberCoroutineScope()
 
     val backStack = remember {
@@ -59,14 +66,119 @@ fun NovaApp() {
     var authError by remember { mutableStateOf<String?>(null) }
     var isBootstrapping by remember { mutableStateOf(true) }
 
+    var people by remember { mutableStateOf<List<NovaPerson>>(emptyList()) }
+    var peopleLoading by remember { mutableStateOf(false) }
+    var peopleError by remember { mutableStateOf<String?>(null) }
+    var followingUsername by remember { mutableStateOf<String?>(null) }
+    var peopleRequestVersion by remember { mutableStateOf(0) }
+
     fun openHome() {
         backStack.clear()
         backStack.add(NovaRoute.Home)
     }
 
+    fun resetSocialState() {
+        people = emptyList()
+        peopleLoading = false
+        peopleError = null
+        followingUsername = null
+        peopleRequestVersion += 1
+    }
+
     fun resetToWelcome() {
+        resetSocialState()
         backStack.clear()
         backStack.add(NovaRoute.Welcome)
+    }
+
+    fun expireSession() {
+        authRepository.logout()
+        currentUser = null
+        pendingEmail = ""
+        pendingPassword = ""
+        authError = null
+        resetToWelcome()
+    }
+
+    fun refreshCurrentUser() {
+        scope.launch {
+            when (val refreshed = authRepository.restoreSession()) {
+                is ApiResult.Success -> {
+                    if (refreshed.value == null) {
+                        expireSession()
+                    } else {
+                        currentUser = refreshed.value
+                    }
+                }
+
+                is ApiResult.Failure -> {
+                    if (refreshed.statusCode == 401) expireSession()
+                }
+            }
+        }
+    }
+
+    fun searchPeople(query: String) {
+        peopleRequestVersion += 1
+        val requestVersion = peopleRequestVersion
+
+        scope.launch {
+            peopleLoading = true
+            peopleError = null
+
+            when (val result = socialRepository.people(query)) {
+                is ApiResult.Success -> {
+                    if (requestVersion == peopleRequestVersion) {
+                        people = result.value
+                        peopleLoading = false
+                    }
+                }
+
+                is ApiResult.Failure -> {
+                    if (requestVersion == peopleRequestVersion) {
+                        peopleLoading = false
+                        if (result.statusCode == 401) {
+                            expireSession()
+                        } else {
+                            peopleError = result.message
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fun toggleFollowFromList(person: NovaPerson) {
+        if (followingUsername != null) return
+
+        scope.launch {
+            followingUsername = person.username
+            peopleError = null
+
+            when (
+                val result = socialRepository.setFollowing(
+                    username = person.username,
+                    follow = !person.isFollowing,
+                )
+            ) {
+                is ApiResult.Success -> {
+                    people = people.map { existing ->
+                        if (existing.id == result.value.id) result.value else existing
+                    }
+                    followingUsername = null
+                    refreshCurrentUser()
+                }
+
+                is ApiResult.Failure -> {
+                    followingUsername = null
+                    if (result.statusCode == 401) {
+                        expireSession()
+                    } else {
+                        peopleError = result.message
+                    }
+                }
+            }
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -145,6 +257,7 @@ fun NovaApp() {
                                     when (val result = authRepository.login(email, password)) {
                                         is ApiResult.Success -> {
                                             currentUser = result.value
+                                            resetSocialState()
                                             authLoading = false
                                             openHome()
                                         }
@@ -188,6 +301,7 @@ fun NovaApp() {
                                         is ApiResult.Success -> {
                                             currentUser = result.value
                                             pendingPassword = ""
+                                            resetSocialState()
                                             authLoading = false
                                             openHome()
                                         }
@@ -208,7 +322,85 @@ fun NovaApp() {
                     HomeScreen(
                         displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
                         username = user?.username ?: "nova",
+                        avatarUrl = user?.avatarUrl.orEmpty(),
+                        onPeopleClick = { backStack.add(NovaRoute.People) },
                         onProfileClick = { backStack.add(NovaRoute.Profile) },
+                    )
+                }
+
+                NovaRoute.People -> NavEntry(route) {
+                    PeopleScreen(
+                        people = people,
+                        isLoading = peopleLoading,
+                        errorMessage = peopleError,
+                        followingUsername = followingUsername,
+                        onSearch = ::searchPeople,
+                        onPersonClick = { username ->
+                            backStack.add(NovaRoute.Person(username))
+                        },
+                        onFollowToggle = ::toggleFollowFromList,
+                        onHomeClick = ::openHome,
+                        onProfileClick = { backStack.add(NovaRoute.Profile) },
+                    )
+                }
+
+                is NovaRoute.Person -> NavEntry(route) {
+                    var person by remember(route.username) { mutableStateOf<NovaPerson?>(null) }
+                    var personLoading by remember(route.username) { mutableStateOf(true) }
+                    var personError by remember(route.username) { mutableStateOf<String?>(null) }
+
+                    LaunchedEffect(route.username) {
+                        personLoading = true
+                        personError = null
+                        when (val result = socialRepository.person(route.username)) {
+                            is ApiResult.Success -> person = result.value
+                            is ApiResult.Failure -> {
+                                if (result.statusCode == 401) {
+                                    expireSession()
+                                } else {
+                                    personError = result.message
+                                }
+                            }
+                        }
+                        personLoading = false
+                    }
+
+                    PersonScreen(
+                        person = person,
+                        isLoading = personLoading,
+                        errorMessage = personError,
+                        onBack = { backStack.removeLastOrNull() },
+                        onFollowToggle = { selectedPerson ->
+                            if (!personLoading) {
+                                scope.launch {
+                                    personLoading = true
+                                    personError = null
+                                    when (
+                                        val result = socialRepository.setFollowing(
+                                            username = selectedPerson.username,
+                                            follow = !selectedPerson.isFollowing,
+                                        )
+                                    ) {
+                                        is ApiResult.Success -> {
+                                            person = result.value
+                                            people = people.map { existing ->
+                                                if (existing.id == result.value.id) result.value else existing
+                                            }
+                                            refreshCurrentUser()
+                                        }
+
+                                        is ApiResult.Failure -> {
+                                            if (result.statusCode == 401) {
+                                                expireSession()
+                                            } else {
+                                                personError = result.message
+                                            }
+                                        }
+                                    }
+                                    personLoading = false
+                                }
+                            }
+                        },
                     )
                 }
 
@@ -219,19 +411,15 @@ fun NovaApp() {
                         username = user?.username ?: "nova",
                         email = user?.email.orEmpty(),
                         avatarUrl = user?.avatarUrl.orEmpty(),
-                        onHomeClick = { backStack.removeLastOrNull() },
+                        followersCount = user?.followersCount ?: 0,
+                        followingCount = user?.followingCount ?: 0,
+                        onHomeClick = ::openHome,
+                        onPeopleClick = { backStack.add(NovaRoute.People) },
                         onEditProfile = {
                             authError = null
                             backStack.add(NovaRoute.EditProfile)
                         },
-                        onLogout = {
-                            authRepository.logout()
-                            currentUser = null
-                            pendingEmail = ""
-                            pendingPassword = ""
-                            authError = null
-                            resetToWelcome()
-                        },
+                        onLogout = ::expireSession,
                     )
                 }
 
@@ -271,9 +459,7 @@ fun NovaApp() {
                                         is ApiResult.Failure -> {
                                             authLoading = false
                                             if (result.statusCode == 401) {
-                                                authRepository.logout()
-                                                currentUser = null
-                                                resetToWelcome()
+                                                expireSession()
                                             } else {
                                                 authError = result.message
                                             }
