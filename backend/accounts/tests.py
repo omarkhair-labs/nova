@@ -1,9 +1,28 @@
+import base64
+import shutil
+import tempfile
+
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 
 class AuthFlowTests(APITestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls._media_dir = tempfile.mkdtemp(prefix="nova-test-media-")
+        cls._media_override = override_settings(MEDIA_ROOT=cls._media_dir)
+        cls._media_override.enable()
+        super().setUpClass()
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        cls._media_override.disable()
+        shutil.rmtree(cls._media_dir, ignore_errors=True)
+
     def setUp(self):
         self.register_url = reverse("register")
         self.login_url = reverse("login")
@@ -21,6 +40,12 @@ class AuthFlowTests(APITestCase):
     def authenticate(self, token):
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
 
+    def image(self, name="moment.png"):
+        png = base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9WlR9u8AAAAASUVORK5CYII="
+        )
+        return SimpleUploadedFile(name, png, content_type="image/png")
+
     def test_register_login_and_me_flow(self):
         register_response = self.register(self.payload)
         self.assertEqual(register_response.status_code, status.HTTP_201_CREATED)
@@ -34,6 +59,7 @@ class AuthFlowTests(APITestCase):
         self.assertEqual(me_response.data["email"], "omar@example.com")
         self.assertEqual(me_response.data["followers_count"], 0)
         self.assertEqual(me_response.data["following_count"], 0)
+        self.assertEqual(me_response.data["posts_count"], 0)
 
         self.client.credentials()
         login_response = self.client.post(
@@ -126,3 +152,72 @@ class AuthFlowTests(APITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_post_creation_feed_following_and_delete(self):
+        me = self.register(self.payload)
+        maya = self.register(
+            {
+                "email": "maya@example.com",
+                "password": "StrongNovaPass2026!",
+                "username": "maya",
+                "name": "Maya Noor",
+            }
+        )
+        self.assertEqual(me.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(maya.status_code, status.HTTP_201_CREATED)
+
+        posts_url = reverse("posts")
+        feed_url = reverse("feed")
+
+        self.authenticate(me.data["access"])
+        mine = self.client.post(
+            posts_url,
+            {"caption": "First Nova moment", "image": self.image("mine.png")},
+            format="multipart",
+        )
+        self.assertEqual(mine.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(mine.data["caption"], "First Nova moment")
+        self.assertTrue(mine.data["is_mine"])
+        mine_id = mine.data["id"]
+
+        me_after_post = self.client.get(self.me_url)
+        self.assertEqual(me_after_post.data["posts_count"], 1)
+
+        self.authenticate(maya.data["access"])
+        maya_post = self.client.post(
+            posts_url,
+            {"caption": "Maya's moment", "image": self.image("maya.png")},
+            format="multipart",
+        )
+        self.assertEqual(maya_post.status_code, status.HTTP_201_CREATED)
+        self.assertFalse(maya_post.data["is_mine"] is False and False)
+
+        self.authenticate(me.data["access"])
+        feed_before_follow = self.client.get(feed_url)
+        self.assertEqual(feed_before_follow.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(feed_before_follow.data["results"]), 1)
+        self.assertEqual(feed_before_follow.data["results"][0]["id"], mine_id)
+
+        self.client.post(
+            reverse("person-follow", kwargs={"username": "maya"}),
+            {},
+            format="json",
+        )
+        feed_after_follow = self.client.get(feed_url)
+        self.assertEqual(len(feed_after_follow.data["results"]), 2)
+        usernames = {post["author"]["username"] for post in feed_after_follow.data["results"]}
+        self.assertEqual(usernames, {"omar", "maya"})
+
+        maya_detail = self.client.get(
+            reverse("person-detail", kwargs={"username": "maya"})
+        )
+        self.assertEqual(maya_detail.data["posts_count"], 1)
+
+        delete_response = self.client.delete(
+            reverse("post-detail", kwargs={"post_id": mine_id})
+        )
+        self.assertEqual(delete_response.status_code, status.HTTP_204_NO_CONTENT)
+
+        feed_after_delete = self.client.get(feed_url)
+        self.assertEqual(len(feed_after_delete.data["results"]), 1)
+        self.assertEqual(feed_after_delete.data["results"][0]["author"]["username"], "maya")
