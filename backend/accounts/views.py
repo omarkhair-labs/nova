@@ -9,7 +9,8 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .models import Comment, Follow, Like, Notification, Post
+from .models import Comment, DevicePushToken, Follow, Like, Notification, Post
+from .push import send_notification_push
 from .serializers import (
     CommentSerializer,
     NotificationSerializer,
@@ -82,7 +83,7 @@ def create_notification(*, recipient, actor, kind, dedupe_key, post=None, commen
     if recipient.pk == actor.pk:
         return None
 
-    notification, _ = Notification.objects.get_or_create(
+    notification, created = Notification.objects.get_or_create(
         dedupe_key=dedupe_key,
         defaults={
             "recipient": recipient,
@@ -92,6 +93,8 @@ def create_notification(*, recipient, actor, kind, dedupe_key, post=None, commen
             "comment": comment,
         },
     )
+    if created:
+        send_notification_push(notification)
     return notification
 
 
@@ -359,7 +362,8 @@ class CommentDetailView(APIView):
             {
                 "post": PostSerializer(
                     refreshed,
-                    context={"request": request},
+                    context={"request": request,
+                    },
                 ).data
             }
         )
@@ -423,3 +427,63 @@ class NotificationsReadView(APIView):
                 "unread_count": 0,
             }
         )
+
+
+class DevicePushTokenView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        token = str(request.data.get("token", "")).strip()
+        platform = str(request.data.get("platform", "android")).strip().lower() or "android"
+
+        if len(token) < 20 or len(token) > 512:
+            return Response(
+                {"detail": "A valid push token is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if platform not in {"android"}:
+            return Response(
+                {"detail": "Unsupported push platform."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        device, created = DevicePushToken.objects.get_or_create(
+            token=token,
+            defaults={
+                "user": request.user,
+                "platform": platform,
+                "active": True,
+            },
+        )
+        if not created:
+            changed = False
+            if device.user_id != request.user.pk:
+                device.user = request.user
+                changed = True
+            if device.platform != platform:
+                device.platform = platform
+                changed = True
+            if not device.active:
+                device.active = True
+                changed = True
+            if changed:
+                device.save(update_fields=("user", "platform", "active", "updated_at"))
+
+        return Response(
+            {"registered": True},
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+    def delete(self, request):
+        token = str(request.data.get("token", "")).strip()
+        if not token:
+            return Response(
+                {"detail": "Push token is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        deleted, _ = DevicePushToken.objects.filter(
+            user=request.user,
+            token=token,
+        ).delete()
+        return Response({"removed": bool(deleted)})
