@@ -37,7 +37,10 @@ fun ProfileScreen(
     username: String,
     email: String,
     avatarUrl: String,
+    followersCount: Int,
+    followingCount: Int,
     onHomeClick: () -> Unit,
+    onPeopleClick: () -> Unit,
     onEditProfile: () -> Unit,
     onLogout: () -> Unit,
 ) {
@@ -47,6 +50,7 @@ fun ProfileScreen(
             NovaBottomBar(
                 selected = NovaTab.Profile,
                 onHomeClick = onHomeClick,
+                onPeopleClick = onPeopleClick,
                 onProfileClick = {},
             )
         },
@@ -124,8 +128,8 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.SpaceEvenly,
                 ) {
                     ProfileStat(value = "0", label = "posts")
-                    ProfileStat(value = "0", label = "people")
-                    ProfileStat(value = "0", label = "following")
+                    ProfileStat(value = followersCount.toString(), label = "followers")
+                    ProfileStat(value = followingCount.toString(), label = "following")
                 }
             }
 
@@ -139,14 +143,18 @@ fun ProfileScreen(
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text(
-                        text = "Your profile is yours now",
+                        text = if (followingCount > 0) "Your circle is starting" else "Find your first people",
                         color = NovaInk,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "Your name, username and photo are saved to your real Nova account.",
+                        text = if (followingCount > 0) {
+                            "You're following $followingCount ${if (followingCount == 1) "person" else "people"}."
+                        } else {
+                            "Open People and follow accounts you actually want around."
+                        },
                         color = NovaMuted,
                         fontSize = 13.sp,
                         lineHeight = 19.sp,
