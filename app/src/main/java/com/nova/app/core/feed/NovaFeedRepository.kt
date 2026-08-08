@@ -24,16 +24,24 @@ class NovaFeedRepository(
     private val feedCache = NovaFeedCache(appContext)
 
     suspend fun feed(cursor: String? = null): ApiResult<NovaPostPage> {
+        val cachedUserId = sessionStore.load()?.cachedUser?.id?.takeIf { it > 0L }
         val result = authenticatedCall { accessToken ->
             api.feed(accessToken, cursor)
         }
 
-        if (cursor.isNullOrBlank() && result is ApiResult.Success) {
-            sessionStore.load()
-                ?.cachedUser
-                ?.id
-                ?.takeIf { it > 0L }
-                ?.let { userId -> feedCache.save(userId, result.value) }
+        if (cursor.isNullOrBlank()) {
+            when (result) {
+                is ApiResult.Success -> {
+                    cachedUserId?.let { userId -> feedCache.save(userId, result.value) }
+                }
+
+                is ApiResult.Failure -> {
+                    if (result.statusCode != 401) {
+                        val cached = cachedUserId?.let(feedCache::load)
+                        if (cached != null) return ApiResult.Success(cached)
+                    }
+                }
+            }
         }
 
         return result
