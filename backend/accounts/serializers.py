@@ -3,12 +3,26 @@ from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
+from .models import Follow
+
 User = get_user_model()
 
 
-class UserSerializer(serializers.ModelSerializer):
+class AvatarUrlMixin:
+    def get_avatar_url(self, obj):
+        if not obj.avatar:
+            return ""
+
+        request = self.context.get("request")
+        url = obj.avatar.url
+        return request.build_absolute_uri(url) if request else url
+
+
+class UserSerializer(AvatarUrlMixin, serializers.ModelSerializer):
     avatar_url = serializers.SerializerMethodField()
     avatar = serializers.ImageField(write_only=True, required=False)
+    followers_count = serializers.SerializerMethodField()
+    following_count = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -19,17 +33,24 @@ class UserSerializer(serializers.ModelSerializer):
             "name",
             "avatar_url",
             "avatar",
+            "followers_count",
+            "following_count",
             "date_joined",
         )
-        read_only_fields = ("id", "email", "avatar_url", "date_joined")
+        read_only_fields = (
+            "id",
+            "email",
+            "avatar_url",
+            "followers_count",
+            "following_count",
+            "date_joined",
+        )
 
-    def get_avatar_url(self, obj):
-        if not obj.avatar:
-            return ""
+    def get_followers_count(self, obj):
+        return obj.follower_relationships.count()
 
-        request = self.context.get("request")
-        url = obj.avatar.url
-        return request.build_absolute_uri(url) if request else url
+    def get_following_count(self, obj):
+        return obj.following_relationships.count()
 
     def validate_username(self, value):
         return value.strip().lower()
@@ -38,6 +59,37 @@ class UserSerializer(serializers.ModelSerializer):
         if value.size > 5 * 1024 * 1024:
             raise serializers.ValidationError("Profile photo must be 5 MB or smaller.")
         return value
+
+
+class PersonSerializer(AvatarUrlMixin, serializers.ModelSerializer):
+    avatar_url = serializers.SerializerMethodField()
+    followers_count = serializers.SerializerMethodField()
+    following_count = serializers.SerializerMethodField()
+    is_following = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "username",
+            "name",
+            "avatar_url",
+            "followers_count",
+            "following_count",
+            "is_following",
+        )
+
+    def get_followers_count(self, obj):
+        return obj.follower_relationships.count()
+
+    def get_following_count(self, obj):
+        return obj.following_relationships.count()
+
+    def get_is_following(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+        return Follow.objects.filter(follower=request.user, following=obj).exists()
 
 
 class RegisterSerializer(serializers.ModelSerializer):
