@@ -90,7 +90,7 @@ class NovaApiClient(
         return when (
             val response = requestMultipart(
                 path = "me/",
-                method = "PATCH",
+                method = "PUT",
                 fields = mapOf(
                     "name" to name,
                     "username" to username,
