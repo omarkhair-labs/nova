@@ -21,6 +21,7 @@ __pycache__/
 .venv/
 venv/
 .pytest_cache/
+backend/media/
 
 # Local secrets
 .env
