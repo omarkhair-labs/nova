@@ -2,11 +2,14 @@ import base64
 import shutil
 import tempfile
 
+from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
+
+from .models import Post
 
 
 class AuthFlowTests(APITestCase):
@@ -200,6 +203,7 @@ class AuthFlowTests(APITestCase):
         self.assertEqual(feed_before_follow.status_code, status.HTTP_200_OK)
         self.assertEqual(len(feed_before_follow.data["results"]), 1)
         self.assertEqual(feed_before_follow.data["results"][0]["id"], mine_id)
+        self.assertIsNone(feed_before_follow.data["next_cursor"])
 
         self.client.post(
             reverse("person-follow", kwargs={"username": "maya"}),
@@ -338,3 +342,48 @@ class AuthFlowTests(APITestCase):
         )
         self.assertEqual(commented.status_code, status.HTTP_201_CREATED)
         self.assertEqual(commented.data["post"]["comments_count"], 1)
+
+    def test_feed_cursor_pagination_has_no_duplicates(self):
+        me = self.register(self.payload)
+        self.assertEqual(me.status_code, status.HTTP_201_CREATED)
+        user = get_user_model().objects.get(email=self.payload["email"])
+
+        Post.objects.bulk_create(
+            [
+                Post(
+                    author=user,
+                    image=f"posts/test-{index}.png",
+                    caption=f"Moment {index}",
+                )
+                for index in range(45)
+            ]
+        )
+
+        self.authenticate(me.data["access"])
+        feed_url = reverse("feed")
+
+        first = self.client.get(feed_url)
+        self.assertEqual(first.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(first.data["results"]), 20)
+        self.assertIsNotNone(first.data["next_cursor"])
+
+        second = self.client.get(feed_url, {"cursor": first.data["next_cursor"]})
+        self.assertEqual(second.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(second.data["results"]), 20)
+        self.assertIsNotNone(second.data["next_cursor"])
+
+        third = self.client.get(feed_url, {"cursor": second.data["next_cursor"]})
+        self.assertEqual(third.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(third.data["results"]), 5)
+        self.assertIsNone(third.data["next_cursor"])
+
+        ids = [
+            post["id"]
+            for page in (first, second, third)
+            for post in page.data["results"]
+        ]
+        self.assertEqual(len(ids), 45)
+        self.assertEqual(len(set(ids)), 45)
+
+        invalid = self.client.get(feed_url, {"cursor": "not-a-number"})
+        self.assertEqual(invalid.status_code, status.HTTP_400_BAD_REQUEST)
