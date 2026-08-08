@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,6 +39,8 @@ import com.nova.app.ui.theme.NovaMuted
 @Composable
 fun ProfileSetupScreen(
     email: String,
+    isLoading: Boolean,
+    errorMessage: String?,
     onBack: () -> Unit,
     onFinish: (String, String) -> Unit,
 ) {
@@ -114,6 +117,17 @@ fun ProfileSetupScreen(
 
         Spacer(modifier = Modifier.height(10.dp))
 
+        if (!errorMessage.isNullOrBlank()) {
+            Text(
+                text = errorMessage,
+                color = MaterialTheme.colorScheme.error,
+                fontSize = 13.sp,
+                lineHeight = 19.sp,
+                fontWeight = FontWeight.Medium,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
         Text(
             text = if (email.isBlank()) "You can change these later." else "Account: $email",
             color = NovaMuted,
@@ -124,9 +138,9 @@ fun ProfileSetupScreen(
         Spacer(modifier = Modifier.weight(1f))
 
         NovaPrimaryButton(
-            text = "Enter Nova",
+            text = if (isLoading) "Creating account…" else "Enter Nova",
             onClick = { onFinish(name.trim(), username.trim()) },
-            enabled = name.trim().length >= 2 && username.trim().length >= 3,
+            enabled = !isLoading && name.trim().length >= 2 && username.trim().length >= 3,
         )
     }
 }
