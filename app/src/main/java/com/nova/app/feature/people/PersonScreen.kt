@@ -136,7 +136,7 @@ fun PersonScreen(
                     ) {
                         SocialStat(person.followersCount.toString(), "followers")
                         SocialStat(person.followingCount.toString(), "following")
-                        SocialStat("0", "posts")
+                        SocialStat(person.postsCount.toString(), "posts")
                     }
                 }
 
@@ -190,7 +190,7 @@ fun PersonScreen(
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = if (person.isFollowing) {
-                                "You'll start seeing more of this person as Nova's feed comes online."
+                                "New posts from this person can now appear in your Home feed."
                             } else {
                                 "Follow people you actually want in your space."
                             },
