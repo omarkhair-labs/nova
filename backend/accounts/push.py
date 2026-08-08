@@ -60,13 +60,17 @@ def send_notification_push(notification):
         logger.exception("Firebase messaging is unavailable.")
         return 0
 
-    tokens = list(
+    # The database field is still named `token` for compatibility with the
+    # first push migration, but Nova stores Firebase Installation IDs (FIDs)
+    # here. FCM direct-send registration tokens are deprecated in the current
+    # Firebase SDKs, while FID targeting is the recommended path.
+    fids = list(
         DevicePushToken.objects.filter(
             user=notification.recipient,
             active=True,
         ).values_list("token", flat=True)
     )
-    if not tokens:
+    if not fids:
         return 0
 
     title, body = _title_and_body(notification)
@@ -78,9 +82,9 @@ def send_notification_push(notification):
     }
 
     sent = 0
-    for token in tokens:
+    for fid in fids:
         message = messaging.Message(
-            token=token,
+            fid=fid,
             notification=messaging.Notification(title=title, body=body),
             data=data,
             android=messaging.AndroidConfig(
@@ -95,7 +99,7 @@ def send_notification_push(notification):
             messaging.send(message, app=app)
             sent += 1
         except messaging.UnregisteredError:
-            DevicePushToken.objects.filter(token=token).update(active=False)
+            DevicePushToken.objects.filter(token=fid).update(active=False)
         except Exception:
             logger.exception("Nova failed to send an FCM push notification.")
 
