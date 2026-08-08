@@ -9,7 +9,7 @@ import com.nova.app.core.network.NovaPerson
 
 class NovaSocialRepository(
     context: Context,
-    private val api: NovaApiClient = NovaApiClient(),
+    private val api: NovaApiClient = NovaApiClient("https://nova-production-4f6b.up.railway.app/api/v1/"),
 ) {
     private val sessionStore = NovaSessionStore(context.applicationContext)
 
