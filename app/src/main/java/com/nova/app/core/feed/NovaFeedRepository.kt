@@ -27,6 +27,18 @@ class NovaFeedRepository(
         }
     }
 
+    suspend fun personPosts(username: String): ApiResult<List<NovaPost>> {
+        return authenticatedCall { accessToken ->
+            api.personPosts(accessToken, username)
+        }
+    }
+
+    suspend fun post(postId: Long): ApiResult<NovaPost> {
+        return authenticatedCall { accessToken ->
+            api.post(accessToken, postId)
+        }
+    }
+
     suspend fun createPost(
         caption: String,
         imageUri: Uri,
