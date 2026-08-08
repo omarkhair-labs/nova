@@ -3,6 +3,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
     CommentDetailView,
+    DevicePushTokenView,
     FeedView,
     FollowView,
     MeView,
@@ -36,4 +37,5 @@ urlpatterns = [
     path("feed/", FeedView.as_view(), name="feed"),
     path("notifications/", NotificationsView.as_view(), name="notifications"),
     path("notifications/read/", NotificationsReadView.as_view(), name="notifications-read"),
+    path("push/devices/", DevicePushTokenView.as_view(), name="push-devices"),
 ]
