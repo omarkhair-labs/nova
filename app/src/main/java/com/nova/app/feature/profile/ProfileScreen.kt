@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -21,8 +23,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nova.app.core.network.NovaPost
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
+import com.nova.app.ui.components.NovaProfilePostsGrid
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.components.NovaTab
 import com.nova.app.ui.theme.NovaBackground
@@ -40,6 +44,11 @@ fun ProfileScreen(
     postsCount: Int,
     followersCount: Int,
     followingCount: Int,
+    profilePosts: List<NovaPost>,
+    postsLoading: Boolean,
+    postsError: String?,
+    onRetryPosts: () -> Unit,
+    onPostClick: (NovaPost) -> Unit,
     onHomeClick: () -> Unit,
     onPeopleClick: () -> Unit,
     onEditProfile: () -> Unit,
@@ -62,6 +71,7 @@ fun ProfileScreen(
                 .background(NovaBackground)
                 .padding(innerPadding)
                 .statusBarsPadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 18.dp),
         ) {
             Text(
@@ -134,45 +144,26 @@ fun ProfileScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(22.dp))
 
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                color = NovaSurface,
-                border = BorderStroke(1.dp, NovaBorder),
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        text = when {
-                            postsCount > 0 -> "Your Nova is taking shape"
-                            followingCount > 0 -> "Your circle is starting"
-                            else -> "Find your first people"
-                        },
-                        color = NovaInk,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = when {
-                            postsCount > 0 -> "You've shared $postsCount ${if (postsCount == 1) "post" else "posts"} from this account."
-                            followingCount > 0 -> "You're following $followingCount ${if (followingCount == 1) "person" else "people"}."
-                            else -> "Open People and follow accounts you actually want around."
-                        },
-                        color = NovaMuted,
-                        fontSize = 13.sp,
-                        lineHeight = 19.sp,
-                    )
-                }
-            }
+            NovaProfilePostsGrid(
+                posts = profilePosts,
+                isLoading = postsLoading,
+                errorMessage = postsError,
+                onRetry = onRetryPosts,
+                onPostClick = onPostClick,
+                emptyTitle = "Share your first moment",
+                emptyMessage = "Your posts will build a visual history here.",
+            )
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(28.dp))
 
             NovaSecondaryButton(
                 text = "Log out",
                 onClick = onLogout,
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }

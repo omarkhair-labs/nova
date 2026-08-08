@@ -198,6 +198,21 @@ class NovaApiClient(
         }
     }
 
+    suspend fun personPosts(
+        accessToken: String,
+        username: String,
+    ): ApiResult<List<NovaPost>> {
+        return when (
+            val response = requestJson(
+                path = "people/${encode(username.trim().lowercase())}/posts/",
+                bearerToken = accessToken,
+            )
+        ) {
+            is ApiResult.Success -> ApiResult.Success(parsePosts(response.value))
+            is ApiResult.Failure -> response
+        }
+    }
+
     suspend fun setFollowing(
         accessToken: String,
         username: String,
@@ -218,16 +233,22 @@ class NovaApiClient(
 
     suspend fun feed(accessToken: String): ApiResult<List<NovaPost>> {
         return when (val response = requestJson("feed/", bearerToken = accessToken)) {
-            is ApiResult.Success -> {
-                val array = response.value.optJSONArray("results") ?: JSONArray()
-                val posts = buildList {
-                    for (index in 0 until array.length()) {
-                        array.optJSONObject(index)?.let { add(parsePost(it)) }
-                    }
-                }
-                ApiResult.Success(posts)
-            }
+            is ApiResult.Success -> ApiResult.Success(parsePosts(response.value))
+            is ApiResult.Failure -> response
+        }
+    }
 
+    suspend fun post(
+        accessToken: String,
+        postId: Long,
+    ): ApiResult<NovaPost> {
+        return when (
+            val response = requestJson(
+                path = "posts/$postId/",
+                bearerToken = accessToken,
+            )
+        ) {
+            is ApiResult.Success -> ApiResult.Success(parsePost(response.value))
             is ApiResult.Failure -> response
         }
     }
@@ -443,6 +464,15 @@ class NovaApiClient(
             name = json.optString("name"),
             avatarUrl = resolveMediaUrl(json.optString("avatar_url")),
         )
+    }
+
+    private fun parsePosts(json: JSONObject): List<NovaPost> {
+        val array = json.optJSONArray("results") ?: JSONArray()
+        return buildList {
+            for (index in 0 until array.length()) {
+                array.optJSONObject(index)?.let { add(parsePost(it)) }
+            }
+        }
     }
 
     private fun parsePost(json: JSONObject): NovaPost {

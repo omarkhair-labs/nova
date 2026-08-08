@@ -40,6 +40,7 @@ import com.nova.app.feature.people.PeopleScreen
 import com.nova.app.feature.people.PersonScreen
 import com.nova.app.feature.post.CreatePostScreen
 import com.nova.app.feature.post.PostCommentsScreen
+import com.nova.app.feature.post.PostDetailScreen
 import com.nova.app.feature.profile.EditProfileScreen
 import com.nova.app.feature.profile.ProfileScreen
 import com.nova.app.feature.welcome.WelcomeScreen
@@ -87,6 +88,7 @@ fun NovaApp() {
     var likingPostId by remember { mutableStateOf<Long?>(null) }
     var postUploading by remember { mutableStateOf(false) }
     var postError by remember { mutableStateOf<String?>(null) }
+    var contentVersion by remember { mutableStateOf(0) }
 
     fun openHome() {
         backStack.clear()
@@ -112,6 +114,7 @@ fun NovaApp() {
         likingPostId = null
         postUploading = false
         postError = null
+        contentVersion += 1
     }
 
     fun resetToWelcome() {
@@ -179,6 +182,7 @@ fun NovaApp() {
                 is ApiResult.Success -> {
                     posts = posts.filterNot { it.id == post.id }
                     deletingPostId = null
+                    contentVersion += 1
                     refreshCurrentUser()
                 }
 
@@ -208,6 +212,7 @@ fun NovaApp() {
                 is ApiResult.Success -> {
                     replacePost(result.value)
                     likingPostId = null
+                    contentVersion += 1
                 }
 
                 is ApiResult.Failure -> {
@@ -483,6 +488,7 @@ fun NovaApp() {
                                                 it.id == result.value.id
                                             }
                                             postUploading = false
+                                            contentVersion += 1
                                             refreshCurrentUser()
                                             backStack.removeLastOrNull()
                                         }
@@ -502,8 +508,137 @@ fun NovaApp() {
                     )
                 }
 
+                is NovaRoute.PostDetail -> NavEntry(route) {
+                    var detailPost by remember(route.postId) { mutableStateOf<NovaPost?>(null) }
+                    var detailLoading by remember(route.postId) { mutableStateOf(true) }
+                    var detailLiking by remember(route.postId) { mutableStateOf(false) }
+                    var detailDeleting by remember(route.postId) { mutableStateOf(false) }
+                    var detailError by remember(route.postId) { mutableStateOf<String?>(null) }
+
+                    fun loadDetail() {
+                        scope.launch {
+                            detailLoading = true
+                            detailError = null
+                            when (val result = feedRepository.post(route.postId)) {
+                                is ApiResult.Success -> {
+                                    detailPost = result.value
+                                    replacePost(result.value)
+                                    detailLoading = false
+                                }
+
+                                is ApiResult.Failure -> {
+                                    detailLoading = false
+                                    if (result.statusCode == 401) {
+                                        expireSession()
+                                    } else {
+                                        detailError = result.message
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    LaunchedEffect(route.postId, contentVersion) {
+                        when (val result = feedRepository.post(route.postId)) {
+                            is ApiResult.Success -> {
+                                detailPost = result.value
+                                replacePost(result.value)
+                                detailLoading = false
+                                detailError = null
+                            }
+
+                            is ApiResult.Failure -> {
+                                detailLoading = false
+                                if (result.statusCode == 401) {
+                                    expireSession()
+                                } else {
+                                    detailError = result.message
+                                }
+                            }
+                        }
+                    }
+
+                    PostDetailScreen(
+                        post = detailPost,
+                        isLoading = detailLoading,
+                        isLiking = detailLiking,
+                        isDeleting = detailDeleting,
+                        errorMessage = detailError,
+                        onBack = { backStack.removeLastOrNull() },
+                        onRetry = ::loadDetail,
+                        onAuthorClick = { username ->
+                            if (username == currentUser?.username) {
+                                backStack.add(NovaRoute.Profile)
+                            } else {
+                                backStack.add(NovaRoute.Person(username))
+                            }
+                        },
+                        onLikeToggle = { selectedPost ->
+                            if (!detailLiking) {
+                                scope.launch {
+                                    detailLiking = true
+                                    detailError = null
+                                    when (
+                                        val result = feedRepository.setLiked(
+                                            postId = selectedPost.id,
+                                            liked = !selectedPost.isLiked,
+                                        )
+                                    ) {
+                                        is ApiResult.Success -> {
+                                            detailPost = result.value
+                                            replacePost(result.value)
+                                            detailLiking = false
+                                            contentVersion += 1
+                                        }
+
+                                        is ApiResult.Failure -> {
+                                            detailLiking = false
+                                            if (result.statusCode == 401) {
+                                                expireSession()
+                                            } else {
+                                                detailError = result.message
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        onCommentsClick = { selectedPost ->
+                            backStack.add(NovaRoute.PostComments(selectedPost.id))
+                        },
+                        onDelete = { selectedPost ->
+                            if (!detailDeleting && selectedPost.isMine) {
+                                scope.launch {
+                                    detailDeleting = true
+                                    detailError = null
+                                    when (val result = feedRepository.deletePost(selectedPost.id)) {
+                                        is ApiResult.Success -> {
+                                            posts = posts.filterNot { it.id == selectedPost.id }
+                                            detailDeleting = false
+                                            contentVersion += 1
+                                            refreshCurrentUser()
+                                            backStack.removeLastOrNull()
+                                        }
+
+                                        is ApiResult.Failure -> {
+                                            detailDeleting = false
+                                            if (result.statusCode == 401) {
+                                                expireSession()
+                                            } else {
+                                                detailError = result.message
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                    )
+                }
+
                 is NovaRoute.PostComments -> NavEntry(route) {
-                    val post = posts.firstOrNull { it.id == route.postId }
+                    var commentPost by remember(route.postId) {
+                        mutableStateOf(posts.firstOrNull { it.id == route.postId })
+                    }
                     var comments by remember(route.postId) {
                         mutableStateOf<List<NovaComment>>(emptyList())
                     }
@@ -513,10 +648,26 @@ fun NovaApp() {
                     var commentsError by remember(route.postId) { mutableStateOf<String?>(null) }
 
                     fun loadComments() {
-                        if (commentsLoading && comments.isNotEmpty()) return
                         scope.launch {
                             commentsLoading = true
                             commentsError = null
+
+                            when (val postResult = feedRepository.post(route.postId)) {
+                                is ApiResult.Success -> {
+                                    commentPost = postResult.value
+                                    replacePost(postResult.value)
+                                }
+
+                                is ApiResult.Failure -> {
+                                    if (postResult.statusCode == 401) {
+                                        expireSession()
+                                        return@launch
+                                    } else {
+                                        commentsError = postResult.message
+                                    }
+                                }
+                            }
+
                             when (val result = feedRepository.comments(route.postId)) {
                                 is ApiResult.Success -> {
                                     comments = result.value
@@ -536,27 +687,11 @@ fun NovaApp() {
                     }
 
                     LaunchedEffect(route.postId) {
-                        commentsLoading = true
-                        commentsError = null
-                        when (val result = feedRepository.comments(route.postId)) {
-                            is ApiResult.Success -> {
-                                comments = result.value
-                                commentsLoading = false
-                            }
-
-                            is ApiResult.Failure -> {
-                                commentsLoading = false
-                                if (result.statusCode == 401) {
-                                    expireSession()
-                                } else {
-                                    commentsError = result.message
-                                }
-                            }
-                        }
+                        loadComments()
                     }
 
                     PostCommentsScreen(
-                        post = post,
+                        post = commentPost,
                         comments = comments,
                         isLoading = commentsLoading,
                         isSending = commentSending,
@@ -577,8 +712,10 @@ fun NovaApp() {
                                     ) {
                                         is ApiResult.Success -> {
                                             comments = comments + result.value.comment
+                                            commentPost = result.value.post
                                             replacePost(result.value.post)
                                             commentSending = false
+                                            contentVersion += 1
                                         }
 
                                         is ApiResult.Failure -> {
@@ -601,8 +738,10 @@ fun NovaApp() {
                                     when (val result = feedRepository.deleteComment(comment.id)) {
                                         is ApiResult.Success -> {
                                             comments = comments.filterNot { it.id == comment.id }
+                                            commentPost = result.value
                                             replacePost(result.value)
                                             deletingCommentId = null
+                                            contentVersion += 1
                                         }
 
                                         is ApiResult.Failure -> {
@@ -647,6 +786,31 @@ fun NovaApp() {
                     var person by remember(route.username) { mutableStateOf<NovaPerson?>(null) }
                     var personLoading by remember(route.username) { mutableStateOf(true) }
                     var personError by remember(route.username) { mutableStateOf<String?>(null) }
+                    var profilePosts by remember(route.username) { mutableStateOf<List<NovaPost>>(emptyList()) }
+                    var profilePostsLoading by remember(route.username) { mutableStateOf(true) }
+                    var profilePostsError by remember(route.username) { mutableStateOf<String?>(null) }
+
+                    fun loadPersonPosts() {
+                        scope.launch {
+                            profilePostsLoading = true
+                            profilePostsError = null
+                            when (val result = feedRepository.personPosts(route.username)) {
+                                is ApiResult.Success -> {
+                                    profilePosts = result.value
+                                    profilePostsLoading = false
+                                }
+
+                                is ApiResult.Failure -> {
+                                    profilePostsLoading = false
+                                    if (result.statusCode == 401) {
+                                        expireSession()
+                                    } else {
+                                        profilePostsError = result.message
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     LaunchedEffect(route.username) {
                         personLoading = true
@@ -664,10 +828,37 @@ fun NovaApp() {
                         personLoading = false
                     }
 
+                    LaunchedEffect(route.username, contentVersion) {
+                        profilePostsLoading = true
+                        profilePostsError = null
+                        when (val result = feedRepository.personPosts(route.username)) {
+                            is ApiResult.Success -> {
+                                profilePosts = result.value
+                                profilePostsLoading = false
+                            }
+
+                            is ApiResult.Failure -> {
+                                profilePostsLoading = false
+                                if (result.statusCode == 401) {
+                                    expireSession()
+                                } else {
+                                    profilePostsError = result.message
+                                }
+                            }
+                        }
+                    }
+
                     PersonScreen(
                         person = person,
                         isLoading = personLoading,
                         errorMessage = personError,
+                        profilePosts = profilePosts,
+                        postsLoading = profilePostsLoading,
+                        postsError = profilePostsError,
+                        onRetryPosts = ::loadPersonPosts,
+                        onPostClick = { post ->
+                            backStack.add(NovaRoute.PostDetail(post.id))
+                        },
                         onBack = { backStack.removeLastOrNull() },
                         onFollowToggle = { selectedPerson ->
                             if (!personLoading) {
@@ -706,6 +897,56 @@ fun NovaApp() {
 
                 NovaRoute.Profile -> NavEntry(route) {
                     val user = currentUser
+                    val profileUsername = user?.username.orEmpty()
+                    var profilePosts by remember(profileUsername) { mutableStateOf<List<NovaPost>>(emptyList()) }
+                    var profilePostsLoading by remember(profileUsername) { mutableStateOf(true) }
+                    var profilePostsError by remember(profileUsername) { mutableStateOf<String?>(null) }
+
+                    fun loadProfilePosts() {
+                        if (profileUsername.isBlank()) return
+                        scope.launch {
+                            profilePostsLoading = true
+                            profilePostsError = null
+                            when (val result = feedRepository.personPosts(profileUsername)) {
+                                is ApiResult.Success -> {
+                                    profilePosts = result.value
+                                    profilePostsLoading = false
+                                }
+
+                                is ApiResult.Failure -> {
+                                    profilePostsLoading = false
+                                    if (result.statusCode == 401) {
+                                        expireSession()
+                                    } else {
+                                        profilePostsError = result.message
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    LaunchedEffect(profileUsername, contentVersion) {
+                        if (profileUsername.isNotBlank()) {
+                            profilePostsLoading = true
+                            profilePostsError = null
+                            when (val result = feedRepository.personPosts(profileUsername)) {
+                                is ApiResult.Success -> {
+                                    profilePosts = result.value
+                                    profilePostsLoading = false
+                                }
+
+                                is ApiResult.Failure -> {
+                                    profilePostsLoading = false
+                                    if (result.statusCode == 401) {
+                                        expireSession()
+                                    } else {
+                                        profilePostsError = result.message
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     ProfileScreen(
                         displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
                         username = user?.username ?: "nova",
@@ -714,6 +955,13 @@ fun NovaApp() {
                         postsCount = user?.postsCount ?: 0,
                         followersCount = user?.followersCount ?: 0,
                         followingCount = user?.followingCount ?: 0,
+                        profilePosts = profilePosts,
+                        postsLoading = profilePostsLoading,
+                        postsError = profilePostsError,
+                        onRetryPosts = ::loadProfilePosts,
+                        onPostClick = { post ->
+                            backStack.add(NovaRoute.PostDetail(post.id))
+                        },
                         onHomeClick = ::openHome,
                         onPeopleClick = { backStack.add(NovaRoute.People) },
                         onEditProfile = {
@@ -754,6 +1002,7 @@ fun NovaApp() {
                                         is ApiResult.Success -> {
                                             currentUser = result.value
                                             authLoading = false
+                                            contentVersion += 1
                                             backStack.removeLastOrNull()
                                         }
 

@@ -31,12 +31,16 @@ def post_queryset(request):
     )
 
 
+def public_post_queryset(request):
+    return post_queryset(request).filter(author__is_active=True)
+
+
 def visible_post_queryset(request):
     followed_ids = Follow.objects.filter(follower=request.user).values_list(
         "following_id",
         flat=True,
     )
-    return post_queryset(request).filter(
+    return public_post_queryset(request).filter(
         Q(author=request.user) | Q(author_id__in=followed_ids)
     )
 
@@ -108,6 +112,29 @@ class PersonView(APIView):
         )
 
 
+class PersonPostsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, username):
+        person = get_object_or_404(
+            User.objects.filter(is_active=True),
+            username=username.lower(),
+        )
+        posts = public_post_queryset(request).filter(author=person).order_by(
+            "-created_at",
+            "-id",
+        )[:50]
+        return Response(
+            {
+                "results": PostSerializer(
+                    posts,
+                    many=True,
+                    context={"request": request},
+                ).data
+            }
+        )
+
+
 class FollowView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -172,7 +199,7 @@ class PostDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, post_id):
-        post = get_object_or_404(visible_post_queryset(request), pk=post_id)
+        post = get_object_or_404(public_post_queryset(request), pk=post_id)
         return Response(PostSerializer(post, context={"request": request}).data)
 
     def delete(self, request, post_id):
@@ -185,7 +212,7 @@ class PostLikeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def _post(self, request, post_id):
-        return get_object_or_404(visible_post_queryset(request), pk=post_id)
+        return get_object_or_404(public_post_queryset(request), pk=post_id)
 
     def post(self, request, post_id):
         post = self._post(request, post_id)
@@ -204,7 +231,7 @@ class PostCommentsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def _post(self, request, post_id):
-        return get_object_or_404(visible_post_queryset(request), pk=post_id)
+        return get_object_or_404(public_post_queryset(request), pk=post_id)
 
     def get(self, request, post_id):
         post = self._post(request, post_id)
