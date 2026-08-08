@@ -292,3 +292,49 @@ class AuthFlowTests(APITestCase):
         self.assertEqual(target["likes_count"], 0)
         self.assertEqual(target["comments_count"], 0)
         self.assertFalse(target["is_liked"])
+
+    def test_profile_gallery_is_visible_before_following(self):
+        me = self.register(self.payload)
+        maya = self.register(
+            {
+                "email": "maya@example.com",
+                "password": "StrongNovaPass2026!",
+                "username": "maya",
+                "name": "Maya Noor",
+            }
+        )
+
+        self.authenticate(maya.data["access"])
+        maya_post = self.client.post(
+            reverse("posts"),
+            {"caption": "Public profile moment", "image": self.image("maya-profile.png")},
+            format="multipart",
+        )
+        post_id = maya_post.data["id"]
+
+        self.authenticate(me.data["access"])
+        gallery = self.client.get(reverse("person-posts", kwargs={"username": "maya"}))
+        self.assertEqual(gallery.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(gallery.data["results"]), 1)
+        self.assertEqual(gallery.data["results"][0]["id"], post_id)
+        self.assertFalse(gallery.data["results"][0]["is_mine"])
+
+        detail = self.client.get(reverse("post-detail", kwargs={"post_id": post_id}))
+        self.assertEqual(detail.status_code, status.HTTP_200_OK)
+        self.assertEqual(detail.data["author"]["username"], "maya")
+
+        liked = self.client.post(
+            reverse("post-like", kwargs={"post_id": post_id}),
+            {},
+            format="json",
+        )
+        self.assertEqual(liked.status_code, status.HTTP_200_OK)
+        self.assertTrue(liked.data["is_liked"])
+
+        commented = self.client.post(
+            reverse("post-comments", kwargs={"post_id": post_id}),
+            {"body": "Saw this from your profile."},
+            format="json",
+        )
+        self.assertEqual(commented.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(commented.data["post"]["comments_count"], 1)
