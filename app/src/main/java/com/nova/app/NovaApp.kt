@@ -1,13 +1,32 @@
 package com.nova.app
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
+import com.nova.app.core.auth.NovaAuthRepository
+import com.nova.app.core.network.ApiResult
+import com.nova.app.core.network.NovaUser
 import com.nova.app.feature.auth.CreateAccountScreen
 import com.nova.app.feature.auth.LoginScreen
 import com.nova.app.feature.home.HomeScreen
@@ -15,26 +34,68 @@ import com.nova.app.feature.onboarding.ProfileSetupScreen
 import com.nova.app.feature.profile.ProfileScreen
 import com.nova.app.feature.welcome.WelcomeScreen
 import com.nova.app.navigation.NovaRoute
+import com.nova.app.ui.theme.NovaAccent
+import com.nova.app.ui.theme.NovaBackground
+import com.nova.app.ui.theme.NovaInk
+import com.nova.app.ui.theme.NovaMuted
+import kotlinx.coroutines.launch
 
 @Composable
 fun NovaApp() {
+    val context = LocalContext.current
+    val authRepository = remember(context) {
+        NovaAuthRepository(context.applicationContext)
+    }
+    val scope = rememberCoroutineScope()
+
     val backStack = remember {
         mutableStateListOf<NovaRoute>(NovaRoute.Welcome)
     }
 
-    var accountEmail by remember { mutableStateOf("") }
-    var displayName by remember { mutableStateOf("Nova user") }
-    var username by remember { mutableStateOf("nova") }
+    var currentUser by remember { mutableStateOf<NovaUser?>(null) }
+    var pendingEmail by remember { mutableStateOf("") }
+    var pendingPassword by remember { mutableStateOf("") }
+    var authLoading by remember { mutableStateOf(false) }
+    var authError by remember { mutableStateOf<String?>(null) }
+    var isBootstrapping by remember { mutableStateOf(true) }
 
     fun openHome() {
         backStack.clear()
         backStack.add(NovaRoute.Home)
     }
 
+    fun resetToWelcome() {
+        backStack.clear()
+        backStack.add(NovaRoute.Welcome)
+    }
+
+    LaunchedEffect(Unit) {
+        when (val restored = authRepository.restoreSession()) {
+            is ApiResult.Success -> {
+                currentUser = restored.value
+                if (restored.value != null) {
+                    openHome()
+                } else {
+                    resetToWelcome()
+                }
+            }
+
+            is ApiResult.Failure -> {
+                resetToWelcome()
+            }
+        }
+        isBootstrapping = false
+    }
+
+    if (isBootstrapping) {
+        NovaStartupScreen()
+        return
+    }
+
     NavDisplay(
         backStack = backStack,
         onBack = {
-            if (backStack.size > 1) {
+            if (!authLoading && backStack.size > 1) {
                 backStack.removeLastOrNull()
             }
         },
@@ -42,16 +103,24 @@ fun NovaApp() {
             when (route) {
                 NovaRoute.Welcome -> NavEntry(route) {
                     WelcomeScreen(
-                        onCreateAccount = { backStack.add(NovaRoute.CreateAccount) },
-                        onLogin = { backStack.add(NovaRoute.Login) },
+                        onCreateAccount = {
+                            authError = null
+                            backStack.add(NovaRoute.CreateAccount)
+                        },
+                        onLogin = {
+                            authError = null
+                            backStack.add(NovaRoute.Login)
+                        },
                     )
                 }
 
                 NovaRoute.CreateAccount -> NavEntry(route) {
                     CreateAccountScreen(
                         onBack = { backStack.removeLastOrNull() },
-                        onContinue = { email ->
-                            accountEmail = email
+                        onContinue = { email, password ->
+                            pendingEmail = email.trim().lowercase()
+                            pendingPassword = password
+                            authError = null
                             backStack.add(NovaRoute.ProfileSetup)
                         },
                     )
@@ -59,52 +128,135 @@ fun NovaApp() {
 
                 NovaRoute.Login -> NavEntry(route) {
                     LoginScreen(
-                        onBack = { backStack.removeLastOrNull() },
-                        onLogin = { email ->
-                            accountEmail = email
-                            displayName = email.substringBefore('@').ifBlank { "Nova user" }
-                            username = displayName.lowercase().replace(" ", "")
-                            openHome()
+                        isLoading = authLoading,
+                        errorMessage = authError,
+                        onBack = {
+                            if (!authLoading) {
+                                authError = null
+                                backStack.removeLastOrNull()
+                            }
+                        },
+                        onLogin = { email, password ->
+                            if (!authLoading) {
+                                scope.launch {
+                                    authLoading = true
+                                    authError = null
+
+                                    when (val result = authRepository.login(email, password)) {
+                                        is ApiResult.Success -> {
+                                            currentUser = result.value
+                                            authLoading = false
+                                            openHome()
+                                        }
+
+                                        is ApiResult.Failure -> {
+                                            authError = result.message
+                                            authLoading = false
+                                        }
+                                    }
+                                }
+                            }
                         },
                     )
                 }
 
                 NovaRoute.ProfileSetup -> NavEntry(route) {
                     ProfileSetupScreen(
-                        email = accountEmail,
-                        onBack = { backStack.removeLastOrNull() },
+                        email = pendingEmail,
+                        isLoading = authLoading,
+                        errorMessage = authError,
+                        onBack = {
+                            if (!authLoading) {
+                                authError = null
+                                backStack.removeLastOrNull()
+                            }
+                        },
                         onFinish = { name, handle ->
-                            displayName = name
-                            username = handle
-                            openHome()
+                            if (!authLoading) {
+                                scope.launch {
+                                    authLoading = true
+                                    authError = null
+
+                                    when (
+                                        val result = authRepository.register(
+                                            email = pendingEmail,
+                                            password = pendingPassword,
+                                            username = handle,
+                                            name = name,
+                                        )
+                                    ) {
+                                        is ApiResult.Success -> {
+                                            currentUser = result.value
+                                            pendingPassword = ""
+                                            authLoading = false
+                                            openHome()
+                                        }
+
+                                        is ApiResult.Failure -> {
+                                            authError = result.message
+                                            authLoading = false
+                                        }
+                                    }
+                                }
+                            }
                         },
                     )
                 }
 
                 NovaRoute.Home -> NavEntry(route) {
+                    val user = currentUser
                     HomeScreen(
-                        displayName = displayName,
-                        username = username,
+                        displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
+                        username = user?.username ?: "nova",
                         onProfileClick = { backStack.add(NovaRoute.Profile) },
                     )
                 }
 
                 NovaRoute.Profile -> NavEntry(route) {
+                    val user = currentUser
                     ProfileScreen(
-                        displayName = displayName,
-                        username = username,
-                        email = accountEmail,
+                        displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
+                        username = user?.username ?: "nova",
+                        email = user?.email.orEmpty(),
                         onHomeClick = { backStack.removeLastOrNull() },
                         onLogout = {
-                            accountEmail = ""
-                            displayName = "Nova user"
-                            username = "nova"
-                            backStack.clear()
-                            backStack.add(NovaRoute.Welcome)
+                            authRepository.logout()
+                            currentUser = null
+                            pendingEmail = ""
+                            pendingPassword = ""
+                            authError = null
+                            resetToWelcome()
                         },
                     )
                 }
             }
         },
     )
+}
+
+@Composable
+private fun NovaStartupScreen() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(NovaBackground),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = "N",
+                color = NovaAccent,
+                fontSize = 48.sp,
+                fontWeight = FontWeight.Black,
+            )
+            Spacer(modifier = Modifier.height(18.dp))
+            CircularProgressIndicator(color = NovaAccent)
+            Spacer(modifier = Modifier.height(14.dp))
+            Text(
+                text = "Opening your space…",
+                color = NovaMuted,
+                fontSize = 13.sp,
+            )
+        }
+    }
 }
