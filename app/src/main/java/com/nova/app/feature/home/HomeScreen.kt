@@ -11,7 +11,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -21,8 +24,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nova.app.core.network.NovaPost
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
+import com.nova.app.ui.components.NovaPrimaryButton
+import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.components.NovaTab
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
@@ -32,11 +38,20 @@ import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
 
+
 @Composable
 fun HomeScreen(
     displayName: String,
     username: String,
     avatarUrl: String,
+    posts: List<NovaPost>,
+    isLoading: Boolean,
+    errorMessage: String?,
+    deletingPostId: Long?,
+    onCreatePost: () -> Unit,
+    onRetry: () -> Unit,
+    onDeletePost: (NovaPost) -> Unit,
+    onPersonClick: (String) -> Unit,
     onPeopleClick: () -> Unit,
     onProfileClick: () -> Unit,
 ) {
@@ -51,130 +66,222 @@ fun HomeScreen(
             )
         },
     ) { innerPadding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .background(NovaBackground)
                 .padding(innerPadding)
-                .statusBarsPadding()
-                .padding(horizontal = 20.dp),
+                .statusBarsPadding(),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                start = 20.dp,
+                end = 20.dp,
+                top = 18.dp,
+                bottom = 24.dp,
+            ),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 18.dp, bottom = 22.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column {
-                    Text(
-                        text = "nova",
-                        color = NovaInk,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = "Good to see you, ${displayName.substringBefore(' ')}.",
-                        color = NovaMuted,
-                        fontSize = 13.sp,
-                    )
-                }
-
-                Surface(
-                    onClick = onProfileClick,
-                    shape = RoundedCornerShape(22.dp),
-                    color = NovaAccentSoft,
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    NovaAvatar(
-                        source = avatarUrl,
-                        fallbackText = displayName.ifBlank { username },
-                        size = 44.dp,
-                        modifier = Modifier.padding(2.dp),
-                    )
+                    Column {
+                        Text(
+                            text = "nova",
+                            color = NovaInk,
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            text = "Good to see you, ${displayName.substringBefore(' ')}.",
+                            color = NovaMuted,
+                            fontSize = 13.sp,
+                        )
+                    }
+
+                    Surface(
+                        onClick = onProfileClick,
+                        shape = RoundedCornerShape(24.dp),
+                        color = NovaAccentSoft,
+                    ) {
+                        NovaAvatar(
+                            source = avatarUrl,
+                            fallbackText = displayName.ifBlank { username },
+                            size = 46.dp,
+                            modifier = Modifier.padding(2.dp),
+                        )
+                    }
                 }
             }
 
-            Surface(
-                onClick = onPeopleClick,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(28.dp),
-                color = NovaSurface,
-                border = BorderStroke(1.dp, NovaBorder),
-            ) {
-                Column(modifier = Modifier.padding(22.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
+            item {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(26.dp),
+                    color = NovaSurface,
+                    border = BorderStroke(1.dp, NovaBorder),
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Text(
+                            text = "Share a moment",
+                            color = NovaInk,
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Post a photo from your phone. People who follow you will see it here.",
+                            color = NovaMuted,
+                            fontSize = 13.sp,
+                            lineHeight = 19.sp,
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        NovaPrimaryButton(
+                            text = "Create post",
+                            onClick = onCreatePost,
+                        )
+                    }
+                }
+            }
+
+            if (isLoading && posts.isEmpty()) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(220.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                        CircularProgressIndicator(color = NovaAccent)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Loading your feed…",
+                            color = NovaMuted,
+                            fontSize = 13.sp,
+                        )
+                    }
+                }
+            } else if (errorMessage != null && posts.isEmpty()) {
+                item {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        color = NovaSurface,
+                        border = BorderStroke(1.dp, NovaBorder),
+                    ) {
+                        Column(modifier = Modifier.padding(20.dp)) {
                             Text(
-                                text = "Find your people",
+                                text = "Couldn't load your feed",
                                 color = NovaInk,
-                                fontSize = 21.sp,
+                                fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
                             )
                             Spacer(modifier = Modifier.height(7.dp))
                             Text(
-                                text = "Search real Nova accounts and follow the people you want in your space.",
+                                text = errorMessage,
                                 color = NovaMuted,
-                                fontSize = 14.sp,
-                                lineHeight = 21.sp,
+                                fontSize = 13.sp,
+                                lineHeight = 19.sp,
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            NovaSecondaryButton(
+                                text = "Try again",
+                                onClick = onRetry,
                             )
                         }
-                        Text(
-                            text = "◎",
-                            color = NovaAccent,
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(start = 16.dp),
-                        )
                     }
                 }
-            }
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-                color = NovaSurface,
-                border = BorderStroke(1.dp, NovaBorder),
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 28.dp),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
+            } else if (posts.isEmpty()) {
+                item {
                     Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = NovaAccentSoft,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(26.dp),
+                        color = NovaSurface,
+                        border = BorderStroke(1.dp, NovaBorder),
                     ) {
-                        Text(
-                            text = "✦",
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
-                            color = NovaAccent,
-                            fontSize = 25.sp,
-                        )
+                        Column(
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 34.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = NovaAccentSoft,
+                            ) {
+                                Text(
+                                    text = "✦",
+                                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+                                    color = NovaAccent,
+                                    fontSize = 25.sp,
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Your feed is ready.",
+                                color = NovaInk,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Spacer(modifier = Modifier.height(7.dp))
+                            Text(
+                                text = "Create your first post or follow someone in People to start filling this space.",
+                                color = NovaMuted,
+                                fontSize = 13.sp,
+                                lineHeight = 19.sp,
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            NovaSecondaryButton(
+                                text = "Find people",
+                                onClick = onPeopleClick,
+                            )
+                        }
                     }
-                    Spacer(modifier = Modifier.height(18.dp))
+                }
+            } else {
+                item {
                     Text(
-                        text = "Your feed starts with people.",
+                        text = "Your feed",
                         color = NovaInk,
-                        fontSize = 20.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "@$username · Follow a few accounts now; posts will plug into this space next.",
-                        color = NovaMuted,
-                        fontSize = 14.sp,
-                        lineHeight = 21.sp,
+                }
+
+                items(
+                    items = posts,
+                    key = { it.id },
+                ) { post ->
+                    NovaPostCard(
+                        post = post,
+                        isDeleting = deletingPostId == post.id,
+                        onAuthorClick = {
+                            if (post.isMine) {
+                                onProfileClick()
+                            } else {
+                                onPersonClick(post.author.username)
+                            }
+                        },
+                        onDelete = { onDeletePost(post) },
                     )
+                }
+
+                if (errorMessage != null) {
+                    item {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(18.dp),
+                            color = NovaSurface,
+                            border = BorderStroke(1.dp, NovaBorder),
+                        ) {
+                            Text(
+                                text = errorMessage,
+                                modifier = Modifier.padding(14.dp),
+                                color = NovaMuted,
+                                fontSize = 12.sp,
+                            )
+                        }
+                    }
                 }
             }
         }
