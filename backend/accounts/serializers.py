@@ -7,10 +7,37 @@ User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
+    avatar_url = serializers.SerializerMethodField()
+    avatar = serializers.ImageField(write_only=True, required=False)
+
     class Meta:
         model = User
-        fields = ("id", "email", "username", "name", "avatar_url", "date_joined")
-        read_only_fields = ("id", "email", "date_joined")
+        fields = (
+            "id",
+            "email",
+            "username",
+            "name",
+            "avatar_url",
+            "avatar",
+            "date_joined",
+        )
+        read_only_fields = ("id", "email", "avatar_url", "date_joined")
+
+    def get_avatar_url(self, obj):
+        if not obj.avatar:
+            return ""
+
+        request = self.context.get("request")
+        url = obj.avatar.url
+        return request.build_absolute_uri(url) if request else url
+
+    def validate_username(self, value):
+        return value.strip().lower()
+
+    def validate_avatar(self, value):
+        if value.size > 5 * 1024 * 1024:
+            raise serializers.ValidationError("Profile photo must be 5 MB or smaller.")
+        return value
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -37,5 +64,5 @@ class RegisterSerializer(serializers.ModelSerializer):
 class NovaTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
-        data["user"] = UserSerializer(self.user).data
+        data["user"] = UserSerializer(self.user, context=self.context).data
         return data
