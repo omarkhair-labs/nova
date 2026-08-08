@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -25,6 +26,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,6 +68,14 @@ fun PostCommentsScreen(
     onAuthorClick: (String) -> Unit,
 ) {
     var draft by remember(post?.id) { mutableStateOf("") }
+    var wasSending by remember(post?.id) { mutableStateOf(false) }
+
+    LaunchedEffect(isSending, errorMessage) {
+        if (wasSending && !isSending && errorMessage == null) {
+            draft = ""
+        }
+        wasSending = isSending
+    }
 
     Scaffold(
         containerColor = NovaBackground,
@@ -105,7 +115,6 @@ fun PostCommentsScreen(
                                 val text = draft.trim()
                                 if (text.isNotBlank() && !isSending) {
                                     onSend(text)
-                                    draft = ""
                                 }
                             },
                             enabled = draft.isNotBlank() && !isSending,
@@ -173,7 +182,7 @@ fun PostCommentsScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             CircularProgressIndicator(color = NovaAccent)
-                            Spacer(modifier = Modifier.padding(5.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
                             Text("Loading comments…", color = NovaMuted, fontSize = 13.sp)
                         }
                     }
