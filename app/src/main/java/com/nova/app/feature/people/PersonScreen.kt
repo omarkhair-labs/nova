@@ -3,7 +3,6 @@ package com.nova.app.feature.people
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,7 +12,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -24,9 +25,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.core.network.NovaPerson
+import com.nova.app.core.network.NovaPost
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaHeader
 import com.nova.app.ui.components.NovaPrimaryButton
+import com.nova.app.ui.components.NovaProfilePostsGrid
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBackground
@@ -40,6 +43,11 @@ fun PersonScreen(
     person: NovaPerson?,
     isLoading: Boolean,
     errorMessage: String?,
+    profilePosts: List<NovaPost>,
+    postsLoading: Boolean,
+    postsError: String?,
+    onRetryPosts: () -> Unit,
+    onPostClick: (NovaPost) -> Unit,
     onBack: () -> Unit,
     onFollowToggle: (NovaPerson) -> Unit,
 ) {
@@ -49,6 +57,7 @@ fun PersonScreen(
             .background(NovaBackground)
             .statusBarsPadding()
             .navigationBarsPadding()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 22.dp, vertical = 18.dp),
     ) {
         NovaHeader(
@@ -61,13 +70,19 @@ fun PersonScreen(
 
         when {
             person == null && isLoading -> {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center,
+                        .padding(vertical = 72.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     CircularProgressIndicator(color = NovaAccent)
+                    Text(
+                        text = "Opening profile…",
+                        color = NovaMuted,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
                 }
             }
 
@@ -172,34 +187,19 @@ fun PersonScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
-                    color = NovaSurface,
-                    border = BorderStroke(1.dp, NovaBorder),
-                ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        Text(
-                            text = if (person.isFollowing) "In your circle" else "A new connection",
-                            color = NovaInk,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = if (person.isFollowing) {
-                                "New posts from this person can now appear in your Home feed."
-                            } else {
-                                "Follow people you actually want in your space."
-                            },
-                            color = NovaMuted,
-                            fontSize = 13.sp,
-                            lineHeight = 19.sp,
-                        )
-                    }
-                }
+                NovaProfilePostsGrid(
+                    posts = profilePosts,
+                    isLoading = postsLoading,
+                    errorMessage = postsError,
+                    onRetry = onRetryPosts,
+                    onPostClick = onPostClick,
+                    emptyTitle = "No posts yet",
+                    emptyMessage = "When @${person.username} shares something, it will appear here.",
+                )
+
+                Spacer(modifier = Modifier.height(18.dp))
             }
         }
     }
