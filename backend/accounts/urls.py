@@ -1,6 +1,11 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
+from .messaging_views import (
+    ConversationMessagesView,
+    ConversationReadView,
+    ConversationsView,
+)
 from .views import (
     CommentDetailView,
     DevicePushTokenView,
@@ -38,4 +43,15 @@ urlpatterns = [
     path("notifications/", NotificationsView.as_view(), name="notifications"),
     path("notifications/read/", NotificationsReadView.as_view(), name="notifications-read"),
     path("push/devices/", DevicePushTokenView.as_view(), name="push-devices"),
+    path("conversations/", ConversationsView.as_view(), name="conversations"),
+    path(
+        "conversations/<int:conversation_id>/messages/",
+        ConversationMessagesView.as_view(),
+        name="conversation-messages",
+    ),
+    path(
+        "conversations/<int:conversation_id>/read/",
+        ConversationReadView.as_view(),
+        name="conversation-read",
+    ),
 ]
