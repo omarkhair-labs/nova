@@ -21,6 +21,9 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="nova_activity" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_nova_notification" />
 
         <service
             android:name=".core.push.NovaMessagingService"
