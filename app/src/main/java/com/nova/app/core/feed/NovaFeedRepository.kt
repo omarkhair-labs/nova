@@ -16,7 +16,7 @@ import kotlinx.coroutines.withContext
 
 class NovaFeedRepository(
     context: Context,
-    private val api: NovaApiClient = NovaApiClient(),
+    private val api: NovaApiClient = NovaApiClient("https://nova-production-4f6b.up.railway.app/api/v1/"),
 ) {
     private val appContext = context.applicationContext
     private val sessionStore = NovaSessionStore(appContext)
