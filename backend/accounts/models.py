@@ -241,3 +241,76 @@ class DevicePushToken(models.Model):
 
     def __str__(self):
         return f"{self.platform} push token for @{self.user.username}"
+
+
+class Conversation(models.Model):
+    participant_one = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="conversations_as_one",
+    )
+    participant_two = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="conversations_as_two",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-updated_at", "-id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("participant_one", "participant_two"),
+                name="unique_direct_conversation",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(participant_one__lt=models.F("participant_two")),
+                name="ordered_direct_conversation_users",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=("participant_one", "-updated_at"), name="conv_user1_updated_idx"),
+            models.Index(fields=("participant_two", "-updated_at"), name="conv_user2_updated_idx"),
+        ]
+
+    def __str__(self):
+        return f"Conversation @{self.participant_one.username} / @{self.participant_two.username}"
+
+
+class Message(models.Model):
+    conversation = models.ForeignKey(
+        Conversation,
+        on_delete=models.CASCADE,
+        related_name="messages",
+    )
+    sender = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="sent_messages",
+    )
+    recipient = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="received_messages",
+    )
+    body = models.CharField(max_length=2000)
+    client_id = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("created_at", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("sender", "client_id"),
+                name="unique_sender_client_message",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=("conversation", "-id"), name="msg_conv_created_idx"),
+            models.Index(fields=("recipient", "read_at", "-id"), name="msg_recipient_read_idx"),
+        ]
+
+    def __str__(self):
+        return f"Message {self.pk} from @{self.sender.username} to @{self.recipient.username}"
