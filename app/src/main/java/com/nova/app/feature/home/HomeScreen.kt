@@ -1,5 +1,6 @@
 package com.nova.app.feature.home
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -23,13 +24,22 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaPost
+import com.nova.app.core.notifications.NovaNotificationRepository
+import com.nova.app.feature.notifications.NotificationsScreen
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
 import com.nova.app.ui.components.NovaPrimaryButton
@@ -43,6 +53,7 @@ import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 
 
 @Composable
@@ -57,7 +68,6 @@ fun HomeScreen(
     errorMessage: String?,
     deletingPostId: Long?,
     likingPostId: Long?,
-    notificationUnreadCount: Int,
     onCreatePost: () -> Unit,
     onRefresh: () -> Unit,
     onLoadMore: () -> Unit,
@@ -66,11 +76,55 @@ fun HomeScreen(
     onLikeToggle: (NovaPost) -> Unit,
     onCommentsClick: (NovaPost) -> Unit,
     onPersonClick: (String) -> Unit,
-    onNotificationsClick: () -> Unit,
     onPeopleClick: () -> Unit,
     onProfileClick: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val notificationRepository = remember(context) {
+        NovaNotificationRepository(context.applicationContext)
+    }
+    val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
+
+    var showActivity by remember { mutableStateOf(false) }
+    var notificationUnreadCount by remember { mutableStateOf(0) }
+
+    fun refreshUnreadCount() {
+        scope.launch {
+            when (val result = notificationRepository.notifications()) {
+                is ApiResult.Success -> notificationUnreadCount = result.value.unreadCount
+                is ApiResult.Failure -> Unit
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        refreshUnreadCount()
+    }
+
+    if (showActivity) {
+        BackHandler {
+            showActivity = false
+            refreshUnreadCount()
+        }
+        NotificationsScreen(
+            onBack = {
+                showActivity = false
+                refreshUnreadCount()
+            },
+            onPersonClick = { selectedUsername ->
+                showActivity = false
+                onPersonClick(selectedUsername)
+            },
+            onPostClick = { postId ->
+                showActivity = false
+                posts.firstOrNull { it.id == postId }?.let(onCommentsClick)
+            },
+            onUnreadCountChanged = { notificationUnreadCount = it },
+            onSessionExpired = { showActivity = false },
+        )
+        return
+    }
 
     LaunchedEffect(listState, hasMore, isLoading, isLoadingMore, posts.size) {
         snapshotFlow {
@@ -108,6 +162,7 @@ fun HomeScreen(
             isRefreshing = isLoading && posts.isNotEmpty(),
             onRefresh = {
                 if (!isLoadingMore) onRefresh()
+                refreshUnreadCount()
             },
             modifier = Modifier
                 .fillMaxSize()
@@ -149,7 +204,7 @@ fun HomeScreen(
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Surface(
-                                onClick = onNotificationsClick,
+                                onClick = { showActivity = true },
                                 shape = RoundedCornerShape(18.dp),
                                 color = if (notificationUnreadCount > 0) NovaAccentSoft else NovaSurface,
                                 border = BorderStroke(
