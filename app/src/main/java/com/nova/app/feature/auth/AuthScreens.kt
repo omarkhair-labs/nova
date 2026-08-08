@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -32,7 +33,7 @@ import com.nova.app.ui.theme.NovaMuted
 @Composable
 fun CreateAccountScreen(
     onBack: () -> Unit,
-    onContinue: (String) -> Unit,
+    onContinue: (String, String) -> Unit,
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -46,16 +47,20 @@ fun CreateAccountScreen(
         onPasswordChange = { password = it },
         buttonText = "Continue",
         buttonEnabled = email.contains('@') && password.length >= 8,
+        isLoading = false,
+        errorMessage = null,
         onBack = onBack,
-        onSubmit = { onContinue(email) },
+        onSubmit = { onContinue(email, password) },
         helperText = "Use at least 8 characters for your password.",
     )
 }
 
 @Composable
 fun LoginScreen(
+    isLoading: Boolean,
+    errorMessage: String?,
     onBack: () -> Unit,
-    onLogin: (String) -> Unit,
+    onLogin: (String, String) -> Unit,
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -67,11 +72,13 @@ fun LoginScreen(
         onEmailChange = { email = it.trim() },
         password = password,
         onPasswordChange = { password = it },
-        buttonText = "Log in",
+        buttonText = if (isLoading) "Logging in…" else "Log in",
         buttonEnabled = email.contains('@') && password.isNotBlank(),
+        isLoading = isLoading,
+        errorMessage = errorMessage,
         onBack = onBack,
-        onSubmit = { onLogin(email) },
-        helperText = "Forgot password will be connected when the backend lands.",
+        onSubmit = { onLogin(email, password) },
+        helperText = "Your session stays signed in on this device.",
     )
 }
 
@@ -85,6 +92,8 @@ private fun AuthPage(
     onPasswordChange: (String) -> Unit,
     buttonText: String,
     buttonEnabled: Boolean,
+    isLoading: Boolean,
+    errorMessage: String?,
     onBack: () -> Unit,
     onSubmit: () -> Unit,
     helperText: String,
@@ -133,6 +142,17 @@ private fun AuthPage(
 
         Spacer(modifier = Modifier.height(10.dp))
 
+        if (!errorMessage.isNullOrBlank()) {
+            Text(
+                text = errorMessage,
+                color = MaterialTheme.colorScheme.error,
+                fontSize = 13.sp,
+                lineHeight = 19.sp,
+                fontWeight = FontWeight.Medium,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
         Text(
             text = helperText,
             color = NovaMuted,
@@ -146,7 +166,7 @@ private fun AuthPage(
         NovaPrimaryButton(
             text = buttonText,
             onClick = onSubmit,
-            enabled = buttonEnabled,
+            enabled = buttonEnabled && !isLoading,
         )
     }
 }
