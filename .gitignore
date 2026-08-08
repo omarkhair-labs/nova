@@ -27,3 +27,4 @@ backend/media/
 .env
 .env.*
 !.env.example
+app/google-services.json
