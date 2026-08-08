@@ -83,6 +83,8 @@ fun NovaApp() {
 
     var posts by remember { mutableStateOf<List<NovaPost>>(emptyList()) }
     var feedLoading by remember { mutableStateOf(false) }
+    var feedLoadingMore by remember { mutableStateOf(false) }
+    var feedNextCursor by remember { mutableStateOf<String?>(null) }
     var feedError by remember { mutableStateOf<String?>(null) }
     var deletingPostId by remember { mutableStateOf<Long?>(null) }
     var likingPostId by remember { mutableStateOf<Long?>(null) }
@@ -109,6 +111,8 @@ fun NovaApp() {
         peopleRequestVersion += 1
         posts = emptyList()
         feedLoading = false
+        feedLoadingMore = false
+        feedNextCursor = null
         feedError = null
         deletingPostId = null
         likingPostId = null
@@ -151,18 +155,46 @@ fun NovaApp() {
     }
 
     fun loadFeed() {
-        if (feedLoading) return
+        if (feedLoading || feedLoadingMore) return
         scope.launch {
             feedLoading = true
             feedError = null
             when (val result = feedRepository.feed()) {
                 is ApiResult.Success -> {
-                    posts = result.value
+                    posts = result.value.posts
+                    feedNextCursor = result.value.nextCursor
                     feedLoading = false
                 }
 
                 is ApiResult.Failure -> {
                     feedLoading = false
+                    if (result.statusCode == 401) {
+                        expireSession()
+                    } else {
+                        feedError = result.message
+                    }
+                }
+            }
+        }
+    }
+
+    fun loadMoreFeed() {
+        val cursor = feedNextCursor ?: return
+        if (feedLoading || feedLoadingMore) return
+
+        scope.launch {
+            feedLoadingMore = true
+            feedError = null
+            when (val result = feedRepository.feed(cursor)) {
+                is ApiResult.Success -> {
+                    val existingIds = posts.mapTo(mutableSetOf()) { it.id }
+                    posts = posts + result.value.posts.filterNot { it.id in existingIds }
+                    feedNextCursor = result.value.nextCursor
+                    feedLoadingMore = false
+                }
+
+                is ApiResult.Failure -> {
+                    feedLoadingMore = false
                     if (result.statusCode == 401) {
                         expireSession()
                     } else {
@@ -441,6 +473,8 @@ fun NovaApp() {
                         avatarUrl = user?.avatarUrl.orEmpty(),
                         posts = posts,
                         isLoading = feedLoading,
+                        isLoadingMore = feedLoadingMore,
+                        hasMore = feedNextCursor != null,
                         errorMessage = feedError,
                         deletingPostId = deletingPostId,
                         likingPostId = likingPostId,
@@ -448,6 +482,8 @@ fun NovaApp() {
                             postError = null
                             backStack.add(NovaRoute.CreatePost)
                         },
+                        onRefresh = ::loadFeed,
+                        onLoadMore = ::loadMoreFeed,
                         onRetry = ::loadFeed,
                         onDeletePost = ::deletePost,
                         onLikeToggle = ::toggleLike,
