@@ -42,7 +42,7 @@ class AuthFlowTests(APITestCase):
 
     def image(self, name="moment.png"):
         png = base64.b64decode(
-            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9WlR9u8AAAAASUVORK5CYII="
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC"
         )
         return SimpleUploadedFile(name, png, content_type="image/png")
 
@@ -190,7 +190,7 @@ class AuthFlowTests(APITestCase):
             format="multipart",
         )
         self.assertEqual(maya_post.status_code, status.HTTP_201_CREATED)
-        self.assertFalse(maya_post.data["is_mine"] is False and False)
+        self.assertTrue(maya_post.data["is_mine"])
 
         self.authenticate(me.data["access"])
         feed_before_follow = self.client.get(feed_url)
