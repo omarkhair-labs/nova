@@ -3,7 +3,7 @@ from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from .models import Comment, Follow, Like, Post
+from .models import Comment, Follow, Like, Notification, Post
 
 User = get_user_model()
 
@@ -208,6 +208,32 @@ class CommentSerializer(serializers.ModelSerializer):
         if not value:
             raise serializers.ValidationError("Comment can't be empty.")
         return value
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    actor = PostAuthorSerializer(read_only=True)
+    post_id = serializers.IntegerField(read_only=True, allow_null=True)
+    comment_preview = serializers.SerializerMethodField()
+    is_read = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Notification
+        fields = (
+            "id",
+            "kind",
+            "actor",
+            "post_id",
+            "comment_preview",
+            "created_at",
+            "is_read",
+        )
+        read_only_fields = fields
+
+    def get_comment_preview(self, obj):
+        return obj.comment.body if obj.comment_id and obj.comment else ""
+
+    def get_is_read(self, obj):
+        return obj.read_at is not None
 
 
 class RegisterSerializer(serializers.ModelSerializer):
