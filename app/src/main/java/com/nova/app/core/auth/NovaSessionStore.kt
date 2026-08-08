@@ -1,29 +1,33 @@
 package com.nova.app.core.auth
 
 import android.content.Context
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import android.util.Base64
 import com.nova.app.core.network.AuthSession
 import com.nova.app.core.network.NovaUser
+import java.security.KeyStore
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
 
 
 class NovaSessionStore(context: Context) {
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     fun save(session: AuthSession) {
-        prefs.edit()
-            .putString(KEY_ACCESS, session.accessToken)
-            .putString(KEY_REFRESH, session.refreshToken)
-            .putLong(KEY_USER_ID, session.user.id)
-            .putString(KEY_EMAIL, session.user.email)
-            .putString(KEY_USERNAME, session.user.username)
-            .putString(KEY_NAME, session.user.name)
-            .putString(KEY_AVATAR_URL, session.user.avatarUrl)
-            .apply()
+        if (!storeTokens(session.accessToken, session.refreshToken)) {
+            clear()
+            return
+        }
+
+        updateUser(session.user)
     }
 
     fun updateAccessToken(accessToken: String) {
-        prefs.edit()
-            .putString(KEY_ACCESS, accessToken)
-            .apply()
+        val current = readTokens() ?: return
+        storeTokens(accessToken, current.second)
     }
 
     fun updateUser(user: NovaUser) {
@@ -37,8 +41,7 @@ class NovaSessionStore(context: Context) {
     }
 
     fun load(): StoredSession? {
-        val access = prefs.getString(KEY_ACCESS, null)?.takeIf { it.isNotBlank() } ?: return null
-        val refresh = prefs.getString(KEY_REFRESH, null)?.takeIf { it.isNotBlank() } ?: return null
+        val (access, refresh) = readTokens() ?: return null
 
         return StoredSession(
             accessToken = access,
@@ -49,6 +52,71 @@ class NovaSessionStore(context: Context) {
 
     fun clear() {
         prefs.edit().clear().apply()
+    }
+
+    private fun storeTokens(accessToken: String, refreshToken: String): Boolean {
+        return runCatching {
+            val cipher = Cipher.getInstance(TRANSFORMATION)
+            cipher.init(Cipher.ENCRYPT_MODE, getOrCreateSecretKey())
+
+            val plainText = "$accessToken$TOKEN_SEPARATOR$refreshToken".toByteArray(Charsets.UTF_8)
+            val encrypted = cipher.doFinal(plainText)
+
+            prefs.edit()
+                .putString(KEY_TOKEN_IV, Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
+                .putString(KEY_TOKEN_CIPHERTEXT, Base64.encodeToString(encrypted, Base64.NO_WRAP))
+                .apply()
+            true
+        }.getOrElse { false }
+    }
+
+    private fun readTokens(): Pair<String, String>? {
+        val ivText = prefs.getString(KEY_TOKEN_IV, null) ?: return null
+        val cipherText = prefs.getString(KEY_TOKEN_CIPHERTEXT, null) ?: return null
+
+        return runCatching {
+            val iv = Base64.decode(ivText, Base64.NO_WRAP)
+            val encrypted = Base64.decode(cipherText, Base64.NO_WRAP)
+
+            val cipher = Cipher.getInstance(TRANSFORMATION)
+            cipher.init(
+                Cipher.DECRYPT_MODE,
+                getOrCreateSecretKey(),
+                GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv),
+            )
+
+            val plainText = cipher.doFinal(encrypted).toString(Charsets.UTF_8)
+            val parts = plainText.split(TOKEN_SEPARATOR, limit = 2)
+            if (parts.size != 2 || parts[0].isBlank() || parts[1].isBlank()) {
+                null
+            } else {
+                parts[0] to parts[1]
+            }
+        }.getOrElse {
+            prefs.edit()
+                .remove(KEY_TOKEN_IV)
+                .remove(KEY_TOKEN_CIPHERTEXT)
+                .apply()
+            null
+        }
+    }
+
+    private fun getOrCreateSecretKey(): SecretKey {
+        val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
+        val existing = keyStore.getKey(KEY_ALIAS, null) as? SecretKey
+        if (existing != null) return existing
+
+        val keyGenerator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEYSTORE)
+        val spec = KeyGenParameterSpec.Builder(
+            KEY_ALIAS,
+            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+        )
+            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+            .build()
+
+        keyGenerator.init(spec)
+        return keyGenerator.generateKey()
     }
 
     private fun cachedUser(): NovaUser? {
@@ -72,8 +140,14 @@ class NovaSessionStore(context: Context) {
 
     private companion object {
         const val PREFS_NAME = "nova_session"
-        const val KEY_ACCESS = "access_token"
-        const val KEY_REFRESH = "refresh_token"
+        const val KEY_ALIAS = "nova_session_key"
+        const val ANDROID_KEYSTORE = "AndroidKeyStore"
+        const val TRANSFORMATION = "AES/GCM/NoPadding"
+        const val GCM_TAG_LENGTH_BITS = 128
+        const val TOKEN_SEPARATOR = "\u0000"
+
+        const val KEY_TOKEN_IV = "token_iv"
+        const val KEY_TOKEN_CIPHERTEXT = "token_ciphertext"
         const val KEY_USER_ID = "user_id"
         const val KEY_EMAIL = "email"
         const val KEY_USERNAME = "username"
