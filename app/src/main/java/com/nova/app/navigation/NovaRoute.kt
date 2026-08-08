@@ -6,6 +6,7 @@ sealed interface NovaRoute {
     data object Login : NovaRoute
     data object ProfileSetup : NovaRoute
     data object Home : NovaRoute
+    data object CreatePost : NovaRoute
     data object People : NovaRoute
     data class Person(val username: String) : NovaRoute
     data object Profile : NovaRoute
