@@ -8,6 +8,7 @@ import com.nova.app.core.network.AuthSession
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.NovaUser
 import com.nova.app.core.network.UploadFile
+import com.nova.app.core.push.NovaPushRegistration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -35,6 +36,7 @@ class NovaAuthRepository(
         ) {
             is ApiResult.Success -> {
                 sessionStore.save(result.value)
+                NovaPushRegistration.activate(appContext)
                 ApiResult.Success(result.value.user)
             }
 
@@ -46,6 +48,7 @@ class NovaAuthRepository(
         return when (val result = api.login(email.trim().lowercase(), password)) {
             is ApiResult.Success -> {
                 sessionStore.save(result.value)
+                NovaPushRegistration.activate(appContext)
                 ApiResult.Success(result.value.user)
             }
 
@@ -59,6 +62,7 @@ class NovaAuthRepository(
         return when (val me = api.me(stored.accessToken)) {
             is ApiResult.Success -> {
                 sessionStore.updateUser(me.value)
+                NovaPushRegistration.activate(appContext)
                 ApiResult.Success(me.value)
             }
 
@@ -94,6 +98,11 @@ class NovaAuthRepository(
     }
 
     fun logout() {
+        val accessToken = sessionStore.load()?.accessToken
+        NovaPushRegistration.logout(
+            context = appContext,
+            accessToken = accessToken,
+        )
         sessionStore.clear()
     }
 
@@ -201,6 +210,7 @@ class NovaAuthRepository(
                                 user = me.value,
                             ),
                         )
+                        NovaPushRegistration.activate(appContext)
                         ApiResult.Success(me.value)
                     }
 
