@@ -110,5 +110,13 @@ class Post(models.Model):
             models.Index(fields=("author", "-created_at"), name="post_author_created_idx"),
         ]
 
+    def delete(self, *args, **kwargs):
+        image_name = self.image.name
+        storage = self.image.storage
+        result = super().delete(*args, **kwargs)
+        if image_name:
+            storage.delete(image_name)
+        return result
+
     def __str__(self):
         return f"Post {self.pk} by @{self.author.username}"
