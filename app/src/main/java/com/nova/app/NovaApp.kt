@@ -31,12 +31,12 @@ import com.nova.app.feature.auth.CreateAccountScreen
 import com.nova.app.feature.auth.LoginScreen
 import com.nova.app.feature.home.HomeScreen
 import com.nova.app.feature.onboarding.ProfileSetupScreen
+import com.nova.app.feature.profile.EditProfileScreen
 import com.nova.app.feature.profile.ProfileScreen
 import com.nova.app.feature.welcome.WelcomeScreen
 import com.nova.app.navigation.NovaRoute
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBackground
-import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import kotlinx.coroutines.launch
 
@@ -218,7 +218,12 @@ fun NovaApp() {
                         displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
                         username = user?.username ?: "nova",
                         email = user?.email.orEmpty(),
+                        avatarUrl = user?.avatarUrl.orEmpty(),
                         onHomeClick = { backStack.removeLastOrNull() },
+                        onEditProfile = {
+                            authError = null
+                            backStack.add(NovaRoute.EditProfile)
+                        },
                         onLogout = {
                             authRepository.logout()
                             currentUser = null
@@ -226,6 +231,56 @@ fun NovaApp() {
                             pendingPassword = ""
                             authError = null
                             resetToWelcome()
+                        },
+                    )
+                }
+
+                NovaRoute.EditProfile -> NavEntry(route) {
+                    val user = currentUser
+                    EditProfileScreen(
+                        displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
+                        username = user?.username ?: "nova",
+                        avatarUrl = user?.avatarUrl.orEmpty(),
+                        isLoading = authLoading,
+                        errorMessage = authError,
+                        onBack = {
+                            if (!authLoading) {
+                                authError = null
+                                backStack.removeLastOrNull()
+                            }
+                        },
+                        onSave = { name, handle, avatarUri ->
+                            if (!authLoading) {
+                                scope.launch {
+                                    authLoading = true
+                                    authError = null
+
+                                    when (
+                                        val result = authRepository.updateProfile(
+                                            name = name,
+                                            username = handle,
+                                            avatarUri = avatarUri,
+                                        )
+                                    ) {
+                                        is ApiResult.Success -> {
+                                            currentUser = result.value
+                                            authLoading = false
+                                            backStack.removeLastOrNull()
+                                        }
+
+                                        is ApiResult.Failure -> {
+                                            authLoading = false
+                                            if (result.statusCode == 401) {
+                                                authRepository.logout()
+                                                currentUser = null
+                                                resetToWelcome()
+                                            } else {
+                                                authError = result.message
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         },
                     )
                 }
