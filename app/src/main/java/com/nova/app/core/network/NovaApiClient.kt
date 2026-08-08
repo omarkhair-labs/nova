@@ -4,8 +4,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.DataOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.UUID
 
 
 data class NovaUser(
@@ -21,6 +23,13 @@ data class AuthSession(
     val accessToken: String,
     val refreshToken: String,
     val user: NovaUser,
+)
+
+
+data class UploadFile(
+    val bytes: ByteArray,
+    val fileName: String,
+    val mimeType: String,
 )
 
 
@@ -72,6 +81,30 @@ class NovaApiClient(
         }
     }
 
+    suspend fun updateProfile(
+        accessToken: String,
+        name: String,
+        username: String,
+        avatar: UploadFile? = null,
+    ): ApiResult<NovaUser> {
+        return when (
+            val response = requestMultipart(
+                path = "me/",
+                method = "PATCH",
+                fields = mapOf(
+                    "name" to name,
+                    "username" to username,
+                ),
+                fileField = "avatar",
+                file = avatar,
+                bearerToken = accessToken,
+            )
+        ) {
+            is ApiResult.Success -> ApiResult.Success(parseUser(response.value))
+            is ApiResult.Failure -> response
+        }
+    }
+
     suspend fun refresh(refreshToken: String): ApiResult<String> {
         val body = JSONObject().put("refresh", refreshToken)
 
@@ -108,13 +141,24 @@ class NovaApiClient(
     }
 
     private fun parseUser(json: JSONObject): NovaUser {
+        val rawAvatar = json.optString("avatar_url")
         return NovaUser(
             id = json.optLong("id"),
             email = json.optString("email"),
             username = json.optString("username"),
             name = json.optString("name"),
-            avatarUrl = json.optString("avatar_url"),
+            avatarUrl = resolveMediaUrl(rawAvatar),
         )
+    }
+
+    private fun resolveMediaUrl(raw: String): String {
+        if (raw.isBlank() || raw == "null") return ""
+        if (raw.startsWith("http://") || raw.startsWith("https://")) return raw
+
+        return runCatching {
+            val apiUrl = URL(baseUrl)
+            URL("${apiUrl.protocol}://${apiUrl.authority}$raw").toString()
+        }.getOrDefault(raw)
     }
 
     private suspend fun requestJson(
@@ -142,26 +186,86 @@ class NovaApiClient(
                 }
             }
 
-            val status = connection.responseCode
-            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
-            val raw = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
-            val json = if (raw.isBlank()) JSONObject() else runCatching { JSONObject(raw) }
-                .getOrElse { JSONObject().put("detail", raw) }
-
-            if (status in 200..299) {
-                ApiResult.Success(json)
-            } else {
-                ApiResult.Failure(
-                    message = parseError(json, status),
-                    statusCode = status,
-                )
-            }
+            readJsonResponse(connection)
         } catch (_: Exception) {
             ApiResult.Failure(
                 message = "Can't reach Nova right now. Make sure the local server is running.",
             )
         } finally {
             connection?.disconnect()
+        }
+    }
+
+    private suspend fun requestMultipart(
+        path: String,
+        method: String,
+        fields: Map<String, String>,
+        fileField: String,
+        file: UploadFile?,
+        bearerToken: String,
+    ): ApiResult<JSONObject> = withContext(Dispatchers.IO) {
+        var connection: HttpURLConnection? = null
+        val boundary = "Nova-${UUID.randomUUID()}"
+        val lineEnd = "\r\n"
+
+        try {
+            connection = (URL(baseUrl + path).openConnection() as HttpURLConnection).apply {
+                requestMethod = method
+                connectTimeout = 15_000
+                readTimeout = 15_000
+                doOutput = true
+                setRequestProperty("Accept", "application/json")
+                setRequestProperty("Authorization", "Bearer $bearerToken")
+                setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
+            }
+
+            DataOutputStream(connection.outputStream).use { output ->
+                fields.forEach { (name, value) ->
+                    output.writeBytes("--$boundary$lineEnd")
+                    output.writeBytes("Content-Disposition: form-data; name=\"$name\"$lineEnd")
+                    output.writeBytes("Content-Type: text/plain; charset=UTF-8$lineEnd$lineEnd")
+                    output.write(value.toByteArray(Charsets.UTF_8))
+                    output.writeBytes(lineEnd)
+                }
+
+                if (file != null) {
+                    output.writeBytes("--$boundary$lineEnd")
+                    output.writeBytes(
+                        "Content-Disposition: form-data; name=\"$fileField\"; filename=\"${file.fileName}\"$lineEnd",
+                    )
+                    output.writeBytes("Content-Type: ${file.mimeType}$lineEnd$lineEnd")
+                    output.write(file.bytes)
+                    output.writeBytes(lineEnd)
+                }
+
+                output.writeBytes("--$boundary--$lineEnd")
+                output.flush()
+            }
+
+            readJsonResponse(connection)
+        } catch (_: Exception) {
+            ApiResult.Failure(
+                message = "Can't update your profile right now. Check the local server and try again.",
+            )
+        } finally {
+            connection?.disconnect()
+        }
+    }
+
+    private fun readJsonResponse(connection: HttpURLConnection): ApiResult<JSONObject> {
+        val status = connection.responseCode
+        val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+        val raw = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+        val json = if (raw.isBlank()) JSONObject() else runCatching { JSONObject(raw) }
+            .getOrElse { JSONObject().put("detail", raw) }
+
+        return if (status in 200..299) {
+            ApiResult.Success(json)
+        } else {
+            ApiResult.Failure(
+                message = parseError(json, status),
+                statusCode = status,
+            )
         }
     }
 
@@ -186,6 +290,7 @@ class NovaApiClient(
                     "email" -> "Email: $message"
                     "username" -> "Username: $message"
                     "password" -> "Password: $message"
+                    "avatar" -> "Photo: $message"
                     else -> message
                 }
             }
@@ -193,7 +298,7 @@ class NovaApiClient(
 
         return when (statusCode) {
             400 -> "Check your details and try again."
-            401 -> "Email or password is incorrect."
+            401 -> "Your session expired. Please log in again."
             404 -> "Nova couldn't find that resource."
             else -> "Something went wrong. Please try again."
         }
