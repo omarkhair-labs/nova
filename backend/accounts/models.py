@@ -219,3 +219,25 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"{self.kind} from @{self.actor.username} to @{self.recipient.username}"
+
+
+class DevicePushToken(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="push_tokens",
+    )
+    token = models.CharField(max_length=512, unique=True)
+    platform = models.CharField(max_length=16, default="android")
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-updated_at", "-id")
+        indexes = [
+            models.Index(fields=("user", "active"), name="push_user_active_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.platform} push token for @{self.user.username}"
