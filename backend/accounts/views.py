@@ -8,10 +8,11 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .models import Follow
+from .models import Follow, Post
 from .serializers import (
     NovaTokenObtainPairSerializer,
     PersonSerializer,
+    PostSerializer,
     RegisterSerializer,
     UserSerializer,
 )
@@ -114,3 +115,49 @@ class FollowView(APIView):
         return Response(
             PersonSerializer(person, context={"request": request}).data
         )
+
+
+class PostsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = PostSerializer(
+            data=request.data,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        post = serializer.save(author=request.user)
+        return Response(
+            PostSerializer(post, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class FeedView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        followed_ids = Follow.objects.filter(follower=request.user).values_list(
+            "following_id",
+            flat=True,
+        )
+        posts = (
+            Post.objects.filter(Q(author=request.user) | Q(author_id__in=followed_ids))
+            .select_related("author")
+            .order_by("-created_at", "-id")[:50]
+        )
+        serializer = PostSerializer(
+            posts,
+            many=True,
+            context={"request": request},
+        )
+        return Response({"results": serializer.data})
+
+
+class PostDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, post_id):
+        post = get_object_or_404(Post, pk=post_id, author=request.user)
+        post.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

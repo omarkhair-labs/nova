@@ -39,6 +39,7 @@ class NovaSessionStore(context: Context) {
             .putString(KEY_AVATAR_URL, user.avatarUrl)
             .putInt(KEY_FOLLOWERS_COUNT, user.followersCount)
             .putInt(KEY_FOLLOWING_COUNT, user.followingCount)
+            .putInt(KEY_POSTS_COUNT, user.postsCount)
             .apply()
     }
 
@@ -133,6 +134,7 @@ class NovaSessionStore(context: Context) {
             avatarUrl = prefs.getString(KEY_AVATAR_URL, "").orEmpty(),
             followersCount = prefs.getInt(KEY_FOLLOWERS_COUNT, 0),
             followingCount = prefs.getInt(KEY_FOLLOWING_COUNT, 0),
+            postsCount = prefs.getInt(KEY_POSTS_COUNT, 0),
         )
     }
 
@@ -159,5 +161,6 @@ class NovaSessionStore(context: Context) {
         const val KEY_AVATAR_URL = "avatar_url"
         const val KEY_FOLLOWERS_COUNT = "followers_count"
         const val KEY_FOLLOWING_COUNT = "following_count"
+        const val KEY_POSTS_COUNT = "posts_count"
     }
 }

@@ -19,6 +19,7 @@ data class NovaUser(
     val avatarUrl: String,
     val followersCount: Int = 0,
     val followingCount: Int = 0,
+    val postsCount: Int = 0,
 )
 
 
@@ -29,7 +30,26 @@ data class NovaPerson(
     val avatarUrl: String,
     val followersCount: Int,
     val followingCount: Int,
+    val postsCount: Int,
     val isFollowing: Boolean,
+)
+
+
+data class NovaPostAuthor(
+    val id: Long,
+    val username: String,
+    val name: String,
+    val avatarUrl: String,
+)
+
+
+data class NovaPost(
+    val id: Long,
+    val author: NovaPostAuthor,
+    val imageUrl: String,
+    val caption: String,
+    val createdAt: String,
+    val isMine: Boolean,
 )
 
 
@@ -178,6 +198,58 @@ class NovaApiClient(
         }
     }
 
+    suspend fun feed(accessToken: String): ApiResult<List<NovaPost>> {
+        return when (val response = requestJson("feed/", bearerToken = accessToken)) {
+            is ApiResult.Success -> {
+                val array = response.value.optJSONArray("results") ?: JSONArray()
+                val posts = buildList {
+                    for (index in 0 until array.length()) {
+                        array.optJSONObject(index)?.let { add(parsePost(it)) }
+                    }
+                }
+                ApiResult.Success(posts)
+            }
+
+            is ApiResult.Failure -> response
+        }
+    }
+
+    suspend fun createPost(
+        accessToken: String,
+        caption: String,
+        image: UploadFile,
+    ): ApiResult<NovaPost> {
+        return when (
+            val response = requestMultipart(
+                path = "posts/",
+                method = "POST",
+                fields = mapOf("caption" to caption),
+                fileField = "image",
+                file = image,
+                bearerToken = accessToken,
+            )
+        ) {
+            is ApiResult.Success -> ApiResult.Success(parsePost(response.value))
+            is ApiResult.Failure -> response
+        }
+    }
+
+    suspend fun deletePost(
+        accessToken: String,
+        postId: Long,
+    ): ApiResult<Unit> {
+        return when (
+            val response = requestJson(
+                path = "posts/$postId/",
+                method = "DELETE",
+                bearerToken = accessToken,
+            )
+        ) {
+            is ApiResult.Success -> ApiResult.Success(Unit)
+            is ApiResult.Failure -> response
+        }
+    }
+
     suspend fun refresh(refreshToken: String): ApiResult<String> {
         val body = JSONObject().put("refresh", refreshToken)
 
@@ -214,15 +286,15 @@ class NovaApiClient(
     }
 
     private fun parseUser(json: JSONObject): NovaUser {
-        val rawAvatar = json.optString("avatar_url")
         return NovaUser(
             id = json.optLong("id"),
             email = json.optString("email"),
             username = json.optString("username"),
             name = json.optString("name"),
-            avatarUrl = resolveMediaUrl(rawAvatar),
+            avatarUrl = resolveMediaUrl(json.optString("avatar_url")),
             followersCount = json.optInt("followers_count", 0),
             followingCount = json.optInt("following_count", 0),
+            postsCount = json.optInt("posts_count", 0),
         )
     }
 
@@ -234,7 +306,29 @@ class NovaApiClient(
             avatarUrl = resolveMediaUrl(json.optString("avatar_url")),
             followersCount = json.optInt("followers_count", 0),
             followingCount = json.optInt("following_count", 0),
+            postsCount = json.optInt("posts_count", 0),
             isFollowing = json.optBoolean("is_following", false),
+        )
+    }
+
+    private fun parsePostAuthor(json: JSONObject): NovaPostAuthor {
+        return NovaPostAuthor(
+            id = json.optLong("id"),
+            username = json.optString("username"),
+            name = json.optString("name"),
+            avatarUrl = resolveMediaUrl(json.optString("avatar_url")),
+        )
+    }
+
+    private fun parsePost(json: JSONObject): NovaPost {
+        val author = json.optJSONObject("author") ?: JSONObject()
+        return NovaPost(
+            id = json.optLong("id"),
+            author = parsePostAuthor(author),
+            imageUrl = resolveMediaUrl(json.optString("image_url")),
+            caption = json.optString("caption"),
+            createdAt = json.optString("created_at"),
+            isMine = json.optBoolean("is_mine", false),
         )
     }
 
@@ -302,8 +396,8 @@ class NovaApiClient(
         try {
             connection = (URL(baseUrl + path).openConnection() as HttpURLConnection).apply {
                 requestMethod = method
-                connectTimeout = 15_000
-                readTimeout = 15_000
+                connectTimeout = 20_000
+                readTimeout = 20_000
                 doOutput = true
                 setRequestProperty("Accept", "application/json")
                 setRequestProperty("Authorization", "Bearer $bearerToken")
@@ -336,7 +430,7 @@ class NovaApiClient(
             readJsonResponse(connection)
         } catch (_: Exception) {
             ApiResult.Failure(
-                message = "Can't update your profile right now. Check the local server and try again.",
+                message = "Nova couldn't upload that right now. Check the local server and try again.",
             )
         } finally {
             connection?.disconnect()
@@ -382,6 +476,8 @@ class NovaApiClient(
                     "username" -> "Username: $message"
                     "password" -> "Password: $message"
                     "avatar" -> "Photo: $message"
+                    "image" -> "Photo: $message"
+                    "caption" -> "Caption: $message"
                     else -> message
                 }
             }
@@ -390,7 +486,7 @@ class NovaApiClient(
         return when (statusCode) {
             400 -> "Check your details and try again."
             401 -> "Your session expired. Please log in again."
-            404 -> "Nova couldn't find that person."
+            404 -> "Nova couldn't find that resource."
             else -> "Something went wrong. Please try again."
         }
     }

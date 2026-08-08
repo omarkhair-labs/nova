@@ -37,6 +37,7 @@ fun ProfileScreen(
     username: String,
     email: String,
     avatarUrl: String,
+    postsCount: Int,
     followersCount: Int,
     followingCount: Int,
     onHomeClick: () -> Unit,
@@ -127,7 +128,7 @@ fun ProfileScreen(
                     modifier = Modifier.padding(vertical = 20.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                 ) {
-                    ProfileStat(value = "0", label = "posts")
+                    ProfileStat(value = postsCount.toString(), label = "posts")
                     ProfileStat(value = followersCount.toString(), label = "followers")
                     ProfileStat(value = followingCount.toString(), label = "following")
                 }
@@ -143,17 +144,21 @@ fun ProfileScreen(
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text(
-                        text = if (followingCount > 0) "Your circle is starting" else "Find your first people",
+                        text = when {
+                            postsCount > 0 -> "Your Nova is taking shape"
+                            followingCount > 0 -> "Your circle is starting"
+                            else -> "Find your first people"
+                        },
                         color = NovaInk,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = if (followingCount > 0) {
-                            "You're following $followingCount ${if (followingCount == 1) "person" else "people"}."
-                        } else {
-                            "Open People and follow accounts you actually want around."
+                        text = when {
+                            postsCount > 0 -> "You've shared $postsCount ${if (postsCount == 1) "post" else "posts"} from this account."
+                            followingCount > 0 -> "You're following $followingCount ${if (followingCount == 1) "person" else "people"}."
+                            else -> "Open People and follow accounts you actually want around."
                         },
                         color = NovaMuted,
                         fontSize = 13.sp,

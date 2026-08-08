@@ -2,11 +2,14 @@ from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
+    FeedView,
     FollowView,
     MeView,
     NovaTokenObtainPairView,
     PeopleView,
     PersonView,
+    PostDetailView,
+    PostsView,
     RegisterView,
 )
 
@@ -18,4 +21,7 @@ urlpatterns = [
     path("people/", PeopleView.as_view(), name="people"),
     path("people/<str:username>/", PersonView.as_view(), name="person-detail"),
     path("people/<str:username>/follow/", FollowView.as_view(), name="person-follow"),
+    path("posts/", PostsView.as_view(), name="posts"),
+    path("posts/<int:post_id>/", PostDetailView.as_view(), name="post-detail"),
+    path("feed/", FeedView.as_view(), name="feed"),
 ]
