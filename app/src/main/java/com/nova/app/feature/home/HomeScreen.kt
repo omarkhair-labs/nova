@@ -36,9 +36,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nova.app.core.feed.NovaFeedRepository
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaPost
 import com.nova.app.core.notifications.NovaNotificationRepository
+import com.nova.app.core.push.NovaPushOpenSignal
 import com.nova.app.feature.notifications.NotificationsScreen
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
@@ -83,6 +85,9 @@ fun HomeScreen(
     val notificationRepository = remember(context) {
         NovaNotificationRepository(context.applicationContext)
     }
+    val feedRepository = remember(context) {
+        NovaFeedRepository(context.applicationContext)
+    }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
@@ -100,6 +105,47 @@ fun HomeScreen(
 
     LaunchedEffect(Unit) {
         refreshUnreadCount()
+    }
+
+    val pendingPushTarget = NovaPushOpenSignal.pendingTarget
+    LaunchedEffect(pendingPushTarget) {
+        val target = pendingPushTarget ?: return@LaunchedEffect
+
+        when (target.kind) {
+            "follow" -> {
+                NovaPushOpenSignal.consume()
+                if (target.actorUsername.isNotBlank()) {
+                    onPersonClick(target.actorUsername)
+                } else {
+                    showActivity = true
+                }
+            }
+
+            "like", "comment" -> {
+                val postId = target.postId
+                if (postId == null) {
+                    NovaPushOpenSignal.consume()
+                    showActivity = true
+                } else {
+                    when (val result = feedRepository.post(postId)) {
+                        is ApiResult.Success -> {
+                            NovaPushOpenSignal.consume()
+                            onCommentsClick(result.value)
+                        }
+
+                        is ApiResult.Failure -> {
+                            NovaPushOpenSignal.consume()
+                            showActivity = true
+                        }
+                    }
+                }
+            }
+
+            else -> {
+                NovaPushOpenSignal.consume()
+                showActivity = true
+            }
+        }
     }
 
     if (showActivity) {
