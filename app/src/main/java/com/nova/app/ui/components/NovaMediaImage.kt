@@ -1,26 +1,23 @@
 package com.nova.app.ui.components
 
-import android.graphics.BitmapFactory
-import android.net.Uri
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import java.net.URL
+import com.nova.app.ui.theme.NovaMuted
 
 
 @Composable
@@ -29,46 +26,41 @@ fun NovaMediaImage(
     modifier: Modifier = Modifier,
     contentDescription: String = "Nova photo",
 ) {
-    val context = LocalContext.current
-    val bitmap by produceState<ImageBitmap?>(
-        initialValue = null,
-        key1 = source,
-    ) {
-        value = if (source.isBlank()) {
-            null
-        } else {
-            withContext(Dispatchers.IO) {
-                runCatching {
-                    val stream = when {
-                        source.startsWith("content://") || source.startsWith("file://") -> {
-                            context.contentResolver.openInputStream(Uri.parse(source))
-                        }
-
-                        source.startsWith("http://") || source.startsWith("https://") -> {
-                            URL(source).openStream()
-                        }
-
-                        else -> null
-                    }
-                    stream?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() }
-                }.getOrNull()
-            }
-        }
-    }
+    var isLoading by remember(source) { mutableStateOf(source.isNotBlank()) }
+    var hasFailed by remember(source) { mutableStateOf(false) }
 
     Box(
         modifier = modifier.background(NovaAccentSoft),
         contentAlignment = Alignment.Center,
     ) {
-        if (bitmap != null) {
-            Image(
-                bitmap = bitmap!!,
+        if (source.isNotBlank()) {
+            AsyncImage(
+                model = source,
                 contentDescription = contentDescription,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
+                onLoading = {
+                    isLoading = true
+                    hasFailed = false
+                },
+                onSuccess = {
+                    isLoading = false
+                    hasFailed = false
+                },
+                onError = {
+                    isLoading = false
+                    hasFailed = true
+                },
             )
-        } else if (source.isNotBlank()) {
-            CircularProgressIndicator(color = NovaAccent)
+        }
+
+        when {
+            isLoading -> CircularProgressIndicator(color = NovaAccent)
+            hasFailed -> Text(
+                text = "Photo unavailable",
+                color = NovaMuted,
+                fontSize = 11.sp,
+            )
         }
     }
 }
