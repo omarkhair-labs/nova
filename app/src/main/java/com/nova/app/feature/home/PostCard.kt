@@ -36,7 +36,10 @@ import java.time.format.DateTimeFormatter
 fun NovaPostCard(
     post: NovaPost,
     isDeleting: Boolean,
+    isLiking: Boolean,
     onAuthorClick: () -> Unit,
+    onLikeToggle: () -> Unit,
+    onCommentsClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
     Surface(
@@ -111,17 +114,65 @@ fun NovaPostCard(
                 contentDescription = "Post by ${post.author.username}",
             )
 
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(
+                    onClick = { if (!isLiking) onLikeToggle() },
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (post.isLiked) NovaAccentSoft else NovaSurface,
+                    border = BorderStroke(1.dp, if (post.isLiked) NovaAccent.copy(alpha = 0.22f) else NovaBorder),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 13.dp, vertical = 9.dp),
+                        horizontalArrangement = Arrangement.spacedBy(7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = if (isLiking) "…" else if (post.isLiked) "♥" else "♡",
+                            color = if (post.isLiked) NovaAccent else NovaInk,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            text = post.likesCount.toString(),
+                            color = if (post.isLiked) NovaAccent else NovaMuted,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+
+                Surface(
+                    onClick = onCommentsClick,
+                    shape = RoundedCornerShape(16.dp),
+                    color = NovaSurface,
+                    border = BorderStroke(1.dp, NovaBorder),
+                ) {
+                    Text(
+                        text = "Comment · ${post.commentsCount}",
+                        modifier = Modifier.padding(horizontal = 13.dp, vertical = 10.dp),
+                        color = NovaMuted,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+
             if (post.caption.isNotBlank()) {
-                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = post.caption,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 15.dp),
                     color = NovaInk,
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
                 )
             } else {
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(3.dp))
             }
         }
     }

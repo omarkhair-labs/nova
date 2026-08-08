@@ -6,6 +6,8 @@ import android.webkit.MimeTypeMap
 import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
+import com.nova.app.core.network.NovaComment
+import com.nova.app.core.network.NovaCommentMutation
 import com.nova.app.core.network.NovaPost
 import com.nova.app.core.network.UploadFile
 import kotlinx.coroutines.Dispatchers
@@ -46,6 +48,36 @@ class NovaFeedRepository(
     suspend fun deletePost(postId: Long): ApiResult<Unit> {
         return authenticatedCall { accessToken ->
             api.deletePost(accessToken, postId)
+        }
+    }
+
+    suspend fun setLiked(
+        postId: Long,
+        liked: Boolean,
+    ): ApiResult<NovaPost> {
+        return authenticatedCall { accessToken ->
+            api.setLiked(accessToken, postId, liked)
+        }
+    }
+
+    suspend fun comments(postId: Long): ApiResult<List<NovaComment>> {
+        return authenticatedCall { accessToken ->
+            api.comments(accessToken, postId)
+        }
+    }
+
+    suspend fun addComment(
+        postId: Long,
+        body: String,
+    ): ApiResult<NovaCommentMutation> {
+        return authenticatedCall { accessToken ->
+            api.addComment(accessToken, postId, body.trim())
+        }
+    }
+
+    suspend fun deleteComment(commentId: Long): ApiResult<NovaPost> {
+        return authenticatedCall { accessToken ->
+            api.deleteComment(accessToken, commentId)
         }
     }
 

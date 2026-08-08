@@ -48,9 +48,12 @@ fun HomeScreen(
     isLoading: Boolean,
     errorMessage: String?,
     deletingPostId: Long?,
+    likingPostId: Long?,
     onCreatePost: () -> Unit,
     onRetry: () -> Unit,
     onDeletePost: (NovaPost) -> Unit,
+    onLikeToggle: (NovaPost) -> Unit,
+    onCommentsClick: (NovaPost) -> Unit,
     onPersonClick: (String) -> Unit,
     onPeopleClick: () -> Unit,
     onProfileClick: () -> Unit,
@@ -131,7 +134,7 @@ fun HomeScreen(
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Post a photo from your phone. People who follow you will see it here.",
+                            text = "Post a photo from your phone. People who follow you can like it and join the conversation.",
                             color = NovaMuted,
                             fontSize = 13.sp,
                             lineHeight = 19.sp,
@@ -255,6 +258,7 @@ fun HomeScreen(
                     NovaPostCard(
                         post = post,
                         isDeleting = deletingPostId == post.id,
+                        isLiking = likingPostId == post.id,
                         onAuthorClick = {
                             if (post.isMine) {
                                 onProfileClick()
@@ -262,6 +266,8 @@ fun HomeScreen(
                                 onPersonClick(post.author.username)
                             }
                         },
+                        onLikeToggle = { onLikeToggle(post) },
+                        onCommentsClick = { onCommentsClick(post) },
                         onDelete = { onDeletePost(post) },
                     )
                 }

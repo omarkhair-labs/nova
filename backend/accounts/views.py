@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.db.models import Q
+from django.db.models import Count, Exists, OuterRef, Q
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -8,8 +8,9 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .models import Follow, Post
+from .models import Comment, Follow, Like, Post
 from .serializers import (
+    CommentSerializer,
     NovaTokenObtainPairSerializer,
     PersonSerializer,
     PostSerializer,
@@ -18,6 +19,26 @@ from .serializers import (
 )
 
 User = get_user_model()
+
+
+def post_queryset(request):
+    return Post.objects.select_related("author").annotate(
+        likes_count_value=Count("likes", distinct=True),
+        comments_count_value=Count("comments", distinct=True),
+        is_liked_value=Exists(
+            Like.objects.filter(post_id=OuterRef("pk"), user=request.user)
+        ),
+    )
+
+
+def visible_post_queryset(request):
+    followed_ids = Follow.objects.filter(follower=request.user).values_list(
+        "following_id",
+        flat=True,
+    )
+    return post_queryset(request).filter(
+        Q(author=request.user) | Q(author_id__in=followed_ids)
+    )
 
 
 class RegisterView(APIView):
@@ -127,6 +148,7 @@ class PostsView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         post = serializer.save(author=request.user)
+        post = post_queryset(request).get(pk=post.pk)
         return Response(
             PostSerializer(post, context={"request": request}).data,
             status=status.HTTP_201_CREATED,
@@ -137,15 +159,7 @@ class FeedView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        followed_ids = Follow.objects.filter(follower=request.user).values_list(
-            "following_id",
-            flat=True,
-        )
-        posts = (
-            Post.objects.filter(Q(author=request.user) | Q(author_id__in=followed_ids))
-            .select_related("author")
-            .order_by("-created_at", "-id")[:50]
-        )
+        posts = visible_post_queryset(request).order_by("-created_at", "-id")[:50]
         serializer = PostSerializer(
             posts,
             many=True,
@@ -157,7 +171,95 @@ class FeedView(APIView):
 class PostDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
+    def get(self, request, post_id):
+        post = get_object_or_404(visible_post_queryset(request), pk=post_id)
+        return Response(PostSerializer(post, context={"request": request}).data)
+
     def delete(self, request, post_id):
         post = get_object_or_404(Post, pk=post_id, author=request.user)
         post.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PostLikeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _post(self, request, post_id):
+        return get_object_or_404(visible_post_queryset(request), pk=post_id)
+
+    def post(self, request, post_id):
+        post = self._post(request, post_id)
+        Like.objects.get_or_create(post_id=post.pk, user=request.user)
+        refreshed = post_queryset(request).get(pk=post.pk)
+        return Response(PostSerializer(refreshed, context={"request": request}).data)
+
+    def delete(self, request, post_id):
+        post = self._post(request, post_id)
+        Like.objects.filter(post_id=post.pk, user=request.user).delete()
+        refreshed = post_queryset(request).get(pk=post.pk)
+        return Response(PostSerializer(refreshed, context={"request": request}).data)
+
+
+class PostCommentsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _post(self, request, post_id):
+        return get_object_or_404(visible_post_queryset(request), pk=post_id)
+
+    def get(self, request, post_id):
+        post = self._post(request, post_id)
+        comments = post.comments.select_related("author").order_by("created_at", "id")[:100]
+        return Response(
+            {
+                "results": CommentSerializer(
+                    comments,
+                    many=True,
+                    context={"request": request},
+                ).data
+            }
+        )
+
+    def post(self, request, post_id):
+        post = self._post(request, post_id)
+        serializer = CommentSerializer(
+            data=request.data,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        comment = serializer.save(post=post, author=request.user)
+        refreshed = post_queryset(request).get(pk=post.pk)
+        return Response(
+            {
+                "comment": CommentSerializer(
+                    comment,
+                    context={"request": request},
+                ).data,
+                "post": PostSerializer(
+                    refreshed,
+                    context={"request": request},
+                ).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class CommentDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, comment_id):
+        comment = get_object_or_404(
+            Comment.objects.select_related("post"),
+            pk=comment_id,
+            author=request.user,
+        )
+        post_id = comment.post_id
+        comment.delete()
+        refreshed = post_queryset(request).get(pk=post_id)
+        return Response(
+            {
+                "post": PostSerializer(
+                    refreshed,
+                    context={"request": request},
+                ).data
+            }
+        )

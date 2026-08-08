@@ -120,3 +120,56 @@ class Post(models.Model):
 
     def __str__(self):
         return f"Post {self.pk} by @{self.author.username}"
+
+
+class Like(models.Model):
+    post = models.ForeignKey(
+        Post,
+        on_delete=models.CASCADE,
+        related_name="likes",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="post_likes",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at", "-id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("post", "user"),
+                name="unique_post_like",
+            )
+        ]
+        indexes = [
+            models.Index(fields=("post", "-created_at"), name="like_post_created_idx"),
+        ]
+
+    def __str__(self):
+        return f"@{self.user.username} likes post {self.post_id}"
+
+
+class Comment(models.Model):
+    post = models.ForeignKey(
+        Post,
+        on_delete=models.CASCADE,
+        related_name="comments",
+    )
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="post_comments",
+    )
+    body = models.CharField(max_length=300)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("created_at", "id")
+        indexes = [
+            models.Index(fields=("post", "created_at"), name="comment_post_created_idx"),
+        ]
+
+    def __str__(self):
+        return f"Comment {self.pk} by @{self.author.username}"

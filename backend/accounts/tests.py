@@ -178,6 +178,9 @@ class AuthFlowTests(APITestCase):
         self.assertEqual(mine.status_code, status.HTTP_201_CREATED)
         self.assertEqual(mine.data["caption"], "First Nova moment")
         self.assertTrue(mine.data["is_mine"])
+        self.assertEqual(mine.data["likes_count"], 0)
+        self.assertEqual(mine.data["comments_count"], 0)
+        self.assertFalse(mine.data["is_liked"])
         mine_id = mine.data["id"]
 
         me_after_post = self.client.get(self.me_url)
@@ -221,3 +224,71 @@ class AuthFlowTests(APITestCase):
         feed_after_delete = self.client.get(feed_url)
         self.assertEqual(len(feed_after_delete.data["results"]), 1)
         self.assertEqual(feed_after_delete.data["results"][0]["author"]["username"], "maya")
+
+    def test_post_likes_and_comments_are_persistent_and_idempotent(self):
+        me = self.register(self.payload)
+        maya = self.register(
+            {
+                "email": "maya@example.com",
+                "password": "StrongNovaPass2026!",
+                "username": "maya",
+                "name": "Maya Noor",
+            }
+        )
+
+        self.authenticate(maya.data["access"])
+        maya_post = self.client.post(
+            reverse("posts"),
+            {"caption": "Talk to me", "image": self.image("maya-talk.png")},
+            format="multipart",
+        )
+        post_id = maya_post.data["id"]
+
+        self.authenticate(me.data["access"])
+        self.client.post(
+            reverse("person-follow", kwargs={"username": "maya"}),
+            {},
+            format="json",
+        )
+
+        like_url = reverse("post-like", kwargs={"post_id": post_id})
+        liked = self.client.post(like_url, {}, format="json")
+        self.assertEqual(liked.status_code, status.HTTP_200_OK)
+        self.assertTrue(liked.data["is_liked"])
+        self.assertEqual(liked.data["likes_count"], 1)
+
+        liked_again = self.client.post(like_url, {}, format="json")
+        self.assertEqual(liked_again.data["likes_count"], 1)
+
+        comments_url = reverse("post-comments", kwargs={"post_id": post_id})
+        added = self.client.post(comments_url, {"body": "This feels alive."}, format="json")
+        self.assertEqual(added.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(added.data["comment"]["body"], "This feels alive.")
+        self.assertTrue(added.data["comment"]["is_mine"])
+        self.assertEqual(added.data["post"]["comments_count"], 1)
+        comment_id = added.data["comment"]["id"]
+
+        comments = self.client.get(comments_url)
+        self.assertEqual(comments.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(comments.data["results"]), 1)
+        self.assertEqual(comments.data["results"][0]["author"]["username"], "omar")
+
+        blank = self.client.post(comments_url, {"body": "   "}, format="json")
+        self.assertEqual(blank.status_code, status.HTTP_400_BAD_REQUEST)
+
+        unliked = self.client.delete(like_url)
+        self.assertEqual(unliked.status_code, status.HTTP_200_OK)
+        self.assertFalse(unliked.data["is_liked"])
+        self.assertEqual(unliked.data["likes_count"], 0)
+
+        deleted_comment = self.client.delete(
+            reverse("comment-detail", kwargs={"comment_id": comment_id})
+        )
+        self.assertEqual(deleted_comment.status_code, status.HTTP_200_OK)
+        self.assertEqual(deleted_comment.data["post"]["comments_count"], 0)
+
+        feed = self.client.get(reverse("feed"))
+        target = next(post for post in feed.data["results"] if post["id"] == post_id)
+        self.assertEqual(target["likes_count"], 0)
+        self.assertEqual(target["comments_count"], 0)
+        self.assertFalse(target["is_liked"])

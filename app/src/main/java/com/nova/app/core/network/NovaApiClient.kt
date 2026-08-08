@@ -50,6 +50,24 @@ data class NovaPost(
     val caption: String,
     val createdAt: String,
     val isMine: Boolean,
+    val likesCount: Int = 0,
+    val commentsCount: Int = 0,
+    val isLiked: Boolean = false,
+)
+
+
+data class NovaComment(
+    val id: Long,
+    val author: NovaPostAuthor,
+    val body: String,
+    val createdAt: String,
+    val isMine: Boolean,
+)
+
+
+data class NovaCommentMutation(
+    val comment: NovaComment,
+    val post: NovaPost,
 )
 
 
@@ -250,6 +268,113 @@ class NovaApiClient(
         }
     }
 
+    suspend fun setLiked(
+        accessToken: String,
+        postId: Long,
+        liked: Boolean,
+    ): ApiResult<NovaPost> {
+        val response = if (liked) {
+            requestJson(
+                path = "posts/$postId/like/",
+                method = "POST",
+                body = JSONObject(),
+                bearerToken = accessToken,
+            )
+        } else {
+            requestJson(
+                path = "posts/$postId/like/",
+                method = "DELETE",
+                bearerToken = accessToken,
+            )
+        }
+
+        return when (response) {
+            is ApiResult.Success -> ApiResult.Success(parsePost(response.value))
+            is ApiResult.Failure -> response
+        }
+    }
+
+    suspend fun comments(
+        accessToken: String,
+        postId: Long,
+    ): ApiResult<List<NovaComment>> {
+        return when (
+            val response = requestJson(
+                path = "posts/$postId/comments/",
+                bearerToken = accessToken,
+            )
+        ) {
+            is ApiResult.Success -> {
+                val array = response.value.optJSONArray("results") ?: JSONArray()
+                val comments = buildList {
+                    for (index in 0 until array.length()) {
+                        array.optJSONObject(index)?.let { add(parseComment(it)) }
+                    }
+                }
+                ApiResult.Success(comments)
+            }
+
+            is ApiResult.Failure -> response
+        }
+    }
+
+    suspend fun addComment(
+        accessToken: String,
+        postId: Long,
+        body: String,
+    ): ApiResult<NovaCommentMutation> {
+        val payload = JSONObject().put("body", body)
+        return when (
+            val response = requestJson(
+                path = "posts/$postId/comments/",
+                method = "POST",
+                body = payload,
+                bearerToken = accessToken,
+            )
+        ) {
+            is ApiResult.Success -> {
+                val comment = response.value.optJSONObject("comment")
+                val post = response.value.optJSONObject("post")
+                if (comment == null || post == null) {
+                    ApiResult.Failure("Nova returned an invalid comment response.")
+                } else {
+                    ApiResult.Success(
+                        NovaCommentMutation(
+                            comment = parseComment(comment),
+                            post = parsePost(post),
+                        ),
+                    )
+                }
+            }
+
+            is ApiResult.Failure -> response
+        }
+    }
+
+    suspend fun deleteComment(
+        accessToken: String,
+        commentId: Long,
+    ): ApiResult<NovaPost> {
+        return when (
+            val response = requestJson(
+                path = "comments/$commentId/",
+                method = "DELETE",
+                bearerToken = accessToken,
+            )
+        ) {
+            is ApiResult.Success -> {
+                val post = response.value.optJSONObject("post")
+                if (post == null) {
+                    ApiResult.Failure("Nova returned an invalid comment response.")
+                } else {
+                    ApiResult.Success(parsePost(post))
+                }
+            }
+
+            is ApiResult.Failure -> response
+        }
+    }
+
     suspend fun refresh(refreshToken: String): ApiResult<String> {
         val body = JSONObject().put("refresh", refreshToken)
 
@@ -327,6 +452,20 @@ class NovaApiClient(
             author = parsePostAuthor(author),
             imageUrl = resolveMediaUrl(json.optString("image_url")),
             caption = json.optString("caption"),
+            createdAt = json.optString("created_at"),
+            isMine = json.optBoolean("is_mine", false),
+            likesCount = json.optInt("likes_count", 0),
+            commentsCount = json.optInt("comments_count", 0),
+            isLiked = json.optBoolean("is_liked", false),
+        )
+    }
+
+    private fun parseComment(json: JSONObject): NovaComment {
+        val author = json.optJSONObject("author") ?: JSONObject()
+        return NovaComment(
+            id = json.optLong("id"),
+            author = parsePostAuthor(author),
+            body = json.optString("body"),
             createdAt = json.optString("created_at"),
             isMine = json.optBoolean("is_mine", false),
         )
@@ -478,6 +617,7 @@ class NovaApiClient(
                     "avatar" -> "Photo: $message"
                     "image" -> "Photo: $message"
                     "caption" -> "Caption: $message"
+                    "body" -> "Comment: $message"
                     else -> message
                 }
             }
