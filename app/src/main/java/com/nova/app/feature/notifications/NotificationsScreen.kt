@@ -34,7 +34,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nova.app.core.feed.NovaFeedRepository
 import com.nova.app.core.network.ApiResult
+import com.nova.app.core.network.NovaPost
 import com.nova.app.core.notifications.NovaNotification
 import com.nova.app.core.notifications.NovaNotificationRepository
 import com.nova.app.ui.components.NovaAvatar
@@ -56,13 +58,16 @@ import java.time.Instant
 fun NotificationsScreen(
     onBack: () -> Unit,
     onPersonClick: (String) -> Unit,
-    onPostClick: (Long) -> Unit,
+    onPostClick: (NovaPost) -> Unit,
     onUnreadCountChanged: (Int) -> Unit,
     onSessionExpired: () -> Unit,
 ) {
     val context = LocalContext.current
     val repository = remember(context) {
         NovaNotificationRepository(context.applicationContext)
+    }
+    val feedRepository = remember(context) {
+        NovaFeedRepository(context.applicationContext)
     }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
@@ -71,6 +76,7 @@ fun NotificationsScreen(
     var nextCursor by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var isLoadingMore by remember { mutableStateOf(false) }
+    var openingPostId by remember { mutableStateOf<Long?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     fun loadActivity(reset: Boolean) {
@@ -107,6 +113,29 @@ fun NotificationsScreen(
                 is ApiResult.Failure -> {
                     isLoading = false
                     isLoadingMore = false
+                    if (result.statusCode == 401) {
+                        onSessionExpired()
+                    } else {
+                        errorMessage = result.message
+                    }
+                }
+            }
+        }
+    }
+
+    fun openPost(postId: Long) {
+        if (openingPostId != null) return
+        scope.launch {
+            openingPostId = postId
+            errorMessage = null
+            when (val result = feedRepository.post(postId)) {
+                is ApiResult.Success -> {
+                    openingPostId = null
+                    onPostClick(result.value)
+                }
+
+                is ApiResult.Failure -> {
+                    openingPostId = null
                     if (result.statusCode == 401) {
                         onSessionExpired()
                     } else {
@@ -302,11 +331,12 @@ fun NotificationsScreen(
                 ) { notification ->
                     NotificationRow(
                         notification = notification,
+                        isOpening = openingPostId == notification.postId && openingPostId != null,
                         onClick = {
                             when (notification.kind) {
                                 "follow" -> onPersonClick(notification.actor.username)
                                 "like", "comment" -> {
-                                    notification.postId?.let(onPostClick)
+                                    notification.postId?.let(::openPost)
                                         ?: onPersonClick(notification.actor.username)
                                 }
                                 else -> onPersonClick(notification.actor.username)
@@ -367,6 +397,7 @@ fun NotificationsScreen(
 @Composable
 private fun NotificationRow(
     notification: NovaNotification,
+    isOpening: Boolean,
     onClick: () -> Unit,
 ) {
     Surface(
@@ -401,8 +432,14 @@ private fun NotificationRow(
                     fontSize = 11.sp,
                 )
             }
-            if (!notification.isRead) {
-                Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            if (isOpening) {
+                CircularProgressIndicator(
+                    modifier = Modifier.width(18.dp).height(18.dp),
+                    color = NovaAccent,
+                    strokeWidth = 2.dp,
+                )
+            } else if (!notification.isRead) {
                 Surface(
                     shape = RoundedCornerShape(10.dp),
                     color = NovaAccent,
