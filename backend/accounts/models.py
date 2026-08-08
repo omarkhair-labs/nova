@@ -91,3 +91,24 @@ class Follow(models.Model):
 
     def __str__(self):
         return f"{self.follower.username} -> {self.following.username}"
+
+
+class Post(models.Model):
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="posts",
+    )
+    image = models.ImageField(upload_to="posts/%Y/%m/")
+    caption = models.CharField(max_length=500, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at", "-id")
+        indexes = [
+            models.Index(fields=("-created_at",), name="post_created_idx"),
+            models.Index(fields=("author", "-created_at"), name="post_author_created_idx"),
+        ]
+
+    def __str__(self):
+        return f"Post {self.pk} by @{self.author.username}"
