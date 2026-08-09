@@ -66,13 +66,8 @@ jobs:
       - name: Check Django configuration
         run: python manage.py check
 
-      - name: Diagnose migration drift
-        run: |
-          python manage.py makemigrations accounts --noinput
-          echo "--- Generated migration ---"
-          cat accounts/migrations/0010_*.py
-          echo "--- End generated migration ---"
-          exit 1
+      - name: Check migrations
+        run: python manage.py makemigrations --check
 
       - name: Run backend tests
         run: python manage.py test
