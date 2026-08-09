@@ -71,14 +71,29 @@ TEMPLATES = [
 WSGI_APPLICATION = "nova_backend.wsgi.application"
 ASGI_APPLICATION = "nova_backend.asgi.application"
 
-# Nova currently runs one Railway web process. Keeping the channel layer in
-# process means HTTP writes and WebSocket clients share the same realtime bus
-# without adding Redis yet. Move this to Redis before enabling multiple replicas.
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer",
+# Railway Redis is optional during rollout so a merge cannot take production
+# down before the Redis service/reference variable is attached. Once REDIS_URL
+# exists, all HTTP/ASGI workers share the same channel layer automatically.
+REDIS_URL = os.getenv("REDIS_URL", "").strip()
+if REDIS_URL:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [REDIS_URL],
+                "prefix": os.getenv("NOVA_CHANNEL_PREFIX", "nova-asgi"),
+                "expiry": 60,
+                "group_expiry": 3600,
+                "capacity": 200,
+            },
+        }
     }
-}
+else:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        }
+    }
 
 database_url = os.getenv("DATABASE_URL", "").strip()
 if database_url:

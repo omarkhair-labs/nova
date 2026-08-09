@@ -1,3 +1,5 @@
+import asyncio
+
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from django.contrib.auth.models import AnonymousUser
@@ -8,39 +10,38 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
 from .models import Conversation, Message, User
+from .presence_store import is_online, refresh_lease, register_lease, unregister_lease
 
 
-_conversation_presence_counts = {}
+PRESENCE_REFRESH_SECONDS = 30
 
 
 def conversation_group_name(conversation_id):
     return f"conversation.{conversation_id}"
 
 
-def _presence_key(conversation_id, user_id):
-    return conversation_id, user_id
+def user_presence_group_name(user_id):
+    return f"presence.user.{int(user_id)}"
 
 
-def _presence_count(conversation_id, user_id):
-    return _conversation_presence_counts.get(_presence_key(conversation_id, user_id), 0)
+@database_sync_to_async
+def set_user_last_seen(user_id):
+    now = timezone.now()
+    User.objects.filter(pk=user_id).update(last_seen_at=now)
+    return now.isoformat()
 
 
-def _increment_presence(conversation_id, user_id):
-    key = _presence_key(conversation_id, user_id)
-    count = _conversation_presence_counts.get(key, 0) + 1
-    _conversation_presence_counts[key] = count
-    return count
-
-
-def _decrement_presence(conversation_id, user_id):
-    key = _presence_key(conversation_id, user_id)
-    current = _conversation_presence_counts.get(key, 0)
-    if current <= 1:
-        _conversation_presence_counts.pop(key, None)
-        return 0
-    current -= 1
-    _conversation_presence_counts[key] = current
-    return current
+async def broadcast_presence(channel_layer, user, is_online_value, last_seen_at=None):
+    await channel_layer.group_send(
+        user_presence_group_name(user.pk),
+        {
+            "type": "presence.changed",
+            "user_id": user.pk,
+            "username": user.username,
+            "is_online": bool(is_online_value),
+            "last_seen_at": last_seen_at,
+        },
+    )
 
 
 class JwtAuthMiddleware:
@@ -56,10 +57,7 @@ class JwtAuthMiddleware:
 
     @database_sync_to_async
     def _authenticate(self, scope):
-        headers = {
-            key.lower(): value
-            for key, value in scope.get("headers", [])
-        }
+        headers = {key.lower(): value for key, value in scope.get("headers", [])}
         raw_header = headers.get(b"authorization", b"").decode("latin1").strip()
         if not raw_header.lower().startswith("bearer "):
             return AnonymousUser()
@@ -76,12 +74,82 @@ class JwtAuthMiddleware:
             return AnonymousUser()
 
 
-class ConversationConsumer(AsyncJsonWebsocketConsumer):
+class PresenceLeaseMixin:
+    presence_registered = False
+    presence_refresh_task = None
+
+    async def start_presence_lease(self, user):
+        self.presence_lease_id = f"{self.__class__.__name__}:{self.channel_name}"
+        became_online, _ = await register_lease(user.pk, self.presence_lease_id)
+        self.presence_registered = True
+        self.presence_refresh_task = asyncio.create_task(self._presence_refresh_loop(user.pk))
+        if became_online:
+            await broadcast_presence(self.channel_layer, user, True, None)
+
+    async def stop_presence_lease(self, user):
+        task = getattr(self, "presence_refresh_task", None)
+        if task is not None:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+            self.presence_refresh_task = None
+
+        if not getattr(self, "presence_registered", False):
+            return
+        self.presence_registered = False
+
+        remaining = await unregister_lease(user.pk, self.presence_lease_id)
+        if remaining == 0:
+            last_seen_at = await set_user_last_seen(user.pk)
+            await broadcast_presence(self.channel_layer, user, False, last_seen_at)
+
+    async def _presence_refresh_loop(self, user_id):
+        try:
+            while True:
+                await asyncio.sleep(PRESENCE_REFRESH_SECONDS)
+                await refresh_lease(user_id, self.presence_lease_id)
+        except asyncio.CancelledError:
+            raise
+
+
+class PresenceConsumer(PresenceLeaseMixin, AsyncJsonWebsocketConsumer):
+    """One app-wide socket while Nova is in the foreground."""
+
+    async def connect(self):
+        user = self.scope.get("user")
+        if not user or not user.is_authenticated:
+            await self.close(code=4401)
+            return
+
+        await self.accept()
+        await self.start_presence_lease(user)
+        await self.send_json(
+            {
+                "type": "presence.ready",
+                "user_id": user.pk,
+                "username": user.username,
+                "is_online": True,
+            }
+        )
+
+    async def disconnect(self, close_code):
+        user = self.scope.get("user")
+        if user and user.is_authenticated:
+            await self.stop_presence_lease(user)
+
+    async def receive_json(self, content, **kwargs):
+        if content.get("type") == "ping":
+            await self.send_json({"type": "pong"})
+
+
+class ConversationConsumer(PresenceLeaseMixin, AsyncJsonWebsocketConsumer):
     async def connect(self):
         self.conversation_id = int(self.scope["url_route"]["kwargs"]["conversation_id"])
         self.group_name = conversation_group_name(self.conversation_id)
         self.joined_group = False
-        self.presence_registered = False
+        self.watching_presence_group = None
         self.is_typing = False
 
         user = self.scope.get("user")
@@ -94,12 +162,12 @@ class ConversationConsumer(AsyncJsonWebsocketConsumer):
             return
 
         other_presence = await self._other_participant_presence(user.pk, self.conversation_id)
-        await self.channel_layer.group_add(self.group_name, self.channel_name)
-        self.joined_group = True
+        self.watching_presence_group = user_presence_group_name(other_presence["user_id"])
 
-        count = _increment_presence(self.conversation_id, user.pk)
-        self.presence_registered = True
-        await self._set_last_seen(user.pk)
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.channel_layer.group_add(self.watching_presence_group, self.channel_name)
+        self.joined_group = True
+        await self.start_presence_lease(user)
 
         await self.accept()
         await self.send_json(
@@ -108,25 +176,10 @@ class ConversationConsumer(AsyncJsonWebsocketConsumer):
                 "conversation_id": self.conversation_id,
                 "presence": {
                     **other_presence,
-                    "is_online": _presence_count(
-                        self.conversation_id,
-                        other_presence["user_id"],
-                    ) > 0,
+                    "is_online": await is_online(other_presence["user_id"]),
                 },
             }
         )
-
-        if count == 1:
-            await self.channel_layer.group_send(
-                self.group_name,
-                {
-                    "type": "conversation.presence",
-                    "user_id": user.pk,
-                    "username": user.username,
-                    "is_online": True,
-                    "last_seen_at": None,
-                },
-            )
 
     async def disconnect(self, close_code):
         group_name = getattr(self, "group_name", None)
@@ -145,23 +198,11 @@ class ConversationConsumer(AsyncJsonWebsocketConsumer):
                             "is_typing": False,
                         },
                     )
+                await self.stop_presence_lease(user)
 
-                if getattr(self, "presence_registered", False):
-                    remaining = _decrement_presence(self.conversation_id, user.pk)
-                    self.presence_registered = False
-                    if remaining == 0:
-                        last_seen_at = await self._set_last_seen(user.pk)
-                        await self.channel_layer.group_send(
-                            group_name,
-                            {
-                                "type": "conversation.presence",
-                                "user_id": user.pk,
-                                "username": user.username,
-                                "is_online": False,
-                                "last_seen_at": last_seen_at,
-                            },
-                        )
-
+            presence_group = getattr(self, "watching_presence_group", None)
+            if presence_group:
+                await self.channel_layer.group_discard(presence_group, self.channel_name)
             await self.channel_layer.group_discard(group_name, self.channel_name)
             self.joined_group = False
 
@@ -170,7 +211,6 @@ class ConversationConsumer(AsyncJsonWebsocketConsumer):
             return
 
         event_type = content.get("type")
-
         if event_type == "ping":
             await self.send_json({"type": "pong"})
             return
@@ -215,12 +255,7 @@ class ConversationConsumer(AsyncJsonWebsocketConsumer):
         sender = message.get("sender") or {}
         user = self.scope.get("user")
         message["is_mine"] = bool(user and sender.get("id") == user.pk)
-        await self.send_json(
-            {
-                "type": "message.created",
-                "message": message,
-            }
-        )
+        await self.send_json({"type": "message.created", "message": message})
 
     async def message_reaction(self, event):
         user = self.scope.get("user")
@@ -260,7 +295,6 @@ class ConversationConsumer(AsyncJsonWebsocketConsumer):
         user = self.scope.get("user")
         if user and event["user_id"] == user.pk:
             return
-
         await self.send_json(
             {
                 "type": "typing",
@@ -270,11 +304,7 @@ class ConversationConsumer(AsyncJsonWebsocketConsumer):
             }
         )
 
-    async def conversation_presence(self, event):
-        user = self.scope.get("user")
-        if user and event["user_id"] == user.pk:
-            return
-
+    async def presence_changed(self, event):
         await self.send_json(
             {
                 "type": "presence",
@@ -307,12 +337,6 @@ class ConversationConsumer(AsyncJsonWebsocketConsumer):
             "username": other.username,
             "last_seen_at": other.last_seen_at.isoformat() if other.last_seen_at else None,
         }
-
-    @database_sync_to_async
-    def _set_last_seen(self, user_id):
-        now = timezone.now()
-        User.objects.filter(pk=user_id).update(last_seen_at=now)
-        return now.isoformat()
 
     @database_sync_to_async
     def _mark_delivered(self, user_id, message_id):
