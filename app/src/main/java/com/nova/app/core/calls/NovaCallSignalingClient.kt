@@ -25,6 +25,7 @@ enum class NovaCallSocketStatus {
 
 sealed interface NovaCallSignalEvent {
     data class Ready(val call: NovaCallSession) : NovaCallSignalEvent
+    data class PeerReady(val userId: Long) : NovaCallSignalEvent
     data class Offer(val sdp: String) : NovaCallSignalEvent
     data class Answer(val sdp: String) : NovaCallSignalEvent
     data class Ice(
@@ -186,6 +187,7 @@ class NovaCallSignalingClient(
     private fun parseEvent(json: JSONObject): NovaCallSignalEvent? {
         return when (json.optString("type")) {
             "call.ready" -> NovaCallSignalEvent.Ready(parseCall(json.optJSONObject("call") ?: return null))
+            "call.peer_ready" -> NovaCallSignalEvent.PeerReady(json.optLong("user_id"))
             "call.state" -> NovaCallSignalEvent.State(parseCall(json.optJSONObject("call") ?: return null))
             "call.offer" -> NovaCallSignalEvent.Offer(json.optString("sdp")).takeIf { it.sdp.isNotBlank() }
             "call.answer" -> NovaCallSignalEvent.Answer(json.optString("sdp")).takeIf { it.sdp.isNotBlank() }
