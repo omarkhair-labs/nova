@@ -142,5 +142,14 @@ jobs:
       - name: Run Android unit tests
         run: ./gradlew --no-daemon testDebugUnitTest
 
+      - name: Lint Android release
+        shell: bash
+        run: |
+          if ! ./gradlew --no-daemon lintRelease; then
+            echo "--- Full release lint report ---"
+            find app/build -name 'lint-results-release.txt' -print -exec cat {} \; || true
+            exit 1
+          fi
+
       - name: Assemble Android debug APK
         run: ./gradlew --no-daemon assembleDebug
