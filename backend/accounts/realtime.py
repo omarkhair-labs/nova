@@ -222,6 +222,20 @@ class ConversationConsumer(AsyncJsonWebsocketConsumer):
             }
         )
 
+    async def message_reaction(self, event):
+        user = self.scope.get("user")
+        await self.send_json(
+            {
+                "type": "message.reaction",
+                "message_id": event["message_id"],
+                "user_id": event["user_id"],
+                "emoji": event["emoji"],
+                "active": event["active"],
+                "count": event["count"],
+                "is_mine": bool(user and event["user_id"] == user.pk),
+            }
+        )
+
     async def messages_delivered(self, event):
         await self.send_json(
             {
