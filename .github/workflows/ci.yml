@@ -119,7 +119,7 @@ jobs:
                 "client_info": {
                   "mobilesdk_app_id": "1:123456789000:android:0000000000000000000000",
                   "android_client_info": {
-                    "package_name": "com.nova.app"
+                    "package_name": "com.omarkhair70.nova"
                   }
                 },
                 "oauth_client": [],
