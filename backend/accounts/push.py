@@ -3,6 +3,7 @@ import logging
 import os
 from functools import lru_cache
 
+from .messaging_models import ConversationPreference
 from .models import DevicePushToken, Notification
 
 logger = logging.getLogger(__name__)
@@ -104,6 +105,13 @@ def send_notification_push(notification):
 
 def send_message_push(message):
     """Deliver a direct-message push without creating an Activity notification row."""
+
+    if ConversationPreference.objects.filter(
+        conversation_id=message.conversation_id,
+        user_id=message.recipient_id,
+        muted=True,
+    ).exists():
+        return 0
 
     app = _firebase_app()
     if app is None:
