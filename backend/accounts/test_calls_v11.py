@@ -139,6 +139,10 @@ class CallsV11Tests(TransactionTestCase):
             self.assertEqual(caller_state["type"], "call.state")
             self.assertEqual(caller_state["call"]["status"], "active")
             self.assertEqual(callee_state["call"]["status"], "active")
+            self.assertTrue(caller_state["call"]["is_caller"])
+            self.assertEqual(caller_state["call"]["peer"]["id"], self.maya.pk)
+            self.assertFalse(callee_state["call"]["is_caller"])
+            self.assertEqual(callee_state["call"]["peer"]["id"], self.omar.pk)
 
             await callee.send_json_to({"type": "call.answer", "sdp": "answer-sdp"})
             answer = await caller.receive_json_from(timeout=1)
@@ -161,6 +165,8 @@ class CallsV11Tests(TransactionTestCase):
             end_for_callee = await callee.receive_json_from(timeout=1)
             self.assertEqual(end_for_caller["call"]["status"], "ended")
             self.assertEqual(end_for_callee["call"]["status"], "ended")
+            self.assertTrue(end_for_caller["call"]["is_caller"])
+            self.assertFalse(end_for_callee["call"]["is_caller"])
 
             saved = await database_sync_to_async(CallSession.objects.get)(pk=call.pk)
             self.assertEqual(saved.status, CallSession.Status.ENDED)
