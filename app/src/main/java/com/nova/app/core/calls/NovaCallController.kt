@@ -127,8 +127,11 @@ class NovaCallController(
         if (!audioGranted) {
             update { it.copy(error = "Microphone permission is required for Nova calls.") }
             if (pendingAccept) {
+                val call = mutableState.value.session
                 pendingAccept = false
-                queueOrSendAction("decline")
+                if (call != null) {
+                    finishLocally(call, "decline", "Call declined", DisconnectCause.REJECTED)
+                }
             } else if (launchSpec is NovaCallLaunchSpec.Outgoing) {
                 scope.launch {
                     delay(900)
@@ -158,7 +161,7 @@ class NovaCallController(
 
     fun accept() {
         val call = mutableState.value.session ?: return
-        if (call.isCaller || call.status != NovaCallStatus.Ringing || ending) return
+        if (call.isCaller || call.status.isTerminal || ending) return
         pendingAccept = true
         if (!audioPermissionGranted) {
             askForPermissions(call.kind)
@@ -168,12 +171,10 @@ class NovaCallController(
     }
 
     fun decline() {
-        val call = mutableState.value.session
-        if (call != null && !call.isCaller && call.status == NovaCallStatus.Ringing) {
-            ending = true
-            queueOrSendAction("decline")
-            update { it.copy(stage = "Declining…") }
-        }
+        val call = mutableState.value.session ?: return
+        if (call.isCaller || call.status != NovaCallStatus.Ringing || ending) return
+        ending = true
+        finishLocally(call, "decline", "Call declined", DisconnectCause.REJECTED)
     }
 
     fun hangUp() {
@@ -190,12 +191,11 @@ class NovaCallController(
             else -> null
         }
         if (action == null) {
-            finishTerminal(call)
+            NovaCallNotification.cancel(appContext, call.id)
+            onFinished()
             return
         }
-        queueOrSendAction(action)
-        update { it.copy(stage = "Ending call…") }
-        scope.launch { telecom.disconnect(DisconnectCause.LOCAL) }
+        finishLocally(call, action, "Call ended", DisconnectCause.LOCAL)
     }
 
     fun toggleMicrophone() {
@@ -381,10 +381,8 @@ class NovaCallController(
                 }
                 if (event.call.isCaller) {
                     maybeCreateOffer()
-                } else {
-                    if (queuedAction == null && pendingAccept) {
-                        if (audioPermissionGranted) performAccept() else askForPermissions(event.call.kind)
-                    }
+                } else if (pendingAccept || acceptedLocally) {
+                    if (audioPermissionGranted) performAccept() else askForPermissions(event.call.kind)
                 }
             }
 
@@ -416,6 +414,10 @@ class NovaCallController(
                     ringTimeoutJob = null
                     NovaCallNotification.showOngoing(appContext, event.call)
                     scope.launch { telecom.setActive() }
+                    if (!event.call.isCaller && acceptedLocally) {
+                        initializeEngineIfPossible(event.call)
+                        maybeCreateAnswer()
+                    }
                 } else if (event.call.status.isTerminal) {
                     finishTerminal(event.call)
                 }
@@ -429,15 +431,24 @@ class NovaCallController(
 
     private fun performAccept() {
         val call = mutableState.value.session ?: return
-        if (call.isCaller || call.status != NovaCallStatus.Ringing || acceptedLocally || ending) return
+        if (call.isCaller || call.status.isTerminal || ending) return
         pendingAccept = true
         initializeEngineIfPossible(call)
+
+        if (!acceptedLocally) {
+            acceptedLocally = true
+            NovaCallNotification.showOngoing(
+                appContext,
+                call.copy(status = NovaCallStatus.Active),
+            )
+            NovaCallActionDispatcher.dispatch(appContext, call.id, "accept")
+            scope.launch { telecom.answer() }
+            update { it.copy(stage = "Connecting…") }
+        }
+
         if (!signalingReady) return
-        acceptedLocally = true
         pendingAccept = false
         signaling?.accept()
-        scope.launch { telecom.answer() }
-        update { it.copy(stage = "Connecting…") }
         maybeCreateAnswer()
     }
 
@@ -493,6 +504,22 @@ class NovaCallController(
         }
     }
 
+    private fun finishLocally(
+        call: NovaCallSession,
+        action: String,
+        stage: String,
+        disconnectCause: Int,
+    ) {
+        ringTimeoutJob?.cancel()
+        ringTimeoutJob = null
+        NovaCallNotification.cancel(appContext, call.id)
+        queueOrSendAction(action)
+        NovaCallActionDispatcher.dispatch(appContext, call.id, action)
+        update { it.copy(stage = stage, connected = false) }
+        scope.launch { telecom.disconnect(disconnectCause) }
+        onFinished()
+    }
+
     private fun flushLocalIce() {
         if (!signalingReady) return
         val client = signaling ?: return
@@ -515,8 +542,13 @@ class NovaCallController(
             val current = mutableState.value.session
             if (current?.status == NovaCallStatus.Ringing && !ending) {
                 ending = true
+                NovaCallNotification.cancel(appContext, current.id)
                 queueOrSendAction("timeout")
-                update { it.copy(stage = "No answer") }
+                NovaCallActionDispatcher.dispatch(appContext, current.id, "timeout")
+                update { it.copy(stage = "No answer", connected = false) }
+                telecom.disconnect(DisconnectCause.LOCAL)
+                delay(650)
+                onFinished()
             }
         }
     }
@@ -581,7 +613,11 @@ class NovaCallController(
                     PeerConnection.PeerConnectionState.FAILED -> {
                         if (!ending) {
                             ending = true
-                            queueOrSendAction("failed")
+                            val call = mutableState.value.session
+                            if (call != null) {
+                                queueOrSendAction("failed")
+                                NovaCallActionDispatcher.dispatch(appContext, call.id, "failed")
+                            }
                             update { it.copy(stage = "Connection failed", connected = false) }
                         }
                     }
