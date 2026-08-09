@@ -1,4 +1,5 @@
 from channels.db import database_sync_to_async
+from channels.layers import channel_layers
 from channels.testing import WebsocketCommunicator
 from django.contrib.auth import get_user_model
 from django.test import TransactionTestCase
@@ -18,6 +19,10 @@ class MessagingV7RealtimeTests(TransactionTestCase):
     reset_sequences = True
 
     def setUp(self):
+        # Keep the Redis-backed Channels integration real in CI, but do not
+        # reuse an asyncio-bound RedisChannelLayer across unittest event loops.
+        channel_layers.backends.clear()
+
         self.omar = User.objects.create_user(
             email="omar-v7-socket@example.com",
             username="omar-v7-socket",

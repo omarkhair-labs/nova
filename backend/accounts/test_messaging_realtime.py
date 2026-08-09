@@ -1,4 +1,5 @@
 from channels.db import database_sync_to_async
+from channels.layers import channel_layers
 from channels.testing import WebsocketCommunicator
 from django.contrib.auth import get_user_model
 from django.test import TransactionTestCase
@@ -17,6 +18,13 @@ class MessagingRealtimeSocketTests(TransactionTestCase):
     reset_sequences = True
 
     def setUp(self):
+        # Django runs async unittest methods on separate event loops. Channels
+        # caches channel-layer instances globally, while channels_redis owns
+        # asyncio primitives tied to the loop that first used the layer.
+        # Recreate the test layer for every method so Redis coverage remains
+        # real without leaking an event-loop-bound pool/lock across tests.
+        channel_layers.backends.clear()
+
         self.omar = User.objects.create_user(
             email="omar-realtime@example.com",
             username="omar-realtime",
