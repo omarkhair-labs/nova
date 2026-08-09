@@ -6,10 +6,14 @@ from .serializers import PostAuthorSerializer
 
 class MessageSerializer(serializers.ModelSerializer):
     sender = PostAuthorSerializer(read_only=True)
+    body = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
+    audio_url = serializers.SerializerMethodField()
+    audio_duration_ms = serializers.SerializerMethodField()
     reply_to = serializers.SerializerMethodField()
     reactions = serializers.SerializerMethodField()
     is_mine = serializers.SerializerMethodField()
+    is_deleted = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
@@ -19,36 +23,63 @@ class MessageSerializer(serializers.ModelSerializer):
             "sender",
             "body",
             "image_url",
+            "audio_url",
+            "audio_duration_ms",
             "reply_to",
             "reactions",
             "created_at",
             "delivered_at",
             "read_at",
+            "edited_at",
+            "deleted_at",
+            "is_deleted",
             "is_mine",
         )
         read_only_fields = fields
 
+    def get_body(self, obj):
+        return "" if obj.deleted_at else obj.body
+
     def get_image_url(self, obj):
-        if not obj.image:
+        if obj.deleted_at or not obj.image:
             return ""
         try:
             return obj.image.url
         except Exception:
             return ""
 
+    def get_audio_url(self, obj):
+        if obj.deleted_at or not obj.audio:
+            return ""
+        try:
+            return obj.audio.url
+        except Exception:
+            return ""
+
+    def get_audio_duration_ms(self, obj):
+        return None if obj.deleted_at else obj.audio_duration_ms
+
     def get_reply_to(self, obj):
+        if obj.deleted_at:
+            return None
+
         reply = obj.reply_to
         if reply is None:
             return None
+
+        deleted = reply.deleted_at is not None
         return {
             "id": reply.pk,
             "sender": PostAuthorSerializer(reply.sender, context=self.context).data,
-            "body": reply.body,
-            "image_url": self.get_image_url(reply),
+            "body": "Message deleted" if deleted else reply.body,
+            "image_url": "" if deleted else self.get_image_url(reply),
+            "audio_url": "" if deleted else self.get_audio_url(reply),
+            "audio_duration_ms": None if deleted else reply.audio_duration_ms,
+            "is_deleted": deleted,
         }
 
     def get_reactions(self, obj):
-        if self.context.get("skip_reactions"):
+        if obj.deleted_at or self.context.get("skip_reactions"):
             return []
 
         request = self.context.get("request")
@@ -73,6 +104,9 @@ class MessageSerializer(serializers.ModelSerializer):
             }
             for emoji, count in sorted(counts.items())
         ]
+
+    def get_is_deleted(self, obj):
+        return obj.deleted_at is not None
 
     def get_is_mine(self, obj):
         request = self.context.get("request")
@@ -115,7 +149,11 @@ class ConversationSerializer(serializers.ModelSerializer):
         context = dict(self.context)
         context["skip_reactions"] = True
         data = dict(MessageSerializer(message, context=context).data)
-        if not data.get("body") and data.get("image_url"):
+        if data.get("is_deleted"):
+            data["body"] = "Message deleted"
+        elif not data.get("body") and data.get("audio_url"):
+            data["body"] = "🎤 Voice message"
+        elif not data.get("body") and data.get("image_url"):
             data["body"] = "📷 Photo"
         return data
 
