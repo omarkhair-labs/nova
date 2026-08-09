@@ -28,10 +28,22 @@ enum class NovaRealtimeStatus {
 sealed interface NovaRealtimeEvent {
     data class MessageCreated(val message: NovaMessage) : NovaRealtimeEvent
 
+    data class MessagesDelivered(
+        val recipientId: Long,
+        val deliveredAt: String,
+        val messageIds: Set<Long>,
+    ) : NovaRealtimeEvent
+
     data class ConversationRead(
         val readerId: Long,
         val readAt: String,
         val messageIds: Set<Long>,
+    ) : NovaRealtimeEvent
+
+    data class Typing(
+        val userId: Long,
+        val username: String,
+        val isTyping: Boolean,
     ) : NovaRealtimeEvent
 }
 
@@ -77,6 +89,26 @@ class NovaConversationRealtimeClient(
         socket = null
     }
 
+    fun sendTyping(isTyping: Boolean) {
+        if (stopped) return
+        socket?.send(
+            JSONObject()
+                .put("type", "typing")
+                .put("is_typing", isTyping)
+                .toString()
+        )
+    }
+
+    private fun acknowledgeDelivered(messageId: Long) {
+        if (stopped || messageId <= 0L) return
+        socket?.send(
+            JSONObject()
+                .put("type", "message.delivered")
+                .put("message_id", messageId)
+                .toString()
+        )
+    }
+
     private fun connect(initial: Boolean) {
         if (stopped) return
         emitStatus(if (initial) NovaRealtimeStatus.Connecting else NovaRealtimeStatus.Reconnecting)
@@ -114,7 +146,11 @@ class NovaConversationRealtimeClient(
                 }
 
                 override fun onMessage(webSocket: WebSocket, text: String) {
-                    parseEvent(text)?.let(::emitEvent)
+                    val event = parseEvent(text) ?: return
+                    if (event is NovaRealtimeEvent.MessageCreated && !event.message.isMine) {
+                        acknowledgeDelivered(event.message.id)
+                    }
+                    emitEvent(event)
                 }
 
                 override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
@@ -172,31 +208,43 @@ class NovaConversationRealtimeClient(
                     NovaRealtimeEvent.MessageCreated(parseMessage(message))
                 }
 
-                "conversation.read" -> {
-                    val array = json.optJSONArray("message_ids")
-                    val messageIds = buildSet {
-                        if (array != null) {
-                            for (index in 0 until array.length()) {
-                                val id = array.optLong(index, -1L)
-                                if (id > 0L) add(id)
-                            }
-                        }
-                    }
-                    NovaRealtimeEvent.ConversationRead(
-                        readerId = json.optLong("reader_id"),
-                        readAt = json.optString("read_at"),
-                        messageIds = messageIds,
-                    )
-                }
+                "messages.delivered" -> NovaRealtimeEvent.MessagesDelivered(
+                    recipientId = json.optLong("recipient_id"),
+                    deliveredAt = json.optString("delivered_at"),
+                    messageIds = parseIds(json),
+                )
+
+                "conversation.read" -> NovaRealtimeEvent.ConversationRead(
+                    readerId = json.optLong("reader_id"),
+                    readAt = json.optString("read_at"),
+                    messageIds = parseIds(json),
+                )
+
+                "typing" -> NovaRealtimeEvent.Typing(
+                    userId = json.optLong("user_id"),
+                    username = json.optString("username"),
+                    isTyping = json.optBoolean("is_typing", false),
+                )
 
                 else -> null
             }
         }.getOrNull()
     }
 
+    private fun parseIds(json: JSONObject): Set<Long> {
+        val array = json.optJSONArray("message_ids")
+        return buildSet {
+            if (array != null) {
+                for (index in 0 until array.length()) {
+                    val id = array.optLong(index, -1L)
+                    if (id > 0L) add(id)
+                }
+            }
+        }
+    }
+
     private fun parseMessage(json: JSONObject): NovaMessage {
         val sender = json.optJSONObject("sender") ?: JSONObject()
-        val rawReadAt = json.opt("read_at")
         return NovaMessage(
             id = json.optLong("id"),
             clientId = json.optString("client_id"),
@@ -208,12 +256,17 @@ class NovaConversationRealtimeClient(
             ),
             body = json.optString("body"),
             createdAt = json.optString("created_at"),
-            readAt = when (rawReadAt) {
-                null, JSONObject.NULL -> null
-                else -> rawReadAt.toString().takeIf { it.isNotBlank() && it != "null" }
-            },
+            deliveredAt = nullableString(json.opt("delivered_at")),
+            readAt = nullableString(json.opt("read_at")),
             isMine = json.optBoolean("is_mine", false),
         )
+    }
+
+    private fun nullableString(value: Any?): String? {
+        return when (value) {
+            null, JSONObject.NULL -> null
+            else -> value.toString().takeIf { it.isNotBlank() && it != "null" }
+        }
     }
 
     private fun resolveMediaUrl(raw: String): String {
