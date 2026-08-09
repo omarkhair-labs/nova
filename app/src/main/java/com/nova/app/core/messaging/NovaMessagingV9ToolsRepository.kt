@@ -100,22 +100,13 @@ class NovaMessagingV9ToolsRepository(
         cursor: String? = null,
     ): ApiResult<NovaV9MediaPage> {
         val cleanType = type.takeIf { it in setOf("all", "image", "audio") } ?: "all"
-        val cursorPart = cursor?.takeIf { it.isNotBlank() }?.let { "&cursor=${encode(it)}" }.orEmpty()
         return authenticatedCall { token ->
-            when (
-                val response = requestJson(
-                    path = "conversations/$conversationId/media/?type=$cleanType$cursorPart",
-                    bearerToken = token,
-                )
-            ) {
-                is ApiResult.Success -> ApiResult.Success(
-                    NovaV9MediaPage(
-                        items = parseItems(response.value.optJSONArray("results")),
-                        nextCursor = nullableString(response.value.opt("next_cursor")),
-                    )
-                )
-                is ApiResult.Failure -> response
-            }
+            fetchMediaPages(
+                token = token,
+                conversationId = conversationId,
+                type = cleanType,
+                initialCursor = cursor,
+            )
         }
     }
 
@@ -147,6 +138,46 @@ class NovaMessagingV9ToolsRepository(
                 is ApiResult.Failure -> response
             }
         }
+    }
+
+    private suspend fun fetchMediaPages(
+        token: String,
+        conversationId: Long,
+        type: String,
+        initialCursor: String?,
+    ): ApiResult<NovaV9MediaPage> {
+        val collected = mutableListOf<NovaV9MessageItem>()
+        var cursor = initialCursor
+        var pages = 0
+
+        do {
+            val cursorPart = cursor?.takeIf { it.isNotBlank() }
+                ?.let { "&cursor=${encode(it)}" }
+                .orEmpty()
+
+            when (
+                val response = requestJson(
+                    path = "conversations/$conversationId/media/?type=$type$cursorPart",
+                    bearerToken = token,
+                )
+            ) {
+                is ApiResult.Success -> {
+                    val page = parseItems(response.value.optJSONArray("results"))
+                    val existingIds = collected.mapTo(mutableSetOf()) { it.id }
+                    collected += page.filterNot { it.id in existingIds }
+                    cursor = nullableString(response.value.opt("next_cursor"))
+                    pages += 1
+                }
+                is ApiResult.Failure -> return response
+            }
+        } while (cursor != null && pages < MAX_AUTO_MEDIA_PAGES)
+
+        return ApiResult.Success(
+            NovaV9MediaPage(
+                items = collected,
+                nextCursor = cursor,
+            )
+        )
     }
 
     private suspend fun <T> authenticatedCall(
@@ -292,4 +323,8 @@ class NovaMessagingV9ToolsRepository(
     }
 
     private fun encode(value: String): String = URLEncoder.encode(value, Charsets.UTF_8.name())
+
+    private companion object {
+        const val MAX_AUTO_MEDIA_PAGES = 100
+    }
 }
