@@ -181,17 +181,19 @@ class ConversationConsumer(AsyncJsonWebsocketConsumer):
             conversation_id=self.conversation_id,
             recipient_id=user_id,
         ).first()
-        if message is None:
+        if message is None or message.delivered_at is not None:
             return None
 
-        if message.delivered_at is None:
-            delivered_at = message.read_at or timezone.now()
-            Message.objects.filter(pk=message.pk, delivered_at__isnull=True).update(
-                delivered_at=delivered_at,
-            )
-            message.delivered_at = delivered_at
+        delivered_at = message.read_at or timezone.now()
+        updated = Message.objects.filter(
+            pk=message.pk,
+            recipient_id=user_id,
+            delivered_at__isnull=True,
+        ).update(delivered_at=delivered_at)
+        if not updated:
+            return None
 
         return {
             "message_id": message.pk,
-            "delivered_at": message.delivered_at.isoformat(),
+            "delivered_at": delivered_at.isoformat(),
         }
