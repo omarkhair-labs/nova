@@ -7,7 +7,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
@@ -45,9 +44,8 @@ object NovaAppPresence {
 
 
 private class NovaAppPresenceClient(context: Context) {
-    private val appContext = context.applicationContext
-    private val repository = NovaMessagingRepository(appContext)
-    private var scope = newScope()
+    private val repository = NovaMessagingRepository(context.applicationContext)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var socket: WebSocket? = null
     private var reconnectJob: Job? = null
     private var connectionJob: Job? = null
@@ -59,7 +57,6 @@ private class NovaAppPresenceClient(context: Context) {
         if (!stopped) return
         stopped = false
         reconnectAttempt = 0
-        if (!scope.coroutineContext[Job]!!.isActive) scope = newScope()
         connect()
     }
 
@@ -71,8 +68,9 @@ private class NovaAppPresenceClient(context: Context) {
         reconnectJob = null
         connectionJob?.cancel()
         connectionJob = null
-        socket?.close(1000, "Nova backgrounded")
+        val oldSocket = socket
         socket = null
+        oldSocket?.close(1000, "Nova backgrounded")
     }
 
     @Synchronized
@@ -82,8 +80,9 @@ private class NovaAppPresenceClient(context: Context) {
         reconnectJob = null
         connectionJob?.cancel()
         connectionJob = null
-        socket?.close(1000, "Nova session changed")
+        val oldSocket = socket
         socket = null
+        oldSocket?.close(1000, "Nova session changed")
         reconnectAttempt = 0
         connect()
     }
@@ -106,7 +105,7 @@ private class NovaAppPresenceClient(context: Context) {
             .header("Authorization", "Bearer $accessToken")
             .build()
 
-        socket = sharedClient.newWebSocket(
+        val newSocket = sharedClient.newWebSocket(
             request,
             object : WebSocketListener() {
                 override fun onOpen(webSocket: WebSocket, response: Response) {
@@ -115,16 +114,23 @@ private class NovaAppPresenceClient(context: Context) {
                 }
 
                 override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                    if (socket === webSocket) socket = null
+                    if (socket !== webSocket) return
+                    socket = null
                     if (!stopped) scheduleReconnect(loggedOut = false)
                 }
 
                 override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                    if (socket === webSocket) socket = null
+                    if (socket !== webSocket) return
+                    socket = null
                     if (!stopped) scheduleReconnect(loggedOut = false)
                 }
             },
         )
+        if (stopped) {
+            newSocket.close(1000, "Nova backgrounded")
+        } else {
+            socket = newSocket
+        }
     }
 
     private fun scheduleReconnect(loggedOut: Boolean) {
@@ -146,10 +152,6 @@ private class NovaAppPresenceClient(context: Context) {
             reconnectJob = null
             connect()
         }
-    }
-
-    private fun newScope(): CoroutineScope {
-        return CoroutineScope(SupervisorJob() + Dispatchers.IO)
     }
 
     private companion object {
