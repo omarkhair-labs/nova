@@ -483,6 +483,7 @@ class NovaCallController(
 
     private fun sendAction(action: String) {
         when (action) {
+            "answer" -> accept()
             "accept" -> signaling?.accept()
             "decline" -> signaling?.decline()
             "cancel" -> signaling?.cancel()
