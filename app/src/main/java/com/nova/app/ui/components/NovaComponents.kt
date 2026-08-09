@@ -22,11 +22,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.core.messaging.NovaMessagesSignal
+import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
@@ -175,6 +177,7 @@ fun NovaBottomBar(
     onMessagesClick: (() -> Unit)? = null,
     messagesUnreadCount: Int? = null,
 ) {
+    val context = LocalContext.current
     val resolvedUnreadCount = messagesUnreadCount ?: NovaMessagesSignal.unreadCount
 
     Surface(
@@ -210,7 +213,7 @@ fun NovaBottomBar(
                     if (onMessagesClick != null) {
                         onMessagesClick()
                     } else {
-                        NovaMessagesSignal.requestMessages()
+                        NovaMessagingNavigator.openInbox(context)
                     }
                 },
             )
