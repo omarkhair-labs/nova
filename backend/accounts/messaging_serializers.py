@@ -58,7 +58,7 @@ class MessageSerializer(serializers.ModelSerializer):
         rows = list(
             obj.reactions.values("emoji")
             .annotate(count=Count("id"))
-            .order_by("created_at", "emoji")
+            .order_by("emoji")
         )
         mine = set()
         if current_user_id:
