@@ -25,7 +25,6 @@ enum class NovaCallSocketStatus {
 
 sealed interface NovaCallSignalEvent {
     data class Ready(val call: NovaCallSession) : NovaCallSignalEvent
-    data class PeerReady(val userId: Long) : NovaCallSignalEvent
     data class Offer(val sdp: String) : NovaCallSignalEvent
     data class Answer(val sdp: String) : NovaCallSignalEvent
     data class Ice(
@@ -112,8 +111,6 @@ class NovaCallSignalingClient(
         }
         synchronized(pendingPeerSignals) {
             if (pendingPeerSignals.size >= MAX_PENDING_PEER_SIGNALS) {
-                // ICE can be regenerated/recovered through continual gathering;
-                // keep memory bounded if a peer never joins.
                 pendingPeerSignals.removeFirstOrNull()
             }
             pendingPeerSignals.addLast(encoded)
@@ -227,7 +224,7 @@ class NovaCallSignalingClient(
             "call.peer_ready" -> {
                 peerReady = true
                 flushPeerSignals()
-                NovaCallSignalEvent.PeerReady(json.optLong("user_id"))
+                null
             }
             "call.state" -> NovaCallSignalEvent.State(parseCall(json.optJSONObject("call") ?: return null))
             "call.offer" -> NovaCallSignalEvent.Offer(json.optString("sdp")).takeIf { it.sdp.isNotBlank() }
