@@ -53,6 +53,7 @@ import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -88,6 +89,8 @@ fun ConversationScreen(
     var isSending by remember(conversationId) { mutableStateOf(false) }
     var errorMessage by remember(conversationId) { mutableStateOf<String?>(null) }
     var draft by remember(conversationId) { mutableStateOf("") }
+    var isOtherTyping by remember(conversationId) { mutableStateOf(false) }
+    var typingAnnounced by remember(conversationId) { mutableStateOf(false) }
     var realtimeStatus by remember(conversationId) {
         mutableStateOf(NovaRealtimeStatus.Connecting)
     }
@@ -163,6 +166,11 @@ fun ConversationScreen(
         val body = draft.trim()
         if (body.isBlank() || isSending) return
 
+        if (typingAnnounced) {
+            realtimeClient.sendTyping(false)
+            typingAnnounced = false
+        }
+
         val clientId = UUID.randomUUID().toString()
         scope.launch {
             isSending = true
@@ -202,6 +210,30 @@ fun ConversationScreen(
         loadLatest(showSpinner = true, scrollToBottom = true)
     }
 
+    LaunchedEffect(draft, realtimeStatus) {
+        if (realtimeStatus != NovaRealtimeStatus.Live) {
+            typingAnnounced = false
+            return@LaunchedEffect
+        }
+
+        if (draft.isBlank()) {
+            if (typingAnnounced) {
+                realtimeClient.sendTyping(false)
+                typingAnnounced = false
+            }
+            return@LaunchedEffect
+        }
+
+        if (!typingAnnounced) {
+            realtimeClient.sendTyping(true)
+            typingAnnounced = true
+        }
+
+        delay(1_400)
+        realtimeClient.sendTyping(false)
+        typingAnnounced = false
+    }
+
     DisposableEffect(conversationId, realtimeClient) {
         NovaActiveConversation.enter(conversationId)
         realtimeClient.start(
@@ -216,6 +248,7 @@ fun ConversationScreen(
                             messages = messages + message
 
                             if (!message.isMine) {
+                                isOtherTyping = false
                                 markConversationRead()
                             }
 
@@ -227,24 +260,51 @@ fun ConversationScreen(
                         }
                     }
 
-                    is NovaRealtimeEvent.ConversationRead -> {
-                        if (event.readAt.isNotBlank() && event.messageIds.isNotEmpty()) {
+                    is NovaRealtimeEvent.MessagesDelivered -> {
+                        if (event.deliveredAt.isNotBlank() && event.messageIds.isNotEmpty()) {
                             messages = messages.map { message ->
                                 if (message.isMine && message.id in event.messageIds) {
-                                    message.copy(readAt = event.readAt)
+                                    message.copy(deliveredAt = event.deliveredAt)
                                 } else {
                                     message
                                 }
                             }
                         }
                     }
+
+                    is NovaRealtimeEvent.ConversationRead -> {
+                        if (event.readAt.isNotBlank() && event.messageIds.isNotEmpty()) {
+                            messages = messages.map { message ->
+                                if (message.isMine && message.id in event.messageIds) {
+                                    message.copy(
+                                        deliveredAt = message.deliveredAt ?: event.readAt,
+                                        readAt = event.readAt,
+                                    )
+                                } else {
+                                    message
+                                }
+                            }
+                        }
+                    }
+
+                    is NovaRealtimeEvent.Typing -> {
+                        isOtherTyping = event.isTyping
+                    }
                 }
             },
-            onStatus = { realtimeStatus = it },
+            onStatus = {
+                realtimeStatus = it
+                if (it != NovaRealtimeStatus.Live) {
+                    isOtherTyping = false
+                }
+            },
             onSessionExpired = onSessionExpired,
         )
 
         onDispose {
+            if (typingAnnounced) {
+                realtimeClient.sendTyping(false)
+            }
             NovaActiveConversation.leave(conversationId)
             realtimeClient.stop()
         }
@@ -295,13 +355,16 @@ fun ConversationScreen(
                             maxLines = 1,
                         )
                         Text(
-                            text = when (realtimeStatus) {
-                                NovaRealtimeStatus.Live -> "@$username · Live"
-                                NovaRealtimeStatus.Connecting -> "@$username · Connecting…"
-                                NovaRealtimeStatus.Reconnecting -> "@$username · Reconnecting…"
-                                NovaRealtimeStatus.Offline -> "@$username · Offline"
+                            text = when {
+                                realtimeStatus == NovaRealtimeStatus.Live && isOtherTyping -> "@$username · typing…"
+                                realtimeStatus == NovaRealtimeStatus.Live -> "@$username · Live"
+                                realtimeStatus == NovaRealtimeStatus.Connecting -> "@$username · Connecting…"
+                                realtimeStatus == NovaRealtimeStatus.Reconnecting -> "@$username · Reconnecting…"
+                                else -> "@$username · Offline"
                             },
-                            color = if (realtimeStatus == NovaRealtimeStatus.Live) NovaAccent else NovaMuted,
+                            color = if (
+                                realtimeStatus == NovaRealtimeStatus.Live
+                            ) NovaAccent else NovaMuted,
                             fontSize = 12.sp,
                             maxLines = 1,
                         )
@@ -509,8 +572,14 @@ private fun MessageBubble(message: NovaMessage) {
                     lineHeight = 20.sp,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
+                val deliveryLabel = when {
+                    !message.isMine -> ""
+                    message.readAt != null -> " · Read"
+                    message.deliveredAt != null -> " · Delivered"
+                    else -> " · Sent"
+                }
                 Text(
-                    text = compactTime(message.createdAt) + if (message.isMine && message.readAt != null) " · Read" else "",
+                    text = compactTime(message.createdAt) + deliveryLabel,
                     color = if (message.isMine) NovaBackground.copy(alpha = 0.75f) else NovaMuted,
                     fontSize = 10.sp,
                 )
