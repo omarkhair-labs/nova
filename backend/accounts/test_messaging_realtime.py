@@ -50,6 +50,14 @@ class MessagingRealtimeSocketTests(TransactionTestCase):
             headers=[(b"authorization", f"Bearer {token}".encode("ascii"))],
         )
 
+    def presence_communicator(self, user):
+        token = str(AccessToken.for_user(user))
+        return WebsocketCommunicator(
+            application,
+            "/ws/presence/",
+            headers=[(b"authorization", f"Bearer {token}".encode("ascii"))],
+        )
+
     async def connect_participant(self, user):
         communicator = self.communicator(user)
         connected, _ = await communicator.connect()
@@ -74,6 +82,33 @@ class MessagingRealtimeSocketTests(TransactionTestCase):
         connected, close_code = await communicator.connect()
         self.assertFalse(connected)
         self.assertEqual(close_code, 4403)
+
+    async def test_app_wide_presence_updates_open_conversation(self):
+        omar_socket, omar_ready = await self.connect_participant(self.omar)
+        self.assertFalse(omar_ready["presence"]["is_online"])
+
+        maya_presence = self.presence_communicator(self.maya)
+        connected, _ = await maya_presence.connect()
+        self.assertTrue(connected)
+        presence_ready = await maya_presence.receive_json_from(timeout=1)
+        self.assertEqual(presence_ready["type"], "presence.ready")
+        self.assertTrue(presence_ready["is_online"])
+
+        online = await omar_socket.receive_json_from(timeout=1)
+        self.assertEqual(online["type"], "presence")
+        self.assertEqual(online["user_id"], self.maya.pk)
+        self.assertTrue(online["is_online"])
+
+        await maya_presence.disconnect()
+        offline = await omar_socket.receive_json_from(timeout=1)
+        self.assertEqual(offline["type"], "presence")
+        self.assertEqual(offline["user_id"], self.maya.pk)
+        self.assertFalse(offline["is_online"])
+        self.assertTrue(offline["last_seen_at"])
+
+        refreshed = await database_sync_to_async(User.objects.get)(pk=self.maya.pk)
+        self.assertIsNotNone(refreshed.last_seen_at)
+        await omar_socket.disconnect()
 
     async def test_ready_and_disconnect_publish_presence_with_last_seen(self):
         omar_socket, omar_ready = await self.connect_participant(self.omar)
