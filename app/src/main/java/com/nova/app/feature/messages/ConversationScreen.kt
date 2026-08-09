@@ -24,6 +24,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,13 +33,17 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
+import com.nova.app.core.messaging.NovaActiveConversation
+import com.nova.app.core.messaging.NovaConversationRealtimeClient
 import com.nova.app.core.messaging.NovaMessage
 import com.nova.app.core.messaging.NovaMessagingRepository
+import com.nova.app.core.messaging.NovaRealtimeEvent
+import com.nova.app.core.messaging.NovaRealtimeStatus
 import com.nova.app.core.network.ApiResult
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.theme.NovaAccent
@@ -48,7 +53,6 @@ import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -67,6 +71,13 @@ fun ConversationScreen(
     val repository = remember(context) {
         NovaMessagingRepository(context.applicationContext)
     }
+    val realtimeClient = remember(conversationId, repository) {
+        NovaConversationRealtimeClient(
+            context = context.applicationContext,
+            conversationId = conversationId,
+            repository = repository,
+        )
+    }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
@@ -77,6 +88,9 @@ fun ConversationScreen(
     var isSending by remember(conversationId) { mutableStateOf(false) }
     var errorMessage by remember(conversationId) { mutableStateOf<String?>(null) }
     var draft by remember(conversationId) { mutableStateOf("") }
+    var realtimeStatus by remember(conversationId) {
+        mutableStateOf(NovaRealtimeStatus.Connecting)
+    }
 
     fun markConversationRead() {
         scope.launch {
@@ -188,10 +202,51 @@ fun ConversationScreen(
         loadLatest(showSpinner = true, scrollToBottom = true)
     }
 
-    LaunchedEffect(conversationId) {
-        while (true) {
-            delay(4_000)
-            loadLatest(showSpinner = false, scrollToBottom = false)
+    DisposableEffect(conversationId, realtimeClient) {
+        NovaActiveConversation.enter(conversationId)
+        realtimeClient.start(
+            scope = scope,
+            onEvent = { event ->
+                when (event) {
+                    is NovaRealtimeEvent.MessageCreated -> {
+                        val message = event.message
+                        if (messages.none { it.id == message.id }) {
+                            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+                            val wasNearBottom = messages.isEmpty() || lastVisible >= messages.lastIndex - 2
+                            messages = messages + message
+
+                            if (!message.isMine) {
+                                markConversationRead()
+                            }
+
+                            if (wasNearBottom && messages.isNotEmpty()) {
+                                scope.launch {
+                                    listState.animateScrollToItem(messages.lastIndex)
+                                }
+                            }
+                        }
+                    }
+
+                    is NovaRealtimeEvent.ConversationRead -> {
+                        if (event.readAt.isNotBlank() && event.messageIds.isNotEmpty()) {
+                            messages = messages.map { message ->
+                                if (message.isMine && message.id in event.messageIds) {
+                                    message.copy(readAt = event.readAt)
+                                } else {
+                                    message
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            onStatus = { realtimeStatus = it },
+            onSessionExpired = onSessionExpired,
+        )
+
+        onDispose {
+            NovaActiveConversation.leave(conversationId)
+            realtimeClient.stop()
         }
     }
 
@@ -240,8 +295,13 @@ fun ConversationScreen(
                             maxLines = 1,
                         )
                         Text(
-                            text = "@$username",
-                            color = NovaMuted,
+                            text = when (realtimeStatus) {
+                                NovaRealtimeStatus.Live -> "@$username · Live"
+                                NovaRealtimeStatus.Connecting -> "@$username · Connecting…"
+                                NovaRealtimeStatus.Reconnecting -> "@$username · Reconnecting…"
+                                NovaRealtimeStatus.Offline -> "@$username · Offline"
+                            },
+                            color = if (realtimeStatus == NovaRealtimeStatus.Live) NovaAccent else NovaMuted,
                             fontSize = 12.sp,
                             maxLines = 1,
                         )
