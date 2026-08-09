@@ -44,6 +44,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.nova.app.core.calls.NovaAudioRouteState
+import com.nova.app.core.calls.NovaCallAudioRouter
 import com.nova.app.core.calls.NovaCallController
 import com.nova.app.core.calls.NovaCallKind
 import com.nova.app.core.calls.NovaCallLaunchSpec
@@ -57,6 +59,7 @@ import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
 import com.nova.app.ui.theme.NovaTheme
+import kotlinx.coroutines.launch
 import org.webrtc.EglBase
 import org.webrtc.RendererCommon
 import org.webrtc.SurfaceViewRenderer
@@ -104,14 +107,19 @@ class CallActivity : ComponentActivity() {
         setContent {
             NovaTheme {
                 val state by controller.state.collectAsState()
+                val audioRoute by NovaCallAudioRouter.state.collectAsState()
                 CallScreen(
                     state = state,
+                    audioRoute = audioRoute,
                     onAnswer = controller::accept,
                     onDecline = controller::decline,
                     onHangUp = controller::hangUp,
                     onToggleMicrophone = controller::toggleMicrophone,
                     onToggleCamera = controller::toggleCamera,
                     onSwitchCamera = controller::switchCamera,
+                    onToggleSpeaker = {
+                        lifecycleScope.launch { NovaCallAudioRouter.toggleSpeaker() }
+                    },
                     onMinimize = { moveTaskToBack(true) },
                 )
             }
@@ -261,12 +269,14 @@ class CallActivity : ComponentActivity() {
 @Composable
 private fun CallScreen(
     state: NovaCallUiState,
+    audioRoute: NovaAudioRouteState,
     onAnswer: () -> Unit,
     onDecline: () -> Unit,
     onHangUp: () -> Unit,
     onToggleMicrophone: () -> Unit,
     onToggleCamera: () -> Unit,
     onSwitchCamera: () -> Unit,
+    onToggleSpeaker: () -> Unit,
     onMinimize: () -> Unit,
 ) {
     BackHandler(enabled = !state.isTerminal, onBack = onMinimize)
@@ -390,12 +400,14 @@ private fun CallScreen(
 
         CallControls(
             state = state,
+            audioRoute = audioRoute,
             onAnswer = onAnswer,
             onDecline = onDecline,
             onHangUp = onHangUp,
             onToggleMicrophone = onToggleMicrophone,
             onToggleCamera = onToggleCamera,
             onSwitchCamera = onSwitchCamera,
+            onToggleSpeaker = onToggleSpeaker,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
@@ -468,12 +480,14 @@ private fun CallIdentity(
 @Composable
 private fun CallControls(
     state: NovaCallUiState,
+    audioRoute: NovaAudioRouteState,
     onAnswer: () -> Unit,
     onDecline: () -> Unit,
     onHangUp: () -> Unit,
     onToggleMicrophone: () -> Unit,
     onToggleCamera: () -> Unit,
     onSwitchCamera: () -> Unit,
+    onToggleSpeaker: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val dark = state.kind == NovaCallKind.Video
@@ -494,6 +508,46 @@ private fun CallControls(
                 RoundCallButton("✕", "Decline", Color(0xFFDD3D47), onDecline)
                 RoundCallButton("✓", "Answer", Color(0xFF2BAA66), onAnswer)
             }
+        } else if (state.kind == NovaCallKind.Video) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 14.dp),
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    RoundCallButton(
+                        icon = if (state.microphoneEnabled) "🎙" else "⊘",
+                        label = if (state.microphoneEnabled) "Mute" else "Unmute",
+                        background = Color.White.copy(alpha = 0.16f),
+                        onClick = onToggleMicrophone,
+                    )
+                    if (audioRoute.canToggleSpeaker) {
+                        RoundCallButton(
+                            icon = if (audioRoute.speakerEnabled) "🔊" else "◖",
+                            label = if (audioRoute.speakerEnabled) "Speaker" else audioRoute.name.take(10),
+                            background = Color.White.copy(alpha = 0.16f),
+                            onClick = onToggleSpeaker,
+                        )
+                    }
+                    RoundCallButton(
+                        icon = if (state.cameraEnabled) "▣" else "□",
+                        label = if (state.cameraEnabled) "Camera" else "Camera off",
+                        background = Color.White.copy(alpha = 0.16f),
+                        onClick = onToggleCamera,
+                    )
+                    RoundCallButton(
+                        icon = "↻",
+                        label = "Flip",
+                        background = Color.White.copy(alpha = 0.16f),
+                        onClick = onSwitchCamera,
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                RoundCallButton("✕", if (state.session?.status?.wireValue == "ringing") "Cancel" else "End", Color(0xFFDD3D47), onHangUp)
+            }
         } else {
             Row(
                 horizontalArrangement = Arrangement.SpaceEvenly,
@@ -505,24 +559,23 @@ private fun CallControls(
                 RoundCallButton(
                     icon = if (state.microphoneEnabled) "🎙" else "⊘",
                     label = if (state.microphoneEnabled) "Mute" else "Unmute",
-                    background = if (dark) Color.White.copy(alpha = 0.16f) else NovaBackground,
+                    background = NovaBackground,
                     onClick = onToggleMicrophone,
                 )
-                if (state.kind == NovaCallKind.Video) {
+                if (audioRoute.canToggleSpeaker) {
                     RoundCallButton(
-                        icon = if (state.cameraEnabled) "▣" else "□",
-                        label = if (state.cameraEnabled) "Camera" else "Camera off",
-                        background = if (dark) Color.White.copy(alpha = 0.16f) else NovaBackground,
-                        onClick = onToggleCamera,
-                    )
-                    RoundCallButton(
-                        icon = "↻",
-                        label = "Flip",
-                        background = if (dark) Color.White.copy(alpha = 0.16f) else NovaBackground,
-                        onClick = onSwitchCamera,
+                        icon = if (audioRoute.speakerEnabled) "🔊" else "◖",
+                        label = if (audioRoute.speakerEnabled) "Speaker" else audioRoute.name.take(10),
+                        background = NovaBackground,
+                        onClick = onToggleSpeaker,
                     )
                 }
-                RoundCallButton("✕", if (state.session?.status?.wireValue == "ringing") "Cancel" else "End", Color(0xFFDD3D47), onHangUp)
+                RoundCallButton(
+                    "✕",
+                    if (state.session?.status?.wireValue == "ringing") "Cancel" else "End",
+                    Color(0xFFDD3D47),
+                    onHangUp,
+                )
             }
         }
     }
@@ -558,6 +611,7 @@ private fun RoundCallButton(
             text = label,
             color = if (background == NovaBackground) NovaMuted else Color.White.copy(alpha = 0.82f),
             fontSize = 11.sp,
+            maxLines = 1,
         )
     }
 }
