@@ -91,6 +91,29 @@ class NovaMessagingRepository(
         }
     }
 
+    suspend fun realtimeAccessToken(): ApiResult<String> {
+        val stored = sessionStore.load()
+            ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
+
+        return when (val refreshed = authApi.refresh(stored.refreshToken)) {
+            is ApiResult.Success -> {
+                sessionStore.updateAccessToken(refreshed.value)
+                ApiResult.Success(refreshed.value)
+            }
+
+            is ApiResult.Failure -> {
+                if (refreshed.statusCode == 400 || refreshed.statusCode == 401) {
+                    sessionStore.clear()
+                    ApiResult.Failure("Your session expired. Please log in again.", 401)
+                } else {
+                    // A brief refresh failure should not prevent a still-valid access token
+                    // from establishing the socket. A failed socket will retry and refresh again.
+                    ApiResult.Success(stored.accessToken)
+                }
+            }
+        }
+    }
+
     private suspend fun <T> authenticatedCall(
         call: suspend (String) -> ApiResult<T>,
     ): ApiResult<T> {
@@ -125,8 +148,9 @@ class NovaMessagingRepository(
         }
     }
 
-    private companion object {
+    companion object {
         const val PRODUCTION_API_URL = "https://nova-production-4f6b.up.railway.app/api/v1/"
+        const val PRODUCTION_WS_URL = "wss://nova-production-4f6b.up.railway.app/ws/"
     }
 }
 
