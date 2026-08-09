@@ -25,15 +25,22 @@ object NovaPushRegistration {
         if (NovaSessionStore(appContext).load() != null) {
             activate(appContext)
         } else {
-            FirebaseMessaging.getInstance().setAutoInitEnabled(false)
+            backgroundScope.launch {
+                FirebaseMessaging.getInstance().setAutoInitEnabled(false)
+            }
         }
     }
 
     fun activate(context: Context) {
         val appContext = context.applicationContext
         ensureChannel(appContext)
-        FirebaseMessaging.getInstance().setAutoInitEnabled(true)
-        FirebaseMessaging.getInstance().register()
+
+        // Firebase's FID-backed registration path performs blocking task waits internally.
+        // Keep the whole registration sequence off Android's main application thread.
+        backgroundScope.launch {
+            FirebaseMessaging.getInstance().setAutoInitEnabled(true)
+            FirebaseMessaging.getInstance().register()
+        }
     }
 
     fun logout(
@@ -44,18 +51,18 @@ object NovaPushRegistration {
         val pushStore = NovaPushStore(appContext)
         val installationId = pushStore.installationId()
 
-        if (!installationId.isNullOrBlank() && !accessToken.isNullOrBlank()) {
-            backgroundScope.launch {
+        backgroundScope.launch {
+            if (!installationId.isNullOrBlank() && !accessToken.isNullOrBlank()) {
                 NovaPushApiClient().remove(
                     accessToken = accessToken,
                     installationId = installationId,
                 )
             }
-        }
 
-        FirebaseMessaging.getInstance().setAutoInitEnabled(false)
-        FirebaseMessaging.getInstance().unregister()
-        pushStore.clear()
+            FirebaseMessaging.getInstance().setAutoInitEnabled(false)
+            FirebaseMessaging.getInstance().unregister()
+            pushStore.clear()
+        }
     }
 
     fun ensureChannel(context: Context) {
