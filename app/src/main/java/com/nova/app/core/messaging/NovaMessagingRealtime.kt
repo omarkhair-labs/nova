@@ -34,16 +34,17 @@ data class NovaConversationPresence(
 )
 
 
+data class NovaMessageReactionEvent(
+    val messageId: Long,
+    val emoji: String,
+    val count: Int,
+    val active: Boolean,
+    val isMine: Boolean,
+)
+
+
 sealed interface NovaRealtimeEvent {
     data class MessageCreated(val message: NovaMessage) : NovaRealtimeEvent
-
-    data class MessageReactionChanged(
-        val messageId: Long,
-        val emoji: String,
-        val count: Int,
-        val active: Boolean,
-        val isMine: Boolean,
-    ) : NovaRealtimeEvent
 
     data class MessagesDelivered(
         val recipientId: Long,
@@ -79,6 +80,7 @@ class NovaConversationRealtimeClient(
     private var onEvent: ((NovaRealtimeEvent) -> Unit)? = null
     private var onStatus: ((NovaRealtimeStatus) -> Unit)? = null
     private var onPresence: ((NovaConversationPresence) -> Unit)? = null
+    private var onReaction: ((NovaMessageReactionEvent) -> Unit)? = null
     private var onSessionExpired: (() -> Unit)? = null
 
     fun start(
@@ -87,6 +89,7 @@ class NovaConversationRealtimeClient(
         onStatus: (NovaRealtimeStatus) -> Unit,
         onSessionExpired: () -> Unit,
         onPresence: (NovaConversationPresence) -> Unit = {},
+        onReaction: (NovaMessageReactionEvent) -> Unit = {},
     ) {
         stop()
         stopped = false
@@ -95,6 +98,7 @@ class NovaConversationRealtimeClient(
         this.onEvent = onEvent
         this.onStatus = onStatus
         this.onPresence = onPresence
+        this.onReaction = onReaction
         this.onSessionExpired = onSessionExpired
         connect(initial = true)
     }
@@ -171,6 +175,10 @@ class NovaConversationRealtimeClient(
                         emitPresence(it)
                         return
                     }
+                    parseReaction(json)?.let {
+                        emitReaction(it)
+                        return
+                    }
 
                     val event = parseEvent(json) ?: return
                     if (event is NovaRealtimeEvent.MessageCreated && !event.message.isMine) {
@@ -231,6 +239,12 @@ class NovaConversationRealtimeClient(
         }
     }
 
+    private fun emitReaction(reaction: NovaMessageReactionEvent) {
+        scope?.launch {
+            if (!stopped) onReaction?.invoke(reaction)
+        }
+    }
+
     private fun parsePresence(json: JSONObject): NovaConversationPresence? {
         val payload = when (json.optString("type")) {
             "ready" -> json.optJSONObject("presence")
@@ -249,6 +263,20 @@ class NovaConversationRealtimeClient(
         )
     }
 
+    private fun parseReaction(json: JSONObject): NovaMessageReactionEvent? {
+        if (json.optString("type") != "message.reaction") return null
+        val messageId = json.optLong("message_id", -1L)
+        val emoji = json.optString("emoji")
+        if (messageId <= 0L || emoji.isBlank()) return null
+        return NovaMessageReactionEvent(
+            messageId = messageId,
+            emoji = emoji,
+            count = json.optInt("count", 0).coerceAtLeast(0),
+            active = json.optBoolean("active", false),
+            isMine = json.optBoolean("is_mine", false),
+        )
+    }
+
     private fun parseEvent(json: JSONObject): NovaRealtimeEvent? {
         return runCatching {
             when (json.optString("type")) {
@@ -256,14 +284,6 @@ class NovaConversationRealtimeClient(
                     val message = json.optJSONObject("message") ?: return@runCatching null
                     NovaRealtimeEvent.MessageCreated(parseMessage(message))
                 }
-
-                "message.reaction" -> NovaRealtimeEvent.MessageReactionChanged(
-                    messageId = json.optLong("message_id"),
-                    emoji = json.optString("emoji"),
-                    count = json.optInt("count", 0),
-                    active = json.optBoolean("active", false),
-                    isMine = json.optBoolean("is_mine", false),
-                )
 
                 "messages.delivered" -> NovaRealtimeEvent.MessagesDelivered(
                     recipientId = json.optLong("recipient_id"),
