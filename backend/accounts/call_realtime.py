@@ -37,6 +37,16 @@ class CallConsumer(AsyncJsonWebsocketConsumer):
         self.joined_group = True
         await self.accept()
         await self.send_json({"type": "call.ready", "call": payload})
+        # WebRTC signaling is intentionally gated until both peers are actually
+        # attached to this Channels group. A two-way ACK makes the handshake
+        # work regardless of which participant connects first.
+        await self.channel_layer.group_send(
+            self.group_name,
+            {
+                "type": "call.joined",
+                "user_id": user.pk,
+            },
+        )
 
     async def disconnect(self, close_code):
         if getattr(self, "joined_group", False):
@@ -125,6 +135,33 @@ class CallConsumer(AsyncJsonWebsocketConsumer):
             "sdp_mid": sdp_mid,
             "sdp_mline_index": sdp_mline_index,
         }
+
+    async def call_joined(self, event):
+        user = self.scope.get("user")
+        joined_user_id = event.get("user_id")
+        if not user or not user.is_authenticated or joined_user_id == user.pk:
+            return
+
+        # Tell this already-connected client that its peer is present.
+        await self.send_json({"type": "call.peer_ready", "user_id": joined_user_id})
+        # And ACK back to the newly connected socket so it learns that this
+        # client was already in the group before the join broadcast.
+        await self.channel_layer.group_send(
+            self.group_name,
+            {
+                "type": "call.peer_ack",
+                "user_id": user.pk,
+                "target_user_id": joined_user_id,
+            },
+        )
+
+    async def call_peer_ack(self, event):
+        user = self.scope.get("user")
+        if not user or not user.is_authenticated:
+            return
+        if event.get("target_user_id") != user.pk:
+            return
+        await self.send_json({"type": "call.peer_ready", "user_id": event.get("user_id")})
 
     async def call_signal(self, event):
         user = self.scope.get("user")
