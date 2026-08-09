@@ -6,6 +6,9 @@ from .serializers import PostAuthorSerializer
 
 class MessageSerializer(serializers.ModelSerializer):
     sender = PostAuthorSerializer(read_only=True)
+    image_url = serializers.SerializerMethodField()
+    reply_to = serializers.SerializerMethodField()
+    reactions = serializers.SerializerMethodField()
     is_mine = serializers.SerializerMethodField()
 
     class Meta:
@@ -15,12 +18,61 @@ class MessageSerializer(serializers.ModelSerializer):
             "client_id",
             "sender",
             "body",
+            "image_url",
+            "reply_to",
+            "reactions",
             "created_at",
             "delivered_at",
             "read_at",
             "is_mine",
         )
         read_only_fields = fields
+
+    def get_image_url(self, obj):
+        if not obj.image:
+            return ""
+        try:
+            return obj.image.url
+        except Exception:
+            return ""
+
+    def get_reply_to(self, obj):
+        reply = obj.reply_to
+        if reply is None:
+            return None
+        return {
+            "id": reply.pk,
+            "sender": PostAuthorSerializer(reply.sender, context=self.context).data,
+            "body": reply.body,
+            "image_url": self.get_image_url(reply),
+        }
+
+    def get_reactions(self, obj):
+        if self.context.get("skip_reactions"):
+            return []
+
+        request = self.context.get("request")
+        current_user_id = (
+            request.user.pk
+            if request and request.user.is_authenticated
+            else None
+        )
+
+        counts = {}
+        mine = set()
+        for reaction in obj.reactions.all():
+            counts[reaction.emoji] = counts.get(reaction.emoji, 0) + 1
+            if current_user_id and reaction.user_id == current_user_id:
+                mine.add(reaction.emoji)
+
+        return [
+            {
+                "emoji": emoji,
+                "count": count,
+                "reacted_by_me": emoji in mine,
+            }
+            for emoji, count in sorted(counts.items())
+        ]
 
     def get_is_mine(self, obj):
         request = self.context.get("request")
@@ -52,10 +104,20 @@ class ConversationSerializer(serializers.ModelSerializer):
         return PostAuthorSerializer(other, context=self.context).data
 
     def get_last_message(self, obj):
-        message = obj.messages.select_related("sender").order_by("-id").first()
+        message = (
+            obj.messages.select_related("sender", "reply_to", "reply_to__sender")
+            .order_by("-id")
+            .first()
+        )
         if message is None:
             return None
-        return MessageSerializer(message, context=self.context).data
+
+        context = dict(self.context)
+        context["skip_reactions"] = True
+        data = dict(MessageSerializer(message, context=context).data)
+        if not data.get("body") and data.get("image_url"):
+            data["body"] = "📷 Photo"
+        return data
 
     def get_unread_count(self, obj):
         annotated = getattr(obj, "unread_count_value", None)

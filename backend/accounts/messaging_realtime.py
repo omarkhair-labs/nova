@@ -21,6 +21,24 @@ def broadcast_message_created(message):
     )
 
 
+def broadcast_message_reaction(*, conversation_id, message_id, user_id, emoji, active, count):
+    channel_layer = get_channel_layer()
+    if channel_layer is None:
+        return
+
+    async_to_sync(channel_layer.group_send)(
+        conversation_group_name(conversation_id),
+        {
+            "type": "message.reaction",
+            "message_id": message_id,
+            "user_id": user_id,
+            "emoji": emoji,
+            "active": bool(active),
+            "count": max(int(count), 0),
+        },
+    )
+
+
 def broadcast_messages_delivered(*, conversation_id, recipient_id, delivered_at, message_ids):
     channel_layer = get_channel_layer()
     if channel_layer is None or not message_ids:

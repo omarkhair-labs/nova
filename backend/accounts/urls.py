@@ -5,6 +5,7 @@ from .messaging_views import (
     ConversationMessagesView,
     ConversationReadView,
     ConversationsView,
+    MessageReactionView,
 )
 from .views import (
     CommentDetailView,
@@ -53,5 +54,10 @@ urlpatterns = [
         "conversations/<int:conversation_id>/read/",
         ConversationReadView.as_view(),
         name="conversation-read",
+    ),
+    path(
+        "messages/<int:message_id>/reaction/",
+        MessageReactionView.as_view(),
+        name="message-reaction",
     ),
 ]

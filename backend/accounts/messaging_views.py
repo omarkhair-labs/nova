@@ -11,14 +11,17 @@ from rest_framework.views import APIView
 from .messaging_realtime import (
     broadcast_conversation_read,
     broadcast_message_created,
+    broadcast_message_reaction,
     broadcast_messages_delivered,
 )
 from .messaging_serializers import ConversationSerializer, MessageSerializer
-from .models import Conversation, Message
+from .models import Conversation, Message, MessageReaction
 from .push import send_message_push
 
 User = get_user_model()
 MESSAGE_PAGE_SIZE = 50
+MAX_MESSAGE_IMAGE_BYTES = 10 * 1024 * 1024
+ALLOWED_REACTIONS = {"❤️", "😂", "😮", "😢", "😡", "👍"}
 
 
 def conversations_for(user):
@@ -35,6 +38,37 @@ def other_participant(conversation, user):
     if conversation.participant_one_id == user.id:
         return conversation.participant_two
     return conversation.participant_one
+
+
+def message_for_request(request, message_id):
+    return get_object_or_404(
+        Message.objects.select_related(
+            "conversation",
+            "sender",
+            "recipient",
+            "reply_to",
+            "reply_to__sender",
+        ).filter(
+            Q(conversation__participant_one=request.user)
+            | Q(conversation__participant_two=request.user)
+        ),
+        pk=message_id,
+    )
+
+
+def reaction_payload(message, request):
+    return MessageSerializer(message, context={"request": request}).data["reactions"]
+
+
+def broadcast_reaction_state(message, user_id, emoji, active):
+    broadcast_message_reaction(
+        conversation_id=message.conversation_id,
+        message_id=message.pk,
+        user_id=user_id,
+        emoji=emoji,
+        active=active,
+        count=message.reactions.filter(emoji=emoji).count(),
+    )
 
 
 class ConversationsView(APIView):
@@ -128,7 +162,12 @@ class ConversationMessagesView(APIView):
 
     def get(self, request, conversation_id):
         conversation = conversation_for_request(request, conversation_id)
-        messages = conversation.messages.select_related("sender", "recipient").order_by("-id")
+        messages = conversation.messages.select_related(
+            "sender",
+            "recipient",
+            "reply_to",
+            "reply_to__sender",
+        ).prefetch_related("reactions").order_by("-id")
 
         cursor = request.query_params.get("cursor", "").strip()
         if cursor:
@@ -196,8 +235,10 @@ class ConversationMessagesView(APIView):
         conversation = conversation_for_request(request, conversation_id)
         body = str(request.data.get("body") or "").strip()
         client_id = str(request.data.get("client_id") or "").strip()
+        image = request.FILES.get("image")
+        raw_reply_to = request.data.get("reply_to_id")
 
-        if not body:
+        if not body and image is None:
             return Response(
                 {"detail": "Message can't be empty."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -212,20 +253,61 @@ class ConversationMessagesView(APIView):
                 {"detail": "A valid client_id is required."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if image is not None:
+            content_type = str(getattr(image, "content_type", "") or "")
+            if not content_type.startswith("image/"):
+                return Response(
+                    {"detail": "Message attachment must be an image."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if image.size > MAX_MESSAGE_IMAGE_BYTES:
+                return Response(
+                    {"detail": "Message image must be 10 MB or smaller."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        reply_to = None
+        if raw_reply_to not in (None, ""):
+            try:
+                reply_to_id = int(raw_reply_to)
+            except (TypeError, ValueError):
+                return Response(
+                    {"detail": "Invalid reply_to_id."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            reply_to = conversation.messages.select_related("sender").filter(pk=reply_to_id).first()
+            if reply_to is None:
+                return Response(
+                    {"detail": "You can only reply to a message in this conversation."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        existing = Message.objects.filter(sender=request.user, client_id=client_id).first()
+        if existing is not None:
+            if existing.conversation_id != conversation.pk:
+                return Response(
+                    {"detail": "That client_id was already used in another conversation."},
+                    status=status.HTTP_409_CONFLICT,
+                )
+            return Response(
+                MessageSerializer(existing, context={"request": request}).data,
+                status=status.HTTP_200_OK,
+            )
 
         recipient = other_participant(conversation, request.user)
 
         try:
             with transaction.atomic():
-                message, created = Message.objects.get_or_create(
+                message = Message.objects.create(
+                    conversation=conversation,
                     sender=request.user,
+                    recipient=recipient,
+                    reply_to=reply_to,
+                    image=image or "",
+                    body=body,
                     client_id=client_id,
-                    defaults={
-                        "conversation": conversation,
-                        "recipient": recipient,
-                        "body": body,
-                    },
                 )
+                created = True
         except IntegrityError:
             message = Message.objects.get(sender=request.user, client_id=client_id)
             created = False
@@ -238,6 +320,7 @@ class ConversationMessagesView(APIView):
 
         if created:
             Conversation.objects.filter(pk=conversation.pk).update(updated_at=timezone.now())
+            message = Message.objects.select_related("sender", "reply_to", "reply_to__sender").get(pk=message.pk)
             broadcast_message_created(message)
             send_message_push(message)
 
@@ -245,6 +328,66 @@ class ConversationMessagesView(APIView):
             MessageSerializer(message, context={"request": request}).data,
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
+
+
+class MessageReactionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, message_id):
+        message = message_for_request(request, message_id)
+        emoji = str(request.data.get("emoji") or "").strip()
+        if emoji not in ALLOWED_REACTIONS:
+            return Response(
+                {"detail": "Unsupported reaction."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        previous = MessageReaction.objects.filter(
+            message=message,
+            user=request.user,
+        ).first()
+        previous_emoji = previous.emoji if previous else None
+
+        reaction, _ = MessageReaction.objects.update_or_create(
+            message=message,
+            user=request.user,
+            defaults={"emoji": emoji},
+        )
+
+        if previous_emoji and previous_emoji != reaction.emoji:
+            broadcast_reaction_state(
+                message,
+                request.user.pk,
+                previous_emoji,
+                False,
+            )
+        broadcast_reaction_state(
+            message,
+            request.user.pk,
+            reaction.emoji,
+            True,
+        )
+
+        return Response({"reactions": reaction_payload(message, request)})
+
+    def delete(self, request, message_id):
+        message = message_for_request(request, message_id)
+        reaction = MessageReaction.objects.filter(
+            message=message,
+            user=request.user,
+        ).first()
+        if reaction is None:
+            return Response({"reactions": reaction_payload(message, request)})
+
+        emoji = reaction.emoji
+        reaction.delete()
+        broadcast_reaction_state(
+            message,
+            request.user.pk,
+            emoji,
+            False,
+        )
+        return Response({"reactions": reaction_payload(message, request)})
 
 
 class ConversationReadView(APIView):
