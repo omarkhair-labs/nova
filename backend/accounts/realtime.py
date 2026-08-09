@@ -7,11 +7,40 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
-from .models import Conversation, Message
+from .models import Conversation, Message, User
+
+
+_conversation_presence_counts = {}
 
 
 def conversation_group_name(conversation_id):
     return f"conversation.{conversation_id}"
+
+
+def _presence_key(conversation_id, user_id):
+    return conversation_id, user_id
+
+
+def _presence_count(conversation_id, user_id):
+    return _conversation_presence_counts.get(_presence_key(conversation_id, user_id), 0)
+
+
+def _increment_presence(conversation_id, user_id):
+    key = _presence_key(conversation_id, user_id)
+    count = _conversation_presence_counts.get(key, 0) + 1
+    _conversation_presence_counts[key] = count
+    return count
+
+
+def _decrement_presence(conversation_id, user_id):
+    key = _presence_key(conversation_id, user_id)
+    current = _conversation_presence_counts.get(key, 0)
+    if current <= 1:
+        _conversation_presence_counts.pop(key, None)
+        return 0
+    current -= 1
+    _conversation_presence_counts[key] = current
+    return current
 
 
 class JwtAuthMiddleware:
@@ -52,6 +81,7 @@ class ConversationConsumer(AsyncJsonWebsocketConsumer):
         self.conversation_id = int(self.scope["url_route"]["kwargs"]["conversation_id"])
         self.group_name = conversation_group_name(self.conversation_id)
         self.joined_group = False
+        self.presence_registered = False
 
         user = self.scope.get("user")
         if not user or not user.is_authenticated:
@@ -62,15 +92,46 @@ class ConversationConsumer(AsyncJsonWebsocketConsumer):
             await self.close(code=4403)
             return
 
+        other_presence = await self._other_participant_presence(user.pk, self.conversation_id)
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         self.joined_group = True
+
+        count = _increment_presence(self.conversation_id, user.pk)
+        self.presence_registered = True
+        await self._set_last_seen(user.pk)
+
         await self.accept()
-        await self.send_json({"type": "ready", "conversation_id": self.conversation_id})
+        await self.send_json(
+            {
+                "type": "ready",
+                "conversation_id": self.conversation_id,
+                "presence": {
+                    **other_presence,
+                    "is_online": _presence_count(
+                        self.conversation_id,
+                        other_presence["user_id"],
+                    ) > 0,
+                },
+            }
+        )
+
+        if count == 1:
+            await self.channel_layer.group_send(
+                self.group_name,
+                {
+                    "type": "conversation.presence",
+                    "user_id": user.pk,
+                    "username": user.username,
+                    "is_online": True,
+                    "last_seen_at": None,
+                },
+            )
 
     async def disconnect(self, close_code):
         group_name = getattr(self, "group_name", None)
+        user = self.scope.get("user")
+
         if group_name and getattr(self, "joined_group", False):
-            user = self.scope.get("user")
             if user and user.is_authenticated:
                 await self.channel_layer.group_send(
                     group_name,
@@ -81,6 +142,23 @@ class ConversationConsumer(AsyncJsonWebsocketConsumer):
                         "is_typing": False,
                     },
                 )
+
+                if getattr(self, "presence_registered", False):
+                    remaining = _decrement_presence(self.conversation_id, user.pk)
+                    self.presence_registered = False
+                    if remaining == 0:
+                        last_seen_at = await self._set_last_seen(user.pk)
+                        await self.channel_layer.group_send(
+                            group_name,
+                            {
+                                "type": "conversation.presence",
+                                "user_id": user.pk,
+                                "username": user.username,
+                                "is_online": False,
+                                "last_seen_at": last_seen_at,
+                            },
+                        )
+
             await self.channel_layer.group_discard(group_name, self.channel_name)
             self.joined_group = False
 
@@ -174,11 +252,49 @@ class ConversationConsumer(AsyncJsonWebsocketConsumer):
             }
         )
 
+    async def conversation_presence(self, event):
+        user = self.scope.get("user")
+        if user and event["user_id"] == user.pk:
+            return
+
+        await self.send_json(
+            {
+                "type": "presence",
+                "user_id": event["user_id"],
+                "username": event["username"],
+                "is_online": event["is_online"],
+                "last_seen_at": event.get("last_seen_at"),
+            }
+        )
+
     @database_sync_to_async
     def _can_access_conversation(self, user_id, conversation_id):
         return Conversation.objects.filter(pk=conversation_id).filter(
             Q(participant_one_id=user_id) | Q(participant_two_id=user_id)
         ).exists()
+
+    @database_sync_to_async
+    def _other_participant_presence(self, user_id, conversation_id):
+        conversation = Conversation.objects.select_related(
+            "participant_one",
+            "participant_two",
+        ).get(pk=conversation_id)
+        other = (
+            conversation.participant_two
+            if conversation.participant_one_id == user_id
+            else conversation.participant_one
+        )
+        return {
+            "user_id": other.pk,
+            "username": other.username,
+            "last_seen_at": other.last_seen_at.isoformat() if other.last_seen_at else None,
+        }
+
+    @database_sync_to_async
+    def _set_last_seen(self, user_id):
+        now = timezone.now()
+        User.objects.filter(pk=user_id).update(last_seen_at=now)
+        return now.isoformat()
 
     @database_sync_to_async
     def _mark_delivered(self, user_id, message_id):
