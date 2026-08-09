@@ -170,7 +170,9 @@ fun NovaBottomBar(
     selected: NovaTab,
     onHomeClick: () -> Unit,
     onPeopleClick: () -> Unit,
+    onMessagesClick: () -> Unit,
     onProfileClick: () -> Unit,
+    messagesUnreadCount: Int = 0,
 ) {
     Surface(
         color = NovaSurface,
@@ -180,7 +182,7 @@ fun NovaBottomBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 10.dp),
+                .padding(horizontal = 6.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -195,6 +197,13 @@ fun NovaBottomBar(
                 symbol = "◎",
                 selected = selected == NovaTab.People,
                 onClick = onPeopleClick,
+            )
+            NovaTabItem(
+                label = "Messages",
+                symbol = "✉",
+                selected = selected == NovaTab.Messages,
+                badgeCount = messagesUnreadCount,
+                onClick = onMessagesClick,
             )
             NovaTabItem(
                 label = "You",
@@ -212,6 +221,7 @@ private fun NovaTabItem(
     symbol: String,
     selected: Boolean,
     onClick: () -> Unit,
+    badgeCount: Int = 0,
 ) {
     Surface(
         onClick = onClick,
@@ -219,22 +229,36 @@ private fun NovaTabItem(
         shape = RoundedCornerShape(18.dp),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             Text(
                 text = symbol,
                 color = if (selected) NovaAccent else NovaMuted,
-                fontSize = 18.sp,
+                fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
             )
             Text(
                 text = label,
                 color = if (selected) NovaAccent else NovaMuted,
-                fontSize = 13.sp,
+                fontSize = 12.sp,
                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
             )
+            if (badgeCount > 0) {
+                Surface(
+                    shape = CircleShape,
+                    color = NovaAccent,
+                ) {
+                    Text(
+                        text = if (badgeCount > 99) "99+" else badgeCount.toString(),
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                        color = Color.White,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
         }
     }
 }
@@ -242,5 +266,6 @@ private fun NovaTabItem(
 enum class NovaTab {
     Home,
     People,
+    Messages,
     Profile,
 }
