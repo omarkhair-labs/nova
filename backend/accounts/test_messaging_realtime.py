@@ -56,7 +56,17 @@ class MessagingRealtimeSocketTests(TransactionTestCase):
         ready = await communicator.receive_json_from(timeout=1)
         self.assertEqual(ready["type"], "ready")
         self.assertEqual(ready["conversation_id"], self.conversation.pk)
-        return communicator
+        self.assertIn("presence", ready)
+        return communicator, ready
+
+    async def connect_pair(self):
+        omar_socket, omar_ready = await self.connect_participant(self.omar)
+        maya_socket, maya_ready = await self.connect_participant(self.maya)
+        maya_online = await omar_socket.receive_json_from(timeout=1)
+        self.assertEqual(maya_online["type"], "presence")
+        self.assertEqual(maya_online["user_id"], self.maya.pk)
+        self.assertTrue(maya_online["is_online"])
+        return omar_socket, maya_socket, omar_ready, maya_ready
 
     async def test_nonparticipant_is_rejected(self):
         communicator = self.communicator(self.stranger)
@@ -64,9 +74,40 @@ class MessagingRealtimeSocketTests(TransactionTestCase):
         self.assertFalse(connected)
         self.assertEqual(close_code, 4403)
 
+    async def test_ready_and_disconnect_publish_presence_with_last_seen(self):
+        omar_socket, omar_ready = await self.connect_participant(self.omar)
+        self.assertEqual(omar_ready["presence"]["user_id"], self.maya.pk)
+        self.assertFalse(omar_ready["presence"]["is_online"])
+
+        maya_socket, maya_ready = await self.connect_participant(self.maya)
+        self.assertEqual(maya_ready["presence"]["user_id"], self.omar.pk)
+        self.assertTrue(maya_ready["presence"]["is_online"])
+
+        online = await omar_socket.receive_json_from(timeout=1)
+        self.assertEqual(online["type"], "presence")
+        self.assertEqual(online["user_id"], self.maya.pk)
+        self.assertTrue(online["is_online"])
+        self.assertIsNone(online["last_seen_at"])
+
+        second_maya_socket, _ = await self.connect_participant(self.maya)
+        self.assertTrue(await omar_socket.receive_nothing(timeout=0.15))
+
+        await maya_socket.disconnect()
+        self.assertTrue(await omar_socket.receive_nothing(timeout=0.15))
+
+        await second_maya_socket.disconnect()
+        offline = await omar_socket.receive_json_from(timeout=1)
+        self.assertEqual(offline["type"], "presence")
+        self.assertEqual(offline["user_id"], self.maya.pk)
+        self.assertFalse(offline["is_online"])
+        self.assertTrue(offline["last_seen_at"])
+
+        refreshed = await database_sync_to_async(User.objects.get)(pk=self.maya.pk)
+        self.assertIsNotNone(refreshed.last_seen_at)
+        await omar_socket.disconnect()
+
     async def test_typing_is_ephemeral_and_not_echoed_to_sender(self):
-        omar_socket = await self.connect_participant(self.omar)
-        maya_socket = await self.connect_participant(self.maya)
+        omar_socket, maya_socket, _, _ = await self.connect_pair()
 
         try:
             await omar_socket.send_json_to({"type": "typing", "is_typing": True})
@@ -94,8 +135,7 @@ class MessagingRealtimeSocketTests(TransactionTestCase):
             body="Delivered through the socket",
             client_id="socket-delivery-1",
         )
-        omar_socket = await self.connect_participant(self.omar)
-        maya_socket = await self.connect_participant(self.maya)
+        omar_socket, maya_socket, _, _ = await self.connect_pair()
 
         try:
             # The sender cannot mark their own outgoing message delivered.

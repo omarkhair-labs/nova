@@ -17,7 +17,7 @@ import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.ApiResult
-import com.nova.app.feature.messages.ConversationScreen
+import com.nova.app.feature.messages.ConversationScreenV4
 import com.nova.app.feature.messages.MessagesScreen
 import com.nova.app.ui.theme.NovaTheme
 import kotlinx.coroutines.launch
@@ -112,7 +112,7 @@ private fun MessagingActivityContent(
             onSessionExpired = onFinish,
         )
     } else {
-        ConversationScreen(
+        ConversationScreenV4(
             conversationId = conversation.id,
             username = conversation.username,
             displayName = conversation.displayName,

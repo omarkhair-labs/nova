@@ -48,6 +48,7 @@ class User(AbstractUser):
     )
     name = models.CharField(max_length=80, blank=True)
     avatar = models.ImageField(upload_to="avatars/%Y/%m/", blank=True)
+    last_seen_at = models.DateTimeField(null=True, blank=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username"]

@@ -25,6 +25,14 @@ enum class NovaRealtimeStatus {
 }
 
 
+data class NovaConversationPresence(
+    val userId: Long,
+    val username: String,
+    val isOnline: Boolean,
+    val lastSeenAt: String?,
+)
+
+
 sealed interface NovaRealtimeEvent {
     data class MessageCreated(val message: NovaMessage) : NovaRealtimeEvent
 
@@ -61,6 +69,7 @@ class NovaConversationRealtimeClient(
     private var scope: CoroutineScope? = null
     private var onEvent: ((NovaRealtimeEvent) -> Unit)? = null
     private var onStatus: ((NovaRealtimeStatus) -> Unit)? = null
+    private var onPresence: ((NovaConversationPresence) -> Unit)? = null
     private var onSessionExpired: (() -> Unit)? = null
 
     fun start(
@@ -68,6 +77,7 @@ class NovaConversationRealtimeClient(
         onEvent: (NovaRealtimeEvent) -> Unit,
         onStatus: (NovaRealtimeStatus) -> Unit,
         onSessionExpired: () -> Unit,
+        onPresence: (NovaConversationPresence) -> Unit = {},
     ) {
         stop()
         stopped = false
@@ -75,6 +85,7 @@ class NovaConversationRealtimeClient(
         this.scope = scope
         this.onEvent = onEvent
         this.onStatus = onStatus
+        this.onPresence = onPresence
         this.onSessionExpired = onSessionExpired
         connect(initial = true)
     }
@@ -146,7 +157,13 @@ class NovaConversationRealtimeClient(
                 }
 
                 override fun onMessage(webSocket: WebSocket, text: String) {
-                    val event = parseEvent(text) ?: return
+                    val json = runCatching { JSONObject(text) }.getOrNull() ?: return
+                    parsePresence(json)?.let {
+                        emitPresence(it)
+                        return
+                    }
+
+                    val event = parseEvent(json) ?: return
                     if (event is NovaRealtimeEvent.MessageCreated && !event.message.isMine) {
                         acknowledgeDelivered(event.message.id)
                     }
@@ -199,9 +216,32 @@ class NovaConversationRealtimeClient(
         }
     }
 
-    private fun parseEvent(raw: String): NovaRealtimeEvent? {
+    private fun emitPresence(presence: NovaConversationPresence) {
+        scope?.launch {
+            if (!stopped) onPresence?.invoke(presence)
+        }
+    }
+
+    private fun parsePresence(json: JSONObject): NovaConversationPresence? {
+        val payload = when (json.optString("type")) {
+            "ready" -> json.optJSONObject("presence")
+            "presence" -> json
+            else -> null
+        } ?: return null
+
+        val userId = payload.optLong("user_id", -1L)
+        if (userId <= 0L) return null
+
+        return NovaConversationPresence(
+            userId = userId,
+            username = payload.optString("username"),
+            isOnline = payload.optBoolean("is_online", false),
+            lastSeenAt = nullableString(payload.opt("last_seen_at")),
+        )
+    }
+
+    private fun parseEvent(json: JSONObject): NovaRealtimeEvent? {
         return runCatching {
-            val json = JSONObject(raw)
             when (json.optString("type")) {
                 "message.created" -> {
                     val message = json.optJSONObject("message") ?: return@runCatching null
