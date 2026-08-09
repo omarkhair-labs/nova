@@ -5,6 +5,7 @@ import com.nova.app.core.network.ApiResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -46,6 +47,7 @@ class NovaCallSignalingClient(
     private var scope: CoroutineScope? = null
     private var reconnectJob: Job? = null
     private var connectionJob: Job? = null
+    private var heartbeatJob: Job? = null
     private var stopped = true
     private var reconnectAttempt = 0
     private var peerReady = false
@@ -75,6 +77,8 @@ class NovaCallSignalingClient(
     fun stop() {
         stopped = true
         peerReady = false
+        heartbeatJob?.cancel()
+        heartbeatJob = null
         reconnectJob?.cancel()
         reconnectJob = null
         connectionJob?.cancel()
@@ -137,6 +141,8 @@ class NovaCallSignalingClient(
     private fun connect(initial: Boolean) {
         if (stopped) return
         peerReady = false
+        heartbeatJob?.cancel()
+        heartbeatJob = null
         emitStatus(if (initial) NovaCallSocketStatus.Connecting else NovaCallSocketStatus.Reconnecting)
         connectionJob?.cancel()
         connectionJob = scope?.launch {
@@ -168,6 +174,7 @@ class NovaCallSignalingClient(
                     reconnectAttempt = 0
                     peerReady = false
                     emitStatus(NovaCallSocketStatus.Live)
+                    startHeartbeat(webSocket)
                 }
 
                 override fun onMessage(webSocket: WebSocket, text: String) {
@@ -177,6 +184,8 @@ class NovaCallSignalingClient(
 
                 override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                     if (socket === webSocket) socket = null
+                    heartbeatJob?.cancel()
+                    heartbeatJob = null
                     peerReady = false
                     if (stopped) return
                     if (code == 4401) {
@@ -190,6 +199,8 @@ class NovaCallSignalingClient(
 
                 override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                     if (socket === webSocket) socket = null
+                    heartbeatJob?.cancel()
+                    heartbeatJob = null
                     peerReady = false
                     if (!stopped) {
                         emitStatus(NovaCallSocketStatus.Offline)
@@ -198,6 +209,19 @@ class NovaCallSignalingClient(
                 }
             }
         )
+    }
+
+    private fun startHeartbeat(webSocket: WebSocket) {
+        heartbeatJob?.cancel()
+        heartbeatJob = scope?.launch {
+            while (isActive && !stopped && socket === webSocket) {
+                delay(HEARTBEAT_INTERVAL_MS)
+                if (stopped || socket !== webSocket) break
+                if (!webSocket.send(HEARTBEAT_MESSAGE)) {
+                    break
+                }
+            }
+        }
     }
 
     private fun scheduleReconnect() {
@@ -277,6 +301,8 @@ class NovaCallSignalingClient(
 
     private companion object {
         const val MAX_PENDING_PEER_SIGNALS = 512
+        const val HEARTBEAT_INTERVAL_MS = 20_000L
+        const val HEARTBEAT_MESSAGE = "{\"type\":\"ping\"}"
         val sharedClient: OkHttpClient = OkHttpClient.Builder()
             .pingInterval(15, TimeUnit.SECONDS)
             .connectTimeout(15, TimeUnit.SECONDS)
