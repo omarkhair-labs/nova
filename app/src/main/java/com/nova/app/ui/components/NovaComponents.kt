@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
@@ -170,10 +171,12 @@ fun NovaBottomBar(
     selected: NovaTab,
     onHomeClick: () -> Unit,
     onPeopleClick: () -> Unit,
-    onMessagesClick: () -> Unit,
     onProfileClick: () -> Unit,
-    messagesUnreadCount: Int = 0,
+    onMessagesClick: (() -> Unit)? = null,
+    messagesUnreadCount: Int? = null,
 ) {
+    val resolvedUnreadCount = messagesUnreadCount ?: NovaMessagesSignal.unreadCount
+
     Surface(
         color = NovaSurface,
         shadowElevation = 10.dp,
@@ -202,8 +205,14 @@ fun NovaBottomBar(
                 label = "Messages",
                 symbol = "✉",
                 selected = selected == NovaTab.Messages,
-                badgeCount = messagesUnreadCount,
-                onClick = onMessagesClick,
+                badgeCount = resolvedUnreadCount,
+                onClick = {
+                    if (onMessagesClick != null) {
+                        onMessagesClick()
+                    } else {
+                        NovaMessagesSignal.requestMessages()
+                    }
+                },
             )
             NovaTabItem(
                 label = "You",
