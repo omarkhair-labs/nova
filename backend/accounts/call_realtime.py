@@ -3,7 +3,7 @@ from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from django.db import transaction
 from django.utils import timezone
 
-from .calls import serialize_call
+from .calls import clear_call_liveness, serialize_call, touch_call_liveness
 from .models import CallSession
 from .push import send_call_state_push
 
@@ -41,6 +41,7 @@ class CallConsumer(AsyncJsonWebsocketConsumer):
             await self.close(code=4403)
             return
 
+        await database_sync_to_async(touch_call_liveness)(self.call_id)
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         self.joined_group = True
         await self.accept()
@@ -65,14 +66,15 @@ class CallConsumer(AsyncJsonWebsocketConsumer):
         if not getattr(self, "joined_group", False):
             return
 
-        event_type = str(content.get("type") or "")
-        if event_type == "ping":
-            await self.send_json({"type": "pong"})
-            return
-
         user = self.scope.get("user")
         if not user or not user.is_authenticated:
             await self.close(code=4401)
+            return
+
+        await database_sync_to_async(touch_call_liveness)(self.call_id)
+        event_type = str(content.get("type") or "")
+        if event_type == "ping":
+            await self.send_json({"type": "pong"})
             return
 
         if event_type in ("call.offer", "call.answer", "call.ice"):
@@ -127,6 +129,7 @@ class CallConsumer(AsyncJsonWebsocketConsumer):
             caller_id = call_payload["caller"]["id"]
             callee_id = call_payload["callee"]["id"]
             target_user_id = callee_id if user.pk == caller_id else caller_id
+            await database_sync_to_async(clear_call_liveness)(self.call_id)
             await database_sync_to_async(send_call_state_push)(
                 self.call_id,
                 target_user_id,
