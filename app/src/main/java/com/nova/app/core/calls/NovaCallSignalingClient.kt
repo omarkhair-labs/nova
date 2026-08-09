@@ -49,6 +49,8 @@ class NovaCallSignalingClient(
     private var connectionJob: Job? = null
     private var stopped = true
     private var reconnectAttempt = 0
+    private var peerReady = false
+    private val pendingPeerSignals = ArrayDeque<String>()
     private var onEvent: ((NovaCallSignalEvent) -> Unit)? = null
     private var onStatus: ((NovaCallSocketStatus) -> Unit)? = null
     private var onSessionExpired: (() -> Unit)? = null
@@ -62,6 +64,8 @@ class NovaCallSignalingClient(
         stop()
         stopped = false
         reconnectAttempt = 0
+        peerReady = false
+        synchronized(pendingPeerSignals) { pendingPeerSignals.clear() }
         this.scope = scope
         this.onEvent = onEvent
         this.onStatus = onStatus
@@ -71,18 +75,20 @@ class NovaCallSignalingClient(
 
     fun stop() {
         stopped = true
+        peerReady = false
         reconnectJob?.cancel()
         reconnectJob = null
         connectionJob?.cancel()
         connectionJob = null
         socket?.close(1000, "Call closed")
         socket = null
+        synchronized(pendingPeerSignals) { pendingPeerSignals.clear() }
     }
 
-    fun sendOffer(sdp: String) = send(JSONObject().put("type", "call.offer").put("sdp", sdp))
-    fun sendAnswer(sdp: String) = send(JSONObject().put("type", "call.answer").put("sdp", sdp))
+    fun sendOffer(sdp: String) = sendPeerSignal(JSONObject().put("type", "call.offer").put("sdp", sdp))
+    fun sendAnswer(sdp: String) = sendPeerSignal(JSONObject().put("type", "call.answer").put("sdp", sdp))
 
-    fun sendIce(candidate: String, sdpMid: String?, sdpMLineIndex: Int) = send(
+    fun sendIce(candidate: String, sdpMid: String?, sdpMLineIndex: Int) = sendPeerSignal(
         JSONObject()
             .put("type", "call.ice")
             .put("candidate", candidate)
@@ -99,6 +105,33 @@ class NovaCallSignalingClient(
 
     private fun sendType(type: String) = send(JSONObject().put("type", type))
 
+    private fun sendPeerSignal(json: JSONObject): Boolean {
+        val encoded = json.toString()
+        if (peerReady && !stopped && socket?.send(encoded) == true) {
+            return true
+        }
+        synchronized(pendingPeerSignals) {
+            if (pendingPeerSignals.size >= MAX_PENDING_PEER_SIGNALS) {
+                // ICE can be regenerated/recovered through continual gathering;
+                // keep memory bounded if a peer never joins.
+                pendingPeerSignals.removeFirstOrNull()
+            }
+            pendingPeerSignals.addLast(encoded)
+        }
+        return true
+    }
+
+    private fun flushPeerSignals() {
+        if (!peerReady || stopped) return
+        synchronized(pendingPeerSignals) {
+            while (pendingPeerSignals.isNotEmpty()) {
+                val next = pendingPeerSignals.first()
+                if (socket?.send(next) != true) return
+                pendingPeerSignals.removeFirst()
+            }
+        }
+    }
+
     private fun send(json: JSONObject): Boolean {
         if (stopped) return false
         return socket?.send(json.toString()) == true
@@ -106,6 +139,7 @@ class NovaCallSignalingClient(
 
     private fun connect(initial: Boolean) {
         if (stopped) return
+        peerReady = false
         emitStatus(if (initial) NovaCallSocketStatus.Connecting else NovaCallSocketStatus.Reconnecting)
         connectionJob?.cancel()
         connectionJob = scope?.launch {
@@ -135,6 +169,7 @@ class NovaCallSignalingClient(
             object : WebSocketListener() {
                 override fun onOpen(webSocket: WebSocket, response: Response) {
                     reconnectAttempt = 0
+                    peerReady = false
                     emitStatus(NovaCallSocketStatus.Live)
                 }
 
@@ -145,6 +180,7 @@ class NovaCallSignalingClient(
 
                 override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                     if (socket === webSocket) socket = null
+                    peerReady = false
                     if (stopped) return
                     if (code == 4401) {
                         onSessionExpired?.invoke()
@@ -157,6 +193,7 @@ class NovaCallSignalingClient(
 
                 override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                     if (socket === webSocket) socket = null
+                    peerReady = false
                     if (!stopped) {
                         emitStatus(NovaCallSocketStatus.Offline)
                         scheduleReconnect()
@@ -187,7 +224,11 @@ class NovaCallSignalingClient(
     private fun parseEvent(json: JSONObject): NovaCallSignalEvent? {
         return when (json.optString("type")) {
             "call.ready" -> NovaCallSignalEvent.Ready(parseCall(json.optJSONObject("call") ?: return null))
-            "call.peer_ready" -> NovaCallSignalEvent.PeerReady(json.optLong("user_id"))
+            "call.peer_ready" -> {
+                peerReady = true
+                flushPeerSignals()
+                NovaCallSignalEvent.PeerReady(json.optLong("user_id"))
+            }
             "call.state" -> NovaCallSignalEvent.State(parseCall(json.optJSONObject("call") ?: return null))
             "call.offer" -> NovaCallSignalEvent.Offer(json.optString("sdp")).takeIf { it.sdp.isNotBlank() }
             "call.answer" -> NovaCallSignalEvent.Answer(json.optString("sdp")).takeIf { it.sdp.isNotBlank() }
@@ -238,6 +279,7 @@ class NovaCallSignalingClient(
     }
 
     private companion object {
+        const val MAX_PENDING_PEER_SIGNALS = 512
         val sharedClient: OkHttpClient = OkHttpClient.Builder()
             .pingInterval(15, TimeUnit.SECONDS)
             .connectTimeout(15, TimeUnit.SECONDS)
