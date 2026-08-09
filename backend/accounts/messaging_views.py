@@ -154,23 +154,31 @@ class ConversationMessagesView(APIView):
         ]
         if delivery_ids:
             delivered_at = timezone.now()
-            marked_delivered = Message.objects.filter(
+            Message.objects.filter(
                 pk__in=delivery_ids,
                 recipient=request.user,
                 delivered_at__isnull=True,
             ).update(delivered_at=delivered_at)
 
-            if marked_delivered:
-                delivery_id_set = set(delivery_ids)
-                for message in page:
-                    if message.pk in delivery_id_set and message.delivered_at is None:
-                        message.delivered_at = delivered_at
+            delivery_state = dict(
+                Message.objects.filter(pk__in=delivery_ids).values_list("id", "delivered_at")
+            )
+            changed_ids = [
+                message_id
+                for message_id, value in delivery_state.items()
+                if value == delivered_at
+            ]
+            delivery_id_set = set(delivery_ids)
+            for message in page:
+                if message.pk in delivery_id_set:
+                    message.delivered_at = delivery_state.get(message.pk)
 
+            if changed_ids:
                 broadcast_messages_delivered(
                     conversation_id=conversation.pk,
                     recipient_id=request.user.pk,
                     delivered_at=delivered_at,
-                    message_ids=delivery_ids,
+                    message_ids=changed_ids,
                 )
 
         return Response(
@@ -267,12 +275,19 @@ class ConversationReadView(APIView):
                 pk__in=delivery_ids,
                 delivered_at__isnull=True,
             ).update(delivered_at=read_at)
-            broadcast_messages_delivered(
-                conversation_id=conversation.pk,
-                recipient_id=request.user.pk,
-                delivered_at=read_at,
-                message_ids=delivery_ids,
+            changed_delivery_ids = list(
+                Message.objects.filter(
+                    pk__in=delivery_ids,
+                    delivered_at=read_at,
+                ).values_list("id", flat=True)
             )
+            if changed_delivery_ids:
+                broadcast_messages_delivered(
+                    conversation_id=conversation.pk,
+                    recipient_id=request.user.pk,
+                    delivered_at=read_at,
+                    message_ids=changed_delivery_ids,
+                )
 
         marked_read = unread.update(read_at=read_at)
         if marked_read:
