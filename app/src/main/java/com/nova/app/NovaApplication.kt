@@ -5,6 +5,7 @@ import android.app.Application
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import com.nova.app.core.calls.NovaTelecomRegistration
 import com.nova.app.core.presence.NovaAppPresence
 
 
@@ -16,6 +17,7 @@ class NovaApplication : Application(), Application.ActivityLifecycleCallbacks {
     override fun onCreate() {
         super.onCreate()
         NovaAppPresence.initialize(this)
+        NovaTelecomRegistration.register(this)
         registerActivityLifecycleCallbacks(this)
     }
 

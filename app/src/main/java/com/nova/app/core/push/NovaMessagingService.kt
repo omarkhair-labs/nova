@@ -12,6 +12,8 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.nova.app.MainActivity
 import com.nova.app.R
+import com.nova.app.core.calls.NovaCallKind
+import com.nova.app.core.calls.NovaCallNotification
 import com.nova.app.core.messaging.NovaActiveConversation
 import com.nova.app.core.messaging.NovaMessagesSignal
 import kotlinx.coroutines.CoroutineScope
@@ -44,14 +46,42 @@ class NovaMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
         val kind = message.data["kind"].orEmpty()
-        val conversationId = message.data["conversation_id"]?.toLongOrNull()
 
+        if (kind == "incoming_call") {
+            handleIncomingCall(message)
+            return
+        }
+
+        if (kind == "call_state") {
+            val callId = message.data["call_id"].orEmpty()
+            val status = message.data["call_status"].orEmpty()
+            if (callId.isNotBlank() && status in TERMINAL_CALL_STATUSES) {
+                NovaCallNotification.cancel(this, callId)
+            }
+            return
+        }
+
+        val conversationId = message.data["conversation_id"]?.toLongOrNull()
         if (kind == "message" && !NovaActiveConversation.isActive(conversationId)) {
             NovaMessagesSignal.incrementUnreadCount()
             NovaMessagesSignal.requestInboxRefresh()
         }
 
         showForegroundNotification(message)
+    }
+
+    private fun handleIncomingCall(message: RemoteMessage) {
+        val callId = message.data["call_id"].orEmpty()
+        if (callId.isBlank()) return
+        NovaCallNotification.showIncoming(
+            context = this,
+            callId = callId,
+            callKind = NovaCallKind.fromWire(message.data["call_kind"].orEmpty()),
+            conversationId = message.data["conversation_id"]?.toLongOrNull() ?: -1L,
+            callerUsername = message.data["caller_username"].orEmpty(),
+            callerName = message.data["caller_name"].orEmpty(),
+            callerAvatarUrl = message.data["caller_avatar_url"].orEmpty(),
+        )
     }
 
     private fun showForegroundNotification(message: RemoteMessage) {
@@ -151,5 +181,15 @@ class NovaMessagingService : FirebaseMessagingService() {
             "message" -> messagePreview.ifBlank { "$actor sent you a message" }
             else -> "$actor interacted with you"
         }
+    }
+
+    private companion object {
+        val TERMINAL_CALL_STATUSES = setOf(
+            "declined",
+            "canceled",
+            "ended",
+            "missed",
+            "failed",
+        )
     }
 }

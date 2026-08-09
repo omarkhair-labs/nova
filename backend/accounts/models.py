@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import RegexValidator
@@ -277,6 +279,72 @@ class Conversation(models.Model):
 
     def __str__(self):
         return f"Conversation @{self.participant_one.username} / @{self.participant_two.username}"
+
+
+class CallSession(models.Model):
+    class Kind(models.TextChoices):
+        AUDIO = "audio", "Audio"
+        VIDEO = "video", "Video"
+
+    class Status(models.TextChoices):
+        RINGING = "ringing", "Ringing"
+        ACTIVE = "active", "Active"
+        DECLINED = "declined", "Declined"
+        CANCELED = "canceled", "Canceled"
+        ENDED = "ended", "Ended"
+        MISSED = "missed", "Missed"
+        FAILED = "failed", "Failed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    conversation = models.ForeignKey(
+        Conversation,
+        on_delete=models.CASCADE,
+        related_name="calls",
+    )
+    caller = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="outgoing_calls",
+    )
+    callee = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="incoming_calls",
+    )
+    kind = models.CharField(max_length=8, choices=Kind.choices)
+    status = models.CharField(
+        max_length=16,
+        choices=Status.choices,
+        default=Status.RINGING,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    answered_at = models.DateTimeField(null=True, blank=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+    ended_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name="ended_calls",
+        null=True,
+        blank=True,
+    )
+    end_reason = models.CharField(max_length=32, blank=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(caller=models.F("callee")),
+                name="prevent_self_call",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=("caller", "status", "-created_at"), name="call_caller_status_idx"),
+            models.Index(fields=("callee", "status", "-created_at"), name="call_callee_status_idx"),
+            models.Index(fields=("conversation", "-created_at"), name="call_conv_created_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.kind} call {self.pk} @{self.caller.username} -> @{self.callee.username}"
 
 
 class Message(models.Model):
