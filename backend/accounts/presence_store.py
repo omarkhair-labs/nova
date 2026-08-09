@@ -14,6 +14,7 @@ REDIS_URL = os.getenv("REDIS_URL", "").strip()
 KEY_PREFIX = os.getenv("NOVA_PRESENCE_PREFIX", "nova:presence").strip() or "nova:presence"
 
 _redis_client = None
+_redis_loop = None
 _local_presence = {}
 _local_lock = asyncio.Lock()
 
@@ -27,10 +28,16 @@ def _key(user_id):
 
 
 def _client():
-    global _redis_client
+    global _redis_client, _redis_loop
     if not redis_enabled():
         return None
-    if _redis_client is None:
+
+    # Daphne normally has one long-lived event loop per worker. Django async
+    # tests may create a fresh loop per test, so never reuse an asyncio Redis
+    # connection pool across different loops.
+    loop = asyncio.get_running_loop()
+    if _redis_client is None or _redis_loop is not loop:
+        _redis_loop = loop
         _redis_client = Redis.from_url(
             REDIS_URL,
             decode_responses=True,
