@@ -1,11 +1,11 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
+from .messaging_mutation_view import MessageMutationView
 from .messaging_views import (
     ConversationMessagesView,
     ConversationReadView,
     ConversationsView,
-    MessageDetailView,
     MessageReactionView,
 )
 from .views import (
@@ -58,7 +58,7 @@ urlpatterns = [
     ),
     path(
         "messages/<int:message_id>/",
-        MessageDetailView.as_view(),
+        MessageMutationView.as_view(),
         name="message-detail",
     ),
     path(
