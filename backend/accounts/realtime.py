@@ -51,6 +51,7 @@ class ConversationConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
         self.conversation_id = int(self.scope["url_route"]["kwargs"]["conversation_id"])
         self.group_name = conversation_group_name(self.conversation_id)
+        self.joined_group = False
 
         user = self.scope.get("user")
         if not user or not user.is_authenticated:
@@ -62,12 +63,13 @@ class ConversationConsumer(AsyncJsonWebsocketConsumer):
             return
 
         await self.channel_layer.group_add(self.group_name, self.channel_name)
+        self.joined_group = True
         await self.accept()
         await self.send_json({"type": "ready", "conversation_id": self.conversation_id})
 
     async def disconnect(self, close_code):
         group_name = getattr(self, "group_name", None)
-        if group_name:
+        if group_name and getattr(self, "joined_group", False):
             user = self.scope.get("user")
             if user and user.is_authenticated:
                 await self.channel_layer.group_send(
@@ -80,8 +82,12 @@ class ConversationConsumer(AsyncJsonWebsocketConsumer):
                     },
                 )
             await self.channel_layer.group_discard(group_name, self.channel_name)
+            self.joined_group = False
 
     async def receive_json(self, content, **kwargs):
+        if not getattr(self, "joined_group", False):
+            return
+
         event_type = content.get("type")
 
         if event_type == "ping":
