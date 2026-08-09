@@ -12,6 +12,7 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.nova.app.MainActivity
 import com.nova.app.R
+import com.nova.app.core.messaging.NovaActiveConversation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -55,21 +56,32 @@ class NovaMessagingService : FirebaseMessagingService() {
             return
         }
 
+        val kind = message.data["kind"].orEmpty()
+        val conversationId = message.data["conversation_id"]?.toLongOrNull()
+        if (kind == "message" && NovaActiveConversation.isActive(conversationId)) {
+            return
+        }
+
         NovaPushRegistration.ensureChannel(this)
 
+        val actorUsername = message.data["actor_username"].orEmpty()
+        val actorName = message.data["actor_name"].orEmpty()
+        val preview = message.data["message_preview"].orEmpty()
         val title = message.notification?.title
-            ?: titleForKind(message.data["kind"].orEmpty())
+            ?: titleForKind(kind, actorUsername, actorName)
         val body = message.notification?.body
             ?: bodyForKind(
-                kind = message.data["kind"].orEmpty(),
-                actorUsername = message.data["actor_username"].orEmpty(),
+                kind = kind,
+                actorUsername = actorUsername,
+                messagePreview = preview,
             )
 
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             message.data.forEach { (key, value) -> putExtra(key, value) }
         }
-        val requestCode = message.data["notification_id"]?.toIntOrNull()
+        val requestCode = message.data["message_id"]?.toIntOrNull()
+            ?: message.data["notification_id"]?.toIntOrNull()
             ?: message.messageId?.hashCode()
             ?: System.currentTimeMillis().toInt()
         val pendingIntent = PendingIntent.getActivity(
@@ -79,35 +91,55 @@ class NovaMessagingService : FirebaseMessagingService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
-        val notification = NotificationCompat.Builder(this, NovaPushRegistration.CHANNEL_ID)
+        val channelId = if (kind == "message") {
+            NovaPushRegistration.MESSAGE_CHANNEL_ID
+        } else {
+            NovaPushRegistration.CHANNEL_ID
+        }
+        val notification = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.drawable.ic_nova_notification)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setPriority(
+                if (kind == "message") {
+                    NotificationCompat.PRIORITY_HIGH
+                } else {
+                    NotificationCompat.PRIORITY_DEFAULT
+                }
+            )
             .build()
 
         val manager = getSystemService(NotificationManager::class.java) ?: return
         manager.notify(requestCode, notification)
     }
 
-    private fun titleForKind(kind: String): String {
+    private fun titleForKind(kind: String, actorUsername: String, actorName: String): String {
+        val actor = actorName.takeIf { it.isNotBlank() }
+            ?: actorUsername.takeIf { it.isNotBlank() }?.let { "@$it" }
+            ?: "Someone"
         return when (kind) {
             "follow" -> "New follower"
             "like" -> "New like"
             "comment" -> "New comment"
+            "message" -> actor
             else -> "Nova activity"
         }
     }
 
-    private fun bodyForKind(kind: String, actorUsername: String): String {
+    private fun bodyForKind(
+        kind: String,
+        actorUsername: String,
+        messagePreview: String,
+    ): String {
         val actor = actorUsername.takeIf { it.isNotBlank() }?.let { "@$it" } ?: "Someone"
         return when (kind) {
             "follow" -> "$actor started following you"
             "like" -> "$actor liked your post"
             "comment" -> "$actor commented on your post"
+            "message" -> messagePreview.ifBlank { "$actor sent you a message" }
             else -> "$actor interacted with you"
         }
     }
