@@ -121,6 +121,13 @@ class CallsV11Tests(TransactionTestCase):
         callee, _ = await self.connect(call, self.maya)
 
         try:
+            caller_peer = await caller.receive_json_from(timeout=1)
+            callee_peer = await callee.receive_json_from(timeout=1)
+            self.assertEqual(caller_peer["type"], "call.peer_ready")
+            self.assertEqual(caller_peer["user_id"], self.maya.pk)
+            self.assertEqual(callee_peer["type"], "call.peer_ready")
+            self.assertEqual(callee_peer["user_id"], self.omar.pk)
+
             await caller.send_json_to({"type": "call.offer", "sdp": "offer-sdp"})
             offer = await callee.receive_json_from(timeout=1)
             self.assertEqual(offer, {"type": "call.offer", "sdp": "offer-sdp"})
