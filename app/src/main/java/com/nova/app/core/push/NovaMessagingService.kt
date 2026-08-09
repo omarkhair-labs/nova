@@ -13,6 +13,7 @@ import com.google.firebase.messaging.RemoteMessage
 import com.nova.app.MainActivity
 import com.nova.app.R
 import com.nova.app.core.messaging.NovaActiveConversation
+import com.nova.app.core.messaging.NovaMessagesSignal
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -42,6 +43,14 @@ class NovaMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
+        val kind = message.data["kind"].orEmpty()
+        val conversationId = message.data["conversation_id"]?.toLongOrNull()
+
+        if (kind == "message" && !NovaActiveConversation.isActive(conversationId)) {
+            NovaMessagesSignal.incrementUnreadCount()
+            NovaMessagesSignal.requestInboxRefresh()
+        }
+
         showForegroundNotification(message)
     }
 
