@@ -1,6 +1,6 @@
 from asgiref.sync import async_to_sync
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TransactionTestCase
 
 from .account_security import issue_session
 from .realtime_auth import SecureJwtAuthMiddleware
@@ -15,7 +15,7 @@ async def _inner(scope, receive, send):
     return scope.get("user")
 
 
-class AccountSecurityRealtimeV10Tests(TestCase):
+class AccountSecurityRealtimeV10Tests(TransactionTestCase):
     def setUp(self):
         self.user = User.objects.create_user(
             email="security-realtime-v10@example.com",
