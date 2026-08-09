@@ -6,6 +6,7 @@ from rest_framework_simplejwt.tokens import AccessToken
 
 from nova_backend.asgi import application
 
+from .messaging_realtime import broadcast_message_reaction
 from .models import Conversation, Message
 
 
@@ -127,6 +128,43 @@ class MessagingRealtimeSocketTests(TransactionTestCase):
             await omar_socket.disconnect()
             await maya_socket.disconnect()
 
+    async def test_reaction_event_is_broadcast_and_personalized_per_socket(self):
+        message = await database_sync_to_async(Message.objects.create)(
+            conversation=self.conversation,
+            sender=self.omar,
+            recipient=self.maya,
+            body="React in realtime",
+            client_id="socket-reaction-1",
+        )
+        omar_socket, maya_socket, _, _ = await self.connect_pair()
+
+        try:
+            await database_sync_to_async(broadcast_message_reaction)(
+                conversation_id=self.conversation.pk,
+                message_id=message.pk,
+                user_id=self.omar.pk,
+                emoji="❤️",
+                active=True,
+                count=1,
+            )
+
+            omar_event = await omar_socket.receive_json_from(timeout=1)
+            maya_event = await maya_socket.receive_json_from(timeout=1)
+
+            self.assertEqual(omar_event["type"], "message.reaction")
+            self.assertEqual(maya_event["type"], "message.reaction")
+            self.assertEqual(omar_event["message_id"], message.pk)
+            self.assertEqual(maya_event["message_id"], message.pk)
+            self.assertEqual(omar_event["emoji"], "❤️")
+            self.assertEqual(maya_event["emoji"], "❤️")
+            self.assertEqual(omar_event["count"], 1)
+            self.assertEqual(maya_event["count"], 1)
+            self.assertTrue(omar_event["is_mine"])
+            self.assertFalse(maya_event["is_mine"])
+        finally:
+            await omar_socket.disconnect()
+            await maya_socket.disconnect()
+
     async def test_only_recipient_can_ack_delivery_and_ack_is_idempotent(self):
         message = await database_sync_to_async(Message.objects.create)(
             conversation=self.conversation,
@@ -138,7 +176,6 @@ class MessagingRealtimeSocketTests(TransactionTestCase):
         omar_socket, maya_socket, _, _ = await self.connect_pair()
 
         try:
-            # The sender cannot mark their own outgoing message delivered.
             await omar_socket.send_json_to(
                 {"type": "message.delivered", "message_id": message.pk}
             )
@@ -146,7 +183,6 @@ class MessagingRealtimeSocketTests(TransactionTestCase):
             unchanged = await database_sync_to_async(Message.objects.get)(pk=message.pk)
             self.assertIsNone(unchanged.delivered_at)
 
-            # The actual recipient can acknowledge it.
             await maya_socket.send_json_to(
                 {"type": "message.delivered", "message_id": message.pk}
             )
@@ -159,7 +195,6 @@ class MessagingRealtimeSocketTests(TransactionTestCase):
             delivered = await database_sync_to_async(Message.objects.get)(pk=message.pk)
             self.assertIsNotNone(delivered.delivered_at)
 
-            # A retry is a no-op and must not emit another delivery transition.
             await maya_socket.send_json_to(
                 {"type": "message.delivered", "message_id": message.pk}
             )
