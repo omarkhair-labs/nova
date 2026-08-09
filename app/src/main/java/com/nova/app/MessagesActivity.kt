@@ -12,12 +12,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import com.nova.app.core.calls.NovaCallKind
+import com.nova.app.core.calls.NovaCallPerson
 import com.nova.app.core.messaging.NovaConversation
 import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.ApiResult
-import com.nova.app.feature.messages.ConversationScreenV9
+import com.nova.app.feature.messages.ConversationScreenV11
 import com.nova.app.feature.messages.MessagesScreen
 import com.nova.app.ui.theme.NovaTheme
 import kotlinx.coroutines.launch
@@ -86,6 +88,22 @@ private fun MessagingActivityContent(
         }
     }
 
+    fun startCall(conversation: InitialConversation, kind: NovaCallKind) {
+        context.startActivity(
+            CallActivity.outgoingIntent(
+                context = context,
+                conversationId = conversation.id,
+                kind = kind,
+                peer = NovaCallPerson(
+                    id = 0L,
+                    username = conversation.username,
+                    name = conversation.displayName,
+                    avatarUrl = conversation.avatarUrl,
+                ),
+            )
+        )
+    }
+
     BackHandler {
         if (activeConversation != null) {
             backFromConversation()
@@ -112,7 +130,7 @@ private fun MessagingActivityContent(
             onSessionExpired = onFinish,
         )
     } else {
-        ConversationScreenV9(
+        ConversationScreenV11(
             conversationId = conversation.id,
             username = conversation.username,
             displayName = conversation.displayName,
@@ -120,6 +138,8 @@ private fun MessagingActivityContent(
             onBack = ::backFromConversation,
             onConversationRead = ::refreshUnreadCount,
             onSessionExpired = onFinish,
+            onAudioCall = { startCall(conversation, NovaCallKind.Audio) },
+            onVideoCall = { startCall(conversation, NovaCallKind.Video) },
         )
     }
 }
