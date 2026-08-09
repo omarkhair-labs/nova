@@ -27,6 +27,7 @@ if railway_public_domain and railway_public_domain not in allowed_hosts:
 ALLOWED_HOSTS = allowed_hosts
 
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
