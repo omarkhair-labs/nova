@@ -104,3 +104,74 @@ def send_notification_push(notification):
             logger.exception("Nova failed to send an FCM push notification.")
 
     return sent
+
+
+def send_message_push(message):
+    """Deliver a direct-message push without creating an Activity notification row."""
+
+    app = _firebase_app()
+    if app is None:
+        return 0
+
+    try:
+        from firebase_admin import messaging
+    except Exception:
+        logger.exception("Firebase messaging is unavailable.")
+        return 0
+
+    fids = list(
+        DevicePushToken.objects.filter(
+            user=message.recipient,
+            active=True,
+        ).values_list("token", flat=True)
+    )
+    if not fids:
+        return 0
+
+    actor_name = message.sender.name.strip() or f"@{message.sender.username}"
+    preview = message.body.strip()
+    preview = preview[:120] + ("…" if len(preview) > 120 else "")
+    actor_avatar_url = ""
+    if message.sender.avatar:
+        try:
+            actor_avatar_url = message.sender.avatar.url
+        except Exception:
+            actor_avatar_url = ""
+
+    data = {
+        "notification_id": str(message.pk),
+        "kind": "message",
+        "conversation_id": str(message.conversation_id),
+        "message_id": str(message.pk),
+        "actor_username": message.sender.username,
+        "actor_name": actor_name,
+        "actor_avatar_url": actor_avatar_url,
+        "message_preview": preview,
+    }
+
+    sent = 0
+    for fid in fids:
+        push_message = messaging.Message(
+            fid=fid,
+            notification=messaging.Notification(
+                title=actor_name,
+                body=preview or "Sent you a message",
+            ),
+            data=data,
+            android=messaging.AndroidConfig(
+                priority="high",
+                notification=messaging.AndroidNotification(
+                    channel_id="nova_messages",
+                    sound="default",
+                ),
+            ),
+        )
+        try:
+            messaging.send(push_message, app=app)
+            sent += 1
+        except messaging.UnregisteredError:
+            DevicePushToken.objects.filter(token=fid).update(active=False)
+        except Exception:
+            logger.exception("Nova failed to send a direct-message push notification.")
+
+    return sent
