@@ -13,6 +13,9 @@ object NovaMessagesSignal {
     var conversationVersion by mutableIntStateOf(0)
         private set
 
+    var inboxRefreshVersion by mutableIntStateOf(0)
+        private set
+
     var pendingConversation by mutableStateOf<NovaConversation?>(null)
         private set
 
@@ -28,6 +31,10 @@ object NovaMessagesSignal {
         conversationVersion += 1
     }
 
+    fun requestInboxRefresh() {
+        inboxRefreshVersion += 1
+    }
+
     fun consumeConversation() {
         pendingConversation = null
     }
@@ -36,8 +43,13 @@ object NovaMessagesSignal {
         unreadCount = value.coerceAtLeast(0)
     }
 
+    fun incrementUnreadCount() {
+        unreadCount += 1
+    }
+
     fun reset() {
         pendingConversation = null
         unreadCount = 0
+        inboxRefreshVersion += 1
     }
 }
