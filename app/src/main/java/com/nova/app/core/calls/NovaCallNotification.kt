@@ -54,7 +54,12 @@ object NovaCallNotification {
         callerName: String,
         callerAvatarUrl: String,
     ) {
-        if (!canPostNotifications(context)) return
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+        ) return
+
         ensureChannel(context)
         val displayName = callerName.ifBlank { callerUsername.ifBlank { "Nova caller" } }
         val person = Person.Builder().setName(displayName).setImportant(true).build()
@@ -114,7 +119,12 @@ object NovaCallNotification {
     }
 
     fun showOngoing(context: Context, call: NovaCallSession) {
-        if (!canPostNotifications(context)) return
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+        ) return
+
         ensureChannel(context)
         val person = Person.Builder().setName(call.peer.displayName).setImportant(true).build()
         val openIntent = CallActivity.existingCallIntent(context, call.id, CallActivity.ACTION_OPEN_CALL)
@@ -146,14 +156,6 @@ object NovaCallNotification {
 
     fun cancel(context: Context, callId: String) {
         NotificationManagerCompat.from(context).cancel(notificationId(callId))
-    }
-
-    private fun canPostNotifications(context: Context): Boolean {
-        return Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.POST_NOTIFICATIONS,
-            ) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun pendingActivity(context: Context, intent: Intent, requestCode: Int): PendingIntent {
