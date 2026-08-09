@@ -82,6 +82,7 @@ class ConversationConsumer(AsyncJsonWebsocketConsumer):
         self.group_name = conversation_group_name(self.conversation_id)
         self.joined_group = False
         self.presence_registered = False
+        self.is_typing = False
 
         user = self.scope.get("user")
         if not user or not user.is_authenticated:
@@ -133,15 +134,17 @@ class ConversationConsumer(AsyncJsonWebsocketConsumer):
 
         if group_name and getattr(self, "joined_group", False):
             if user and user.is_authenticated:
-                await self.channel_layer.group_send(
-                    group_name,
-                    {
-                        "type": "conversation.typing",
-                        "user_id": user.pk,
-                        "username": user.username,
-                        "is_typing": False,
-                    },
-                )
+                if getattr(self, "is_typing", False):
+                    self.is_typing = False
+                    await self.channel_layer.group_send(
+                        group_name,
+                        {
+                            "type": "conversation.typing",
+                            "user_id": user.pk,
+                            "username": user.username,
+                            "is_typing": False,
+                        },
+                    )
 
                 if getattr(self, "presence_registered", False):
                     remaining = _decrement_presence(self.conversation_id, user.pk)
@@ -177,13 +180,14 @@ class ConversationConsumer(AsyncJsonWebsocketConsumer):
             return
 
         if event_type == "typing":
+            self.is_typing = bool(content.get("is_typing"))
             await self.channel_layer.group_send(
                 self.group_name,
                 {
                     "type": "conversation.typing",
                     "user_id": user.pk,
                     "username": user.username,
-                    "is_typing": bool(content.get("is_typing")),
+                    "is_typing": self.is_typing,
                 },
             )
             return
