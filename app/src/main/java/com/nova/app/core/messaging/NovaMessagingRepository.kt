@@ -13,6 +13,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.DataOutputStream
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -24,6 +25,9 @@ data class NovaReplyPreview(
     val sender: NovaPostAuthor,
     val body: String,
     val imageUrl: String,
+    val audioUrl: String = "",
+    val audioDurationMs: Long? = null,
+    val isDeleted: Boolean = false,
 )
 
 
@@ -46,7 +50,14 @@ data class NovaMessage(
     val deliveredAt: String?,
     val readAt: String?,
     val isMine: Boolean,
-)
+    val audioUrl: String = "",
+    val audioDurationMs: Long? = null,
+    val editedAt: String? = null,
+    val deletedAt: String? = null,
+) {
+    val isDeleted: Boolean
+        get() = deletedAt != null
+}
 
 
 data class NovaConversation(
@@ -106,9 +117,27 @@ class NovaMessagingRepository(
         clientId: String,
         replyToId: Long? = null,
         imageUri: Uri? = null,
+        audioFile: File? = null,
+        audioDurationMs: Long? = null,
     ): ApiResult<NovaMessage> {
+        if (imageUri != null && audioFile != null) {
+            return ApiResult.Failure("Send either a photo or a voice message, not both at once.")
+        }
+
         val image = if (imageUri != null) {
             when (val prepared = prepareImage(imageUri)) {
+                is ApiResult.Success -> prepared.value
+                is ApiResult.Failure -> return prepared
+            }
+        } else {
+            null
+        }
+
+        val audio = if (audioFile != null) {
+            if (audioDurationMs == null || audioDurationMs < 1_000L || audioDurationMs > 5 * 60 * 1_000L) {
+                return ApiResult.Failure("Voice message must be between 1 second and 5 minutes.")
+            }
+            when (val prepared = prepareAudio(audioFile)) {
                 is ApiResult.Success -> prepared.value
                 is ApiResult.Failure -> return prepared
             }
@@ -124,7 +153,21 @@ class NovaMessagingRepository(
                 clientId = clientId,
                 replyToId = replyToId,
                 image = image,
+                audio = audio,
+                audioDurationMs = audioDurationMs,
             )
+        }
+    }
+
+    suspend fun editMessage(messageId: Long, body: String): ApiResult<NovaMessage> {
+        return authenticatedCall { accessToken ->
+            api.editMessage(accessToken, messageId, body)
+        }
+    }
+
+    suspend fun deleteMessage(messageId: Long): ApiResult<String> {
+        return authenticatedCall { accessToken ->
+            api.deleteMessage(accessToken, messageId)
         }
     }
 
@@ -190,6 +233,29 @@ class NovaMessagingRepository(
                 )
             }.getOrElse {
                 ApiResult.Failure("Nova couldn't read that photo. Pick another image and try again.")
+            }
+        }
+    }
+
+    private suspend fun prepareAudio(file: File): ApiResult<UploadFile> {
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                if (!file.exists() || !file.isFile) {
+                    throw IllegalStateException("Voice recording is unavailable.")
+                }
+                val bytes = file.readBytes()
+                if (bytes.size > 15 * 1024 * 1024) {
+                    return@withContext ApiResult.Failure("Voice message must be 15 MB or smaller.")
+                }
+                ApiResult.Success(
+                    UploadFile(
+                        bytes = bytes,
+                        fileName = file.name.ifBlank { "nova-voice-${System.currentTimeMillis()}.m4a" },
+                        mimeType = "audio/mp4",
+                    )
+                )
+            }.getOrElse {
+                ApiResult.Failure("Nova couldn't read that voice message. Record it again and try once more.")
             }
         }
     }
@@ -324,8 +390,10 @@ class NovaMessagingApiClient(
         clientId: String,
         replyToId: Long? = null,
         image: UploadFile? = null,
+        audio: UploadFile? = null,
+        audioDurationMs: Long? = null,
     ): ApiResult<NovaMessage> {
-        val response = if (image != null) {
+        val response = if (image != null || audio != null) {
             requestMultipartMessage(
                 path = "conversations/$conversationId/messages/",
                 bearerToken = accessToken,
@@ -333,6 +401,8 @@ class NovaMessagingApiClient(
                 clientId = clientId,
                 replyToId = replyToId,
                 image = image,
+                audio = audio,
+                audioDurationMs = audioDurationMs,
             )
         } else {
             val json = JSONObject()
@@ -349,6 +419,44 @@ class NovaMessagingApiClient(
 
         return when (response) {
             is ApiResult.Success -> ApiResult.Success(parseMessage(response.value))
+            is ApiResult.Failure -> response
+        }
+    }
+
+    suspend fun editMessage(
+        accessToken: String,
+        messageId: Long,
+        body: String,
+    ): ApiResult<NovaMessage> {
+        return when (
+            val response = requestJson(
+                path = "messages/$messageId/",
+                method = "POST",
+                body = JSONObject().put("body", body.trim()),
+                bearerToken = accessToken,
+            )
+        ) {
+            is ApiResult.Success -> ApiResult.Success(parseMessage(response.value))
+            is ApiResult.Failure -> response
+        }
+    }
+
+    suspend fun deleteMessage(
+        accessToken: String,
+        messageId: Long,
+    ): ApiResult<String> {
+        return when (
+            val response = requestJson(
+                path = "messages/$messageId/",
+                method = "DELETE",
+                bearerToken = accessToken,
+            )
+        ) {
+            is ApiResult.Success -> {
+                val deletedAt = response.value.optString("deleted_at")
+                if (deletedAt.isBlank()) ApiResult.Failure("Nova couldn't confirm that deletion.")
+                else ApiResult.Success(deletedAt)
+            }
             is ApiResult.Failure -> response
         }
     }
@@ -430,6 +538,9 @@ class NovaMessagingApiClient(
                 ),
                 body = it.optString("body"),
                 imageUrl = resolveMediaUrl(it.optString("image_url")),
+                audioUrl = resolveMediaUrl(it.optString("audio_url")),
+                audioDurationMs = nullableLong(it.opt("audio_duration_ms")),
+                isDeleted = it.optBoolean("is_deleted", false),
             )
         }
 
@@ -450,6 +561,10 @@ class NovaMessagingApiClient(
             deliveredAt = nullableString(json.opt("delivered_at")),
             readAt = nullableString(json.opt("read_at")),
             isMine = json.optBoolean("is_mine", false),
+            audioUrl = resolveMediaUrl(json.optString("audio_url")),
+            audioDurationMs = nullableLong(json.opt("audio_duration_ms")),
+            editedAt = nullableString(json.opt("edited_at")),
+            deletedAt = nullableString(json.opt("deleted_at")),
         )
     }
 
@@ -480,13 +595,23 @@ class NovaMessagingApiClient(
         }
     }
 
+    private fun nullableLong(value: Any?): Long? {
+        return when (value) {
+            null, JSONObject.NULL -> null
+            is Number -> value.toLong()
+            else -> value.toString().toLongOrNull()
+        }
+    }
+
     private suspend fun requestMultipartMessage(
         path: String,
         bearerToken: String,
         body: String,
         clientId: String,
         replyToId: Long?,
-        image: UploadFile,
+        image: UploadFile?,
+        audio: UploadFile?,
+        audioDurationMs: Long?,
     ): ApiResult<JSONObject> {
         return withContext(Dispatchers.IO) {
             var connection: HttpURLConnection? = null
@@ -510,17 +635,25 @@ class NovaMessagingApiClient(
                         output.writeBytes("\r\n")
                     }
 
+                    fun fileField(name: String, upload: UploadFile) {
+                        output.writeBytes("--$boundary\r\n")
+                        output.writeBytes(
+                            "Content-Disposition: form-data; name=\"$name\"; filename=\"${upload.fileName}\"\r\n"
+                        )
+                        output.writeBytes("Content-Type: ${upload.mimeType}\r\n\r\n")
+                        output.write(upload.bytes)
+                        output.writeBytes("\r\n")
+                    }
+
                     field("body", body)
                     field("client_id", clientId)
                     if (replyToId != null) field("reply_to_id", replyToId.toString())
-
-                    output.writeBytes("--$boundary\r\n")
-                    output.writeBytes(
-                        "Content-Disposition: form-data; name=\"image\"; filename=\"${image.fileName}\"\r\n"
-                    )
-                    output.writeBytes("Content-Type: ${image.mimeType}\r\n\r\n")
-                    output.write(image.bytes)
-                    output.writeBytes("\r\n--$boundary--\r\n")
+                    if (audio != null && audioDurationMs != null) {
+                        field("audio_duration_ms", audioDurationMs.toString())
+                    }
+                    image?.let { fileField("image", it) }
+                    audio?.let { fileField("audio", it) }
+                    output.writeBytes("--$boundary--\r\n")
                     output.flush()
                 }
 
@@ -579,9 +712,10 @@ class NovaMessagingApiClient(
                 message = when (statusCode) {
                     400 -> json.optString("detail").ifBlank { "Nova couldn't complete that message request." }
                     401 -> "Your session expired. Please log in again."
+                    403 -> json.optString("detail").ifBlank { "You can't change that message." }
                     404 -> "That message or conversation is no longer available."
                     409 -> json.optString("detail").ifBlank { "That message request conflicted with another one." }
-                    413 -> "That photo is too large to send."
+                    413 -> "That attachment is too large to send."
                     429 -> "Too many requests. Give Nova a moment and try again."
                     in 500..599 -> "Nova's server had a problem. Try again in a moment."
                     else -> json.optString("detail").ifBlank { "Something went wrong. Please try again." }
