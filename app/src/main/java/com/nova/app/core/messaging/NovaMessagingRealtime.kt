@@ -12,6 +12,7 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URL
 import java.util.concurrent.TimeUnit
@@ -35,6 +36,14 @@ data class NovaConversationPresence(
 
 sealed interface NovaRealtimeEvent {
     data class MessageCreated(val message: NovaMessage) : NovaRealtimeEvent
+
+    data class MessageReactionChanged(
+        val messageId: Long,
+        val emoji: String,
+        val count: Int,
+        val active: Boolean,
+        val isMine: Boolean,
+    ) : NovaRealtimeEvent
 
     data class MessagesDelivered(
         val recipientId: Long,
@@ -248,6 +257,14 @@ class NovaConversationRealtimeClient(
                     NovaRealtimeEvent.MessageCreated(parseMessage(message))
                 }
 
+                "message.reaction" -> NovaRealtimeEvent.MessageReactionChanged(
+                    messageId = json.optLong("message_id"),
+                    emoji = json.optString("emoji"),
+                    count = json.optInt("count", 0),
+                    active = json.optBoolean("active", false),
+                    isMine = json.optBoolean("is_mine", false),
+                )
+
                 "messages.delivered" -> NovaRealtimeEvent.MessagesDelivered(
                     recipientId = json.optLong("recipient_id"),
                     deliveredAt = json.optString("delivered_at"),
@@ -285,6 +302,22 @@ class NovaConversationRealtimeClient(
 
     private fun parseMessage(json: JSONObject): NovaMessage {
         val sender = json.optJSONObject("sender") ?: JSONObject()
+        val replyJson = json.optJSONObject("reply_to")
+        val reply = replyJson?.let {
+            val replySender = it.optJSONObject("sender") ?: JSONObject()
+            NovaReplyPreview(
+                id = it.optLong("id"),
+                sender = NovaPostAuthor(
+                    id = replySender.optLong("id"),
+                    username = replySender.optString("username"),
+                    name = replySender.optString("name"),
+                    avatarUrl = resolveMediaUrl(replySender.optString("avatar_url")),
+                ),
+                body = it.optString("body"),
+                imageUrl = resolveMediaUrl(it.optString("image_url")),
+            )
+        }
+
         return NovaMessage(
             id = json.optLong("id"),
             clientId = json.optString("client_id"),
@@ -295,11 +328,34 @@ class NovaConversationRealtimeClient(
                 avatarUrl = resolveMediaUrl(sender.optString("avatar_url")),
             ),
             body = json.optString("body"),
+            imageUrl = resolveMediaUrl(json.optString("image_url")),
+            replyTo = reply,
+            reactions = parseReactions(json.optJSONArray("reactions")),
             createdAt = json.optString("created_at"),
             deliveredAt = nullableString(json.opt("delivered_at")),
             readAt = nullableString(json.opt("read_at")),
             isMine = json.optBoolean("is_mine", false),
         )
+    }
+
+    private fun parseReactions(array: JSONArray?): List<NovaMessageReaction> {
+        if (array == null) return emptyList()
+        return buildList {
+            for (index in 0 until array.length()) {
+                val item = array.optJSONObject(index) ?: continue
+                val emoji = item.optString("emoji")
+                val count = item.optInt("count", 0)
+                if (emoji.isNotBlank() && count > 0) {
+                    add(
+                        NovaMessageReaction(
+                            emoji = emoji,
+                            count = count,
+                            reactedByMe = item.optBoolean("reacted_by_me", false),
+                        )
+                    )
+                }
+            }
+        }
     }
 
     private fun nullableString(value: Any?): String? {
