@@ -2,6 +2,12 @@ from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from .messaging_mutation_view import MessageMutationView
+from .messaging_v9_views import (
+    ConversationMediaView,
+    ConversationMessageContextView,
+    ConversationMessageSearchView,
+    ConversationPreferenceView,
+)
 from .messaging_views import (
     ConversationMessagesView,
     ConversationReadView,
@@ -50,6 +56,26 @@ urlpatterns = [
         "conversations/<int:conversation_id>/messages/",
         ConversationMessagesView.as_view(),
         name="conversation-messages",
+    ),
+    path(
+        "conversations/<int:conversation_id>/messages/search/",
+        ConversationMessageSearchView.as_view(),
+        name="conversation-message-search",
+    ),
+    path(
+        "conversations/<int:conversation_id>/messages/context/",
+        ConversationMessageContextView.as_view(),
+        name="conversation-message-context",
+    ),
+    path(
+        "conversations/<int:conversation_id>/media/",
+        ConversationMediaView.as_view(),
+        name="conversation-media",
+    ),
+    path(
+        "conversations/<int:conversation_id>/preferences/",
+        ConversationPreferenceView.as_view(),
+        name="conversation-preferences",
     ),
     path(
         "conversations/<int:conversation_id>/read/",
