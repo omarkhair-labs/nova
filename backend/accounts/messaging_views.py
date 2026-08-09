@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 from .messaging_realtime import (
     broadcast_conversation_read,
     broadcast_message_created,
+    broadcast_messages_delivered,
 )
 from .messaging_serializers import ConversationSerializer, MessageSerializer
 from .models import Conversation, Message
@@ -146,6 +147,40 @@ class ConversationMessagesView(APIView):
         page = list(reversed(newest_first))
         next_cursor = str(newest_first[-1].id) if has_more and newest_first else None
 
+        delivery_ids = [
+            message.pk
+            for message in page
+            if message.recipient_id == request.user.pk and message.delivered_at is None
+        ]
+        if delivery_ids:
+            delivered_at = timezone.now()
+            Message.objects.filter(
+                pk__in=delivery_ids,
+                recipient=request.user,
+                delivered_at__isnull=True,
+            ).update(delivered_at=delivered_at)
+
+            delivery_state = dict(
+                Message.objects.filter(pk__in=delivery_ids).values_list("id", "delivered_at")
+            )
+            changed_ids = [
+                message_id
+                for message_id, value in delivery_state.items()
+                if value == delivered_at
+            ]
+            delivery_id_set = set(delivery_ids)
+            for message in page:
+                if message.pk in delivery_id_set:
+                    message.delivered_at = delivery_state.get(message.pk)
+
+            if changed_ids:
+                broadcast_messages_delivered(
+                    conversation_id=conversation.pk,
+                    recipient_id=request.user.pk,
+                    delivered_at=delivered_at,
+                    message_ids=changed_ids,
+                )
+
         return Response(
             {
                 "results": MessageSerializer(
@@ -222,9 +257,39 @@ class ConversationReadView(APIView):
             read_at__isnull=True,
         )
         message_ids = list(unread.values_list("id", flat=True))
-        read_at = timezone.now()
-        marked_read = unread.update(read_at=read_at)
+        if not message_ids:
+            return Response(
+                {
+                    "marked_read": 0,
+                    "unread_count": 0,
+                    "read_at": None,
+                }
+            )
 
+        read_at = timezone.now()
+        delivery_ids = list(
+            unread.filter(delivered_at__isnull=True).values_list("id", flat=True)
+        )
+        if delivery_ids:
+            Message.objects.filter(
+                pk__in=delivery_ids,
+                delivered_at__isnull=True,
+            ).update(delivered_at=read_at)
+            changed_delivery_ids = list(
+                Message.objects.filter(
+                    pk__in=delivery_ids,
+                    delivered_at=read_at,
+                ).values_list("id", flat=True)
+            )
+            if changed_delivery_ids:
+                broadcast_messages_delivered(
+                    conversation_id=conversation.pk,
+                    recipient_id=request.user.pk,
+                    delivered_at=read_at,
+                    message_ids=changed_delivery_ids,
+                )
+
+        marked_read = unread.update(read_at=read_at)
         if marked_read:
             broadcast_conversation_read(
                 conversation_id=conversation.pk,
@@ -237,6 +302,6 @@ class ConversationReadView(APIView):
             {
                 "marked_read": marked_read,
                 "unread_count": 0,
-                "read_at": read_at.isoformat() if marked_read else None,
+                "read_at": read_at.isoformat(),
             }
         )

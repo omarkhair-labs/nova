@@ -16,6 +16,7 @@ class MessageSerializer(serializers.ModelSerializer):
             "sender",
             "body",
             "created_at",
+            "delivered_at",
             "read_at",
             "is_mine",
         )

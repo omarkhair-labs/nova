@@ -21,6 +21,22 @@ def broadcast_message_created(message):
     )
 
 
+def broadcast_messages_delivered(*, conversation_id, recipient_id, delivered_at, message_ids):
+    channel_layer = get_channel_layer()
+    if channel_layer is None or not message_ids:
+        return
+
+    async_to_sync(channel_layer.group_send)(
+        conversation_group_name(conversation_id),
+        {
+            "type": "messages.delivered",
+            "recipient_id": recipient_id,
+            "delivered_at": delivered_at.isoformat(),
+            "message_ids": list(message_ids),
+        },
+    )
+
+
 def broadcast_conversation_read(*, conversation_id, reader_id, read_at, message_ids):
     channel_layer = get_channel_layer()
     if channel_layer is None:
