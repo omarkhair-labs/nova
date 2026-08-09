@@ -16,15 +16,28 @@ object NovaMessagingNavigator {
     }
 
     fun openConversation(context: Context, conversation: NovaConversation) {
+        openConversation(
+            context = context,
+            conversationId = conversation.id,
+            username = conversation.otherUser.username,
+            displayName = conversation.otherUser.name.ifBlank { conversation.otherUser.username },
+            avatarUrl = conversation.otherUser.avatarUrl,
+        )
+    }
+
+    fun openConversation(
+        context: Context,
+        conversationId: Long,
+        username: String,
+        displayName: String,
+        avatarUrl: String,
+    ) {
         context.startActivity(
             Intent(context, MessagesActivity::class.java).apply {
-                putExtra(EXTRA_CONVERSATION_ID, conversation.id)
-                putExtra(EXTRA_USERNAME, conversation.otherUser.username)
-                putExtra(
-                    EXTRA_DISPLAY_NAME,
-                    conversation.otherUser.name.ifBlank { conversation.otherUser.username },
-                )
-                putExtra(EXTRA_AVATAR_URL, conversation.otherUser.avatarUrl)
+                putExtra(EXTRA_CONVERSATION_ID, conversationId)
+                putExtra(EXTRA_USERNAME, username)
+                putExtra(EXTRA_DISPLAY_NAME, displayName.ifBlank { username })
+                putExtra(EXTRA_AVATAR_URL, avatarUrl)
             }
         )
     }

@@ -8,8 +8,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .messaging_realtime import (
+    broadcast_conversation_read,
+    broadcast_message_created,
+)
 from .messaging_serializers import ConversationSerializer, MessageSerializer
 from .models import Conversation, Message
+from .push import send_message_push
 
 User = get_user_model()
 MESSAGE_PAGE_SIZE = 50
@@ -198,6 +203,8 @@ class ConversationMessagesView(APIView):
 
         if created:
             Conversation.objects.filter(pk=conversation.pk).update(updated_at=timezone.now())
+            broadcast_message_created(message)
+            send_message_push(message)
 
         return Response(
             MessageSerializer(message, context={"request": request}).data,
@@ -210,14 +217,26 @@ class ConversationReadView(APIView):
 
     def post(self, request, conversation_id):
         conversation = conversation_for_request(request, conversation_id)
-        marked_read = conversation.messages.filter(
+        unread = conversation.messages.filter(
             recipient=request.user,
             read_at__isnull=True,
-        ).update(read_at=timezone.now())
+        )
+        message_ids = list(unread.values_list("id", flat=True))
+        read_at = timezone.now()
+        marked_read = unread.update(read_at=read_at)
+
+        if marked_read:
+            broadcast_conversation_read(
+                conversation_id=conversation.pk,
+                reader_id=request.user.pk,
+                read_at=read_at,
+                message_ids=message_ids,
+            )
 
         return Response(
             {
                 "marked_read": marked_read,
                 "unread_count": 0,
+                "read_at": read_at.isoformat() if marked_read else None,
             }
         )

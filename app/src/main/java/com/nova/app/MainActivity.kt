@@ -9,6 +9,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.nova.app.core.messaging.NovaMessagesSignal
+import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.push.NovaPushOpenSignal
@@ -26,7 +27,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        NovaPushOpenSignal.offer(intent)
+        routePushIntent(intent)
         NovaPushRegistration.ensureChannel(this)
         NovaPushRegistration.syncForCurrentSession(this)
         requestNotificationPermissionIfNeeded()
@@ -47,6 +48,25 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        routePushIntent(intent)
+    }
+
+    private fun routePushIntent(intent: Intent?) {
+        if (intent?.getStringExtra("kind") == "message") {
+            val conversationId = intent.getStringExtra("conversation_id")?.toLongOrNull()
+            val username = intent.getStringExtra("actor_username").orEmpty()
+            if (conversationId != null && conversationId > 0L && username.isNotBlank()) {
+                NovaMessagingNavigator.openConversation(
+                    context = this,
+                    conversationId = conversationId,
+                    username = username,
+                    displayName = intent.getStringExtra("actor_name").orEmpty(),
+                    avatarUrl = intent.getStringExtra("actor_avatar_url").orEmpty(),
+                )
+                return
+            }
+        }
+
         NovaPushOpenSignal.offer(intent)
     }
 

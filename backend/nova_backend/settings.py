@@ -27,6 +27,7 @@ if railway_public_domain and railway_public_domain not in allowed_hosts:
 ALLOWED_HOSTS = allowed_hosts
 
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -35,6 +36,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "storages",
+    "channels",
     "accounts",
 ]
 
@@ -68,6 +70,15 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "nova_backend.wsgi.application"
 ASGI_APPLICATION = "nova_backend.asgi.application"
+
+# Nova currently runs one Railway web process. Keeping the channel layer in
+# process means HTTP writes and WebSocket clients share the same realtime bus
+# without adding Redis yet. Move this to Redis before enabling multiple replicas.
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    }
+}
 
 database_url = os.getenv("DATABASE_URL", "").strip()
 if database_url:

@@ -29,12 +29,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
 import com.nova.app.core.messaging.NovaConversation
+import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.ApiResult
 import com.nova.app.ui.components.NovaAvatar
@@ -74,6 +75,8 @@ fun MessagesScreen(
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var requestVersion by remember { mutableStateOf(0) }
+    val inboxRefreshVersion = NovaMessagesSignal.inboxRefreshVersion
+    val initialInboxRefreshVersion = remember { inboxRefreshVersion }
 
     fun loadInbox(search: String = query, showSpinner: Boolean = true) {
         requestVersion += 1
@@ -108,6 +111,12 @@ fun MessagesScreen(
     LaunchedEffect(query) {
         delay(260)
         loadInbox(query, showSpinner = conversations.isEmpty())
+    }
+
+    LaunchedEffect(inboxRefreshVersion) {
+        if (inboxRefreshVersion != initialInboxRefreshVersion) {
+            loadInbox(query, showSpinner = false)
+        }
     }
 
     Scaffold(
