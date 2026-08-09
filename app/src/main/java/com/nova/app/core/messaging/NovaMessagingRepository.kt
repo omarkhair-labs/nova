@@ -20,6 +20,7 @@ data class NovaMessage(
     val sender: NovaPostAuthor,
     val body: String,
     val createdAt: String,
+    val deliveredAt: String?,
     val readAt: String?,
     val isMine: Boolean,
 )
@@ -297,6 +298,7 @@ class NovaMessagingApiClient(
 
     private fun parseMessage(json: JSONObject): NovaMessage {
         val sender = json.optJSONObject("sender") ?: JSONObject()
+        val rawDeliveredAt = json.opt("delivered_at")
         val rawReadAt = json.opt("read_at")
 
         return NovaMessage(
@@ -310,12 +312,17 @@ class NovaMessagingApiClient(
             ),
             body = json.optString("body"),
             createdAt = json.optString("created_at"),
-            readAt = when (rawReadAt) {
-                null, JSONObject.NULL -> null
-                else -> rawReadAt.toString().takeIf { it.isNotBlank() && it != "null" }
-            },
+            deliveredAt = nullableString(rawDeliveredAt),
+            readAt = nullableString(rawReadAt),
             isMine = json.optBoolean("is_mine", false),
         )
+    }
+
+    private fun nullableString(value: Any?): String? {
+        return when (value) {
+            null, JSONObject.NULL -> null
+            else -> value.toString().takeIf { it.isNotBlank() && it != "null" }
+        }
     }
 
     private suspend fun requestJson(
