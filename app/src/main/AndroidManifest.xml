@@ -42,10 +42,11 @@
 
         <activity
             android:name=".CallActivity"
+            android:configChanges="keyboardHidden|orientation|screenLayout|screenSize"
+            android:excludeFromRecents="true"
             android:exported="false"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
-            android:excludeFromRecents="true"
             android:theme="@style/Theme.Nova" />
 
         <activity
