@@ -60,10 +60,6 @@ def send_notification_push(notification):
         logger.exception("Firebase messaging is unavailable.")
         return 0
 
-    # The database field is still named `token` for compatibility with the
-    # first push migration, but Nova stores Firebase Installation IDs (FIDs)
-    # here. FCM direct-send registration tokens are deprecated in the current
-    # Firebase SDKs, while FID targeting is the recommended path.
     fids = list(
         DevicePushToken.objects.filter(
             user=notification.recipient,
@@ -130,6 +126,8 @@ def send_message_push(message):
 
     actor_name = message.sender.name.strip() or f"@{message.sender.username}"
     preview = message.body.strip()
+    if not preview and message.image:
+        preview = "📷 Photo"
     preview = preview[:120] + ("…" if len(preview) > 120 else "")
     actor_avatar_url = ""
     if message.sender.avatar:
