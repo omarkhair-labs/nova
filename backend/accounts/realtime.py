@@ -257,6 +257,25 @@ class ConversationConsumer(PresenceLeaseMixin, AsyncJsonWebsocketConsumer):
         message["is_mine"] = bool(user and sender.get("id") == user.pk)
         await self.send_json({"type": "message.created", "message": message})
 
+    async def message_updated(self, event):
+        await self.send_json(
+            {
+                "type": "message.updated",
+                "message_id": event["message_id"],
+                "body": event["body"],
+                "edited_at": event["edited_at"],
+            }
+        )
+
+    async def message_deleted(self, event):
+        await self.send_json(
+            {
+                "type": "message.deleted",
+                "message_id": event["message_id"],
+                "deleted_at": event["deleted_at"],
+            }
+        )
+
     async def message_reaction(self, event):
         user = self.scope.get("user")
         await self.send_json(
