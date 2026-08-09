@@ -1,4 +1,3 @@
-from django.db.models import Count
 from rest_framework import serializers
 
 from .models import Conversation, Message
@@ -55,24 +54,21 @@ class MessageSerializer(serializers.ModelSerializer):
             if request and request.user.is_authenticated
             else None
         )
-        rows = list(
-            obj.reactions.values("emoji")
-            .annotate(count=Count("id"))
-            .order_by("emoji")
-        )
+
+        counts = {}
         mine = set()
-        if current_user_id:
-            mine = set(
-                obj.reactions.filter(user_id=current_user_id)
-                .values_list("emoji", flat=True)
-            )
+        for reaction in obj.reactions.all():
+            counts[reaction.emoji] = counts.get(reaction.emoji, 0) + 1
+            if current_user_id and reaction.user_id == current_user_id:
+                mine.add(reaction.emoji)
+
         return [
             {
-                "emoji": row["emoji"],
-                "count": row["count"],
-                "reacted_by_me": row["emoji"] in mine,
+                "emoji": emoji,
+                "count": count,
+                "reacted_by_me": emoji in mine,
             }
-            for row in rows
+            for emoji, count in sorted(counts.items())
         ]
 
     def get_is_mine(self, obj):
@@ -107,6 +103,7 @@ class ConversationSerializer(serializers.ModelSerializer):
     def get_last_message(self, obj):
         message = (
             obj.messages.select_related("sender", "reply_to", "reply_to__sender")
+            .prefetch_related("reactions")
             .order_by("-id")
             .first()
         )
