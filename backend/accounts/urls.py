@@ -1,6 +1,14 @@
 from django.urls import path
-from rest_framework_simplejwt.views import TokenRefreshView
 
+from .account_security import (
+    ChangePasswordView,
+    PasswordResetConfirmView,
+    PasswordResetRequestView,
+    RevokeOtherSessionsView,
+    SecureRegisterView,
+    SecureTokenObtainPairView,
+    SecureTokenRefreshView,
+)
 from .messaging_mutation_view import MessageMutationView
 from .messaging_v9_views import (
     ConversationMediaView,
@@ -22,7 +30,6 @@ from .views import (
     MeView,
     NotificationsReadView,
     NotificationsView,
-    NovaTokenObtainPairView,
     PeopleView,
     PersonPostsView,
     PersonView,
@@ -30,13 +37,32 @@ from .views import (
     PostDetailView,
     PostLikeView,
     PostsView,
-    RegisterView,
 )
 
 urlpatterns = [
-    path("auth/register/", RegisterView.as_view(), name="register"),
-    path("auth/login/", NovaTokenObtainPairView.as_view(), name="login"),
-    path("auth/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
+    path("auth/register/", SecureRegisterView.as_view(), name="register"),
+    path("auth/login/", SecureTokenObtainPairView.as_view(), name="login"),
+    path("auth/refresh/", SecureTokenRefreshView.as_view(), name="token-refresh"),
+    path(
+        "auth/password/reset/request/",
+        PasswordResetRequestView.as_view(),
+        name="password-reset-request",
+    ),
+    path(
+        "auth/password/reset/confirm/",
+        PasswordResetConfirmView.as_view(),
+        name="password-reset-confirm",
+    ),
+    path(
+        "auth/password/change/",
+        ChangePasswordView.as_view(),
+        name="password-change",
+    ),
+    path(
+        "auth/sessions/revoke-others/",
+        RevokeOtherSessionsView.as_view(),
+        name="revoke-other-sessions",
+    ),
     path("me/", MeView.as_view(), name="me"),
     path("people/", PeopleView.as_view(), name="people"),
     path("people/<str:username>/", PersonView.as_view(), name="person-detail"),

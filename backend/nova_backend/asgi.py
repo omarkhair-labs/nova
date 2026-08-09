@@ -8,13 +8,13 @@ from django.core.asgi import get_asgi_application
 # Initialize Django before importing app routing/consumers so model imports are safe.
 django_asgi_application = get_asgi_application()
 
-from accounts.realtime import JwtAuthMiddleware
+from accounts.realtime_auth import SecureJwtAuthMiddleware
 from accounts.routing import websocket_urlpatterns
 
 
 application = ProtocolTypeRouter(
     {
         "http": django_asgi_application,
-        "websocket": JwtAuthMiddleware(URLRouter(websocket_urlpatterns)),
+        "websocket": SecureJwtAuthMiddleware(URLRouter(websocket_urlpatterns)),
     }
 )

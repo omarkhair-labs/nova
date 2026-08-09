@@ -1,6 +1,8 @@
 package com.nova.app.feature.auth
 
+import android.content.Intent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,15 +20,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nova.app.AccountSecurityActivity
 import com.nova.app.ui.components.NovaHeader
 import com.nova.app.ui.components.NovaPrimaryButton
 import com.nova.app.ui.components.NovaTextField
+import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaMuted
 
@@ -62,6 +67,7 @@ fun LoginScreen(
     onBack: () -> Unit,
     onLogin: (String, String) -> Unit,
 ) {
+    val context = LocalContext.current
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
@@ -79,6 +85,16 @@ fun LoginScreen(
         onBack = onBack,
         onSubmit = { onLogin(email, password) },
         helperText = "Your session stays signed in on this device.",
+        secondaryActionText = "Forgot password?",
+        onSecondaryAction = {
+            context.startActivity(
+                Intent(context, AccountSecurityActivity::class.java)
+                    .putExtra(
+                        AccountSecurityActivity.EXTRA_MODE,
+                        AccountSecurityActivity.MODE_RECOVERY,
+                    )
+            )
+        },
     )
 }
 
@@ -97,6 +113,8 @@ private fun AuthPage(
     onBack: () -> Unit,
     onSubmit: () -> Unit,
     helperText: String,
+    secondaryActionText: String? = null,
+    onSecondaryAction: (() -> Unit)? = null,
 ) {
     Column(
         modifier = Modifier
@@ -151,6 +169,20 @@ private fun AuthPage(
                 fontWeight = FontWeight.Medium,
             )
             Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        if (!secondaryActionText.isNullOrBlank() && onSecondaryAction != null) {
+            Text(
+                text = secondaryActionText,
+                color = NovaAccent,
+                fontSize = 13.sp,
+                lineHeight = 19.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .clickable(enabled = !isLoading, onClick = onSecondaryAction)
+                    .padding(vertical = 4.dp),
+            )
+            Spacer(modifier = Modifier.height(6.dp))
         }
 
         Text(

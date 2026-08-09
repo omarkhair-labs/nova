@@ -1,5 +1,6 @@
 package com.nova.app.feature.profile
 
+import android.content.Intent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -20,9 +21,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nova.app.AccountSecurityActivity
 import com.nova.app.core.network.NovaPost
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
@@ -54,6 +57,8 @@ fun ProfileScreen(
     onEditProfile: () -> Unit,
     onLogout: () -> Unit,
 ) {
+    val context = LocalContext.current
+
     Scaffold(
         containerColor = NovaBackground,
         bottomBar = {
@@ -124,6 +129,21 @@ fun ProfileScreen(
             NovaSecondaryButton(
                 text = "Edit profile",
                 onClick = onEditProfile,
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            NovaSecondaryButton(
+                text = "Security",
+                onClick = {
+                    context.startActivity(
+                        Intent(context, AccountSecurityActivity::class.java)
+                            .putExtra(
+                                AccountSecurityActivity.EXTRA_MODE,
+                                AccountSecurityActivity.MODE_SECURITY,
+                            )
+                    )
+                },
             )
 
             Spacer(modifier = Modifier.height(18.dp))
