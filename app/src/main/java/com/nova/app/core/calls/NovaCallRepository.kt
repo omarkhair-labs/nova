@@ -4,7 +4,11 @@ import android.content.Context
 import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -99,6 +103,10 @@ class NovaCallRepository(
         return authenticatedCall { token -> api.call(token, callId) }
     }
 
+    suspend fun callAction(callId: String, action: String): ApiResult<NovaCallSession> {
+        return authenticatedCall { token -> api.callAction(token, callId, action) }
+    }
+
     suspend fun iceConfig(): ApiResult<NovaIceConfig> {
         return authenticatedCall { token -> api.iceConfig(token) }
     }
@@ -151,6 +159,30 @@ class NovaCallRepository(
 }
 
 
+object NovaCallActionDispatcher {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    fun dispatch(context: Context, callId: String, action: String) {
+        val appContext = context.applicationContext
+        scope.launch {
+            val repository = NovaCallRepository(appContext)
+            val retryDelays = longArrayOf(0L, 800L, 2_000L, 5_000L)
+            for (waitMs in retryDelays) {
+                if (waitMs > 0) delay(waitMs)
+                when (val result = repository.callAction(callId, action)) {
+                    is ApiResult.Success -> return@launch
+                    is ApiResult.Failure -> {
+                        if (result.statusCode == 400 || result.statusCode == 401 || result.statusCode == 404) {
+                            return@launch
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
 class NovaCallsApiClient(
     private val baseUrl: String,
 ) {
@@ -170,6 +202,25 @@ class NovaCallsApiClient(
 
     suspend fun call(accessToken: String, callId: String): ApiResult<NovaCallSession> {
         return when (val response = requestJson("calls/$callId/", bearerToken = accessToken)) {
+            is ApiResult.Success -> ApiResult.Success(parseCall(response.value))
+            is ApiResult.Failure -> response
+        }
+    }
+
+    suspend fun callAction(
+        accessToken: String,
+        callId: String,
+        action: String,
+    ): ApiResult<NovaCallSession> {
+        val body = JSONObject().put("action", action)
+        return when (
+            val response = requestJson(
+                path = "calls/$callId/action/",
+                method = "POST",
+                body = body,
+                bearerToken = accessToken,
+            )
+        ) {
             is ApiResult.Success -> ApiResult.Success(parseCall(response.value))
             is ApiResult.Failure -> response
         }
