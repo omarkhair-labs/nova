@@ -43,6 +43,19 @@ data class NovaMessageReactionEvent(
 )
 
 
+data class NovaMessageUpdatedEvent(
+    val messageId: Long,
+    val body: String,
+    val editedAt: String,
+)
+
+
+data class NovaMessageDeletedEvent(
+    val messageId: Long,
+    val deletedAt: String,
+)
+
+
 sealed interface NovaRealtimeEvent {
     data class MessageCreated(val message: NovaMessage) : NovaRealtimeEvent
 
@@ -81,6 +94,8 @@ class NovaConversationRealtimeClient(
     private var onStatus: ((NovaRealtimeStatus) -> Unit)? = null
     private var onPresence: ((NovaConversationPresence) -> Unit)? = null
     private var onReaction: ((NovaMessageReactionEvent) -> Unit)? = null
+    private var onMessageUpdated: ((NovaMessageUpdatedEvent) -> Unit)? = null
+    private var onMessageDeleted: ((NovaMessageDeletedEvent) -> Unit)? = null
     private var onSessionExpired: (() -> Unit)? = null
 
     fun start(
@@ -90,6 +105,8 @@ class NovaConversationRealtimeClient(
         onSessionExpired: () -> Unit,
         onPresence: (NovaConversationPresence) -> Unit = {},
         onReaction: (NovaMessageReactionEvent) -> Unit = {},
+        onMessageUpdated: (NovaMessageUpdatedEvent) -> Unit = {},
+        onMessageDeleted: (NovaMessageDeletedEvent) -> Unit = {},
     ) {
         stop()
         stopped = false
@@ -99,6 +116,8 @@ class NovaConversationRealtimeClient(
         this.onStatus = onStatus
         this.onPresence = onPresence
         this.onReaction = onReaction
+        this.onMessageUpdated = onMessageUpdated
+        this.onMessageDeleted = onMessageDeleted
         this.onSessionExpired = onSessionExpired
         connect(initial = true)
     }
@@ -179,6 +198,14 @@ class NovaConversationRealtimeClient(
                         emitReaction(it)
                         return
                     }
+                    parseMessageUpdated(json)?.let {
+                        emitMessageUpdated(it)
+                        return
+                    }
+                    parseMessageDeleted(json)?.let {
+                        emitMessageDeleted(it)
+                        return
+                    }
 
                     val event = parseEvent(json) ?: return
                     if (event is NovaRealtimeEvent.MessageCreated && !event.message.isMine) {
@@ -245,6 +272,18 @@ class NovaConversationRealtimeClient(
         }
     }
 
+    private fun emitMessageUpdated(event: NovaMessageUpdatedEvent) {
+        scope?.launch {
+            if (!stopped) onMessageUpdated?.invoke(event)
+        }
+    }
+
+    private fun emitMessageDeleted(event: NovaMessageDeletedEvent) {
+        scope?.launch {
+            if (!stopped) onMessageDeleted?.invoke(event)
+        }
+    }
+
     private fun parsePresence(json: JSONObject): NovaConversationPresence? {
         val payload = when (json.optString("type")) {
             "ready" -> json.optJSONObject("presence")
@@ -274,6 +313,29 @@ class NovaConversationRealtimeClient(
             count = json.optInt("count", 0).coerceAtLeast(0),
             active = json.optBoolean("active", false),
             isMine = json.optBoolean("is_mine", false),
+        )
+    }
+
+    private fun parseMessageUpdated(json: JSONObject): NovaMessageUpdatedEvent? {
+        if (json.optString("type") != "message.updated") return null
+        val messageId = json.optLong("message_id", -1L)
+        val editedAt = json.optString("edited_at")
+        if (messageId <= 0L || editedAt.isBlank()) return null
+        return NovaMessageUpdatedEvent(
+            messageId = messageId,
+            body = json.optString("body"),
+            editedAt = editedAt,
+        )
+    }
+
+    private fun parseMessageDeleted(json: JSONObject): NovaMessageDeletedEvent? {
+        if (json.optString("type") != "message.deleted") return null
+        val messageId = json.optLong("message_id", -1L)
+        val deletedAt = json.optString("deleted_at")
+        if (messageId <= 0L || deletedAt.isBlank()) return null
+        return NovaMessageDeletedEvent(
+            messageId = messageId,
+            deletedAt = deletedAt,
         )
     }
 
@@ -335,6 +397,9 @@ class NovaConversationRealtimeClient(
                 ),
                 body = it.optString("body"),
                 imageUrl = resolveMediaUrl(it.optString("image_url")),
+                audioUrl = resolveMediaUrl(it.optString("audio_url")),
+                audioDurationMs = nullableLong(it.opt("audio_duration_ms")),
+                isDeleted = it.optBoolean("is_deleted", false),
             )
         }
 
@@ -355,6 +420,10 @@ class NovaConversationRealtimeClient(
             deliveredAt = nullableString(json.opt("delivered_at")),
             readAt = nullableString(json.opt("read_at")),
             isMine = json.optBoolean("is_mine", false),
+            audioUrl = resolveMediaUrl(json.optString("audio_url")),
+            audioDurationMs = nullableLong(json.opt("audio_duration_ms")),
+            editedAt = nullableString(json.opt("edited_at")),
+            deletedAt = nullableString(json.opt("deleted_at")),
         )
     }
 
@@ -382,6 +451,14 @@ class NovaConversationRealtimeClient(
         return when (value) {
             null, JSONObject.NULL -> null
             else -> value.toString().takeIf { it.isNotBlank() && it != "null" }
+        }
+    }
+
+    private fun nullableLong(value: Any?): Long? {
+        return when (value) {
+            null, JSONObject.NULL -> null
+            is Number -> value.toLong()
+            else -> value.toString().toLongOrNull()
         }
     }
 

@@ -126,7 +126,9 @@ def send_message_push(message):
 
     actor_name = message.sender.name.strip() or f"@{message.sender.username}"
     preview = message.body.strip()
-    if not preview and message.image:
+    if not preview and message.audio:
+        preview = "🎤 Voice message"
+    elif not preview and message.image:
         preview = "📷 Photo"
     preview = preview[:120] + ("…" if len(preview) > 120 else "")
     actor_avatar_url = ""

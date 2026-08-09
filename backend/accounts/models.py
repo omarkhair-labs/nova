@@ -303,11 +303,15 @@ class Message(models.Model):
         blank=True,
     )
     image = models.ImageField(upload_to="messages/%Y/%m/", blank=True)
+    audio = models.FileField(upload_to="messages/audio/%Y/%m/", blank=True)
+    audio_duration_ms = models.PositiveIntegerField(null=True, blank=True)
     body = models.CharField(max_length=2000, blank=True)
     client_id = models.CharField(max_length=64)
     created_at = models.DateTimeField(auto_now_add=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
     read_at = models.DateTimeField(null=True, blank=True)
+    edited_at = models.DateTimeField(null=True, blank=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ("created_at", "id")
@@ -324,10 +328,14 @@ class Message(models.Model):
 
     def delete(self, *args, **kwargs):
         image_name = self.image.name
-        storage = self.image.storage
+        image_storage = self.image.storage
+        audio_name = self.audio.name
+        audio_storage = self.audio.storage
         result = super().delete(*args, **kwargs)
         if image_name:
-            storage.delete(image_name)
+            image_storage.delete(image_name)
+        if audio_name:
+            audio_storage.delete(audio_name)
         return result
 
     def __str__(self):

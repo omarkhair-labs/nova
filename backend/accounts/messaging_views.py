@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
@@ -11,16 +13,21 @@ from rest_framework.views import APIView
 from .messaging_realtime import (
     broadcast_conversation_read,
     broadcast_message_created,
+    broadcast_message_deleted,
     broadcast_message_reaction,
+    broadcast_message_updated,
     broadcast_messages_delivered,
 )
 from .messaging_serializers import ConversationSerializer, MessageSerializer
 from .models import Conversation, Message, MessageReaction
 from .push import send_message_push
 
+logger = logging.getLogger(__name__)
 User = get_user_model()
 MESSAGE_PAGE_SIZE = 50
 MAX_MESSAGE_IMAGE_BYTES = 10 * 1024 * 1024
+MAX_MESSAGE_AUDIO_BYTES = 15 * 1024 * 1024
+MAX_VOICE_DURATION_MS = 5 * 60 * 1000
 ALLOWED_REACTIONS = {"❤️", "😂", "😮", "😢", "😡", "👍"}
 
 
@@ -69,6 +76,21 @@ def broadcast_reaction_state(message, user_id, emoji, active):
         active=active,
         count=message.reactions.filter(emoji=emoji).count(),
     )
+
+
+def schedule_stored_file_delete(field):
+    name = getattr(field, "name", "")
+    if not name:
+        return
+    storage = field.storage
+
+    def delete_file():
+        try:
+            storage.delete(name)
+        except Exception:
+            logger.exception("Nova could not delete message attachment %s", name)
+
+    transaction.on_commit(delete_file)
 
 
 class ConversationsView(APIView):
@@ -236,9 +258,11 @@ class ConversationMessagesView(APIView):
         body = str(request.data.get("body") or "").strip()
         client_id = str(request.data.get("client_id") or "").strip()
         image = request.FILES.get("image")
+        audio = request.FILES.get("audio")
+        raw_audio_duration = request.data.get("audio_duration_ms")
         raw_reply_to = request.data.get("reply_to_id")
 
-        if not body and image is None:
+        if not body and image is None and audio is None:
             return Response(
                 {"detail": "Message can't be empty."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -251,6 +275,11 @@ class ConversationMessagesView(APIView):
         if not client_id or len(client_id) > 64:
             return Response(
                 {"detail": "A valid client_id is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if image is not None and audio is not None:
+            return Response(
+                {"detail": "Send either a photo or a voice message, not both at once."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if image is not None:
@@ -266,6 +295,32 @@ class ConversationMessagesView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+        audio_duration_ms = None
+        if audio is not None:
+            content_type = str(getattr(audio, "content_type", "") or "")
+            if not content_type.startswith("audio/"):
+                return Response(
+                    {"detail": "Voice attachment must be an audio file."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if audio.size > MAX_MESSAGE_AUDIO_BYTES:
+                return Response(
+                    {"detail": "Voice message must be 15 MB or smaller."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                audio_duration_ms = int(raw_audio_duration)
+            except (TypeError, ValueError):
+                return Response(
+                    {"detail": "Voice message duration is required."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if audio_duration_ms <= 0 or audio_duration_ms > MAX_VOICE_DURATION_MS:
+                return Response(
+                    {"detail": "Voice message must be between 1 second and 5 minutes."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         reply_to = None
         if raw_reply_to not in (None, ""):
             try:
@@ -275,10 +330,13 @@ class ConversationMessagesView(APIView):
                     {"detail": "Invalid reply_to_id."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            reply_to = conversation.messages.select_related("sender").filter(pk=reply_to_id).first()
+            reply_to = conversation.messages.select_related("sender").filter(
+                pk=reply_to_id,
+                deleted_at__isnull=True,
+            ).first()
             if reply_to is None:
                 return Response(
-                    {"detail": "You can only reply to a message in this conversation."},
+                    {"detail": "You can only reply to an available message in this conversation."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -304,6 +362,8 @@ class ConversationMessagesView(APIView):
                     recipient=recipient,
                     reply_to=reply_to,
                     image=image or "",
+                    audio=audio or "",
+                    audio_duration_ms=audio_duration_ms,
                     body=body,
                     client_id=client_id,
                 )
@@ -330,11 +390,111 @@ class ConversationMessagesView(APIView):
         )
 
 
+class MessageDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, message_id):
+        message = message_for_request(request, message_id)
+        if message.sender_id != request.user.pk:
+            return Response(
+                {"detail": "Only the sender can edit this message."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if message.deleted_at is not None:
+            return Response(
+                {"detail": "A deleted message can't be edited."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        body = str(request.data.get("body") or "").strip()
+        if len(body) > 2000:
+            return Response(
+                {"detail": "Message must be 2000 characters or fewer."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not body and not message.image and not message.audio:
+            return Response(
+                {"detail": "Message can't be empty."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if body == message.body:
+            return Response(MessageSerializer(message, context={"request": request}).data)
+
+        edited_at = timezone.now()
+        message.body = body
+        message.edited_at = edited_at
+        message.save(update_fields=("body", "edited_at"))
+        broadcast_message_updated(
+            conversation_id=message.conversation_id,
+            message_id=message.pk,
+            body=message.body,
+            edited_at=edited_at,
+        )
+        return Response(MessageSerializer(message, context={"request": request}).data)
+
+    def delete(self, request, message_id):
+        message = message_for_request(request, message_id)
+        if message.sender_id != request.user.pk:
+            return Response(
+                {"detail": "Only the sender can delete this message for everyone."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if message.deleted_at is not None:
+            return Response(
+                {
+                    "message_id": message.pk,
+                    "deleted_at": message.deleted_at.isoformat(),
+                }
+            )
+
+        deleted_at = timezone.now()
+        with transaction.atomic():
+            schedule_stored_file_delete(message.image)
+            schedule_stored_file_delete(message.audio)
+            MessageReaction.objects.filter(message=message).delete()
+            message.body = ""
+            message.image = ""
+            message.audio = ""
+            message.audio_duration_ms = None
+            message.reply_to = None
+            message.edited_at = None
+            message.deleted_at = deleted_at
+            message.save(
+                update_fields=(
+                    "body",
+                    "image",
+                    "audio",
+                    "audio_duration_ms",
+                    "reply_to",
+                    "edited_at",
+                    "deleted_at",
+                )
+            )
+
+        broadcast_message_deleted(
+            conversation_id=message.conversation_id,
+            message_id=message.pk,
+            deleted_at=deleted_at,
+        )
+        return Response(
+            {
+                "message_id": message.pk,
+                "deleted_at": deleted_at.isoformat(),
+            }
+        )
+
+
 class MessageReactionView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, message_id):
         message = message_for_request(request, message_id)
+        if message.deleted_at is not None:
+            return Response(
+                {"detail": "A deleted message can't be reacted to."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
         emoji = str(request.data.get("emoji") or "").strip()
         if emoji not in ALLOWED_REACTIONS:
             return Response(
@@ -372,6 +532,12 @@ class MessageReactionView(APIView):
 
     def delete(self, request, message_id):
         message = message_for_request(request, message_id)
+        if message.deleted_at is not None:
+            return Response(
+                {"detail": "A deleted message can't be reacted to."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
         reaction = MessageReaction.objects.filter(
             message=message,
             user=request.user,

@@ -1,6 +1,7 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
+from .messaging_mutation_view import MessageMutationView
 from .messaging_views import (
     ConversationMessagesView,
     ConversationReadView,
@@ -54,6 +55,11 @@ urlpatterns = [
         "conversations/<int:conversation_id>/read/",
         ConversationReadView.as_view(),
         name="conversation-read",
+    ),
+    path(
+        "messages/<int:message_id>/",
+        MessageMutationView.as_view(),
+        name="message-detail",
     ),
     path(
         "messages/<int:message_id>/reaction/",
