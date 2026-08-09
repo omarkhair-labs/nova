@@ -97,10 +97,10 @@ class CallActivity : ComponentActivity() {
             launchSpec = spec,
             requestPermissions = ::requestCallPermissions,
             onFinished = {
-                if (!isFinishing) finishAndRemoveTask()
+                if (!isFinishing) finish()
             },
             onSessionExpired = {
-                if (!isFinishing) finishAndRemoveTask()
+                if (!isFinishing) finish()
             },
         )
 
