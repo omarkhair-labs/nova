@@ -295,7 +295,15 @@ class Message(models.Model):
         on_delete=models.CASCADE,
         related_name="received_messages",
     )
-    body = models.CharField(max_length=2000)
+    reply_to = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        related_name="replies",
+        null=True,
+        blank=True,
+    )
+    image = models.ImageField(upload_to="messages/%Y/%m/", blank=True)
+    body = models.CharField(max_length=2000, blank=True)
     client_id = models.CharField(max_length=64)
     created_at = models.DateTimeField(auto_now_add=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
@@ -314,5 +322,43 @@ class Message(models.Model):
             models.Index(fields=("recipient", "read_at", "-id"), name="msg_recipient_read_idx"),
         ]
 
+    def delete(self, *args, **kwargs):
+        image_name = self.image.name
+        storage = self.image.storage
+        result = super().delete(*args, **kwargs)
+        if image_name:
+            storage.delete(image_name)
+        return result
+
     def __str__(self):
         return f"Message {self.pk} from @{self.sender.username} to @{self.recipient.username}"
+
+
+class MessageReaction(models.Model):
+    message = models.ForeignKey(
+        Message,
+        on_delete=models.CASCADE,
+        related_name="reactions",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="message_reactions",
+    )
+    emoji = models.CharField(max_length=16)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("created_at", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("message", "user"),
+                name="unique_message_user_reaction",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=("message", "created_at"), name="msg_reaction_created_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.emoji} by @{self.user.username} on message {self.message_id}"
