@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -182,13 +183,14 @@ fun NovaBottomBar(
 
     Surface(
         color = NovaSurface,
-        shadowElevation = 10.dp,
+        shadowElevation = 6.dp,
         tonalElevation = 0.dp,
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 10.dp),
+                .navigationBarsPadding()
+                .padding(horizontal = 8.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -238,39 +240,44 @@ private fun NovaTabItem(
     Surface(
         onClick = onClick,
         color = if (selected) NovaAccent.copy(alpha = 0.10f) else Color.Transparent,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(
-                text = symbol,
-                color = if (selected) NovaAccent else NovaMuted,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = symbol,
+                    color = if (selected) NovaAccent else NovaMuted,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                if (badgeCount > 0) {
+                    Surface(
+                        shape = CircleShape,
+                        color = NovaAccent,
+                    ) {
+                        Text(
+                            text = if (badgeCount > 99) "99+" else badgeCount.toString(),
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                            color = Color.White,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = label,
                 color = if (selected) NovaAccent else NovaMuted,
-                fontSize = 12.sp,
+                fontSize = 11.sp,
                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
             )
-            if (badgeCount > 0) {
-                Surface(
-                    shape = CircleShape,
-                    color = NovaAccent,
-                ) {
-                    Text(
-                        text = if (badgeCount > 99) "99+" else badgeCount.toString(),
-                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
-                        color = Color.White,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
         }
     }
 }

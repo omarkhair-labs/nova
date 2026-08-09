@@ -44,7 +44,6 @@ import com.nova.app.core.push.NovaPushOpenSignal
 import com.nova.app.feature.notifications.NotificationsScreen
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
-import com.nova.app.ui.components.NovaPrimaryButton
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.components.NovaTab
 import com.nova.app.ui.theme.NovaAccent
@@ -56,7 +55,6 @@ import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
-
 
 @Composable
 fun HomeScreen(
@@ -90,6 +88,7 @@ fun HomeScreen(
     }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
+    val firstName = displayName.trim().substringBefore(' ').ifBlank { username }
 
     var showActivity by remember { mutableStateOf(false) }
     var notificationUnreadCount by remember { mutableStateOf(0) }
@@ -223,10 +222,10 @@ fun HomeScreen(
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(
                     start = 20.dp,
                     end = 20.dp,
-                    top = 18.dp,
+                    top = 16.dp,
                     bottom = 24.dp,
                 ),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 item {
                     Row(
@@ -234,51 +233,52 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "nova",
                                 color = NovaInk,
-                                fontSize = 26.sp,
+                                fontSize = 30.sp,
+                                lineHeight = 34.sp,
                                 fontWeight = FontWeight.Bold,
                             )
                             Text(
-                                text = "Good to see you, ${displayName.substringBefore(' ')}.",
+                                text = "Good to see you, $firstName.",
                                 color = NovaMuted,
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
                             )
                         }
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Surface(
                                 onClick = { showActivity = true },
-                                shape = RoundedCornerShape(18.dp),
+                                shape = RoundedCornerShape(16.dp),
                                 color = if (notificationUnreadCount > 0) NovaAccentSoft else NovaSurface,
                                 border = BorderStroke(
                                     1.dp,
-                                    if (notificationUnreadCount > 0) NovaAccent else NovaBorder,
+                                    if (notificationUnreadCount > 0) NovaAccent.copy(alpha = 0.42f) else NovaBorder,
                                 ),
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Text(
                                         text = "Activity",
                                         color = NovaInk,
-                                        fontSize = 12.sp,
+                                        fontSize = 11.sp,
                                         fontWeight = FontWeight.SemiBold,
                                     )
                                     if (notificationUnreadCount > 0) {
-                                        Spacer(modifier = Modifier.width(7.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
                                         Surface(
                                             shape = RoundedCornerShape(10.dp),
                                             color = NovaAccent,
                                         ) {
                                             Text(
                                                 text = if (notificationUnreadCount > 99) "99+" else notificationUnreadCount.toString(),
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
                                                 color = NovaBackground,
-                                                fontSize = 10.sp,
+                                                fontSize = 9.sp,
                                                 fontWeight = FontWeight.Bold,
                                             )
                                         }
@@ -296,7 +296,7 @@ fun HomeScreen(
                                 NovaAvatar(
                                     source = avatarUrl,
                                     fallbackText = displayName.ifBlank { username },
-                                    size = 46.dp,
+                                    size = 44.dp,
                                     modifier = Modifier.padding(2.dp),
                                 )
                             }
@@ -306,30 +306,47 @@ fun HomeScreen(
 
                 item {
                     Surface(
+                        onClick = onCreatePost,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(26.dp),
+                        shape = RoundedCornerShape(22.dp),
                         color = NovaSurface,
                         border = BorderStroke(1.dp, NovaBorder),
                     ) {
-                        Column(modifier = Modifier.padding(20.dp)) {
-                            Text(
-                                text = "Share a moment",
-                                color = NovaInk,
-                                fontSize = 19.sp,
-                                fontWeight = FontWeight.Bold,
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            NovaAvatar(
+                                source = avatarUrl,
+                                fallbackText = displayName.ifBlank { username },
+                                size = 40.dp,
                             )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = "Post a photo from your phone. People who follow you can like it and join the conversation.",
-                                color = NovaMuted,
-                                fontSize = 13.sp,
-                                lineHeight = 19.sp,
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            NovaPrimaryButton(
-                                text = "Create post",
-                                onClick = onCreatePost,
-                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Share a moment",
+                                    color = NovaInk,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                Text(
+                                    text = "Photo + caption",
+                                    color = NovaMuted,
+                                    fontSize = 11.sp,
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = NovaAccent,
+                            ) {
+                                Text(
+                                    text = "+",
+                                    modifier = Modifier.padding(horizontal = 13.dp, vertical = 6.dp),
+                                    color = NovaBackground,
+                                    fontSize = 19.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            }
                         }
                     }
                 }
@@ -386,35 +403,35 @@ fun HomeScreen(
                     item {
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(26.dp),
+                            shape = RoundedCornerShape(24.dp),
                             color = NovaSurface,
                             border = BorderStroke(1.dp, NovaBorder),
                         ) {
                             Column(
-                                modifier = Modifier.padding(horizontal = 24.dp, vertical = 34.dp),
+                                modifier = Modifier.padding(horizontal = 24.dp, vertical = 32.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
                                 Surface(
-                                    shape = RoundedCornerShape(20.dp),
+                                    shape = RoundedCornerShape(18.dp),
                                     color = NovaAccentSoft,
                                 ) {
                                     Text(
                                         text = "✦",
-                                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+                                        modifier = Modifier.padding(horizontal = 17.dp, vertical = 11.dp),
                                         color = NovaAccent,
-                                        fontSize = 25.sp,
+                                        fontSize = 23.sp,
                                     )
                                 }
-                                Spacer(modifier = Modifier.height(16.dp))
+                                Spacer(modifier = Modifier.height(15.dp))
                                 Text(
-                                    text = "Your feed is ready.",
+                                    text = "Your feed is ready",
                                     color = NovaInk,
-                                    fontSize = 20.sp,
+                                    fontSize = 19.sp,
                                     fontWeight = FontWeight.Bold,
                                 )
                                 Spacer(modifier = Modifier.height(7.dp))
                                 Text(
-                                    text = "Create your first post or follow someone in People to start filling this space.",
+                                    text = "Post your first moment or find someone in People to start building your feed.",
                                     color = NovaMuted,
                                     fontSize = 13.sp,
                                     lineHeight = 19.sp,
@@ -437,11 +454,11 @@ fun HomeScreen(
                             Text(
                                 text = "Your feed",
                                 color = NovaInk,
-                                fontSize = 18.sp,
+                                fontSize = 17.sp,
                                 fontWeight = FontWeight.Bold,
                             )
                             Text(
-                                text = if (isLoading) "Refreshing…" else "Pull down to refresh",
+                                text = if (isLoading) "Refreshing…" else "Latest",
                                 color = NovaMuted,
                                 fontSize = 11.sp,
                             )
