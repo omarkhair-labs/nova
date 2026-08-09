@@ -4,27 +4,24 @@ import logging
 import os
 import secrets
 import time
-from datetime import timedelta
 
-from django.conf import settings
-from django.contrib.auth import get_user_model, update_session_auth_hash
+from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.mail import get_connection, send_mail
 from django.utils import timezone
-from django.utils.crypto import salted_hmac
-from rest_framework import serializers, status
+from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework_simplejwt.exceptions import AuthenticationFailed, InvalidToken
+from rest_framework_simplejwt.exceptions import InvalidToken
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
 from rest_framework_simplejwt.settings import api_settings
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
+from .jwt_auth import password_fingerprint, token_matches_current_password
 from .models import DevicePushToken
 from .serializers import RegisterSerializer, UserSerializer
 
@@ -42,12 +39,6 @@ def normalize_email(value):
     return User.objects.normalize_email(str(value or "").strip()).lower()
 
 
-def password_fingerprint(user):
-    # Never put Django's raw password hash in a JWT. salted_hmac binds the
-    # fingerprint to SECRET_KEY so the claim is safe to expose to the client.
-    return salted_hmac("nova.jwt.password", user.password).hexdigest()
-
-
 def issue_session(user, request=None):
     refresh = RefreshToken.for_user(user)
     refresh["pwdv"] = password_fingerprint(user)
@@ -58,29 +49,6 @@ def issue_session(user, request=None):
         "refresh": str(refresh),
         "user": UserSerializer(user, context={"request": request}).data,
     }
-
-
-def token_matches_current_password(validated_token, user, *, allow_legacy_access=False):
-    claim = validated_token.get("pwdv")
-    if claim:
-        return secrets.compare_digest(str(claim), password_fingerprint(user))
-
-    # Access tokens issued before V10 may not have pwdv. They are allowed only
-    # for their remaining short lifetime (15 minutes). Legacy refresh tokens
-    # are never accepted by the V10 refresh endpoint.
-    return allow_legacy_access
-
-
-class NovaJWTAuthentication(JWTAuthentication):
-    def get_user(self, validated_token):
-        user = super().get_user(validated_token)
-        if not token_matches_current_password(
-            validated_token,
-            user,
-            allow_legacy_access=True,
-        ):
-            raise AuthenticationFailed("Session expired. Please log in again.")
-        return user
 
 
 class SecureTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -292,8 +260,6 @@ class PasswordResetRequestView(APIView):
             "detail": "If an account exists for that email, a reset code has been sent."
         }
 
-        # Cool down requests for known and unknown emails using the same key
-        # path so the response never confirms account existence.
         if not _store_set(
             _cooldown_key(email),
             "1",
@@ -327,8 +293,6 @@ class PasswordResetRequestView(APIView):
 
         if not delivered:
             _store_delete(_reset_key(email))
-            # Keep the public response generic to avoid exposing which emails
-            # are registered. Server logs surface delivery failures instead.
         return Response(generic)
 
 
@@ -445,10 +409,6 @@ class RevokeOtherSessionsView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Re-hashing the same password creates a new salted Django hash. Since
-        # V10 JWTs are bound to a keyed fingerprint of that hash, every old V10
-        # access/refresh token becomes invalid immediately while the password
-        # itself stays unchanged.
         user.set_password(current_password)
         user.last_login = timezone.now()
         user.save(update_fields=("password", "last_login"))
