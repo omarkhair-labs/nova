@@ -12,11 +12,7 @@ object NovaMessagingNavigator {
     const val EXTRA_AVATAR_URL = "nova_conversation_avatar_url"
 
     fun openInbox(context: Context) {
-        context.startActivity(
-            Intent(context, MessagesActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-            }
-        )
+        context.startActivity(Intent(context, MessagesActivity::class.java))
     }
 
     fun openConversation(context: Context, conversation: NovaConversation) {
@@ -29,7 +25,6 @@ object NovaMessagingNavigator {
                     conversation.otherUser.name.ifBlank { conversation.otherUser.username },
                 )
                 putExtra(EXTRA_AVATAR_URL, conversation.otherUser.avatarUrl)
-                addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
             }
         )
     }
