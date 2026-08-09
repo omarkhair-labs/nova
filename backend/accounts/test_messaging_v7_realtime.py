@@ -1,3 +1,4 @@
+from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
 from django.contrib.auth import get_user_model
 from django.test import TransactionTestCase
@@ -71,7 +72,7 @@ class MessagingV7RealtimeTests(TransactionTestCase):
         omar_socket, maya_socket = await self.connect_pair()
         try:
             edited_at = timezone.now()
-            broadcast_message_updated(
+            await database_sync_to_async(broadcast_message_updated)(
                 conversation_id=self.conversation.pk,
                 message_id=self.message.pk,
                 body="Edited live",
@@ -87,7 +88,7 @@ class MessagingV7RealtimeTests(TransactionTestCase):
             self.assertEqual(omar_edit["edited_at"], edited_at.isoformat())
 
             deleted_at = timezone.now()
-            broadcast_message_deleted(
+            await database_sync_to_async(broadcast_message_deleted)(
                 conversation_id=self.conversation.pk,
                 message_id=self.message.pk,
                 deleted_at=deleted_at,
