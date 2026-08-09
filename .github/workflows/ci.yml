@@ -66,8 +66,13 @@ jobs:
       - name: Check Django configuration
         run: python manage.py check
 
-      - name: Check migrations
-        run: python manage.py makemigrations --check
+      - name: Diagnose migration drift
+        run: |
+          python manage.py makemigrations accounts --noinput
+          echo "--- Generated migration ---"
+          cat accounts/migrations/0010_*.py
+          echo "--- End generated migration ---"
+          exit 1
 
       - name: Run backend tests
         run: python manage.py test
@@ -88,6 +93,9 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
+
+      - name: Allow Gradle wrapper execution
+        run: chmod +x gradlew
 
       - name: Create CI Firebase config
         shell: bash
