@@ -5,10 +5,18 @@ from django.utils import timezone
 
 from .calls import serialize_call
 from .models import CallSession
+from .push import send_call_state_push
 
 
 MAX_SDP_LENGTH = 256_000
 MAX_ICE_CANDIDATE_LENGTH = 16_000
+TERMINAL_CALL_STATUSES = {
+    CallSession.Status.DECLINED,
+    CallSession.Status.CANCELED,
+    CallSession.Status.ENDED,
+    CallSession.Status.MISSED,
+    CallSession.Status.FAILED,
+}
 
 
 def call_group_name(call_id):
@@ -114,6 +122,16 @@ class CallConsumer(AsyncJsonWebsocketConsumer):
             },
         )
 
+        call_payload = result["call"]
+        if call_payload.get("status") in TERMINAL_CALL_STATUSES:
+            caller_id = call_payload["caller"]["id"]
+            callee_id = call_payload["callee"]["id"]
+            target_user_id = callee_id if user.pk == caller_id else caller_id
+            await database_sync_to_async(send_call_state_push)(
+                self.call_id,
+                target_user_id,
+            )
+
     def _clean_signal(self, event_type, content):
         if event_type in ("call.offer", "call.answer"):
             sdp = str(content.get("sdp") or "")
@@ -142,10 +160,7 @@ class CallConsumer(AsyncJsonWebsocketConsumer):
         if not user or not user.is_authenticated or joined_user_id == user.pk:
             return
 
-        # Tell this already-connected client that its peer is present.
         await self.send_json({"type": "call.peer_ready", "user_id": joined_user_id})
-        # And ACK back to the newly connected socket so it learns that this
-        # client was already in the group before the join broadcast.
         await self.channel_layer.group_send(
             self.group_name,
             {
