@@ -30,7 +30,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nova.app.core.messaging.NovaMessagesSignal
+import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaPerson
@@ -77,7 +77,7 @@ fun PersonScreen(
             when (val result = messagingRepository.openConversation(selectedPerson.username)) {
                 is ApiResult.Success -> {
                     isOpeningMessage = false
-                    NovaMessagesSignal.requestConversation(result.value)
+                    NovaMessagingNavigator.openConversation(context, result.value)
                 }
 
                 is ApiResult.Failure -> {
