@@ -19,11 +19,20 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nova.app.core.messaging.NovaMessagingNavigator
+import com.nova.app.core.messaging.NovaMessagingRepository
+import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaPerson
 import com.nova.app.core.network.NovaPost
 import com.nova.app.ui.components.NovaAvatar
@@ -37,6 +46,7 @@ import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
+import kotlinx.coroutines.launch
 
 @Composable
 fun PersonScreen(
@@ -51,6 +61,33 @@ fun PersonScreen(
     onBack: () -> Unit,
     onFollowToggle: (NovaPerson) -> Unit,
 ) {
+    val context = LocalContext.current
+    val messagingRepository = remember(context) {
+        NovaMessagingRepository(context.applicationContext)
+    }
+    val scope = rememberCoroutineScope()
+    var isOpeningMessage by remember(person?.username) { mutableStateOf(false) }
+    var messageError by remember(person?.username) { mutableStateOf<String?>(null) }
+
+    fun openMessage(selectedPerson: NovaPerson) {
+        if (isOpeningMessage) return
+        scope.launch {
+            isOpeningMessage = true
+            messageError = null
+            when (val result = messagingRepository.openConversation(selectedPerson.username)) {
+                is ApiResult.Success -> {
+                    isOpeningMessage = false
+                    NovaMessagingNavigator.openConversation(context, result.value)
+                }
+
+                is ApiResult.Failure -> {
+                    isOpeningMessage = false
+                    messageError = result.message
+                }
+            }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -157,7 +194,8 @@ fun PersonScreen(
 
                 Spacer(modifier = Modifier.height(18.dp))
 
-                if (errorMessage != null) {
+                val visibleError = messageError ?: errorMessage
+                if (visibleError != null) {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(18.dp),
@@ -165,7 +203,7 @@ fun PersonScreen(
                         border = BorderStroke(1.dp, NovaBorder),
                     ) {
                         Text(
-                            text = errorMessage,
+                            text = visibleError,
                             modifier = Modifier.padding(14.dp),
                             color = NovaMuted,
                             fontSize = 12.sp,
@@ -173,6 +211,13 @@ fun PersonScreen(
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                 }
+
+                NovaSecondaryButton(
+                    text = if (isOpeningMessage) "Opening chat…" else "Message",
+                    onClick = { if (!isOpeningMessage) openMessage(person) },
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 if (person.isFollowing) {
                     NovaSecondaryButton(
