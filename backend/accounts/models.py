@@ -297,6 +297,7 @@ class Message(models.Model):
     body = models.CharField(max_length=2000)
     client_id = models.CharField(max_length=64)
     created_at = models.DateTimeField(auto_now_add=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
     read_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
