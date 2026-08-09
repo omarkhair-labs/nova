@@ -6,6 +6,7 @@ import android.security.keystore.KeyProperties
 import android.util.Base64
 import com.nova.app.core.network.AuthSession
 import com.nova.app.core.network.NovaUser
+import com.nova.app.core.presence.NovaAppPresence
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -23,6 +24,7 @@ class NovaSessionStore(context: Context) {
         }
 
         updateUser(session.user)
+        NovaAppPresence.sessionChanged()
     }
 
     fun updateAccessToken(accessToken: String) {
@@ -55,6 +57,7 @@ class NovaSessionStore(context: Context) {
 
     fun clear() {
         prefs.edit().clear().apply()
+        NovaAppPresence.sessionChanged()
     }
 
     private fun storeTokens(accessToken: String, refreshToken: String): Boolean {
