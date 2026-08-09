@@ -105,7 +105,7 @@ class Migration(migrations.Migration):
                 ],
                 "constraints": [
                     models.CheckConstraint(
-                        condition=models.Q(("caller", models.F("callee")), _negated=True),
+                        condition=~models.Q(caller=models.F("callee")),
                         name="prevent_self_call",
                     ),
                 ],
