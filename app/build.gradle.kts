@@ -13,7 +13,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.nova.app"
+        applicationId = "com.omarkhair70.nova"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
