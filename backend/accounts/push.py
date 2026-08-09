@@ -255,3 +255,59 @@ def send_call_push(call_id):
             logger.exception("Nova failed to send an incoming-call FCM push.")
 
     return sent
+
+
+def send_call_state_push(call_id, target_user_id):
+    """Wake a participant so stale incoming/ongoing call UI can be dismissed."""
+
+    app = _firebase_app()
+    if app is None:
+        return 0
+
+    try:
+        from firebase_admin import messaging
+    except Exception:
+        logger.exception("Firebase messaging is unavailable.")
+        return 0
+
+    call = CallSession.objects.filter(pk=call_id).first()
+    if call is None or target_user_id not in (call.caller_id, call.callee_id):
+        return 0
+
+    fids = list(
+        DevicePushToken.objects.filter(
+            user_id=target_user_id,
+            active=True,
+        ).values_list("token", flat=True)
+    )
+    if not fids:
+        return 0
+
+    data = {
+        "kind": "call_state",
+        "call_id": str(call.pk),
+        "call_status": call.status,
+        "call_kind": call.kind,
+        "conversation_id": str(call.conversation_id),
+    }
+
+    sent = 0
+    for fid in fids:
+        push_message = messaging.Message(
+            fid=fid,
+            data=data,
+            android=messaging.AndroidConfig(
+                priority="high",
+                ttl=timedelta(seconds=60),
+                direct_boot_ok=False,
+            ),
+        )
+        try:
+            messaging.send(push_message, app=app)
+            sent += 1
+        except messaging.UnregisteredError:
+            DevicePushToken.objects.filter(token=fid).update(active=False)
+        except Exception:
+            logger.exception("Nova failed to send a call-state FCM push.")
+
+    return sent
