@@ -115,12 +115,13 @@ class CallConsumer(AsyncJsonWebsocketConsumer):
             await self.send_json({"type": "call.error", "detail": result["error"]})
             return
 
+        # Broadcast only the fact that state changed. Each socket serializes the
+        # call for its own authenticated user so `peer` and `is_caller` can never
+        # leak the actor's point of view to the other participant.
         await self.channel_layer.group_send(
             self.group_name,
             {
                 "type": "call.state",
-                "sender_id": user.pk,
-                "call": result["call"],
             },
         )
 
@@ -188,7 +189,12 @@ class CallConsumer(AsyncJsonWebsocketConsumer):
         await self.send_json(event["signal"])
 
     async def call_state(self, event):
-        await self.send_json({"type": "call.state", "call": event["call"]})
+        user = self.scope.get("user")
+        if not user or not user.is_authenticated:
+            return
+        payload = await self._call_payload(user.pk)
+        if payload is not None:
+            await self.send_json({"type": "call.state", "call": payload})
 
     @database_sync_to_async
     def _call_payload(self, user_id):
