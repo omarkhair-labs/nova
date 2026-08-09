@@ -21,6 +21,37 @@ def broadcast_message_created(message):
     )
 
 
+def broadcast_message_updated(*, conversation_id, message_id, body, edited_at):
+    channel_layer = get_channel_layer()
+    if channel_layer is None:
+        return
+
+    async_to_sync(channel_layer.group_send)(
+        conversation_group_name(conversation_id),
+        {
+            "type": "message.updated",
+            "message_id": message_id,
+            "body": body,
+            "edited_at": edited_at.isoformat(),
+        },
+    )
+
+
+def broadcast_message_deleted(*, conversation_id, message_id, deleted_at):
+    channel_layer = get_channel_layer()
+    if channel_layer is None:
+        return
+
+    async_to_sync(channel_layer.group_send)(
+        conversation_group_name(conversation_id),
+        {
+            "type": "message.deleted",
+            "message_id": message_id,
+            "deleted_at": deleted_at.isoformat(),
+        },
+    )
+
+
 def broadcast_message_reaction(*, conversation_id, message_id, user_id, emoji, active, count):
     channel_layer = get_channel_layer()
     if channel_layer is None:
