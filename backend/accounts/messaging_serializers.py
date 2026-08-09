@@ -48,6 +48,9 @@ class MessageSerializer(serializers.ModelSerializer):
         }
 
     def get_reactions(self, obj):
+        if self.context.get("skip_reactions"):
+            return []
+
         request = self.context.get("request")
         current_user_id = (
             request.user.pk
@@ -103,13 +106,18 @@ class ConversationSerializer(serializers.ModelSerializer):
     def get_last_message(self, obj):
         message = (
             obj.messages.select_related("sender", "reply_to", "reply_to__sender")
-            .prefetch_related("reactions")
             .order_by("-id")
             .first()
         )
         if message is None:
             return None
-        return MessageSerializer(message, context=self.context).data
+
+        context = dict(self.context)
+        context["skip_reactions"] = True
+        data = dict(MessageSerializer(message, context=context).data)
+        if not data.get("body") and data.get("image_url"):
+            data["body"] = "📷 Photo"
+        return data
 
     def get_unread_count(self, obj):
         annotated = getattr(obj, "unread_count_value", None)
