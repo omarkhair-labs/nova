@@ -16,6 +16,8 @@ from .push import send_call_push
 
 ACTIVE_CALL_STATUSES = (CallSession.Status.RINGING, CallSession.Status.ACTIVE)
 CALL_RING_TIMEOUT_SECONDS = 45
+CALL_LIVENESS_TTL_SECONDS = 90
+CALL_LIVENESS_PREFIX = "nova:call:live"
 
 
 def _user_payload(user):
@@ -52,6 +54,102 @@ def serialize_call(call, viewer_id=None):
         "end_reason": call.end_reason,
         "ring_timeout_seconds": CALL_RING_TIMEOUT_SECONDS,
     }
+
+
+def _call_redis():
+    url = os.getenv("REDIS_URL", "").strip()
+    if not url:
+        return None
+    try:
+        import redis
+
+        return redis.Redis.from_url(url, decode_responses=True)
+    except Exception:
+        return None
+
+
+def _call_liveness_key(call_id):
+    return f"{CALL_LIVENESS_PREFIX}:{call_id}"
+
+
+def touch_call_liveness(call_id):
+    """Refresh a short Redis lease while at least one call socket is alive."""
+
+    client = _call_redis()
+    if client is None:
+        return None
+    try:
+        client.set(
+            _call_liveness_key(call_id),
+            "1",
+            ex=CALL_LIVENESS_TTL_SECONDS,
+        )
+        return True
+    except Exception:
+        # Redis outages must not tear down a live call. Call-state durability
+        # remains in Postgres; liveness is only used to clean abandoned locks.
+        return None
+
+
+def clear_call_liveness(call_id):
+    client = _call_redis()
+    if client is None:
+        return None
+    try:
+        client.delete(_call_liveness_key(call_id))
+        return True
+    except Exception:
+        return None
+
+
+def call_is_live(call_id):
+    client = _call_redis()
+    if client is None:
+        return None
+    try:
+        return bool(client.exists(_call_liveness_key(call_id)))
+    except Exception:
+        return None
+
+
+def expire_stale_call_locks(user_ids):
+    """Release abandoned ringing/active rows before deciding a user is busy."""
+
+    ids = tuple(int(user_id) for user_id in user_ids)
+    if not ids:
+        return
+
+    now = timezone.now()
+    participants = Q(caller_id__in=ids) | Q(callee_id__in=ids)
+    stale_ringing = CallSession.objects.filter(
+        participants,
+        status=CallSession.Status.RINGING,
+        created_at__lte=now - timedelta(seconds=CALL_RING_TIMEOUT_SECONDS + 15),
+    )
+    stale_ringing.update(
+        status=CallSession.Status.MISSED,
+        ended_at=now,
+        end_reason="timeout",
+    )
+
+    # Active calls have no natural timestamp once media is established. The
+    # call signaling client therefore keeps a short Redis lease alive. If Redis
+    # can positively tell us the lease is gone, the abandoned DB row is safe to
+    # release. If Redis itself is unavailable, be conservative and keep it busy.
+    active_calls = list(
+        CallSession.objects.filter(participants, status=CallSession.Status.ACTIVE)
+        .only("id")
+    )
+    for active_call in active_calls:
+        if call_is_live(active_call.pk) is False:
+            CallSession.objects.filter(
+                pk=active_call.pk,
+                status=CallSession.Status.ACTIVE,
+            ).update(
+                status=CallSession.Status.FAILED,
+                ended_at=now,
+                end_reason="connection_lost",
+            )
 
 
 def load_ice_servers():
@@ -145,6 +243,7 @@ class CallSessionCreateView(APIView):
                 .order_by("pk")
                 .values_list("pk", flat=True)
             )
+            expire_stale_call_locks((caller.pk, callee.pk))
             busy = CallSession.objects.filter(status__in=ACTIVE_CALL_STATUSES).filter(
                 Q(caller_id__in=(caller.pk, callee.pk))
                 | Q(callee_id__in=(caller.pk, callee.pk))
@@ -182,8 +281,6 @@ class CallSessionDetailView(APIView):
         if request.user.pk not in (call.caller_id, call.callee_id):
             return Response(status=status.HTTP_404_NOT_FOUND)
 
-        # A stale ringing call is finalized on read as a safety net. The clients
-        # also send an explicit timeout event so peers update immediately.
         if (
             call.status == CallSession.Status.RINGING
             and call.created_at <= timezone.now() - timedelta(seconds=CALL_RING_TIMEOUT_SECONDS + 15)
@@ -195,6 +292,16 @@ class CallSessionDetailView(APIView):
                 status=CallSession.Status.MISSED,
                 ended_at=timezone.now(),
                 end_reason="timeout",
+            )
+            call.refresh_from_db()
+        elif call.status == CallSession.Status.ACTIVE and call_is_live(call.pk) is False:
+            CallSession.objects.filter(
+                pk=call.pk,
+                status=CallSession.Status.ACTIVE,
+            ).update(
+                status=CallSession.Status.FAILED,
+                ended_at=timezone.now(),
+                end_reason="connection_lost",
             )
             call.refresh_from_db()
 
