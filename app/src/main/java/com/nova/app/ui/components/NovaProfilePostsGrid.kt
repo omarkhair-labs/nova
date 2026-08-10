@@ -37,6 +37,8 @@ fun NovaProfilePostsGrid(
     emptyTitle: String = "No posts yet",
     emptyMessage: String = "Shared moments will show up here.",
     sectionTitle: String? = "Posts",
+    loadingLabel: String = "Loading posts…",
+    errorTitle: String = "Couldn't load posts",
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -65,7 +67,7 @@ fun NovaProfilePostsGrid(
                     ) {
                         CircularProgressIndicator(color = NovaAccent)
                         Text(
-                            text = "Loading posts…",
+                            text = loadingLabel,
                             color = NovaMuted,
                             fontSize = 12.sp,
                             modifier = Modifier.padding(top = 12.dp),
@@ -83,7 +85,7 @@ fun NovaProfilePostsGrid(
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text(
-                            text = "Couldn't load posts",
+                            text = errorTitle,
                             color = NovaInk,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold,
