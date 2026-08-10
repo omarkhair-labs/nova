@@ -1,4 +1,4 @@
-from django.db.models import Q
+from django.db.models import OuterRef, Q, Subquery
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -186,30 +186,37 @@ class PaginatedPersonRepostsView(APIView):
         if denied is not None:
             return denied
 
-        visible_post_ids = public_post_queryset(request).values_list("id", flat=True)
-        reposts = Repost.objects.filter(
+        repost_id = Repost.objects.filter(
             user=person,
-            post_id__in=visible_post_ids,
-        ).select_related("post", "post__author")
+            post_id=OuterRef("pk"),
+        ).values("id")[:1]
+        posts = (
+            public_post_queryset(request)
+            .annotate(profile_repost_id=Subquery(repost_id))
+            .filter(profile_repost_id__isnull=False)
+        )
 
         cursor = _positive_id_cursor(request, "Invalid profile-repost cursor.")
         if isinstance(cursor, Response):
             return cursor
         if cursor is not None:
-            reposts = reposts.filter(id__lt=cursor)
+            posts = posts.filter(profile_repost_id__lt=cursor)
 
         page_with_extra = list(
-            reposts.order_by("-id")[: PROFILE_REPOST_PAGE_SIZE + 1]
+            posts.order_by("-profile_repost_id")[: PROFILE_REPOST_PAGE_SIZE + 1]
         )
         has_more = len(page_with_extra) > PROFILE_REPOST_PAGE_SIZE
         page = page_with_extra[:PROFILE_REPOST_PAGE_SIZE]
-        next_cursor = str(page[-1].id) if has_more and page else None
-        posts = [item.post for item in page]
+        next_cursor = (
+            str(page[-1].profile_repost_id)
+            if has_more and page
+            else None
+        )
 
         return Response(
             {
                 "results": PostSerializer(
-                    posts,
+                    page,
                     many=True,
                     context={"request": request},
                 ).data,
