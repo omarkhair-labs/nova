@@ -206,8 +206,20 @@ class ConversationConsumer(PresenceLeaseMixin, AsyncJsonWebsocketConsumer):
             await self.channel_layer.group_discard(group_name, self.channel_name)
             self.joined_group = False
 
+    async def _allow_realtime_event(self):
+        user = self.scope.get("user")
+        if not user or not user.is_authenticated:
+            await self.close(code=4401)
+            return False
+        if await self._can_access_conversation(user.pk, self.conversation_id):
+            return True
+        await self.close(code=4403)
+        return False
+
     async def receive_json(self, content, **kwargs):
         if not getattr(self, "joined_group", False):
+            return
+        if not await self._allow_realtime_event():
             return
 
         event_type = content.get("type")
@@ -216,9 +228,6 @@ class ConversationConsumer(PresenceLeaseMixin, AsyncJsonWebsocketConsumer):
             return
 
         user = self.scope.get("user")
-        if not user or not user.is_authenticated:
-            return
-
         if event_type == "typing":
             self.is_typing = bool(content.get("is_typing"))
             await self.channel_layer.group_send(
@@ -251,6 +260,8 @@ class ConversationConsumer(PresenceLeaseMixin, AsyncJsonWebsocketConsumer):
                 )
 
     async def message_created(self, event):
+        if not await self._allow_realtime_event():
+            return
         message = dict(event["message"])
         sender = message.get("sender") or {}
         user = self.scope.get("user")
@@ -258,6 +269,8 @@ class ConversationConsumer(PresenceLeaseMixin, AsyncJsonWebsocketConsumer):
         await self.send_json({"type": "message.created", "message": message})
 
     async def message_updated(self, event):
+        if not await self._allow_realtime_event():
+            return
         await self.send_json(
             {
                 "type": "message.updated",
@@ -268,6 +281,8 @@ class ConversationConsumer(PresenceLeaseMixin, AsyncJsonWebsocketConsumer):
         )
 
     async def message_deleted(self, event):
+        if not await self._allow_realtime_event():
+            return
         await self.send_json(
             {
                 "type": "message.deleted",
@@ -277,6 +292,8 @@ class ConversationConsumer(PresenceLeaseMixin, AsyncJsonWebsocketConsumer):
         )
 
     async def message_reaction(self, event):
+        if not await self._allow_realtime_event():
+            return
         user = self.scope.get("user")
         await self.send_json(
             {
@@ -291,6 +308,8 @@ class ConversationConsumer(PresenceLeaseMixin, AsyncJsonWebsocketConsumer):
         )
 
     async def messages_delivered(self, event):
+        if not await self._allow_realtime_event():
+            return
         await self.send_json(
             {
                 "type": "messages.delivered",
@@ -301,6 +320,8 @@ class ConversationConsumer(PresenceLeaseMixin, AsyncJsonWebsocketConsumer):
         )
 
     async def conversation_read(self, event):
+        if not await self._allow_realtime_event():
+            return
         await self.send_json(
             {
                 "type": "conversation.read",
@@ -311,6 +332,8 @@ class ConversationConsumer(PresenceLeaseMixin, AsyncJsonWebsocketConsumer):
         )
 
     async def conversation_typing(self, event):
+        if not await self._allow_realtime_event():
+            return
         user = self.scope.get("user")
         if user and event["user_id"] == user.pk:
             return
@@ -324,6 +347,8 @@ class ConversationConsumer(PresenceLeaseMixin, AsyncJsonWebsocketConsumer):
         )
 
     async def presence_changed(self, event):
+        if not await self._allow_realtime_event():
+            return
         await self.send_json(
             {
                 "type": "presence",
