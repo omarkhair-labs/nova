@@ -22,7 +22,7 @@ from .messaging_realtime import (
 from .messaging_serializers import ConversationSerializer, MessageSerializer
 from .models import Conversation, Message, MessageReaction
 from .push import send_message_push
-from .trust_safety import users_blocked
+from .trust_safety import blocked_user_ids, users_blocked
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -73,7 +73,9 @@ def conversation_unread_count(conversation, user):
             user=user,
         ).only("last_read_message_id").first()
         last_read_id = state.last_read_message_id if state else None
-        unread = conversation.messages.exclude(sender=user)
+        unread = conversation.messages.exclude(sender=user).exclude(
+            sender_id__in=blocked_user_ids(user)
+        )
         if last_read_id:
             unread = unread.filter(id__gt=last_read_id)
         return unread.count()
@@ -253,7 +255,10 @@ class ConversationMessagesView(APIView):
             "recipient",
             "reply_to",
             "reply_to__sender",
-        ).prefetch_related("reactions").order_by("-id")
+        ).prefetch_related("reactions")
+        if conversation.kind == Conversation.Kind.GROUP:
+            messages = messages.exclude(sender_id__in=blocked_user_ids(request.user))
+        messages = messages.order_by("-id")
 
         cursor = request.query_params.get("cursor", "").strip()
         if cursor:
@@ -411,7 +416,10 @@ class ConversationMessagesView(APIView):
                 pk=reply_to_id,
                 deleted_at__isnull=True,
             ).first()
-            if reply_to is None:
+            if reply_to is None or (
+                conversation.kind == Conversation.Kind.GROUP
+                and users_blocked(request.user, reply_to.sender)
+            ):
                 return Response(
                     {"detail": "You can only reply to an available message in this conversation."},
                     status=status.HTTP_400_BAD_REQUEST,
@@ -571,6 +579,11 @@ class MessageReactionView(APIView):
             other = other_participant(message.conversation, request.user)
             if other is None or users_blocked(request.user, other) or not other.is_active:
                 return interaction_blocked_response()
+        elif message.sender_id in blocked_user_ids(request.user):
+            return Response(
+                {"detail": "That message isn't available."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
         if message.deleted_at is not None:
             return Response(
                 {"detail": "A deleted message can't be reacted to."},
@@ -614,6 +627,11 @@ class MessageReactionView(APIView):
 
     def delete(self, request, message_id):
         message = message_for_request(request, message_id)
+        if message.conversation.kind == Conversation.Kind.GROUP and message.sender_id in blocked_user_ids(request.user):
+            return Response(
+                {"detail": "That message isn't available."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
         if message.deleted_at is not None:
             return Response(
                 {"detail": "A deleted message can't be reacted to."},
@@ -650,7 +668,11 @@ class ConversationReadView(APIView):
             )
             previous_id = state.last_read_message_id or 0
             latest = conversation.messages.order_by("-id").first()
-            unread = conversation.messages.exclude(sender=request.user).filter(id__gt=previous_id)
+            unread = (
+                conversation.messages.exclude(sender=request.user)
+                .exclude(sender_id__in=blocked_user_ids(request.user))
+                .filter(id__gt=previous_id)
+            )
             marked_read = unread.count()
             if latest is not None and latest.pk != state.last_read_message_id:
                 state.last_read_message = latest
