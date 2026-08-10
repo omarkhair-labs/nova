@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Follow
+from .models import User
 from .serializers import PersonSerializer, PostSerializer
 from .trust_safety import active_person_for, blocked_user_ids, visible_active_users_for
 from .views import public_post_queryset
@@ -85,22 +85,20 @@ class SocialConnectionsView(APIView):
     def get(self, request, username):
         person = active_person_for(request.user, username)
         blocked_ids = blocked_user_ids(request.user)
+        visible_people = User.objects.filter(is_active=True).exclude(pk__in=blocked_ids)
 
         if self.mode == "followers":
-            people = visible_active_users_for(request.user).filter(
+            people = visible_people.filter(
                 following_relationships__following=person,
             )
         elif self.mode == "following":
-            people = visible_active_users_for(request.user).filter(
+            people = visible_people.filter(
                 follower_relationships__follower=person,
             )
         else:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
-        # The visible-user helper already applies the viewer's block boundary.
-        # Keep this explicit exclusion so future queryset refactors do not expose it.
-        people = people.exclude(pk__in=blocked_ids).distinct()
-        return _people_page(request, people)
+        return _people_page(request, people.distinct())
 
 
 class FollowersView(SocialConnectionsView):
