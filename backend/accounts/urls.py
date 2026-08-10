@@ -9,10 +9,10 @@ from .account_security import (
     SecureTokenObtainPairView,
     SecureTokenRefreshView,
 )
+from .call_reliability_view import ReliableCallSessionCreateView
 from .calls import (
     CallIceConfigView,
     CallSessionActionView,
-    CallSessionCreateView,
     CallSessionDetailView,
 )
 from .messaging_mutation_view import MessageMutationView
@@ -83,7 +83,7 @@ urlpatterns = [
     path("notifications/", NotificationsView.as_view(), name="notifications"),
     path("notifications/read/", NotificationsReadView.as_view(), name="notifications-read"),
     path("push/devices/", DevicePushTokenView.as_view(), name="push-devices"),
-    path("calls/", CallSessionCreateView.as_view(), name="call-create"),
+    path("calls/", ReliableCallSessionCreateView.as_view(), name="call-create"),
     path("calls/ice/", CallIceConfigView.as_view(), name="call-ice-config"),
     path("calls/<uuid:call_id>/", CallSessionDetailView.as_view(), name="call-detail"),
     path("calls/<uuid:call_id>/action/", CallSessionActionView.as_view(), name="call-action"),
