@@ -13,6 +13,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.core.network.NovaPost
 import com.nova.app.ui.components.NovaAvatar
+import com.nova.app.ui.components.NovaConfirmDeleteDialog
 import com.nova.app.ui.components.NovaMediaImage
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
@@ -42,6 +47,21 @@ fun NovaPostCard(
     onCommentsClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    var showDeleteConfirm by remember(post.id) { mutableStateOf(false) }
+
+    if (showDeleteConfirm) {
+        NovaConfirmDeleteDialog(
+            title = "Delete this post?",
+            message = "This removes the post and its comments from Nova. This can't be undone.",
+            isBusy = isDeleting,
+            onDismiss = { showDeleteConfirm = false },
+            onConfirm = {
+                showDeleteConfirm = false
+                onDelete()
+            },
+        )
+    }
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(26.dp),
@@ -90,7 +110,9 @@ fun NovaPostCard(
 
                 if (post.isMine) {
                     Surface(
-                        onClick = { if (!isDeleting) onDelete() },
+                        onClick = {
+                            if (!isDeleting) showDeleteConfirm = true
+                        },
                         shape = RoundedCornerShape(14.dp),
                         color = NovaAccentSoft,
                     ) {
