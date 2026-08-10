@@ -182,6 +182,7 @@ class DeleteAccountView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        from .group_messaging import remove_user_from_all_groups
         from .sharing_models import Repost
         from .story_models import Story
 
@@ -207,6 +208,7 @@ class DeleteAccountView(APIView):
         ]
 
         with transaction.atomic():
+            remove_user_from_all_groups(user)
             DevicePushToken.objects.filter(user=user).delete()
             Follow.objects.filter(Q(follower=user) | Q(following=user)).delete()
             UserBlock.objects.filter(Q(blocker=user) | Q(blocked=user)).delete()
@@ -251,7 +253,7 @@ class DeleteAccountView(APIView):
             {
                 "detail": (
                     "Your Nova account was deleted. Shared message history is retained "
-                    "for the other participant without your profile identity."
+                    "for other conversation participants without your profile identity."
                 )
             }
         )
