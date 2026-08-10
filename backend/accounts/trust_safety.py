@@ -82,6 +82,8 @@ class UserBlockView(APIView):
         )
 
     def post(self, request, username):
+        from .privacy_models import CloseFriend, FollowRequest
+
         target = self._target(request, username)
         if target.pk == request.user.pk:
             return Response(
@@ -97,6 +99,14 @@ class UserBlockView(APIView):
             Follow.objects.filter(
                 Q(follower=request.user, following=target)
                 | Q(follower=target, following=request.user)
+            ).delete()
+            FollowRequest.objects.filter(
+                Q(requester=request.user, target=target)
+                | Q(requester=target, target=request.user)
+            ).delete()
+            CloseFriend.objects.filter(
+                Q(owner=request.user, member=target)
+                | Q(owner=target, member=request.user)
             ).delete()
             Notification.objects.filter(
                 Q(recipient=request.user, actor=target)
