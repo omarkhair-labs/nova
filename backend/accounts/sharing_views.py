@@ -25,6 +25,7 @@ from .messaging_realtime import broadcast_message_created
 from .messaging_serializers import ConversationSerializer, MessageSerializer
 from .messaging_views import conversations_for
 from .models import Conversation, Follow, Message
+from .privacy import can_view_user_content
 from .push import send_message_push
 from .serializers import PostSerializer
 from .sharing_models import MessageShare, Repost
@@ -128,8 +129,6 @@ class SharingFeedView(APIView):
                         {"detail": "Invalid feed cursor."},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
-                # V1 cached numeric cursors were based on descending Post ids.
-                # Accept them for one upgrade boundary instead of failing load-more.
                 queryset = queryset.filter(id__lt=legacy_post_id)
             else:
                 try:
@@ -241,7 +240,7 @@ class MessageShareView(APIView):
             except (TypeError, ValueError):
                 post_id = 0
             shared_post = get_object_or_404(public_post_queryset(request), pk=post_id)
-            if users_blocked(recipient, shared_post.author):
+            if not can_view_user_content(recipient, shared_post.author):
                 return Response(
                     {"detail": "That post isn't available to this recipient."},
                     status=status.HTTP_403_FORBIDDEN,
