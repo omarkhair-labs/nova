@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaPost
 import com.nova.app.core.social.NovaSocialPagingRepository
@@ -51,10 +52,13 @@ fun NovaProfileContentTabs(
     postsError: String?,
     onRetryPosts: () -> Unit,
     onPostClick: (NovaPost) -> Unit,
-    isOwnProfile: Boolean,
     postsEmptyTitle: String,
     postsEmptyMessage: String,
 ) {
+    val context = LocalContext.current
+    val isOwnProfile = remember(context, username) {
+        NovaSessionStore(context.applicationContext).load()?.cachedUser?.username == username
+    }
     var selectedTab by remember(username) { mutableStateOf(ProfileContentTab.Posts) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -91,7 +95,7 @@ fun NovaProfileContentTabs(
 
         when (selectedTab) {
             ProfileContentTab.Posts -> {
-                NovaPagedProfilePostsGrid(
+                NovaPagedPostsTabGrid(
                     username = username,
                     initialPosts = initialPosts,
                     isLoading = postsLoading,
@@ -100,7 +104,6 @@ fun NovaProfileContentTabs(
                     onPostClick = onPostClick,
                     emptyTitle = postsEmptyTitle,
                     emptyMessage = postsEmptyMessage,
-                    sectionTitle = null,
                 )
             }
 
@@ -229,6 +232,88 @@ private fun RepostIcon(color: Color) {
 
 
 @Composable
+private fun NovaPagedPostsTabGrid(
+    username: String,
+    initialPosts: List<NovaPost>,
+    isLoading: Boolean,
+    errorMessage: String?,
+    onRetry: () -> Unit,
+    onPostClick: (NovaPost) -> Unit,
+    emptyTitle: String,
+    emptyMessage: String,
+) {
+    val context = LocalContext.current
+    val repository = remember(context) {
+        NovaSocialPagingRepository(context.applicationContext)
+    }
+    val scope = rememberCoroutineScope()
+
+    var posts by remember(username) { mutableStateOf(initialPosts) }
+    var nextCursor by remember(username) {
+        mutableStateOf(initialPosts.takeIf { it.size >= FIRST_PAGE_SIZE }?.lastOrNull()?.id?.toString())
+    }
+    var hasLoadedMore by remember(username) { mutableStateOf(false) }
+    var isLoadingMore by remember(username) { mutableStateOf(false) }
+    var pagingError by remember(username) { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(username, initialPosts) {
+        if (!hasLoadedMore) {
+            posts = initialPosts
+            nextCursor = initialPosts
+                .takeIf { it.size >= FIRST_PAGE_SIZE }
+                ?.lastOrNull()
+                ?.id
+                ?.toString()
+        } else {
+            val initialById = initialPosts.associateBy { it.id }
+            val retainedOlder = posts.filterNot { it.id in initialById }
+            posts = initialPosts + retainedOlder
+        }
+    }
+
+    fun loadMore() {
+        val cursor = nextCursor ?: return
+        if (isLoadingMore || username.isBlank()) return
+        scope.launch {
+            isLoadingMore = true
+            pagingError = null
+            when (val result = repository.profilePosts(username, cursor)) {
+                is ApiResult.Success -> {
+                    val existingIds = posts.mapTo(mutableSetOf()) { it.id }
+                    posts = posts + result.value.posts.filterNot { it.id in existingIds }
+                    nextCursor = result.value.nextCursor
+                    hasLoadedMore = true
+                }
+                is ApiResult.Failure -> pagingError = result.message
+            }
+            isLoadingMore = false
+        }
+    }
+
+    Column {
+        NovaProfilePostsGrid(
+            posts = posts,
+            isLoading = isLoading && posts.isEmpty(),
+            errorMessage = if (posts.isEmpty()) errorMessage else pagingError ?: errorMessage,
+            onRetry = onRetry,
+            onPostClick = onPostClick,
+            emptyTitle = emptyTitle,
+            emptyMessage = emptyMessage,
+            sectionTitle = null,
+        )
+
+        if (posts.isNotEmpty() && nextCursor != null) {
+            Spacer(modifier = Modifier.height(12.dp))
+            NovaSecondaryButton(
+                text = if (isLoadingMore) "Loading more…" else "Load more posts",
+                onClick = { if (!isLoadingMore) loadMore() },
+            )
+        }
+    }
+}
+
+
+@Composable
 private fun NovaPagedProfileRepostsGrid(
     username: String,
     onPostClick: (NovaPost) -> Unit,
@@ -312,3 +397,5 @@ private fun NovaPagedProfileRepostsGrid(
         }
     }
 }
+
+private const val FIRST_PAGE_SIZE = 24
