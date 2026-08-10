@@ -118,22 +118,36 @@ class SharingFeedView(APIView):
 
         raw_cursor = request.query_params.get("cursor", "").strip()
         if raw_cursor:
-            try:
-                raw_time, raw_id = raw_cursor.rsplit("|", 1)
-                cursor_time = parse_datetime(raw_time)
-                cursor_id = int(raw_id)
-            except (TypeError, ValueError):
-                cursor_time = None
-                cursor_id = 0
-            if cursor_time is None or cursor_id <= 0:
-                return Response(
-                    {"detail": "Invalid feed cursor."},
-                    status=status.HTTP_400_BAD_REQUEST,
+            if "|" not in raw_cursor:
+                try:
+                    legacy_post_id = int(raw_cursor)
+                except ValueError:
+                    legacy_post_id = 0
+                if legacy_post_id <= 0:
+                    return Response(
+                        {"detail": "Invalid feed cursor."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                # V1 cached numeric cursors were based on descending Post ids.
+                # Accept them for one upgrade boundary instead of failing load-more.
+                queryset = queryset.filter(id__lt=legacy_post_id)
+            else:
+                try:
+                    raw_time, raw_id = raw_cursor.rsplit("|", 1)
+                    cursor_time = parse_datetime(raw_time)
+                    cursor_id = int(raw_id)
+                except (TypeError, ValueError):
+                    cursor_time = None
+                    cursor_id = 0
+                if cursor_time is None or cursor_id <= 0:
+                    return Response(
+                        {"detail": "Invalid feed cursor."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                queryset = queryset.filter(
+                    Q(feed_event_at__lt=cursor_time)
+                    | Q(feed_event_at=cursor_time, id__lt=cursor_id)
                 )
-            queryset = queryset.filter(
-                Q(feed_event_at__lt=cursor_time)
-                | Q(feed_event_at=cursor_time, id__lt=cursor_id)
-            )
 
         page_with_extra = list(
             queryset.select_related("author").order_by("-feed_event_at", "-id")[: SHARING_FEED_PAGE_SIZE + 1]
