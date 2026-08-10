@@ -89,19 +89,23 @@ private fun MessagingActivityContent(
     }
 
     fun startCall(conversation: InitialConversation, kind: NovaCallKind) {
-        context.startActivity(
-            CallActivity.outgoingIntent(
-                context = context,
-                conversationId = conversation.id,
-                kind = kind,
-                peer = NovaCallPerson(
-                    id = 0L,
-                    username = conversation.username,
-                    name = conversation.displayName,
-                    avatarUrl = conversation.avatarUrl,
-                ),
-            )
-        )
+        val callIntent = CallActivity.outgoingIntent(
+            context = context,
+            conversationId = conversation.id,
+            kind = kind,
+            peer = NovaCallPerson(
+                id = 0L,
+                username = conversation.username,
+                name = conversation.displayName,
+                avatarUrl = conversation.avatarUrl,
+            ),
+        ).apply {
+            // Outgoing calls must sit on top of the current conversation. The
+            // CallActivity helper also serves notification flows, but CLEAR_TOP
+            // here could remove MessagesActivity when an older call task exists.
+            flags = 0
+        }
+        context.startActivity(callIntent)
     }
 
     BackHandler {
