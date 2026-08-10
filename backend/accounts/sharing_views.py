@@ -211,41 +211,92 @@ class PostRepostView(APIView):
 class MessageShareView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
+    def _destination(self, request):
         recipient_username = str(request.data.get("recipient_username") or "").strip().lower()
+        raw_conversation_id = request.data.get("conversation_id")
+        try:
+            conversation_id = int(raw_conversation_id) if raw_conversation_id not in (None, "") else 0
+        except (TypeError, ValueError):
+            conversation_id = 0
+
+        if bool(recipient_username) == bool(conversation_id):
+            return None, None, Response(
+                {"detail": "Choose exactly one person or group to share with."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if recipient_username:
+            recipient = get_object_or_404(
+                User.objects.filter(is_active=True),
+                username=recipient_username,
+            )
+            if recipient.pk == request.user.pk:
+                return None, None, Response(
+                    {"detail": "You can't message yourself."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if users_blocked(request.user, recipient):
+                return None, None, Response(
+                    {"detail": "You can't interact with this account."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            return _conversation_between(request.user, recipient), recipient, None
+
+        conversation = get_object_or_404(
+            conversations_for(request.user),
+            pk=conversation_id,
+            kind=Conversation.Kind.GROUP,
+        )
+        return conversation, None, None
+
+    def _visible_group_recipients(self, request, conversation):
+        if conversation.kind != Conversation.Kind.GROUP:
+            return []
+        return [
+            membership.user
+            for membership in conversation.group_memberships.select_related("user")
+            .filter(user__is_active=True)
+            .exclude(user=request.user)
+            if not users_blocked(request.user, membership.user)
+        ]
+
+    def post(self, request):
+        conversation, direct_recipient, destination_error = self._destination(request)
+        if destination_error is not None:
+            return destination_error
+
+        group_recipients = self._visible_group_recipients(request, conversation)
+        effective_recipients = [direct_recipient] if direct_recipient is not None else group_recipients
+
         kind = str(request.data.get("kind") or "").strip().lower()
-        if not recipient_username:
-            return Response(
-                {"detail": "Choose someone to share with."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        recipient = get_object_or_404(User.objects.filter(is_active=True), username=recipient_username)
-        if recipient.pk == request.user.pk:
-            return Response(
-                {"detail": "You can't message yourself."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if users_blocked(request.user, recipient):
-            return Response(
-                {"detail": "You can't interact with this account."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
         shared_post = None
         shared_profile = None
+
         if kind == MessageShare.Kind.POST:
             try:
                 post_id = int(request.data.get("post_id"))
             except (TypeError, ValueError):
                 post_id = 0
             shared_post = get_object_or_404(public_post_queryset(request), pk=post_id)
-            if not can_view_user_content(recipient, shared_post.author):
-                return Response(
-                    {"detail": "That post isn't available to this recipient."},
-                    status=status.HTTP_403_FORBIDDEN,
+
+            unavailable = [
+                recipient
+                for recipient in effective_recipients
+                if recipient is not None
+                and (
+                    users_blocked(recipient, shared_post.author)
+                    or not can_view_user_content(recipient, shared_post.author)
                 )
+            ]
+            if unavailable:
+                detail = (
+                    "That post isn't available to everyone in this group."
+                    if conversation.kind == Conversation.Kind.GROUP
+                    else "That post isn't available to this recipient."
+                )
+                return Response({"detail": detail}, status=status.HTTP_403_FORBIDDEN)
             marker = f"↗ Shared post by @{shared_post.author.username}"
+
         elif kind == MessageShare.Kind.PROFILE:
             profile_username = str(request.data.get("profile_username") or "").strip().lower()
             if not profile_username:
@@ -254,24 +305,31 @@ class MessageShareView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             shared_profile = active_person_for(request.user, profile_username)
-            if users_blocked(recipient, shared_profile):
-                return Response(
-                    {"detail": "That profile isn't available to this recipient."},
-                    status=status.HTTP_403_FORBIDDEN,
+            unavailable = [
+                recipient
+                for recipient in effective_recipients
+                if recipient is not None and users_blocked(recipient, shared_profile)
+            ]
+            if unavailable:
+                detail = (
+                    "That profile isn't available to everyone in this group."
+                    if conversation.kind == Conversation.Kind.GROUP
+                    else "That profile isn't available to this recipient."
                 )
+                return Response({"detail": detail}, status=status.HTTP_403_FORBIDDEN)
             marker = f"↗ Shared profile · @{shared_profile.username}"
+
         else:
             return Response(
                 {"detail": "Unsupported share type."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        conversation = _conversation_between(request.user, recipient)
         with transaction.atomic():
             message = Message.objects.create(
                 conversation=conversation,
                 sender=request.user,
-                recipient=recipient,
+                recipient=direct_recipient,
                 body=marker,
                 client_id=f"share-{uuid.uuid4().hex}",
             )

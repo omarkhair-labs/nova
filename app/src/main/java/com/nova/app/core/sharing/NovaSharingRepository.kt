@@ -78,6 +78,29 @@ class NovaSharingRepository(
         )
     }
 
+    suspend fun sharePostToConversation(conversationId: Long, postId: Long): ApiResult<Unit> {
+        if (conversationId <= 0L) return ApiResult.Failure("Choose a group to share with.")
+        return share(
+            JSONObject()
+                .put("conversation_id", conversationId)
+                .put("kind", "post")
+                .put("post_id", postId)
+        )
+    }
+
+    suspend fun shareProfileToConversation(
+        conversationId: Long,
+        profileUsername: String,
+    ): ApiResult<Unit> {
+        if (conversationId <= 0L) return ApiResult.Failure("Choose a group to share with.")
+        return share(
+            JSONObject()
+                .put("conversation_id", conversationId)
+                .put("kind", "profile")
+                .put("profile_username", profileUsername.trim().lowercase())
+        )
+    }
+
     suspend fun addPostToStory(
         postId: Long,
         caption: String = "",

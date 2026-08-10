@@ -1,6 +1,7 @@
 package com.nova.app.feature.messages
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.MediaPlayer
 import android.net.Uri
@@ -66,6 +67,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
+import com.nova.app.MainActivity
 import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.messaging.NovaActiveConversation
 import com.nova.app.core.messaging.NovaConversationDraftStore
@@ -75,6 +77,7 @@ import com.nova.app.core.messaging.NovaMessage
 import com.nova.app.core.messaging.NovaMessageDeletedEvent
 import com.nova.app.core.messaging.NovaMessageReaction
 import com.nova.app.core.messaging.NovaMessageReactionEvent
+import com.nova.app.core.messaging.NovaMessageShare
 import com.nova.app.core.messaging.NovaMessageUpdatedEvent
 import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.messaging.NovaRealtimeEvent
@@ -396,6 +399,7 @@ fun ConversationScreenV8(
                     reactions = emptyList(),
                     editedAt = null,
                     deletedAt = event.deletedAt,
+                    share = null,
                 )
             } else message.copy(replyTo = reply)
         }
@@ -485,7 +489,7 @@ fun ConversationScreenV8(
     }
 
     fun startEdit(message: NovaMessage) {
-        if (!message.isMine || message.isDeleted || mutatingMessageId != null) return
+        if (!message.isMine || message.isDeleted || message.share != null || mutatingMessageId != null) return
         if (isRecording) {
             voiceRecorder.cancel()
             isRecording = false
@@ -514,7 +518,7 @@ fun ConversationScreenV8(
 
     fun saveEdit() {
         val target = editingTarget ?: return
-        if (target.isDeleted || mutatingMessageId != null) return
+        if (target.isDeleted || target.share != null || mutatingMessageId != null) return
         val body = draft.trim()
         if (body == target.body) {
             cancelEdit()
@@ -884,6 +888,8 @@ fun ConversationScreenV8(
                             onDelete = { confirmDelete(message) },
                             onReact = { emoji -> setReaction(message, emoji) },
                             onOpenPhoto = { fullScreenPhotoUrl = it },
+                            onOpenSharedPost = { postId -> openSharedPostV8(context, postId) },
+                            onOpenSharedProfile = { sharedUsername -> openSharedProfileV8(context, sharedUsername) },
                         )
                     }
 
@@ -1239,6 +1245,8 @@ private fun V8MessageBubble(
     onDelete: () -> Unit,
     onReact: (String) -> Unit,
     onOpenPhoto: (String) -> Unit,
+    onOpenSharedPost: (Long) -> Unit,
+    onOpenSharedProfile: (String) -> Unit,
 ) {
     var dragX by remember(message.id) { mutableFloatStateOf(0f) }
 
@@ -1307,15 +1315,24 @@ private fun V8MessageBubble(
                                 contentDescription = "Message photo",
                             )
                         }
-                        if (message.body.isNotBlank()) Spacer(Modifier.height(8.dp))
+                        if (message.body.isNotBlank() || message.share != null) Spacer(Modifier.height(8.dp))
                     }
 
                     if (message.audioUrl.isNotBlank()) {
                         V8VoiceNotePlayer(message.audioUrl, message.audioDurationMs, message.isMine)
-                        if (message.body.isNotBlank()) Spacer(Modifier.height(7.dp))
+                        if (message.body.isNotBlank() || message.share != null) Spacer(Modifier.height(7.dp))
                     }
 
-                    if (message.body.isNotBlank()) {
+                    message.share?.let { share ->
+                        V8SharedContentCard(
+                            share = share,
+                            mine = message.isMine,
+                            onOpenPost = onOpenSharedPost,
+                            onOpenProfile = onOpenSharedProfile,
+                        )
+                    }
+
+                    if (message.share == null && message.body.isNotBlank()) {
                         Text(
                             message.body,
                             color = if (message.isMine) NovaBackground else NovaInk,
@@ -1365,7 +1382,7 @@ private fun V8MessageBubble(
                 Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
                     V8ActionChip("Reply", !mutationBusy, onReply)
                     if (message.isMine) {
-                        V8ActionChip("Edit", !mutationBusy, onEdit)
+                        if (message.share == null) V8ActionChip("Edit", !mutationBusy, onEdit)
                         V8ActionChip("Delete", !mutationBusy, onDelete)
                     }
                 }
@@ -1383,6 +1400,144 @@ private fun V8MessageBubble(
                 }
             }
         }
+    }
+}
+
+
+@Composable
+private fun V8SharedContentCard(
+    share: NovaMessageShare,
+    mine: Boolean,
+    onOpenPost: (Long) -> Unit,
+    onOpenProfile: (String) -> Unit,
+) {
+    val cardColor = if (mine) NovaBackground.copy(alpha = 0.16f) else NovaBackground
+    val borderColor = if (mine) NovaBackground.copy(alpha = 0.25f) else NovaBorder
+    val primary = if (mine) NovaBackground else NovaInk
+    val secondary = if (mine) NovaBackground.copy(alpha = 0.75f) else NovaMuted
+
+    if (!share.available) {
+        Surface(
+            shape = RoundedCornerShape(15.dp),
+            color = cardColor,
+            border = BorderStroke(1.dp, borderColor),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(Modifier.padding(12.dp)) {
+                Text(
+                    text = if (share.kind == "profile") "Shared profile" else "Shared post",
+                    color = primary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                Spacer(Modifier.height(3.dp))
+                Text("This content is no longer available to you.", color = secondary, fontSize = 11.sp)
+            }
+        }
+        return
+    }
+
+    share.post?.let { post ->
+        Surface(
+            onClick = { onOpenPost(post.id) },
+            shape = RoundedCornerShape(15.dp),
+            color = cardColor,
+            border = BorderStroke(1.dp, borderColor),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column {
+                Row(
+                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 9.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    NovaAvatar(
+                        source = post.author.avatarUrl,
+                        fallbackText = post.author.name.ifBlank { post.author.username },
+                        size = 34.dp,
+                    )
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = post.author.name.ifBlank { post.author.username },
+                            color = primary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                        )
+                        Text("@${post.author.username} · Shared post", color = secondary, fontSize = 9.sp, maxLines = 1)
+                    }
+                    Text("›", color = secondary, fontSize = 18.sp)
+                }
+                if (post.imageUrl.isNotBlank()) {
+                    NovaMediaImage(
+                        source = post.imageUrl,
+                        modifier = Modifier.fillMaxWidth().height(180.dp),
+                        contentDescription = "Shared post photo",
+                    )
+                }
+                if (post.caption.isNotBlank()) {
+                    Text(
+                        text = post.caption,
+                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 9.dp),
+                        color = primary,
+                        fontSize = 11.sp,
+                        lineHeight = 16.sp,
+                        maxLines = 3,
+                    )
+                }
+            }
+        }
+        return
+    }
+
+    share.profile?.let { profile ->
+        Surface(
+            onClick = { onOpenProfile(profile.username) },
+            shape = RoundedCornerShape(15.dp),
+            color = cardColor,
+            border = BorderStroke(1.dp, borderColor),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Row(
+                modifier = Modifier.padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                NovaAvatar(
+                    source = profile.avatarUrl,
+                    fallbackText = profile.name.ifBlank { profile.username },
+                    size = 48.dp,
+                )
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = profile.name.ifBlank { profile.username },
+                        color = primary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                    )
+                    Text("@${profile.username}", color = secondary, fontSize = 10.sp, maxLines = 1)
+                    Spacer(Modifier.height(3.dp))
+                    Text("View profile", color = if (mine) NovaBackground else NovaAccent, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                }
+                Text("›", color = secondary, fontSize = 20.sp)
+            }
+        }
+        return
+    }
+
+    Surface(
+        shape = RoundedCornerShape(15.dp),
+        color = cardColor,
+        border = BorderStroke(1.dp, borderColor),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text = "Shared content unavailable",
+            modifier = Modifier.padding(12.dp),
+            color = secondary,
+            fontSize = 11.sp,
+        )
     }
 }
 
@@ -1595,8 +1750,31 @@ private fun V8FullScreenPhoto(photoUrl: String, onDismiss: () -> Unit) {
 }
 
 
+private fun openSharedPostV8(context: android.content.Context, postId: Long) {
+    context.startActivity(
+        Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            putExtra("kind", "comment")
+            putExtra("post_id", postId.toString())
+        }
+    )
+}
+
+private fun openSharedProfileV8(context: android.content.Context, username: String) {
+    if (username.isBlank()) return
+    context.startActivity(
+        Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            putExtra("kind", "follow")
+            putExtra("actor_username", username)
+        }
+    )
+}
+
 private fun replyPreviewTextV8(message: NovaMessage): String = when {
     message.isDeleted -> "Message deleted"
+    message.share?.kind == "post" -> "↗ Shared post"
+    message.share?.kind == "profile" -> "↗ Shared profile"
     message.body.isNotBlank() -> message.body
     message.audioUrl.isNotBlank() -> "🎤 Voice message"
     message.imageUrl.isNotBlank() -> "📷 Photo"

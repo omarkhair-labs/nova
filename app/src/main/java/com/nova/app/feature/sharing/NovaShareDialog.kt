@@ -30,6 +30,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nova.app.core.messaging.NovaConversation
+import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaPerson
 import com.nova.app.core.sharing.NovaSharingRepository
@@ -60,6 +62,9 @@ fun NovaShareDialog(
     val socialRepository = remember(context) {
         NovaSocialRepository(context.applicationContext)
     }
+    val messagingRepository = remember(context) {
+        NovaMessagingRepository(context.applicationContext)
+    }
     val sharingRepository = remember(context) {
         NovaSharingRepository(context.applicationContext)
     }
@@ -67,30 +72,44 @@ fun NovaShareDialog(
 
     var query by remember { mutableStateOf("") }
     var people by remember { mutableStateOf<List<NovaPerson>>(emptyList()) }
+    var groups by remember { mutableStateOf<List<NovaConversation>>(emptyList()) }
     var loadingPeople by remember { mutableStateOf(true) }
+    var loadingGroups by remember { mutableStateOf(true) }
     var busyUsername by remember { mutableStateOf<String?>(null) }
+    var busyConversationId by remember { mutableStateOf<Long?>(null) }
     var addingToStory by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
 
+    val busy = busyUsername != null || busyConversationId != null || addingToStory
+
     LaunchedEffect(query) {
         delay(220)
         loadingPeople = true
+        loadingGroups = true
+        error = null
+
         when (val result = socialRepository.people(query.trim())) {
-            is ApiResult.Success -> {
-                people = result.value
-                loadingPeople = false
-            }
+            is ApiResult.Success -> people = result.value
             is ApiResult.Failure -> {
                 people = emptyList()
-                loadingPeople = false
                 error = result.message
             }
         }
+        loadingPeople = false
+
+        when (val result = messagingRepository.conversations(query.trim())) {
+            is ApiResult.Success -> groups = result.value.conversations.filter { it.isGroup }
+            is ApiResult.Failure -> {
+                groups = emptyList()
+                if (error == null) error = result.message
+            }
+        }
+        loadingGroups = false
     }
 
     fun sendTo(person: NovaPerson) {
-        if (busyUsername != null || addingToStory) return
+        if (busy) return
         scope.launch {
             busyUsername = person.username
             error = null
@@ -108,9 +127,28 @@ fun NovaShareDialog(
         }
     }
 
+    fun sendToGroup(group: NovaConversation) {
+        if (busy || !group.isGroup) return
+        scope.launch {
+            busyConversationId = group.id
+            error = null
+            message = null
+            val result = if (postId != null) {
+                sharingRepository.sharePostToConversation(group.id, postId)
+            } else {
+                sharingRepository.shareProfileToConversation(group.id, profileUsername.orEmpty())
+            }
+            when (result) {
+                is ApiResult.Success -> message = "Sent to ${group.displayName}"
+                is ApiResult.Failure -> error = result.message
+            }
+            busyConversationId = null
+        }
+    }
+
     fun addToStory(audience: String) {
         val targetPost = postId ?: return
-        if (busyUsername != null || addingToStory) return
+        if (busy) return
         scope.launch {
             addingToStory = true
             error = null
@@ -131,7 +169,7 @@ fun NovaShareDialog(
 
     AlertDialog(
         onDismissRequest = {
-            if (busyUsername == null && !addingToStory) onDismiss()
+            if (!busy) onDismiss()
         },
         title = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -156,7 +194,7 @@ fun NovaShareDialog(
                             subtitle = "Followers",
                             symbol = "✦",
                             modifier = Modifier.weight(1f),
-                            enabled = busyUsername == null && !addingToStory,
+                            enabled = !busy,
                             onClick = { addToStory("followers") },
                         )
                         StoryAudienceAction(
@@ -164,7 +202,7 @@ fun NovaShareDialog(
                             subtitle = "Selected people",
                             symbol = "★",
                             modifier = Modifier.weight(1f),
-                            enabled = busyUsername == null && !addingToStory,
+                            enabled = !busy,
                             onClick = { addToStory("close_friends") },
                         )
                     }
@@ -177,7 +215,7 @@ fun NovaShareDialog(
                         error = null
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Search people", color = NovaMuted) },
+                    placeholder = { Text("Search people or groups", color = NovaMuted) },
                     singleLine = true,
                     shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -187,70 +225,66 @@ fun NovaShareDialog(
                     ),
                 )
 
-                when {
-                    loadingPeople -> {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp),
-                            horizontalArrangement = Arrangement.Center,
-                        ) {
-                            CircularProgressIndicator(color = NovaAccent)
+                if (loadingPeople || loadingGroups) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp),
+                        horizontalArrangement = Arrangement.Center,
+                    ) {
+                        CircularProgressIndicator(color = NovaAccent)
+                    }
+                } else if (people.isEmpty() && groups.isEmpty()) {
+                    Text(
+                        text = if (query.isBlank()) {
+                            "No people or groups available to share with yet."
+                        } else {
+                            "No people or groups match that search."
+                        },
+                        color = NovaMuted,
+                        fontSize = 12.sp,
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 310.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        if (groups.isNotEmpty()) {
+                            item(key = "groups-label") {
+                                Text(
+                                    text = "Groups",
+                                    color = NovaMuted,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
+                            items(groups, key = { "group-${it.id}" }) { group ->
+                                ShareGroupRow(
+                                    group = group,
+                                    busy = busyConversationId == group.id,
+                                    enabled = !busy,
+                                    onSend = { sendToGroup(group) },
+                                )
+                            }
                         }
-                    }
-                    people.isEmpty() -> {
-                        Text(
-                            text = if (query.isBlank()) "No people available to share with yet." else "No people match that search.",
-                            color = NovaMuted,
-                            fontSize = 12.sp,
-                        )
-                    }
-                    else -> {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = 270.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            items(people, key = { it.id }) { person ->
-                                Surface(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(16.dp),
-                                    color = NovaSurface,
-                                    border = BorderStroke(1.dp, NovaBorder),
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(10.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    ) {
-                                        NovaAvatar(
-                                            source = person.avatarUrl,
-                                            fallbackText = person.name.ifBlank { person.username },
-                                            size = 38.dp,
-                                        )
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = person.name.ifBlank { person.username },
-                                                color = NovaInk,
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                            )
-                                            Text(
-                                                text = "@${person.username}",
-                                                color = NovaMuted,
-                                                fontSize = 10.sp,
-                                            )
-                                        }
-                                        TextButton(
-                                            onClick = { sendTo(person) },
-                                            enabled = busyUsername == null && !addingToStory,
-                                        ) {
-                                            Text(
-                                                if (busyUsername == person.username) "Sending…" else "Send",
-                                                color = NovaAccent,
-                                            )
-                                        }
-                                    }
-                                }
+
+                        if (people.isNotEmpty()) {
+                            item(key = "people-label") {
+                                Text(
+                                    text = "People",
+                                    color = NovaMuted,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(top = if (groups.isEmpty()) 0.dp else 4.dp),
+                                )
+                            }
+                            items(people, key = { "person-${it.id}" }) { person ->
+                                SharePersonRow(
+                                    person = person,
+                                    busy = busyUsername == person.username,
+                                    enabled = !busy,
+                                    onSend = { sendTo(person) },
+                                )
                             }
                         }
                     }
@@ -276,12 +310,100 @@ fun NovaShareDialog(
         confirmButton = {
             TextButton(
                 onClick = onDismiss,
-                enabled = busyUsername == null && !addingToStory,
+                enabled = !busy,
             ) {
                 Text("Done")
             }
         },
     )
+}
+
+
+@Composable
+private fun ShareGroupRow(
+    group: NovaConversation,
+    busy: Boolean,
+    enabled: Boolean,
+    onSend: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = NovaSurface,
+        border = BorderStroke(1.dp, NovaBorder),
+    ) {
+        Row(
+            modifier = Modifier.padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            NovaAvatar(
+                source = group.membersPreview.firstOrNull()?.avatarUrl.orEmpty(),
+                fallbackText = group.displayName,
+                size = 38.dp,
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = group.displayName,
+                    color = NovaInk,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = group.displaySubtitle,
+                    color = NovaMuted,
+                    fontSize = 10.sp,
+                )
+            }
+            TextButton(onClick = onSend, enabled = enabled) {
+                Text(if (busy) "Sending…" else "Send", color = NovaAccent)
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun SharePersonRow(
+    person: NovaPerson,
+    busy: Boolean,
+    enabled: Boolean,
+    onSend: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = NovaSurface,
+        border = BorderStroke(1.dp, NovaBorder),
+    ) {
+        Row(
+            modifier = Modifier.padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            NovaAvatar(
+                source = person.avatarUrl,
+                fallbackText = person.name.ifBlank { person.username },
+                size = 38.dp,
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = person.name.ifBlank { person.username },
+                    color = NovaInk,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = "@${person.username}",
+                    color = NovaMuted,
+                    fontSize = 10.sp,
+                )
+            }
+            TextButton(onClick = onSend, enabled = enabled) {
+                Text(if (busy) "Sending…" else "Send", color = NovaAccent)
+            }
+        }
+    }
 }
 
 

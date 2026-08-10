@@ -26,6 +26,14 @@ data class NovaStoryAuthor(
 }
 
 
+data class NovaStorySharedPost(
+    val id: Long,
+    val author: NovaStoryAuthor,
+    val imageUrl: String,
+    val caption: String,
+)
+
+
 data class NovaStory(
     val id: Long,
     val author: NovaStoryAuthor,
@@ -39,6 +47,7 @@ data class NovaStory(
     val myReaction: String,
     val viewsCount: Int?,
     val audience: String = "followers",
+    val sharedPost: NovaStorySharedPost? = null,
 )
 
 
@@ -410,6 +419,14 @@ class NovaStoriesRepository(
     }
 
     private fun parseStory(json: JSONObject): NovaStory {
+        val sharedPost = json.optJSONObject("shared_post")?.let { item ->
+            NovaStorySharedPost(
+                id = item.optLong("id"),
+                author = parseAuthor(item.optJSONObject("author") ?: JSONObject()),
+                imageUrl = resolveMediaUrl(item.optString("image_url")),
+                caption = item.optString("caption"),
+            )
+        }
         return NovaStory(
             id = json.optLong("id"),
             author = parseAuthor(json.optJSONObject("author") ?: JSONObject()),
@@ -423,6 +440,7 @@ class NovaStoriesRepository(
             myReaction = json.optString("my_reaction"),
             viewsCount = if (json.isNull("views_count")) null else json.optInt("views_count"),
             audience = json.optString("audience").ifBlank { "followers" },
+            sharedPost = sharedPost,
         )
     }
 
