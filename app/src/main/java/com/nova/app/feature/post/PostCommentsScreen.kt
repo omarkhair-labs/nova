@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import com.nova.app.core.network.NovaComment
 import com.nova.app.core.network.NovaPost
 import com.nova.app.ui.components.NovaAvatar
+import com.nova.app.ui.components.NovaConfirmDeleteDialog
 import com.nova.app.ui.components.NovaHeader
 import com.nova.app.ui.components.NovaMediaImage
 import com.nova.app.ui.components.NovaSecondaryButton
@@ -327,6 +328,21 @@ private fun CommentRow(
     onAuthorClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    var showDeleteConfirm by remember(comment.id) { mutableStateOf(false) }
+
+    if (showDeleteConfirm) {
+        NovaConfirmDeleteDialog(
+            title = "Delete this comment?",
+            message = "This comment will be removed from the conversation. This can't be undone.",
+            isBusy = isDeleting,
+            onDismiss = { showDeleteConfirm = false },
+            onConfirm = {
+                showDeleteConfirm = false
+                onDelete()
+            },
+        )
+    }
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
@@ -379,7 +395,9 @@ private fun CommentRow(
 
                 if (comment.isMine) {
                     Surface(
-                        onClick = { if (!isDeleting) onDelete() },
+                        onClick = {
+                            if (!isDeleting) showDeleteConfirm = true
+                        },
                         shape = RoundedCornerShape(12.dp),
                         color = NovaBackground,
                         border = BorderStroke(1.dp, NovaBorder),

@@ -1,21 +1,22 @@
 package com.nova.app.feature.onboarding
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,11 +29,12 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nova.app.core.auth.NovaPendingRegistrationPhoto
+import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaHeader
 import com.nova.app.ui.components.NovaPrimaryButton
 import com.nova.app.ui.components.NovaTextField
 import com.nova.app.ui.theme.NovaAccent
-import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaMuted
 
@@ -46,6 +48,21 @@ fun ProfileSetupScreen(
 ) {
     var name by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
+    var selectedPhoto by remember { mutableStateOf<Uri?>(null) }
+
+    val photoPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+    ) { uri ->
+        if (uri != null) {
+            selectedPhoto = uri
+            NovaPendingRegistrationPhoto.set(uri)
+        }
+    }
+
+    fun back() {
+        NovaPendingRegistrationPhoto.clear()
+        onBack()
+    }
 
     Column(
         modifier = Modifier
@@ -59,32 +76,58 @@ fun ProfileSetupScreen(
         NovaHeader(
             title = "Make it yours",
             subtitle = "This is how people will recognize you around Nova.",
-            onBack = onBack,
+            onBack = ::back,
         )
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        Box(
+        NovaAvatar(
+            source = selectedPhoto?.toString().orEmpty(),
+            fallbackText = name.ifBlank { username.ifBlank { "N" } },
+            size = 96.dp,
             modifier = Modifier.align(Alignment.CenterHorizontally),
-            contentAlignment = Alignment.Center,
+        )
+
+        Row(
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Surface(
-                modifier = Modifier.size(92.dp),
-                shape = CircleShape,
-                color = NovaAccentSoft,
+            TextButton(
+                onClick = { photoPicker.launch("image/*") },
+                enabled = !isLoading,
             ) {
-                Box(contentAlignment = Alignment.Center) {
+                Text(
+                    text = if (selectedPhoto == null) "Add profile photo" else "Choose another",
+                    color = NovaAccent,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+
+            if (selectedPhoto != null) {
+                TextButton(
+                    onClick = {
+                        selectedPhoto = null
+                        NovaPendingRegistrationPhoto.clear()
+                    },
+                    enabled = !isLoading,
+                ) {
                     Text(
-                        text = name.firstOrNull()?.uppercase() ?: "N",
-                        color = NovaAccent,
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Bold,
+                        text = "Remove",
+                        color = NovaMuted,
+                        fontWeight = FontWeight.Medium,
                     )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(30.dp))
+        Text(
+            text = "Optional · JPG, PNG or another image up to 5 MB.",
+            color = NovaMuted,
+            fontSize = 11.sp,
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
 
         NovaTextField(
             value = name,

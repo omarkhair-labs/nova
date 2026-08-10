@@ -37,7 +37,38 @@ class NovaAuthRepository(
             is ApiResult.Success -> {
                 sessionStore.save(result.value)
                 NovaPushRegistration.activate(appContext)
-                ApiResult.Success(result.value.user)
+
+                val pendingAvatarUri = NovaPendingRegistrationPhoto.consume()
+                if (pendingAvatarUri == null) {
+                    ApiResult.Success(result.value.user)
+                } else {
+                    val prepared = prepareAvatar(pendingAvatarUri)
+                    if (prepared is ApiResult.Success && prepared.value != null) {
+                        when (
+                            val updated = api.updateProfile(
+                                accessToken = result.value.accessToken,
+                                name = name.trim(),
+                                username = username.trim().lowercase(),
+                                avatar = prepared.value,
+                            )
+                        ) {
+                            is ApiResult.Success -> {
+                                sessionStore.updateUser(updated.value)
+                                ApiResult.Success(updated.value)
+                            }
+
+                            is ApiResult.Failure -> {
+                                // The account is already valid. Avatar upload is optional, so
+                                // do not strand a new user in onboarding if media upload fails.
+                                ApiResult.Success(result.value.user)
+                            }
+                        }
+                    } else {
+                        // The selected image is optional. Registration remains successful even
+                        // if the local picker URI becomes unreadable before the upload begins.
+                        ApiResult.Success(result.value.user)
+                    }
+                }
             }
 
             is ApiResult.Failure -> result
@@ -45,6 +76,7 @@ class NovaAuthRepository(
     }
 
     suspend fun login(email: String, password: String): ApiResult<NovaUser> {
+        NovaPendingRegistrationPhoto.clear()
         return when (val result = api.login(email.trim().lowercase(), password)) {
             is ApiResult.Success -> {
                 sessionStore.save(result.value)
@@ -98,6 +130,7 @@ class NovaAuthRepository(
     }
 
     fun logout() {
+        NovaPendingRegistrationPhoto.clear()
         val accessToken = sessionStore.load()?.accessToken
         NovaPushRegistration.logout(
             context = appContext,
