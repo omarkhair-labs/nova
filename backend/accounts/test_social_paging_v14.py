@@ -75,11 +75,6 @@ class SocialPagingV14Tests(APITestCase):
         )
         self.assertEqual(followers_response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(followers_response.data["results"]), 24)
-        follower_usernames = {
-            item["username"] for item in followers_response.data["results"]
-        }
-        self.assertNotIn(blocked_follower.username, follower_usernames)
-        self.assertIn("viewer", follower_usernames)
         self.assertIsNotNone(followers_response.data["next_cursor"])
 
         followers_next = self.client.get(
@@ -87,6 +82,9 @@ class SocialPagingV14Tests(APITestCase):
             {"cursor": followers_response.data["next_cursor"]},
         )
         all_followers = followers_response.data["results"] + followers_next.data["results"]
+        follower_usernames = {item["username"] for item in all_followers}
+        self.assertNotIn(blocked_follower.username, follower_usernames)
+        self.assertIn("viewer", follower_usernames)
         self.assertEqual(len(all_followers), 30)
         self.assertEqual(len({item["id"] for item in all_followers}), 30)
 
