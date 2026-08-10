@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import User
+from .privacy import can_view_user_content
 from .serializers import PersonSerializer, PostSerializer
 from .trust_safety import active_person_for, blocked_user_ids, visible_active_users_for
 from .views import public_post_queryset
@@ -50,7 +51,7 @@ def _people_page(request, queryset):
         )
 
     page_with_extra = list(
-        queryset.order_by("username", "id")[: SOCIAL_PAGE_SIZE + 1]
+        queryset.select_related("account_privacy").order_by("username", "id")[: SOCIAL_PAGE_SIZE + 1]
     )
     has_more = len(page_with_extra) > SOCIAL_PAGE_SIZE
     page = page_with_extra[:SOCIAL_PAGE_SIZE]
@@ -84,6 +85,12 @@ class SocialConnectionsView(APIView):
 
     def get(self, request, username):
         person = active_person_for(request.user, username)
+        if not can_view_user_content(request.user, person):
+            return Response(
+                {"detail": "Follow this private account to see its connections."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         blocked_ids = blocked_user_ids(request.user)
         visible_people = User.objects.filter(is_active=True).exclude(pk__in=blocked_ids)
 
@@ -114,6 +121,12 @@ class PaginatedPersonPostsView(APIView):
 
     def get(self, request, username):
         person = active_person_for(request.user, username)
+        if not can_view_user_content(request.user, person):
+            return Response(
+                {"detail": "This account is private. Follow to see posts."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         posts = public_post_queryset(request).filter(author=person)
 
         raw_cursor = request.query_params.get("cursor", "").strip()
