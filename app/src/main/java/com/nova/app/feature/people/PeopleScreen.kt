@@ -26,17 +26,22 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaPerson
+import com.nova.app.core.social.NovaSocialPagingRepository
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
+import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.components.NovaTab
 import com.nova.app.ui.components.NovaTextField
 import com.nova.app.ui.theme.NovaAccent
@@ -46,6 +51,7 @@ import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun PeopleScreen(
@@ -59,11 +65,70 @@ fun PeopleScreen(
     onHomeClick: () -> Unit,
     onProfileClick: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val repository = remember(context) {
+        NovaSocialPagingRepository(context.applicationContext)
+    }
+    val scope = rememberCoroutineScope()
+
     var query by remember { mutableStateOf("") }
+    var pagedPeople by remember { mutableStateOf<List<NovaPerson>>(people) }
+    var nextCursor by remember { mutableStateOf<String?>(null) }
+    var firstPageLoading by remember { mutableStateOf(true) }
+    var loadingMore by remember { mutableStateOf(false) }
+    var pagingError by remember { mutableStateOf<String?>(null) }
+    var requestVersion by remember { mutableStateOf(0) }
+
+    fun loadPage(reset: Boolean, showSpinner: Boolean = true) {
+        if (!reset && (loadingMore || nextCursor == null)) return
+        requestVersion += 1
+        val version = requestVersion
+        val cursor = if (reset) null else nextCursor
+        scope.launch {
+            if (reset) {
+                if (showSpinner) firstPageLoading = true
+            } else {
+                loadingMore = true
+            }
+            pagingError = null
+            when (val result = repository.people(query = query, cursor = cursor)) {
+                is ApiResult.Success -> {
+                    if (version == requestVersion) {
+                        pagedPeople = if (reset) {
+                            result.value.people
+                        } else {
+                            val existingIds = pagedPeople.mapTo(mutableSetOf()) { it.id }
+                            pagedPeople + result.value.people.filterNot { it.id in existingIds }
+                        }
+                        nextCursor = result.value.nextCursor
+                        firstPageLoading = false
+                        loadingMore = false
+                    }
+                }
+                is ApiResult.Failure -> {
+                    if (version == requestVersion) {
+                        firstPageLoading = false
+                        loadingMore = false
+                        pagingError = result.message
+                        if (result.statusCode == 401) {
+                            // Keep the existing app-level session-expiry path as the source of truth.
+                            onSearch(query)
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     LaunchedEffect(query) {
         delay(280)
-        onSearch(query)
+        loadPage(reset = true, showSpinner = pagedPeople.isEmpty())
+    }
+
+    LaunchedEffect(errorMessage) {
+        if (!errorMessage.isNullOrBlank()) {
+            loadPage(reset = true, showSpinner = false)
+        }
     }
 
     androidx.compose.material3.Scaffold(
@@ -112,7 +177,7 @@ fun PeopleScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (people.isNotEmpty()) {
+            if (pagedPeople.isNotEmpty()) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -128,7 +193,7 @@ fun PeopleScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        if (isLoading) {
+                        if (firstPageLoading && pagedPeople.isNotEmpty()) {
                             CircularProgressIndicator(
                                 color = NovaAccent,
                                 strokeWidth = 2.dp,
@@ -136,7 +201,7 @@ fun PeopleScreen(
                             )
                         }
                         Text(
-                            text = "${people.size} ${if (people.size == 1) "person" else "people"}",
+                            text = "${pagedPeople.size} loaded",
                             color = NovaMuted,
                             fontSize = 11.sp,
                         )
@@ -145,8 +210,9 @@ fun PeopleScreen(
                 Spacer(modifier = Modifier.height(10.dp))
             }
 
+            val visibleError = pagingError ?: errorMessage
             when {
-                isLoading && people.isEmpty() -> {
+                firstPageLoading && pagedPeople.isEmpty() -> {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -165,15 +231,15 @@ fun PeopleScreen(
                     }
                 }
 
-                errorMessage != null && people.isEmpty() -> {
+                visibleError != null && pagedPeople.isEmpty() -> {
                     EmptyPeopleCard(
                         title = "Couldn't load people",
-                        subtitle = errorMessage,
+                        subtitle = visibleError,
                         modifier = Modifier.weight(1f),
                     )
                 }
 
-                people.isEmpty() -> {
+                pagedPeople.isEmpty() -> {
                     EmptyPeopleCard(
                         title = if (query.isBlank()) "No one to show yet" else "No matches",
                         subtitle = if (query.isBlank()) {
@@ -190,13 +256,47 @@ fun PeopleScreen(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        items(people, key = { it.id }) { person ->
+                        items(pagedPeople, key = { it.id }) { person ->
                             PersonRow(
                                 person = person,
                                 isUpdating = followingUsername == person.username,
                                 onClick = { onPersonClick(person.username) },
-                                onFollowToggle = { onFollowToggle(person) },
+                                onFollowToggle = {
+                                    val wasFollowing = person.isFollowing
+                                    pagedPeople = pagedPeople.map { existing ->
+                                        if (existing.id == person.id) {
+                                            existing.copy(
+                                                isFollowing = !wasFollowing,
+                                                followersCount = (existing.followersCount + if (wasFollowing) -1 else 1)
+                                                    .coerceAtLeast(0),
+                                            )
+                                        } else {
+                                            existing
+                                        }
+                                    }
+                                    onFollowToggle(person)
+                                },
                             )
+                        }
+
+                        if (visibleError != null) {
+                            item {
+                                Text(
+                                    text = visibleError,
+                                    color = NovaMuted,
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                                )
+                            }
+                        }
+
+                        if (nextCursor != null) {
+                            item {
+                                NovaSecondaryButton(
+                                    text = if (loadingMore) "Loading more…" else "Load more people",
+                                    onClick = { if (!loadingMore) loadPage(reset = false) },
+                                )
+                            }
                         }
                         item { Spacer(modifier = Modifier.height(14.dp)) }
                     }
