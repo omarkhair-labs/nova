@@ -181,7 +181,7 @@ fun MessagesScreen(
                     text = when {
                         unreadCount > 0 -> "$unreadCount unread ${if (unreadCount == 1) "conversation" else "conversations"}"
                         conversations.isNotEmpty() -> "Pick up where you left off."
-                        else -> "Private conversations on Nova."
+                        else -> "Direct and group conversations on Nova."
                     },
                     color = NovaMuted,
                     fontSize = 13.sp,
@@ -195,7 +195,7 @@ fun MessagesScreen(
                 onValueChange = { query = it.take(40) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                placeholder = { Text("Search conversations", color = NovaMuted) },
+                placeholder = { Text("Search conversations or groups", color = NovaMuted) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Filled.Search,
@@ -313,9 +313,9 @@ fun MessagesScreen(
                             Spacer(modifier = Modifier.height(7.dp))
                             Text(
                                 text = if (query.isBlank()) {
-                                    "Open someone's profile and start a conversation when you want to connect."
+                                    "Start a private message or create a group when you want to connect."
                                 } else {
-                                    "Try another name or username."
+                                    "Try another name, username, or group name."
                                 },
                                 color = NovaMuted,
                                 fontSize = 13.sp,
@@ -390,19 +390,32 @@ private fun ConversationRow(
     conversation: NovaConversation,
     onClick: () -> Unit,
 ) {
-    val other = conversation.otherUser
     val last = conversation.lastMessage
     val hasUnread = conversation.unreadCount > 0
     val preview = when {
-        last == null -> "Start the conversation"
+        last == null -> if (conversation.isGroup) "Start the group conversation" else "Start the conversation"
         last.isMine -> "You: ${last.body}"
+        conversation.isGroup -> "${last.sender.name.ifBlank { last.sender.username }}: ${last.body}"
         else -> last.body
     }.ifBlank {
         when {
-            last?.imageUrl?.isNotBlank() == true -> if (last.isMine) "You sent a photo" else "Sent a photo"
-            last?.audioUrl?.isNotBlank() == true -> if (last.isMine) "You sent a voice note" else "Sent a voice note"
+            last?.imageUrl?.isNotBlank() == true -> when {
+                last.isMine -> "You sent a photo"
+                conversation.isGroup -> "${last.sender.name.ifBlank { last.sender.username }} sent a photo"
+                else -> "Sent a photo"
+            }
+            last?.audioUrl?.isNotBlank() == true -> when {
+                last.isMine -> "You sent a voice note"
+                conversation.isGroup -> "${last.sender.name.ifBlank { last.sender.username }} sent a voice note"
+                else -> "Sent a voice note"
+            }
             else -> "Open conversation"
         }
+    }
+    val avatarSource = if (conversation.isGroup) {
+        conversation.membersPreview.firstOrNull()?.avatarUrl.orEmpty()
+    } else {
+        conversation.otherUser.avatarUrl
     }
 
     Surface(
@@ -422,8 +435,8 @@ private fun ConversationRow(
         ) {
             Box {
                 NovaAvatar(
-                    source = other.avatarUrl,
-                    fallbackText = other.name.ifBlank { other.username },
+                    source = avatarSource,
+                    fallbackText = conversation.displayName,
                     size = 54.dp,
                 )
                 if (hasUnread) {
@@ -442,7 +455,7 @@ private fun ConversationRow(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = other.name.ifBlank { other.username },
+                        text = conversation.displayName,
                         color = NovaInk,
                         fontSize = 15.sp,
                         fontWeight = if (hasUnread) FontWeight.Bold else FontWeight.SemiBold,
@@ -451,7 +464,7 @@ private fun ConversationRow(
                     )
                     Spacer(Modifier.size(6.dp))
                     Text(
-                        text = "@${other.username}",
+                        text = conversation.displaySubtitle,
                         color = NovaMuted,
                         fontSize = 11.sp,
                         maxLines = 1,
