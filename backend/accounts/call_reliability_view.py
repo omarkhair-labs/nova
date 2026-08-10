@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 
 from .calls import (
     ACTIVE_CALL_STATUSES,
+    call_is_live,
     clear_call_liveness,
     expire_stale_call_locks,
     serialize_call,
@@ -19,10 +20,9 @@ from .push import send_call_push, send_call_state_push
 class ReliableCallSessionCreateView(APIView):
     """Create one outgoing call without letting a dead retry lock both users.
 
-    Starting a second call from the same caller to the same callee means the
-    previous ringing attempt is no longer the UI the caller is using. Close that
-    orphan before the global busy check. This is deliberately narrower than
-    clearing arbitrary busy calls so a real call with somebody else stays safe.
+    A second tap should replace only an abandoned ringing attempt from this same
+    caller to this same callee. If Redis says that old attempt is still live, it
+    remains a real busy call and is protected by the normal busy check.
     """
 
     def post(self, request):
@@ -56,8 +56,6 @@ class ReliableCallSessionCreateView(APIView):
 
         superseded_ids = []
         with transaction.atomic():
-            # Lock both people in deterministic order so simultaneous calls still
-            # cannot both pass the busy check.
             list(
                 User.objects.select_for_update()
                 .filter(pk__in=(caller.pk, callee.pk))
@@ -65,9 +63,6 @@ class ReliableCallSessionCreateView(APIView):
                 .values_list("pk", flat=True)
             )
 
-            # A retry from the same caller supersedes their previous ringing
-            # attempt. This is the stale row that previously produced the false
-            # "already in another call" message after CallActivity had exited.
             previous_attempts = list(
                 CallSession.objects.select_for_update()
                 .filter(
@@ -79,6 +74,10 @@ class ReliableCallSessionCreateView(APIView):
             )
             now = timezone.now()
             for previous in previous_attempts:
+                # False-busy recovery is safe only when Redis can positively say
+                # that no call socket remains. Unknown Redis state is conservative.
+                if call_is_live(previous.pk) is not False:
+                    continue
                 previous.status = CallSession.Status.FAILED
                 previous.ended_at = now
                 previous.ended_by_id = caller.pk
@@ -107,13 +106,12 @@ class ReliableCallSessionCreateView(APIView):
                 kind=kind,
             )
 
-        # Dismiss any stale incoming UI from an attempt we just superseded.
         for old_call_id in superseded_ids:
             send_call_state_push(old_call_id, callee.pk)
 
-        # Incoming calls have no global app socket; the data-only FCM is what
-        # tells the callee which call to open. If Firebase accepts zero devices,
-        # do not pretend the phone is ringing and do not leave another busy row.
+        # Incoming calls have no global app socket; data-only FCM tells the
+        # callee which call to open. If Firebase has zero reachable registered
+        # destinations, fail now instead of leaving a ghost ringing/busy row.
         push_count = send_call_push(call.pk)
         push_unavailable = isinstance(push_count, int) and push_count <= 0
         if push_unavailable:
