@@ -20,19 +20,21 @@ import com.nova.app.R
 
 
 object NovaCallNotification {
-    const val CHANNEL_ID = "nova_calls"
-    const val CHANNEL_NAME = "Nova calls"
+    const val CHANNEL_ID = "nova_calls_incoming_v2"
+    const val CHANNEL_NAME = "Nova incoming calls"
+    const val ONGOING_CHANNEL_ID = "nova_calls_ongoing_v1"
 
     fun ensureChannel(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
         val ringtone = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-        val channel = NotificationChannel(
+
+        val incoming = NotificationChannel(
             CHANNEL_ID,
             CHANNEL_NAME,
             NotificationManager.IMPORTANCE_HIGH,
         ).apply {
-            description = "Incoming and ongoing Nova calls"
+            description = "Incoming Nova voice and video calls"
             setSound(
                 ringtone,
                 AudioAttributes.Builder()
@@ -43,7 +45,19 @@ object NovaCallNotification {
             enableVibration(true)
             lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
         }
-        manager.createNotificationChannel(channel)
+
+        val ongoing = NotificationChannel(
+            ONGOING_CHANNEL_ID,
+            "Ongoing Nova calls",
+            NotificationManager.IMPORTANCE_DEFAULT,
+        ).apply {
+            description = "Ongoing Nova voice and video calls"
+            setSound(null, null)
+            enableVibration(false)
+            lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+        }
+
+        manager.createNotificationChannels(listOf(incoming, ongoing))
     }
 
     fun showIncoming(
@@ -65,9 +79,6 @@ object NovaCallNotification {
         val displayName = callerName.ifBlank { callerUsername.ifBlank { "Nova caller" } }
         val person = Person.Builder().setName(displayName).setImportant(true).build()
 
-        // Each incoming action gets a fresh explicit CallActivity instance. The old
-        // CLEAR_TOP/SINGLE_TOP combination could route a new Answer into a stale
-        // CallActivity/controller left by an earlier failed call on some OEM task stacks.
         val openIntent = freshIncomingIntent(
             CallActivity.incomingIntent(
                 context = context,
@@ -135,6 +146,7 @@ object NovaCallNotification {
     }
 
     fun showOngoing(context: Context, call: NovaCallSession) {
+        val activeSummary = NovaActiveCallSignal.publish(call)
         if (
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
@@ -148,13 +160,7 @@ object NovaCallNotification {
         val openPending = pendingActivity(context, openIntent, requestCode(call.id, 4))
         val hangupPending = pendingActivity(context, hangupIntent, requestCode(call.id, 5))
 
-        // Android rejects CallStyle notifications unless they are associated with a
-        // foreground execution context or request a full-screen intent. Core-Telecom
-        // grants foreground execution priority around an active call, but there is a
-        // race while the call is first being registered. Keeping the call activity as
-        // a full-screen intent makes the notification valid during that transition and
-        // prevents NotificationManager from throwing on the main thread.
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(context, ONGOING_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_nova_notification)
             .setContentTitle(call.peer.displayName)
             .setContentText(
@@ -165,17 +171,29 @@ object NovaCallNotification {
                 }
             )
             .setCategory(NotificationCompat.CATEGORY_CALL)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setSilent(true)
             .setContentIntent(openPending)
             .setFullScreenIntent(openPending, false)
             .setStyle(NotificationCompat.CallStyle.forOngoingCall(person, hangupPending))
-            .build()
-        NotificationManagerCompat.from(context).notify(notificationId(call.id), notification)
+
+        if (call.status == NovaCallStatus.Active) {
+            activeSummary?.answeredAtEpochMs?.let { startedAt ->
+                builder
+                    .setWhen(startedAt)
+                    .setShowWhen(true)
+                    .setUsesChronometer(true)
+            }
+        }
+
+        NotificationManagerCompat.from(context).notify(notificationId(call.id), builder.build())
     }
 
     fun cancel(context: Context, callId: String) {
+        NovaActiveCallSignal.clear(callId)
         NotificationManagerCompat.from(context).cancel(notificationId(callId))
     }
 

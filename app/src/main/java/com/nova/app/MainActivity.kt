@@ -8,12 +8,17 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.push.NovaPushOpenSignal
 import com.nova.app.core.push.NovaPushRegistration
+import com.nova.app.ui.components.NovaActiveCallPill
 import com.nova.app.ui.theme.NovaTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,7 +40,12 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             NovaTheme {
-                NovaApp()
+                Box(modifier = Modifier.fillMaxSize()) {
+                    NovaApp()
+                    NovaActiveCallPill(
+                        modifier = Modifier.align(Alignment.TopCenter),
+                    )
+                }
             }
         }
     }

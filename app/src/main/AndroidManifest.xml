@@ -45,9 +45,10 @@
 
         <activity
             android:name=".CallActivity"
-            android:configChanges="keyboardHidden|orientation|screenLayout|screenSize"
+            android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize"
             android:excludeFromRecents="true"
             android:exported="false"
+            android:taskAffinity="${applicationId}.call"
             android:theme="@style/Theme.Nova" />
 
         <activity
