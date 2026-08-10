@@ -51,6 +51,27 @@ def active_person_for(user, username):
     )
 
 
+class BlockedUsersView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from .serializers import PersonSerializer
+
+        blocked = User.objects.filter(
+            is_active=True,
+            blocks_received__blocker=request.user,
+        ).order_by("username")
+        return Response(
+            {
+                "results": PersonSerializer(
+                    blocked,
+                    many=True,
+                    context={"request": request},
+                ).data
+            }
+        )
+
+
 class UserBlockView(APIView):
     permission_classes = [IsAuthenticated]
 
