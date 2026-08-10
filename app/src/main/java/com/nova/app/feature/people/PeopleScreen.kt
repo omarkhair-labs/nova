@@ -38,7 +38,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaPerson
+import com.nova.app.core.privacy.NovaPersonPrivacyState
 import com.nova.app.core.social.NovaSocialPagingRepository
+import com.nova.app.core.social.NovaSocialRepository
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
 import com.nova.app.ui.components.NovaSecondaryButton
@@ -69,14 +71,19 @@ fun PeopleScreen(
     val repository = remember(context) {
         NovaSocialPagingRepository(context.applicationContext)
     }
+    val socialRepository = remember(context) {
+        NovaSocialRepository(context.applicationContext)
+    }
     val scope = rememberCoroutineScope()
 
     var query by remember { mutableStateOf("") }
     var pagedPeople by remember { mutableStateOf<List<NovaPerson>>(people) }
+    var privacyByUserId by remember { mutableStateOf<Map<Long, NovaPersonPrivacyState>>(emptyMap()) }
     var nextCursor by remember { mutableStateOf<String?>(null) }
     var firstPageLoading by remember { mutableStateOf(true) }
     var loadingMore by remember { mutableStateOf(false) }
     var pagingError by remember { mutableStateOf<String?>(null) }
+    var cancelingUsername by remember { mutableStateOf<String?>(null) }
     var requestVersion by remember { mutableStateOf(0) }
 
     fun loadPage(reset: Boolean, showSpinner: Boolean = true) {
@@ -100,6 +107,11 @@ fun PeopleScreen(
                             val existingIds = pagedPeople.mapTo(mutableSetOf()) { it.id }
                             pagedPeople + result.value.people.filterNot { it.id in existingIds }
                         }
+                        privacyByUserId = if (reset) {
+                            result.value.privacyByUserId
+                        } else {
+                            privacyByUserId + result.value.privacyByUserId
+                        }
                         nextCursor = result.value.nextCursor
                         firstPageLoading = false
                         loadingMore = false
@@ -111,12 +123,29 @@ fun PeopleScreen(
                         loadingMore = false
                         pagingError = result.message
                         if (result.statusCode == 401) {
-                            // Keep the existing app-level session-expiry path as the source of truth.
                             onSearch(query)
                         }
                     }
                 }
             }
+        }
+    }
+
+    fun cancelRequest(person: NovaPerson) {
+        if (cancelingUsername != null || followingUsername == person.username) return
+        scope.launch {
+            cancelingUsername = person.username
+            when (val result = socialRepository.setFollowing(person.username, false)) {
+                is ApiResult.Success -> {
+                    privacyByUserId = privacyByUserId + (
+                        person.id to (privacyByUserId[person.id] ?: NovaPersonPrivacyState(false, false, true)).copy(
+                            followRequested = false,
+                        )
+                    )
+                }
+                is ApiResult.Failure -> pagingError = result.message
+            }
+            cancelingUsername = null
         }
     }
 
@@ -257,24 +286,42 @@ fun PeopleScreen(
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         items(pagedPeople, key = { it.id }) { person ->
+                            val privacy = privacyByUserId[person.id]
+                                ?: NovaPersonPrivacyState(false, false, true)
                             PersonRow(
                                 person = person,
-                                isUpdating = followingUsername == person.username,
+                                privacy = privacy,
+                                isUpdating = followingUsername == person.username || cancelingUsername == person.username,
                                 onClick = { onPersonClick(person.username) },
                                 onFollowToggle = {
-                                    val wasFollowing = person.isFollowing
-                                    pagedPeople = pagedPeople.map { existing ->
-                                        if (existing.id == person.id) {
-                                            existing.copy(
-                                                isFollowing = !wasFollowing,
-                                                followersCount = (existing.followersCount + if (wasFollowing) -1 else 1)
-                                                    .coerceAtLeast(0),
+                                    if (privacy.followRequested && !person.isFollowing) {
+                                        cancelRequest(person)
+                                    } else {
+                                        val wasFollowing = person.isFollowing
+                                        if (!wasFollowing && privacy.isPrivate) {
+                                            privacyByUserId = privacyByUserId + (
+                                                person.id to privacy.copy(followRequested = true)
                                             )
                                         } else {
-                                            existing
+                                            pagedPeople = pagedPeople.map { existing ->
+                                                if (existing.id == person.id) {
+                                                    existing.copy(
+                                                        isFollowing = !wasFollowing,
+                                                        followersCount = (existing.followersCount + if (wasFollowing) -1 else 1)
+                                                            .coerceAtLeast(0),
+                                                    )
+                                                } else {
+                                                    existing
+                                                }
+                                            }
+                                            if (wasFollowing && privacy.isPrivate) {
+                                                privacyByUserId = privacyByUserId + (
+                                                    person.id to privacy.copy(canViewContent = false)
+                                                )
+                                            }
                                         }
+                                        onFollowToggle(person)
                                     }
-                                    onFollowToggle(person)
                                 },
                             )
                         }
@@ -309,6 +356,7 @@ fun PeopleScreen(
 @Composable
 private fun PersonRow(
     person: NovaPerson,
+    privacy: NovaPersonPrivacyState,
     isUpdating: Boolean,
     onClick: () -> Unit,
     onFollowToggle: () -> Unit,
@@ -347,49 +395,74 @@ private fun PersonRow(
                 )
                 Spacer(modifier = Modifier.height(3.dp))
                 Text(
-                    text = "${person.followersCount} ${if (person.followersCount == 1) "follower" else "followers"}",
+                    text = buildString {
+                        if (privacy.isPrivate) append("🔒 Private · ")
+                        append("${person.followersCount} ${if (person.followersCount == 1) "follower" else "followers"}")
+                    },
                     color = NovaMuted,
                     fontSize = 11.sp,
                 )
             }
 
-            if (person.isFollowing) {
-                OutlinedButton(
-                    onClick = onFollowToggle,
-                    enabled = !isUpdating,
-                    shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, NovaBorder),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        horizontal = 13.dp,
-                        vertical = 7.dp,
-                    ),
-                ) {
-                    Text(
-                        text = if (isUpdating) "…" else "Following",
-                        color = NovaInk,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+            when {
+                person.isFollowing -> {
+                    OutlinedButton(
+                        onClick = onFollowToggle,
+                        enabled = !isUpdating,
+                        shape = RoundedCornerShape(14.dp),
+                        border = BorderStroke(1.dp, NovaBorder),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            horizontal = 13.dp,
+                            vertical = 7.dp,
+                        ),
+                    ) {
+                        Text(
+                            text = if (isUpdating) "…" else "Following",
+                            color = NovaInk,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
                 }
-            } else {
-                Button(
-                    onClick = onFollowToggle,
-                    enabled = !isUpdating,
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = NovaAccent,
-                        contentColor = Color.White,
-                    ),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        horizontal = 15.dp,
-                        vertical = 7.dp,
-                    ),
-                ) {
-                    Text(
-                        text = if (isUpdating) "…" else "Follow",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                privacy.followRequested -> {
+                    OutlinedButton(
+                        onClick = onFollowToggle,
+                        enabled = !isUpdating,
+                        shape = RoundedCornerShape(14.dp),
+                        border = BorderStroke(1.dp, NovaBorder),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            horizontal = 13.dp,
+                            vertical = 7.dp,
+                        ),
+                    ) {
+                        Text(
+                            text = if (isUpdating) "…" else "Requested",
+                            color = NovaMuted,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+                else -> {
+                    Button(
+                        onClick = onFollowToggle,
+                        enabled = !isUpdating,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = NovaAccent,
+                            contentColor = Color.White,
+                        ),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            horizontal = 15.dp,
+                            vertical = 7.dp,
+                        ),
+                    ) {
+                        Text(
+                            text = if (isUpdating) "…" else "Follow",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
                 }
             }
         }
