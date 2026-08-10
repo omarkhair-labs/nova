@@ -3,6 +3,7 @@ from django.utils.dateparse import parse_datetime
 from rest_framework import status
 from rest_framework.response import Response
 
+from .messaging_models import group_avatar_url
 from .messaging_serializers import ConversationSerializer
 from .messaging_views import ConversationsView, conversations_for, total_unread_for
 from .models import Conversation
@@ -72,13 +73,19 @@ class PaginatedConversationsView(ConversationsView):
             else None
         )
 
+        serialized = list(
+            ConversationSerializer(
+                page,
+                many=True,
+                context={"request": request},
+            ).data
+        )
+        for conversation, row in zip(page, serialized):
+            row["group_avatar_url"] = group_avatar_url(request, conversation)
+
         return Response(
             {
-                "results": ConversationSerializer(
-                    page,
-                    many=True,
-                    context={"request": request},
-                ).data,
+                "results": serialized,
                 "next_cursor": next_cursor,
                 "unread_count": total_unread_for(request.user),
             }

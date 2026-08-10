@@ -16,6 +16,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -45,6 +46,9 @@ fun ConversationScreen(
     onVideoCall: () -> Unit,
 ) {
     var showGroupInfo by remember(conversationId) { mutableStateOf(false) }
+    var liveDisplayName by remember(conversationId, displayName) { mutableStateOf(displayName) }
+    var liveAvatarUrl by remember(conversationId, avatarUrl) { mutableStateOf(avatarUrl) }
+    var liveMembersCount by remember(conversationId, membersCount) { mutableIntStateOf(membersCount) }
 
     Box(
         modifier = Modifier
@@ -54,8 +58,8 @@ fun ConversationScreen(
         ConversationScreenV9(
             conversationId = conversationId,
             username = username,
-            displayName = displayName,
-            avatarUrl = avatarUrl,
+            displayName = liveDisplayName,
+            avatarUrl = liveAvatarUrl,
             toolsEndPadding = if (isGroup) 61.dp else 12.dp,
             onBack = onBack,
             onConversationRead = onConversationRead,
@@ -98,6 +102,11 @@ fun ConversationScreen(
         GroupInfoDialog(
             conversationId = conversationId,
             onDismiss = { showGroupInfo = false },
+            onGroupUpdated = { title, groupAvatarUrl, updatedMembersCount ->
+                liveDisplayName = title
+                liveAvatarUrl = groupAvatarUrl
+                liveMembersCount = updatedMembersCount
+            },
             onGroupLeft = {
                 showGroupInfo = false
                 onGroupLeft()

@@ -1,4 +1,6 @@
 from django.db import models
+from django.db.models.signals import post_delete, pre_save
+from django.dispatch import receiver
 
 from .models import Conversation, Message, User
 
@@ -109,3 +111,56 @@ class GroupReadState(models.Model):
 
     def __str__(self):
         return f"Group {self.conversation_id} read state for @{self.user.username}"
+
+
+class GroupConversationProfile(models.Model):
+    """Appearance metadata kept separate from the core Conversation model."""
+
+    conversation = models.OneToOneField(
+        Conversation,
+        on_delete=models.CASCADE,
+        related_name="group_profile",
+    )
+    avatar = models.ImageField(upload_to="groups/%Y/%m/", blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = "accounts"
+
+    def __str__(self):
+        return f"Group appearance for conversation {self.conversation_id}"
+
+
+def group_avatar_url(request, conversation):
+    if conversation.kind != Conversation.Kind.GROUP:
+        return ""
+    try:
+        profile = conversation.group_profile
+    except GroupConversationProfile.DoesNotExist:
+        return ""
+    if not profile.avatar:
+        return ""
+    try:
+        url = profile.avatar.url
+    except Exception:
+        return ""
+    return request.build_absolute_uri(url) if request else url
+
+
+@receiver(pre_save, sender=GroupConversationProfile)
+def delete_replaced_group_avatar(sender, instance, **kwargs):
+    if not instance.pk:
+        return
+    previous = sender.objects.filter(pk=instance.pk).only("avatar").first()
+    if previous is None or not previous.avatar:
+        return
+    old_name = previous.avatar.name
+    new_name = instance.avatar.name if instance.avatar else ""
+    if old_name and old_name != new_name:
+        previous.avatar.storage.delete(old_name)
+
+
+@receiver(post_delete, sender=GroupConversationProfile)
+def delete_removed_group_avatar(sender, instance, **kwargs):
+    if instance.avatar and instance.avatar.name:
+        instance.avatar.storage.delete(instance.avatar.name)
