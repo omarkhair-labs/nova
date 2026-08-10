@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 
-from .models import User
+from .models import User, UserBlock, UserReport
 
 
 @admin.register(User)
@@ -39,3 +39,18 @@ class UserAdmin(DjangoUserAdmin):
             },
         ),
     )
+
+
+@admin.register(UserReport)
+class UserReportAdmin(admin.ModelAdmin):
+    list_display = ("reported", "reporter", "reason", "status", "created_at")
+    list_filter = ("status", "reason")
+    search_fields = ("reported__username", "reported__email", "reporter__username", "reporter__email")
+    readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(UserBlock)
+class UserBlockAdmin(admin.ModelAdmin):
+    list_display = ("blocker", "blocked", "created_at")
+    search_fields = ("blocker__username", "blocked__username")
+    readonly_fields = ("created_at",)
