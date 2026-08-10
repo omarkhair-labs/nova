@@ -33,6 +33,7 @@ import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.messages.ConversationScreen
 import com.nova.app.feature.messages.MessagesScreen
+import com.nova.app.feature.messages.NewGroupDialog
 import com.nova.app.feature.messages.NewMessageDialog
 import com.nova.app.navigation.NovaRootNavigationSignal
 import com.nova.app.navigation.NovaRootTab
@@ -57,6 +58,9 @@ class MessagesActivity : ComponentActivity() {
                 username = intent.getStringExtra(NovaMessagingNavigator.EXTRA_USERNAME).orEmpty(),
                 displayName = intent.getStringExtra(NovaMessagingNavigator.EXTRA_DISPLAY_NAME).orEmpty(),
                 avatarUrl = intent.getStringExtra(NovaMessagingNavigator.EXTRA_AVATAR_URL).orEmpty(),
+                kind = intent.getStringExtra(NovaMessagingNavigator.EXTRA_KIND).orEmpty().ifBlank { "direct" },
+                membersCount = intent.getIntExtra(NovaMessagingNavigator.EXTRA_MEMBERS_COUNT, 2),
+                currentUserRole = intent.getStringExtra(NovaMessagingNavigator.EXTRA_CURRENT_USER_ROLE).orEmpty(),
             )
         }
 
@@ -88,10 +92,9 @@ private fun MessagingActivityContent(
     }
     val scope = rememberCoroutineScope()
 
-    var activeConversation by remember {
-        mutableStateOf(initialConversation)
-    }
+    var activeConversation by remember { mutableStateOf(initialConversation) }
     var showNewMessage by remember { mutableStateOf(false) }
+    var showNewGroup by remember { mutableStateOf(false) }
     val openedDirectly = remember { initialConversation != null }
 
     fun refreshUnreadCount() {
@@ -105,15 +108,33 @@ private fun MessagingActivityContent(
 
     fun selectConversation(selected: NovaConversation) {
         showNewMessage = false
+        showNewGroup = false
         activeConversation = InitialConversation(
             id = selected.id,
-            username = selected.otherUser.username,
-            displayName = selected.otherUser.name.ifBlank { selected.otherUser.username },
-            avatarUrl = selected.otherUser.avatarUrl,
+            username = if (selected.isGroup) "group" else selected.otherUser.username,
+            displayName = selected.displayName,
+            avatarUrl = if (selected.isGroup) {
+                selected.membersPreview.firstOrNull()?.avatarUrl.orEmpty()
+            } else {
+                selected.otherUser.avatarUrl
+            },
+            kind = selected.kind,
+            membersCount = selected.membersCount,
+            currentUserRole = selected.currentUserRole,
         )
     }
 
     fun backFromConversation() {
+        if (openedDirectly) {
+            onFinish()
+        } else {
+            activeConversation = null
+            refreshUnreadCount()
+        }
+    }
+
+    fun groupClosed() {
+        NovaMessagesSignal.requestInboxRefresh()
         if (openedDirectly) {
             onFinish()
         } else {
@@ -128,6 +149,7 @@ private fun MessagingActivityContent(
     }
 
     fun startCall(conversation: InitialConversation, kind: NovaCallKind) {
+        if (conversation.kind == "group") return
         val callIntent = CallActivity.outgoingIntent(
             context = context,
             conversationId = conversation.id,
@@ -140,14 +162,13 @@ private fun MessagingActivityContent(
             ),
         ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
-        // Calls live in a dedicated task. Minimizing the call therefore reveals
-        // the existing Nova conversation instead of sending the whole app away.
         context.startActivity(callIntent)
     }
 
     BackHandler {
         when {
             showNewMessage -> showNewMessage = false
+            showNewGroup -> showNewGroup = false
             activeConversation != null -> backFromConversation()
             else -> onFinish()
         }
@@ -164,6 +185,24 @@ private fun MessagingActivityContent(
                 onUnreadCountChanged = NovaMessagesSignal::updateUnreadCount,
                 onSessionExpired = onFinish,
             )
+
+            Surface(
+                onClick = { showNewGroup = true },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 18.dp, bottom = 140.dp),
+                shape = RoundedCornerShape(18.dp),
+                color = NovaBackground,
+                shadowElevation = 5.dp,
+            ) {
+                Text(
+                    text = "+  New group",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    color = NovaAccent,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
 
             Surface(
                 onClick = { showNewMessage = true },
@@ -194,15 +233,29 @@ private fun MessagingActivityContent(
                 },
             )
         }
+
+        if (showNewGroup) {
+            NewGroupDialog(
+                onDismiss = { showNewGroup = false },
+                onConversationReady = ::selectConversation,
+                onSessionExpired = {
+                    showNewGroup = false
+                    onFinish()
+                },
+            )
+        }
     } else {
         ConversationScreen(
             conversationId = conversation.id,
             username = conversation.username,
             displayName = conversation.displayName,
             avatarUrl = conversation.avatarUrl,
+            isGroup = conversation.kind == "group",
+            membersCount = conversation.membersCount,
             onBack = ::backFromConversation,
             onConversationRead = ::refreshUnreadCount,
             onSessionExpired = onFinish,
+            onGroupLeft = ::groupClosed,
             onAudioCall = { startCall(conversation, NovaCallKind.Audio) },
             onVideoCall = { startCall(conversation, NovaCallKind.Video) },
         )
@@ -215,4 +268,7 @@ private data class InitialConversation(
     val username: String,
     val displayName: String,
     val avatarUrl: String,
+    val kind: String = "direct",
+    val membersCount: Int = 2,
+    val currentUserRole: String = "",
 )
