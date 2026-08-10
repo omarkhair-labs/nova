@@ -15,6 +15,12 @@ from .calls import (
     CallSessionActionView,
     CallSessionDetailView,
 )
+from .group_messaging import (
+    GroupConversationCreateView,
+    GroupConversationDetailView,
+    GroupMemberDetailView,
+    GroupMembersView,
+)
 from .messaging_mutation_view import MessageMutationView
 from .messaging_paging import PaginatedConversationsView
 from .messaging_v9_views import (
@@ -153,6 +159,26 @@ urlpatterns = [
     path("calls/<uuid:call_id>/", CallSessionDetailView.as_view(), name="call-detail"),
     path("calls/<uuid:call_id>/action/", CallSessionActionView.as_view(), name="call-action"),
     path("conversations/", PaginatedConversationsView.as_view(), name="conversations"),
+    path(
+        "conversations/groups/",
+        GroupConversationCreateView.as_view(),
+        name="group-conversation-create",
+    ),
+    path(
+        "conversations/<int:conversation_id>/group/",
+        GroupConversationDetailView.as_view(),
+        name="group-conversation-detail",
+    ),
+    path(
+        "conversations/<int:conversation_id>/group/members/",
+        GroupMembersView.as_view(),
+        name="group-members",
+    ),
+    path(
+        "conversations/<int:conversation_id>/group/members/<str:username>/",
+        GroupMemberDetailView.as_view(),
+        name="group-member-detail",
+    ),
     path(
         "conversations/<int:conversation_id>/messages/",
         ConversationMessagesView.as_view(),
