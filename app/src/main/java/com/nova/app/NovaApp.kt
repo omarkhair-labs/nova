@@ -35,6 +35,8 @@ import com.nova.app.core.social.NovaSocialRepository
 import com.nova.app.feature.auth.CreateAccountScreen
 import com.nova.app.feature.auth.LoginScreen
 import com.nova.app.feature.home.HomeScreen
+import com.nova.app.feature.legal.PrivacyScreen
+import com.nova.app.feature.legal.TermsScreen
 import com.nova.app.feature.onboarding.ProfileSetupScreen
 import com.nova.app.feature.people.PeopleScreen
 import com.nova.app.feature.people.PersonScreen
@@ -365,7 +367,17 @@ fun NovaApp() {
                             authError = null
                             backStack.add(NovaRoute.Login)
                         },
+                        onTerms = { backStack.add(NovaRoute.Terms) },
+                        onPrivacy = { backStack.add(NovaRoute.Privacy) },
                     )
+                }
+
+                NovaRoute.Terms -> NavEntry(route) {
+                    TermsScreen(onBack = { backStack.removeLastOrNull() })
+                }
+
+                NovaRoute.Privacy -> NavEntry(route) {
+                    PrivacyScreen(onBack = { backStack.removeLastOrNull() })
                 }
 
                 NovaRoute.CreateAccount -> NavEntry(route) {
@@ -927,6 +939,13 @@ fun NovaApp() {
                                     personLoading = false
                                 }
                             }
+                        },
+                        onBlocked = { blockedPerson ->
+                            people = people.filterNot { it.id == blockedPerson.id }
+                            posts = posts.filterNot { it.author.id == blockedPerson.id }
+                            contentVersion += 1
+                            refreshCurrentUser()
+                            backStack.removeLastOrNull()
                         },
                     )
                 }
