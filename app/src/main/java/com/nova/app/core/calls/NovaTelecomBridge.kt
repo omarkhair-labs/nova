@@ -113,9 +113,9 @@ class NovaTelecomBridge(
                         if (telecomReady) onSystemAnswer()
                     },
                     onDisconnect = {
-                        # A few OEM Telecom stacks can emit disconnect while the
-                        # call is still being registered. Treat it as user/system
-                        # hangup only after addCall has actually handed us control.
+                        // A few OEM Telecom stacks can emit disconnect while the
+                        // call is still being registered. Treat it as user/system
+                        // hangup only after addCall has actually handed us control.
                         if (telecomReady) onSystemDisconnect()
                     },
                     onSetActive = {
