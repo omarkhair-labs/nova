@@ -105,23 +105,28 @@ class NovaTelecomBridge(
 
         NovaCallAudioRouter.attach(this)
         addCallJob = scope.launch {
+            var telecomReady = false
             try {
                 callsManager.addCall(
                     callAttributes = attributes,
                     onAnswer = {
-                        onSystemAnswer()
+                        if (telecomReady) onSystemAnswer()
                     },
                     onDisconnect = {
-                        onSystemDisconnect()
+                        # A few OEM Telecom stacks can emit disconnect while the
+                        # call is still being registered. Treat it as user/system
+                        # hangup only after addCall has actually handed us control.
+                        if (telecomReady) onSystemDisconnect()
                     },
                     onSetActive = {
-                        onSystemSetActive()
+                        if (telecomReady) onSystemSetActive()
                     },
                     onSetInactive = {
-                        onSystemSetInactive()
+                        if (telecomReady) onSystemSetInactive()
                     },
                 ) {
                     callControlScope = this
+                    telecomReady = true
                     launch {
                         currentCallEndpoint.collect { endpoint ->
                             currentEndpoint = endpoint
@@ -142,6 +147,7 @@ class NovaTelecomBridge(
             } catch (error: Throwable) {
                 onFailure(error)
             } finally {
+                telecomReady = false
                 callControlScope = null
                 NovaCallAudioRouter.detach(this@NovaTelecomBridge)
             }
