@@ -4,7 +4,7 @@ from .messaging_models import GroupMembership, GroupReadState
 from .models import Conversation, Message
 from .privacy import can_view_user_content
 from .serializers import PostAuthorSerializer
-from .trust_safety import users_blocked
+from .trust_safety import blocked_user_ids, users_blocked
 
 
 def _absolute_file_url(request, field):
@@ -35,6 +35,14 @@ def _post_visible_to_context_user(context, post):
     if current_user is None or not getattr(current_user, "is_authenticated", False):
         return True
     return can_view_user_content(current_user, post.author)
+
+
+def _blocked_ids_for_context(context):
+    request = context.get("request")
+    current_user = getattr(request, "user", None)
+    if current_user is None or not getattr(current_user, "is_authenticated", False):
+        return set()
+    return blocked_user_ids(current_user)
 
 
 class MessageSerializer(serializers.ModelSerializer):
@@ -99,7 +107,7 @@ class MessageSerializer(serializers.ModelSerializer):
             return None
 
         reply = obj.reply_to
-        if reply is None:
+        if reply is None or reply.sender_id in _blocked_ids_for_context(self.context):
             return None
 
         deleted = reply.deleted_at is not None
@@ -123,10 +131,13 @@ class MessageSerializer(serializers.ModelSerializer):
             if request and request.user.is_authenticated
             else None
         )
+        hidden_ids = _blocked_ids_for_context(self.context)
 
         counts = {}
         mine = set()
         for reaction in obj.reactions.all():
+            if reaction.user_id in hidden_ids:
+                continue
             counts[reaction.emoji] = counts.get(reaction.emoji, 0) + 1
             if current_user_id and reaction.user_id == current_user_id:
                 mine.add(reaction.emoji)
@@ -230,10 +241,12 @@ class ConversationSerializer(serializers.ModelSerializer):
             if request and request.user.is_authenticated
             else None
         )
+        hidden_ids = _blocked_ids_for_context(self.context)
         memberships = (
             obj.group_memberships.select_related("user")
             .filter(user__is_active=True)
             .exclude(user_id=current_user_id)
+            .exclude(user_id__in=hidden_ids)
             .order_by("joined_at", "id")[:4]
         )
         return [
@@ -259,18 +272,17 @@ class ConversationSerializer(serializers.ModelSerializer):
         return membership.role if membership else ""
 
     def get_last_message(self, obj):
-        message = (
-            obj.messages.select_related(
-                "sender",
-                "reply_to",
-                "reply_to__sender",
-                "shared_content",
-                "shared_content__post__author",
-                "shared_content__profile",
-            )
-            .order_by("-id")
-            .first()
+        messages = obj.messages.select_related(
+            "sender",
+            "reply_to",
+            "reply_to__sender",
+            "shared_content",
+            "shared_content__post__author",
+            "shared_content__profile",
         )
+        if obj.kind == Conversation.Kind.GROUP:
+            messages = messages.exclude(sender_id__in=_blocked_ids_for_context(self.context))
+        message = messages.order_by("-id").first()
         if message is None:
             return None
 
@@ -305,7 +317,9 @@ class ConversationSerializer(serializers.ModelSerializer):
                 user=request.user,
             ).only("last_read_message_id").first()
             last_read_id = state.last_read_message_id if state else None
-            unread = obj.messages.exclude(sender=request.user)
+            unread = obj.messages.exclude(sender=request.user).exclude(
+                sender_id__in=blocked_user_ids(request.user)
+            )
             if last_read_id:
                 unread = unread.filter(id__gt=last_read_id)
             return unread.count()
