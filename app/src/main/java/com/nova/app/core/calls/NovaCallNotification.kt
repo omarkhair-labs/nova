@@ -49,7 +49,7 @@ object NovaCallNotification {
         val ongoing = NotificationChannel(
             ONGOING_CHANNEL_ID,
             "Ongoing Nova calls",
-            NotificationManager.IMPORTANCE_LOW,
+            NotificationManager.IMPORTANCE_DEFAULT,
         ).apply {
             description = "Ongoing Nova voice and video calls"
             setSound(null, null)
@@ -171,7 +171,7 @@ object NovaCallNotification {
                 }
             )
             .setCategory(NotificationCompat.CATEGORY_CALL)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
