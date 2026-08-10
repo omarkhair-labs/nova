@@ -145,6 +145,15 @@ object NovaCallNotification {
         val person = Person.Builder().setName(call.peer.displayName).setImportant(true).build()
         val openIntent = CallActivity.existingCallIntent(context, call.id, CallActivity.ACTION_OPEN_CALL)
         val hangupIntent = CallActivity.existingCallIntent(context, call.id, CallActivity.ACTION_END_CALL)
+        val openPending = pendingActivity(context, openIntent, requestCode(call.id, 4))
+        val hangupPending = pendingActivity(context, hangupIntent, requestCode(call.id, 5))
+
+        // Android rejects CallStyle notifications unless they are associated with a
+        // foreground execution context or request a full-screen intent. Core-Telecom
+        // grants foreground execution priority around an active call, but there is a
+        // race while the call is first being registered. Keeping the call activity as
+        // a full-screen intent makes the notification valid during that transition and
+        // prevents NotificationManager from throwing on the main thread.
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_nova_notification)
             .setContentTitle(call.peer.displayName)
@@ -159,13 +168,9 @@ object NovaCallNotification {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
-            .setContentIntent(pendingActivity(context, openIntent, requestCode(call.id, 4)))
-            .setStyle(
-                NotificationCompat.CallStyle.forOngoingCall(
-                    person,
-                    pendingActivity(context, hangupIntent, requestCode(call.id, 5)),
-                )
-            )
+            .setContentIntent(openPending)
+            .setFullScreenIntent(openPending, false)
+            .setStyle(NotificationCompat.CallStyle.forOngoingCall(person, hangupPending))
             .build()
         NotificationManagerCompat.from(context).notify(notificationId(call.id), notification)
     }
