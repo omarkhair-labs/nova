@@ -37,9 +37,15 @@ class CallReliabilityV12Tests(TestCase):
     def create_url(self):
         return "/api/v1/calls/"
 
+    @patch("accounts.call_reliability_view.call_is_live", return_value=False)
     @patch("accounts.call_reliability_view.send_call_state_push")
     @patch("accounts.call_reliability_view.send_call_push", return_value=1)
-    def test_retry_supersedes_orphan_ringing_call_without_false_busy(self, push, state_push):
+    def test_retry_supersedes_orphan_ringing_call_without_false_busy(
+        self,
+        push,
+        state_push,
+        call_is_live,
+    ):
         previous = CallSession.objects.create(
             conversation=self.conversation,
             caller=self.caller,
@@ -59,6 +65,7 @@ class CallReliabilityV12Tests(TestCase):
         previous.refresh_from_db()
         self.assertEqual(previous.status, CallSession.Status.FAILED)
         self.assertEqual(previous.end_reason, "replaced_by_retry")
+        call_is_live.assert_called_once_with(previous.pk)
         state_push.assert_called_once_with(str(previous.pk), self.callee.pk)
         self.assertEqual(push.call_count, 1)
 
@@ -69,6 +76,29 @@ class CallReliabilityV12Tests(TestCase):
         self.assertEqual(history.body, "Voice call · Failed")
         self.assertIsNotNone(history.delivered_at)
         self.assertIsNotNone(history.read_at)
+
+    @patch("accounts.call_reliability_view.call_is_live", return_value=True)
+    @patch("accounts.call_reliability_view.send_call_push", return_value=1)
+    def test_retry_does_not_replace_a_still_live_ringing_call(self, push, call_is_live):
+        previous = CallSession.objects.create(
+            conversation=self.conversation,
+            caller=self.caller,
+            callee=self.callee,
+            kind=CallSession.Kind.AUDIO,
+        )
+
+        response = self.client.post(
+            self.create_url(),
+            data={"conversation_id": self.conversation.pk, "kind": "audio"},
+            content_type="application/json",
+            **self.auth(self.caller),
+        )
+
+        self.assertEqual(response.status_code, 409)
+        previous.refresh_from_db()
+        self.assertEqual(previous.status, CallSession.Status.RINGING)
+        call_is_live.assert_called_once_with(previous.pk)
+        push.assert_not_called()
 
     @patch("accounts.call_reliability_view.send_call_state_push")
     @patch("accounts.call_reliability_view.send_call_push", return_value=0)
