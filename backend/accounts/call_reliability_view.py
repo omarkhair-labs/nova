@@ -15,15 +15,11 @@ from .calls import (
 )
 from .models import CallSession, Conversation, User
 from .push import send_call_push, send_call_state_push
+from .trust_safety import users_blocked
 
 
 class ReliableCallSessionCreateView(APIView):
-    """Create one outgoing call without letting a dead retry lock both users.
-
-    A second tap should replace only an abandoned ringing attempt from this same
-    caller to this same callee. If Redis says that old attempt is still live, it
-    remains a real busy call and is protected by the normal busy check.
-    """
+    """Create one outgoing call without letting a dead retry lock both users."""
 
     def post(self, request):
         try:
@@ -53,6 +49,11 @@ class ReliableCallSessionCreateView(APIView):
             if conversation.participant_one_id == caller.pk
             else conversation.participant_one
         )
+        if not callee.is_active or users_blocked(caller, callee):
+            return Response(
+                {"detail": "You can't call this account."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         superseded_ids = []
         with transaction.atomic():
@@ -74,8 +75,6 @@ class ReliableCallSessionCreateView(APIView):
             )
             now = timezone.now()
             for previous in previous_attempts:
-                # False-busy recovery is safe only when Redis can positively say
-                # that no call socket remains. Unknown Redis state is conservative.
                 if call_is_live(previous.pk) is not False:
                     continue
                 previous.status = CallSession.Status.FAILED
@@ -109,9 +108,6 @@ class ReliableCallSessionCreateView(APIView):
         for old_call_id in superseded_ids:
             send_call_state_push(old_call_id, callee.pk)
 
-        # Incoming calls have no global app socket; data-only FCM tells the
-        # callee which call to open. If Firebase has zero reachable registered
-        # destinations, fail now instead of leaving a ghost ringing/busy row.
         push_count = send_call_push(call.pk)
         push_unavailable = isinstance(push_count, int) and push_count <= 0
         if push_unavailable:
