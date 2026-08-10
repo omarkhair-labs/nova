@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -71,6 +72,7 @@ fun ConversationScreenV9(
     username: String,
     displayName: String,
     avatarUrl: String,
+    toolsEndPadding: Dp = 12.dp,
     onBack: () -> Unit,
     onConversationRead: () -> Unit,
     onSessionExpired: () -> Unit,
@@ -96,13 +98,13 @@ fun ConversationScreenV9(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .statusBarsPadding()
-                .padding(top = 10.dp, end = 61.dp),
+                .padding(top = 10.dp, end = toolsEndPadding),
         ) {
             Text(
-                "⌕",
-                modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
+                "⋮",
+                modifier = Modifier.padding(horizontal = 13.dp, vertical = 7.dp),
                 color = NovaAccent,
-                fontSize = 17.sp,
+                fontSize = 19.sp,
                 fontWeight = FontWeight.Bold,
             )
         }
@@ -350,10 +352,6 @@ private fun V9ConversationToolsDialog(
                                 if (!mediaLoading) {
                                     mediaLoading = true
                                     mediaError = null
-                                    // LaunchedEffect can't be started from this callback, so this
-                                    // intentionally flips the loaded marker and lets the effect reload.
-                                    // Pagination remains exposed by the backend and will be expanded
-                                    // in the next media pass without blocking the V9 feature.
                                     mediaLoadedFor = null
                                     mediaCursor = cursor
                                 }
