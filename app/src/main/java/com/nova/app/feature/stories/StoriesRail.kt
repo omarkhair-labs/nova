@@ -35,6 +35,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,6 +55,12 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
 import coil3.compose.AsyncImage
 import com.nova.app.MainActivity
 import com.nova.app.core.messaging.NovaMessagingNavigator
@@ -943,47 +950,102 @@ private fun StoryMedia(
     onVideoProgress: (Float) -> Unit,
     onVideoComplete: () -> Unit,
 ) {
-    var videoView by remember(story.id) { mutableStateOf<VideoView?>(null) }
-
-    LaunchedEffect(story.id, videoView) {
-        if (story.mediaType != "video") return@LaunchedEffect
-        while (true) {
-            val view = videoView
-            if (view != null) {
-                val duration = view.duration
-                if (duration > 0) {
-                    onVideoProgress(
-                        (view.currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f),
-                    )
-                }
-            }
-            delay(STORY_PROGRESS_TICK_MS)
-        }
-    }
+    val context = LocalContext.current
 
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
     ) {
         if (story.mediaType == "video") {
-            AndroidView(
-                modifier = Modifier.fillMaxSize(),
-                factory = { context ->
-                    VideoView(context).apply {
-                        videoView = this
-                        setVideoURI(Uri.parse(story.mediaUrl))
-                        setOnPreparedListener { start() }
-                        setOnCompletionListener {
+            val player = remember(story.id) {
+                ExoPlayer.Builder(context.applicationContext).build().apply {
+                    playWhenReady = true
+                    repeatMode = Player.REPEAT_MODE_OFF
+                }
+            }
+            var playbackState by remember(story.id) { mutableStateOf(Player.STATE_IDLE) }
+            var playbackError by remember(story.id) { mutableStateOf<String?>(null) }
+
+            DisposableEffect(story.id, player) {
+                val listener = object : Player.Listener {
+                    override fun onPlaybackStateChanged(state: Int) {
+                        playbackState = state
+                        if (state == Player.STATE_ENDED) {
                             onVideoProgress(1f)
                             onVideoComplete()
                         }
                     }
+
+                    override fun onPlayerError(error: PlaybackException) {
+                        playbackError = "Video couldn't play"
+                    }
+                }
+                player.addListener(listener)
+                player.setMediaItem(MediaItem.fromUri(story.mediaUrl))
+                player.prepare()
+                player.play()
+
+                onDispose {
+                    player.removeListener(listener)
+                    player.release()
+                }
+            }
+
+            LaunchedEffect(story.id, player) {
+                while (true) {
+                    val duration = player.duration
+                    if (duration > 0L) {
+                        onVideoProgress(
+                            (player.currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f),
+                        )
+                    }
+                    delay(STORY_PROGRESS_TICK_MS)
+                }
+            }
+
+            AndroidView(
+                modifier = Modifier.fillMaxSize(),
+                factory = { viewContext ->
+                    PlayerView(viewContext).apply {
+                        useController = false
+                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        setShutterBackgroundColor(android.graphics.Color.BLACK)
+                        this.player = player
+                    }
                 },
                 update = { view ->
-                    videoView = view
-                    if (!view.isPlaying) view.start()
+                    view.player = player
                 },
             )
+
+            if (playbackError != null) {
+                Surface(
+                    onClick = {
+                        playbackError = null
+                        playbackState = Player.STATE_BUFFERING
+                        player.setMediaItem(MediaItem.fromUri(story.mediaUrl))
+                        player.prepare()
+                        player.play()
+                    },
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.Black.copy(alpha = 0.66f),
+                    border = BorderStroke(1.dp, StoryViewerInk.copy(alpha = 0.25f)),
+                ) {
+                    Text(
+                        text = "Video couldn't play · Tap to retry",
+                        modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp),
+                        color = StoryViewerInk,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            } else if (playbackState == Player.STATE_IDLE || playbackState == Player.STATE_BUFFERING) {
+                CircularProgressIndicator(
+                    color = StoryViewerInk,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(28.dp),
+                )
+            }
         } else {
             AsyncImage(
                 model = story.mediaUrl,

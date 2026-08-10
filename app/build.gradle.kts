@@ -56,6 +56,8 @@ dependencies {
     implementation(libs.coil.network.okhttp)
     implementation(libs.firebase.messaging)
     implementation(libs.okhttp)
+    implementation("androidx.media3:media3-exoplayer:1.10.1")
+    implementation("androidx.media3:media3-ui:1.10.1")
     implementation("androidx.navigation3:navigation3-runtime:1.1.4")
     implementation("androidx.navigation3:navigation3-ui:1.1.4")
     implementation("androidx.core:core-telecom:1.0.0")
