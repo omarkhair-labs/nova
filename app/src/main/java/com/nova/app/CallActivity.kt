@@ -1,11 +1,14 @@
 package com.nova.app
 
 import android.Manifest
+import android.app.PictureInPictureParams
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
+import android.util.Rational
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -42,9 +45,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -83,6 +89,8 @@ import org.webrtc.VideoTrack
 
 class CallActivity : ComponentActivity() {
     private lateinit var controller: NovaCallController
+    private var currentUiState: NovaCallUiState? = null
+    private var pictureInPictureMode by mutableStateOf(false)
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -122,9 +130,13 @@ class CallActivity : ComponentActivity() {
             NovaTheme {
                 val state by controller.state.collectAsState()
                 val audioRoute by NovaCallAudioRouter.state.collectAsState()
+                SideEffect {
+                    currentUiState = state
+                }
                 CallScreen(
                     state = state,
                     audioRoute = audioRoute,
+                    isPictureInPicture = pictureInPictureMode,
                     onAnswer = controller::accept,
                     onDecline = controller::decline,
                     onHangUp = controller::hangUp,
@@ -134,7 +146,7 @@ class CallActivity : ComponentActivity() {
                     onToggleSpeaker = {
                         lifecycleScope.launch { NovaCallAudioRouter.toggleSpeaker() }
                     },
-                    onMinimize = { moveTaskToBack(true) },
+                    onMinimize = { minimizeCall(state) },
                 )
             }
         }
@@ -149,7 +161,21 @@ class CallActivity : ComponentActivity() {
         }
     }
 
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        currentUiState?.let(::enterVideoPictureInPicture)
+    }
+
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: Configuration,
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        pictureInPictureMode = isInPictureInPictureMode
+    }
+
     override fun onDestroy() {
+        currentUiState = null
         if (::controller.isInitialized) controller.release()
         super.onDestroy()
     }
@@ -165,6 +191,36 @@ class CallActivity : ComponentActivity() {
                     WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
             )
         }
+    }
+
+    private fun minimizeCall(state: NovaCallUiState) {
+        if (!enterVideoPictureInPicture(state)) {
+            moveTaskToBack(true)
+        }
+    }
+
+    private fun enterVideoPictureInPicture(state: NovaCallUiState): Boolean {
+        if (
+            pictureInPictureMode ||
+            state.kind != NovaCallKind.Video ||
+            !state.connected ||
+            state.isTerminal ||
+            state.remoteVideoTrack == null ||
+            state.eglContext == null
+        ) {
+            return false
+        }
+
+        val builder = PictureInPictureParams.Builder()
+            .setAspectRatio(Rational(9, 16))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            builder.setSeamlessResizeEnabled(true)
+        }
+        val params = builder.build()
+        return runCatching {
+            setPictureInPictureParams(params)
+            enterPictureInPictureMode(params)
+        }.getOrDefault(false)
     }
 
     private fun requestCallPermissions(kind: NovaCallKind) {
@@ -297,6 +353,7 @@ class CallActivity : ComponentActivity() {
 private fun CallScreen(
     state: NovaCallUiState,
     audioRoute: NovaAudioRouteState,
+    isPictureInPicture: Boolean,
     onAnswer: () -> Unit,
     onDecline: () -> Unit,
     onHangUp: () -> Unit,
@@ -306,7 +363,7 @@ private fun CallScreen(
     onToggleSpeaker: () -> Unit,
     onMinimize: () -> Unit,
 ) {
-    BackHandler(enabled = !state.isTerminal, onBack = onMinimize)
+    BackHandler(enabled = !state.isTerminal && !isPictureInPicture, onBack = onMinimize)
     val peer = state.peer
     val isVideo = state.kind == NovaCallKind.Video
     val videoLive = isVideo && state.remoteVideoTrack != null && state.eglContext != null
@@ -336,7 +393,13 @@ private fun CallScreen(
             )
         }
 
-        if (isVideo && state.localVideoTrack != null && state.eglContext != null && state.cameraEnabled) {
+        if (
+            !isPictureInPicture &&
+            isVideo &&
+            state.localVideoTrack != null &&
+            state.eglContext != null &&
+            state.cameraEnabled
+        ) {
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = Color.Black,
@@ -357,28 +420,30 @@ private fun CallScreen(
             }
         }
 
-        Surface(
-            onClick = onMinimize,
-            shape = CircleShape,
-            color = if (isVideo) Color.Black.copy(alpha = 0.38f) else NovaSurface,
-            border = if (isVideo) null else BorderStroke(1.dp, NovaBorder),
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .statusBarsPadding()
-                .padding(16.dp)
-                .size(42.dp),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.Filled.KeyboardArrowDown,
-                    contentDescription = "Minimize call",
-                    tint = if (isVideo) Color.White else NovaInk,
-                    modifier = Modifier.size(23.dp),
-                )
+        if (!isPictureInPicture) {
+            Surface(
+                onClick = onMinimize,
+                shape = CircleShape,
+                color = if (isVideo) Color.Black.copy(alpha = 0.38f) else NovaSurface,
+                border = if (isVideo) null else BorderStroke(1.dp, NovaBorder),
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .statusBarsPadding()
+                    .padding(16.dp)
+                    .size(42.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Filled.KeyboardArrowDown,
+                        contentDescription = "Minimize call",
+                        tint = if (isVideo) Color.White else NovaInk,
+                        modifier = Modifier.size(23.dp),
+                    )
+                }
             }
         }
 
-        if (videoLive) {
+        if (!isPictureInPicture && videoLive) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
@@ -401,27 +466,29 @@ private fun CallScreen(
             }
         }
 
-        state.error?.takeIf { it.isNotBlank() }?.let { message ->
-            Surface(
-                color = if (isVideo) Color.Black.copy(alpha = 0.68f) else NovaSurface,
-                shape = RoundedCornerShape(15.dp),
-                border = if (isVideo) null else BorderStroke(1.dp, NovaBorder),
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .statusBarsPadding()
-                    .padding(top = if (videoLive) 78.dp else 60.dp, start = 24.dp, end = 24.dp),
-            ) {
-                Text(
-                    text = message,
-                    color = if (isVideo) Color.White else NovaMuted,
-                    fontSize = 12.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                )
+        if (!isPictureInPicture) {
+            state.error?.takeIf { it.isNotBlank() }?.let { message ->
+                Surface(
+                    color = if (isVideo) Color.Black.copy(alpha = 0.68f) else NovaSurface,
+                    shape = RoundedCornerShape(15.dp),
+                    border = if (isVideo) null else BorderStroke(1.dp, NovaBorder),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .statusBarsPadding()
+                        .padding(top = if (videoLive) 78.dp else 60.dp, start = 24.dp, end = 24.dp),
+                ) {
+                    Text(
+                        text = message,
+                        color = if (isVideo) Color.White else NovaMuted,
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    )
+                }
             }
         }
 
-        if (state.permissionsPending) {
+        if (!isPictureInPicture && state.permissionsPending) {
             CircularProgressIndicator(
                 color = NovaAccent,
                 strokeWidth = 2.5.dp,
@@ -431,21 +498,23 @@ private fun CallScreen(
             )
         }
 
-        CallControls(
-            state = state,
-            audioRoute = audioRoute,
-            onAnswer = onAnswer,
-            onDecline = onDecline,
-            onHangUp = onHangUp,
-            onToggleMicrophone = onToggleMicrophone,
-            onToggleCamera = onToggleCamera,
-            onSwitchCamera = onSwitchCamera,
-            onToggleSpeaker = onToggleSpeaker,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(start = 18.dp, end = 18.dp, bottom = 22.dp),
-        )
+        if (!isPictureInPicture) {
+            CallControls(
+                state = state,
+                audioRoute = audioRoute,
+                onAnswer = onAnswer,
+                onDecline = onDecline,
+                onHangUp = onHangUp,
+                onToggleMicrophone = onToggleMicrophone,
+                onToggleCamera = onToggleCamera,
+                onSwitchCamera = onSwitchCamera,
+                onToggleSpeaker = onToggleSpeaker,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(start = 18.dp, end = 18.dp, bottom = 22.dp),
+            )
+        }
     }
 }
 

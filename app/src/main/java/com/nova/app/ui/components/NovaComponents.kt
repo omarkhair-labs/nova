@@ -20,6 +20,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -30,6 +31,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.core.messaging.NovaMessagingNavigator
+import com.nova.app.navigation.NovaRootNavigationSignal
+import com.nova.app.navigation.NovaRootTab
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
@@ -180,6 +183,28 @@ fun NovaBottomBar(
 ) {
     val context = LocalContext.current
     val resolvedUnreadCount = messagesUnreadCount ?: NovaMessagesSignal.unreadCount
+    val rootRequestVersion = NovaRootNavigationSignal.requestVersion
+
+    LaunchedEffect(rootRequestVersion, selected) {
+        val requested = NovaRootNavigationSignal.pendingTab ?: return@LaunchedEffect
+        if (selected == NovaTab.Messages) return@LaunchedEffect
+
+        val currentRoot = when (selected) {
+            NovaTab.Home -> NovaRootTab.Home
+            NovaTab.People -> NovaRootTab.People
+            NovaTab.Profile -> NovaRootTab.Profile
+            NovaTab.Messages -> return@LaunchedEffect
+        }
+
+        if (currentRoot != requested) {
+            when (requested) {
+                NovaRootTab.Home -> onHomeClick()
+                NovaRootTab.People -> onPeopleClick()
+                NovaRootTab.Profile -> onProfileClick()
+            }
+        }
+        NovaRootNavigationSignal.consume(requested)
+    }
 
     Surface(
         color = NovaSurface,

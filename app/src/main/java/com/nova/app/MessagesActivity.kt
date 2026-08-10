@@ -26,6 +26,8 @@ import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.messages.ConversationScreenV11
 import com.nova.app.feature.messages.MessagesScreen
+import com.nova.app.navigation.NovaRootNavigationSignal
+import com.nova.app.navigation.NovaRootTab
 import com.nova.app.ui.components.NovaActiveCallPill
 import com.nova.app.ui.theme.NovaTheme
 import kotlinx.coroutines.launch
@@ -99,6 +101,11 @@ private fun MessagingActivityContent(
         }
     }
 
+    fun finishToRoot(tab: NovaRootTab) {
+        NovaRootNavigationSignal.request(tab)
+        onFinish()
+    }
+
     fun startCall(conversation: InitialConversation, kind: NovaCallKind) {
         val callIntent = CallActivity.outgoingIntent(
             context = context,
@@ -136,9 +143,9 @@ private fun MessagingActivityContent(
                     avatarUrl = selected.otherUser.avatarUrl,
                 )
             },
-            onHomeClick = onFinish,
-            onPeopleClick = onFinish,
-            onProfileClick = onFinish,
+            onHomeClick = { finishToRoot(NovaRootTab.Home) },
+            onPeopleClick = { finishToRoot(NovaRootTab.People) },
+            onProfileClick = { finishToRoot(NovaRootTab.Profile) },
             onUnreadCountChanged = NovaMessagesSignal::updateUnreadCount,
             onSessionExpired = onFinish,
         )
