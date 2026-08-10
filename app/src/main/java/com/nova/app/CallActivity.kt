@@ -12,6 +12,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,7 +27,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.CallEnd
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,6 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -55,6 +67,7 @@ import com.nova.app.core.calls.NovaCallPerson
 import com.nova.app.core.calls.NovaCallUiState
 import com.nova.app.ui.components.NovaMediaImage
 import com.nova.app.ui.theme.NovaAccent
+import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
@@ -296,16 +309,17 @@ private fun CallScreen(
     BackHandler(enabled = !state.isTerminal, onBack = onMinimize)
     val peer = state.peer
     val isVideo = state.kind == NovaCallKind.Video
+    val videoLive = isVideo && state.remoteVideoTrack != null && state.eglContext != null
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(if (isVideo) Color(0xFF090A0C) else NovaBackground),
     ) {
-        if (isVideo && state.remoteVideoTrack != null && state.eglContext != null) {
+        if (videoLive) {
             WebRtcVideo(
-                track = state.remoteVideoTrack,
-                eglContext = state.eglContext,
+                track = state.remoteVideoTrack!!,
+                eglContext = state.eglContext!!,
                 mirror = false,
                 overlay = false,
                 modifier = Modifier.fillMaxSize(),
@@ -316,21 +330,22 @@ private fun CallScreen(
                 stage = state.stage,
                 isVideo = isVideo,
                 modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(horizontal = 28.dp),
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(top = if (isVideo) 118.dp else 104.dp, start = 28.dp, end = 28.dp),
             )
         }
 
         if (isVideo && state.localVideoTrack != null && state.eglContext != null && state.cameraEnabled) {
             Surface(
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(22.dp),
+                shape = RoundedCornerShape(20.dp),
                 color = Color.Black,
-                shadowElevation = 10.dp,
+                shadowElevation = 8.dp,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
-                    .padding(top = 64.dp, end = 16.dp)
-                    .size(width = 112.dp, height = 164.dp),
+                    .padding(top = 66.dp, end = 16.dp)
+                    .size(width = 108.dp, height = 158.dp),
             ) {
                 WebRtcVideo(
                     track = state.localVideoTrack,
@@ -345,56 +360,60 @@ private fun CallScreen(
         Surface(
             onClick = onMinimize,
             shape = CircleShape,
-            color = Color.Black.copy(alpha = 0.34f),
+            color = if (isVideo) Color.Black.copy(alpha = 0.38f) else NovaSurface,
+            border = if (isVideo) null else BorderStroke(1.dp, NovaBorder),
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .statusBarsPadding()
-                .padding(16.dp),
+                .padding(16.dp)
+                .size(42.dp),
         ) {
-            Text(
-                text = "⌄",
-                color = Color.White,
-                fontSize = 25.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
-            )
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Filled.KeyboardArrowDown,
+                    contentDescription = "Minimize call",
+                    tint = if (isVideo) Color.White else NovaInk,
+                    modifier = Modifier.size(23.dp),
+                )
+            }
         }
 
-        if (isVideo && state.remoteVideoTrack != null) {
+        if (videoLive) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .statusBarsPadding()
-                    .padding(top = 18.dp, start = 70.dp, end = 70.dp),
+                    .padding(top = 18.dp, start = 72.dp, end = 72.dp),
             ) {
                 Text(
                     text = peer?.displayName ?: "Nova call",
                     color = Color.White,
-                    fontSize = 17.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                 )
                 Text(
                     text = state.stage,
-                    color = Color.White.copy(alpha = 0.75f),
-                    fontSize = 12.sp,
+                    color = Color.White.copy(alpha = 0.72f),
+                    fontSize = 11.sp,
                 )
             }
         }
 
         state.error?.takeIf { it.isNotBlank() }?.let { message ->
             Surface(
-                color = Color.Black.copy(alpha = 0.62f),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+                color = if (isVideo) Color.Black.copy(alpha = 0.68f) else NovaSurface,
+                shape = RoundedCornerShape(15.dp),
+                border = if (isVideo) null else BorderStroke(1.dp, NovaBorder),
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .statusBarsPadding()
-                    .padding(top = 78.dp, start = 24.dp, end = 24.dp),
+                    .padding(top = if (videoLive) 78.dp else 60.dp, start = 24.dp, end = 24.dp),
             ) {
                 Text(
                     text = message,
-                    color = Color.White,
+                    color = if (isVideo) Color.White else NovaMuted,
                     fontSize = 12.sp,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
@@ -405,9 +424,9 @@ private fun CallScreen(
         if (state.permissionsPending) {
             CircularProgressIndicator(
                 color = NovaAccent,
+                strokeWidth = 2.5.dp,
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .padding(top = 180.dp)
                     .size(28.dp),
             )
         }
@@ -425,7 +444,7 @@ private fun CallScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
-                .padding(start = 18.dp, end = 18.dp, bottom = 24.dp),
+                .padding(start = 18.dp, end = 18.dp, bottom = 22.dp),
         )
     }
 }
@@ -442,51 +461,77 @@ private fun CallIdentity(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier,
     ) {
-        if (peer?.avatarUrl?.isNotBlank() == true) {
-            NovaMediaImage(
-                source = peer.avatarUrl,
-                contentDescription = peer.displayName,
-                modifier = Modifier
-                    .size(124.dp)
-                    .clip(CircleShape),
-            )
-        } else {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(124.dp)
-                    .clip(CircleShape)
-                    .background(NovaSurface),
-            ) {
-                Text(
-                    text = peer?.displayName?.firstOrNull()?.uppercase() ?: "N",
-                    color = NovaAccent,
-                    fontSize = 46.sp,
-                    fontWeight = FontWeight.Bold,
-                )
+        Text(
+            text = if (isVideo) "NOVA VIDEO" else "NOVA VOICE",
+            color = if (isVideo) Color.White.copy(alpha = 0.56f) else NovaMuted,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.5.sp,
+        )
+        Spacer(Modifier.height(24.dp))
+        Surface(
+            shape = CircleShape,
+            color = if (isVideo) Color.White.copy(alpha = 0.10f) else NovaAccentSoft,
+            modifier = Modifier.size(146.dp),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                if (peer?.avatarUrl?.isNotBlank() == true) {
+                    NovaMediaImage(
+                        source = peer.avatarUrl,
+                        contentDescription = peer.displayName,
+                        modifier = Modifier
+                            .size(126.dp)
+                            .clip(CircleShape),
+                    )
+                } else {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(126.dp)
+                            .clip(CircleShape)
+                            .background(if (isVideo) Color.White.copy(alpha = 0.08f) else NovaSurface),
+                    ) {
+                        Text(
+                            text = peer?.displayName?.firstOrNull()?.uppercase() ?: "N",
+                            color = if (isVideo) Color.White else NovaAccent,
+                            fontSize = 44.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
             }
         }
         Spacer(Modifier.height(22.dp))
         Text(
             text = peer?.displayName ?: "Nova call",
             color = if (isVideo) Color.White else NovaInk,
-            fontSize = 28.sp,
+            fontSize = 27.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
+            maxLines = 1,
         )
         peer?.username?.takeIf { it.isNotBlank() }?.let {
+            Spacer(Modifier.height(2.dp))
             Text(
                 text = "@$it",
-                color = if (isVideo) Color.White.copy(alpha = 0.62f) else NovaMuted,
-                fontSize = 14.sp,
+                color = if (isVideo) Color.White.copy(alpha = 0.58f) else NovaMuted,
+                fontSize = 13.sp,
             )
         }
-        Spacer(Modifier.height(10.dp))
-        Text(
-            text = stage,
-            color = if (isVideo) Color.White.copy(alpha = 0.78f) else NovaMuted,
-            fontSize = 14.sp,
-        )
+        Spacer(Modifier.height(15.dp))
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = if (isVideo) Color.White.copy(alpha = 0.10f) else NovaSurface,
+            border = if (isVideo) null else BorderStroke(1.dp, NovaBorder),
+        ) {
+            Text(
+                text = stage,
+                color = if (isVideo) Color.White.copy(alpha = 0.82f) else NovaMuted,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+            )
+        }
     }
 }
 
@@ -505,91 +550,135 @@ private fun CallControls(
     modifier: Modifier = Modifier,
 ) {
     val dark = state.kind == NovaCallKind.Video
-    val background = if (dark) Color.Black.copy(alpha = 0.52f) else NovaSurface
     Surface(
-        color = background,
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(30.dp),
+        color = if (dark) Color.Black.copy(alpha = 0.58f) else NovaSurface,
+        shape = RoundedCornerShape(28.dp),
+        border = if (dark) null else BorderStroke(1.dp, NovaBorder),
+        shadowElevation = if (dark) 0.dp else 5.dp,
         modifier = modifier.fillMaxWidth(),
     ) {
-        if (state.isIncomingRinging) {
-            Row(
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 22.dp, vertical = 20.dp),
-            ) {
-                RoundCallButton("✕", "Decline", Color(0xFFDD3D47), onDecline)
-                RoundCallButton("✓", "Answer", Color(0xFF2BAA66), onAnswer)
-            }
-        } else if (state.kind == NovaCallKind.Video) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 14.dp),
-            ) {
+        when {
+            state.isIncomingRinging -> {
                 Row(
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 26.dp, vertical = 18.dp),
                 ) {
                     RoundCallButton(
-                        icon = if (state.microphoneEnabled) "🎙" else "⊘",
+                        icon = Icons.Filled.CallEnd,
+                        label = "Decline",
+                        background = Color(0xFFE2444E),
+                        iconColor = Color.White,
+                        labelColor = if (dark) Color.White.copy(alpha = 0.82f) else NovaMuted,
+                        onClick = onDecline,
+                    )
+                    RoundCallButton(
+                        icon = Icons.Filled.Call,
+                        label = "Answer",
+                        background = Color(0xFF2EAE68),
+                        iconColor = Color.White,
+                        labelColor = if (dark) Color.White.copy(alpha = 0.82f) else NovaMuted,
+                        onClick = onAnswer,
+                    )
+                }
+            }
+
+            state.kind == NovaCallKind.Video -> {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 14.dp),
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        RoundCallButton(
+                            icon = Icons.Filled.Mic,
+                            label = if (state.microphoneEnabled) "Mute" else "Unmute",
+                            background = if (state.microphoneEnabled) Color.White.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.28f),
+                            iconColor = Color.White,
+                            labelColor = Color.White.copy(alpha = 0.82f),
+                            onClick = onToggleMicrophone,
+                        )
+                        if (audioRoute.canToggleSpeaker) {
+                            RoundCallButton(
+                                icon = Icons.Filled.VolumeUp,
+                                label = if (audioRoute.speakerEnabled) "Speaker" else audioRoute.name.take(9),
+                                background = if (audioRoute.speakerEnabled) Color.White.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.14f),
+                                iconColor = Color.White,
+                                labelColor = Color.White.copy(alpha = 0.82f),
+                                onClick = onToggleSpeaker,
+                            )
+                        }
+                        RoundCallButton(
+                            icon = Icons.Filled.Videocam,
+                            label = if (state.cameraEnabled) "Camera" else "Camera off",
+                            background = if (state.cameraEnabled) Color.White.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.28f),
+                            iconColor = Color.White,
+                            labelColor = Color.White.copy(alpha = 0.82f),
+                            onClick = onToggleCamera,
+                        )
+                        RoundCallButton(
+                            icon = Icons.Filled.Refresh,
+                            label = "Flip",
+                            background = Color.White.copy(alpha = 0.14f),
+                            iconColor = Color.White,
+                            labelColor = Color.White.copy(alpha = 0.82f),
+                            onClick = onSwitchCamera,
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    RoundCallButton(
+                        icon = Icons.Filled.CallEnd,
+                        label = if (state.session?.status?.wireValue == "ringing") "Cancel" else "End",
+                        background = Color(0xFFE2444E),
+                        iconColor = Color.White,
+                        labelColor = Color.White.copy(alpha = 0.82f),
+                        onClick = onHangUp,
+                    )
+                }
+            }
+
+            else -> {
+                Row(
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 17.dp),
+                ) {
+                    RoundCallButton(
+                        icon = Icons.Filled.Mic,
                         label = if (state.microphoneEnabled) "Mute" else "Unmute",
-                        background = Color.White.copy(alpha = 0.16f),
+                        background = if (state.microphoneEnabled) NovaBackground else NovaAccentSoft,
+                        iconColor = if (state.microphoneEnabled) NovaInk else NovaAccent,
+                        labelColor = NovaMuted,
+                        borderColor = NovaBorder,
                         onClick = onToggleMicrophone,
                     )
                     if (audioRoute.canToggleSpeaker) {
                         RoundCallButton(
-                            icon = if (audioRoute.speakerEnabled) "🔊" else "◖",
-                            label = if (audioRoute.speakerEnabled) "Speaker" else audioRoute.name.take(10),
-                            background = Color.White.copy(alpha = 0.16f),
+                            icon = Icons.Filled.VolumeUp,
+                            label = if (audioRoute.speakerEnabled) "Speaker" else audioRoute.name.take(9),
+                            background = if (audioRoute.speakerEnabled) NovaAccentSoft else NovaBackground,
+                            iconColor = if (audioRoute.speakerEnabled) NovaAccent else NovaInk,
+                            labelColor = NovaMuted,
+                            borderColor = NovaBorder,
                             onClick = onToggleSpeaker,
                         )
                     }
                     RoundCallButton(
-                        icon = if (state.cameraEnabled) "▣" else "□",
-                        label = if (state.cameraEnabled) "Camera" else "Camera off",
-                        background = Color.White.copy(alpha = 0.16f),
-                        onClick = onToggleCamera,
-                    )
-                    RoundCallButton(
-                        icon = "↻",
-                        label = "Flip",
-                        background = Color.White.copy(alpha = 0.16f),
-                        onClick = onSwitchCamera,
+                        icon = Icons.Filled.CallEnd,
+                        label = if (state.session?.status?.wireValue == "ringing") "Cancel" else "End",
+                        background = Color(0xFFE2444E),
+                        iconColor = Color.White,
+                        labelColor = NovaMuted,
+                        onClick = onHangUp,
                     )
                 }
-                Spacer(Modifier.height(12.dp))
-                RoundCallButton("✕", if (state.session?.status?.wireValue == "ringing") "Cancel" else "End", Color(0xFFDD3D47), onHangUp)
-            }
-        } else {
-            Row(
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 18.dp),
-            ) {
-                RoundCallButton(
-                    icon = if (state.microphoneEnabled) "🎙" else "⊘",
-                    label = if (state.microphoneEnabled) "Mute" else "Unmute",
-                    background = NovaBackground,
-                    onClick = onToggleMicrophone,
-                )
-                if (audioRoute.canToggleSpeaker) {
-                    RoundCallButton(
-                        icon = if (audioRoute.speakerEnabled) "🔊" else "◖",
-                        label = if (audioRoute.speakerEnabled) "Speaker" else audioRoute.name.take(10),
-                        background = NovaBackground,
-                        onClick = onToggleSpeaker,
-                    )
-                }
-                RoundCallButton(
-                    "✕",
-                    if (state.session?.status?.wireValue == "ringing") "Cancel" else "End",
-                    Color(0xFFDD3D47),
-                    onHangUp,
-                )
             }
         }
     }
@@ -598,33 +687,37 @@ private fun CallControls(
 
 @Composable
 private fun RoundCallButton(
-    icon: String,
+    icon: ImageVector,
     label: String,
     background: Color,
+    iconColor: Color,
+    labelColor: Color,
     onClick: () -> Unit,
+    borderColor: Color? = null,
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Surface(
             onClick = onClick,
             shape = CircleShape,
             color = background,
-            border = if (background == NovaBackground) androidx.compose.foundation.BorderStroke(1.dp, NovaBorder) else null,
-            modifier = Modifier.size(58.dp),
+            border = borderColor?.let { BorderStroke(1.dp, it) },
+            modifier = Modifier.size(56.dp),
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Text(
-                    text = icon,
-                    color = if (background == NovaBackground) NovaInk else Color.White,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = iconColor,
+                    modifier = Modifier.size(23.dp),
                 )
             }
         }
         Spacer(Modifier.height(7.dp))
         Text(
             text = label,
-            color = if (background == NovaBackground) NovaMuted else Color.White.copy(alpha = 0.82f),
-            fontSize = 11.sp,
+            color = labelColor,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Medium,
             maxLines = 1,
         )
     }
