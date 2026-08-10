@@ -182,6 +182,11 @@ class DeleteAccountView(APIView):
 
         avatar_name = getattr(user.avatar, "name", "")
         avatar_storage = getattr(user.avatar, "storage", None)
+        post_files = [
+            (post.image.storage, post.image.name)
+            for post in Post.objects.filter(author=user)
+            if post.image and post.image.name
+        ]
 
         with transaction.atomic():
             DevicePushToken.objects.filter(user=user).delete()
@@ -190,9 +195,7 @@ class DeleteAccountView(APIView):
             Notification.objects.filter(Q(recipient=user) | Q(actor=user)).delete()
             Like.objects.filter(user=user).delete()
             Comment.objects.filter(author=user).delete()
-
-            for post in list(Post.objects.filter(author=user)):
-                post.delete()
+            Post.objects.filter(author=user).delete()
 
             user.email = f"deleted+{uuid.uuid4().hex}@deleted.nova.invalid"
             user.username = f"deleted_{uuid.uuid4().hex[:16]}"
@@ -217,6 +220,8 @@ class DeleteAccountView(APIView):
                 )
             )
 
+            for storage, name in post_files:
+                transaction.on_commit(lambda storage=storage, name=name: storage.delete(name))
             if avatar_name and avatar_storage is not None:
                 transaction.on_commit(lambda: avatar_storage.delete(avatar_name))
 
