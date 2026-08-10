@@ -26,6 +26,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,6 +44,8 @@ import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaPerson
 import com.nova.app.core.network.NovaPost
+import com.nova.app.core.privacy.NovaPersonPrivacyState
+import com.nova.app.core.privacy.NovaPrivacyRepository
 import com.nova.app.core.social.NovaSocialRepository
 import com.nova.app.feature.sharing.NovaShareDialog
 import com.nova.app.ui.components.NovaAvatar
@@ -93,6 +96,9 @@ fun PersonScreen(
     val socialRepository = remember(context) {
         NovaSocialRepository(context.applicationContext)
     }
+    val privacyRepository = remember(context) {
+        NovaPrivacyRepository(context.applicationContext)
+    }
     val scope = rememberCoroutineScope()
     var isOpeningMessage by remember(person?.username) { mutableStateOf(false) }
     var messageError by remember(person?.username) { mutableStateOf<String?>(null) }
@@ -103,6 +109,21 @@ fun PersonScreen(
     var showShareProfile by remember(person?.username) { mutableStateOf(false) }
     var reportReason by remember(person?.username) { mutableStateOf("harassment") }
     var reportDetails by remember(person?.username) { mutableStateOf("") }
+    var privacyState by remember(person?.username) {
+        mutableStateOf(NovaPersonPrivacyState(isPrivate = false, followRequested = false, canViewContent = true))
+    }
+    var privacyLoading by remember(person?.username) { mutableStateOf(false) }
+    var requestCanceling by remember(person?.username) { mutableStateOf(false) }
+
+    LaunchedEffect(person?.username) {
+        val selected = person ?: return@LaunchedEffect
+        privacyLoading = true
+        when (val result = privacyRepository.personState(selected.username)) {
+            is ApiResult.Success -> privacyState = result.value
+            is ApiResult.Failure -> messageError = result.message
+        }
+        privacyLoading = false
+    }
 
     fun openMessage(selectedPerson: NovaPerson) {
         if (isOpeningMessage || isSafetyLoading) return
@@ -124,11 +145,47 @@ fun PersonScreen(
     }
 
     fun openSocialGraph(selectedPerson: NovaPerson, mode: String) {
+        if (!privacyState.canViewContent) return
         context.startActivity(
             Intent(context, SocialGraphActivity::class.java)
                 .putExtra(SocialGraphActivity.EXTRA_USERNAME, selectedPerson.username)
                 .putExtra(SocialGraphActivity.EXTRA_MODE, mode)
         )
+    }
+
+    fun cancelFollowRequest(selectedPerson: NovaPerson) {
+        if (requestCanceling || isLoading) return
+        scope.launch {
+            requestCanceling = true
+            messageError = null
+            when (val result = socialRepository.setFollowing(selectedPerson.username, false)) {
+                is ApiResult.Success -> {
+                    privacyState = privacyState.copy(
+                        followRequested = false,
+                        canViewContent = !privacyState.isPrivate,
+                    )
+                    safetyMessage = "Follow request canceled."
+                }
+                is ApiResult.Failure -> messageError = result.message
+            }
+            requestCanceling = false
+        }
+    }
+
+    fun toggleFollow(selectedPerson: NovaPerson) {
+        if (requestCanceling || isLoading) return
+        when {
+            privacyState.followRequested && !selectedPerson.isFollowing -> cancelFollowRequest(selectedPerson)
+            else -> {
+                if (!selectedPerson.isFollowing && privacyState.isPrivate) {
+                    privacyState = privacyState.copy(followRequested = true, canViewContent = false)
+                    safetyMessage = "Follow request sent."
+                } else if (selectedPerson.isFollowing && privacyState.isPrivate) {
+                    privacyState = privacyState.copy(followRequested = false, canViewContent = false)
+                }
+                onFollowToggle(selectedPerson)
+            }
+        }
     }
 
     fun blockPerson(selectedPerson: NovaPerson) {
@@ -360,6 +417,18 @@ fun PersonScreen(
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
                     )
+                    if (privacyState.isPrivate) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Surface(shape = RoundedCornerShape(14.dp), color = NovaAccentSoft) {
+                            Text(
+                                text = "🔒 Private account",
+                                modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
+                                color = NovaAccent,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(26.dp))
@@ -378,13 +447,17 @@ fun PersonScreen(
                             value = person.followersCount.toString(),
                             label = "followers",
                             modifier = Modifier.weight(1f),
-                            onClick = { openSocialGraph(person, MODE_FOLLOWERS) },
+                            onClick = if (privacyState.canViewContent) {
+                                { openSocialGraph(person, MODE_FOLLOWERS) }
+                            } else null,
                         )
                         SocialStat(
                             value = person.followingCount.toString(),
                             label = "following",
                             modifier = Modifier.weight(1f),
-                            onClick = { openSocialGraph(person, MODE_FOLLOWING) },
+                            onClick = if (privacyState.canViewContent) {
+                                { openSocialGraph(person, MODE_FOLLOWING) }
+                            } else null,
                         )
                         SocialStat(
                             value = person.postsCount.toString(),
@@ -447,17 +520,26 @@ fun PersonScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                if (person.isFollowing) {
-                    NovaSecondaryButton(
-                        text = if (isLoading) "Updating…" else "Following",
-                        onClick = { if (!isLoading) onFollowToggle(person) },
-                    )
-                } else {
-                    NovaPrimaryButton(
-                        text = if (isLoading) "Updating…" else "Follow",
-                        onClick = { if (!isLoading) onFollowToggle(person) },
-                        enabled = !isLoading,
-                    )
+                when {
+                    person.isFollowing -> {
+                        NovaSecondaryButton(
+                            text = if (isLoading) "Updating…" else "Following",
+                            onClick = { toggleFollow(person) },
+                        )
+                    }
+                    privacyState.followRequested -> {
+                        NovaSecondaryButton(
+                            text = if (requestCanceling) "Canceling…" else "Requested",
+                            onClick = { toggleFollow(person) },
+                        )
+                    }
+                    else -> {
+                        NovaPrimaryButton(
+                            text = if (isLoading || privacyLoading) "Updating…" else "Follow",
+                            onClick = { toggleFollow(person) },
+                            enabled = !isLoading && !privacyLoading,
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -480,16 +562,51 @@ fun PersonScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                NovaPagedProfilePostsGrid(
-                    username = person.username,
-                    initialPosts = profilePosts,
-                    isLoading = postsLoading,
-                    errorMessage = postsError,
-                    onRetry = onRetryPosts,
-                    onPostClick = onPostClick,
-                    emptyTitle = "No posts yet",
-                    emptyMessage = "When @${person.username} shares something, it will appear here.",
-                )
+                if (privacyState.canViewContent) {
+                    NovaPagedProfilePostsGrid(
+                        username = person.username,
+                        initialPosts = profilePosts,
+                        isLoading = postsLoading,
+                        errorMessage = postsError,
+                        onRetry = onRetryPosts,
+                        onPostClick = onPostClick,
+                        emptyTitle = "No posts yet",
+                        emptyMessage = "When @${person.username} shares something, it will appear here.",
+                    )
+                } else {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(22.dp),
+                        color = NovaSurface,
+                        border = BorderStroke(1.dp, NovaBorder),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 22.dp, vertical = 30.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Text("🔒", fontSize = 28.sp)
+                            Spacer(Modifier.height(10.dp))
+                            Text(
+                                text = "This account is private",
+                                color = NovaInk,
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Spacer(Modifier.height(5.dp))
+                            Text(
+                                text = if (privacyState.followRequested) {
+                                    "Your follow request is waiting for approval."
+                                } else {
+                                    "Follow @${person.username} and wait for approval to see posts and connections."
+                                },
+                                color = NovaMuted,
+                                fontSize = 12.sp,
+                                lineHeight = 18.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            )
+                        }
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(18.dp))
             }
