@@ -10,6 +10,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .models import Comment, DevicePushToken, Follow, Like, Notification, Post
+from .privacy import accessible_content_owner_filter, is_private_account
+from .privacy_models import FollowRequest
 from .push import send_notification_push
 from .serializers import (
     CommentSerializer,
@@ -56,8 +58,11 @@ def post_queryset(request):
 
 
 def public_post_queryset(request):
-    return post_queryset(request).filter(author__is_active=True).exclude(
-        author_id__in=blocked_user_ids(request.user)
+    return (
+        post_queryset(request)
+        .filter(author__is_active=True)
+        .exclude(author_id__in=blocked_user_ids(request.user))
+        .filter(accessible_content_owner_filter(request.user))
     )
 
 
@@ -217,6 +222,15 @@ class FollowView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        existing = Follow.objects.filter(follower=request.user, following=person).exists()
+        if not existing and is_private_account(person):
+            FollowRequest.objects.get_or_create(requester=request.user, target=person)
+            return Response(
+                PersonSerializer(person, context={"request": request}).data,
+                status=status.HTTP_202_ACCEPTED,
+            )
+
+        FollowRequest.objects.filter(requester=request.user, target=person).delete()
         _, created = Follow.objects.get_or_create(
             follower=request.user,
             following=person,
@@ -236,6 +250,7 @@ class FollowView(APIView):
     def delete(self, request, username):
         person = self._person(request, username)
         Follow.objects.filter(follower=request.user, following=person).delete()
+        FollowRequest.objects.filter(requester=request.user, target=person).delete()
         return Response(
             PersonSerializer(person, context={"request": request}).data
         )
