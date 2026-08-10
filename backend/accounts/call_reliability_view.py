@@ -41,6 +41,12 @@ class ReliableCallSessionCreateView(APIView):
             Conversation.objects.select_related("participant_one", "participant_two"),
             pk=conversation_id,
         )
+        if conversation.kind != Conversation.Kind.DIRECT:
+            return Response(
+                {"detail": "Group calls aren't supported yet."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         caller = request.user
         if caller.pk not in (conversation.participant_one_id, conversation.participant_two_id):
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -49,7 +55,7 @@ class ReliableCallSessionCreateView(APIView):
             if conversation.participant_one_id == caller.pk
             else conversation.participant_one
         )
-        if not callee.is_active or users_blocked(caller, callee):
+        if callee is None or not callee.is_active or users_blocked(caller, callee):
             return Response(
                 {"detail": "You can't call this account."},
                 status=status.HTTP_403_FORBIDDEN,
