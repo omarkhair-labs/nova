@@ -59,6 +59,11 @@
             android:theme="@style/Theme.Nova" />
 
         <activity
+            android:name=".SocialGraphActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Nova" />
+
+        <activity
             android:name=".MessagesActivity"
             android:exported="false"
             android:theme="@style/Theme.Nova"
