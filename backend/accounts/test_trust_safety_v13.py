@@ -53,6 +53,13 @@ class TrustSafetyV13Tests(APITestCase):
             status.HTTP_404_NOT_FOUND,
         )
 
+        blocked_list = self.client.get(reverse("blocked-users"))
+        self.assertEqual(blocked_list.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            [item["username"] for item in blocked_list.data["results"]],
+            ["bob"],
+        )
+
         open_chat = self.client.post(reverse("conversations"), {"username": "bob"}, format="json")
         self.assertEqual(open_chat.status_code, status.HTTP_403_FORBIDDEN)
         send_message = self.client.post(
@@ -77,6 +84,29 @@ class TrustSafetyV13Tests(APITestCase):
             format="json",
         )
         self.assertEqual(reverse_send.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_blocked_accounts_list_does_not_reveal_people_who_blocked_you_and_can_unblock(self):
+        UserBlock.objects.create(blocker=self.bob, blocked=self.alice)
+        self.authenticate(self.alice)
+
+        inbound_only = self.client.get(reverse("blocked-users"))
+        self.assertEqual(inbound_only.status_code, status.HTTP_200_OK)
+        self.assertEqual(inbound_only.data["results"], [])
+
+        UserBlock.objects.filter(blocker=self.bob, blocked=self.alice).delete()
+        UserBlock.objects.create(blocker=self.alice, blocked=self.bob)
+        own_blocks = self.client.get(reverse("blocked-users"))
+        self.assertEqual(
+            [item["username"] for item in own_blocks.data["results"]],
+            ["bob"],
+        )
+
+        unblocked = self.client.delete(
+            reverse("person-block", kwargs={"username": "bob"}),
+        )
+        self.assertEqual(unblocked.status_code, status.HTTP_200_OK)
+        self.assertFalse(UserBlock.objects.filter(blocker=self.alice, blocked=self.bob).exists())
+        self.assertEqual(self.client.get(reverse("blocked-users")).data["results"], [])
 
     def test_report_is_recorded_and_an_open_report_is_updated_in_place(self):
         self.authenticate(self.alice)
