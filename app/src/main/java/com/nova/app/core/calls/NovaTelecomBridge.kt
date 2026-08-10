@@ -8,6 +8,7 @@ import androidx.core.telecom.CallControlResult
 import androidx.core.telecom.CallControlScope
 import androidx.core.telecom.CallEndpointCompat
 import androidx.core.telecom.CallsManager
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -110,19 +111,19 @@ class NovaTelecomBridge(
                 callsManager.addCall(
                     callAttributes = attributes,
                     onAnswer = {
-                        if (telecomReady) onSystemAnswer()
+                        if (telecomReady) safeCallback(onSystemAnswer)
                     },
                     onDisconnect = {
-                        // A few OEM Telecom stacks can emit disconnect while the
-                        // call is still being registered. Treat it as user/system
-                        // hangup only after addCall has actually handed us control.
-                        if (telecomReady) onSystemDisconnect()
+                        // Some OEM Telecom stacks can emit callbacks while a call
+                        // is still being registered or while their internal state
+                        // is changing. Never let an OEM callback crash Nova.
+                        if (telecomReady) safeCallback(onSystemDisconnect)
                     },
                     onSetActive = {
-                        if (telecomReady) onSystemSetActive()
+                        if (telecomReady) safeCallback(onSystemSetActive)
                     },
                     onSetInactive = {
-                        if (telecomReady) onSystemSetInactive()
+                        if (telecomReady) safeCallback(onSystemSetInactive)
                     },
                 ) {
                     callControlScope = this
@@ -142,8 +143,10 @@ class NovaTelecomBridge(
                             publishAudioRoute()
                         }
                     }
-                    onReady()
+                    runCatching(onReady)
                 }
+            } catch (error: CancellationException) {
+                throw error
             } catch (error: Throwable) {
                 onFailure(error)
             } finally {
@@ -154,21 +157,14 @@ class NovaTelecomBridge(
         }
     }
 
-    suspend fun answer() {
-        callControlScope?.answer(callType)
-    }
+    suspend fun answer(): Boolean = safeControlAction { answer(callType) }
 
-    suspend fun setActive() {
-        callControlScope?.setActive()
-    }
+    suspend fun setActive(): Boolean = safeControlAction { setActive() }
 
-    suspend fun setInactive() {
-        callControlScope?.setInactive()
-    }
+    suspend fun setInactive(): Boolean = safeControlAction { setInactive() }
 
-    suspend fun disconnect(reason: Int = DisconnectCause.LOCAL) {
-        callControlScope?.disconnect(DisconnectCause(reason))
-    }
+    suspend fun disconnect(reason: Int = DisconnectCause.LOCAL): Boolean =
+        safeControlAction { disconnect(DisconnectCause(reason)) }
 
     internal suspend fun toggleSpeaker(): Boolean {
         val control = callControlScope ?: return false
@@ -184,7 +180,13 @@ class NovaTelecomBridge(
             endpoints.firstOrNull { it.type == CallEndpointCompat.TYPE_SPEAKER }
         } ?: return false
 
-        return control.requestEndpointChange(target) is CallControlResult.Success
+        return try {
+            control.requestEndpointChange(target) is CallControlResult.Success
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Throwable) {
+            false
+        }
     }
 
     fun release() {
@@ -192,6 +194,31 @@ class NovaTelecomBridge(
         addCallJob = null
         callControlScope = null
         NovaCallAudioRouter.detach(this)
+    }
+
+    private suspend fun safeControlAction(
+        action: suspend CallControlScope.() -> Unit,
+    ): Boolean {
+        val control = callControlScope ?: return false
+        return try {
+            control.action()
+            true
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
+    private suspend fun safeCallback(callback: suspend () -> Unit) {
+        try {
+            callback()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Throwable) {
+            // Telecom is an integration layer, not the source of truth for Nova's
+            // call lifecycle. A device-specific callback failure must stay local.
+        }
     }
 
     private fun publishAudioRoute() {
