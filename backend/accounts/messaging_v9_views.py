@@ -7,6 +7,8 @@ from rest_framework.views import APIView
 from .messaging_models import ConversationPreference
 from .messaging_serializers import MessageSerializer
 from .messaging_views import conversation_for_request
+from .models import Conversation
+from .trust_safety import blocked_user_ids
 
 
 SEARCH_LIMIT = 50
@@ -14,13 +16,19 @@ MEDIA_PAGE_SIZE = 30
 CONTEXT_SIDE_SIZE = 20
 
 
-def _message_queryset(conversation):
-    return conversation.messages.select_related(
+def _message_queryset(conversation, request=None):
+    queryset = conversation.messages.select_related(
         "sender",
         "recipient",
         "reply_to",
         "reply_to__sender",
     ).prefetch_related("reactions")
+    if (
+        request is not None
+        and conversation.kind == Conversation.Kind.GROUP
+    ):
+        queryset = queryset.exclude(sender_id__in=blocked_user_ids(request.user))
+    return queryset
 
 
 class ConversationMessageSearchView(APIView):
@@ -38,7 +46,7 @@ class ConversationMessageSearchView(APIView):
             )
 
         messages = (
-            _message_queryset(conversation)
+            _message_queryset(conversation, request)
             .filter(deleted_at__isnull=True, body__icontains=query)
             .order_by("-id")[:SEARCH_LIMIT]
         )
@@ -68,7 +76,7 @@ class ConversationMessageContextView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        base = _message_queryset(conversation)
+        base = _message_queryset(conversation, request)
         target = base.filter(pk=message_id).first()
         if target is None:
             return Response(
@@ -106,7 +114,7 @@ class ConversationMediaView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        messages = _message_queryset(conversation).filter(deleted_at__isnull=True)
+        messages = _message_queryset(conversation, request).filter(deleted_at__isnull=True)
         if media_type == "image":
             messages = messages.exclude(image="")
         elif media_type == "audio":
