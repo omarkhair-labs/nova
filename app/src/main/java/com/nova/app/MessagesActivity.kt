@@ -1,16 +1,21 @@
 package com.nova.app
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.nova.app.core.calls.NovaCallKind
 import com.nova.app.core.calls.NovaCallPerson
@@ -21,6 +26,7 @@ import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.messages.ConversationScreenV11
 import com.nova.app.feature.messages.MessagesScreen
+import com.nova.app.ui.components.NovaActiveCallPill
 import com.nova.app.ui.theme.NovaTheme
 import kotlinx.coroutines.launch
 
@@ -44,10 +50,15 @@ class MessagesActivity : ComponentActivity() {
 
         setContent {
             NovaTheme {
-                MessagingActivityContent(
-                    initialConversation = initialConversation,
-                    onFinish = { finish() },
-                )
+                Box(modifier = Modifier.fillMaxSize()) {
+                    MessagingActivityContent(
+                        initialConversation = initialConversation,
+                        onFinish = { finish() },
+                    )
+                    NovaActiveCallPill(
+                        modifier = Modifier.align(Alignment.TopCenter),
+                    )
+                }
             }
         }
     }
@@ -99,12 +110,10 @@ private fun MessagingActivityContent(
                 name = conversation.displayName,
                 avatarUrl = conversation.avatarUrl,
             ),
-        ).apply {
-            // Outgoing calls must sit on top of the current conversation. The
-            // CallActivity helper also serves notification flows, but CLEAR_TOP
-            // here could remove MessagesActivity when an older call task exists.
-            flags = 0
-        }
+        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+        // Calls live in a dedicated task. Minimizing the call therefore reveals
+        // the existing Nova conversation instead of sending the whole app away.
         context.startActivity(callIntent)
     }
 
