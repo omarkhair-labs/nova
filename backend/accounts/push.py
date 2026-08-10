@@ -6,6 +6,7 @@ from functools import lru_cache
 
 from .messaging_models import ConversationPreference, GroupMembership
 from .models import CallSession, Conversation, DevicePushToken, Notification
+from .trust_safety import blocked_user_ids
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +144,7 @@ def send_message_push(message):
                 muted=True,
             ).values_list("user_id", flat=True)
         )
+        hidden_ids = blocked_user_ids(message.sender)
         recipient_ids = list(
             GroupMembership.objects.filter(
                 conversation=conversation,
@@ -150,6 +152,7 @@ def send_message_push(message):
             )
             .exclude(user_id=message.sender_id)
             .exclude(user_id__in=muted_ids)
+            .exclude(user_id__in=hidden_ids)
             .values_list("user_id", flat=True)
         )
         if not recipient_ids:
@@ -287,7 +290,7 @@ def send_call_push(call_id):
             ),
         )
         try:
-            messaging.send(push_message, app=app)
+            messaging.send(message=push_message, app=app)
             sent += 1
         except messaging.UnregisteredError:
             DevicePushToken.objects.filter(token=fid).update(active=False)
