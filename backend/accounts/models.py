@@ -438,3 +438,88 @@ class MessageReaction(models.Model):
 
     def __str__(self):
         return f"{self.emoji} by @{self.user.username} on message {self.message_id}"
+
+
+class UserBlock(models.Model):
+    blocker = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="blocks_created",
+    )
+    blocked = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="blocks_received",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at", "-id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("blocker", "blocked"),
+                name="unique_user_block",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(blocker=models.F("blocked")),
+                name="prevent_self_block",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=("blocker", "blocked"), name="block_pair_idx"),
+            models.Index(fields=("blocked", "blocker"), name="blocked_pair_idx"),
+        ]
+
+    def __str__(self):
+        return f"@{self.blocker.username} blocked @{self.blocked.username}"
+
+
+class UserReport(models.Model):
+    class Reason(models.TextChoices):
+        SPAM = "spam", "Spam"
+        HARASSMENT = "harassment", "Harassment"
+        IMPERSONATION = "impersonation", "Impersonation"
+        SEXUAL_CONTENT = "sexual_content", "Sexual content"
+        VIOLENCE = "violence", "Violence"
+        OTHER = "other", "Other"
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Open"
+        REVIEWED = "reviewed", "Reviewed"
+        DISMISSED = "dismissed", "Dismissed"
+
+    reporter = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="reports_created",
+    )
+    reported = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="reports_received",
+    )
+    reason = models.CharField(max_length=32, choices=Reason.choices)
+    details = models.CharField(max_length=500, blank=True)
+    status = models.CharField(
+        max_length=16,
+        choices=Status.choices,
+        default=Status.OPEN,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at", "-id")
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(reporter=models.F("reported")),
+                name="prevent_self_report",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=("reported", "status", "-created_at"), name="report_target_status_idx"),
+            models.Index(fields=("reporter", "reported", "status"), name="report_pair_status_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.reason}: @{self.reporter.username} -> @{self.reported.username}"
