@@ -13,6 +13,10 @@ class Story(models.Model):
         VIDEO = "video", "Video"
         POST = "post", "Shared post"
 
+    class Audience(models.TextChoices):
+        FOLLOWERS = "followers", "Followers"
+        CLOSE_FRIENDS = "close_friends", "Close friends"
+
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -27,6 +31,11 @@ class Story(models.Model):
         null=True,
         blank=True,
     )
+    audience = models.CharField(
+        max_length=16,
+        choices=Audience.choices,
+        default=Audience.FOLLOWERS,
+    )
     caption = models.CharField(max_length=240, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
@@ -37,6 +46,7 @@ class Story(models.Model):
         indexes = [
             models.Index(fields=("author", "-created_at"), name="story_author_created_idx"),
             models.Index(fields=("expires_at", "-created_at"), name="story_expiry_created_idx"),
+            models.Index(fields=("author", "audience", "-created_at"), name="story_author_audience_idx"),
         ]
         constraints = [
             models.CheckConstraint(
