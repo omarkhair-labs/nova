@@ -38,6 +38,22 @@ data class NovaMessageReaction(
 )
 
 
+data class NovaSharedPost(
+    val id: Long,
+    val author: NovaPostAuthor,
+    val imageUrl: String,
+    val caption: String,
+)
+
+
+data class NovaMessageShare(
+    val kind: String,
+    val available: Boolean,
+    val post: NovaSharedPost? = null,
+    val profile: NovaPostAuthor? = null,
+)
+
+
 data class NovaMessage(
     val id: Long,
     val clientId: String,
@@ -54,6 +70,7 @@ data class NovaMessage(
     val audioDurationMs: Long? = null,
     val editedAt: String? = null,
     val deletedAt: String? = null,
+    val share: NovaMessageShare? = null,
 ) {
     val isDeleted: Boolean
         get() = deletedAt != null
@@ -618,6 +635,46 @@ class NovaMessagingApiClient(
             audioDurationMs = nullableLong(json.opt("audio_duration_ms")),
             editedAt = nullableString(json.opt("edited_at")),
             deletedAt = nullableString(json.opt("deleted_at")),
+            share = parseShare(json.optJSONObject("share")),
+        )
+    }
+
+    private fun parseShare(json: JSONObject?): NovaMessageShare? {
+        if (json == null) return null
+        val kind = json.optString("kind")
+        if (kind.isBlank()) return null
+        val available = json.optBoolean("available", false)
+        if (!available) {
+            return NovaMessageShare(kind = kind, available = false)
+        }
+
+        val post = json.optJSONObject("post")?.let { item ->
+            val author = item.optJSONObject("author") ?: JSONObject()
+            NovaSharedPost(
+                id = item.optLong("id"),
+                author = NovaPostAuthor(
+                    id = author.optLong("id"),
+                    username = author.optString("username"),
+                    name = author.optString("name"),
+                    avatarUrl = resolveMediaUrl(author.optString("avatar_url")),
+                ),
+                imageUrl = resolveMediaUrl(item.optString("image_url")),
+                caption = item.optString("caption"),
+            )
+        }
+        val profile = json.optJSONObject("profile")?.let { item ->
+            NovaPostAuthor(
+                id = item.optLong("id"),
+                username = item.optString("username"),
+                name = item.optString("name"),
+                avatarUrl = resolveMediaUrl(item.optString("avatar_url")),
+            )
+        }
+        return NovaMessageShare(
+            kind = kind,
+            available = true,
+            post = post,
+            profile = profile,
         )
     }
 
