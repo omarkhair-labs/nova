@@ -21,6 +21,7 @@ from .messaging_realtime import (
 from .messaging_serializers import ConversationSerializer, MessageSerializer
 from .models import Conversation, Message, MessageReaction
 from .push import send_message_push
+from .trust_safety import users_blocked
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -45,6 +46,13 @@ def other_participant(conversation, user):
     if conversation.participant_one_id == user.id:
         return conversation.participant_two
     return conversation.participant_one
+
+
+def interaction_blocked_response():
+    return Response(
+        {"detail": "You can't interact with this account."},
+        status=status.HTTP_403_FORBIDDEN,
+    )
 
 
 def message_for_request(request, message_id):
@@ -157,6 +165,8 @@ class ConversationsView(APIView):
                 {"detail": "You can't message yourself."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if users_blocked(request.user, target):
+            return interaction_blocked_response()
 
         first_id, second_id = sorted((request.user.pk, target.pk))
         try:
@@ -255,6 +265,10 @@ class ConversationMessagesView(APIView):
 
     def post(self, request, conversation_id):
         conversation = conversation_for_request(request, conversation_id)
+        recipient = other_participant(conversation, request.user)
+        if users_blocked(request.user, recipient) or not recipient.is_active:
+            return interaction_blocked_response()
+
         body = str(request.data.get("body") or "").strip()
         client_id = str(request.data.get("client_id") or "").strip()
         image = request.FILES.get("image")
@@ -352,8 +366,6 @@ class ConversationMessagesView(APIView):
                 status=status.HTTP_200_OK,
             )
 
-        recipient = other_participant(conversation, request.user)
-
         try:
             with transaction.atomic():
                 message = Message.objects.create(
@@ -400,6 +412,8 @@ class MessageDetailView(APIView):
                 {"detail": "Only the sender can edit this message."},
                 status=status.HTTP_403_FORBIDDEN,
             )
+        if users_blocked(request.user, message.recipient) or not message.recipient.is_active:
+            return interaction_blocked_response()
         if message.deleted_at is not None:
             return Response(
                 {"detail": "A deleted message can't be edited."},
@@ -489,6 +503,9 @@ class MessageReactionView(APIView):
 
     def post(self, request, message_id):
         message = message_for_request(request, message_id)
+        other = other_participant(message.conversation, request.user)
+        if users_blocked(request.user, other) or not other.is_active:
+            return interaction_blocked_response()
         if message.deleted_at is not None:
             return Response(
                 {"detail": "A deleted message can't be reacted to."},

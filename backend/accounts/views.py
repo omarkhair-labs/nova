@@ -20,6 +20,7 @@ from .serializers import (
     RegisterSerializer,
     UserSerializer,
 )
+from .trust_safety import active_person_for, blocked_user_ids, users_blocked, visible_active_users_for
 
 User = get_user_model()
 FEED_PAGE_SIZE = 20
@@ -27,9 +28,18 @@ NOTIFICATION_PAGE_SIZE = 30
 
 
 def post_queryset(request):
+    blocked_ids = blocked_user_ids(request.user)
     return Post.objects.select_related("author").annotate(
-        likes_count_value=Count("likes", distinct=True),
-        comments_count_value=Count("comments", distinct=True),
+        likes_count_value=Count(
+            "likes",
+            filter=~Q(likes__user_id__in=blocked_ids),
+            distinct=True,
+        ),
+        comments_count_value=Count(
+            "comments",
+            filter=~Q(comments__author_id__in=blocked_ids),
+            distinct=True,
+        ),
         is_liked_value=Exists(
             Like.objects.filter(post_id=OuterRef("pk"), user=request.user)
         ),
@@ -37,7 +47,9 @@ def post_queryset(request):
 
 
 def public_post_queryset(request):
-    return post_queryset(request).filter(author__is_active=True)
+    return post_queryset(request).filter(author__is_active=True).exclude(
+        author_id__in=blocked_user_ids(request.user)
+    )
 
 
 def visible_post_queryset(request):
@@ -80,7 +92,7 @@ def paginated_feed_response(request, queryset):
 
 
 def create_notification(*, recipient, actor, kind, dedupe_key, post=None, comment=None):
-    if recipient.pk == actor.pk:
+    if recipient.pk == actor.pk or users_blocked(recipient, actor):
         return None
 
     notification, created = Notification.objects.get_or_create(
@@ -136,7 +148,7 @@ class PeopleView(APIView):
 
     def get(self, request):
         query = request.query_params.get("q", "").strip()
-        people = User.objects.filter(is_active=True).exclude(pk=request.user.pk)
+        people = visible_active_users_for(request.user)
 
         if query:
             people = people.filter(
@@ -156,10 +168,7 @@ class PersonView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, username):
-        person = get_object_or_404(
-            User.objects.filter(is_active=True),
-            username=username.lower(),
-        )
+        person = active_person_for(request.user, username)
         return Response(
             PersonSerializer(person, context={"request": request}).data
         )
@@ -169,10 +178,7 @@ class PersonPostsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, username):
-        person = get_object_or_404(
-            User.objects.filter(is_active=True),
-            username=username.lower(),
-        )
+        person = active_person_for(request.user, username)
         posts = public_post_queryset(request).filter(author=person).order_by(
             "-created_at",
             "-id",
@@ -191,14 +197,11 @@ class PersonPostsView(APIView):
 class FollowView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def _person(self, username):
-        return get_object_or_404(
-            User.objects.filter(is_active=True),
-            username=username.lower(),
-        )
+    def _person(self, request, username):
+        return active_person_for(request.user, username)
 
     def post(self, request, username):
-        person = self._person(username)
+        person = self._person(request, username)
         if person.pk == request.user.pk:
             return Response(
                 {"detail": "You can't follow yourself."},
@@ -222,7 +225,7 @@ class FollowView(APIView):
         )
 
     def delete(self, request, username):
-        person = self._person(username)
+        person = self._person(request, username)
         Follow.objects.filter(follower=request.user, following=person).delete()
         return Response(
             PersonSerializer(person, context={"request": request}).data
@@ -302,7 +305,11 @@ class PostCommentsView(APIView):
 
     def get(self, request, post_id):
         post = self._post(request, post_id)
-        comments = post.comments.select_related("author").order_by("created_at", "id")[:100]
+        comments = (
+            post.comments.select_related("author")
+            .exclude(author_id__in=blocked_user_ids(request.user))
+            .order_by("created_at", "id")[:100]
+        )
         return Response(
             {
                 "results": CommentSerializer(
@@ -362,8 +369,7 @@ class CommentDetailView(APIView):
             {
                 "post": PostSerializer(
                     refreshed,
-                    context={"request": request,
-                    },
+                    context={"request": request},
                 ).data
             }
         )
@@ -375,7 +381,9 @@ class NotificationsView(APIView):
     def get(self, request):
         notifications = Notification.objects.filter(
             recipient=request.user,
-        ).select_related("actor", "post", "comment")
+        ).exclude(actor_id__in=blocked_user_ids(request.user)).select_related(
+            "actor", "post", "comment"
+        )
 
         cursor = request.query_params.get("cursor", "").strip()
         if cursor:
@@ -394,10 +402,7 @@ class NotificationsView(APIView):
         has_more = len(page_with_extra) > NOTIFICATION_PAGE_SIZE
         page = page_with_extra[:NOTIFICATION_PAGE_SIZE]
         next_cursor = str(page[-1].id) if has_more and page else None
-        unread_count = Notification.objects.filter(
-            recipient=request.user,
-            read_at__isnull=True,
-        ).count()
+        unread_count = notifications.filter(read_at__isnull=True).count()
 
         return Response(
             {

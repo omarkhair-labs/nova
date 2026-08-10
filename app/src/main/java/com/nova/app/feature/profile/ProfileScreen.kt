@@ -199,6 +199,21 @@ fun ProfileScreen(
                 )
             }
 
+            Spacer(modifier = Modifier.height(10.dp))
+
+            NovaSecondaryButton(
+                text = "Blocked accounts",
+                onClick = {
+                    context.startActivity(
+                        Intent(context, AccountSecurityActivity::class.java)
+                            .putExtra(
+                                AccountSecurityActivity.EXTRA_MODE,
+                                AccountSecurityActivity.MODE_BLOCKED,
+                            )
+                    )
+                },
+            )
+
             Spacer(modifier = Modifier.height(24.dp))
 
             NovaProfilePostsGrid(

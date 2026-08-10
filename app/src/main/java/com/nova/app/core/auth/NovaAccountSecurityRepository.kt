@@ -83,6 +83,55 @@ class NovaAccountSecurityRepository(
         )
     }
 
+    suspend fun deleteAccount(currentPassword: String): ApiResult<String> {
+        val stored = sessionStore.load()
+            ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
+        val body = JSONObject().put("current_password", currentPassword)
+
+        var accessToken = stored.accessToken
+        var response = requestJson(
+            path = "auth/account/delete/",
+            method = "POST",
+            body = body,
+            bearerToken = accessToken,
+        )
+
+        if (response is ApiResult.Failure && response.statusCode == 401) {
+            when (val refreshed = authApi.refresh(stored.refreshToken)) {
+                is ApiResult.Success -> {
+                    accessToken = refreshed.value
+                    sessionStore.updateAccessToken(accessToken)
+                    response = requestJson(
+                        path = "auth/account/delete/",
+                        method = "POST",
+                        body = body,
+                        bearerToken = accessToken,
+                    )
+                }
+                is ApiResult.Failure -> {
+                    if (refreshed.statusCode == 400 || refreshed.statusCode == 401) {
+                        sessionStore.clear()
+                        return ApiResult.Failure("Your session expired. Please log in again.", 401)
+                    }
+                    return refreshed
+                }
+            }
+        }
+
+        return when (response) {
+            is ApiResult.Success -> {
+                sessionStore.clear()
+                ApiResult.Success(
+                    response.value.optString("detail").ifBlank { "Your Nova account was deleted." }
+                )
+            }
+            is ApiResult.Failure -> {
+                if (response.statusCode == 401) sessionStore.clear()
+                response
+            }
+        }
+    }
+
     private suspend fun authenticatedSessionCall(
         path: String,
         body: JSONObject,
@@ -124,8 +173,6 @@ class NovaAccountSecurityRepository(
             is ApiResult.Success -> {
                 val session = parseSession(response.value)
                 sessionStore.save(session)
-                // The server deactivates previous push tokens whenever it
-                // revokes sessions. Re-register this current device only.
                 NovaPushRegistration.activate(appContext)
                 ApiResult.Success(session.user)
             }
@@ -196,6 +243,7 @@ class NovaAccountSecurityRepository(
                         message = when (statusCode) {
                             400 -> json.optString("detail").ifBlank { "Check those details and try again." }
                             401 -> "Your session expired. Please log in again."
+                            403 -> json.optString("detail").ifBlank { "That action isn't available." }
                             429 -> "Too many attempts. Try again shortly."
                             503 -> json.optString("detail").ifBlank { "Password recovery is temporarily unavailable." }
                             in 500..599 -> "Nova's server had a problem. Try again in a moment."
