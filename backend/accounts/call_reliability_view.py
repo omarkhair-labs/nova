@@ -115,7 +115,8 @@ class ReliableCallSessionCreateView(APIView):
         # tells the callee which call to open. If Firebase accepts zero devices,
         # do not pretend the phone is ringing and do not leave another busy row.
         push_count = send_call_push(call.pk)
-        if push_count <= 0:
+        push_unavailable = isinstance(push_count, int) and push_count <= 0
+        if push_unavailable:
             with transaction.atomic():
                 failed = (
                     CallSession.objects.select_for_update()
