@@ -29,6 +29,7 @@ fun NovaPagedProfilePostsGrid(
     onPostClick: (NovaPost) -> Unit,
     emptyTitle: String = "No posts yet",
     emptyMessage: String = "Shared moments will show up here.",
+    sectionTitle: String = "Posts",
 ) {
     val context = LocalContext.current
     val repository = remember(context) {
@@ -87,6 +88,7 @@ fun NovaPagedProfilePostsGrid(
             onPostClick = onPostClick,
             emptyTitle = emptyTitle,
             emptyMessage = emptyMessage,
+            sectionTitle = sectionTitle,
         )
 
         if (posts.isNotEmpty() && nextCursor != null) {
