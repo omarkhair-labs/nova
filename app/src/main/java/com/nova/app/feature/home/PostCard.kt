@@ -13,17 +13,24 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaPost
+import com.nova.app.core.sharing.NovaRepostState
+import com.nova.app.core.sharing.NovaSharingRepository
+import com.nova.app.feature.sharing.NovaShareDialog
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaConfirmDeleteDialog
 import com.nova.app.ui.components.NovaMediaImage
@@ -35,6 +42,7 @@ import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.launch
 
 
 @Composable
@@ -47,7 +55,60 @@ fun NovaPostCard(
     onCommentsClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val sharingRepository = remember(context) {
+        NovaSharingRepository(context.applicationContext)
+    }
+    val scope = rememberCoroutineScope()
+
     var showDeleteConfirm by remember(post.id) { mutableStateOf(false) }
+    var showShare by remember(post.id) { mutableStateOf(false) }
+    var repostState by remember(post.id) { mutableStateOf<NovaRepostState?>(null) }
+    var repostBusy by remember(post.id) { mutableStateOf(false) }
+    var repostError by remember(post.id) { mutableStateOf<String?>(null) }
+    var hiddenFromFeed by remember(post.id) { mutableStateOf(false) }
+
+    LaunchedEffect(post.id) {
+        when (val result = sharingRepository.repostState(post.id)) {
+            is ApiResult.Success -> repostState = result.value
+            is ApiResult.Failure -> Unit
+        }
+    }
+
+    fun toggleRepost() {
+        if (repostBusy) return
+        scope.launch {
+            repostBusy = true
+            repostError = null
+            val current = when (val known = repostState) {
+                null -> when (val loaded = sharingRepository.repostState(post.id)) {
+                    is ApiResult.Success -> loaded.value.also { repostState = it }
+                    is ApiResult.Failure -> {
+                        repostBusy = false
+                        repostError = loaded.message
+                        return@launch
+                    }
+                }
+                else -> known
+            }
+
+            when (
+                val result = sharingRepository.setReposted(
+                    postId = post.id,
+                    reposted = !current.isReposted,
+                )
+            ) {
+                is ApiResult.Success -> {
+                    repostState = result.value
+                    hiddenFromFeed = !result.value.stillInFeed
+                }
+                is ApiResult.Failure -> repostError = result.message
+            }
+            repostBusy = false
+        }
+    }
+
+    if (hiddenFromFeed) return
 
     if (showDeleteConfirm) {
         NovaConfirmDeleteDialog(
@@ -62,6 +123,14 @@ fun NovaPostCard(
         )
     }
 
+    if (showShare) {
+        NovaShareDialog(
+            title = "Share this post",
+            postId = post.id,
+            onDismiss = { showShare = false },
+        )
+    }
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(26.dp),
@@ -69,6 +138,29 @@ fun NovaPostCard(
         border = BorderStroke(1.dp, NovaBorder),
     ) {
         Column {
+            repostState?.feedRepostedBy?.let { reposter ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, top = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(7.dp),
+                ) {
+                    Text(
+                        text = "↻",
+                        color = NovaAccent,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = "@${reposter.username} reposted",
+                        color = NovaMuted,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -139,30 +231,25 @@ fun NovaPostCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                    .padding(start = 14.dp, end = 14.dp, top = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Surface(
                     onClick = { if (!isLiking) onLikeToggle() },
+                    modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(16.dp),
                     color = if (post.isLiked) NovaAccentSoft else NovaSurface,
                     border = BorderStroke(1.dp, if (post.isLiked) NovaAccent.copy(alpha = 0.22f) else NovaBorder),
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 13.dp, vertical = 9.dp),
-                        horizontalArrangement = Arrangement.spacedBy(7.dp),
+                        horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = if (isLiking) "…" else if (post.isLiked) "♥" else "♡",
+                            text = if (isLiking) "…" else if (post.isLiked) "♥ ${post.likesCount}" else "♡ ${post.likesCount}",
                             color = if (post.isLiked) NovaAccent else NovaInk,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Text(
-                            text = post.likesCount.toString(),
-                            color = if (post.isLiked) NovaAccent else NovaMuted,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                         )
@@ -171,18 +258,77 @@ fun NovaPostCard(
 
                 Surface(
                     onClick = onCommentsClick,
+                    modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(16.dp),
                     color = NovaSurface,
                     border = BorderStroke(1.dp, NovaBorder),
                 ) {
                     Text(
                         text = "Comment · ${post.commentsCount}",
-                        modifier = Modifier.padding(horizontal = 13.dp, vertical = 10.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
                         color = NovaMuted,
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val state = repostState
+                Surface(
+                    onClick = ::toggleRepost,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (state?.isReposted == true) NovaAccentSoft else NovaSurface,
+                    border = BorderStroke(
+                        1.dp,
+                        if (state?.isReposted == true) NovaAccent.copy(alpha = 0.28f) else NovaBorder,
+                    ),
+                ) {
+                    Text(
+                        text = when {
+                            repostBusy -> "↻ Updating…"
+                            state == null -> "↻ Repost"
+                            state.isReposted -> "↻ Reposted · ${state.repostsCount}"
+                            else -> "↻ Repost · ${state.repostsCount}"
+                        },
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+                        color = if (state?.isReposted == true) NovaAccent else NovaMuted,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+
+                Surface(
+                    onClick = { showShare = true },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(16.dp),
+                    color = NovaSurface,
+                    border = BorderStroke(1.dp, NovaBorder),
+                ) {
+                    Text(
+                        text = "↗ Share",
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+                        color = NovaMuted,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+
+            if (!repostError.isNullOrBlank()) {
+                Text(
+                    text = repostError.orEmpty(),
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 10.dp),
+                    color = NovaMuted,
+                    fontSize = 10.sp,
+                )
             }
 
             if (post.caption.isNotBlank()) {
