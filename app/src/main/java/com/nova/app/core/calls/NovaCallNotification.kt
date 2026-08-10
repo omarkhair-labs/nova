@@ -9,6 +9,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -64,35 +65,50 @@ object NovaCallNotification {
         val displayName = callerName.ifBlank { callerUsername.ifBlank { "Nova caller" } }
         val person = Person.Builder().setName(displayName).setImportant(true).build()
 
-        val openIntent = CallActivity.incomingIntent(
-            context = context,
+        // Each incoming action gets a fresh explicit CallActivity instance. The old
+        // CLEAR_TOP/SINGLE_TOP combination could route a new Answer into a stale
+        // CallActivity/controller left by an earlier failed call on some OEM task stacks.
+        val openIntent = freshIncomingIntent(
+            CallActivity.incomingIntent(
+                context = context,
+                callId = callId,
+                conversationId = conversationId,
+                callKind = callKind,
+                callerUsername = callerUsername,
+                callerName = displayName,
+                callerAvatarUrl = callerAvatarUrl,
+                action = CallActivity.ACTION_OPEN_CALL,
+            ),
             callId = callId,
-            conversationId = conversationId,
-            callKind = callKind,
-            callerUsername = callerUsername,
-            callerName = displayName,
-            callerAvatarUrl = callerAvatarUrl,
-            action = CallActivity.ACTION_OPEN_CALL,
+            actionTag = "open",
         )
-        val answerIntent = CallActivity.incomingIntent(
-            context = context,
+        val answerIntent = freshIncomingIntent(
+            CallActivity.incomingIntent(
+                context = context,
+                callId = callId,
+                conversationId = conversationId,
+                callKind = callKind,
+                callerUsername = callerUsername,
+                callerName = displayName,
+                callerAvatarUrl = callerAvatarUrl,
+                action = CallActivity.ACTION_ANSWER_CALL,
+            ),
             callId = callId,
-            conversationId = conversationId,
-            callKind = callKind,
-            callerUsername = callerUsername,
-            callerName = displayName,
-            callerAvatarUrl = callerAvatarUrl,
-            action = CallActivity.ACTION_ANSWER_CALL,
+            actionTag = "answer",
         )
-        val declineIntent = CallActivity.incomingIntent(
-            context = context,
+        val declineIntent = freshIncomingIntent(
+            CallActivity.incomingIntent(
+                context = context,
+                callId = callId,
+                conversationId = conversationId,
+                callKind = callKind,
+                callerUsername = callerUsername,
+                callerName = displayName,
+                callerAvatarUrl = callerAvatarUrl,
+                action = CallActivity.ACTION_DECLINE_CALL,
+            ),
             callId = callId,
-            conversationId = conversationId,
-            callKind = callKind,
-            callerUsername = callerUsername,
-            callerName = displayName,
-            callerAvatarUrl = callerAvatarUrl,
-            action = CallActivity.ACTION_DECLINE_CALL,
+            actionTag = "decline",
         )
 
         val openPending = pendingActivity(context, openIntent, requestCode(callId, 1))
@@ -156,6 +172,13 @@ object NovaCallNotification {
 
     fun cancel(context: Context, callId: String) {
         NotificationManagerCompat.from(context).cancel(notificationId(callId))
+    }
+
+    private fun freshIncomingIntent(intent: Intent, callId: String, actionTag: String): Intent {
+        return intent.apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            data = Uri.parse("nova://call/$callId/$actionTag")
+        }
     }
 
     private fun pendingActivity(context: Context, intent: Intent, requestCode: Int): PendingIntent {
