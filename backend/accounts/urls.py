@@ -16,6 +16,7 @@ from .calls import (
     CallSessionDetailView,
 )
 from .messaging_mutation_view import MessageMutationView
+from .messaging_paging import PaginatedConversationsView
 from .messaging_v9_views import (
     ConversationMediaView,
     ConversationMessageContextView,
@@ -25,8 +26,13 @@ from .messaging_v9_views import (
 from .messaging_views import (
     ConversationMessagesView,
     ConversationReadView,
-    ConversationsView,
     MessageReactionView,
+)
+from .social_paging import (
+    FollowersView,
+    FollowingView,
+    PaginatedPeopleView,
+    PaginatedPersonPostsView,
 )
 from .trust_safety import BlockedUsersView, DeleteAccountView, UserBlockView, UserReportView
 from .views import (
@@ -37,8 +43,6 @@ from .views import (
     MeView,
     NotificationsReadView,
     NotificationsView,
-    PeopleView,
-    PersonPostsView,
     PersonView,
     PostCommentsView,
     PostDetailView,
@@ -73,9 +77,23 @@ urlpatterns = [
     path("auth/account/delete/", DeleteAccountView.as_view(), name="account-delete"),
     path("auth/blocks/", BlockedUsersView.as_view(), name="blocked-users"),
     path("me/", MeView.as_view(), name="me"),
-    path("people/", PeopleView.as_view(), name="people"),
+    path("people/", PaginatedPeopleView.as_view(), name="people"),
     path("people/<str:username>/", PersonView.as_view(), name="person-detail"),
-    path("people/<str:username>/posts/", PersonPostsView.as_view(), name="person-posts"),
+    path(
+        "people/<str:username>/posts/",
+        PaginatedPersonPostsView.as_view(),
+        name="person-posts",
+    ),
+    path(
+        "people/<str:username>/followers/",
+        FollowersView.as_view(),
+        name="person-followers",
+    ),
+    path(
+        "people/<str:username>/following/",
+        FollowingView.as_view(),
+        name="person-following-list",
+    ),
     path("people/<str:username>/follow/", FollowView.as_view(), name="person-follow"),
     path("people/<str:username>/block/", UserBlockView.as_view(), name="person-block"),
     path("people/<str:username>/report/", UserReportView.as_view(), name="person-report"),
@@ -92,7 +110,7 @@ urlpatterns = [
     path("calls/ice/", CallIceConfigView.as_view(), name="call-ice-config"),
     path("calls/<uuid:call_id>/", CallSessionDetailView.as_view(), name="call-detail"),
     path("calls/<uuid:call_id>/action/", CallSessionActionView.as_view(), name="call-action"),
-    path("conversations/", ConversationsView.as_view(), name="conversations"),
+    path("conversations/", PaginatedConversationsView.as_view(), name="conversations"),
     path(
         "conversations/<int:conversation_id>/messages/",
         ConversationMessagesView.as_view(),

@@ -41,8 +41,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.core.messaging.NovaConversation
+import com.nova.app.core.messaging.NovaInboxPagingRepository
 import com.nova.app.core.messaging.NovaMessagesSignal
-import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.ApiResult
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
@@ -70,38 +70,58 @@ fun MessagesScreen(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val repository = remember(context) {
-        NovaMessagingRepository(context.applicationContext)
+        NovaInboxPagingRepository(context.applicationContext)
     }
     val scope = rememberCoroutineScope()
 
     var query by remember { mutableStateOf("") }
     var conversations by remember { mutableStateOf<List<NovaConversation>>(emptyList()) }
     var unreadCount by remember { mutableStateOf(0) }
+    var nextCursor by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(true) }
+    var isLoadingMore by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var requestVersion by remember { mutableStateOf(0) }
     val inboxRefreshVersion = NovaMessagesSignal.inboxRefreshVersion
     val initialInboxRefreshVersion = remember { inboxRefreshVersion }
 
-    fun loadInbox(search: String = query, showSpinner: Boolean = true) {
+    fun loadInbox(
+        search: String = query,
+        reset: Boolean = true,
+        showSpinner: Boolean = true,
+    ) {
+        if (!reset && (isLoadingMore || nextCursor == null)) return
         requestVersion += 1
         val version = requestVersion
+        val cursor = if (reset) null else nextCursor
         scope.launch {
-            if (showSpinner) isLoading = true
+            if (reset) {
+                if (showSpinner) isLoading = true
+            } else {
+                isLoadingMore = true
+            }
             errorMessage = null
-            when (val result = repository.conversations(search)) {
+            when (val result = repository.conversations(search, cursor)) {
                 is ApiResult.Success -> {
                     if (version == requestVersion) {
-                        conversations = result.value.conversations
+                        conversations = if (reset) {
+                            result.value.conversations
+                        } else {
+                            val existingIds = conversations.mapTo(mutableSetOf()) { it.id }
+                            conversations + result.value.conversations.filterNot { it.id in existingIds }
+                        }
                         unreadCount = result.value.unreadCount
+                        nextCursor = result.value.nextCursor
                         onUnreadCountChanged(result.value.unreadCount)
                         isLoading = false
+                        isLoadingMore = false
                     }
                 }
 
                 is ApiResult.Failure -> {
                     if (version == requestVersion) {
                         isLoading = false
+                        isLoadingMore = false
                         if (result.statusCode == 401) {
                             onSessionExpired()
                         } else {
@@ -115,12 +135,12 @@ fun MessagesScreen(
 
     LaunchedEffect(query) {
         delay(260)
-        loadInbox(query, showSpinner = conversations.isEmpty())
+        loadInbox(query, reset = true, showSpinner = conversations.isEmpty())
     }
 
     LaunchedEffect(inboxRefreshVersion) {
         if (inboxRefreshVersion != initialInboxRefreshVersion) {
-            loadInbox(query, showSpinner = false)
+            loadInbox(query, reset = true, showSpinner = false)
         }
     }
 
@@ -254,7 +274,7 @@ fun MessagesScreen(
                                 Spacer(modifier = Modifier.height(14.dp))
                                 NovaSecondaryButton(
                                     text = "Try again",
-                                    onClick = { loadInbox() },
+                                    onClick = { loadInbox(reset = true) },
                                 )
                             }
                         }
@@ -318,7 +338,7 @@ fun MessagesScreen(
                         )
                         Spacer(Modifier.weight(1f))
                         Text(
-                            text = "${conversations.size} ${if (conversations.size == 1) "chat" else "chats"}",
+                            text = "${conversations.size} loaded",
                             color = NovaMuted,
                             fontSize = 11.sp,
                         )
@@ -333,6 +353,28 @@ fun MessagesScreen(
                                 conversation = conversation,
                                 onClick = { onConversationClick(conversation) },
                             )
+                        }
+                        if (errorMessage != null) {
+                            item {
+                                Text(
+                                    text = errorMessage.orEmpty(),
+                                    color = NovaMuted,
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                                )
+                            }
+                        }
+                        if (nextCursor != null) {
+                            item {
+                                NovaSecondaryButton(
+                                    text = if (isLoadingMore) "Loading more…" else "Load more conversations",
+                                    onClick = {
+                                        if (!isLoadingMore) {
+                                            loadInbox(query, reset = false, showSpinner = false)
+                                        }
+                                    },
+                                )
+                            }
                         }
                         item { Spacer(modifier = Modifier.height(12.dp)) }
                     }

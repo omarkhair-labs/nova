@@ -1,7 +1,9 @@
 package com.nova.app.feature.people
 
+import android.content.Intent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,6 +37,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nova.app.SocialGraphActivity
 import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.ApiResult
@@ -43,8 +46,8 @@ import com.nova.app.core.network.NovaPost
 import com.nova.app.core.social.NovaSocialRepository
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaHeader
+import com.nova.app.ui.components.NovaPagedProfilePostsGrid
 import com.nova.app.ui.components.NovaPrimaryButton
-import com.nova.app.ui.components.NovaProfilePostsGrid
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
@@ -116,6 +119,14 @@ fun PersonScreen(
                 }
             }
         }
+    }
+
+    fun openSocialGraph(selectedPerson: NovaPerson, mode: String) {
+        context.startActivity(
+            Intent(context, SocialGraphActivity::class.java)
+                .putExtra(SocialGraphActivity.EXTRA_USERNAME, selectedPerson.username)
+                .putExtra(SocialGraphActivity.EXTRA_MODE, mode)
+        )
     }
 
     fun blockPerson(selectedPerson: NovaPerson) {
@@ -353,9 +364,23 @@ fun PersonScreen(
                         modifier = Modifier.padding(vertical = 20.dp),
                         horizontalArrangement = Arrangement.SpaceEvenly,
                     ) {
-                        SocialStat(person.followersCount.toString(), "followers")
-                        SocialStat(person.followingCount.toString(), "following")
-                        SocialStat(person.postsCount.toString(), "posts")
+                        SocialStat(
+                            value = person.followersCount.toString(),
+                            label = "followers",
+                            modifier = Modifier.weight(1f),
+                            onClick = { openSocialGraph(person, MODE_FOLLOWERS) },
+                        )
+                        SocialStat(
+                            value = person.followingCount.toString(),
+                            label = "following",
+                            modifier = Modifier.weight(1f),
+                            onClick = { openSocialGraph(person, MODE_FOLLOWING) },
+                        )
+                        SocialStat(
+                            value = person.postsCount.toString(),
+                            label = "posts",
+                            modifier = Modifier.weight(1f),
+                        )
                     }
                 }
 
@@ -434,8 +459,9 @@ fun PersonScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                NovaProfilePostsGrid(
-                    posts = profilePosts,
+                NovaPagedProfilePostsGrid(
+                    username = person.username,
+                    initialPosts = profilePosts,
                     isLoading = postsLoading,
                     errorMessage = postsError,
                     onRetry = onRetryPosts,
@@ -454,8 +480,15 @@ fun PersonScreen(
 private fun SocialStat(
     value: String,
     label: String,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        modifier = modifier
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         Text(
             text = value,
             color = NovaInk,

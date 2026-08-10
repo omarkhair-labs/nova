@@ -3,6 +3,7 @@ package com.nova.app.feature.profile
 import android.content.Intent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,10 +27,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.AccountSecurityActivity
+import com.nova.app.SocialGraphActivity
 import com.nova.app.core.network.NovaPost
+import com.nova.app.feature.people.MODE_FOLLOWERS
+import com.nova.app.feature.people.MODE_FOLLOWING
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
-import com.nova.app.ui.components.NovaProfilePostsGrid
+import com.nova.app.ui.components.NovaPagedProfilePostsGrid
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.components.NovaTab
 import com.nova.app.ui.theme.NovaAccent
@@ -60,6 +64,14 @@ fun ProfileScreen(
     onLogout: () -> Unit,
 ) {
     val context = LocalContext.current
+
+    fun openSocialGraph(mode: String) {
+        context.startActivity(
+            Intent(context, SocialGraphActivity::class.java)
+                .putExtra(SocialGraphActivity.EXTRA_USERNAME, username)
+                .putExtra(SocialGraphActivity.EXTRA_MODE, mode)
+        )
+    }
 
     Scaffold(
         containerColor = NovaBackground,
@@ -167,9 +179,23 @@ fun ProfileScreen(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 17.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                 ) {
-                    ProfileStat(value = postsCount.toString(), label = "Posts", modifier = Modifier.weight(1f))
-                    ProfileStat(value = followersCount.toString(), label = "Followers", modifier = Modifier.weight(1f))
-                    ProfileStat(value = followingCount.toString(), label = "Following", modifier = Modifier.weight(1f))
+                    ProfileStat(
+                        value = postsCount.toString(),
+                        label = "Posts",
+                        modifier = Modifier.weight(1f),
+                    )
+                    ProfileStat(
+                        value = followersCount.toString(),
+                        label = "Followers",
+                        modifier = Modifier.weight(1f),
+                        onClick = { openSocialGraph(MODE_FOLLOWERS) },
+                    )
+                    ProfileStat(
+                        value = followingCount.toString(),
+                        label = "Following",
+                        modifier = Modifier.weight(1f),
+                        onClick = { openSocialGraph(MODE_FOLLOWING) },
+                    )
                 }
             }
 
@@ -216,8 +242,9 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            NovaProfilePostsGrid(
-                posts = profilePosts,
+            NovaPagedProfilePostsGrid(
+                username = username,
+                initialPosts = profilePosts,
                 isLoading = postsLoading,
                 errorMessage = postsError,
                 onRetry = onRetryPosts,
@@ -255,9 +282,12 @@ private fun ProfileStat(
     value: String,
     label: String,
     modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
 ) {
     Column(
-        modifier = modifier,
+        modifier = modifier
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
