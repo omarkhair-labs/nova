@@ -81,6 +81,8 @@ private val StoryViewerBackground = Color(0xFF090B10)
 private val StoryViewerInk = Color(0xFFF7F8FB)
 private val StoryViewerMuted = Color(0xFFB8BDC8)
 private val StoryReactionChoices = listOf("❤️", "😂", "😮", "😢", "🔥", "👏")
+private const val STATIC_STORY_DURATION_MS = 5_000L
+private const val STORY_PROGRESS_TICK_MS = 50L
 
 
 @Composable
@@ -556,10 +558,12 @@ private fun StoryViewerDialog(
 
     val story = currentStory() ?: return
     val group = localGroups[groupIndex]
+    var storyProgress by remember(story.id) { mutableStateOf(0f) }
 
     LaunchedEffect(story.id) {
         reply = ""
         feedback = null
+        storyProgress = 0f
         if (!story.isMine) {
             when (val result = repository.markViewed(story.id)) {
                 is ApiResult.Success -> {
@@ -580,11 +584,18 @@ private fun StoryViewerDialog(
         }
     }
 
-    LaunchedEffect(story.id, showViewers, confirmDelete) {
-        if (story.mediaType != "video" && !showViewers && !confirmDelete) {
-            delay(5_000)
-            moveNext()
+    LaunchedEffect(story.id) {
+        if (story.mediaType == "video") return@LaunchedEffect
+        val increment = STORY_PROGRESS_TICK_MS.toFloat() / STATIC_STORY_DURATION_MS.toFloat()
+        while (storyProgress < 1f) {
+            if (showViewers || confirmDelete) {
+                delay(STORY_PROGRESS_TICK_MS)
+                continue
+            }
+            delay(STORY_PROGRESS_TICK_MS)
+            storyProgress = (storyProgress + increment).coerceAtMost(1f)
         }
+        moveNext()
     }
 
     Dialog(
@@ -601,6 +612,7 @@ private fun StoryViewerDialog(
         ) {
             StoryMedia(
                 story = story,
+                onVideoProgress = { progress -> storyProgress = progress },
                 onVideoComplete = ::moveNext,
             )
 
@@ -636,15 +648,27 @@ private fun StoryViewerDialog(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     group.stories.forEachIndexed { index, _ ->
+                        val segmentProgress = when {
+                            index < storyIndex -> 1f
+                            index > storyIndex -> 0f
+                            else -> storyProgress.coerceIn(0f, 1f)
+                        }
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .height(3.dp)
                                 .clip(RoundedCornerShape(99.dp))
-                                .background(
-                                    if (index <= storyIndex) StoryViewerInk else StoryViewerInk.copy(alpha = 0.3f)
-                                ),
-                        )
+                                .background(StoryViewerInk.copy(alpha = 0.3f)),
+                        ) {
+                            if (segmentProgress > 0f) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxHeight()
+                                        .fillMaxWidth(segmentProgress)
+                                        .background(StoryViewerInk),
+                                )
+                            }
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(10.dp))
@@ -916,8 +940,27 @@ private fun StoryViewerDialog(
 @Composable
 private fun StoryMedia(
     story: NovaStory,
+    onVideoProgress: (Float) -> Unit,
     onVideoComplete: () -> Unit,
 ) {
+    var videoView by remember(story.id) { mutableStateOf<VideoView?>(null) }
+
+    LaunchedEffect(story.id, videoView) {
+        if (story.mediaType != "video") return@LaunchedEffect
+        while (true) {
+            val view = videoView
+            if (view != null) {
+                val duration = view.duration
+                if (duration > 0) {
+                    onVideoProgress(
+                        (view.currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f),
+                    )
+                }
+            }
+            delay(STORY_PROGRESS_TICK_MS)
+        }
+    }
+
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
@@ -927,12 +970,17 @@ private fun StoryMedia(
                 modifier = Modifier.fillMaxSize(),
                 factory = { context ->
                     VideoView(context).apply {
+                        videoView = this
                         setVideoURI(Uri.parse(story.mediaUrl))
                         setOnPreparedListener { start() }
-                        setOnCompletionListener { onVideoComplete() }
+                        setOnCompletionListener {
+                            onVideoProgress(1f)
+                            onVideoComplete()
+                        }
                     }
                 },
                 update = { view ->
+                    videoView = view
                     if (!view.isPlaying) view.start()
                 },
             )
