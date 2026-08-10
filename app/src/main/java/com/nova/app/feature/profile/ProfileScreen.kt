@@ -26,6 +26,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -40,8 +44,10 @@ import com.nova.app.feature.people.MODE_FOLLOWING
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
 import com.nova.app.ui.components.NovaPagedProfilePostsGrid
+import com.nova.app.ui.components.NovaPagedProfileRepostsGrid
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.components.NovaTab
+import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
@@ -69,6 +75,7 @@ fun ProfileScreen(
     onLogout: () -> Unit,
 ) {
     val context = LocalContext.current
+    var selectedContent by remember(username) { mutableStateOf(ProfileContentTab.POSTS) }
 
     fun openSocialGraph(mode: String) {
         context.startActivity(
@@ -218,18 +225,108 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            NovaPagedProfilePostsGrid(
-                username = username,
-                initialPosts = profilePosts,
-                isLoading = postsLoading,
-                errorMessage = postsError,
-                onRetry = onRetryPosts,
-                onPostClick = onPostClick,
-                emptyTitle = "Share your first moment",
-                emptyMessage = "Your posts will build a visual history here.",
+            ProfileContentTabs(
+                selected = selectedContent,
+                onSelected = { selectedContent = it },
             )
 
+            Spacer(modifier = Modifier.height(14.dp))
+
+            when (selectedContent) {
+                ProfileContentTab.POSTS -> {
+                    NovaPagedProfilePostsGrid(
+                        username = username,
+                        initialPosts = profilePosts,
+                        isLoading = postsLoading,
+                        errorMessage = postsError,
+                        onRetry = onRetryPosts,
+                        onPostClick = onPostClick,
+                        emptyTitle = "Share your first moment",
+                        emptyMessage = "Your posts will build a visual history here.",
+                        sectionTitle = "",
+                    )
+                }
+                ProfileContentTab.REPOSTS -> {
+                    NovaPagedProfileRepostsGrid(
+                        username = username,
+                        active = true,
+                        onPostClick = onPostClick,
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(20.dp))
+        }
+    }
+}
+
+private enum class ProfileContentTab {
+    POSTS,
+    REPOSTS,
+}
+
+@Composable
+private fun ProfileContentTabs(
+    selected: ProfileContentTab,
+    onSelected: (ProfileContentTab) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        ProfileContentTabButton(
+            symbol = "▦",
+            label = "Posts",
+            selected = selected == ProfileContentTab.POSTS,
+            modifier = Modifier.weight(1f),
+            onClick = { onSelected(ProfileContentTab.POSTS) },
+        )
+        ProfileContentTabButton(
+            symbol = "↻",
+            label = "Reposts",
+            selected = selected == ProfileContentTab.REPOSTS,
+            modifier = Modifier.weight(1f),
+            onClick = { onSelected(ProfileContentTab.REPOSTS) },
+        )
+    }
+}
+
+@Composable
+private fun ProfileContentTabButton(
+    symbol: String,
+    label: String,
+    selected: Boolean,
+    modifier: Modifier,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        color = NovaBackground,
+    ) {
+        Column(
+            modifier = Modifier.padding(top = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = symbol,
+                color = if (selected) NovaInk else NovaMuted,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = label,
+                color = if (selected) NovaInk else NovaMuted,
+                fontSize = 10.sp,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            )
+            Spacer(modifier = Modifier.height(7.dp))
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(2.dp),
+                color = if (selected) NovaAccent else NovaBorder,
+            ) {}
         }
     }
 }
