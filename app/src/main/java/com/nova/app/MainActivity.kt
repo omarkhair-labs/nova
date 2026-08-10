@@ -64,16 +64,32 @@ class MainActivity : ComponentActivity() {
     private fun routePushIntent(intent: Intent?) {
         if (intent?.getStringExtra("kind") == "message") {
             val conversationId = intent.getStringExtra("conversation_id")?.toLongOrNull()
-            val username = intent.getStringExtra("actor_username").orEmpty()
-            if (conversationId != null && conversationId > 0L && username.isNotBlank()) {
-                NovaMessagingNavigator.openConversation(
-                    context = this,
-                    conversationId = conversationId,
-                    username = username,
-                    displayName = intent.getStringExtra("actor_name").orEmpty(),
-                    avatarUrl = intent.getStringExtra("actor_avatar_url").orEmpty(),
-                )
-                return
+            val conversationKind = intent.getStringExtra("conversation_kind").orEmpty().ifBlank { "direct" }
+            if (conversationId != null && conversationId > 0L) {
+                if (conversationKind == "group") {
+                    NovaMessagingNavigator.openConversation(
+                        context = this,
+                        conversationId = conversationId,
+                        username = "group",
+                        displayName = intent.getStringExtra("group_title").orEmpty().ifBlank { "Nova group" },
+                        avatarUrl = "",
+                        kind = "group",
+                        membersCount = 0,
+                    )
+                    return
+                }
+
+                val username = intent.getStringExtra("actor_username").orEmpty()
+                if (username.isNotBlank()) {
+                    NovaMessagingNavigator.openConversation(
+                        context = this,
+                        conversationId = conversationId,
+                        username = username,
+                        displayName = intent.getStringExtra("actor_name").orEmpty(),
+                        avatarUrl = intent.getStringExtra("actor_avatar_url").orEmpty(),
+                    )
+                    return
+                }
             }
         }
 
