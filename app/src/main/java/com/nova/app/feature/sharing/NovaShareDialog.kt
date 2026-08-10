@@ -108,15 +108,21 @@ fun NovaShareDialog(
         }
     }
 
-    fun addToStory() {
+    fun addToStory(audience: String) {
         val targetPost = postId ?: return
         if (busyUsername != null || addingToStory) return
         scope.launch {
             addingToStory = true
             error = null
             message = null
-            when (val result = sharingRepository.addPostToStory(targetPost)) {
-                is ApiResult.Success -> message = "Added to your Story"
+            when (val result = sharingRepository.addPostToStory(targetPost, audience = audience)) {
+                is ApiResult.Success -> {
+                    message = if (audience == "close_friends") {
+                        "Added to your Close Friends Story"
+                    } else {
+                        "Added to your Story"
+                    }
+                }
                 is ApiResult.Failure -> error = result.message
             }
             addingToStory = false
@@ -141,34 +147,26 @@ fun NovaShareDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (postId != null) {
-                    Surface(
-                        onClick = ::addToStory,
-                        enabled = busyUsername == null && !addingToStory,
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(18.dp),
-                        color = NovaAccentSoft,
-                        border = BorderStroke(1.dp, NovaAccent.copy(alpha = 0.28f)),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            Text("✦", color = NovaAccent, fontSize = 20.sp)
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = if (addingToStory) "Adding…" else "Add to your Story",
-                                    color = NovaInk,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                                Text(
-                                    text = "Keeps a live link to the original post",
-                                    color = NovaMuted,
-                                    fontSize = 11.sp,
-                                )
-                            }
-                        }
+                        StoryAudienceAction(
+                            title = if (addingToStory) "Adding…" else "Your Story",
+                            subtitle = "Followers",
+                            symbol = "✦",
+                            modifier = Modifier.weight(1f),
+                            enabled = busyUsername == null && !addingToStory,
+                            onClick = { addToStory("followers") },
+                        )
+                        StoryAudienceAction(
+                            title = if (addingToStory) "Adding…" else "Close Friends",
+                            subtitle = "Selected people",
+                            symbol = "★",
+                            modifier = Modifier.weight(1f),
+                            enabled = busyUsername == null && !addingToStory,
+                            onClick = { addToStory("close_friends") },
+                        )
                     }
                 }
 
@@ -284,4 +282,34 @@ fun NovaShareDialog(
             }
         },
     )
+}
+
+
+@Composable
+private fun StoryAudienceAction(
+    title: String,
+    subtitle: String,
+    symbol: String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = { if (enabled) onClick() },
+        modifier = modifier,
+        shape = RoundedCornerShape(18.dp),
+        color = NovaAccentSoft,
+        border = BorderStroke(1.dp, NovaAccent.copy(alpha = 0.28f)),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)) {
+            Text(symbol, color = NovaAccent, fontSize = 18.sp)
+            Text(
+                text = title,
+                color = NovaInk,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(text = subtitle, color = NovaMuted, fontSize = 9.sp)
+        }
+    }
 }

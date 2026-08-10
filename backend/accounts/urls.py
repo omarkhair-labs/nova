@@ -28,6 +28,14 @@ from .messaging_views import (
     ConversationReadView,
     MessageReactionView,
 )
+from .privacy_views import (
+    AccountPrivacyView,
+    CloseFriendDetailView,
+    CloseFriendsView,
+    FollowRequestAcceptView,
+    FollowRequestDeclineView,
+    FollowRequestsView,
+)
 from .sharing_views import MessageShareView, PostRepostView, SharingFeedView
 from .social_paging import (
     FollowersView,
@@ -85,6 +93,24 @@ urlpatterns = [
     path("auth/account/delete/", DeleteAccountView.as_view(), name="account-delete"),
     path("auth/blocks/", BlockedUsersView.as_view(), name="blocked-users"),
     path("me/", MeView.as_view(), name="me"),
+    path("privacy/", AccountPrivacyView.as_view(), name="account-privacy"),
+    path("follow-requests/", FollowRequestsView.as_view(), name="follow-requests"),
+    path(
+        "follow-requests/<int:request_id>/accept/",
+        FollowRequestAcceptView.as_view(),
+        name="follow-request-accept",
+    ),
+    path(
+        "follow-requests/<int:request_id>/decline/",
+        FollowRequestDeclineView.as_view(),
+        name="follow-request-decline",
+    ),
+    path("close-friends/", CloseFriendsView.as_view(), name="close-friends"),
+    path(
+        "close-friends/<str:username>/",
+        CloseFriendDetailView.as_view(),
+        name="close-friend-detail",
+    ),
     path("people/", PaginatedPeopleView.as_view(), name="people"),
     path("people/<str:username>/", PersonView.as_view(), name="person-detail"),
     path(

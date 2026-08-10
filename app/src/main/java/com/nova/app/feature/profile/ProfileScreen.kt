@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.AccountSecurityActivity
+import com.nova.app.PrivacyActivity
 import com.nova.app.SocialGraphActivity
 import com.nova.app.core.network.NovaPost
 import com.nova.app.feature.people.MODE_FOLLOWERS
@@ -211,6 +212,19 @@ fun ProfileScreen(
                     modifier = Modifier.weight(1f),
                 )
                 NovaSecondaryButton(
+                    text = "Privacy",
+                    onClick = { context.startActivity(Intent(context, PrivacyActivity::class.java)) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                NovaSecondaryButton(
                     text = "Security",
                     onClick = {
                         context.startActivity(
@@ -223,22 +237,20 @@ fun ProfileScreen(
                     },
                     modifier = Modifier.weight(1f),
                 )
+                NovaSecondaryButton(
+                    text = "Blocked accounts",
+                    onClick = {
+                        context.startActivity(
+                            Intent(context, AccountSecurityActivity::class.java)
+                                .putExtra(
+                                    AccountSecurityActivity.EXTRA_MODE,
+                                    AccountSecurityActivity.MODE_BLOCKED,
+                                )
+                        )
+                    },
+                    modifier = Modifier.weight(1f),
+                )
             }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            NovaSecondaryButton(
-                text = "Blocked accounts",
-                onClick = {
-                    context.startActivity(
-                        Intent(context, AccountSecurityActivity::class.java)
-                            .putExtra(
-                                AccountSecurityActivity.EXTRA_MODE,
-                                AccountSecurityActivity.MODE_BLOCKED,
-                            )
-                    )
-                },
-            )
 
             Spacer(modifier = Modifier.height(24.dp))
 

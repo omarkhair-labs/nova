@@ -15,6 +15,7 @@ from .messaging_realtime import broadcast_message_created
 from .messaging_serializers import ConversationSerializer, MessageSerializer
 from .messaging_views import conversations_for
 from .models import Conversation, Follow, Message
+from .privacy import is_private_account
 from .push import send_message_push
 from .serializers import PostSerializer
 from .story_models import Story, StoryReaction, StoryView
@@ -52,16 +53,32 @@ def _allowed_story_author_ids(user):
 
 def visible_stories_for(user):
     blocked_ids = blocked_user_ids(user)
+    author_ids = _allowed_story_author_ids(user)
     return (
         Story.objects.select_related("author", "shared_post", "shared_post__author")
         .filter(
             expires_at__gt=timezone.now(),
             author__is_active=True,
-            author_id__in=_allowed_story_author_ids(user),
+            author_id__in=author_ids,
         )
         .exclude(author_id__in=blocked_ids)
+        .filter(
+            Q(author=user)
+            | Q(audience=Story.Audience.FOLLOWERS)
+            | Q(
+                audience=Story.Audience.CLOSE_FRIENDS,
+                author__close_friends_created__member=user,
+            )
+        )
         .filter(Q(shared_post__isnull=True) | Q(shared_post__author__is_active=True))
         .exclude(shared_post__author_id__in=blocked_ids)
+        .filter(
+            Q(shared_post__isnull=True)
+            | Q(shared_post__author__account_privacy__isnull=True)
+            | Q(shared_post__author__account_privacy__is_private=False)
+            | Q(shared_post__author_id__in=author_ids)
+        )
+        .distinct()
     )
 
 
@@ -83,6 +100,7 @@ def _story_payload(request, story, viewed_story_ids=None, reaction_by_story=None
             else _absolute_media_url(request, story.media)
         ),
         "media_type": story.media_type,
+        "audience": story.audience,
         "shared_post": (
             PostSerializer(shared_post, context={"request": request}).data
             if shared_post is not None
@@ -179,6 +197,12 @@ class StoryFeedView(APIView):
         media = request.FILES.get("media")
         caption = str(request.data.get("caption") or "").strip()
         raw_shared_post_id = request.data.get("shared_post_id")
+        audience = str(request.data.get("audience") or Story.Audience.FOLLOWERS).strip().lower()
+        if audience not in Story.Audience.values:
+            return Response(
+                {"detail": "Choose a valid Story audience."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if len(caption) > 240:
             return Response(
                 {"detail": "Story caption must be 240 characters or fewer."},
@@ -196,11 +220,17 @@ class StoryFeedView(APIView):
             except (TypeError, ValueError):
                 shared_post_id = 0
             shared_post = get_object_or_404(public_post_queryset(request), pk=shared_post_id)
+            if shared_post.author_id != request.user.pk and is_private_account(shared_post.author):
+                return Response(
+                    {"detail": "Private-account posts can't be reshared to a Story."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
             story = Story.objects.create(
                 author=request.user,
                 media="",
                 media_type=Story.MediaType.POST,
                 shared_post=shared_post,
+                audience=audience,
                 caption=caption,
                 expires_at=timezone.now() + STORY_DURATION,
             )
@@ -236,6 +266,7 @@ class StoryFeedView(APIView):
             author=request.user,
             media=media,
             media_type=media_type,
+            audience=audience,
             caption=caption,
             expires_at=timezone.now() + STORY_DURATION,
         )

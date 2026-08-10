@@ -54,6 +54,11 @@
             android:theme="@style/Theme.Nova" />
 
         <activity
+            android:name=".PrivacyActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Nova" />
+
+        <activity
             android:name=".AccountSecurityActivity"
             android:exported="false"
             android:theme="@style/Theme.Nova" />

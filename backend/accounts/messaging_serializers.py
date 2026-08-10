@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from .models import Conversation, Message
+from .privacy import can_view_user_content
 from .serializers import PostAuthorSerializer
 from .trust_safety import users_blocked
 
@@ -25,6 +26,19 @@ def _visible_to_context_user(context, target_user):
         # validates the recipient's visibility, so active targets are safe here.
         return True
     return not users_blocked(current_user, target_user)
+
+
+def _post_visible_to_context_user(context, post):
+    if post is None or not post.author.is_active:
+        return False
+    request = context.get("request")
+    current_user = getattr(request, "user", None)
+    if current_user is None or not getattr(current_user, "is_authenticated", False):
+        # Realtime creation validates the recipient. Historical REST reads use
+        # the request-aware branch below so unfollowing a private author revokes
+        # the rich content without deleting the message itself.
+        return True
+    return can_view_user_content(current_user, post.author)
 
 
 class MessageSerializer(serializers.ModelSerializer):
@@ -141,7 +155,7 @@ class MessageSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         if shared.kind == "post":
             post = shared.post
-            available = bool(post and _visible_to_context_user(self.context, post.author))
+            available = _post_visible_to_context_user(self.context, post)
             if not available:
                 return {"kind": "post", "available": False, "post": None, "profile": None}
             return {

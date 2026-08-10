@@ -16,3 +16,5 @@ class AccountsConfig(AppConfig):
         from . import story_models  # noqa: F401
         # Sharing/reposts stay modular while participating in the same app.
         from . import sharing_models  # noqa: F401
+        # Privacy, follow requests and Close Friends are modular social policy.
+        from . import privacy_models  # noqa: F401

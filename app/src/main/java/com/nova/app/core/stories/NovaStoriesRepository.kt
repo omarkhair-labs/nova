@@ -38,6 +38,7 @@ data class NovaStory(
     val isViewed: Boolean,
     val myReaction: String,
     val viewsCount: Int?,
+    val audience: String = "followers",
 )
 
 
@@ -83,7 +84,13 @@ class NovaStoriesRepository(
         }
     }
 
-    suspend fun createStory(mediaUri: Uri, caption: String = ""): ApiResult<NovaStory> {
+    suspend fun createStory(
+        mediaUri: Uri,
+        caption: String = "",
+        audience: String = "followers",
+    ): ApiResult<NovaStory> {
+        val cleanAudience = audience.takeIf { it == "followers" || it == "close_friends" }
+            ?: return ApiResult.Failure("Choose a valid Story audience.")
         val mimeType = appContext.contentResolver.getType(mediaUri).orEmpty().lowercase()
         val maxBytes = when {
             mimeType.startsWith("image/") -> 15L * 1024 * 1024
@@ -109,6 +116,7 @@ class NovaStoriesRepository(
                 mimeType = mimeType,
                 maxBytes = maxBytes,
                 caption = caption.trim().take(240),
+                audience = cleanAudience,
                 bearerToken = token,
             )
         }
@@ -225,6 +233,7 @@ class NovaStoriesRepository(
         mimeType: String,
         maxBytes: Long,
         caption: String,
+        audience: String,
         bearerToken: String,
     ): ApiResult<NovaStory> = withContext(Dispatchers.IO) {
         var connection: HttpURLConnection? = null
@@ -256,6 +265,7 @@ class NovaStoriesRepository(
                 }
 
                 textPart("caption", caption)
+                textPart("audience", audience)
                 output.write("--$boundary\r\n".toByteArray())
                 output.write(
                     "Content-Disposition: form-data; name=\"media\"; filename=\"$fileName\"\r\n".toByteArray()
@@ -412,6 +422,7 @@ class NovaStoriesRepository(
             isViewed = json.optBoolean("is_viewed"),
             myReaction = json.optString("my_reaction"),
             viewsCount = if (json.isNull("views_count")) null else json.optInt("views_count"),
+            audience = json.optString("audience").ifBlank { "followers" },
         )
     }
 
