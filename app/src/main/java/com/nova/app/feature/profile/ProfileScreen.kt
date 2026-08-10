@@ -42,14 +42,13 @@ import com.nova.app.ui.components.NovaBottomBar
 import com.nova.app.ui.components.NovaPagedProfilePostsGrid
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.components.NovaTab
-import com.nova.app.ui.theme.NovaAccent
-import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun ProfileScreen(
     displayName: String,
@@ -67,6 +66,7 @@ fun ProfileScreen(
     onHomeClick: () -> Unit,
     onPeopleClick: () -> Unit,
     onEditProfile: () -> Unit,
+    onLogout: () -> Unit,
 ) {
     val context = LocalContext.current
 
