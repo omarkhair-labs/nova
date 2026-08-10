@@ -247,15 +247,32 @@ class DevicePushToken(models.Model):
 
 
 class Conversation(models.Model):
+    class Kind(models.TextChoices):
+        DIRECT = "direct", "Direct"
+        GROUP = "group", "Group"
+
+    kind = models.CharField(max_length=8, choices=Kind.choices, default=Kind.DIRECT)
+    title = models.CharField(max_length=80, blank=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name="created_conversations",
+        null=True,
+        blank=True,
+    )
     participant_one = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name="conversations_as_one",
+        null=True,
+        blank=True,
     )
     participant_two = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name="conversations_as_two",
+        null=True,
+        blank=True,
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -265,20 +282,48 @@ class Conversation(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=("participant_one", "participant_two"),
+                condition=models.Q(kind="direct"),
                 name="unique_direct_conversation",
             ),
             models.CheckConstraint(
-                condition=models.Q(participant_one__lt=models.F("participant_two")),
+                condition=(
+                    models.Q(
+                        kind="direct",
+                        participant_one__isnull=False,
+                        participant_two__isnull=False,
+                    )
+                    | models.Q(
+                        kind="group",
+                        participant_one__isnull=True,
+                        participant_two__isnull=True,
+                    )
+                ),
+                name="conversation_participants_match_kind",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    ~models.Q(kind="direct")
+                    | models.Q(participant_one__lt=models.F("participant_two"))
+                ),
                 name="ordered_direct_conversation_users",
             ),
         ]
         indexes = [
             models.Index(fields=("participant_one", "-updated_at"), name="conv_user1_updated_idx"),
             models.Index(fields=("participant_two", "-updated_at"), name="conv_user2_updated_idx"),
+            models.Index(fields=("kind", "-updated_at"), name="conv_kind_updated_idx"),
         ]
 
+    @property
+    def is_group(self):
+        return self.kind == self.Kind.GROUP
+
     def __str__(self):
-        return f"Conversation @{self.participant_one.username} / @{self.participant_two.username}"
+        if self.is_group:
+            return f"Group {self.pk}: {self.title or 'Untitled group'}"
+        first = self.participant_one.username if self.participant_one else "?"
+        second = self.participant_two.username if self.participant_two else "?"
+        return f"Conversation @{first} / @{second}"
 
 
 class CallSession(models.Model):
@@ -362,6 +407,8 @@ class Message(models.Model):
         User,
         on_delete=models.CASCADE,
         related_name="received_messages",
+        null=True,
+        blank=True,
     )
     reply_to = models.ForeignKey(
         "self",
@@ -407,7 +454,9 @@ class Message(models.Model):
         return result
 
     def __str__(self):
-        return f"Message {self.pk} from @{self.sender.username} to @{self.recipient.username}"
+        if self.recipient_id:
+            return f"Message {self.pk} from @{self.sender.username} to @{self.recipient.username}"
+        return f"Group message {self.pk} from @{self.sender.username} in conversation {self.conversation_id}"
 
 
 class MessageReaction(models.Model):
