@@ -1,5 +1,6 @@
 package com.nova.app.feature.stories
 
+import android.content.Intent
 import android.net.Uri
 import android.widget.VideoView
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -54,6 +55,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
+import com.nova.app.MainActivity
 import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.stories.NovaStoriesRepository
@@ -219,11 +221,11 @@ fun StoriesRail(
             mediaUri = uri,
             uploading = uploading,
             onDismiss = { if (!uploading) pendingMedia = null },
-            onPost = { caption ->
+            onPost = { caption, audience ->
                 scope.launch {
                     uploading = true
                     error = null
-                    when (val result = repository.createStory(uri, caption)) {
+                    when (val result = repository.createStory(uri, caption, audience)) {
                         is ApiResult.Success -> {
                             pendingMedia = null
                             reload()
@@ -330,11 +332,12 @@ private fun StoryComposerDialog(
     mediaUri: Uri,
     uploading: Boolean,
     onDismiss: () -> Unit,
-    onPost: (String) -> Unit,
+    onPost: (String, String) -> Unit,
 ) {
     val context = LocalContext.current
     val mimeType = remember(mediaUri) { context.contentResolver.getType(mediaUri).orEmpty() }
     var caption by remember(mediaUri) { mutableStateOf("") }
+    var audience by remember(mediaUri) { mutableStateOf("followers") }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -398,6 +401,30 @@ private fun StoryComposerDialog(
                     ),
                 )
                 Spacer(modifier = Modifier.height(12.dp))
+                Text("Audience", color = NovaMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(7.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    StoryAudienceChip(
+                        title = "Your Story",
+                        subtitle = "Followers",
+                        selected = audience == "followers",
+                        enabled = !uploading,
+                        modifier = Modifier.weight(1f),
+                        onClick = { audience = "followers" },
+                    )
+                    StoryAudienceChip(
+                        title = "Close Friends",
+                        subtitle = "Selected people",
+                        selected = audience == "close_friends",
+                        enabled = !uploading,
+                        modifier = Modifier.weight(1f),
+                        onClick = { audience = "close_friends" },
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -418,7 +445,7 @@ private fun StoryComposerDialog(
                         )
                     }
                     Surface(
-                        onClick = { if (!uploading) onPost(caption) },
+                        onClick = { if (!uploading) onPost(caption, audience) },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(15.dp),
                         color = NovaAccent,
@@ -437,14 +464,39 @@ private fun StoryComposerDialog(
                                 Spacer(modifier = Modifier.width(8.dp))
                             }
                             Text(
-                                text = if (uploading) "Posting…" else "Share story",
+                                text = if (uploading) "Posting…" else if (audience == "close_friends") "Share to Close Friends" else "Share story",
                                 color = NovaBackground,
                                 fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
                             )
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+
+@Composable
+private fun StoryAudienceChip(
+    title: String,
+    subtitle: String,
+    selected: Boolean,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = { if (enabled) onClick() },
+        modifier = modifier,
+        shape = RoundedCornerShape(15.dp),
+        color = if (selected) NovaAccentSoft else NovaBackground,
+        border = BorderStroke(1.dp, if (selected) NovaAccent else NovaBorder),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp)) {
+            Text(title, color = NovaInk, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, color = NovaMuted, fontSize = 9.sp)
         }
     }
 }
@@ -529,7 +581,7 @@ private fun StoryViewerDialog(
     }
 
     LaunchedEffect(story.id, showViewers, confirmDelete) {
-        if (story.mediaType == "image" && !showViewers && !confirmDelete) {
+        if (story.mediaType != "video" && !showViewers && !confirmDelete) {
             delay(5_000)
             moveNext()
         }
@@ -614,7 +666,10 @@ private fun StoryViewerDialog(
                             fontSize = 14.sp,
                         )
                         Text(
-                            text = storyAge(story.createdAt),
+                            text = buildString {
+                                append(storyAge(story.createdAt))
+                                if (story.audience == "close_friends") append(" · Close Friends")
+                            },
                             color = StoryViewerMuted,
                             fontSize = 10.sp,
                         )
@@ -647,6 +702,17 @@ private fun StoryViewerDialog(
                         color = StoryViewerInk,
                         fontSize = 14.sp,
                         lineHeight = 20.sp,
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+
+                story.sharedPost?.let { sharedPost ->
+                    ViewerAction(
+                        text = "View original post · @${sharedPost.author.username}",
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            openStoryPost(context, sharedPost.id)
+                        },
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                 }
@@ -997,6 +1063,16 @@ private fun StoryViewersDialog(
     }
 }
 
+
+private fun openStoryPost(context: android.content.Context, postId: Long) {
+    context.startActivity(
+        Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            putExtra("kind", "comment")
+            putExtra("post_id", postId.toString())
+        }
+    )
+}
 
 private fun updateStory(
     groups: List<NovaStoryGroup>,
