@@ -1,12 +1,14 @@
 package com.nova.app.core.calls
 
 import android.content.Context
+import android.util.Log
 import org.webrtc.AudioSource
 import org.webrtc.AudioTrack
 import org.webrtc.Camera1Enumerator
 import org.webrtc.Camera2Enumerator
 import org.webrtc.CameraEnumerator
 import org.webrtc.CameraVideoCapturer
+import org.webrtc.CandidatePairChangeEvent
 import org.webrtc.DataChannel
 import org.webrtc.DefaultVideoDecoderFactory
 import org.webrtc.DefaultVideoEncoderFactory
@@ -100,6 +102,11 @@ class NovaWebRtcEngine(
             return false
         }
 
+        Log.i(
+            TAG,
+            "Starting WebRTC: turnConfigured=${iceConfig.turnConfigured}, servers=${serverKinds(iceConfig)}",
+        )
+
         val rtcConfig = PeerConnection.RTCConfiguration(rtcServers).apply {
             sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
             continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
@@ -130,6 +137,21 @@ class NovaWebRtcEngine(
     }
 
     fun createOffer(onReady: (String) -> Unit) {
+        createOfferInternal(onReady)
+    }
+
+    fun createIceRestartOffer(onReady: (String) -> Unit) {
+        val peer = peerConnection ?: return listener.onError("Call connection is not ready.")
+        Log.i(TAG, "Requesting ICE restart")
+        runCatching { peer.restartIce() }
+            .onFailure {
+                listener.onError("Nova couldn't restart the call connection.")
+                return
+            }
+        createOfferInternal(onReady)
+    }
+
+    private fun createOfferInternal(onReady: (String) -> Unit) {
         val peer = peerConnection ?: return listener.onError("Call connection is not ready.")
         peer.createOffer(
             object : SimpleSdpObserver() {
@@ -290,6 +312,13 @@ class NovaWebRtcEngine(
         onReady: () -> Unit,
     ) {
         val peer = peerConnection ?: return listener.onError("Call connection is not ready.")
+        synchronized(pendingRemoteIce) {
+            // During an ICE restart, candidates for the new ufrag can arrive
+            // while setRemoteDescription is still applying. Queue them until
+            // the corresponding SDP is installed instead of applying them to
+            // the previous ICE generation.
+            hasRemoteDescription = false
+        }
         peer.setRemoteDescription(
             object : SimpleSdpObserver() {
                 override fun onSetSuccess() {
@@ -302,6 +331,7 @@ class NovaWebRtcEngine(
                 }
 
                 override fun onSetFailure(error: String?) {
+                    synchronized(pendingRemoteIce) { hasRemoteDescription = true }
                     listener.onError(error ?: "Nova couldn't apply remote call settings.")
                 }
             },
@@ -320,26 +350,60 @@ class NovaWebRtcEngine(
     }
 
     private val observer = object : PeerConnection.Observer {
-        override fun onSignalingChange(newState: PeerConnection.SignalingState?) = Unit
-        override fun onIceConnectionChange(newState: PeerConnection.IceConnectionState?) = Unit
-        override fun onIceConnectionReceivingChange(receiving: Boolean) = Unit
-        override fun onIceGatheringChange(newState: PeerConnection.IceGatheringState?) = Unit
-        override fun onIceCandidate(candidate: IceCandidate?) {
-            candidate?.let(listener::onLocalIceCandidate)
+        override fun onSignalingChange(newState: PeerConnection.SignalingState?) {
+            Log.d(TAG, "signaling=${newState ?: "unknown"}")
         }
+
+        override fun onIceConnectionChange(newState: PeerConnection.IceConnectionState?) {
+            Log.i(TAG, "iceConnection=${newState ?: "unknown"}")
+        }
+
+        override fun onIceConnectionReceivingChange(receiving: Boolean) {
+            Log.d(TAG, "iceReceiving=$receiving")
+        }
+
+        override fun onIceGatheringChange(newState: PeerConnection.IceGatheringState?) {
+            Log.i(TAG, "iceGathering=${newState ?: "unknown"}")
+        }
+
+        override fun onIceCandidate(candidate: IceCandidate?) {
+            candidate?.let {
+                Log.d(TAG, "localCandidate=${candidateSummary(it)}")
+                listener.onLocalIceCandidate(it)
+            }
+        }
+
         override fun onIceCandidatesRemoved(candidates: Array<out IceCandidate>?) = Unit
+
+        override fun onSelectedCandidatePairChanged(event: CandidatePairChangeEvent?) {
+            if (event == null) return
+            Log.i(
+                TAG,
+                "selectedPair local=${candidateSummary(event.local)} remote=${candidateSummary(event.remote)} " +
+                    "reason=${event.reason} estimatedDisconnectMs=${event.estimatedDisconnectedTimeMs}",
+            )
+        }
+
         override fun onAddStream(stream: MediaStream?) = Unit
         override fun onRemoveStream(stream: MediaStream?) = Unit
         override fun onDataChannel(dataChannel: DataChannel?) = Unit
-        override fun onRenegotiationNeeded() = Unit
+        override fun onRenegotiationNeeded() {
+            Log.d(TAG, "renegotiationNeeded")
+        }
+
         override fun onAddTrack(receiver: RtpReceiver?, mediaStreams: Array<out MediaStream>?) {
             (receiver?.track() as? VideoTrack)?.let(::publishRemoteVideoTrack)
         }
+
         override fun onTrack(transceiver: RtpTransceiver?) {
             (transceiver?.receiver?.track() as? VideoTrack)?.let(::publishRemoteVideoTrack)
         }
+
         override fun onConnectionChange(newState: PeerConnection.PeerConnectionState?) {
-            newState?.let(listener::onConnectionState)
+            if (newState != null) {
+                Log.i(TAG, "peerConnection=$newState")
+                listener.onConnectionState(newState)
+            }
         }
     }
 
@@ -359,6 +423,7 @@ class NovaWebRtcEngine(
     }
 
     private companion object {
+        const val TAG = "NovaCallRTC"
         const val MEDIA_STREAM_ID = "nova-media"
         const val AUDIO_TRACK_ID = "nova-audio"
         const val VIDEO_TRACK_ID = "nova-video"
@@ -375,6 +440,24 @@ class NovaWebRtcEngine(
                         .createInitializationOptions()
                 )
             }
+        }
+
+        fun serverKinds(config: NovaIceConfig): String {
+            return config.servers
+                .flatMap { it.urls }
+                .mapNotNull { raw -> raw.substringBefore(':').lowercase().takeIf { it.isNotBlank() } }
+                .distinct()
+                .joinToString(",")
+                .ifBlank { "none" }
+        }
+
+        fun candidateSummary(candidate: IceCandidate?): String {
+            if (candidate == null) return "none"
+            val parts = candidate.sdp.trim().split(Regex("\\s+"))
+            val protocol = parts.getOrNull(2)?.lowercase() ?: "unknown"
+            val typeIndex = parts.indexOfFirst { it.equals("typ", ignoreCase = true) }
+            val candidateType = parts.getOrNull(typeIndex + 1)?.lowercase() ?: "unknown"
+            return "$candidateType/$protocol"
         }
     }
 }
