@@ -50,6 +50,10 @@ class Story(models.Model):
         ]
 
     def save(self, *args, **kwargs):
+        # A shared post is still linked through shared_post, while the Android
+        # viewer can treat its visual media as a normal image Story.
+        if self.shared_post_id and self.media_type == self.MediaType.POST:
+            self.media_type = self.MediaType.IMAGE
         if self.expires_at is None:
             self.expires_at = timezone.now() + timedelta(hours=24)
         super().save(*args, **kwargs)
