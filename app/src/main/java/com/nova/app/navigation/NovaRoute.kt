@@ -2,6 +2,8 @@ package com.nova.app.navigation
 
 sealed interface NovaRoute {
     data object Welcome : NovaRoute
+    data object Terms : NovaRoute
+    data object Privacy : NovaRoute
     data object CreateAccount : NovaRoute
     data object Login : NovaRoute
     data object ProfileSetup : NovaRoute
