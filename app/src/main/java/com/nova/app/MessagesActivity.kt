@@ -8,6 +8,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -17,6 +21,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.nova.app.core.calls.NovaCallKind
 import com.nova.app.core.calls.NovaCallPerson
 import com.nova.app.core.messaging.NovaConversation
@@ -26,9 +33,12 @@ import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.messages.ConversationScreenV11
 import com.nova.app.feature.messages.MessagesScreen
+import com.nova.app.feature.messages.NewMessageDialog
 import com.nova.app.navigation.NovaRootNavigationSignal
 import com.nova.app.navigation.NovaRootTab
 import com.nova.app.ui.components.NovaActiveCallPill
+import com.nova.app.ui.theme.NovaAccent
+import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaTheme
 import kotlinx.coroutines.launch
 
@@ -81,6 +91,7 @@ private fun MessagingActivityContent(
     var activeConversation by remember {
         mutableStateOf(initialConversation)
     }
+    var showNewMessage by remember { mutableStateOf(false) }
     val openedDirectly = remember { initialConversation != null }
 
     fun refreshUnreadCount() {
@@ -90,6 +101,16 @@ private fun MessagingActivityContent(
                 is ApiResult.Failure -> Unit
             }
         }
+    }
+
+    fun selectConversation(selected: NovaConversation) {
+        showNewMessage = false
+        activeConversation = InitialConversation(
+            id = selected.id,
+            username = selected.otherUser.username,
+            displayName = selected.otherUser.name.ifBlank { selected.otherUser.username },
+            avatarUrl = selected.otherUser.avatarUrl,
+        )
     }
 
     fun backFromConversation() {
@@ -125,30 +146,54 @@ private fun MessagingActivityContent(
     }
 
     BackHandler {
-        if (activeConversation != null) {
-            backFromConversation()
-        } else {
-            onFinish()
+        when {
+            showNewMessage -> showNewMessage = false
+            activeConversation != null -> backFromConversation()
+            else -> onFinish()
         }
     }
 
     val conversation = activeConversation
     if (conversation == null) {
-        MessagesScreen(
-            onConversationClick = { selected: NovaConversation ->
-                activeConversation = InitialConversation(
-                    id = selected.id,
-                    username = selected.otherUser.username,
-                    displayName = selected.otherUser.name.ifBlank { selected.otherUser.username },
-                    avatarUrl = selected.otherUser.avatarUrl,
+        Box(modifier = Modifier.fillMaxSize()) {
+            MessagesScreen(
+                onConversationClick = ::selectConversation,
+                onHomeClick = { finishToRoot(NovaRootTab.Home) },
+                onPeopleClick = { finishToRoot(NovaRootTab.People) },
+                onProfileClick = { finishToRoot(NovaRootTab.Profile) },
+                onUnreadCountChanged = NovaMessagesSignal::updateUnreadCount,
+                onSessionExpired = onFinish,
+            )
+
+            Surface(
+                onClick = { showNewMessage = true },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 18.dp, bottom = 88.dp),
+                shape = RoundedCornerShape(18.dp),
+                color = NovaAccent,
+                shadowElevation = 6.dp,
+            ) {
+                Text(
+                    text = "+  New message",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    color = NovaBackground,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
                 )
-            },
-            onHomeClick = { finishToRoot(NovaRootTab.Home) },
-            onPeopleClick = { finishToRoot(NovaRootTab.People) },
-            onProfileClick = { finishToRoot(NovaRootTab.Profile) },
-            onUnreadCountChanged = NovaMessagesSignal::updateUnreadCount,
-            onSessionExpired = onFinish,
-        )
+            }
+        }
+
+        if (showNewMessage) {
+            NewMessageDialog(
+                onDismiss = { showNewMessage = false },
+                onConversationReady = ::selectConversation,
+                onSessionExpired = {
+                    showNewMessage = false
+                    onFinish()
+                },
+            )
+        }
     } else {
         ConversationScreenV11(
             conversationId = conversation.id,
