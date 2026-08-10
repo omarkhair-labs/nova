@@ -20,6 +20,7 @@ from .serializers import (
     RegisterSerializer,
     UserSerializer,
 )
+from .sharing_models import Repost
 from .trust_safety import active_person_for, blocked_user_ids, users_blocked, visible_active_users_for
 
 User = get_user_model()
@@ -40,8 +41,16 @@ def post_queryset(request):
             filter=~Q(comments__author_id__in=blocked_ids),
             distinct=True,
         ),
+        reposts_count_value=Count(
+            "reposts",
+            filter=~Q(reposts__user_id__in=blocked_ids),
+            distinct=True,
+        ),
         is_liked_value=Exists(
             Like.objects.filter(post_id=OuterRef("pk"), user=request.user)
+        ),
+        is_reposted_value=Exists(
+            Repost.objects.filter(post_id=OuterRef("pk"), user=request.user)
         ),
     )
 
