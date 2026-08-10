@@ -15,6 +15,7 @@ from .calls import (
     CallSessionActionView,
     CallSessionDetailView,
 )
+from .group_management import GroupManagementDetailView, GroupMemberRoleView
 from .group_messaging import (
     GroupConversationCreateView,
     GroupConversationDetailView,
@@ -170,6 +171,11 @@ urlpatterns = [
         name="group-conversation-detail",
     ),
     path(
+        "conversations/<int:conversation_id>/group/manage/",
+        GroupManagementDetailView.as_view(),
+        name="group-management-detail",
+    ),
+    path(
         "conversations/<int:conversation_id>/group/members/",
         GroupMembersView.as_view(),
         name="group-members",
@@ -178,6 +184,11 @@ urlpatterns = [
         "conversations/<int:conversation_id>/group/members/<str:username>/",
         GroupMemberDetailView.as_view(),
         name="group-member-detail",
+    ),
+    path(
+        "conversations/<int:conversation_id>/group/members/<str:username>/role/",
+        GroupMemberRoleView.as_view(),
+        name="group-member-role",
     ),
     path(
         "conversations/<int:conversation_id>/messages/",
