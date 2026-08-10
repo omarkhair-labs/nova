@@ -50,8 +50,6 @@ class Story(models.Model):
         ]
 
     def save(self, *args, **kwargs):
-        if self.shared_post_id:
-            self.media_type = self.MediaType.POST
         if self.expires_at is None:
             self.expires_at = timezone.now() + timedelta(hours=24)
         super().save(*args, **kwargs)
