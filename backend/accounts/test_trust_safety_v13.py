@@ -4,7 +4,18 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import Conversation, DevicePushToken, Follow, Message, User, UserBlock, UserReport
+from .models import (
+    Comment,
+    Conversation,
+    DevicePushToken,
+    Follow,
+    Like,
+    Message,
+    Post,
+    User,
+    UserBlock,
+    UserReport,
+)
 
 
 class TrustSafetyV13Tests(APITestCase):
@@ -107,6 +118,37 @@ class TrustSafetyV13Tests(APITestCase):
         self.assertEqual(unblocked.status_code, status.HTTP_200_OK)
         self.assertFalse(UserBlock.objects.filter(blocker=self.alice, blocked=self.bob).exists())
         self.assertEqual(self.client.get(reverse("blocked-users")).data["results"], [])
+
+    def test_blocked_users_comments_and_likes_are_hidden_from_post_view(self):
+        charlie = User.objects.create_user(
+            email="charlie@example.com",
+            username="charlie",
+            password="CharliePass123!",
+            name="Charlie",
+        )
+        post = Post.objects.create(
+            author=charlie,
+            image="posts/trust-safety-test.jpg",
+            caption="Shared post",
+        )
+        Comment.objects.create(post=post, author=self.bob, body="Blocked comment")
+        Comment.objects.create(post=post, author=charlie, body="Visible comment")
+        Like.objects.create(post=post, user=self.bob)
+        Like.objects.create(post=post, user=charlie)
+        UserBlock.objects.create(blocker=self.alice, blocked=self.bob)
+        self.authenticate(self.alice)
+
+        detail = self.client.get(reverse("post-detail", kwargs={"post_id": post.pk}))
+        self.assertEqual(detail.status_code, status.HTTP_200_OK)
+        self.assertEqual(detail.data["comments_count"], 1)
+        self.assertEqual(detail.data["likes_count"], 1)
+
+        comments = self.client.get(reverse("post-comments", kwargs={"post_id": post.pk}))
+        self.assertEqual(comments.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            [item["author"]["username"] for item in comments.data["results"]],
+            ["charlie"],
+        )
 
     def test_report_is_recorded_and_an_open_report_is_updated_in_place(self):
         self.authenticate(self.alice)
