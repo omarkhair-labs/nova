@@ -9,7 +9,12 @@ from .account_security import (
     SecureTokenObtainPairView,
     SecureTokenRefreshView,
 )
-from .calls import CallIceConfigView, CallSessionCreateView, CallSessionDetailView
+from .calls import (
+    CallIceConfigView,
+    CallSessionActionView,
+    CallSessionCreateView,
+    CallSessionDetailView,
+)
 from .messaging_mutation_view import MessageMutationView
 from .messaging_v9_views import (
     ConversationMediaView,
@@ -81,6 +86,7 @@ urlpatterns = [
     path("calls/", CallSessionCreateView.as_view(), name="call-create"),
     path("calls/ice/", CallIceConfigView.as_view(), name="call-ice-config"),
     path("calls/<uuid:call_id>/", CallSessionDetailView.as_view(), name="call-detail"),
+    path("calls/<uuid:call_id>/action/", CallSessionActionView.as_view(), name="call-action"),
     path("conversations/", ConversationsView.as_view(), name="conversations"),
     path(
         "conversations/<int:conversation_id>/messages/",
