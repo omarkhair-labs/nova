@@ -9,7 +9,7 @@ from .messaging_models import ConversationPreference, GroupMembership, GroupRead
 from .messaging_serializers import ConversationSerializer
 from .models import Conversation, User
 from .serializers import PostAuthorSerializer
-from .trust_safety import users_blocked
+from .trust_safety import blocked_user_ids, users_blocked
 
 MAX_GROUP_MEMBERS = 50
 MIN_GROUP_MEMBERS = 3
@@ -33,9 +33,11 @@ def group_conversation_for(user, conversation_id):
 
 
 def serialize_group_detail(request, conversation):
+    hidden_ids = blocked_user_ids(request.user)
     memberships = list(
         conversation.group_memberships.select_related("user")
         .filter(user__is_active=True)
+        .exclude(user_id__in=hidden_ids)
         .order_by("joined_at", "id")
     )
     return {
@@ -55,6 +57,50 @@ def serialize_group_detail(request, conversation):
             for membership in memberships
         ],
     }
+
+
+def remove_user_from_all_groups(user):
+    """Remove a departing account from groups without leaving ownerless rooms."""
+    memberships = list(
+        GroupMembership.objects.select_related("conversation")
+        .filter(user=user)
+        .order_by("conversation_id")
+    )
+    for membership in memberships:
+        conversation = membership.conversation
+        if conversation.kind != Conversation.Kind.GROUP:
+            continue
+
+        was_owner = membership.role == GroupMembership.Role.OWNER
+        membership.delete()
+        GroupReadState.objects.filter(conversation=conversation, user=user).delete()
+        ConversationPreference.objects.filter(conversation=conversation, user=user).delete()
+
+        remaining = list(
+            GroupMembership.objects.select_for_update()
+            .filter(conversation=conversation)
+            .order_by("joined_at", "id")
+        )
+        if not remaining:
+            conversation.delete()
+            continue
+
+        if was_owner:
+            successor = next(
+                (
+                    item
+                    for item in remaining
+                    if item.role == GroupMembership.Role.ADMIN
+                ),
+                remaining[0],
+            )
+            successor.role = GroupMembership.Role.OWNER
+            successor.save(update_fields=("role",))
+
+    Conversation.objects.filter(
+        kind=Conversation.Kind.GROUP,
+        created_by=user,
+    ).update(created_by=None)
 
 
 def _clean_title(raw):
