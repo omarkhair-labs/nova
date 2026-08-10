@@ -110,6 +110,14 @@ class PostAuthorSerializer(AvatarUrlMixin, serializers.ModelSerializer):
         model = User
         fields = ("id", "username", "name", "avatar_url")
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if not instance.is_active:
+            data["username"] = "deleted"
+            data["name"] = "Deleted user"
+            data["avatar_url"] = ""
+        return data
+
 
 class PostSerializer(serializers.ModelSerializer):
     author = PostAuthorSerializer(read_only=True)
