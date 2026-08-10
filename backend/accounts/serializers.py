@@ -4,6 +4,7 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .models import Comment, Follow, Like, Notification, Post
+from .privacy import can_view_user_content, is_private_account, pending_follow_request
 from .sharing_models import Repost
 
 User = get_user_model()
@@ -25,6 +26,7 @@ class UserSerializer(AvatarUrlMixin, serializers.ModelSerializer):
     followers_count = serializers.SerializerMethodField()
     following_count = serializers.SerializerMethodField()
     posts_count = serializers.SerializerMethodField()
+    is_private = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -38,6 +40,7 @@ class UserSerializer(AvatarUrlMixin, serializers.ModelSerializer):
             "followers_count",
             "following_count",
             "posts_count",
+            "is_private",
             "date_joined",
         )
         read_only_fields = (
@@ -47,6 +50,7 @@ class UserSerializer(AvatarUrlMixin, serializers.ModelSerializer):
             "followers_count",
             "following_count",
             "posts_count",
+            "is_private",
             "date_joined",
         )
 
@@ -58,6 +62,9 @@ class UserSerializer(AvatarUrlMixin, serializers.ModelSerializer):
 
     def get_posts_count(self, obj):
         return obj.posts.count()
+
+    def get_is_private(self, obj):
+        return is_private_account(obj)
 
     def validate_username(self, value):
         return value.strip().lower()
@@ -74,6 +81,9 @@ class PersonSerializer(AvatarUrlMixin, serializers.ModelSerializer):
     following_count = serializers.SerializerMethodField()
     posts_count = serializers.SerializerMethodField()
     is_following = serializers.SerializerMethodField()
+    is_private = serializers.SerializerMethodField()
+    follow_requested = serializers.SerializerMethodField()
+    can_view_content = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -86,6 +96,9 @@ class PersonSerializer(AvatarUrlMixin, serializers.ModelSerializer):
             "following_count",
             "posts_count",
             "is_following",
+            "is_private",
+            "follow_requested",
+            "can_view_content",
         )
 
     def get_followers_count(self, obj):
@@ -102,6 +115,21 @@ class PersonSerializer(AvatarUrlMixin, serializers.ModelSerializer):
         if not request or not request.user.is_authenticated:
             return False
         return Follow.objects.filter(follower=request.user, following=obj).exists()
+
+    def get_is_private(self, obj):
+        return is_private_account(obj)
+
+    def get_follow_requested(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+        return pending_follow_request(request.user, obj)
+
+    def get_can_view_content(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return not is_private_account(obj)
+        return can_view_user_content(request.user, obj)
 
 
 class PostAuthorSerializer(AvatarUrlMixin, serializers.ModelSerializer):
