@@ -67,7 +67,29 @@ data class NovaConversation(
     val unreadCount: Int,
     val createdAt: String,
     val updatedAt: String,
-)
+    val kind: String = "direct",
+    val title: String = "",
+    val membersPreview: List<NovaPostAuthor> = emptyList(),
+    val membersCount: Int = 2,
+    val currentUserRole: String = "",
+) {
+    val isGroup: Boolean
+        get() = kind == "group"
+
+    val displayName: String
+        get() = if (isGroup) {
+            title.ifBlank { "Nova group" }
+        } else {
+            otherUser.name.ifBlank { otherUser.username }
+        }
+
+    val displaySubtitle: String
+        get() = if (isGroup) {
+            "$membersCount ${if (membersCount == 1) "member" else "members"}"
+        } else {
+            "@${otherUser.username}"
+        }
+}
 
 
 data class NovaConversationList(
@@ -504,22 +526,53 @@ class NovaMessagingApiClient(
     }
 
     private fun parseConversation(json: JSONObject): NovaConversation {
-        val user = json.optJSONObject("other_user") ?: JSONObject()
+        val kind = json.optString("kind", "direct")
+        val title = json.optString("title")
+        val membersArray = json.optJSONArray("members_preview") ?: JSONArray()
+        val members = buildList {
+            for (index in 0 until membersArray.length()) {
+                val item = membersArray.optJSONObject(index) ?: continue
+                add(
+                    NovaPostAuthor(
+                        id = item.optLong("id"),
+                        username = item.optString("username"),
+                        name = item.optString("name"),
+                        avatarUrl = resolveMediaUrl(item.optString("avatar_url")),
+                    )
+                )
+            }
+        }
+        val user = json.optJSONObject("other_user")
+        val otherUser = if (user != null) {
+            NovaPostAuthor(
+                id = user.optLong("id"),
+                username = user.optString("username"),
+                name = user.optString("name"),
+                avatarUrl = resolveMediaUrl(user.optString("avatar_url")),
+            )
+        } else {
+            NovaPostAuthor(
+                id = 0L,
+                username = "group",
+                name = title.ifBlank { "Nova group" },
+                avatarUrl = "",
+            )
+        }
         val rawLastMessage = json.opt("last_message")
         val lastMessage = if (rawLastMessage is JSONObject) parseMessage(rawLastMessage) else null
 
         return NovaConversation(
             id = json.optLong("id"),
-            otherUser = NovaPostAuthor(
-                id = user.optLong("id"),
-                username = user.optString("username"),
-                name = user.optString("name"),
-                avatarUrl = resolveMediaUrl(user.optString("avatar_url")),
-            ),
+            otherUser = otherUser,
             lastMessage = lastMessage,
             unreadCount = json.optInt("unread_count", 0),
             createdAt = json.optString("created_at"),
             updatedAt = json.optString("updated_at"),
+            kind = kind,
+            title = title,
+            membersPreview = members,
+            membersCount = json.optInt("members_count", if (kind == "group") members.size + 1 else 2),
+            currentUserRole = json.optString("current_user_role"),
         )
     }
 
