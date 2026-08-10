@@ -154,19 +154,42 @@ class PostRepostView(APIView):
     def _post(self, request, post_id):
         return get_object_or_404(public_post_queryset(request), pk=post_id)
 
+    def get(self, request, post_id):
+        post = self._post(request, post_id)
+        latest = (
+            post.reposts.select_related("user")
+            .exclude(user_id__in=blocked_user_ids(request.user))
+            .filter(user__is_active=True)
+            .order_by("-created_at", "-id")
+            .first()
+        )
+        return Response(
+            {
+                "post_id": post.pk,
+                "reposts_count": post.reposts.exclude(user_id__in=blocked_user_ids(request.user)).count(),
+                "is_reposted": Repost.objects.filter(user=request.user, post=post).exists(),
+                "latest_reposter": (
+                    {
+                        "id": latest.user.pk,
+                        "username": latest.user.username,
+                        "name": latest.user.name,
+                        "avatar_url": latest.user.avatar.url if latest.user.avatar else "",
+                    }
+                    if latest is not None
+                    else None
+                ),
+            }
+        )
+
     def post(self, request, post_id):
         post = self._post(request, post_id)
         Repost.objects.get_or_create(user=request.user, post=post)
-        refreshed = post_queryset(request).get(pk=post.pk)
-        refreshed.feed_reposted_by_value = None
-        return Response(PostSerializer(refreshed, context={"request": request}).data)
+        return self.get(request, post_id)
 
     def delete(self, request, post_id):
         post = self._post(request, post_id)
         Repost.objects.filter(user=request.user, post=post).delete()
-        refreshed = post_queryset(request).get(pk=post.pk)
-        refreshed.feed_reposted_by_value = None
-        return Response(PostSerializer(refreshed, context={"request": request}).data)
+        return self.get(request, post_id)
 
 
 class MessageShareView(APIView):
@@ -206,6 +229,7 @@ class MessageShareView(APIView):
                     {"detail": "That post isn't available to this recipient."},
                     status=status.HTTP_403_FORBIDDEN,
                 )
+            marker = f"nova-share:post:{shared_post.pk}"
         elif kind == MessageShare.Kind.PROFILE:
             profile_username = str(request.data.get("profile_username") or "").strip().lower()
             if not profile_username:
@@ -219,6 +243,7 @@ class MessageShareView(APIView):
                     {"detail": "That profile isn't available to this recipient."},
                     status=status.HTTP_403_FORBIDDEN,
                 )
+            marker = f"nova-share:profile:{shared_profile.username}"
         else:
             return Response(
                 {"detail": "Unsupported share type."},
@@ -231,7 +256,7 @@ class MessageShareView(APIView):
                 conversation=conversation,
                 sender=request.user,
                 recipient=recipient,
-                body="",
+                body=marker,
                 client_id=f"share-{uuid.uuid4().hex}",
             )
             MessageShare.objects.create(
