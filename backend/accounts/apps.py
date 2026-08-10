@@ -14,3 +14,5 @@ class AccountsConfig(AppConfig):
         # Stories evolve independently from the core social models while still
         # registering under the accounts Django app.
         from . import story_models  # noqa: F401
+        # Sharing/reposts stay modular while participating in the same app.
+        from . import sharing_models  # noqa: F401
