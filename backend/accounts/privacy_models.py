@@ -1,7 +1,9 @@
 from django.db import models
 from django.db.models import F, Q
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 
-from .models import User
+from .models import Follow, User
 
 
 class AccountPrivacy(models.Model):
@@ -88,3 +90,11 @@ class CloseFriend(models.Model):
 
     def __str__(self):
         return f"@{self.member.username} is close friend of @{self.owner.username}"
+
+
+@receiver(post_delete, sender=Follow)
+def remove_close_friend_when_follow_ends(sender, instance, **kwargs):
+    CloseFriend.objects.filter(
+        owner_id=instance.following_id,
+        member_id=instance.follower_id,
+    ).delete()
