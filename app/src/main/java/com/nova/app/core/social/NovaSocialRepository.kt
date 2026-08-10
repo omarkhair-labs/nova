@@ -34,6 +34,25 @@ class NovaSocialRepository(
         }
     }
 
+    suspend fun setBlocked(
+        username: String,
+        blocked: Boolean = true,
+    ): ApiResult<Unit> {
+        return authenticatedCall { accessToken ->
+            api.setBlocked(accessToken, username, blocked)
+        }
+    }
+
+    suspend fun report(
+        username: String,
+        reason: String,
+        details: String = "",
+    ): ApiResult<String> {
+        return authenticatedCall { accessToken ->
+            api.reportPerson(accessToken, username, reason, details)
+        }
+    }
+
     private suspend fun <T> authenticatedCall(
         call: suspend (String) -> ApiResult<T>,
     ): ApiResult<T> {
