@@ -62,8 +62,8 @@ class Migration(migrations.Migration):
             model_name="messageshare",
             constraint=models.CheckConstraint(
                 condition=(
-                    models.Q(kind="post", post__isnull=False, profile__isnull=True)
-                    | models.Q(kind="profile", profile__isnull=False, post__isnull=True)
+                    models.Q(kind="post", profile__isnull=True)
+                    | models.Q(kind="profile", post__isnull=True)
                 ),
                 name="message_share_matches_kind",
             ),
