@@ -117,16 +117,6 @@ def _message_preview(message):
 def send_message_push(message):
     """Deliver direct or group message pushes without Activity rows."""
 
-    app = _firebase_app()
-    if app is None:
-        return 0
-
-    try:
-        from firebase_admin import messaging
-    except Exception:
-        logger.exception("Firebase messaging is unavailable.")
-        return 0
-
     conversation = message.conversation
     actor_name = message.sender.name.strip() or f"@{message.sender.username}"
     preview = _message_preview(message)
@@ -186,6 +176,16 @@ def send_message_push(message):
         conversation_kind = "direct"
 
     if not fids:
+        return 0
+
+    app = _firebase_app()
+    if app is None:
+        return 0
+
+    try:
+        from firebase_admin import messaging
+    except Exception:
+        logger.exception("Firebase messaging is unavailable.")
         return 0
 
     data = {
