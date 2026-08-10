@@ -3,6 +3,7 @@ from collections import OrderedDict
 from datetime import timedelta
 
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
@@ -15,8 +16,10 @@ from .messaging_serializers import ConversationSerializer, MessageSerializer
 from .messaging_views import conversations_for
 from .models import Conversation, Follow, Message
 from .push import send_message_push
+from .serializers import PostSerializer
 from .story_models import Story, StoryReaction, StoryView
 from .trust_safety import blocked_user_ids, users_blocked
+from .views import public_post_queryset
 
 STORY_DURATION = timedelta(hours=24)
 MAX_STORY_IMAGE_BYTES = 15 * 1024 * 1024
@@ -49,11 +52,17 @@ def _allowed_story_author_ids(user):
 
 def visible_stories_for(user):
     blocked_ids = blocked_user_ids(user)
-    return Story.objects.select_related("author").filter(
-        expires_at__gt=timezone.now(),
-        author__is_active=True,
-        author_id__in=_allowed_story_author_ids(user),
-    ).exclude(author_id__in=blocked_ids)
+    return (
+        Story.objects.select_related("author", "shared_post", "shared_post__author")
+        .filter(
+            expires_at__gt=timezone.now(),
+            author__is_active=True,
+            author_id__in=_allowed_story_author_ids(user),
+        )
+        .exclude(author_id__in=blocked_ids)
+        .filter(Q(shared_post__isnull=True) | Q(shared_post__author__is_active=True))
+        .exclude(shared_post__author_id__in=blocked_ids)
+    )
 
 
 def visible_story_for_request(request, story_id):
@@ -64,11 +73,21 @@ def _story_payload(request, story, viewed_story_ids=None, reaction_by_story=None
     viewed_story_ids = viewed_story_ids or set()
     reaction_by_story = reaction_by_story or {}
     mine = story.author_id == request.user.pk
+    shared_post = story.shared_post
     return {
         "id": story.pk,
         "author": _author_payload(request, story.author),
-        "media_url": _absolute_media_url(request, story.media),
+        "media_url": (
+            _absolute_media_url(request, shared_post.image)
+            if shared_post is not None
+            else _absolute_media_url(request, story.media)
+        ),
         "media_type": story.media_type,
+        "shared_post": (
+            PostSerializer(shared_post, context={"request": request}).data
+            if shared_post is not None
+            else None
+        ),
         "caption": story.caption,
         "created_at": story.created_at.isoformat(),
         "expires_at": story.expires_at.isoformat(),
@@ -159,14 +178,40 @@ class StoryFeedView(APIView):
     def post(self, request):
         media = request.FILES.get("media")
         caption = str(request.data.get("caption") or "").strip()
-        if media is None:
-            return Response(
-                {"detail": "Choose a photo or video for your story."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        raw_shared_post_id = request.data.get("shared_post_id")
         if len(caption) > 240:
             return Response(
                 {"detail": "Story caption must be 240 characters or fewer."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if raw_shared_post_id not in (None, ""):
+            if media is not None:
+                return Response(
+                    {"detail": "Share either a post or new media to a Story, not both."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                shared_post_id = int(raw_shared_post_id)
+            except (TypeError, ValueError):
+                shared_post_id = 0
+            shared_post = get_object_or_404(public_post_queryset(request), pk=shared_post_id)
+            story = Story.objects.create(
+                author=request.user,
+                media="",
+                media_type=Story.MediaType.POST,
+                shared_post=shared_post,
+                caption=caption,
+                expires_at=timezone.now() + STORY_DURATION,
+            )
+            return Response(
+                _story_payload(request, story),
+                status=status.HTTP_201_CREATED,
+            )
+
+        if media is None:
+            return Response(
+                {"detail": "Choose a photo, video, or post for your story."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
