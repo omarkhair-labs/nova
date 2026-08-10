@@ -78,7 +78,13 @@ class NovaSharingRepository(
         )
     }
 
-    suspend fun addPostToStory(postId: Long, caption: String = ""): ApiResult<Unit> {
+    suspend fun addPostToStory(
+        postId: Long,
+        caption: String = "",
+        audience: String = "followers",
+    ): ApiResult<Unit> {
+        val cleanAudience = audience.takeIf { it == "followers" || it == "close_friends" }
+            ?: return ApiResult.Failure("Choose a valid Story audience.")
         return authenticatedCall { token ->
             when (
                 val response = requestJson(
@@ -86,7 +92,8 @@ class NovaSharingRepository(
                     method = "POST",
                     body = JSONObject()
                         .put("shared_post_id", postId)
-                        .put("caption", caption.trim().take(240)),
+                        .put("caption", caption.trim().take(240))
+                        .put("audience", cleanAudience),
                     bearerToken = token,
                 )
             ) {
