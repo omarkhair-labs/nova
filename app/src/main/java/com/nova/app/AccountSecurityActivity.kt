@@ -1,5 +1,6 @@
 package com.nova.app
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -20,7 +21,17 @@ class AccountSecurityActivity : ComponentActivity() {
                 if (mode == MODE_RECOVERY) {
                     PasswordRecoveryScreen(onBack = { finish() })
                 } else {
-                    AccountSecurityScreen(onBack = { finish() })
+                    AccountSecurityScreen(
+                        onBack = { finish() },
+                        onAccountDeleted = {
+                            startActivity(
+                                Intent(this, MainActivity::class.java).addFlags(
+                                    Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK,
+                                )
+                            )
+                            finish()
+                        },
+                    )
                 }
             }
         }
