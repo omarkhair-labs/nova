@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaPerson
+import com.nova.app.core.privacy.NovaPersonPrivacyState
 import com.nova.app.core.social.NovaSocialPagingRepository
 import com.nova.app.core.social.NovaSocialRepository
 import com.nova.app.ui.components.NovaAvatar
@@ -76,6 +77,7 @@ fun SocialConnectionsScreen(
 
     var query by remember { mutableStateOf("") }
     var people by remember(username, mode) { mutableStateOf<List<NovaPerson>>(emptyList()) }
+    var privacyByUserId by remember(username, mode) { mutableStateOf<Map<Long, NovaPersonPrivacyState>>(emptyMap()) }
     var nextCursor by remember(username, mode) { mutableStateOf<String?>(null) }
     var isLoading by remember(username, mode) { mutableStateOf(true) }
     var isLoadingMore by remember(username, mode) { mutableStateOf(false) }
@@ -108,6 +110,11 @@ fun SocialConnectionsScreen(
                             val existingIds = people.mapTo(mutableSetOf()) { it.id }
                             people + result.value.people.filterNot { it.id in existingIds }
                         }
+                        privacyByUserId = if (reset) {
+                            result.value.privacyByUserId
+                        } else {
+                            privacyByUserId + result.value.privacyByUserId
+                        }
                         nextCursor = result.value.nextCursor
                         isLoading = false
                         isLoadingMore = false
@@ -130,18 +137,39 @@ fun SocialConnectionsScreen(
 
     fun toggleFollow(person: NovaPerson) {
         if (updatingUsername != null || person.id == currentUserId) return
+        val privacy = privacyByUserId[person.id] ?: NovaPersonPrivacyState(false, false, true)
+        val shouldFollow = !person.isFollowing && !privacy.followRequested
         scope.launch {
             updatingUsername = person.username
             errorMessage = null
             when (
                 val result = socialRepository.setFollowing(
                     username = person.username,
-                    follow = !person.isFollowing,
+                    follow = shouldFollow,
                 )
             ) {
                 is ApiResult.Success -> {
-                    people = people.map { existing ->
-                        if (existing.id == result.value.id) result.value else existing
+                    when {
+                        privacy.followRequested -> {
+                            privacyByUserId = privacyByUserId + (
+                                person.id to privacy.copy(followRequested = false)
+                            )
+                        }
+                        privacy.isPrivate && !person.isFollowing -> {
+                            privacyByUserId = privacyByUserId + (
+                                person.id to privacy.copy(followRequested = true, canViewContent = false)
+                            )
+                        }
+                        else -> {
+                            people = people.map { existing ->
+                                if (existing.id == result.value.id) result.value else existing
+                            }
+                            if (privacy.isPrivate && person.isFollowing) {
+                                privacyByUserId = privacyByUserId + (
+                                    person.id to privacy.copy(canViewContent = false)
+                                )
+                            }
+                        }
                     }
                 }
                 is ApiResult.Failure -> {
@@ -270,6 +298,8 @@ fun SocialConnectionsScreen(
                     items(people, key = { it.id }) { person ->
                         ConnectionRow(
                             person = person,
+                            privacy = privacyByUserId[person.id]
+                                ?: NovaPersonPrivacyState(false, false, true),
                             isSelf = person.id == currentUserId,
                             isUpdating = updatingUsername == person.username,
                             onFollowToggle = { toggleFollow(person) },
@@ -304,6 +334,7 @@ fun SocialConnectionsScreen(
 @Composable
 private fun ConnectionRow(
     person: NovaPerson,
+    privacy: NovaPersonPrivacyState,
     isSelf: Boolean,
     isUpdating: Boolean,
     onFollowToggle: () -> Unit,
@@ -333,7 +364,10 @@ private fun ConnectionRow(
                     maxLines = 1,
                 )
                 Text(
-                    text = "@${person.username}",
+                    text = buildString {
+                        append("@${person.username}")
+                        if (privacy.isPrivate) append(" · 🔒")
+                    },
                     color = NovaMuted,
                     fontSize = 11.sp,
                     maxLines = 1,
@@ -341,33 +375,50 @@ private fun ConnectionRow(
             }
 
             if (!isSelf) {
-                if (person.isFollowing) {
-                    OutlinedButton(
-                        onClick = onFollowToggle,
-                        enabled = !isUpdating,
-                        shape = RoundedCornerShape(13.dp),
-                        border = BorderStroke(1.dp, NovaBorder),
-                    ) {
-                        Text(
-                            text = if (isUpdating) "…" else "Following",
-                            color = NovaInk,
-                            fontSize = 10.sp,
-                        )
+                when {
+                    person.isFollowing -> {
+                        OutlinedButton(
+                            onClick = onFollowToggle,
+                            enabled = !isUpdating,
+                            shape = RoundedCornerShape(13.dp),
+                            border = BorderStroke(1.dp, NovaBorder),
+                        ) {
+                            Text(
+                                text = if (isUpdating) "…" else "Following",
+                                color = NovaInk,
+                                fontSize = 10.sp,
+                            )
+                        }
                     }
-                } else {
-                    Button(
-                        onClick = onFollowToggle,
-                        enabled = !isUpdating,
-                        shape = RoundedCornerShape(13.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = NovaAccent,
-                            contentColor = Color.White,
-                        ),
-                    ) {
-                        Text(
-                            text = if (isUpdating) "…" else "Follow",
-                            fontSize = 10.sp,
-                        )
+                    privacy.followRequested -> {
+                        OutlinedButton(
+                            onClick = onFollowToggle,
+                            enabled = !isUpdating,
+                            shape = RoundedCornerShape(13.dp),
+                            border = BorderStroke(1.dp, NovaBorder),
+                        ) {
+                            Text(
+                                text = if (isUpdating) "…" else "Requested",
+                                color = NovaMuted,
+                                fontSize = 10.sp,
+                            )
+                        }
+                    }
+                    else -> {
+                        Button(
+                            onClick = onFollowToggle,
+                            enabled = !isUpdating,
+                            shape = RoundedCornerShape(13.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = NovaAccent,
+                                contentColor = Color.White,
+                            ),
+                        ) {
+                            Text(
+                                text = if (isUpdating) "…" else "Follow",
+                                fontSize = 10.sp,
+                            )
+                        }
                     }
                 }
             }
