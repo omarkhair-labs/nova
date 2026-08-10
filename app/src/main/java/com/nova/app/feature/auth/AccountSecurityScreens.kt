@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -294,7 +296,7 @@ fun AccountSecurityScreen(
         )
     }
 
-    SecurityPage(
+    SecurityScrollablePage(
         title = "Security",
         subtitle = "Change your password or remove every other signed-in Nova session.",
         onBack = onBack,
@@ -441,6 +443,30 @@ private fun SecurityPage(
             .statusBarsPadding()
             .navigationBarsPadding()
             .imePadding()
+            .padding(horizontal = 24.dp, vertical = 18.dp),
+    ) {
+        NovaHeader(title = title, subtitle = subtitle, onBack = onBack)
+        Spacer(Modifier.height(30.dp))
+        content()
+    }
+}
+
+
+@Composable
+private fun SecurityScrollablePage(
+    title: String,
+    subtitle: String,
+    onBack: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(NovaBackground)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .imePadding()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 18.dp),
     ) {
         NovaHeader(title = title, subtitle = subtitle, onBack = onBack)
