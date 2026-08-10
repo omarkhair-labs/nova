@@ -1,23 +1,32 @@
 from datetime import timedelta
 
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 
-from .models import User
+from .models import Post, User
 
 
 class Story(models.Model):
     class MediaType(models.TextChoices):
         IMAGE = "image", "Image"
         VIDEO = "video", "Video"
+        POST = "post", "Shared post"
 
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name="stories",
     )
-    media = models.FileField(upload_to="stories/%Y/%m/")
+    media = models.FileField(upload_to="stories/%Y/%m/", blank=True)
     media_type = models.CharField(max_length=8, choices=MediaType.choices)
+    shared_post = models.ForeignKey(
+        Post,
+        on_delete=models.CASCADE,
+        related_name="story_shares",
+        null=True,
+        blank=True,
+    )
     caption = models.CharField(max_length=240, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
@@ -29,8 +38,20 @@ class Story(models.Model):
             models.Index(fields=("author", "-created_at"), name="story_author_created_idx"),
             models.Index(fields=("expires_at", "-created_at"), name="story_expiry_created_idx"),
         ]
+        constraints = [
+            models.CheckConstraint(
+                condition=~Q(media="") | Q(shared_post__isnull=False),
+                name="story_has_media_or_post",
+            ),
+            models.CheckConstraint(
+                condition=~Q(media_type="post") | Q(shared_post__isnull=False),
+                name="story_post_type_has_target",
+            ),
+        ]
 
     def save(self, *args, **kwargs):
+        if self.shared_post_id:
+            self.media_type = self.MediaType.POST
         if self.expires_at is None:
             self.expires_at = timezone.now() + timedelta(hours=24)
         super().save(*args, **kwargs)
