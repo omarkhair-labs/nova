@@ -154,6 +154,7 @@ fun ConversationScreenV8(
     val voiceRecorder = remember(context) { NovaVoiceRecorder(appContext) }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
+    val isGroupConversation = username == "group"
 
     val currentAuthor = remember(conversationId) {
         sessionStore.load()?.cachedUser?.let { user ->
@@ -300,9 +301,14 @@ fun ConversationScreenV8(
                     messages = result.value.messages
                     nextCursor = result.value.nextCursor
                     if (!initialUnreadCaptured) {
-                        val unread = result.value.messages.filter { !it.isMine && it.readAt == null }
-                        unreadAnchorMessageId = unread.firstOrNull()?.id
-                        unreadCountAtOpen = unread.size
+                        if (isGroupConversation) {
+                            unreadAnchorMessageId = null
+                            unreadCountAtOpen = 0
+                        } else {
+                            val unread = result.value.messages.filter { !it.isMine && it.readAt == null }
+                            unreadAnchorMessageId = unread.firstOrNull()?.id
+                            unreadCountAtOpen = unread.size
+                        }
                         initialUnreadCaptured = true
                     }
                     isLoading = false
@@ -703,7 +709,7 @@ fun ConversationScreenV8(
             },
             onSessionExpired = onSessionExpired,
             onPresence = { presence ->
-                if (presence.username == username) {
+                if (!isGroupConversation && presence.username == username) {
                     otherPresence = presence
                     if (!presence.isOnline) isOtherTyping = false
                 }
@@ -790,7 +796,11 @@ fun ConversationScreenV8(
                 Text("Start the conversation", color = NovaInk, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "Send a message, photo, or voice note to @$username.",
+                    if (isGroupConversation) {
+                        "Send a message, photo, or voice note to the group."
+                    } else {
+                        "Send a message, photo, or voice note to @$username."
+                    },
                     color = NovaMuted,
                     fontSize = 13.sp,
                     textAlign = TextAlign.Center,
@@ -856,6 +866,7 @@ fun ConversationScreenV8(
                             message = message,
                             compactTop = previousSameSender,
                             compactBottom = nextSameSender,
+                            showSenderName = isGroupConversation && !message.isMine && !previousSameSender,
                             showActions = actionsForMessageId == message.id,
                             reactionBusy = reactingMessageId == message.id,
                             mutationBusy = mutatingMessageId == message.id,
@@ -910,7 +921,7 @@ fun ConversationScreenV8(
         AlertDialog(
             onDismissRequest = { if (mutatingMessageId == null) deleteTarget = null },
             title = { Text("Delete message?", color = NovaInk, fontWeight = FontWeight.Bold) },
-            text = { Text("This removes the message for both people. This can't be undone.", color = NovaMuted) },
+            text = { Text("This removes the message for everyone. This can't be undone.", color = NovaMuted) },
             confirmButton = {
                 Surface(
                     onClick = { if (mutatingMessageId == null) deleteForEveryone() },
@@ -956,14 +967,17 @@ private fun V8Header(
     onBack: () -> Unit,
     onRefresh: () -> Unit,
 ) {
-    val online = presence?.isOnline == true
+    val isGroupConversation = username == "group"
+    val online = !isGroupConversation && presence?.isOnline == true
     val subtitle = when {
-        realtimeStatus == NovaRealtimeStatus.Live && isTyping -> "typing…"
+        realtimeStatus == NovaRealtimeStatus.Live && isTyping -> if (isGroupConversation) "Someone is typing…" else "typing…"
+        isGroupConversation && realtimeStatus == NovaRealtimeStatus.Live -> "Group conversation"
         realtimeStatus == NovaRealtimeStatus.Live && online -> "Online"
         realtimeStatus == NovaRealtimeStatus.Live && presence?.lastSeenAt != null -> formatLastSeenV8(presence.lastSeenAt)
         realtimeStatus == NovaRealtimeStatus.Connecting -> "Connecting…"
         realtimeStatus == NovaRealtimeStatus.Reconnecting -> "Reconnecting…"
         realtimeStatus == NovaRealtimeStatus.Offline -> "Offline"
+        isGroupConversation -> "Group conversation"
         else -> "@$username"
     }
 
@@ -1122,7 +1136,14 @@ private fun V8Composer(
                     modifier = Modifier.weight(1f),
                     enabled = !isMutating && !isRecording,
                     placeholder = {
-                        Text(if (editingTarget != null) "Edit message" else "Message @$username", color = NovaMuted)
+                        Text(
+                            when {
+                                editingTarget != null -> "Edit message"
+                                username == "group" -> "Message group"
+                                else -> "Message @$username"
+                            },
+                            color = NovaMuted,
+                        )
                     },
                     minLines = 1,
                     maxLines = 4,
@@ -1208,6 +1229,7 @@ private fun V8MessageBubble(
     message: NovaMessage,
     compactTop: Boolean,
     compactBottom: Boolean,
+    showSenderName: Boolean,
     showActions: Boolean,
     reactionBusy: Boolean,
     mutationBusy: Boolean,
@@ -1257,6 +1279,16 @@ private fun V8MessageBubble(
             border = if (message.isMine) null else BorderStroke(1.dp, NovaBorder),
         ) {
             Column(modifier = Modifier.widthIn(max = 292.dp).padding(horizontal = 10.dp, vertical = 9.dp)) {
+                if (showSenderName) {
+                    Text(
+                        text = message.sender.name.ifBlank { "@${message.sender.username}" },
+                        color = NovaAccent,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                }
+
                 if (message.isDeleted) {
                     Text(
                         "Message deleted",
