@@ -51,7 +51,7 @@ For Firebase push delivery, also configure:
 FIREBASE_SERVICE_ACCOUNT_JSON=<firebase-service-account-json>
 ```
 
-For V10 password-recovery email delivery, configure an SMTP account on the Django service:
+For password-recovery email delivery, configure an SMTP account on the Django service:
 
 ```text
 EMAIL_HOST=<smtp-host>
@@ -65,9 +65,9 @@ DEFAULT_FROM_EMAIL=<verified-sender-address>
 
 Use `EMAIL_USE_SSL=1` and `EMAIL_USE_TLS=0` instead when the SMTP provider requires implicit SSL (commonly port 465). Never commit SMTP credentials to the repository.
 
-## V11 voice/video call networking
+## Voice/video call networking
 
-Nova V11 uses WebRTC for audio/video media and Django Channels for authenticated call signaling. ICE server configuration is delivered to Android by the backend instead of being hard-coded into the APK.
+Nova uses WebRTC for audio/video media and Django Channels for authenticated call signaling. ICE server configuration is delivered to Android by the backend instead of being hard-coded into the APK.
 
 The backend accepts an optional `NOVA_CALL_ICE_SERVERS_JSON` environment variable. It must contain a JSON array of ICE server objects. For example, a STUN + TURN configuration looks like:
 
@@ -138,7 +138,7 @@ Authorization: Bearer <access-token>
 
 ## Redis and realtime
 
-When `REDIS_URL` is present, Nova uses `channels_redis` so HTTP/ASGI workers and replicas share realtime conversation and call state. V10 stores short-lived password-reset challenges and request cooldowns in Redis, while V11 uses Redis for call-signaling transport and call liveness leases. If Redis is unavailable in local development, password recovery falls back to process-local temporary storage; production should keep Redis attached.
+When `REDIS_URL` is present, Nova uses `channels_redis` so HTTP/ASGI workers and replicas share realtime conversation and call state. Password recovery stores short-lived challenges and request cooldowns in Redis, while calls use Redis for signaling transport and liveness leases. If Redis is unavailable in local development, password recovery falls back to process-local temporary storage; production should keep Redis attached.
 
 ## Local development
 
@@ -154,3 +154,18 @@ wss://<railway-domain>/ws/
 ```
 
 `adb reverse` and a running laptop are not required for normal app use.
+
+## V1 release checklist
+
+Before shipping a production build:
+
+- Confirm Nova CI is green, including `lintRelease` and `assembleRelease`.
+- Build/sign the production artifact with the real Android signing key; never commit the keystore or passwords.
+- Confirm the Firebase Android app is registered for `com.omarkhair70.nova` and the production `google-services.json` is supplied locally/through the release environment, not committed.
+- Confirm Railway health returns `200` and PostgreSQL, Redis and object storage are attached.
+- Confirm `DJANGO_DEBUG=0`, a strong `DJANGO_SECRET_KEY`, production allowed hosts and production media credentials.
+- Confirm SMTP password recovery and Firebase push delivery from a real device.
+- Confirm a working TURN server is present in `NOVA_CALL_ICE_SERVERS_JSON` before relying on calls across arbitrary networks.
+- Run a two-physical-device smoke pass: register/login, profile/avatar, follow/block/report, post/comment/delete confirmation, direct messaging/media/voice notes/search, push open, voice call, video call, network handoff and video PiP.
+- Verify Terms/Privacy copy and store disclosures with appropriate legal/product review before public distribution.
+- Increment `versionCode` for every store upload and set the intended public `versionName`.

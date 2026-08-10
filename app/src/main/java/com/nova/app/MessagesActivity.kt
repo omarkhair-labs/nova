@@ -31,7 +31,7 @@ import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.ApiResult
-import com.nova.app.feature.messages.ConversationScreenV11
+import com.nova.app.feature.messages.ConversationScreen
 import com.nova.app.feature.messages.MessagesScreen
 import com.nova.app.feature.messages.NewMessageDialog
 import com.nova.app.navigation.NovaRootNavigationSignal
@@ -195,7 +195,7 @@ private fun MessagingActivityContent(
             )
         }
     } else {
-        ConversationScreenV11(
+        ConversationScreen(
             conversationId = conversation.id,
             username = conversation.username,
             displayName = conversation.displayName,
