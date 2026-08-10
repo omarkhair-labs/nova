@@ -15,6 +15,18 @@ def _absolute_file_url(request, field):
     return request.build_absolute_uri(url) if request else url
 
 
+def _visible_to_context_user(context, target_user):
+    if target_user is None or not target_user.is_active:
+        return False
+    request = context.get("request")
+    current_user = getattr(request, "user", None)
+    if current_user is None or not getattr(current_user, "is_authenticated", False):
+        # Realtime serialization has no request object. Share creation already
+        # validates the recipient's visibility, so active targets are safe here.
+        return True
+    return not users_blocked(current_user, target_user)
+
+
 class MessageSerializer(serializers.ModelSerializer):
     sender = PostAuthorSerializer(read_only=True)
     body = serializers.SerializerMethodField()
@@ -127,17 +139,9 @@ class MessageSerializer(serializers.ModelSerializer):
             return None
 
         request = self.context.get("request")
-        current_user = getattr(request, "user", None)
-
         if shared.kind == "post":
             post = shared.post
-            available = bool(
-                post
-                and post.author.is_active
-                and current_user
-                and current_user.is_authenticated
-                and not users_blocked(current_user, post.author)
-            )
+            available = bool(post and _visible_to_context_user(self.context, post.author))
             if not available:
                 return {"kind": "post", "available": False, "post": None, "profile": None}
             return {
@@ -153,13 +157,7 @@ class MessageSerializer(serializers.ModelSerializer):
             }
 
         profile = shared.profile
-        available = bool(
-            profile
-            and profile.is_active
-            and current_user
-            and current_user.is_authenticated
-            and not users_blocked(current_user, profile)
-        )
+        available = _visible_to_context_user(self.context, profile)
         if not available:
             return {"kind": "profile", "available": False, "post": None, "profile": None}
         return {
