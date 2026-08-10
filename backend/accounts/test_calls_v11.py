@@ -160,6 +160,11 @@ class CallsV11Tests(TransactionTestCase):
             self.assertEqual(ice["type"], "call.ice")
             self.assertEqual(ice["sdp_mline_index"], 0)
 
+            await callee.send_json_to({"type": "call.ice_restart"})
+            restart = await caller.receive_json_from(timeout=1)
+            self.assertEqual(restart, {"type": "call.ice_restart"})
+            self.assertTrue(await callee.receive_nothing(timeout=0.1))
+
             await caller.send_json_to({"type": "call.end"})
             end_for_caller = await caller.receive_json_from(timeout=1)
             end_for_callee = await callee.receive_json_from(timeout=1)
@@ -174,6 +179,22 @@ class CallsV11Tests(TransactionTestCase):
         finally:
             await caller.disconnect()
             await callee.disconnect()
+
+    async def test_ice_restart_requires_active_call(self):
+        call = await database_sync_to_async(CallSession.objects.create)(
+            conversation=self.conversation,
+            caller=self.omar,
+            callee=self.maya,
+            kind=CallSession.Kind.AUDIO,
+        )
+        caller, _ = await self.connect(call, self.omar)
+        try:
+            await caller.send_json_to({"type": "call.ice_restart"})
+            error = await caller.receive_json_from(timeout=1)
+            self.assertEqual(error["type"], "call.error")
+            self.assertIn("active", error["detail"].lower())
+        finally:
+            await caller.disconnect()
 
     async def test_callee_cannot_send_offer(self):
         call = await database_sync_to_async(CallSession.objects.create)(
