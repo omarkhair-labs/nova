@@ -204,7 +204,7 @@ class SharingAndRepostTests(APITestCase):
             format="json",
         )
         self.assertEqual(created.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(created.data["media_type"], "post")
+        self.assertEqual(created.data["media_type"], "image")
         self.assertEqual(created.data["shared_post"]["id"], post.pk)
         story = Story.objects.get(pk=created.data["id"])
         self.assertEqual(story.shared_post_id, post.pk)
