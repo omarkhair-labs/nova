@@ -153,3 +153,6 @@ jobs:
 
       - name: Assemble Android debug APK
         run: ./gradlew --no-daemon assembleDebug
+
+      - name: Assemble Android release APK
+        run: ./gradlew --no-daemon assembleRelease
