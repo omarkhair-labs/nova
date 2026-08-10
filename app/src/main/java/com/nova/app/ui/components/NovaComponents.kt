@@ -33,6 +33,7 @@ import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.navigation.NovaRootNavigationSignal
 import com.nova.app.navigation.NovaRootTab
+import com.nova.app.navigation.rootNavigationPlan
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
@@ -185,24 +186,37 @@ fun NovaBottomBar(
     val resolvedUnreadCount = messagesUnreadCount ?: NovaMessagesSignal.unreadCount
     val rootRequestVersion = NovaRootNavigationSignal.requestVersion
 
-    LaunchedEffect(rootRequestVersion, selected) {
-        val requested = NovaRootNavigationSignal.pendingTab ?: return@LaunchedEffect
-        if (selected == NovaTab.Messages) return@LaunchedEffect
-
-        val currentRoot = when (selected) {
-            NovaTab.Home -> NovaRootTab.Home
-            NovaTab.People -> NovaRootTab.People
-            NovaTab.Profile -> NovaRootTab.Profile
-            NovaTab.Messages -> return@LaunchedEffect
-        }
-
-        if (currentRoot != requested) {
+    fun dispatchRoot(requested: NovaRootTab) {
+        if (selected == NovaTab.Messages) {
             when (requested) {
                 NovaRootTab.Home -> onHomeClick()
                 NovaRootTab.People -> onPeopleClick()
                 NovaRootTab.Profile -> onProfileClick()
             }
+            return
         }
+
+        val currentRoot = when (selected) {
+            NovaTab.Home -> NovaRootTab.Home
+            NovaTab.People -> NovaRootTab.People
+            NovaTab.Profile -> NovaRootTab.Profile
+            NovaTab.Messages -> return
+        }
+
+        rootNavigationPlan(currentRoot, requested).forEach { step ->
+            when (step) {
+                NovaRootTab.Home -> onHomeClick()
+                NovaRootTab.People -> onPeopleClick()
+                NovaRootTab.Profile -> onProfileClick()
+            }
+        }
+    }
+
+    LaunchedEffect(rootRequestVersion, selected) {
+        val requested = NovaRootNavigationSignal.pendingTab ?: return@LaunchedEffect
+        if (selected == NovaTab.Messages) return@LaunchedEffect
+
+        dispatchRoot(requested)
         NovaRootNavigationSignal.consume(requested)
     }
 
@@ -223,13 +237,13 @@ fun NovaBottomBar(
                 label = "Home",
                 symbol = "⌂",
                 selected = selected == NovaTab.Home,
-                onClick = onHomeClick,
+                onClick = { dispatchRoot(NovaRootTab.Home) },
             )
             NovaTabItem(
                 label = "People",
                 symbol = "◎",
                 selected = selected == NovaTab.People,
-                onClick = onPeopleClick,
+                onClick = { dispatchRoot(NovaRootTab.People) },
             )
             NovaTabItem(
                 label = "Messages",
@@ -248,7 +262,7 @@ fun NovaBottomBar(
                 label = "You",
                 symbol = "○",
                 selected = selected == NovaTab.Profile,
-                onClick = onProfileClick,
+                onClick = { dispatchRoot(NovaRootTab.Profile) },
             )
         }
     }
