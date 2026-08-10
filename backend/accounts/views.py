@@ -464,7 +464,7 @@ class DevicePushTokenView(APIView):
 
         return Response(
             {"registered": True},
-            status=status.HTTP_201_CREATED if created else status=status.HTTP_200_OK,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
 
     def delete(self, request):
