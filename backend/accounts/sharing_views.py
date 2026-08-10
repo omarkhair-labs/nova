@@ -201,6 +201,11 @@ class MessageShareView(APIView):
             except (TypeError, ValueError):
                 post_id = 0
             shared_post = get_object_or_404(public_post_queryset(request), pk=post_id)
+            if users_blocked(recipient, shared_post.author):
+                return Response(
+                    {"detail": "That post isn't available to this recipient."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
         elif kind == MessageShare.Kind.PROFILE:
             profile_username = str(request.data.get("profile_username") or "").strip().lower()
             if not profile_username:
@@ -209,6 +214,11 @@ class MessageShareView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             shared_profile = active_person_for(request.user, profile_username)
+            if users_blocked(recipient, shared_profile):
+                return Response(
+                    {"detail": "That profile isn't available to this recipient."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
         else:
             return Response(
                 {"detail": "Unsupported share type."},
