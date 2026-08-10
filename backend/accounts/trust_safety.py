@@ -46,7 +46,7 @@ def visible_active_users_for(user):
 
 def active_person_for(user, username):
     return get_object_or_404(
-        visible_active_users_for(user),
+        User.objects.filter(is_active=True).exclude(pk__in=blocked_user_ids(user)),
         username=username.strip().lower(),
     )
 
