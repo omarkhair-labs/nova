@@ -28,7 +28,7 @@ from .messaging_views import (
     ConversationsView,
     MessageReactionView,
 )
-from .trust_safety import DeleteAccountView, UserBlockView, UserReportView
+from .trust_safety import BlockedUsersView, DeleteAccountView, UserBlockView, UserReportView
 from .views import (
     CommentDetailView,
     DevicePushTokenView,
@@ -71,6 +71,7 @@ urlpatterns = [
         name="revoke-other-sessions",
     ),
     path("auth/account/delete/", DeleteAccountView.as_view(), name="account-delete"),
+    path("auth/blocks/", BlockedUsersView.as_view(), name="blocked-users"),
     path("me/", MeView.as_view(), name="me"),
     path("people/", PeopleView.as_view(), name="people"),
     path("people/<str:username>/", PersonView.as_view(), name="person-detail"),
