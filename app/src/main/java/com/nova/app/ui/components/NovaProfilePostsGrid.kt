@@ -36,17 +36,20 @@ fun NovaProfilePostsGrid(
     onPostClick: (NovaPost) -> Unit,
     emptyTitle: String = "No posts yet",
     emptyMessage: String = "Shared moments will show up here.",
+    sectionTitle: String = "Posts",
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(
-            text = "Posts",
-            color = NovaInk,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-        )
+        if (sectionTitle.isNotBlank()) {
+            Text(
+                text = sectionTitle,
+                color = NovaInk,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
 
         when {
             isLoading && posts.isEmpty() -> {
