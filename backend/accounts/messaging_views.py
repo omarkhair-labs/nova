@@ -2,7 +2,7 @@ import logging
 
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Q
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
@@ -10,6 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .messaging_models import GroupMembership, GroupReadState
 from .messaging_realtime import (
     broadcast_conversation_read,
     broadcast_message_created,
@@ -33,9 +34,24 @@ ALLOWED_REACTIONS = {"❤️", "😂", "😮", "😢", "😡", "👍"}
 
 
 def conversations_for(user):
-    return Conversation.objects.filter(
-        Q(participant_one=user) | Q(participant_two=user)
-    ).select_related("participant_one", "participant_two")
+    return (
+        Conversation.objects.filter(
+            Q(
+                kind=Conversation.Kind.DIRECT,
+                participant_one=user,
+            )
+            | Q(
+                kind=Conversation.Kind.DIRECT,
+                participant_two=user,
+            )
+            | Q(
+                kind=Conversation.Kind.GROUP,
+                group_memberships__user=user,
+            )
+        )
+        .select_related("participant_one", "participant_two", "created_by")
+        .distinct()
+    )
 
 
 def conversation_for_request(request, conversation_id):
@@ -43,9 +59,38 @@ def conversation_for_request(request, conversation_id):
 
 
 def other_participant(conversation, user):
+    if conversation.kind != Conversation.Kind.DIRECT:
+        return None
     if conversation.participant_one_id == user.id:
         return conversation.participant_two
     return conversation.participant_one
+
+
+def conversation_unread_count(conversation, user):
+    if conversation.kind == Conversation.Kind.GROUP:
+        state = GroupReadState.objects.filter(
+            conversation=conversation,
+            user=user,
+        ).only("last_read_message_id").first()
+        last_read_id = state.last_read_message_id if state else None
+        unread = conversation.messages.exclude(sender=user)
+        if last_read_id:
+            unread = unread.filter(id__gt=last_read_id)
+        return unread.count()
+    return conversation.messages.filter(
+        recipient=user,
+        read_at__isnull=True,
+    ).count()
+
+
+def total_unread_for(user):
+    direct = Message.objects.filter(
+        recipient=user,
+        read_at__isnull=True,
+        conversation__kind=Conversation.Kind.DIRECT,
+    ).count()
+    groups = conversations_for(user).filter(kind=Conversation.Kind.GROUP)
+    return direct + sum(conversation_unread_count(group, user) for group in groups)
 
 
 def interaction_blocked_response():
@@ -64,9 +109,19 @@ def message_for_request(request, message_id):
             "reply_to",
             "reply_to__sender",
         ).filter(
-            Q(conversation__participant_one=request.user)
-            | Q(conversation__participant_two=request.user)
-        ),
+            Q(
+                conversation__kind=Conversation.Kind.DIRECT,
+                conversation__participant_one=request.user,
+            )
+            | Q(
+                conversation__kind=Conversation.Kind.DIRECT,
+                conversation__participant_two=request.user,
+            )
+            | Q(
+                conversation__kind=Conversation.Kind.GROUP,
+                conversation__group_memberships__user=request.user,
+            )
+        ).distinct(),
         pk=message_id,
     )
 
@@ -111,35 +166,32 @@ class ConversationsView(APIView):
         if query:
             conversations = conversations.filter(
                 Q(
+                    kind=Conversation.Kind.DIRECT,
                     participant_one=request.user,
                     participant_two__username__icontains=query,
                 )
                 | Q(
+                    kind=Conversation.Kind.DIRECT,
                     participant_one=request.user,
                     participant_two__name__icontains=query,
                 )
                 | Q(
+                    kind=Conversation.Kind.DIRECT,
                     participant_two=request.user,
                     participant_one__username__icontains=query,
                 )
                 | Q(
+                    kind=Conversation.Kind.DIRECT,
                     participant_two=request.user,
                     participant_one__name__icontains=query,
                 )
-            )
+                | Q(
+                    kind=Conversation.Kind.GROUP,
+                    title__icontains=query,
+                )
+            ).distinct()
 
-        conversations = conversations.annotate(
-            unread_count_value=Count(
-                "messages",
-                filter=Q(messages__recipient=request.user, messages__read_at__isnull=True),
-            )
-        ).order_by("-updated_at", "-id")[:50]
-
-        items = list(conversations)
-        total_unread = Message.objects.filter(
-            recipient=request.user,
-            read_at__isnull=True,
-        ).count()
+        items = list(conversations.order_by("-updated_at", "-id")[:50])
         return Response(
             {
                 "results": ConversationSerializer(
@@ -147,7 +199,7 @@ class ConversationsView(APIView):
                     many=True,
                     context={"request": request},
                 ).data,
-                "unread_count": total_unread,
+                "unread_count": total_unread_for(request.user),
             }
         )
 
@@ -172,11 +224,13 @@ class ConversationsView(APIView):
         try:
             with transaction.atomic():
                 conversation, created = Conversation.objects.get_or_create(
+                    kind=Conversation.Kind.DIRECT,
                     participant_one_id=first_id,
                     participant_two_id=second_id,
                 )
         except IntegrityError:
             conversation = Conversation.objects.get(
+                kind=Conversation.Kind.DIRECT,
                 participant_one_id=first_id,
                 participant_two_id=second_id,
             )
@@ -218,39 +272,40 @@ class ConversationMessagesView(APIView):
         page = list(reversed(newest_first))
         next_cursor = str(newest_first[-1].id) if has_more and newest_first else None
 
-        delivery_ids = [
-            message.pk
-            for message in page
-            if message.recipient_id == request.user.pk and message.delivered_at is None
-        ]
-        if delivery_ids:
-            delivered_at = timezone.now()
-            Message.objects.filter(
-                pk__in=delivery_ids,
-                recipient=request.user,
-                delivered_at__isnull=True,
-            ).update(delivered_at=delivered_at)
-
-            delivery_state = dict(
-                Message.objects.filter(pk__in=delivery_ids).values_list("id", "delivered_at")
-            )
-            changed_ids = [
-                message_id
-                for message_id, value in delivery_state.items()
-                if value == delivered_at
+        if conversation.kind == Conversation.Kind.DIRECT:
+            delivery_ids = [
+                message.pk
+                for message in page
+                if message.recipient_id == request.user.pk and message.delivered_at is None
             ]
-            delivery_id_set = set(delivery_ids)
-            for message in page:
-                if message.pk in delivery_id_set:
-                    message.delivered_at = delivery_state.get(message.pk)
+            if delivery_ids:
+                delivered_at = timezone.now()
+                Message.objects.filter(
+                    pk__in=delivery_ids,
+                    recipient=request.user,
+                    delivered_at__isnull=True,
+                ).update(delivered_at=delivered_at)
 
-            if changed_ids:
-                broadcast_messages_delivered(
-                    conversation_id=conversation.pk,
-                    recipient_id=request.user.pk,
-                    delivered_at=delivered_at,
-                    message_ids=changed_ids,
+                delivery_state = dict(
+                    Message.objects.filter(pk__in=delivery_ids).values_list("id", "delivered_at")
                 )
+                changed_ids = [
+                    message_id
+                    for message_id, value in delivery_state.items()
+                    if value == delivered_at
+                ]
+                delivery_id_set = set(delivery_ids)
+                for message in page:
+                    if message.pk in delivery_id_set:
+                        message.delivered_at = delivery_state.get(message.pk)
+
+                if changed_ids:
+                    broadcast_messages_delivered(
+                        conversation_id=conversation.pk,
+                        recipient_id=request.user.pk,
+                        delivered_at=delivered_at,
+                        message_ids=changed_ids,
+                    )
 
         return Response(
             {
@@ -266,8 +321,16 @@ class ConversationMessagesView(APIView):
     def post(self, request, conversation_id):
         conversation = conversation_for_request(request, conversation_id)
         recipient = other_participant(conversation, request.user)
-        if users_blocked(request.user, recipient) or not recipient.is_active:
-            return interaction_blocked_response()
+        if conversation.kind == Conversation.Kind.DIRECT:
+            if recipient is None or users_blocked(request.user, recipient) or not recipient.is_active:
+                return interaction_blocked_response()
+        else:
+            membership_exists = GroupMembership.objects.filter(
+                conversation=conversation,
+                user=request.user,
+            ).exists()
+            if not membership_exists:
+                return Response(status=status.HTTP_404_NOT_FOUND)
 
         body = str(request.data.get("body") or "").strip()
         client_id = str(request.data.get("client_id") or "").strip()
@@ -371,7 +434,7 @@ class ConversationMessagesView(APIView):
                 message = Message.objects.create(
                     conversation=conversation,
                     sender=request.user,
-                    recipient=recipient,
+                    recipient=recipient if conversation.kind == Conversation.Kind.DIRECT else None,
                     reply_to=reply_to,
                     image=image or "",
                     audio=audio or "",
@@ -412,8 +475,9 @@ class MessageDetailView(APIView):
                 {"detail": "Only the sender can edit this message."},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        if users_blocked(request.user, message.recipient) or not message.recipient.is_active:
-            return interaction_blocked_response()
+        if message.conversation.kind == Conversation.Kind.DIRECT:
+            if message.recipient is None or users_blocked(request.user, message.recipient) or not message.recipient.is_active:
+                return interaction_blocked_response()
         if message.deleted_at is not None:
             return Response(
                 {"detail": "A deleted message can't be edited."},
@@ -503,9 +567,10 @@ class MessageReactionView(APIView):
 
     def post(self, request, message_id):
         message = message_for_request(request, message_id)
-        other = other_participant(message.conversation, request.user)
-        if users_blocked(request.user, other) or not other.is_active:
-            return interaction_blocked_response()
+        if message.conversation.kind == Conversation.Kind.DIRECT:
+            other = other_participant(message.conversation, request.user)
+            if other is None or users_blocked(request.user, other) or not other.is_active:
+                return interaction_blocked_response()
         if message.deleted_at is not None:
             return Response(
                 {"detail": "A deleted message can't be reacted to."},
@@ -578,6 +643,26 @@ class ConversationReadView(APIView):
 
     def post(self, request, conversation_id):
         conversation = conversation_for_request(request, conversation_id)
+        if conversation.kind == Conversation.Kind.GROUP:
+            state, _ = GroupReadState.objects.get_or_create(
+                conversation=conversation,
+                user=request.user,
+            )
+            previous_id = state.last_read_message_id or 0
+            latest = conversation.messages.order_by("-id").first()
+            unread = conversation.messages.exclude(sender=request.user).filter(id__gt=previous_id)
+            marked_read = unread.count()
+            if latest is not None and latest.pk != state.last_read_message_id:
+                state.last_read_message = latest
+                state.save(update_fields=("last_read_message", "updated_at"))
+            return Response(
+                {
+                    "marked_read": marked_read,
+                    "unread_count": 0,
+                    "read_at": timezone.now().isoformat() if marked_read else None,
+                }
+            )
+
         unread = conversation.messages.filter(
             recipient=request.user,
             read_at__isnull=True,
