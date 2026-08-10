@@ -3,7 +3,6 @@ from collections import OrderedDict
 from datetime import timedelta
 
 from django.db import IntegrityError, transaction
-from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
@@ -124,7 +123,7 @@ class StoryFeedView(APIView):
             if len(bucket) < MAX_STORIES_PER_AUTHOR_IN_FEED:
                 bucket.append(story)
 
-        groups = []
+        sortable_groups = []
         for author_id, author_stories in grouped.items():
             if not author_stories:
                 continue
@@ -133,24 +132,29 @@ class StoryFeedView(APIView):
                 _story_payload(request, story, viewed_story_ids, reaction_by_story)
                 for story in author_stories
             ]
-            groups.append(
-                {
-                    "author": _author_payload(request, latest.author),
-                    "stories": payloads,
-                    "has_unseen": any(not item["is_viewed"] for item in payloads),
-                    "latest_at": latest.created_at.isoformat(),
-                    "is_mine": author_id == request.user.pk,
-                }
+            is_mine = author_id == request.user.pk
+            has_unseen = any(not item["is_viewed"] for item in payloads)
+            sortable_groups.append(
+                (
+                    (
+                        0 if is_mine else 1,
+                        0 if has_unseen else 1,
+                        -latest.created_at.timestamp(),
+                    ),
+                    {
+                        "author": _author_payload(request, latest.author),
+                        "stories": payloads,
+                        "has_unseen": has_unseen,
+                        "latest_at": latest.created_at.isoformat(),
+                        "is_mine": is_mine,
+                    },
+                )
             )
 
-        groups.sort(
-            key=lambda item: (
-                0 if item["is_mine"] else 1,
-                0 if item["has_unseen"] else 1,
-                -timezone.datetime.fromisoformat(item["latest_at"]).timestamp(),
-            )
+        sortable_groups.sort(key=lambda item: item[0])
+        return Response(
+            {"results": [payload for _, payload in sortable_groups[:MAX_STORY_GROUPS]]}
         )
-        return Response({"results": groups[:MAX_STORY_GROUPS]})
 
     def post(self, request):
         media = request.FILES.get("media")
@@ -226,16 +230,21 @@ class StoryViewersView(APIView):
             expires_at__gt=timezone.now(),
         )
         blocked_ids = blocked_user_ids(request.user)
-        views = story.views.select_related("viewer").filter(
+        visible_views = story.views.select_related("viewer").filter(
             viewer__is_active=True,
-        ).exclude(viewer_id__in=blocked_ids).order_by("-viewed_at", "-id")[:250]
+        ).exclude(viewer_id__in=blocked_ids)
+        views_count = visible_views.count()
+        views = list(visible_views.order_by("-viewed_at", "-id")[:250])
         reactions = dict(
-            StoryReaction.objects.filter(story=story).values_list("user_id", "emoji")
+            StoryReaction.objects.filter(
+                story=story,
+                user_id__in=[view.viewer_id for view in views],
+            ).values_list("user_id", "emoji")
         )
         return Response(
             {
                 "story_id": story.pk,
-                "views_count": len(views),
+                "views_count": views_count,
                 "results": [
                     {
                         "user": _author_payload(request, view.viewer),
