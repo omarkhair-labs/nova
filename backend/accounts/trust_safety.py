@@ -172,6 +172,7 @@ class DeleteAccountView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        from .sharing_models import Repost
         from .story_models import Story
 
         user = request.user
@@ -202,6 +203,7 @@ class DeleteAccountView(APIView):
             Notification.objects.filter(Q(recipient=user) | Q(actor=user)).delete()
             Like.objects.filter(user=user).delete()
             Comment.objects.filter(author=user).delete()
+            Repost.objects.filter(user=user).delete()
             Post.objects.filter(author=user).delete()
             Story.objects.filter(author=user).delete()
 
