@@ -106,6 +106,8 @@ class NovaCallController(
     private var ending = false
     private var released = false
     private var ringTimeoutJob: Job? = null
+    private var recoveryJob: Job? = null
+    private var recoveryOfferInFlight = false
     private var queuedAction: String? = when (launchSpec) {
         is NovaCallLaunchSpec.Existing -> launchSpec.requestedAction.takeIf { it.isNotBlank() }
         is NovaCallLaunchSpec.Outgoing -> null
@@ -220,6 +222,8 @@ class NovaCallController(
         released = true
         ringTimeoutJob?.cancel()
         ringTimeoutJob = null
+        recoveryJob?.cancel()
+        recoveryJob = null
         signaling?.stop()
         signaling = null
         engine?.release()
@@ -387,6 +391,11 @@ class NovaCallController(
             }
 
             is NovaCallSignalEvent.Offer -> {
+                // A fresh offer after the call is active is an ICE restart.
+                // Reset the initial-answer guards so the callee can negotiate
+                // the new ICE generation instead of ignoring the offer.
+                answerCreating = false
+                answerSent = false
                 pendingOffer = event.sdp
                 maybeCreateAnswer()
             }
@@ -400,6 +409,13 @@ class NovaCallController(
                 val currentEngine = engine
                 if (currentEngine == null) pendingRemoteIce += candidate
                 else currentEngine.addRemoteIce(candidate)
+            }
+
+            NovaCallSignalEvent.IceRestartRequested -> {
+                val call = mutableState.value.session
+                if (call?.status == NovaCallStatus.Active && call.isCaller && !ending) {
+                    beginIceRestart()
+                }
             }
 
             is NovaCallSignalEvent.State -> {
@@ -466,6 +482,24 @@ class NovaCallController(
         }
     }
 
+    private fun beginIceRestart() {
+        val call = mutableState.value.session ?: return
+        val currentEngine = engine ?: return
+        if (!call.isCaller || call.status != NovaCallStatus.Active || !signalingReady || ending || released) return
+        if (recoveryOfferInFlight) return
+
+        recoveryOfferInFlight = true
+        currentEngine.createIceRestartOffer { sdp ->
+            scope.launch {
+                recoveryOfferInFlight = false
+                val queued = signaling?.sendOffer(sdp) == true
+                if (!queued) {
+                    update { it.copy(error = "Call recovery is waiting for signaling…") }
+                }
+            }
+        }
+    }
+
     private fun maybeCreateAnswer() {
         val call = mutableState.value.session ?: return
         val currentEngine = engine ?: return
@@ -480,6 +514,45 @@ class NovaCallController(
                     answerSent = signaling?.sendAnswer(sdp) == true
                     if (!answerSent) update { it.copy(error = "Call signaling is reconnecting…") }
                 }
+            }
+        }
+    }
+
+    private fun scheduleIceRecovery(immediate: Boolean) {
+        val call = mutableState.value.session ?: return
+        if (call.status != NovaCallStatus.Active || ending || released) return
+
+        update { it.copy(stage = "Reconnecting…", connected = false) }
+        if (recoveryJob?.isActive == true) return
+
+        recoveryJob = scope.launch {
+            if (!immediate) delay(1_200L)
+
+            repeat(2) { attempt ->
+                val current = mutableState.value.session
+                if (released || ending || mutableState.value.connected || current?.status != NovaCallStatus.Active) {
+                    return@launch
+                }
+
+                if (current.isCaller) {
+                    beginIceRestart()
+                } else {
+                    signaling?.requestIceRestart()
+                }
+
+                delay(if (attempt == 0) 6_000L else 8_000L)
+                if (mutableState.value.connected) return@launch
+            }
+
+            val current = mutableState.value.session
+            if (!released && !ending && !mutableState.value.connected && current?.status == NovaCallStatus.Active) {
+                ending = true
+                finishLocally(
+                    current,
+                    "failed",
+                    "Connection failed",
+                    DisconnectCause.ERROR,
+                )
             }
         }
     }
@@ -512,6 +585,9 @@ class NovaCallController(
     ) {
         ringTimeoutJob?.cancel()
         ringTimeoutJob = null
+        recoveryJob?.cancel()
+        recoveryJob = null
+        recoveryOfferInFlight = false
         NovaCallNotification.cancel(appContext, call.id)
         queueOrSendAction(action)
         NovaCallActionDispatcher.dispatch(appContext, call.id, action)
@@ -557,6 +633,9 @@ class NovaCallController(
         if (released) return
         ending = true
         ringTimeoutJob?.cancel()
+        recoveryJob?.cancel()
+        recoveryJob = null
+        recoveryOfferInFlight = false
         NovaCallNotification.cancel(appContext, call.id)
         update { it.copy(session = call, stage = terminalLabel(call), connected = false) }
         scope.launch {
@@ -571,7 +650,11 @@ class NovaCallController(
     private fun stageFor(call: NovaCallSession): String {
         return when (call.status) {
             NovaCallStatus.Ringing -> if (call.isCaller) "Calling…" else "Incoming ${if (call.kind == NovaCallKind.Video) "video" else "voice"} call"
-            NovaCallStatus.Active -> if (mutableState.value.connected) "Connected" else "Connecting…"
+            NovaCallStatus.Active -> when {
+                mutableState.value.connected -> "Connected"
+                recoveryJob?.isActive == true -> "Reconnecting…"
+                else -> "Connecting…"
+            }
             else -> terminalLabel(call)
         }
     }
@@ -605,21 +688,16 @@ class NovaCallController(
             scope.launch {
                 when (state) {
                     PeerConnection.PeerConnectionState.CONNECTED -> {
+                        recoveryJob?.cancel()
+                        recoveryJob = null
+                        recoveryOfferInFlight = false
                         update { it.copy(stage = "Connected", connected = true, error = null) }
                     }
                     PeerConnection.PeerConnectionState.DISCONNECTED -> {
-                        update { it.copy(stage = "Reconnecting…", connected = false) }
+                        scheduleIceRecovery(immediate = false)
                     }
                     PeerConnection.PeerConnectionState.FAILED -> {
-                        if (!ending) {
-                            ending = true
-                            val call = mutableState.value.session
-                            if (call != null) {
-                                queueOrSendAction("failed")
-                                NovaCallActionDispatcher.dispatch(appContext, call.id, "failed")
-                            }
-                            update { it.copy(stage = "Connection failed", connected = false) }
-                        }
+                        scheduleIceRecovery(immediate = true)
                     }
                     PeerConnection.PeerConnectionState.CLOSED -> {
                         update { it.copy(connected = false) }

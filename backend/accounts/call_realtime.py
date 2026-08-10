@@ -77,6 +77,21 @@ class CallConsumer(AsyncJsonWebsocketConsumer):
             await self.send_json({"type": "pong"})
             return
 
+        if event_type == "call.ice_restart":
+            allowed, detail = await self._can_restart_ice(user.pk)
+            if not allowed:
+                await self.send_json({"type": "call.error", "detail": detail})
+                return
+            await self.channel_layer.group_send(
+                self.group_name,
+                {
+                    "type": "call.signal",
+                    "sender_id": user.pk,
+                    "signal": {"type": "call.ice_restart"},
+                },
+            )
+            return
+
         if event_type in ("call.offer", "call.answer", "call.ice"):
             allowed, detail = await self._can_signal(user.pk, event_type)
             if not allowed:
@@ -218,6 +233,15 @@ class CallConsumer(AsyncJsonWebsocketConsumer):
             return False, "Only the caller can create the offer."
         if event_type == "call.answer" and user_id != call.callee_id:
             return False, "Only the callee can create the answer."
+        return True, ""
+
+    @database_sync_to_async
+    def _can_restart_ice(self, user_id):
+        call = CallSession.objects.filter(pk=self.call_id).first()
+        if call is None or user_id not in (call.caller_id, call.callee_id):
+            return False, "Call not found."
+        if call.status != CallSession.Status.ACTIVE:
+            return False, "ICE recovery is only available during an active call."
         return True, ""
 
     @database_sync_to_async

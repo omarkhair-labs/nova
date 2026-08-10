@@ -33,6 +33,7 @@ sealed interface NovaCallSignalEvent {
         val sdpMid: String,
         val sdpMLineIndex: Int,
     ) : NovaCallSignalEvent
+    data object IceRestartRequested : NovaCallSignalEvent
     data class State(val call: NovaCallSession) : NovaCallSignalEvent
     data class Error(val detail: String) : NovaCallSignalEvent
 }
@@ -98,6 +99,8 @@ class NovaCallSignalingClient(
             .put("sdp_mid", sdpMid.orEmpty())
             .put("sdp_mline_index", sdpMLineIndex)
     )
+
+    fun requestIceRestart() = sendPeerSignal(JSONObject().put("type", "call.ice_restart"))
 
     fun accept() = sendType("call.accept")
     fun decline() = sendType("call.decline")
@@ -261,6 +264,7 @@ class NovaCallSignalingClient(
                     sdpMLineIndex = json.optInt("sdp_mline_index"),
                 )
             }
+            "call.ice_restart" -> NovaCallSignalEvent.IceRestartRequested
             "call.error" -> NovaCallSignalEvent.Error(json.optString("detail").ifBlank { "Call signaling failed." })
             else -> null
         }
