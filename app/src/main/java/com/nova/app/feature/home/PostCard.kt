@@ -1,7 +1,9 @@
 package com.nova.app.feature.home
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,6 +24,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -42,6 +46,7 @@ import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 
@@ -67,11 +72,19 @@ fun NovaPostCard(
     var repostBusy by remember(post.id) { mutableStateOf(false) }
     var repostError by remember(post.id) { mutableStateOf<String?>(null) }
     var hiddenFromFeed by remember(post.id) { mutableStateOf(false) }
+    var showDoubleTapHeart by remember(post.id) { mutableStateOf(false) }
 
     LaunchedEffect(post.id) {
         when (val result = sharingRepository.repostState(post.id)) {
             is ApiResult.Success -> repostState = result.value
             is ApiResult.Failure -> Unit
+        }
+    }
+
+    LaunchedEffect(showDoubleTapHeart) {
+        if (showDoubleTapHeart) {
+            delay(520)
+            showDoubleTapHeart = false
         }
     }
 
@@ -219,14 +232,39 @@ fun NovaPostCard(
                 }
             }
 
-            NovaMediaImage(
-                source = post.imageUrl,
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(1f)
-                    .clip(RoundedCornerShape(0.dp)),
-                contentDescription = "Post by ${post.author.username}",
-            )
+                    .pointerInput(post.id, post.isLiked, isLiking) {
+                        detectTapGestures(
+                            onDoubleTap = {
+                                if (!isLiking) {
+                                    showDoubleTapHeart = true
+                                    if (!post.isLiked) onLikeToggle()
+                                }
+                            }
+                        )
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                NovaMediaImage(
+                    source = post.imageUrl,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
+                        .clip(RoundedCornerShape(0.dp)),
+                    contentDescription = "Post by ${post.author.username}",
+                )
+                if (showDoubleTapHeart) {
+                    Text(
+                        text = "♥",
+                        color = Color.White,
+                        fontSize = 76.sp,
+                        fontWeight = FontWeight.Black,
+                    )
+                }
+            }
 
             Row(
                 modifier = Modifier
