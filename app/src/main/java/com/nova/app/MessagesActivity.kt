@@ -9,7 +9,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,6 +45,7 @@ import com.nova.app.navigation.NovaRootTab
 import com.nova.app.ui.components.NovaActiveCallPill
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBackground
+import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaTheme
 import kotlinx.coroutines.launch
 
@@ -93,6 +99,7 @@ private fun MessagingActivityContent(
     val scope = rememberCoroutineScope()
 
     var activeConversation by remember { mutableStateOf(initialConversation) }
+    var showCreateMenu by remember { mutableStateOf(false) }
     var showNewMessage by remember { mutableStateOf(false) }
     var showNewGroup by remember { mutableStateOf(false) }
     val openedDirectly = remember { initialConversation != null }
@@ -107,6 +114,7 @@ private fun MessagingActivityContent(
     }
 
     fun selectConversation(selected: NovaConversation) {
+        showCreateMenu = false
         showNewMessage = false
         showNewGroup = false
         activeConversation = InitialConversation(
@@ -169,6 +177,7 @@ private fun MessagingActivityContent(
         when {
             showNewMessage -> showNewMessage = false
             showNewGroup -> showNewGroup = false
+            showCreateMenu -> showCreateMenu = false
             activeConversation != null -> backFromConversation()
             else -> onFinish()
         }
@@ -186,40 +195,72 @@ private fun MessagingActivityContent(
                 onSessionExpired = onFinish,
             )
 
-            Surface(
-                onClick = { showNewGroup = true },
+            Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = 18.dp, bottom = 140.dp),
-                shape = RoundedCornerShape(18.dp),
-                color = NovaBackground,
-                shadowElevation = 5.dp,
+                    .padding(end = 18.dp, bottom = 90.dp),
+                contentAlignment = Alignment.BottomEnd,
             ) {
-                Text(
-                    text = "+  New group",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                Surface(
+                    onClick = { showCreateMenu = !showCreateMenu },
+                    modifier = Modifier.size(56.dp),
+                    shape = CircleShape,
                     color = NovaAccent,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
+                    shadowElevation = 7.dp,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = if (showCreateMenu) "×" else "+",
+                            color = NovaBackground,
+                            fontSize = if (showCreateMenu) 25.sp else 28.sp,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+                }
 
-            Surface(
-                onClick = { showNewMessage = true },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 18.dp, bottom = 88.dp),
-                shape = RoundedCornerShape(18.dp),
-                color = NovaAccent,
-                shadowElevation = 6.dp,
-            ) {
-                Text(
-                    text = "+  New message",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    color = NovaBackground,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                )
+                DropdownMenu(
+                    expanded = showCreateMenu,
+                    onDismissRequest = { showCreateMenu = false },
+                    modifier = Modifier.width(196.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    containerColor = NovaBackground,
+                    shadowElevation = 8.dp,
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "New message",
+                                color = NovaInk,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        },
+                        leadingIcon = {
+                            Text("✉", color = NovaAccent, fontSize = 16.sp)
+                        },
+                        onClick = {
+                            showCreateMenu = false
+                            showNewMessage = true
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "New group",
+                                color = NovaInk,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        },
+                        leadingIcon = {
+                            Text("＋", color = NovaAccent, fontSize = 17.sp)
+                        },
+                        onClick = {
+                            showCreateMenu = false
+                            showNewGroup = true
+                        },
+                    )
+                }
             }
         }
 

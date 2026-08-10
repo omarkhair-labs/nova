@@ -2,6 +2,7 @@ package com.nova.app.core.stories
 
 import android.content.Context
 import android.net.Uri
+import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
@@ -11,6 +12,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedOutputStream
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.UUID
@@ -66,6 +68,13 @@ data class NovaStoryViewer(
 )
 
 
+private data class PreparedStoryMedia(
+    val file: File,
+    val mimeType: String,
+    val fileName: String,
+)
+
+
 class NovaStoriesRepository(
     context: Context,
     private val baseUrl: String = PRODUCTION_API_URL,
@@ -100,34 +109,30 @@ class NovaStoriesRepository(
     ): ApiResult<NovaStory> {
         val cleanAudience = audience.takeIf { it == "followers" || it == "close_friends" }
             ?: return ApiResult.Failure("Choose a valid Story audience.")
-        val mimeType = appContext.contentResolver.getType(mediaUri).orEmpty().lowercase()
+        val mimeType = resolveStoryMimeType(mediaUri)
+            ?: return ApiResult.Failure("Stories support photos and videos only.")
         val maxBytes = when {
             mimeType.startsWith("image/") -> 15L * 1024 * 1024
             mimeType.startsWith("video/") -> 60L * 1024 * 1024
             else -> return ApiResult.Failure("Stories support photos and videos only.")
         }
-        val knownSize = runCatching {
-            appContext.contentResolver.openAssetFileDescriptor(mediaUri, "r")?.use { it.length }
-        }.getOrNull() ?: -1L
-        if (knownSize > maxBytes) {
-            return ApiResult.Failure(
-                if (mimeType.startsWith("video/")) {
-                    "Story video must be 60 MB or smaller."
-                } else {
-                    "Story photo must be 15 MB or smaller."
-                }
-            )
+
+        val prepared = when (val result = prepareStoryMedia(mediaUri, mimeType, maxBytes)) {
+            is ApiResult.Success -> result.value
+            is ApiResult.Failure -> return result
         }
 
-        return authenticatedCall { token ->
-            multipartStoryUpload(
-                mediaUri = mediaUri,
-                mimeType = mimeType,
-                maxBytes = maxBytes,
-                caption = caption.trim().take(240),
-                audience = cleanAudience,
-                bearerToken = token,
-            )
+        return try {
+            authenticatedCall { token ->
+                multipartStoryUpload(
+                    media = prepared,
+                    caption = caption.trim().take(240),
+                    audience = cleanAudience,
+                    bearerToken = token,
+                )
+            }
+        } finally {
+            prepared.file.delete()
         }
     }
 
@@ -237,10 +242,95 @@ class NovaStoriesRepository(
         }
     }
 
-    private suspend fun multipartStoryUpload(
+    private fun resolveStoryMimeType(uri: Uri): String? {
+        val resolver = appContext.contentResolver
+        val direct = resolver.getType(uri)
+            ?.substringBefore(';')
+            ?.trim()
+            ?.lowercase()
+            .orEmpty()
+        if (direct.startsWith("image/") || direct.startsWith("video/")) return direct
+
+        val displayName = runCatching {
+            resolver.query(
+                uri,
+                arrayOf(OpenableColumns.DISPLAY_NAME),
+                null,
+                null,
+                null,
+            )?.use { cursor ->
+                if (!cursor.moveToFirst()) return@use null
+                val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (index < 0) null else cursor.getString(index)
+            }
+        }.getOrNull().orEmpty()
+
+        val extension = sequenceOf(displayName, uri.lastPathSegment.orEmpty())
+            .map { candidate -> candidate.substringAfterLast('.', "").lowercase() }
+            .firstOrNull { it.isNotBlank() }
+            .orEmpty()
+        val inferred = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
+            ?.lowercase()
+            .orEmpty()
+        return inferred.takeIf { it.startsWith("image/") || it.startsWith("video/") }
+    }
+
+    private suspend fun prepareStoryMedia(
         mediaUri: Uri,
         mimeType: String,
         maxBytes: Long,
+    ): ApiResult<PreparedStoryMedia> = withContext(Dispatchers.IO) {
+        val extension = MimeTypeMap.getSingleton()
+            .getExtensionFromMimeType(mimeType)
+            ?.takeIf { it.isNotBlank() }
+            ?: if (mimeType.startsWith("video/")) "mp4" else "jpg"
+        val tempFile = File.createTempFile("nova-story-", ".$extension", appContext.cacheDir)
+        val tooLargeMessage = if (mimeType.startsWith("video/")) {
+            "Story video must be 60 MB or smaller."
+        } else {
+            "Story photo must be 15 MB or smaller."
+        }
+
+        try {
+            val input = appContext.contentResolver.openInputStream(mediaUri)
+                ?: throw IllegalStateException("Couldn't read that story media.")
+            input.use { source ->
+                tempFile.outputStream().buffered().use { target ->
+                    val buffer = ByteArray(64 * 1024)
+                    var total = 0L
+                    while (true) {
+                        val read = source.read(buffer)
+                        if (read <= 0) break
+                        total += read
+                        if (total > maxBytes) {
+                            tempFile.delete()
+                            return@withContext ApiResult.Failure(tooLargeMessage)
+                        }
+                        target.write(buffer, 0, read)
+                    }
+                    target.flush()
+                }
+            }
+            if (tempFile.length() <= 0L) {
+                tempFile.delete()
+                ApiResult.Failure("Nova couldn't read that Story file. Pick it again and retry.")
+            } else {
+                ApiResult.Success(
+                    PreparedStoryMedia(
+                        file = tempFile,
+                        mimeType = mimeType,
+                        fileName = "nova-story-${System.currentTimeMillis()}.$extension",
+                    )
+                )
+            }
+        } catch (_: Exception) {
+            tempFile.delete()
+            ApiResult.Failure("Nova couldn't read that Story file. Pick it again and retry.")
+        }
+    }
+
+    private suspend fun multipartStoryUpload(
+        media: PreparedStoryMedia,
         caption: String,
         audience: String,
         bearerToken: String,
@@ -248,71 +338,63 @@ class NovaStoriesRepository(
         var connection: HttpURLConnection? = null
         try {
             val boundary = "NovaStory-${UUID.randomUUID()}"
-            val extension = MimeTypeMap.getSingleton()
-                .getExtensionFromMimeType(mimeType)
-                ?.takeIf { it.isNotBlank() }
-                ?: if (mimeType.startsWith("video/")) "mp4" else "jpg"
-            val fileName = "nova-story-${System.currentTimeMillis()}.$extension"
+            val lineEnd = "\r\n"
+
+            fun textPart(name: String, value: String): ByteArray = buildString {
+                append("--$boundary$lineEnd")
+                append("Content-Disposition: form-data; name=\"$name\"$lineEnd")
+                append("Content-Type: text/plain; charset=UTF-8$lineEnd$lineEnd")
+                append(value)
+                append(lineEnd)
+            }.toByteArray(Charsets.UTF_8)
+
+            val captionPart = textPart("caption", caption)
+            val audiencePart = textPart("audience", audience)
+            val fileHeader = buildString {
+                append("--$boundary$lineEnd")
+                append("Content-Disposition: form-data; name=\"media\"; filename=\"${media.fileName}\"$lineEnd")
+                append("Content-Type: ${media.mimeType}$lineEnd$lineEnd")
+            }.toByteArray(Charsets.UTF_8)
+            val closing = "$lineEnd--$boundary--$lineEnd".toByteArray(Charsets.UTF_8)
+            val contentLength = captionPart.size.toLong() +
+                audiencePart.size.toLong() +
+                fileHeader.size.toLong() +
+                media.file.length() +
+                closing.size.toLong()
 
             connection = (URL(baseUrl + "stories/").openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 connectTimeout = 20_000
-                readTimeout = 60_000
+                readTimeout = 90_000
                 doOutput = true
-                setChunkedStreamingMode(64 * 1024)
+                setFixedLengthStreamingMode(contentLength)
                 setRequestProperty("Accept", "application/json")
                 setRequestProperty("Authorization", "Bearer $bearerToken")
                 setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
             }
 
             BufferedOutputStream(connection.outputStream).use { output ->
-                fun textPart(name: String, value: String) {
-                    output.write("--$boundary\r\n".toByteArray())
-                    output.write("Content-Disposition: form-data; name=\"$name\"\r\n\r\n".toByteArray())
-                    output.write(value.toByteArray(Charsets.UTF_8))
-                    output.write("\r\n".toByteArray())
-                }
-
-                textPart("caption", caption)
-                textPart("audience", audience)
-                output.write("--$boundary\r\n".toByteArray())
-                output.write(
-                    "Content-Disposition: form-data; name=\"media\"; filename=\"$fileName\"\r\n".toByteArray()
-                )
-                output.write("Content-Type: $mimeType\r\n\r\n".toByteArray())
-
-                var total = 0L
-                val input = appContext.contentResolver.openInputStream(mediaUri)
-                    ?: throw IllegalStateException("Couldn't read that story media.")
-                input.use { stream ->
+                output.write(captionPart)
+                output.write(audiencePart)
+                output.write(fileHeader)
+                media.file.inputStream().buffered().use { input ->
                     val buffer = ByteArray(64 * 1024)
                     while (true) {
-                        val read = stream.read(buffer)
+                        val read = input.read(buffer)
                         if (read <= 0) break
-                        total += read
-                        if (total > maxBytes) throw StoryTooLargeException()
                         output.write(buffer, 0, read)
                     }
                 }
-                output.write("\r\n--$boundary--\r\n".toByteArray())
+                output.write(closing)
                 output.flush()
             }
 
-            val response = readJsonResponse(connection)
-            when (response) {
+            when (val response = readJsonResponse(connection)) {
                 is ApiResult.Success -> ApiResult.Success(parseStory(response.value))
                 is ApiResult.Failure -> response
             }
-        } catch (_: StoryTooLargeException) {
-            ApiResult.Failure(
-                if (mimeType.startsWith("video/")) {
-                    "Story video must be 60 MB or smaller."
-                } else {
-                    "Story photo must be 15 MB or smaller."
-                }
-            )
         } catch (_: Exception) {
-            ApiResult.Failure("Nova couldn't upload that story. Check your connection and try again.")
+            ApiResult.Failure("Nova couldn't upload that Story. Check your connection and try again.")
         } finally {
             connection?.disconnect()
         }
@@ -359,10 +441,11 @@ class NovaStoriesRepository(
         } else {
             ApiResult.Failure(
                 message = when (statusCode) {
+                    400 -> json.optString("detail").ifBlank { "Nova couldn't publish that Story." }
                     401 -> "Your session expired. Please log in again."
-                    403 -> json.optString("detail").ifBlank { "You can't interact with this story." }
-                    404 -> "That story is no longer available."
-                    413 -> "That story file is too large."
+                    403 -> json.optString("detail").ifBlank { "You can't interact with this Story." }
+                    404 -> "That Story is no longer available."
+                    413 -> "That Story file is too large."
                     in 500..599 -> "Nova's server had a problem. Try again in a moment."
                     else -> json.optString("detail").ifBlank { "Something went wrong. Please try again." }
                 },
@@ -461,8 +544,6 @@ class NovaStoriesRepository(
             URL("${apiUrl.protocol}://${apiUrl.authority}$raw").toString()
         }.getOrDefault(raw)
     }
-
-    private class StoryTooLargeException : Exception()
 
     private companion object {
         const val PRODUCTION_API_URL = "https://nova-production-4f6b.up.railway.app/api/v1/"

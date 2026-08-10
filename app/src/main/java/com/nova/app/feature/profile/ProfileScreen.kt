@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,10 +13,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -26,8 +32,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nova.app.AccountSecurityActivity
-import com.nova.app.PrivacyActivity
+import com.nova.app.SettingsActivity
 import com.nova.app.SocialGraphActivity
 import com.nova.app.core.network.NovaPost
 import com.nova.app.feature.people.MODE_FOLLOWERS
@@ -37,14 +42,13 @@ import com.nova.app.ui.components.NovaBottomBar
 import com.nova.app.ui.components.NovaPagedProfilePostsGrid
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.components.NovaTab
-import com.nova.app.ui.theme.NovaAccent
-import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun ProfileScreen(
     displayName: String,
@@ -115,16 +119,20 @@ fun ProfileScreen(
                 }
 
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = NovaAccentSoft,
+                    onClick = { context.startActivity(Intent(context, SettingsActivity::class.java)) },
+                    modifier = Modifier.size(44.dp),
+                    shape = CircleShape,
+                    color = NovaSurface,
+                    border = BorderStroke(1.dp, NovaBorder),
                 ) {
-                    Text(
-                        text = "@$username",
-                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
-                        color = NovaAccent,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Filled.Settings,
+                            contentDescription = "Settings",
+                            tint = NovaInk,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
                 }
             }
 
@@ -202,55 +210,11 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            Row(
+            NovaSecondaryButton(
+                text = "Edit profile",
+                onClick = onEditProfile,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                NovaSecondaryButton(
-                    text = "Edit profile",
-                    onClick = onEditProfile,
-                    modifier = Modifier.weight(1f),
-                )
-                NovaSecondaryButton(
-                    text = "Privacy",
-                    onClick = { context.startActivity(Intent(context, PrivacyActivity::class.java)) },
-                    modifier = Modifier.weight(1f),
-                )
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                NovaSecondaryButton(
-                    text = "Security",
-                    onClick = {
-                        context.startActivity(
-                            Intent(context, AccountSecurityActivity::class.java)
-                                .putExtra(
-                                    AccountSecurityActivity.EXTRA_MODE,
-                                    AccountSecurityActivity.MODE_SECURITY,
-                                )
-                        )
-                    },
-                    modifier = Modifier.weight(1f),
-                )
-                NovaSecondaryButton(
-                    text = "Blocked accounts",
-                    onClick = {
-                        context.startActivity(
-                            Intent(context, AccountSecurityActivity::class.java)
-                                .putExtra(
-                                    AccountSecurityActivity.EXTRA_MODE,
-                                    AccountSecurityActivity.MODE_BLOCKED,
-                                )
-                        )
-                    },
-                    modifier = Modifier.weight(1f),
-                )
-            }
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -265,26 +229,7 @@ fun ProfileScreen(
                 emptyMessage = "Your posts will build a visual history here.",
             )
 
-            Spacer(modifier = Modifier.height(26.dp))
-
-            Surface(
-                onClick = onLogout,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                color = NovaSurface,
-                border = BorderStroke(1.dp, NovaBorder),
-            ) {
-                Text(
-                    text = "Log out",
-                    modifier = Modifier.padding(vertical = 16.dp),
-                    color = NovaMuted,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                )
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(20.dp))
         }
     }
 }

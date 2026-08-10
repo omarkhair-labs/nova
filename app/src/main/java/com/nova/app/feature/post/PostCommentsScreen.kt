@@ -3,6 +3,7 @@ package com.nova.app.feature.post
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,9 +17,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -41,10 +41,10 @@ import com.nova.app.core.network.NovaComment
 import com.nova.app.core.network.NovaPost
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaConfirmDeleteDialog
-import com.nova.app.ui.components.NovaHeader
 import com.nova.app.ui.components.NovaMediaImage
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.theme.NovaAccent
+import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
@@ -80,57 +80,23 @@ fun PostCommentsScreen(
 
     Scaffold(
         containerColor = NovaBackground,
+        topBar = {
+            CommentsTopBar(
+                count = post?.commentsCount,
+                onBack = onBack,
+            )
+        },
         bottomBar = {
             if (post != null) {
-                Surface(
-                    color = NovaSurface,
-                    shadowElevation = 8.dp,
-                    tonalElevation = 0.dp,
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .navigationBarsPadding()
-                            .imePadding()
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.Bottom,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        OutlinedTextField(
-                            value = draft,
-                            onValueChange = { draft = it.take(300) },
-                            modifier = Modifier.weight(1f),
-                            placeholder = { Text("Add a comment…", color = NovaMuted) },
-                            maxLines = 3,
-                            shape = RoundedCornerShape(18.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = NovaAccent,
-                                unfocusedBorderColor = NovaBorder,
-                                cursorColor = NovaAccent,
-                                focusedContainerColor = NovaSurface,
-                                unfocusedContainerColor = NovaSurface,
-                            ),
-                        )
-                        Button(
-                            onClick = {
-                                val text = draft.trim()
-                                if (text.isNotBlank() && !isSending) {
-                                    onSend(text)
-                                }
-                            },
-                            enabled = draft.isNotBlank() && !isSending,
-                            shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = NovaAccent),
-                            modifier = Modifier.size(width = 72.dp, height = 54.dp),
-                        ) {
-                            Text(
-                                text = if (isSending) "…" else "Send",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                        }
-                    }
-                }
+                CommentComposer(
+                    draft = draft,
+                    isSending = isSending,
+                    onDraftChange = { draft = it.take(300) },
+                    onSend = {
+                        val clean = draft.trim()
+                        if (clean.isNotBlank() && !isSending) onSend(clean)
+                    },
+                )
             }
         },
     ) { innerPadding ->
@@ -138,60 +104,51 @@ fun PostCommentsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(NovaBackground)
-                .padding(innerPadding)
-                .statusBarsPadding(),
+                .padding(innerPadding),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                start = 20.dp,
-                end = 20.dp,
-                top = 18.dp,
-                bottom = 22.dp,
+                start = 18.dp,
+                end = 18.dp,
+                top = 12.dp,
+                bottom = 20.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            item {
-                NovaHeader(
-                    title = "Comments",
-                    subtitle = if (post == null) {
-                        "A conversation around this moment."
-                    } else {
-                        "${post.commentsCount} ${if (post.commentsCount == 1) "comment" else "comments"} on @${post.author.username}'s post."
-                    },
-                    onBack = onBack,
-                )
-            }
-
             if (post != null) {
-                item { PostContext(post = post, onAuthorClick = onAuthorClick) }
+                item {
+                    PostContext(
+                        post = post,
+                        onAuthorClick = onAuthorClick,
+                    )
+                }
+                item { Spacer(modifier = Modifier.height(8.dp)) }
             }
 
             when {
                 post == null && !isLoading -> {
                     item {
-                        MessageCard(
-                            title = "This post isn't available",
-                            message = errorMessage ?: "It may have been deleted or is no longer in your feed.",
+                        EmptyCommentsState(
+                            title = "Post unavailable",
+                            message = errorMessage ?: "This post may have been deleted or is no longer available.",
                         )
                     }
                 }
 
                 isLoading && comments.isEmpty() -> {
                     item {
-                        Column(
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 52.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
+                                .height(180.dp),
+                            contentAlignment = Alignment.Center,
                         ) {
                             CircularProgressIndicator(color = NovaAccent)
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Text("Loading comments…", color = NovaMuted, fontSize = 13.sp)
                         }
                     }
                 }
 
                 errorMessage != null && comments.isEmpty() -> {
                     item {
-                        MessageCard(
+                        EmptyCommentsState(
                             title = "Couldn't load comments",
                             message = errorMessage,
                         )
@@ -203,23 +160,14 @@ fun PostCommentsScreen(
 
                 comments.isEmpty() -> {
                     item {
-                        MessageCard(
-                            title = "Start the conversation",
-                            message = "No comments yet. Say something worth keeping.",
+                        EmptyCommentsState(
+                            title = "No comments yet",
+                            message = "Be the first to join the conversation.",
                         )
                     }
                 }
 
                 else -> {
-                    item {
-                        Text(
-                            text = "Conversation",
-                            color = NovaInk,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-
                     items(comments, key = { it.id }) { comment ->
                         CommentRow(
                             comment = comment,
@@ -237,13 +185,134 @@ fun PostCommentsScreen(
                         text = errorMessage,
                         color = NovaMuted,
                         fontSize = 12.sp,
-                        modifier = Modifier.padding(vertical = 4.dp),
+                        modifier = Modifier.padding(horizontal = 54.dp, vertical = 8.dp),
                     )
                 }
             }
         }
     }
 }
+
+
+@Composable
+private fun CommentsTopBar(
+    count: Int?,
+    onBack: () -> Unit,
+) {
+    Surface(
+        color = NovaSurface,
+        shadowElevation = 1.dp,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 14.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                onClick = onBack,
+                modifier = Modifier.size(42.dp),
+                shape = CircleShape,
+                color = NovaBackground,
+                border = BorderStroke(1.dp, NovaBorder),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "‹",
+                        color = NovaInk,
+                        fontSize = 29.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.size(12.dp))
+            Column {
+                Text(
+                    text = "Comments",
+                    color = NovaInk,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                if (count != null) {
+                    Text(
+                        text = "$count ${if (count == 1) "comment" else "comments"}",
+                        color = NovaMuted,
+                        fontSize = 11.sp,
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun CommentComposer(
+    draft: String,
+    isSending: Boolean,
+    onDraftChange: (String) -> Unit,
+    onSend: () -> Unit,
+) {
+    Surface(
+        color = NovaSurface,
+        shadowElevation = 6.dp,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .imePadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 12.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            OutlinedTextField(
+                value = draft,
+                onValueChange = onDraftChange,
+                modifier = Modifier.weight(1f),
+                placeholder = { Text("Add a comment…", color = NovaMuted) },
+                enabled = !isSending,
+                minLines = 1,
+                maxLines = 4,
+                shape = RoundedCornerShape(24.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = NovaAccent,
+                    unfocusedBorderColor = NovaBorder,
+                    cursorColor = NovaAccent,
+                    focusedContainerColor = NovaBackground,
+                    unfocusedContainerColor = NovaBackground,
+                ),
+            )
+
+            val enabled = draft.isNotBlank() && !isSending
+            Surface(
+                onClick = { if (enabled) onSend() },
+                modifier = Modifier.size(50.dp),
+                shape = CircleShape,
+                color = if (enabled) NovaAccent else NovaAccentSoft,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    if (isSending) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = NovaMuted,
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        Text(
+                            text = "↑",
+                            color = if (enabled) NovaBackground else NovaMuted,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 @Composable
 private fun PostContext(
@@ -252,23 +321,22 @@ private fun PostContext(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(18.dp),
         color = NovaSurface,
         border = BorderStroke(1.dp, NovaBorder),
     ) {
         Row(
-            modifier = Modifier.padding(14.dp),
-            horizontalArrangement = Arrangement.spacedBy(13.dp),
+            modifier = Modifier.padding(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(11.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             NovaMediaImage(
                 source = post.imageUrl,
                 modifier = Modifier
-                    .size(72.dp)
-                    .clip(RoundedCornerShape(18.dp)),
+                    .size(58.dp)
+                    .clip(RoundedCornerShape(13.dp)),
                 contentDescription = "Post preview",
             )
-
             Column(modifier = Modifier.weight(1f)) {
                 Surface(
                     onClick = { onAuthorClick(post.author.username) },
@@ -276,29 +344,26 @@ private fun PostContext(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(9.dp),
+                        horizontalArrangement = Arrangement.spacedBy(7.dp),
                     ) {
                         NovaAvatar(
                             source = post.author.avatarUrl,
                             fallbackText = post.author.name.ifBlank { post.author.username },
-                            size = 32.dp,
+                            size = 27.dp,
                         )
-                        Column {
-                            Text(
-                                text = post.author.name.ifBlank { post.author.username },
-                                color = NovaInk,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            Text(
-                                text = "@${post.author.username}",
-                                color = NovaMuted,
-                                fontSize = 11.sp,
-                            )
-                        }
+                        Text(
+                            text = post.author.name.ifBlank { post.author.username },
+                            color = NovaInk,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = "@${post.author.username}",
+                            color = NovaMuted,
+                            fontSize = 11.sp,
+                        )
                     }
                 }
-
                 if (post.caption.isNotBlank()) {
                     Text(
                         text = post.caption,
@@ -306,20 +371,14 @@ private fun PostContext(
                         fontSize = 12.sp,
                         lineHeight = 17.sp,
                         maxLines = 2,
-                        modifier = Modifier.padding(top = 7.dp),
+                        modifier = Modifier.padding(top = 5.dp),
                     )
                 }
-
-                Text(
-                    text = "${post.likesCount} likes · ${post.commentsCount} comments",
-                    color = NovaMuted,
-                    fontSize = 11.sp,
-                    modifier = Modifier.padding(top = 5.dp),
-                )
             }
         }
     }
 }
+
 
 @Composable
 private fun CommentRow(
@@ -333,7 +392,7 @@ private fun CommentRow(
     if (showDeleteConfirm) {
         NovaConfirmDeleteDialog(
             title = "Delete this comment?",
-            message = "This comment will be removed from the conversation. This can't be undone.",
+            message = "This comment will be removed. This can't be undone.",
             isBusy = isDeleting,
             onDismiss = { showDeleteConfirm = false },
             onConfirm = {
@@ -343,72 +402,70 @@ private fun CommentRow(
         )
     }
 
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
-        color = NovaSurface,
-        border = BorderStroke(1.dp, NovaBorder),
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 2.dp, vertical = 9.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.Top,
     ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            horizontalArrangement = Arrangement.spacedBy(11.dp),
-            verticalAlignment = Alignment.Top,
+        Surface(
+            onClick = onAuthorClick,
+            shape = CircleShape,
+            color = NovaBackground,
         ) {
-            Surface(onClick = onAuthorClick, color = NovaSurface) {
-                NovaAvatar(
-                    source = comment.author.avatarUrl,
-                    fallbackText = comment.author.name.ifBlank { comment.author.username },
-                    size = 40.dp,
-                )
-            }
+            NovaAvatar(
+                source = comment.author.avatarUrl,
+                fallbackText = comment.author.name.ifBlank { comment.author.username },
+                size = 40.dp,
+            )
+        }
 
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = comment.author.name.ifBlank { comment.author.username },
-                        color = NovaInk,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        text = friendlyCommentDate(comment.createdAt),
-                        color = NovaMuted,
-                        fontSize = 10.sp,
-                    )
-                }
+        Column(modifier = Modifier.weight(1f)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = comment.author.name.ifBlank { comment.author.username },
+                    color = NovaInk,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                Spacer(modifier = Modifier.size(6.dp))
                 Text(
                     text = "@${comment.author.username}",
                     color = NovaMuted,
                     fontSize = 11.sp,
                 )
+            }
+            Text(
+                text = comment.body,
+                color = NovaInk,
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
+                modifier = Modifier.padding(top = 3.dp),
+            )
+            Row(
+                modifier = Modifier.padding(top = 5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 Text(
-                    text = comment.body,
-                    color = NovaInk,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
-                    modifier = Modifier.padding(top = 7.dp),
+                    text = friendlyCommentDate(comment.createdAt),
+                    color = NovaMuted,
+                    fontSize = 10.sp,
                 )
-
                 if (comment.isMine) {
                     Surface(
-                        onClick = {
-                            if (!isDeleting) showDeleteConfirm = true
-                        },
-                        shape = RoundedCornerShape(12.dp),
+                        onClick = { if (!isDeleting) showDeleteConfirm = true },
                         color = NovaBackground,
-                        border = BorderStroke(1.dp, NovaBorder),
-                        modifier = Modifier.padding(top = 9.dp),
                     ) {
                         Text(
                             text = if (isDeleting) "Deleting…" else "Delete",
                             color = NovaMuted,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         )
                     }
                 }
@@ -417,34 +474,34 @@ private fun CommentRow(
     }
 }
 
+
 @Composable
-private fun MessageCard(
+private fun EmptyCommentsState(
     title: String,
     message: String,
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        color = NovaSurface,
-        border = BorderStroke(1.dp, NovaBorder),
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 28.dp, vertical = 44.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Column(modifier = Modifier.padding(22.dp)) {
-            Text(
-                text = title,
-                color = NovaInk,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text = message,
-                color = NovaMuted,
-                fontSize = 13.sp,
-                lineHeight = 19.sp,
-                modifier = Modifier.padding(top = 6.dp),
-            )
-        }
+        Text(
+            text = title,
+            color = NovaInk,
+            fontSize = 17.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = message,
+            color = NovaMuted,
+            fontSize = 13.sp,
+            lineHeight = 19.sp,
+            modifier = Modifier.padding(top = 5.dp),
+        )
     }
 }
+
 
 private fun friendlyCommentDate(raw: String): String {
     if (raw.isBlank()) return "now"
