@@ -44,6 +44,7 @@ import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaPerson
 import com.nova.app.core.network.NovaPost
 import com.nova.app.core.social.NovaSocialRepository
+import com.nova.app.feature.sharing.NovaShareDialog
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaHeader
 import com.nova.app.ui.components.NovaPagedProfilePostsGrid
@@ -99,6 +100,7 @@ fun PersonScreen(
     var isSafetyLoading by remember(person?.username) { mutableStateOf(false) }
     var showBlockConfirm by remember(person?.username) { mutableStateOf(false) }
     var showReportDialog by remember(person?.username) { mutableStateOf(false) }
+    var showShareProfile by remember(person?.username) { mutableStateOf(false) }
     var reportReason by remember(person?.username) { mutableStateOf("harassment") }
     var reportDetails by remember(person?.username) { mutableStateOf("") }
 
@@ -266,6 +268,14 @@ fun PersonScreen(
         )
     }
 
+    if (showShareProfile && person != null) {
+        NovaShareDialog(
+            title = "Share @${person.username}",
+            profileUsername = person.username,
+            onDismiss = { showShareProfile = false },
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -419,10 +429,21 @@ fun PersonScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                 }
 
-                NovaSecondaryButton(
-                    text = if (isOpeningMessage) "Opening chat…" else "Message",
-                    onClick = { if (!isOpeningMessage) openMessage(person) },
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    NovaSecondaryButton(
+                        text = if (isOpeningMessage) "Opening chat…" else "Message",
+                        onClick = { if (!isOpeningMessage) openMessage(person) },
+                        modifier = Modifier.weight(1f),
+                    )
+                    NovaSecondaryButton(
+                        text = "Share profile",
+                        onClick = { showShareProfile = true },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(10.dp))
 

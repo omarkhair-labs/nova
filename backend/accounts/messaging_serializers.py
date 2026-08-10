@@ -2,6 +2,29 @@ from rest_framework import serializers
 
 from .models import Conversation, Message
 from .serializers import PostAuthorSerializer
+from .trust_safety import users_blocked
+
+
+def _absolute_file_url(request, field):
+    if not field:
+        return ""
+    try:
+        url = field.url
+    except Exception:
+        return ""
+    return request.build_absolute_uri(url) if request else url
+
+
+def _visible_to_context_user(context, target_user):
+    if target_user is None or not target_user.is_active:
+        return False
+    request = context.get("request")
+    current_user = getattr(request, "user", None)
+    if current_user is None or not getattr(current_user, "is_authenticated", False):
+        # Realtime serialization has no request object. Share creation already
+        # validates the recipient's visibility, so active targets are safe here.
+        return True
+    return not users_blocked(current_user, target_user)
 
 
 class MessageSerializer(serializers.ModelSerializer):
@@ -12,6 +35,7 @@ class MessageSerializer(serializers.ModelSerializer):
     audio_duration_ms = serializers.SerializerMethodField()
     reply_to = serializers.SerializerMethodField()
     reactions = serializers.SerializerMethodField()
+    share = serializers.SerializerMethodField()
     is_mine = serializers.SerializerMethodField()
     is_deleted = serializers.SerializerMethodField()
 
@@ -27,6 +51,7 @@ class MessageSerializer(serializers.ModelSerializer):
             "audio_duration_ms",
             "reply_to",
             "reactions",
+            "share",
             "created_at",
             "delivered_at",
             "read_at",
@@ -105,6 +130,43 @@ class MessageSerializer(serializers.ModelSerializer):
             for emoji, count in sorted(counts.items())
         ]
 
+    def get_share(self, obj):
+        if obj.deleted_at:
+            return None
+        try:
+            shared = obj.shared_content
+        except Exception:
+            return None
+
+        request = self.context.get("request")
+        if shared.kind == "post":
+            post = shared.post
+            available = bool(post and _visible_to_context_user(self.context, post.author))
+            if not available:
+                return {"kind": "post", "available": False, "post": None, "profile": None}
+            return {
+                "kind": "post",
+                "available": True,
+                "post": {
+                    "id": post.pk,
+                    "author": PostAuthorSerializer(post.author, context=self.context).data,
+                    "image_url": _absolute_file_url(request, post.image),
+                    "caption": post.caption,
+                },
+                "profile": None,
+            }
+
+        profile = shared.profile
+        available = _visible_to_context_user(self.context, profile)
+        if not available:
+            return {"kind": "profile", "available": False, "post": None, "profile": None}
+        return {
+            "kind": "profile",
+            "available": True,
+            "post": None,
+            "profile": PostAuthorSerializer(profile, context=self.context).data,
+        }
+
     def get_is_deleted(self, obj):
         return obj.deleted_at is not None
 
@@ -139,7 +201,14 @@ class ConversationSerializer(serializers.ModelSerializer):
 
     def get_last_message(self, obj):
         message = (
-            obj.messages.select_related("sender", "reply_to", "reply_to__sender")
+            obj.messages.select_related(
+                "sender",
+                "reply_to",
+                "reply_to__sender",
+                "shared_content",
+                "shared_content__post__author",
+                "shared_content__profile",
+            )
             .order_by("-id")
             .first()
         )
@@ -151,6 +220,12 @@ class ConversationSerializer(serializers.ModelSerializer):
         data = dict(MessageSerializer(message, context=context).data)
         if data.get("is_deleted"):
             data["body"] = "Message deleted"
+        elif data.get("share"):
+            share = data["share"]
+            if share.get("kind") == "post":
+                data["body"] = "Shared a post"
+            else:
+                data["body"] = "Shared a profile"
         elif not data.get("body") and data.get("audio_url"):
             data["body"] = "🎤 Voice message"
         elif not data.get("body") and data.get("image_url"):
