@@ -9,3 +9,5 @@ class AccountsConfig(AppConfig):
         # Register messaging-specific models that intentionally live outside
         # the already-large accounts/models.py module.
         from . import messaging_models  # noqa: F401
+        # Persist terminal voice/video calls as durable conversation history.
+        from . import call_history  # noqa: F401

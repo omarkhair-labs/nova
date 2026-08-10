@@ -8,14 +8,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaBorder
@@ -33,9 +35,9 @@ fun ConversationScreenV11(
     onAudioCall: () -> Unit,
     onVideoCall: () -> Unit,
 ) {
-    // Apply the IME inset once at the outer conversation boundary. The V8 composer
-    // also knows about IME insets; consuming it here prevents the bottom bar from
-    // growing by the full keyboard height and leaving a large blank gap.
+    // Consume the keyboard inset once at the outer conversation boundary. V8's
+    // composer still owns its normal navigation-bar inset, while the outer layer
+    // prevents the old double-IME gap on physical devices.
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -51,12 +53,12 @@ fun ConversationScreenV11(
             onSessionExpired = onSessionExpired,
         )
 
-        // Keep only three compact actions visible in the header: voice, search
-        // (provided by V9), and video. Video intentionally occupies the old V8
-        // refresh slot; realtime already keeps the conversation current and this
-        // gives the identity / last-seen block enough room on narrow phones.
-        CallHeaderButton(
-            text = "☎",
+        // Keep the V9 search action in the center slot and replace the old text /
+        // emoji call affordances with real Material icons. These are deliberately
+        // compact so the identity + presence block remains readable on narrow
+        // Android phones.
+        ConversationCallAction(
+            icon = Icons.Filled.Call,
             contentDescription = "Start voice call",
             onClick = onAudioCall,
             modifier = Modifier
@@ -64,8 +66,8 @@ fun ConversationScreenV11(
                 .statusBarsPadding()
                 .padding(top = 10.dp, end = 105.dp),
         )
-        CallHeaderButton(
-            text = "▣",
+        ConversationCallAction(
+            icon = Icons.Filled.Videocam,
             contentDescription = "Start video call",
             onClick = onVideoCall,
             modifier = Modifier
@@ -78,8 +80,8 @@ fun ConversationScreenV11(
 
 
 @Composable
-private fun CallHeaderButton(
-    text: String,
+private fun ConversationCallAction(
+    icon: ImageVector,
     contentDescription: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -92,11 +94,11 @@ private fun CallHeaderButton(
         modifier = modifier.size(38.dp),
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Text(
-                text = text,
-                color = NovaAccent,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = NovaAccent,
+                modifier = Modifier.size(18.dp),
             )
         }
     }
