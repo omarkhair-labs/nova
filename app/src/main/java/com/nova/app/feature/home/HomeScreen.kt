@@ -42,6 +42,7 @@ import com.nova.app.core.network.NovaPost
 import com.nova.app.core.notifications.NovaNotificationRepository
 import com.nova.app.core.push.NovaPushOpenSignal
 import com.nova.app.feature.notifications.NotificationsScreen
+import com.nova.app.feature.stories.StoriesRail
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
 import com.nova.app.ui.components.NovaSecondaryButton
@@ -302,6 +303,15 @@ fun HomeScreen(
                             }
                         }
                     }
+                }
+
+                item {
+                    StoriesRail(
+                        displayName = displayName,
+                        username = username,
+                        avatarUrl = avatarUrl,
+                        onSessionExpired = {},
+                    )
                 }
 
                 item {

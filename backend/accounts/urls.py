@@ -34,6 +34,14 @@ from .social_paging import (
     PaginatedPeopleView,
     PaginatedPersonPostsView,
 )
+from .stories import (
+    StoryDetailView,
+    StoryFeedView,
+    StoryReactionView,
+    StoryReplyView,
+    StoryViewedView,
+    StoryViewersView,
+)
 from .trust_safety import BlockedUsersView, DeleteAccountView, UserBlockView, UserReportView
 from .views import (
     CommentDetailView,
@@ -97,6 +105,12 @@ urlpatterns = [
     path("people/<str:username>/follow/", FollowView.as_view(), name="person-follow"),
     path("people/<str:username>/block/", UserBlockView.as_view(), name="person-block"),
     path("people/<str:username>/report/", UserReportView.as_view(), name="person-report"),
+    path("stories/", StoryFeedView.as_view(), name="stories"),
+    path("stories/<int:story_id>/", StoryDetailView.as_view(), name="story-detail"),
+    path("stories/<int:story_id>/view/", StoryViewedView.as_view(), name="story-view"),
+    path("stories/<int:story_id>/viewers/", StoryViewersView.as_view(), name="story-viewers"),
+    path("stories/<int:story_id>/reaction/", StoryReactionView.as_view(), name="story-reaction"),
+    path("stories/<int:story_id>/reply/", StoryReplyView.as_view(), name="story-reply"),
     path("posts/", PostsView.as_view(), name="posts"),
     path("posts/<int:post_id>/", PostDetailView.as_view(), name="post-detail"),
     path("posts/<int:post_id>/like/", PostLikeView.as_view(), name="post-like"),

@@ -1,0 +1,114 @@
+from datetime import timedelta
+
+from django.db import models
+from django.utils import timezone
+
+from .models import User
+
+
+class Story(models.Model):
+    class MediaType(models.TextChoices):
+        IMAGE = "image", "Image"
+        VIDEO = "video", "Video"
+
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="stories",
+    )
+    media = models.FileField(upload_to="stories/%Y/%m/")
+    media_type = models.CharField(max_length=8, choices=MediaType.choices)
+    caption = models.CharField(max_length=240, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    class Meta:
+        app_label = "accounts"
+        ordering = ("created_at", "id")
+        indexes = [
+            models.Index(fields=("author", "-created_at"), name="story_author_created_idx"),
+            models.Index(fields=("expires_at", "-created_at"), name="story_expiry_created_idx"),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.expires_at is None:
+            self.expires_at = timezone.now() + timedelta(hours=24)
+        super().save(*args, **kwargs)
+
+    @property
+    def is_expired(self):
+        return self.expires_at <= timezone.now()
+
+    def delete(self, *args, **kwargs):
+        media_name = self.media.name
+        storage = self.media.storage
+        result = super().delete(*args, **kwargs)
+        if media_name:
+            storage.delete(media_name)
+        return result
+
+    def __str__(self):
+        return f"Story {self.pk} by @{self.author.username}"
+
+
+class StoryView(models.Model):
+    story = models.ForeignKey(
+        Story,
+        on_delete=models.CASCADE,
+        related_name="views",
+    )
+    viewer = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="story_views",
+    )
+    viewed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = "accounts"
+        ordering = ("-viewed_at", "-id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("story", "viewer"),
+                name="unique_story_viewer",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=("story", "-viewed_at"), name="story_view_story_time_idx"),
+            models.Index(fields=("viewer", "-viewed_at"), name="story_view_user_time_idx"),
+        ]
+
+    def __str__(self):
+        return f"@{self.viewer.username} viewed story {self.story_id}"
+
+
+class StoryReaction(models.Model):
+    story = models.ForeignKey(
+        Story,
+        on_delete=models.CASCADE,
+        related_name="reactions",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="story_reactions",
+    )
+    emoji = models.CharField(max_length=16)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = "accounts"
+        ordering = ("-updated_at", "-id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("story", "user"),
+                name="unique_story_user_reaction",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=("story", "-updated_at"), name="story_react_story_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.emoji} by @{self.user.username} on story {self.story_id}"
