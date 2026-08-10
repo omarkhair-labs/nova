@@ -62,8 +62,8 @@ class Migration(migrations.Migration):
             model_name="messageshare",
             constraint=models.CheckConstraint(
                 condition=(
-                    models.Q(("kind", "post"), ("post__isnull", False), ("profile__isnull", True))
-                    | models.Q(("kind", "profile"), ("profile__isnull", False), ("post__isnull", True))
+                    models.Q(kind="post", post__isnull=False, profile__isnull=True)
+                    | models.Q(kind="profile", profile__isnull=False, post__isnull=True)
                 ),
                 name="message_share_matches_kind",
             ),
@@ -75,14 +75,14 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name="story",
             constraint=models.CheckConstraint(
-                condition=~models.Q(("media", "")) | models.Q(("shared_post__isnull", False)),
+                condition=~models.Q(media="") | models.Q(shared_post__isnull=False),
                 name="story_has_media_or_post",
             ),
         ),
         migrations.AddConstraint(
             model_name="story",
             constraint=models.CheckConstraint(
-                condition=~models.Q(("media_type", "post")) | models.Q(("shared_post__isnull", False)),
+                condition=~models.Q(media_type="post") | models.Q(shared_post__isnull=False),
                 name="story_post_type_has_target",
             ),
         ),
