@@ -141,6 +141,7 @@ class NovaInboxPagingRepository(
     private fun parseConversation(json: JSONObject): NovaConversation {
         val kind = json.optString("kind", "direct")
         val title = json.optString("title")
+        val groupAvatarUrl = resolveMediaUrl(json.optString("group_avatar_url"))
         val membersArray = json.optJSONArray("members_preview") ?: JSONArray()
         val members = buildList {
             for (index in 0 until membersArray.length()) {
@@ -155,7 +156,7 @@ class NovaInboxPagingRepository(
                 id = 0L,
                 username = "group",
                 name = title.ifBlank { "Nova group" },
-                avatarUrl = "",
+                avatarUrl = groupAvatarUrl,
             )
         }
         val lastJson = json.optJSONObject("last_message")
