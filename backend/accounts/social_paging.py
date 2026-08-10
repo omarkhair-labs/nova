@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from .models import User
 from .privacy import can_view_user_content
 from .serializers import PersonSerializer, PostSerializer
+from .sharing_models import Repost
 from .trust_safety import active_person_for, blocked_user_ids, visible_active_users_for
 from .views import public_post_queryset
 
@@ -127,25 +128,60 @@ class PaginatedPersonPostsView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        posts = public_post_queryset(request).filter(author=person)
+        content_kind = request.query_params.get("kind", "posts").strip().lower()
+        if content_kind not in {"posts", "reposts"}:
+            return Response(
+                {"detail": "Unsupported profile content kind."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         raw_cursor = request.query_params.get("cursor", "").strip()
+        cursor_id = None
         if raw_cursor:
             try:
                 cursor_id = int(raw_cursor)
             except ValueError:
                 return Response(
-                    {"detail": "Invalid profile-post cursor."},
+                    {"detail": "Invalid profile-content cursor."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            posts = posts.filter(id__lt=cursor_id)
+            if cursor_id <= 0:
+                return Response(
+                    {"detail": "Invalid profile-content cursor."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-        page_with_extra = list(
-            posts.order_by("-id")[: PROFILE_POST_PAGE_SIZE + 1]
-        )
-        has_more = len(page_with_extra) > PROFILE_POST_PAGE_SIZE
-        page = page_with_extra[:PROFILE_POST_PAGE_SIZE]
-        next_cursor = str(page[-1].id) if has_more and page else None
+        if content_kind == "reposts":
+            visible_posts = public_post_queryset(request)
+            reposts = (
+                Repost.objects.filter(user=person, post__in=visible_posts)
+                .select_related("post", "post__author")
+                .order_by("-id")
+            )
+            if cursor_id is not None:
+                reposts = reposts.filter(id__lt=cursor_id)
+
+            page_with_extra = list(reposts[: PROFILE_POST_PAGE_SIZE + 1])
+            has_more = len(page_with_extra) > PROFILE_POST_PAGE_SIZE
+            page_reposts = page_with_extra[:PROFILE_POST_PAGE_SIZE]
+            page = [item.post for item in page_reposts]
+            next_cursor = (
+                str(page_reposts[-1].id)
+                if has_more and page_reposts
+                else None
+            )
+        else:
+            posts = public_post_queryset(request).filter(author=person)
+            if cursor_id is not None:
+                posts = posts.filter(id__lt=cursor_id)
+
+            page_with_extra = list(
+                posts.order_by("-id")[: PROFILE_POST_PAGE_SIZE + 1]
+            )
+            has_more = len(page_with_extra) > PROFILE_POST_PAGE_SIZE
+            page = page_with_extra[:PROFILE_POST_PAGE_SIZE]
+            next_cursor = str(page[-1].id) if has_more and page else None
+
         return Response(
             {
                 "results": PostSerializer(
