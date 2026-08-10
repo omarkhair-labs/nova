@@ -1,7 +1,10 @@
 package com.nova.app.feature.messages
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,8 +12,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -33,9 +38,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.core.auth.NovaSessionStore
-import com.nova.app.core.messaging.NovaGroupDetail
+import com.nova.app.core.messaging.NovaGroupManagementRepository
 import com.nova.app.core.messaging.NovaGroupMessagingRepository
 import com.nova.app.core.messaging.NovaGroupMember
+import com.nova.app.core.messaging.NovaManagedGroupDetail
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaPerson
 import com.nova.app.core.social.NovaSocialPagingRepository
@@ -54,32 +60,44 @@ import kotlinx.coroutines.launch
 fun GroupInfoDialog(
     conversationId: Long,
     onDismiss: () -> Unit,
+    onGroupUpdated: (title: String, avatarUrl: String, membersCount: Int) -> Unit = { _, _, _ -> },
     onGroupLeft: () -> Unit,
     onSessionExpired: () -> Unit,
 ) {
     val context = LocalContext.current
-    val repository = remember(context) {
+    val messagingRepository = remember(context) {
         NovaGroupMessagingRepository(context.applicationContext)
+    }
+    val managementRepository = remember(context) {
+        NovaGroupManagementRepository(context.applicationContext)
     }
     val currentUsername = remember(context) {
         NovaSessionStore(context.applicationContext).load()?.cachedUser?.username.orEmpty()
     }
     val scope = rememberCoroutineScope()
 
-    var detail by remember(conversationId) { mutableStateOf<NovaGroupDetail?>(null) }
+    var detail by remember(conversationId) { mutableStateOf<NovaManagedGroupDetail?>(null) }
     var loading by remember(conversationId) { mutableStateOf(true) }
-    var busyUsername by remember(conversationId) { mutableStateOf<String?>(null) }
+    var busyAction by remember(conversationId) { mutableStateOf<String?>(null) }
     var leaving by remember(conversationId) { mutableStateOf(false) }
     var deleting by remember(conversationId) { mutableStateOf(false) }
     var showAddMembers by remember(conversationId) { mutableStateOf(false) }
+    var editingTitle by remember(conversationId) { mutableStateOf(false) }
+    var titleDraft by remember(conversationId) { mutableStateOf("") }
     var error by remember(conversationId) { mutableStateOf<String?>(null) }
+
+    fun applyDetail(updated: NovaManagedGroupDetail) {
+        detail = updated
+        titleDraft = updated.title
+        onGroupUpdated(updated.title, updated.avatarUrl, updated.membersCount)
+    }
 
     fun load() {
         scope.launch {
             loading = true
             error = null
-            when (val result = repository.detail(conversationId)) {
-                is ApiResult.Success -> detail = result.value
+            when (val result = managementRepository.detail(conversationId)) {
+                is ApiResult.Success -> applyDetail(result.value)
                 is ApiResult.Failure -> {
                     if (result.statusCode == 401) onSessionExpired() else error = result.message
                 }
@@ -88,30 +106,107 @@ fun GroupInfoDialog(
         }
     }
 
-    fun remove(member: NovaGroupMember) {
-        if (busyUsername != null || leaving || deleting) return
+    fun rename() {
+        if (busyAction != null) return
+        val clean = titleDraft.trim()
+        if (clean.isBlank()) {
+            error = "Give the group a name."
+            return
+        }
         scope.launch {
-            busyUsername = member.user.username
+            busyAction = "rename"
             error = null
-            when (val result = repository.removeMember(conversationId, member.user.username)) {
+            when (val result = managementRepository.rename(conversationId, clean)) {
                 is ApiResult.Success -> {
-                    detail = result.value
-                    if (result.value == null) onGroupLeft()
+                    applyDetail(result.value)
+                    editingTitle = false
                 }
                 is ApiResult.Failure -> {
                     if (result.statusCode == 401) onSessionExpired() else error = result.message
                 }
             }
-            busyUsername = null
+            busyAction = null
+        }
+    }
+
+    fun updateAvatar(uri: android.net.Uri) {
+        if (busyAction != null) return
+        scope.launch {
+            busyAction = "avatar"
+            error = null
+            when (val result = managementRepository.updateAvatar(conversationId, uri)) {
+                is ApiResult.Success -> applyDetail(result.value)
+                is ApiResult.Failure -> {
+                    if (result.statusCode == 401) onSessionExpired() else error = result.message
+                }
+            }
+            busyAction = null
+        }
+    }
+
+    fun removeAvatar() {
+        if (busyAction != null) return
+        scope.launch {
+            busyAction = "avatar"
+            error = null
+            when (val result = managementRepository.removeAvatar(conversationId)) {
+                is ApiResult.Success -> applyDetail(result.value)
+                is ApiResult.Failure -> {
+                    if (result.statusCode == 401) onSessionExpired() else error = result.message
+                }
+            }
+            busyAction = null
+        }
+    }
+
+    fun changeRole(member: NovaGroupMember, role: String) {
+        if (busyAction != null) return
+        scope.launch {
+            busyAction = "role:${member.user.username}"
+            error = null
+            when (
+                val result = managementRepository.setRole(
+                    conversationId = conversationId,
+                    username = member.user.username,
+                    role = role,
+                )
+            ) {
+                is ApiResult.Success -> applyDetail(result.value)
+                is ApiResult.Failure -> {
+                    if (result.statusCode == 401) onSessionExpired() else error = result.message
+                }
+            }
+            busyAction = null
+        }
+    }
+
+    fun remove(member: NovaGroupMember) {
+        if (busyAction != null || leaving || deleting) return
+        scope.launch {
+            busyAction = "remove:${member.user.username}"
+            error = null
+            when (val result = messagingRepository.removeMember(conversationId, member.user.username)) {
+                is ApiResult.Success -> {
+                    if (result.value == null) {
+                        onGroupLeft()
+                    } else {
+                        load()
+                    }
+                }
+                is ApiResult.Failure -> {
+                    if (result.statusCode == 401) onSessionExpired() else error = result.message
+                }
+            }
+            busyAction = null
         }
     }
 
     fun leave() {
-        if (leaving || deleting || busyUsername != null) return
+        if (leaving || deleting || busyAction != null) return
         scope.launch {
             leaving = true
             error = null
-            when (val result = repository.leaveGroup(conversationId)) {
+            when (val result = messagingRepository.leaveGroup(conversationId)) {
                 is ApiResult.Success -> onGroupLeft()
                 is ApiResult.Failure -> {
                     if (result.statusCode == 401) onSessionExpired() else error = result.message
@@ -122,11 +217,11 @@ fun GroupInfoDialog(
     }
 
     fun deleteGroup() {
-        if (leaving || deleting || busyUsername != null) return
+        if (leaving || deleting || busyAction != null) return
         scope.launch {
             deleting = true
             error = null
-            when (val result = repository.deleteGroup(conversationId)) {
+            when (val result = messagingRepository.deleteGroup(conversationId)) {
                 is ApiResult.Success -> onGroupLeft()
                 is ApiResult.Failure -> {
                     if (result.statusCode == 401) onSessionExpired() else error = result.message
@@ -136,25 +231,29 @@ fun GroupInfoDialog(
         }
     }
 
+    val photoPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+    ) { uri ->
+        if (uri != null) updateAvatar(uri)
+    }
+
     LaunchedEffect(conversationId) { load() }
 
     val currentDetail = detail
-    val role = currentDetail?.conversation?.currentUserRole.orEmpty()
-    val canManage = role == "owner" || role == "admin"
+    val role = currentDetail?.currentUserRole.orEmpty()
+    val canManageAppearance = role == "owner" || role == "admin"
+    val isOwner = role == "owner"
+    val blocked = leaving || deleting || busyAction != null
 
     AlertDialog(
-        onDismissRequest = {
-            if (!leaving && !deleting && busyUsername == null) onDismiss()
-        },
-        title = {
-            Text(currentDetail?.conversation?.displayName ?: "Group info")
-        },
+        onDismissRequest = { if (!blocked) onDismiss() },
+        title = null,
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 when {
                     loading && currentDetail == null -> {
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 28.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 34.dp),
                             horizontalArrangement = Arrangement.Center,
                         ) {
                             CircularProgressIndicator(color = NovaAccent)
@@ -168,15 +267,123 @@ fun GroupInfoDialog(
                         )
                     }
                     else -> {
-                        Text(
-                            text = "${currentDetail.conversation.membersCount} members · ${role.ifBlank { "member" }}",
-                            color = NovaMuted,
-                            fontSize = 12.sp,
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(13.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                NovaAvatar(
+                                    source = currentDetail.avatarUrl,
+                                    fallbackText = currentDetail.title,
+                                    size = 64.dp,
+                                )
+                                if (busyAction == "avatar") {
+                                    Surface(
+                                        modifier = Modifier.size(64.dp),
+                                        shape = CircleShape,
+                                        color = NovaSurface.copy(alpha = 0.72f),
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(22.dp),
+                                                color = NovaAccent,
+                                                strokeWidth = 2.dp,
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = currentDetail.title,
+                                    color = NovaInk,
+                                    fontSize = 19.sp,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                Text(
+                                    text = "${currentDetail.membersCount} members · ${role.ifBlank { "member" }}",
+                                    color = NovaMuted,
+                                    fontSize = 11.sp,
+                                )
+                            }
+                        }
 
-                        if (canManage) {
+                        if (canManageAppearance) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                GroupActionChip(
+                                    text = if (currentDetail.avatarUrl.isBlank()) "Add photo" else "Change photo",
+                                    enabled = !blocked,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = { photoPicker.launch("image/*") },
+                                )
+                                GroupActionChip(
+                                    text = "Rename",
+                                    enabled = !blocked,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = {
+                                        titleDraft = currentDetail.title
+                                        editingTitle = !editingTitle
+                                    },
+                                )
+                            }
+                            if (currentDetail.avatarUrl.isNotBlank()) {
+                                TextButton(
+                                    onClick = ::removeAvatar,
+                                    enabled = !blocked,
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text("Remove group photo", color = NovaMuted, fontSize = 11.sp)
+                                }
+                            }
+                        }
+
+                        if (editingTitle && canManageAppearance) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                OutlinedTextField(
+                                    value = titleDraft,
+                                    onValueChange = { titleDraft = it.take(80) },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true,
+                                    placeholder = { Text("Group name") },
+                                    shape = RoundedCornerShape(15.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = NovaAccent,
+                                        unfocusedBorderColor = NovaBorder,
+                                        cursorColor = NovaAccent,
+                                    ),
+                                )
+                                Surface(
+                                    onClick = ::rename,
+                                    shape = CircleShape,
+                                    color = NovaAccent,
+                                    modifier = Modifier.size(44.dp),
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        if (busyAction == "rename") {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(18.dp),
+                                                color = NovaSurface,
+                                                strokeWidth = 2.dp,
+                                            )
+                                        } else {
+                                            Text("✓", color = NovaSurface, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (canManageAppearance) {
                             Surface(
-                                onClick = { showAddMembers = true },
+                                onClick = { if (!blocked) showAddMembers = true },
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(15.dp),
                                 color = NovaAccentSoft,
@@ -192,57 +399,32 @@ fun GroupInfoDialog(
                             }
                         }
 
+                        Text(
+                            text = "Members",
+                            color = NovaInk,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+
                         LazyColumn(
-                            modifier = Modifier.fillMaxWidth().heightIn(max = 310.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp),
+                            verticalArrangement = Arrangement.spacedBy(7.dp),
                         ) {
                             items(currentDetail.members, key = { it.user.id }) { member ->
                                 val isMe = member.user.username == currentUsername
-                                val canRemove = canManage && !isMe && member.role != "owner" &&
+                                val canRemove = canManageAppearance && !isMe && member.role != "owner" &&
                                     !(role == "admin" && member.role == "admin")
-                                Surface(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(16.dp),
-                                    color = NovaSurface,
-                                    border = BorderStroke(1.dp, NovaBorder),
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 9.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    ) {
-                                        NovaAvatar(
-                                            source = member.user.avatarUrl,
-                                            fallbackText = member.user.name.ifBlank { member.user.username },
-                                            size = 38.dp,
-                                        )
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = member.user.name.ifBlank { member.user.username },
-                                                color = NovaInk,
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                            )
-                                            Text(
-                                                text = "@${member.user.username} · ${member.role}${if (isMe) " · you" else ""}",
-                                                color = NovaMuted,
-                                                fontSize = 10.sp,
-                                            )
-                                        }
-                                        if (canRemove) {
-                                            TextButton(
-                                                onClick = { remove(member) },
-                                                enabled = busyUsername == null && !leaving && !deleting,
-                                            ) {
-                                                Text(
-                                                    if (busyUsername == member.user.username) "Removing…" else "Remove",
-                                                    color = NovaMuted,
-                                                    fontSize = 10.sp,
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
+                                GroupMemberRow(
+                                    member = member,
+                                    isMe = isMe,
+                                    isOwner = isOwner,
+                                    canRemove = canRemove,
+                                    busyAction = busyAction,
+                                    enabled = !blocked || busyAction?.contains(member.user.username) == true,
+                                    onMakeAdmin = { changeRole(member, "admin") },
+                                    onRemoveAdmin = { changeRole(member, "member") },
+                                    onRemove = { remove(member) },
+                                )
                             }
                         }
 
@@ -250,18 +432,18 @@ fun GroupInfoDialog(
                             Text(error.orEmpty(), color = NovaMuted, fontSize = 11.sp)
                         }
 
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(1.dp))
                         TextButton(
                             onClick = ::leave,
-                            enabled = !leaving && !deleting && busyUsername == null,
+                            enabled = !blocked,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(if (leaving) "Leaving…" else "Leave group")
                         }
-                        if (role == "owner") {
+                        if (isOwner) {
                             TextButton(
                                 onClick = ::deleteGroup,
-                                enabled = !leaving && !deleting && busyUsername == null,
+                                enabled = !blocked,
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Text(if (deleting) "Deleting…" else "Delete group")
@@ -272,10 +454,7 @@ fun GroupInfoDialog(
             }
         },
         confirmButton = {
-            TextButton(
-                onClick = onDismiss,
-                enabled = !leaving && !deleting && busyUsername == null,
-            ) {
+            TextButton(onClick = onDismiss, enabled = !blocked) {
                 Text("Done")
             }
         },
@@ -285,14 +464,138 @@ fun GroupInfoDialog(
         AddGroupMembersDialog(
             conversationId = conversationId,
             existingUsernames = currentDetail.members.map { it.user.username }.toSet(),
-            repository = repository,
+            repository = messagingRepository,
             onDismiss = { showAddMembers = false },
             onUpdated = {
-                detail = it
                 showAddMembers = false
+                load()
             },
             onSessionExpired = onSessionExpired,
         )
+    }
+}
+
+
+@Composable
+private fun GroupActionChip(
+    text: String,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = { if (enabled) onClick() },
+        modifier = modifier,
+        shape = RoundedCornerShape(14.dp),
+        color = NovaSurface,
+        border = BorderStroke(1.dp, NovaBorder),
+    ) {
+        Box(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = text,
+                color = if (enabled) NovaInk else NovaMuted,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+    }
+}
+
+
+@Composable
+private fun GroupMemberRow(
+    member: NovaGroupMember,
+    isMe: Boolean,
+    isOwner: Boolean,
+    canRemove: Boolean,
+    busyAction: String?,
+    enabled: Boolean,
+    onMakeAdmin: () -> Unit,
+    onRemoveAdmin: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(15.dp),
+        color = NovaSurface,
+        border = BorderStroke(1.dp, NovaBorder),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(9.dp),
+            ) {
+                NovaAvatar(
+                    source = member.user.avatarUrl,
+                    fallbackText = member.user.name.ifBlank { member.user.username },
+                    size = 38.dp,
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = member.user.name.ifBlank { member.user.username },
+                        color = NovaInk,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = "@${member.user.username}${if (isMe) " · you" else ""}",
+                        color = NovaMuted,
+                        fontSize = 10.sp,
+                    )
+                }
+                if (member.role != "member") {
+                    Surface(
+                        shape = RoundedCornerShape(999.dp),
+                        color = NovaAccentSoft,
+                    ) {
+                        Text(
+                            text = member.role.replaceFirstChar { it.uppercase() },
+                            color = NovaAccent,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
+                    }
+                }
+            }
+
+            if (!isMe && member.role != "owner" && (isOwner || canRemove)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 5.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (isOwner) {
+                        TextButton(
+                            onClick = if (member.role == "admin") onRemoveAdmin else onMakeAdmin,
+                            enabled = enabled && busyAction == null,
+                        ) {
+                            Text(
+                                if (busyAction == "role:${member.user.username}") "Updating…"
+                                else if (member.role == "admin") "Remove admin"
+                                else "Make admin",
+                                fontSize = 10.sp,
+                            )
+                        }
+                    }
+                    if (canRemove) {
+                        TextButton(
+                            onClick = onRemove,
+                            enabled = enabled && busyAction == null,
+                        ) {
+                            Text(
+                                if (busyAction == "remove:${member.user.username}") "Removing…" else "Remove",
+                                color = NovaMuted,
+                                fontSize = 10.sp,
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -303,7 +606,7 @@ private fun AddGroupMembersDialog(
     existingUsernames: Set<String>,
     repository: NovaGroupMessagingRepository,
     onDismiss: () -> Unit,
-    onUpdated: (NovaGroupDetail) -> Unit,
+    onUpdated: () -> Unit,
     onSessionExpired: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -339,7 +642,7 @@ private fun AddGroupMembersDialog(
             adding = true
             error = null
             when (val result = repository.addMembers(conversationId, selected.toList())) {
-                is ApiResult.Success -> onUpdated(result.value)
+                is ApiResult.Success -> onUpdated()
                 is ApiResult.Failure -> {
                     if (result.statusCode == 401) onSessionExpired() else error = result.message
                     adding = false
