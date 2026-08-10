@@ -39,6 +39,8 @@ import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaPost
 import com.nova.app.core.notifications.NovaNotification
 import com.nova.app.core.notifications.NovaNotificationRepository
+import com.nova.app.core.privacy.NovaFollowRequest
+import com.nova.app.core.privacy.NovaPrivacyRepository
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.theme.NovaAccent
@@ -66,6 +68,9 @@ fun NotificationsScreen(
     val repository = remember(context) {
         NovaNotificationRepository(context.applicationContext)
     }
+    val privacyRepository = remember(context) {
+        NovaPrivacyRepository(context.applicationContext)
+    }
     val feedRepository = remember(context) {
         NovaFeedRepository(context.applicationContext)
     }
@@ -73,15 +78,35 @@ fun NotificationsScreen(
     val listState = rememberLazyListState()
 
     var notifications by remember { mutableStateOf<List<NovaNotification>>(emptyList()) }
+    var followRequests by remember { mutableStateOf<List<NovaFollowRequest>>(emptyList()) }
     var nextCursor by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var isLoadingMore by remember { mutableStateOf(false) }
+    var requestsLoading by remember { mutableStateOf(true) }
+    var requestBusyId by remember { mutableStateOf<Long?>(null) }
     var openingPostId by remember { mutableStateOf<Long?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var requestError by remember { mutableStateOf<String?>(null) }
+
+    fun loadFollowRequests() {
+        scope.launch {
+            requestsLoading = true
+            requestError = null
+            when (val result = privacyRepository.followRequests()) {
+                is ApiResult.Success -> followRequests = result.value
+                is ApiResult.Failure -> {
+                    if (result.statusCode == 401) onSessionExpired() else requestError = result.message
+                }
+            }
+            requestsLoading = false
+        }
+    }
 
     fun loadActivity(reset: Boolean) {
         if (isLoadingMore || (reset && isLoading && notifications.isNotEmpty())) return
         val cursor = if (reset) null else nextCursor ?: return
+
+        if (reset) loadFollowRequests()
 
         scope.launch {
             if (reset) isLoading = true else isLoadingMore = true
@@ -120,6 +145,28 @@ fun NotificationsScreen(
                     }
                 }
             }
+        }
+    }
+
+    fun decideFollowRequest(request: NovaFollowRequest, accept: Boolean) {
+        if (requestBusyId != null) return
+        scope.launch {
+            requestBusyId = request.id
+            requestError = null
+            val result = if (accept) {
+                privacyRepository.acceptFollowRequest(request.id)
+            } else {
+                privacyRepository.declineFollowRequest(request.id)
+            }
+            when (result) {
+                is ApiResult.Success -> {
+                    followRequests = followRequests.filterNot { it.id == request.id }
+                }
+                is ApiResult.Failure -> {
+                    if (result.statusCode == 401) onSessionExpired() else requestError = result.message
+                }
+            }
+            requestBusyId = null
         }
     }
 
@@ -172,7 +219,7 @@ fun NotificationsScreen(
     }
 
     PullToRefreshBox(
-        isRefreshing = isLoading && notifications.isNotEmpty(),
+        isRefreshing = (isLoading || requestsLoading) && (notifications.isNotEmpty() || followRequests.isNotEmpty()),
         onRefresh = { loadActivity(reset = true) },
         modifier = Modifier
             .fillMaxSize()
@@ -220,7 +267,7 @@ fun NotificationsScreen(
                             fontWeight = FontWeight.Bold,
                         )
                         Text(
-                            text = "Likes, comments and new people around you.",
+                            text = "Follow requests, likes, comments and new people around you.",
                             color = NovaMuted,
                             fontSize = 12.sp,
                         )
@@ -228,12 +275,80 @@ fun NotificationsScreen(
                 }
             }
 
-            if (isLoading && notifications.isEmpty()) {
+            if (followRequests.isNotEmpty()) {
+                item(key = "follow-requests-title") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "Follow requests",
+                            color = NovaInk,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            text = followRequests.size.toString(),
+                            color = NovaAccent,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+                items(
+                    items = followRequests,
+                    key = { "follow-request-${it.id}" },
+                ) { request ->
+                    FollowRequestRow(
+                        request = request,
+                        busy = requestBusyId == request.id,
+                        enabled = requestBusyId == null,
+                        onPersonClick = { onPersonClick(request.requester.username) },
+                        onAccept = { decideFollowRequest(request, accept = true) },
+                        onDecline = { decideFollowRequest(request, accept = false) },
+                    )
+                }
+                if (!requestError.isNullOrBlank()) {
+                    item(key = "follow-request-error") {
+                        Text(requestError.orEmpty(), color = NovaMuted, fontSize = 11.sp)
+                    }
+                }
+            } else if (requestsLoading) {
+                item(key = "follow-requests-loading") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(9.dp),
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.width(15.dp).height(15.dp), color = NovaAccent, strokeWidth = 2.dp)
+                        Text("Checking follow requests…", color = NovaMuted, fontSize = 11.sp)
+                    }
+                }
+            } else if (!requestError.isNullOrBlank()) {
+                item(key = "follow-requests-error") {
+                    Surface(
+                        onClick = ::loadFollowRequests,
+                        shape = RoundedCornerShape(15.dp),
+                        color = NovaSurface,
+                        border = BorderStroke(1.dp, NovaBorder),
+                    ) {
+                        Text(
+                            text = "${requestError.orEmpty()} · Try again",
+                            modifier = Modifier.padding(12.dp),
+                            color = NovaMuted,
+                            fontSize = 11.sp,
+                        )
+                    }
+                }
+            }
+
+            if (isLoading && notifications.isEmpty() && followRequests.isEmpty() && requestsLoading) {
                 item {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(260.dp),
+                            .height(220.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center,
                     ) {
@@ -246,7 +361,7 @@ fun NotificationsScreen(
                         )
                     }
                 }
-            } else if (errorMessage != null && notifications.isEmpty()) {
+            } else if (errorMessage != null && notifications.isEmpty() && followRequests.isEmpty()) {
                 item {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
@@ -275,7 +390,7 @@ fun NotificationsScreen(
                         }
                     }
                 }
-            } else if (notifications.isEmpty()) {
+            } else if (notifications.isEmpty() && followRequests.isEmpty() && !requestsLoading) {
                 item {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
@@ -307,7 +422,7 @@ fun NotificationsScreen(
                             )
                             Spacer(modifier = Modifier.height(7.dp))
                             Text(
-                                text = "When someone follows you, likes a post or leaves a comment, it will show up here.",
+                                text = "Follow requests, follows, likes and comments will show up here.",
                                 color = NovaMuted,
                                 fontSize = 13.sp,
                                 lineHeight = 19.sp,
@@ -315,7 +430,7 @@ fun NotificationsScreen(
                         }
                     }
                 }
-            } else {
+            } else if (notifications.isNotEmpty()) {
                 item {
                     Text(
                         text = "Recent",
@@ -386,6 +501,92 @@ fun NotificationsScreen(
                                 )
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun FollowRequestRow(
+    request: NovaFollowRequest,
+    busy: Boolean,
+    enabled: Boolean,
+    onPersonClick: () -> Unit,
+    onAccept: () -> Unit,
+    onDecline: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        color = NovaSurface,
+        border = BorderStroke(1.dp, NovaAccent.copy(alpha = 0.35f)),
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(onClick = onPersonClick, shape = RoundedCornerShape(18.dp), color = NovaSurface) {
+                    NovaAvatar(
+                        source = request.requester.avatarUrl,
+                        fallbackText = request.requester.name.ifBlank { request.requester.username },
+                        size = 46.dp,
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = request.requester.name.ifBlank { request.requester.username },
+                        color = NovaInk,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text("@${request.requester.username} wants to follow you", color = NovaMuted, fontSize = 11.sp)
+                    Text(relativeTime(request.createdAt), color = NovaMuted, fontSize = 10.sp)
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Surface(
+                    onClick = { if (enabled) onDecline() },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(14.dp),
+                    color = NovaBackground,
+                    border = BorderStroke(1.dp, NovaBorder),
+                ) {
+                    Text(
+                        text = "Decline",
+                        modifier = Modifier.padding(vertical = 9.dp),
+                        color = NovaMuted,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    )
+                }
+                Surface(
+                    onClick = { if (enabled) onAccept() },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(14.dp),
+                    color = NovaAccent,
+                ) {
+                    Row(
+                        modifier = Modifier.padding(vertical = 9.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (busy) {
+                            CircularProgressIndicator(modifier = Modifier.width(13.dp).height(13.dp), color = NovaBackground, strokeWidth = 2.dp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
+                        Text(
+                            text = if (busy) "Saving…" else "Accept",
+                            color = NovaBackground,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
                     }
                 }
             }
