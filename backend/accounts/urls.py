@@ -28,6 +28,7 @@ from .messaging_views import (
     ConversationReadView,
     MessageReactionView,
 )
+from .sharing_views import MessageShareView, PostRepostView, SharingFeedView
 from .social_paging import (
     FollowersView,
     FollowingView,
@@ -46,7 +47,6 @@ from .trust_safety import BlockedUsersView, DeleteAccountView, UserBlockView, Us
 from .views import (
     CommentDetailView,
     DevicePushTokenView,
-    FeedView,
     FollowView,
     MeView,
     NotificationsReadView,
@@ -114,9 +114,11 @@ urlpatterns = [
     path("posts/", PostsView.as_view(), name="posts"),
     path("posts/<int:post_id>/", PostDetailView.as_view(), name="post-detail"),
     path("posts/<int:post_id>/like/", PostLikeView.as_view(), name="post-like"),
+    path("posts/<int:post_id>/repost/", PostRepostView.as_view(), name="post-repost"),
     path("posts/<int:post_id>/comments/", PostCommentsView.as_view(), name="post-comments"),
     path("comments/<int:comment_id>/", CommentDetailView.as_view(), name="comment-detail"),
-    path("feed/", FeedView.as_view(), name="feed"),
+    path("feed/", SharingFeedView.as_view(), name="feed"),
+    path("shares/messages/", MessageShareView.as_view(), name="message-share"),
     path("notifications/", NotificationsView.as_view(), name="notifications"),
     path("notifications/read/", NotificationsReadView.as_view(), name="notifications-read"),
     path("push/devices/", DevicePushTokenView.as_view(), name="push-devices"),
