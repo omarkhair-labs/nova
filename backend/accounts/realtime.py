@@ -9,6 +9,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
+from .messaging_models import GroupMembership
 from .models import Conversation, Message, User, UserBlock
 from .presence_store import is_online, refresh_lease, register_lease, unregister_lease
 
@@ -162,24 +163,26 @@ class ConversationConsumer(PresenceLeaseMixin, AsyncJsonWebsocketConsumer):
             return
 
         other_presence = await self._other_participant_presence(user.pk, self.conversation_id)
-        self.watching_presence_group = user_presence_group_name(other_presence["user_id"])
+        if other_presence is not None:
+            self.watching_presence_group = user_presence_group_name(other_presence["user_id"])
 
         await self.channel_layer.group_add(self.group_name, self.channel_name)
-        await self.channel_layer.group_add(self.watching_presence_group, self.channel_name)
+        if self.watching_presence_group:
+            await self.channel_layer.group_add(self.watching_presence_group, self.channel_name)
         self.joined_group = True
         await self.start_presence_lease(user)
 
         await self.accept()
-        await self.send_json(
-            {
-                "type": "ready",
-                "conversation_id": self.conversation_id,
-                "presence": {
-                    **other_presence,
-                    "is_online": await is_online(other_presence["user_id"]),
-                },
+        ready = {
+            "type": "ready",
+            "conversation_id": self.conversation_id,
+        }
+        if other_presence is not None:
+            ready["presence"] = {
+                **other_presence,
+                "is_online": await is_online(other_presence["user_id"]),
             }
-        )
+        await self.send_json(ready)
 
     async def disconnect(self, close_code):
         group_name = getattr(self, "group_name", None)
@@ -265,11 +268,17 @@ class ConversationConsumer(PresenceLeaseMixin, AsyncJsonWebsocketConsumer):
         message = dict(event["message"])
         sender = message.get("sender") or {}
         user = self.scope.get("user")
-        message["is_mine"] = bool(user and sender.get("id") == user.pk)
+        sender_id = sender.get("id")
+        if user and sender_id and sender_id != user.pk and await self._users_blocked(user.pk, sender_id):
+            return
+        message["is_mine"] = bool(user and sender_id == user.pk)
         await self.send_json({"type": "message.created", "message": message})
 
     async def message_updated(self, event):
         if not await self._allow_realtime_event():
+            return
+        user = self.scope.get("user")
+        if user and await self._message_sender_blocked(user.pk, event["message_id"]):
             return
         await self.send_json(
             {
@@ -283,6 +292,9 @@ class ConversationConsumer(PresenceLeaseMixin, AsyncJsonWebsocketConsumer):
     async def message_deleted(self, event):
         if not await self._allow_realtime_event():
             return
+        user = self.scope.get("user")
+        if user and await self._message_sender_blocked(user.pk, event["message_id"]):
+            return
         await self.send_json(
             {
                 "type": "message.deleted",
@@ -295,6 +307,8 @@ class ConversationConsumer(PresenceLeaseMixin, AsyncJsonWebsocketConsumer):
         if not await self._allow_realtime_event():
             return
         user = self.scope.get("user")
+        if user and event["user_id"] != user.pk and await self._users_blocked(user.pk, event["user_id"]):
+            return
         await self.send_json(
             {
                 "type": "message.reaction",
@@ -337,6 +351,8 @@ class ConversationConsumer(PresenceLeaseMixin, AsyncJsonWebsocketConsumer):
         user = self.scope.get("user")
         if user and event["user_id"] == user.pk:
             return
+        if user and await self._users_blocked(user.pk, event["user_id"]):
+            return
         await self.send_json(
             {
                 "type": "typing",
@@ -363,21 +379,50 @@ class ConversationConsumer(PresenceLeaseMixin, AsyncJsonWebsocketConsumer):
     def _can_access_conversation(self, user_id, conversation_id):
         conversation = Conversation.objects.select_related(
             "participant_one", "participant_two"
-        ).filter(pk=conversation_id).filter(
-            Q(participant_one_id=user_id) | Q(participant_two_id=user_id)
-        ).first()
+        ).filter(pk=conversation_id).first()
         if conversation is None:
+            return False
+        if conversation.kind == Conversation.Kind.GROUP:
+            return GroupMembership.objects.filter(
+                conversation_id=conversation_id,
+                user_id=user_id,
+                user__is_active=True,
+            ).exists()
+
+        if user_id not in (conversation.participant_one_id, conversation.participant_two_id):
             return False
         other = (
             conversation.participant_two
             if conversation.participant_one_id == user_id
             else conversation.participant_one
         )
-        if not other.is_active:
+        if other is None or not other.is_active:
             return False
         return not UserBlock.objects.filter(
             Q(blocker_id=user_id, blocked_id=other.pk)
             | Q(blocker_id=other.pk, blocked_id=user_id)
+        ).exists()
+
+    @database_sync_to_async
+    def _users_blocked(self, first_id, second_id):
+        if not first_id or not second_id or first_id == second_id:
+            return False
+        return UserBlock.objects.filter(
+            Q(blocker_id=first_id, blocked_id=second_id)
+            | Q(blocker_id=second_id, blocked_id=first_id)
+        ).exists()
+
+    @database_sync_to_async
+    def _message_sender_blocked(self, user_id, message_id):
+        sender_id = Message.objects.filter(
+            pk=message_id,
+            conversation_id=self.conversation_id,
+        ).values_list("sender_id", flat=True).first()
+        if not sender_id or sender_id == user_id:
+            return False
+        return UserBlock.objects.filter(
+            Q(blocker_id=user_id, blocked_id=sender_id)
+            | Q(blocker_id=sender_id, blocked_id=user_id)
         ).exists()
 
     @database_sync_to_async
@@ -386,11 +431,15 @@ class ConversationConsumer(PresenceLeaseMixin, AsyncJsonWebsocketConsumer):
             "participant_one",
             "participant_two",
         ).get(pk=conversation_id)
+        if conversation.kind != Conversation.Kind.DIRECT:
+            return None
         other = (
             conversation.participant_two
             if conversation.participant_one_id == user_id
             else conversation.participant_one
         )
+        if other is None:
+            return None
         return {
             "user_id": other.pk,
             "username": other.username,

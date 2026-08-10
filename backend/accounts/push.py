@@ -4,8 +4,9 @@ import os
 from datetime import timedelta
 from functools import lru_cache
 
-from .messaging_models import ConversationPreference
-from .models import CallSession, DevicePushToken, Notification
+from .messaging_models import ConversationPreference, GroupMembership
+from .models import CallSession, Conversation, DevicePushToken, Notification
+from .trust_safety import blocked_user_ids
 
 logger = logging.getLogger(__name__)
 
@@ -104,14 +105,77 @@ def send_notification_push(notification):
     return sent
 
 
-def send_message_push(message):
-    """Deliver a direct-message push without creating an Activity notification row."""
+def _message_preview(message):
+    preview = message.body.strip()
+    if not preview and message.audio:
+        preview = "🎤 Voice message"
+    elif not preview and message.image:
+        preview = "📷 Photo"
+    return preview[:120] + ("…" if len(preview) > 120 else "")
 
-    if ConversationPreference.objects.filter(
-        conversation_id=message.conversation_id,
-        user_id=message.recipient_id,
-        muted=True,
-    ).exists():
+
+def send_message_push(message):
+    """Deliver direct or group message pushes without Activity rows."""
+
+    conversation = message.conversation
+    actor_name = message.sender.name.strip() or f"@{message.sender.username}"
+    preview = _message_preview(message)
+    actor_avatar_url = ""
+    if message.sender.avatar:
+        try:
+            actor_avatar_url = message.sender.avatar.url
+        except Exception:
+            actor_avatar_url = ""
+
+    if conversation.kind == Conversation.Kind.GROUP:
+        muted_ids = set(
+            ConversationPreference.objects.filter(
+                conversation=conversation,
+                muted=True,
+            ).values_list("user_id", flat=True)
+        )
+        hidden_ids = blocked_user_ids(message.sender)
+        recipient_ids = list(
+            GroupMembership.objects.filter(
+                conversation=conversation,
+                user__is_active=True,
+            )
+            .exclude(user_id=message.sender_id)
+            .exclude(user_id__in=muted_ids)
+            .exclude(user_id__in=hidden_ids)
+            .values_list("user_id", flat=True)
+        )
+        if not recipient_ids:
+            return 0
+        fids = list(
+            DevicePushToken.objects.filter(
+                user_id__in=recipient_ids,
+                active=True,
+            ).values_list("token", flat=True)
+        )
+        notification_title = conversation.title.strip() or "Nova group"
+        notification_body = f"{actor_name}: {preview or 'Sent a message'}"
+        conversation_kind = "group"
+    else:
+        if message.recipient_id is None:
+            return 0
+        if ConversationPreference.objects.filter(
+            conversation_id=message.conversation_id,
+            user_id=message.recipient_id,
+            muted=True,
+        ).exists():
+            return 0
+        fids = list(
+            DevicePushToken.objects.filter(
+                user=message.recipient,
+                active=True,
+            ).values_list("token", flat=True)
+        )
+        notification_title = actor_name
+        notification_body = preview or "Sent you a message"
+        conversation_kind = "direct"
+
+    if not fids:
         return 0
 
     app = _firebase_app()
@@ -124,33 +188,12 @@ def send_message_push(message):
         logger.exception("Firebase messaging is unavailable.")
         return 0
 
-    fids = list(
-        DevicePushToken.objects.filter(
-            user=message.recipient,
-            active=True,
-        ).values_list("token", flat=True)
-    )
-    if not fids:
-        return 0
-
-    actor_name = message.sender.name.strip() or f"@{message.sender.username}"
-    preview = message.body.strip()
-    if not preview and message.audio:
-        preview = "🎤 Voice message"
-    elif not preview and message.image:
-        preview = "📷 Photo"
-    preview = preview[:120] + ("…" if len(preview) > 120 else "")
-    actor_avatar_url = ""
-    if message.sender.avatar:
-        try:
-            actor_avatar_url = message.sender.avatar.url
-        except Exception:
-            actor_avatar_url = ""
-
     data = {
         "notification_id": str(message.pk),
         "kind": "message",
         "conversation_id": str(message.conversation_id),
+        "conversation_kind": conversation_kind,
+        "group_title": conversation.title if conversation_kind == "group" else "",
         "message_id": str(message.pk),
         "actor_username": message.sender.username,
         "actor_name": actor_name,
@@ -163,8 +206,8 @@ def send_message_push(message):
         push_message = messaging.Message(
             fid=fid,
             notification=messaging.Notification(
-                title=actor_name,
-                body=preview or "Sent you a message",
+                title=notification_title,
+                body=notification_body,
             ),
             data=data,
             android=messaging.AndroidConfig(
@@ -181,7 +224,7 @@ def send_message_push(message):
         except messaging.UnregisteredError:
             DevicePushToken.objects.filter(token=fid).update(active=False)
         except Exception:
-            logger.exception("Nova failed to send a direct-message push notification.")
+            logger.exception("Nova failed to send a message push notification.")
 
     return sent
 
@@ -247,7 +290,7 @@ def send_call_push(call_id):
             ),
         )
         try:
-            messaging.send(push_message, app=app)
+            messaging.send(message=push_message, app=app)
             sent += 1
         except messaging.UnregisteredError:
             DevicePushToken.objects.filter(token=fid).update(active=False)

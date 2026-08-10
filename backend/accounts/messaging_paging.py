@@ -1,11 +1,11 @@
-from django.db.models import Count, Q
+from django.db.models import Q
 from django.utils.dateparse import parse_datetime
 from rest_framework import status
 from rest_framework.response import Response
 
 from .messaging_serializers import ConversationSerializer
-from .messaging_views import ConversationsView, conversations_for
-from .models import Message
+from .messaging_views import ConversationsView, conversations_for, total_unread_for
+from .models import Conversation
 
 CONVERSATION_PAGE_SIZE = 30
 
@@ -18,22 +18,30 @@ class PaginatedConversationsView(ConversationsView):
         if query:
             conversations = conversations.filter(
                 Q(
+                    kind=Conversation.Kind.DIRECT,
                     participant_one=request.user,
                     participant_two__username__icontains=query,
                 )
                 | Q(
+                    kind=Conversation.Kind.DIRECT,
                     participant_one=request.user,
                     participant_two__name__icontains=query,
                 )
                 | Q(
+                    kind=Conversation.Kind.DIRECT,
                     participant_two=request.user,
                     participant_one__username__icontains=query,
                 )
                 | Q(
+                    kind=Conversation.Kind.DIRECT,
                     participant_two=request.user,
                     participant_one__name__icontains=query,
                 )
-            )
+                | Q(
+                    kind=Conversation.Kind.GROUP,
+                    title__icontains=query,
+                )
+            ).distinct()
 
         raw_cursor = request.query_params.get("cursor", "").strip()
         if raw_cursor:
@@ -54,13 +62,7 @@ class PaginatedConversationsView(ConversationsView):
                 | Q(updated_at=cursor_time, id__lt=cursor_id)
             )
 
-        conversations = conversations.annotate(
-            unread_count_value=Count(
-                "messages",
-                filter=Q(messages__recipient=request.user, messages__read_at__isnull=True),
-            )
-        ).order_by("-updated_at", "-id")
-
+        conversations = conversations.order_by("-updated_at", "-id")
         page_with_extra = list(conversations[: CONVERSATION_PAGE_SIZE + 1])
         has_more = len(page_with_extra) > CONVERSATION_PAGE_SIZE
         page = page_with_extra[:CONVERSATION_PAGE_SIZE]
@@ -70,10 +72,6 @@ class PaginatedConversationsView(ConversationsView):
             else None
         )
 
-        total_unread = Message.objects.filter(
-            recipient=request.user,
-            read_at__isnull=True,
-        ).count()
         return Response(
             {
                 "results": ConversationSerializer(
@@ -82,6 +80,6 @@ class PaginatedConversationsView(ConversationsView):
                     context={"request": request},
                 ).data,
                 "next_cursor": next_cursor,
-                "unread_count": total_unread,
+                "unread_count": total_unread_for(request.user),
             }
         )

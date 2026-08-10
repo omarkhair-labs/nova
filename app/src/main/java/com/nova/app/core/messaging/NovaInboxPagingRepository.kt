@@ -139,15 +139,38 @@ class NovaInboxPagingRepository(
     }
 
     private fun parseConversation(json: JSONObject): NovaConversation {
-        val other = json.optJSONObject("other_user") ?: JSONObject()
+        val kind = json.optString("kind", "direct")
+        val title = json.optString("title")
+        val membersArray = json.optJSONArray("members_preview") ?: JSONArray()
+        val members = buildList {
+            for (index in 0 until membersArray.length()) {
+                membersArray.optJSONObject(index)?.let { add(parseAuthor(it)) }
+            }
+        }
+        val otherJson = json.optJSONObject("other_user")
+        val other = if (otherJson != null) {
+            parseAuthor(otherJson)
+        } else {
+            NovaPostAuthor(
+                id = 0L,
+                username = "group",
+                name = title.ifBlank { "Nova group" },
+                avatarUrl = "",
+            )
+        }
         val lastJson = json.optJSONObject("last_message")
         return NovaConversation(
             id = json.optLong("id"),
-            otherUser = parseAuthor(other),
+            otherUser = other,
             lastMessage = lastJson?.let(::parseMessage),
             unreadCount = json.optInt("unread_count", 0),
             createdAt = json.optString("created_at"),
             updatedAt = json.optString("updated_at"),
+            kind = kind,
+            title = title,
+            membersPreview = members,
+            membersCount = json.optInt("members_count", if (kind == "group") members.size + 1 else 2),
+            currentUserRole = json.optString("current_user_role"),
         )
     }
 
