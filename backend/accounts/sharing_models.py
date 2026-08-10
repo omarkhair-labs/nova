@@ -65,10 +65,13 @@ class MessageShare(models.Model):
     class Meta:
         app_label = "accounts"
         constraints = [
+            # The referenced object may later be deleted and SET_NULL must be
+            # able to preserve the message history. Application creation paths
+            # require a live target; the DB only prevents cross-kind targets.
             models.CheckConstraint(
                 condition=(
-                    Q(kind="post", post__isnull=False, profile__isnull=True)
-                    | Q(kind="profile", profile__isnull=False, post__isnull=True)
+                    Q(kind="post", profile__isnull=True)
+                    | Q(kind="profile", post__isnull=True)
                 ),
                 name="message_share_matches_kind",
             ),
