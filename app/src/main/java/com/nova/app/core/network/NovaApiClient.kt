@@ -237,6 +237,47 @@ class NovaApiClient(
         }
     }
 
+    suspend fun setBlocked(
+        accessToken: String,
+        username: String,
+        blocked: Boolean,
+    ): ApiResult<Unit> {
+        val path = "people/${encode(username.trim().lowercase())}/block/"
+        val response = if (blocked) {
+            requestJson(path, method = "POST", body = JSONObject(), bearerToken = accessToken)
+        } else {
+            requestJson(path, method = "DELETE", bearerToken = accessToken)
+        }
+        return when (response) {
+            is ApiResult.Success -> ApiResult.Success(Unit)
+            is ApiResult.Failure -> response
+        }
+    }
+
+    suspend fun reportPerson(
+        accessToken: String,
+        username: String,
+        reason: String,
+        details: String = "",
+    ): ApiResult<String> {
+        val body = JSONObject()
+            .put("reason", reason)
+            .put("details", details)
+        return when (
+            val response = requestJson(
+                path = "people/${encode(username.trim().lowercase())}/report/",
+                method = "POST",
+                body = body,
+                bearerToken = accessToken,
+            )
+        ) {
+            is ApiResult.Success -> ApiResult.Success(
+                response.value.optString("detail").ifBlank { "Report submitted for review." },
+            )
+            is ApiResult.Failure -> response
+        }
+    }
+
     suspend fun feed(
         accessToken: String,
         cursor: String? = null,
