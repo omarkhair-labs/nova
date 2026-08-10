@@ -29,7 +29,7 @@ from .push import send_message_push
 from .serializers import PostSerializer
 from .sharing_models import MessageShare, Repost
 from .trust_safety import active_person_for, blocked_user_ids, users_blocked
-from .views import post_queryset, public_post_queryset
+from .views import public_post_queryset
 
 User = get_user_model()
 SHARING_FEED_PAGE_SIZE = 20
@@ -54,6 +54,33 @@ def _conversation_between(first_user, second_user):
 def _feed_audience_ids(user):
     followed = Follow.objects.filter(follower=user).values_list("following_id", flat=True)
     return [user.pk, *followed]
+
+
+def _repost_state(request, post):
+    blocked_ids = blocked_user_ids(request.user)
+    audience_ids = _feed_audience_ids(request.user)
+    visible_reposts = post.reposts.select_related("user").filter(user__is_active=True).exclude(
+        user_id__in=blocked_ids
+    )
+    audience_reposts = visible_reposts.filter(user_id__in=audience_ids).order_by("-created_at", "-id")
+    latest = audience_reposts.first()
+    direct_visible = post.author_id in audience_ids
+    return {
+        "post_id": post.pk,
+        "reposts_count": visible_reposts.count(),
+        "is_reposted": Repost.objects.filter(user=request.user, post=post).exists(),
+        "still_in_feed": direct_visible or audience_reposts.exists(),
+        "feed_reposted_by": (
+            {
+                "id": latest.user.pk,
+                "username": latest.user.username,
+                "name": latest.user.name,
+                "avatar_url": latest.user.avatar.url if latest.user.avatar else "",
+            }
+            if latest is not None and (not direct_visible or latest.created_at > post.created_at)
+            else None
+        ),
+    }
 
 
 class SharingFeedView(APIView):
@@ -155,41 +182,17 @@ class PostRepostView(APIView):
         return get_object_or_404(public_post_queryset(request), pk=post_id)
 
     def get(self, request, post_id):
-        post = self._post(request, post_id)
-        latest = (
-            post.reposts.select_related("user")
-            .exclude(user_id__in=blocked_user_ids(request.user))
-            .filter(user__is_active=True)
-            .order_by("-created_at", "-id")
-            .first()
-        )
-        return Response(
-            {
-                "post_id": post.pk,
-                "reposts_count": post.reposts.exclude(user_id__in=blocked_user_ids(request.user)).count(),
-                "is_reposted": Repost.objects.filter(user=request.user, post=post).exists(),
-                "latest_reposter": (
-                    {
-                        "id": latest.user.pk,
-                        "username": latest.user.username,
-                        "name": latest.user.name,
-                        "avatar_url": latest.user.avatar.url if latest.user.avatar else "",
-                    }
-                    if latest is not None
-                    else None
-                ),
-            }
-        )
+        return Response(_repost_state(request, self._post(request, post_id)))
 
     def post(self, request, post_id):
         post = self._post(request, post_id)
         Repost.objects.get_or_create(user=request.user, post=post)
-        return self.get(request, post_id)
+        return Response(_repost_state(request, post))
 
     def delete(self, request, post_id):
         post = self._post(request, post_id)
         Repost.objects.filter(user=request.user, post=post).delete()
-        return self.get(request, post_id)
+        return Response(_repost_state(request, post))
 
 
 class MessageShareView(APIView):
@@ -229,7 +232,7 @@ class MessageShareView(APIView):
                     {"detail": "That post isn't available to this recipient."},
                     status=status.HTTP_403_FORBIDDEN,
                 )
-            marker = f"nova-share:post:{shared_post.pk}"
+            marker = f"↗ Shared post by @{shared_post.author.username}"
         elif kind == MessageShare.Kind.PROFILE:
             profile_username = str(request.data.get("profile_username") or "").strip().lower()
             if not profile_username:
@@ -243,7 +246,7 @@ class MessageShareView(APIView):
                     {"detail": "That profile isn't available to this recipient."},
                     status=status.HTTP_403_FORBIDDEN,
                 )
-            marker = f"nova-share:profile:{shared_profile.username}"
+            marker = f"↗ Shared profile · @{shared_profile.username}"
         else:
             return Response(
                 {"detail": "Unsupported share type."},
