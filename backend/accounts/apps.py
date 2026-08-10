@@ -11,3 +11,6 @@ class AccountsConfig(AppConfig):
         from . import messaging_models  # noqa: F401
         # Persist terminal voice/video calls as durable conversation history.
         from . import call_history  # noqa: F401
+        # Stories evolve independently from the core social models while still
+        # registering under the accounts Django app.
+        from . import story_models  # noqa: F401
