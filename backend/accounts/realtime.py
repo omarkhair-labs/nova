@@ -9,7 +9,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
-from .models import Conversation, Message, User
+from .models import Conversation, Message, User, UserBlock
 from .presence_store import is_online, refresh_lease, register_lease, unregister_lease
 
 
@@ -336,8 +336,23 @@ class ConversationConsumer(PresenceLeaseMixin, AsyncJsonWebsocketConsumer):
 
     @database_sync_to_async
     def _can_access_conversation(self, user_id, conversation_id):
-        return Conversation.objects.filter(pk=conversation_id).filter(
+        conversation = Conversation.objects.select_related(
+            "participant_one", "participant_two"
+        ).filter(pk=conversation_id).filter(
             Q(participant_one_id=user_id) | Q(participant_two_id=user_id)
+        ).first()
+        if conversation is None:
+            return False
+        other = (
+            conversation.participant_two
+            if conversation.participant_one_id == user_id
+            else conversation.participant_one
+        )
+        if not other.is_active:
+            return False
+        return not UserBlock.objects.filter(
+            Q(blocker_id=user_id, blocked_id=other.pk)
+            | Q(blocker_id=other.pk, blocked_id=user_id)
         ).exists()
 
     @database_sync_to_async
