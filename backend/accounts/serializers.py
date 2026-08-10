@@ -4,6 +4,7 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .models import Comment, Follow, Like, Notification, Post
+from .sharing_models import Repost
 
 User = get_user_model()
 
@@ -127,6 +128,9 @@ class PostSerializer(serializers.ModelSerializer):
     likes_count = serializers.SerializerMethodField()
     comments_count = serializers.SerializerMethodField()
     is_liked = serializers.SerializerMethodField()
+    reposts_count = serializers.SerializerMethodField()
+    is_reposted = serializers.SerializerMethodField()
+    reposted_by = serializers.SerializerMethodField()
 
     class Meta:
         model = Post
@@ -141,6 +145,9 @@ class PostSerializer(serializers.ModelSerializer):
             "likes_count",
             "comments_count",
             "is_liked",
+            "reposts_count",
+            "is_reposted",
+            "reposted_by",
         )
         read_only_fields = (
             "id",
@@ -151,6 +158,9 @@ class PostSerializer(serializers.ModelSerializer):
             "likes_count",
             "comments_count",
             "is_liked",
+            "reposts_count",
+            "is_reposted",
+            "reposted_by",
         )
 
     def get_image_url(self, obj):
@@ -182,6 +192,25 @@ class PostSerializer(serializers.ModelSerializer):
         if not request or not request.user.is_authenticated:
             return False
         return Like.objects.filter(post=obj, user=request.user).exists()
+
+    def get_reposts_count(self, obj):
+        annotated = getattr(obj, "reposts_count_value", None)
+        return annotated if annotated is not None else obj.reposts.count()
+
+    def get_is_reposted(self, obj):
+        annotated = getattr(obj, "is_reposted_value", None)
+        if annotated is not None:
+            return bool(annotated)
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+        return Repost.objects.filter(post=obj, user=request.user).exists()
+
+    def get_reposted_by(self, obj):
+        reposter = getattr(obj, "feed_reposted_by_value", None)
+        if reposter is None:
+            return None
+        return PostAuthorSerializer(reposter, context=self.context).data
 
     def validate_image(self, value):
         if value.size > 10 * 1024 * 1024:
