@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from .messaging_models import GroupMembership, GroupReadState
 from .models import Conversation, Message
 from .privacy import can_view_user_content
 from .serializers import PostAuthorSerializer
@@ -22,8 +23,6 @@ def _visible_to_context_user(context, target_user):
     request = context.get("request")
     current_user = getattr(request, "user", None)
     if current_user is None or not getattr(current_user, "is_authenticated", False):
-        # Realtime serialization has no request object. Share creation already
-        # validates the recipient's visibility, so active targets are safe here.
         return True
     return not users_blocked(current_user, target_user)
 
@@ -34,9 +33,6 @@ def _post_visible_to_context_user(context, post):
     request = context.get("request")
     current_user = getattr(request, "user", None)
     if current_user is None or not getattr(current_user, "is_authenticated", False):
-        # Realtime creation validates the recipient. Historical REST reads use
-        # the request-aware branch below so unfollowing a private author revokes
-        # the rich content without deleting the message itself.
         return True
     return can_view_user_content(current_user, post.author)
 
@@ -191,6 +187,9 @@ class MessageSerializer(serializers.ModelSerializer):
 
 class ConversationSerializer(serializers.ModelSerializer):
     other_user = serializers.SerializerMethodField()
+    members_preview = serializers.SerializerMethodField()
+    members_count = serializers.SerializerMethodField()
+    current_user_role = serializers.SerializerMethodField()
     last_message = serializers.SerializerMethodField()
     unread_count = serializers.SerializerMethodField()
 
@@ -198,7 +197,12 @@ class ConversationSerializer(serializers.ModelSerializer):
         model = Conversation
         fields = (
             "id",
+            "kind",
+            "title",
             "other_user",
+            "members_preview",
+            "members_count",
+            "current_user_role",
             "last_message",
             "unread_count",
             "created_at",
@@ -207,11 +211,52 @@ class ConversationSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_other_user(self, obj):
+        if obj.kind != Conversation.Kind.DIRECT:
+            return None
         request = self.context.get("request")
         if not request or not request.user.is_authenticated:
             return None
         other = obj.participant_two if obj.participant_one_id == request.user.id else obj.participant_one
+        if other is None:
+            return None
         return PostAuthorSerializer(other, context=self.context).data
+
+    def get_members_preview(self, obj):
+        if obj.kind != Conversation.Kind.GROUP:
+            return []
+        request = self.context.get("request")
+        current_user_id = (
+            request.user.pk
+            if request and request.user.is_authenticated
+            else None
+        )
+        memberships = (
+            obj.group_memberships.select_related("user")
+            .filter(user__is_active=True)
+            .exclude(user_id=current_user_id)
+            .order_by("joined_at", "id")[:4]
+        )
+        return [
+            PostAuthorSerializer(item.user, context=self.context).data
+            for item in memberships
+        ]
+
+    def get_members_count(self, obj):
+        if obj.kind != Conversation.Kind.GROUP:
+            return 2
+        return obj.group_memberships.filter(user__is_active=True).count()
+
+    def get_current_user_role(self, obj):
+        if obj.kind != Conversation.Kind.GROUP:
+            return ""
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return ""
+        membership = GroupMembership.objects.filter(
+            conversation=obj,
+            user=request.user,
+        ).only("role").first()
+        return membership.role if membership else ""
 
     def get_last_message(self, obj):
         message = (
@@ -254,4 +299,14 @@ class ConversationSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         if not request or not request.user.is_authenticated:
             return 0
+        if obj.kind == Conversation.Kind.GROUP:
+            state = GroupReadState.objects.filter(
+                conversation=obj,
+                user=request.user,
+            ).only("last_read_message_id").first()
+            last_read_id = state.last_read_message_id if state else None
+            unread = obj.messages.exclude(sender=request.user)
+            if last_read_id:
+                unread = unread.filter(id__gt=last_read_id)
+            return unread.count()
         return obj.messages.filter(recipient=request.user, read_at__isnull=True).count()
