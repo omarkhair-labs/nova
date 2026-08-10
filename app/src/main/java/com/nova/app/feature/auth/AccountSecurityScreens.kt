@@ -12,9 +12,11 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -230,6 +232,7 @@ fun PasswordRecoveryScreen(
 @Composable
 fun AccountSecurityScreen(
     onBack: () -> Unit,
+    onAccountDeleted: () -> Unit,
 ) {
     val context = LocalContext.current
     val repository = remember(context) {
@@ -243,6 +246,53 @@ fun AccountSecurityScreen(
     var loadingAction by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var info by remember { mutableStateOf<String?>(null) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = {
+                if (loadingAction == null) showDeleteConfirm = false
+            },
+            title = { Text("Delete your Nova account?") },
+            text = {
+                Text(
+                    "Your profile, posts and social connections will be removed. Shared direct-message history stays with the other participant under Deleted user. This can't be undone.",
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (loadingAction != null) return@TextButton
+                        scope.launch {
+                            loadingAction = "delete"
+                            error = null
+                            info = null
+                            when (val result = repository.deleteAccount(currentPassword)) {
+                                is ApiResult.Success -> onAccountDeleted()
+                                is ApiResult.Failure -> {
+                                    error = result.message
+                                    showDeleteConfirm = false
+                                    loadingAction = null
+                                }
+                            }
+                        }
+                    },
+                    enabled = loadingAction == null,
+                ) {
+                    Text(
+                        if (loadingAction == "delete") "Deleting…" else "Delete account",
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteConfirm = false },
+                    enabled = loadingAction == null,
+                ) { Text("Cancel") }
+            },
+        )
+    }
 
     SecurityPage(
         title = "Security",
@@ -344,7 +394,35 @@ fun AccountSecurityScreen(
                 }
             },
         )
-        Spacer(Modifier.weight(1f))
+
+        Spacer(Modifier.height(24.dp))
+        Text(
+            "Danger zone",
+            color = MaterialTheme.colorScheme.error,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "Deleting your account removes your public Nova identity and can't be undone.",
+            color = NovaMuted,
+            fontSize = 12.sp,
+            lineHeight = 18.sp,
+        )
+        Spacer(Modifier.height(12.dp))
+        NovaSecondaryButton(
+            text = "Delete account",
+            onClick = {
+                if (loadingAction != null) return@NovaSecondaryButton
+                if (currentPassword.isBlank()) {
+                    error = "Enter your current password first."
+                } else {
+                    error = null
+                    showDeleteConfirm = true
+                }
+            },
+        )
+        Spacer(Modifier.height(14.dp))
     }
 }
 
