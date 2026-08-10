@@ -7,6 +7,7 @@ import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.NovaPerson
 import com.nova.app.core.network.NovaPost
 import com.nova.app.core.network.NovaPostAuthor
+import com.nova.app.core.privacy.NovaPersonPrivacyState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -19,6 +20,7 @@ import java.net.URLEncoder
 data class NovaPersonPage(
     val people: List<NovaPerson>,
     val nextCursor: String?,
+    val privacyByUserId: Map<Long, NovaPersonPrivacyState> = emptyMap(),
 )
 
 
@@ -130,15 +132,19 @@ class NovaSocialPagingRepository(
         return when (val response = requestJson(resolvedPath, bearerToken = bearerToken)) {
             is ApiResult.Success -> {
                 val array = response.value.optJSONArray("results") ?: JSONArray()
-                val people = buildList {
-                    for (index in 0 until array.length()) {
-                        array.optJSONObject(index)?.let { add(parsePerson(it)) }
-                    }
+                val people = mutableListOf<NovaPerson>()
+                val privacy = mutableMapOf<Long, NovaPersonPrivacyState>()
+                for (index in 0 until array.length()) {
+                    val item = array.optJSONObject(index) ?: continue
+                    val person = parsePerson(item)
+                    people += person
+                    privacy[person.id] = parsePrivacyState(item)
                 }
                 ApiResult.Success(
                     NovaPersonPage(
                         people = people,
                         nextCursor = optionalString(response.value, "next_cursor"),
+                        privacyByUserId = privacy,
                     )
                 )
             }
@@ -206,6 +212,7 @@ class NovaSocialPagingRepository(
                     message = json.optString("detail").ifBlank {
                         when (statusCode) {
                             401 -> "Your session expired. Please log in again."
+                            403 -> "Follow this private account to see this content."
                             404 -> "Nova couldn't find that profile."
                             in 500..599 -> "Nova's server had a problem. Try again in a moment."
                             else -> "Something went wrong. Please try again."
@@ -231,6 +238,14 @@ class NovaSocialPagingRepository(
             followingCount = json.optInt("following_count", 0),
             postsCount = json.optInt("posts_count", 0),
             isFollowing = json.optBoolean("is_following", false),
+        )
+    }
+
+    private fun parsePrivacyState(json: JSONObject): NovaPersonPrivacyState {
+        return NovaPersonPrivacyState(
+            isPrivate = json.optBoolean("is_private", false),
+            followRequested = json.optBoolean("follow_requested", false),
+            canViewContent = json.optBoolean("can_view_content", true),
         )
     }
 
