@@ -1,6 +1,7 @@
 package com.nova.app.feature.welcome
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +35,8 @@ import com.nova.app.ui.theme.NovaMuted
 fun WelcomeScreen(
     onCreateAccount: () -> Unit,
     onLogin: () -> Unit,
+    onTerms: () -> Unit,
+    onPrivacy: () -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -135,13 +138,38 @@ fun WelcomeScreen(
             Spacer(modifier = Modifier.height(2.dp))
 
             Text(
-                text = "By continuing, you agree to Nova's Terms & Privacy Policy.",
+                text = "By continuing, you agree to Nova's",
                 modifier = Modifier.fillMaxWidth(),
                 color = NovaMuted,
                 fontSize = 11.sp,
                 lineHeight = 16.sp,
                 textAlign = TextAlign.Center,
             )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Terms of Use",
+                    modifier = Modifier
+                        .clickable(onClick = onTerms)
+                        .padding(horizontal = 6.dp, vertical = 3.dp),
+                    color = NovaAccent,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(text = "·", color = NovaMuted, fontSize = 11.sp)
+                Text(
+                    text = "Privacy",
+                    modifier = Modifier
+                        .clickable(onClick = onPrivacy)
+                        .padding(horizontal = 6.dp, vertical = 3.dp),
+                    color = NovaAccent,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
         }
     }
 }
