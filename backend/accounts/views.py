@@ -28,9 +28,18 @@ NOTIFICATION_PAGE_SIZE = 30
 
 
 def post_queryset(request):
+    blocked_ids = blocked_user_ids(request.user)
     return Post.objects.select_related("author").annotate(
-        likes_count_value=Count("likes", distinct=True),
-        comments_count_value=Count("comments", distinct=True),
+        likes_count_value=Count(
+            "likes",
+            filter=~Q(likes__user_id__in=blocked_ids),
+            distinct=True,
+        ),
+        comments_count_value=Count(
+            "comments",
+            filter=~Q(comments__author_id__in=blocked_ids),
+            distinct=True,
+        ),
         is_liked_value=Exists(
             Like.objects.filter(post_id=OuterRef("pk"), user=request.user)
         ),
@@ -296,7 +305,11 @@ class PostCommentsView(APIView):
 
     def get(self, request, post_id):
         post = self._post(request, post_id)
-        comments = post.comments.select_related("author").order_by("created_at", "id")[:100]
+        comments = (
+            post.comments.select_related("author")
+            .exclude(author_id__in=blocked_user_ids(request.user))
+            .order_by("created_at", "id")[:100]
+        )
         return Response(
             {
                 "results": CommentSerializer(
@@ -356,8 +369,7 @@ class CommentDetailView(APIView):
             {
                 "post": PostSerializer(
                     refreshed,
-                    context={"request": request,
-                    },
+                    context={"request": request},
                 ).data
             }
         )
