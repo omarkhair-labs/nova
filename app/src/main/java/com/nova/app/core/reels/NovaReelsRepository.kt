@@ -40,6 +40,7 @@ data class NovaReel(
     val repostsCount: Int,
     val isLiked: Boolean,
     val isReposted: Boolean,
+    val repostedBy: NovaReelAuthor?,
 )
 
 
@@ -463,6 +464,7 @@ class NovaReelsRepository(
             repostsCount = json.optInt("reposts_count", 0),
             isLiked = json.optBoolean("is_liked", false),
             isReposted = json.optBoolean("is_reposted", false),
+            repostedBy = json.optJSONObject("reposted_by")?.let(::parseAuthor),
         )
     }
 
