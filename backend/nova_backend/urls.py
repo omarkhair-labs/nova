@@ -3,6 +3,7 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.http import JsonResponse
 from django.urls import include, path
+from django.views.generic import TemplateView
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 
@@ -17,6 +18,16 @@ class HealthView(APIView):
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path(
+        "privacy/",
+        TemplateView.as_view(template_name="accounts/privacy_policy.html"),
+        name="privacy-policy",
+    ),
+    path(
+        "account-deletion/",
+        TemplateView.as_view(template_name="accounts/account_deletion.html"),
+        name="account-deletion",
+    ),
     path("api/v1/health/", HealthView.as_view(), name="health"),
     path("api/v1/", include("accounts.urls")),
 ]

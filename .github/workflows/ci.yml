@@ -156,3 +156,6 @@ jobs:
 
       - name: Assemble Android release APK
         run: ./gradlew --no-daemon assembleRelease
+
+      - name: Build Android release App Bundle
+        run: ./gradlew --no-daemon bundleRelease

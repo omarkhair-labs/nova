@@ -1,6 +1,7 @@
 package com.nova.app
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -32,12 +33,15 @@ import com.nova.app.core.auth.NovaAuthRepository
 import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
-import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
 import com.nova.app.ui.theme.NovaTheme
+
+
+private const val PRIVACY_POLICY_URL = "https://nova-production-4f6b.up.railway.app/privacy/"
+private const val ACCOUNT_DELETION_URL = "https://nova-production-4f6b.up.railway.app/account-deletion/"
 
 
 class SettingsActivity : ComponentActivity() {
@@ -47,6 +51,10 @@ class SettingsActivity : ComponentActivity() {
 
         val session = NovaSessionStore(applicationContext).load()
         val username = session?.cachedUser?.username.orEmpty()
+
+        fun openExternalUrl(url: String) {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        }
 
         setContent {
             NovaTheme {
@@ -74,6 +82,8 @@ class SettingsActivity : ComponentActivity() {
                                 )
                         )
                     },
+                    onPrivacyPolicy = { openExternalUrl(PRIVACY_POLICY_URL) },
+                    onAccountDeletion = { openExternalUrl(ACCOUNT_DELETION_URL) },
                     onLogout = {
                         NovaAuthRepository(applicationContext).logout()
                         startActivity(
@@ -97,6 +107,8 @@ private fun SettingsScreen(
     onPrivacy: () -> Unit,
     onSecurity: () -> Unit,
     onBlockedAccounts: () -> Unit,
+    onPrivacyPolicy: () -> Unit,
+    onAccountDeletion: () -> Unit,
     onLogout: () -> Unit,
 ) {
     Column(
@@ -179,6 +191,37 @@ private fun SettingsScreen(
                     title = "Blocked accounts",
                     subtitle = "Review people you've blocked",
                     onClick = onBlockedAccounts,
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.size(22.dp))
+        Text(
+            text = "Legal & support",
+            color = NovaMuted,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
+        )
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(22.dp),
+            color = NovaSurface,
+            border = BorderStroke(1.dp, NovaBorder),
+        ) {
+            Column {
+                SettingsRow(
+                    icon = "i",
+                    title = "Privacy policy",
+                    subtitle = "How Nova handles and protects your information",
+                    onClick = onPrivacyPolicy,
+                )
+                SettingsDivider()
+                SettingsRow(
+                    icon = "×",
+                    title = "Account deletion",
+                    subtitle = "Delete in-app or request deletion on the web",
+                    onClick = onAccountDeletion,
                 )
             }
         }
