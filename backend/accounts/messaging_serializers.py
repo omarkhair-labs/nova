@@ -37,6 +37,16 @@ def _post_visible_to_context_user(context, post):
     return can_view_user_content(current_user, post.author)
 
 
+def _reel_visible_to_context_user(context, reel):
+    if reel is None or not reel.author.is_active:
+        return False
+    request = context.get("request")
+    current_user = getattr(request, "user", None)
+    if current_user is None or not getattr(current_user, "is_authenticated", False):
+        return True
+    return can_view_user_content(current_user, reel.author)
+
+
 def _blocked_ids_for_context(context):
     request = context.get("request")
     current_user = getattr(request, "user", None)
@@ -164,7 +174,13 @@ class MessageSerializer(serializers.ModelSerializer):
             post = shared.post
             available = _post_visible_to_context_user(self.context, post)
             if not available:
-                return {"kind": "post", "available": False, "post": None, "profile": None}
+                return {
+                    "kind": "post",
+                    "available": False,
+                    "post": None,
+                    "profile": None,
+                    "reel": None,
+                }
             return {
                 "kind": "post",
                 "available": True,
@@ -175,17 +191,49 @@ class MessageSerializer(serializers.ModelSerializer):
                     "caption": post.caption,
                 },
                 "profile": None,
+                "reel": None,
+            }
+
+        if shared.kind == "reel":
+            reel = shared.reel
+            available = _reel_visible_to_context_user(self.context, reel)
+            if not available:
+                return {
+                    "kind": "reel",
+                    "available": False,
+                    "post": None,
+                    "profile": None,
+                    "reel": None,
+                }
+            return {
+                "kind": "reel",
+                "available": True,
+                "post": None,
+                "profile": None,
+                "reel": {
+                    "id": reel.pk,
+                    "author": PostAuthorSerializer(reel.author, context=self.context).data,
+                    "video_url": _absolute_file_url(request, reel.video),
+                    "caption": reel.caption,
+                },
             }
 
         profile = shared.profile
         available = _visible_to_context_user(self.context, profile)
         if not available:
-            return {"kind": "profile", "available": False, "post": None, "profile": None}
+            return {
+                "kind": "profile",
+                "available": False,
+                "post": None,
+                "profile": None,
+                "reel": None,
+            }
         return {
             "kind": "profile",
             "available": True,
             "post": None,
             "profile": PostAuthorSerializer(profile, context=self.context).data,
+            "reel": None,
         }
 
     def get_is_deleted(self, obj):
@@ -279,6 +327,7 @@ class ConversationSerializer(serializers.ModelSerializer):
             "shared_content",
             "shared_content__post__author",
             "shared_content__profile",
+            "shared_content__reel__author",
         )
         if obj.kind == Conversation.Kind.GROUP:
             messages = messages.exclude(sender_id__in=_blocked_ids_for_context(self.context))
@@ -295,6 +344,8 @@ class ConversationSerializer(serializers.ModelSerializer):
             share = data["share"]
             if share.get("kind") == "post":
                 data["body"] = "Shared a post"
+            elif share.get("kind") == "reel":
+                data["body"] = "Shared a Reel"
             else:
                 data["body"] = "Shared a profile"
         elif not data.get("body") and data.get("audio_url"):

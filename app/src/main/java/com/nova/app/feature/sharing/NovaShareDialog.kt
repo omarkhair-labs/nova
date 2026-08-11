@@ -52,9 +52,11 @@ fun NovaShareDialog(
     title: String,
     postId: Long? = null,
     profileUsername: String? = null,
+    reelId: Long? = null,
+    onExternalShare: (() -> Unit)? = null,
     onDismiss: () -> Unit,
 ) {
-    require((postId != null) xor (profileUsername != null)) {
+    require(listOf(postId != null, profileUsername != null, reelId != null).count { it } == 1) {
         "NovaShareDialog requires exactly one share target."
     }
 
@@ -72,9 +74,9 @@ fun NovaShareDialog(
 
     var query by remember { mutableStateOf("") }
     var people by remember { mutableStateOf<List<NovaPerson>>(emptyList()) }
-    var groups by remember { mutableStateOf<List<NovaConversation>>(emptyList()) }
+    var conversations by remember { mutableStateOf<List<NovaConversation>>(emptyList()) }
     var loadingPeople by remember { mutableStateOf(true) }
-    var loadingGroups by remember { mutableStateOf(true) }
+    var loadingConversations by remember { mutableStateOf(true) }
     var busyUsername by remember { mutableStateOf<String?>(null) }
     var busyConversationId by remember { mutableStateOf<Long?>(null) }
     var addingToStory by remember { mutableStateOf(false) }
@@ -86,26 +88,50 @@ fun NovaShareDialog(
     LaunchedEffect(query) {
         delay(220)
         loadingPeople = true
-        loadingGroups = true
+        loadingConversations = true
         error = null
 
-        when (val result = socialRepository.people(query.trim())) {
-            is ApiResult.Success -> people = result.value
+        when (val result = messagingRepository.conversations(query.trim())) {
+            is ApiResult.Success -> conversations = result.value.conversations
             is ApiResult.Failure -> {
-                people = emptyList()
+                conversations = emptyList()
                 error = result.message
             }
         }
-        loadingPeople = false
+        loadingConversations = false
 
-        when (val result = messagingRepository.conversations(query.trim())) {
-            is ApiResult.Success -> groups = result.value.conversations.filter { it.isGroup }
+        when (val result = socialRepository.people(query.trim())) {
+            is ApiResult.Success -> {
+                val directUsernames = conversations
+                    .filterNot { it.isGroup }
+                    .mapTo(mutableSetOf()) { it.otherUser.username.lowercase() }
+                people = result.value.filterNot { it.username.lowercase() in directUsernames }
+            }
             is ApiResult.Failure -> {
-                groups = emptyList()
+                people = emptyList()
                 if (error == null) error = result.message
             }
         }
-        loadingGroups = false
+        loadingPeople = false
+    }
+
+    suspend fun shareToPerson(username: String): ApiResult<Unit> {
+        return when {
+            postId != null -> sharingRepository.sharePost(username, postId)
+            reelId != null -> sharingRepository.shareReel(username, reelId)
+            else -> sharingRepository.shareProfile(username, profileUsername.orEmpty())
+        }
+    }
+
+    suspend fun shareToGroup(conversationId: Long): ApiResult<Unit> {
+        return when {
+            postId != null -> sharingRepository.sharePostToConversation(conversationId, postId)
+            reelId != null -> sharingRepository.shareReelToConversation(conversationId, reelId)
+            else -> sharingRepository.shareProfileToConversation(
+                conversationId,
+                profileUsername.orEmpty(),
+            )
+        }
     }
 
     fun sendTo(person: NovaPerson) {
@@ -114,12 +140,7 @@ fun NovaShareDialog(
             busyUsername = person.username
             error = null
             message = null
-            val result = if (postId != null) {
-                sharingRepository.sharePost(person.username, postId)
-            } else {
-                sharingRepository.shareProfile(person.username, profileUsername.orEmpty())
-            }
-            when (result) {
+            when (val result = shareToPerson(person.username)) {
                 is ApiResult.Success -> message = "Sent to @${person.username}"
                 is ApiResult.Failure -> error = result.message
             }
@@ -127,19 +148,19 @@ fun NovaShareDialog(
         }
     }
 
-    fun sendToGroup(group: NovaConversation) {
-        if (busy || !group.isGroup) return
+    fun sendToConversation(conversation: NovaConversation) {
+        if (busy) return
         scope.launch {
-            busyConversationId = group.id
+            busyConversationId = conversation.id
             error = null
             message = null
-            val result = if (postId != null) {
-                sharingRepository.sharePostToConversation(group.id, postId)
+            val result = if (conversation.isGroup) {
+                shareToGroup(conversation.id)
             } else {
-                sharingRepository.shareProfileToConversation(group.id, profileUsername.orEmpty())
+                shareToPerson(conversation.otherUser.username)
             }
             when (result) {
-                is ApiResult.Success -> message = "Sent to ${group.displayName}"
+                is ApiResult.Success -> message = "Sent to ${conversation.displayName}"
                 is ApiResult.Failure -> error = result.message
             }
             busyConversationId = null
@@ -208,6 +229,33 @@ fun NovaShareDialog(
                     }
                 }
 
+                if (onExternalShare != null) {
+                    Surface(
+                        onClick = {
+                            if (!busy) {
+                                onDismiss()
+                                onExternalShare()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = NovaAccentSoft,
+                        border = BorderStroke(1.dp, NovaAccent.copy(alpha = 0.25f)),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 13.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(9.dp),
+                        ) {
+                            Text("↗", color = NovaAccent, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Column {
+                                Text("Share outside Nova", color = NovaInk, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                Text("Use Android's share menu", color = NovaMuted, fontSize = 9.sp)
+                            }
+                        }
+                    }
+                }
+
                 OutlinedTextField(
                     value = query,
                     onValueChange = {
@@ -215,7 +263,7 @@ fun NovaShareDialog(
                         error = null
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Search people or groups", color = NovaMuted) },
+                    placeholder = { Text("Search chats or people", color = NovaMuted) },
                     singleLine = true,
                     shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -225,19 +273,19 @@ fun NovaShareDialog(
                     ),
                 )
 
-                if (loadingPeople || loadingGroups) {
+                if (loadingPeople || loadingConversations) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp),
                         horizontalArrangement = Arrangement.Center,
                     ) {
                         CircularProgressIndicator(color = NovaAccent)
                     }
-                } else if (people.isEmpty() && groups.isEmpty()) {
+                } else if (people.isEmpty() && conversations.isEmpty()) {
                     Text(
                         text = if (query.isBlank()) {
-                            "No people or groups available to share with yet."
+                            "No chats or people available to share with yet."
                         } else {
-                            "No people or groups match that search."
+                            "No chats or people match that search."
                         },
                         color = NovaMuted,
                         fontSize = 12.sp,
@@ -249,21 +297,21 @@ fun NovaShareDialog(
                             .heightIn(max = 310.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        if (groups.isNotEmpty()) {
-                            item(key = "groups-label") {
+                        if (conversations.isNotEmpty()) {
+                            item(key = "chats-label") {
                                 Text(
-                                    text = "Groups",
+                                    text = "Recent chats",
                                     color = NovaMuted,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                 )
                             }
-                            items(groups, key = { "group-${it.id}" }) { group ->
-                                ShareGroupRow(
-                                    group = group,
-                                    busy = busyConversationId == group.id,
+                            items(conversations, key = { "conversation-${it.id}" }) { conversation ->
+                                ShareConversationRow(
+                                    conversation = conversation,
+                                    busy = busyConversationId == conversation.id,
                                     enabled = !busy,
-                                    onSend = { sendToGroup(group) },
+                                    onSend = { sendToConversation(conversation) },
                                 )
                             }
                         }
@@ -275,7 +323,7 @@ fun NovaShareDialog(
                                     color = NovaMuted,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(top = if (groups.isEmpty()) 0.dp else 4.dp),
+                                    modifier = Modifier.padding(top = if (conversations.isEmpty()) 0.dp else 4.dp),
                                 )
                             }
                             items(people, key = { "person-${it.id}" }) { person ->
@@ -320,12 +368,17 @@ fun NovaShareDialog(
 
 
 @Composable
-private fun ShareGroupRow(
-    group: NovaConversation,
+private fun ShareConversationRow(
+    conversation: NovaConversation,
     busy: Boolean,
     enabled: Boolean,
     onSend: () -> Unit,
 ) {
+    val avatar = if (conversation.isGroup) {
+        conversation.membersPreview.firstOrNull()?.avatarUrl.orEmpty()
+    } else {
+        conversation.otherUser.avatarUrl
+    }
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -338,19 +391,19 @@ private fun ShareGroupRow(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             NovaAvatar(
-                source = group.membersPreview.firstOrNull()?.avatarUrl.orEmpty(),
-                fallbackText = group.displayName,
+                source = avatar,
+                fallbackText = conversation.displayName,
                 size = 38.dp,
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = group.displayName,
+                    text = conversation.displayName,
                     color = NovaInk,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = group.displaySubtitle,
+                    text = conversation.displaySubtitle,
                     color = NovaMuted,
                     fontSize = 10.sp,
                 )

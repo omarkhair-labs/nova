@@ -62,6 +62,7 @@ import com.nova.app.core.network.ApiResult
 import com.nova.app.core.reels.NovaReel
 import com.nova.app.core.reels.NovaReelComment
 import com.nova.app.core.reels.NovaReelsRepository
+import com.nova.app.feature.sharing.NovaShareDialog
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
 import com.nova.app.ui.components.NovaTab
@@ -101,10 +102,12 @@ fun ReelsScreen(
     var pendingVideo by remember { mutableStateOf<Uri?>(null) }
     var uploading by remember { mutableStateOf(false) }
     var commentsReel by remember { mutableStateOf<NovaReel?>(null) }
+    var shareReelTarget by remember { mutableStateOf<NovaReel?>(null) }
 
     fun replaceReel(updated: NovaReel) {
         reels = reels.map { if (it.id == updated.id) updated else it }
         if (commentsReel?.id == updated.id) commentsReel = updated
+        if (shareReelTarget?.id == updated.id) shareReelTarget = updated
     }
 
     fun load(reset: Boolean) {
@@ -164,7 +167,7 @@ fun ReelsScreen(
         }
     }
 
-    fun shareReel(reel: NovaReel) {
+    fun shareReelOutsideNova(reel: NovaReel) {
         val shareText = buildString {
             append("Watch @${reel.author.username} on Nova")
             if (reel.caption.isNotBlank()) append("\n\n${reel.caption}")
@@ -293,7 +296,7 @@ fun ReelsScreen(
                             onLike = { toggleLike(reel) },
                             onComments = { commentsReel = reel },
                             onRepost = { toggleRepost(reel) },
-                            onShare = { shareReel(reel) },
+                            onShare = { shareReelTarget = reel },
                             onAuthor = { onPersonClick(reel.author.username) },
                         )
                     }
@@ -395,6 +398,15 @@ fun ReelsScreen(
             onReelUpdated = ::replaceReel,
             onPersonClick = onPersonClick,
             onSessionExpired = onFinish,
+        )
+    }
+
+    shareReelTarget?.let { reel ->
+        NovaShareDialog(
+            title = "Share this Reel",
+            reelId = reel.id,
+            onExternalShare = { shareReelOutsideNova(reel) },
+            onDismiss = { shareReelTarget = null },
         )
     }
 }

@@ -424,6 +424,52 @@ class NovaConversationRealtimeClient(
             audioDurationMs = nullableLong(json.opt("audio_duration_ms")),
             editedAt = nullableString(json.opt("edited_at")),
             deletedAt = nullableString(json.opt("deleted_at")),
+            share = parseShare(json.optJSONObject("share")),
+        )
+    }
+
+    private fun parseShare(json: JSONObject?): NovaMessageShare? {
+        if (json == null) return null
+        val kind = json.optString("kind")
+        if (kind.isBlank()) return null
+        if (!json.optBoolean("available", false)) {
+            return NovaMessageShare(kind = kind, available = false)
+        }
+
+        val post = json.optJSONObject("post")?.let { item ->
+            val author = item.optJSONObject("author") ?: JSONObject()
+            NovaSharedPost(
+                id = item.optLong("id"),
+                author = parseAuthor(author),
+                imageUrl = resolveMediaUrl(item.optString("image_url")),
+                caption = item.optString("caption"),
+            )
+        }
+        val profile = json.optJSONObject("profile")?.let(::parseAuthor)
+        val reel = json.optJSONObject("reel")?.let { item ->
+            val author = item.optJSONObject("author") ?: JSONObject()
+            NovaSharedReel(
+                id = item.optLong("id"),
+                author = parseAuthor(author),
+                videoUrl = resolveMediaUrl(item.optString("video_url")),
+                caption = item.optString("caption"),
+            )
+        }
+        return NovaMessageShare(
+            kind = kind,
+            available = true,
+            post = post,
+            profile = profile,
+            reel = reel,
+        )
+    }
+
+    private fun parseAuthor(json: JSONObject): NovaPostAuthor {
+        return NovaPostAuthor(
+            id = json.optLong("id"),
+            username = json.optString("username"),
+            name = json.optString("name"),
+            avatarUrl = resolveMediaUrl(json.optString("avatar_url")),
         )
     }
 

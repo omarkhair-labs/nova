@@ -46,11 +46,20 @@ data class NovaSharedPost(
 )
 
 
+data class NovaSharedReel(
+    val id: Long,
+    val author: NovaPostAuthor,
+    val videoUrl: String,
+    val caption: String,
+)
+
+
 data class NovaMessageShare(
     val kind: String,
     val available: Boolean,
     val post: NovaSharedPost? = null,
     val profile: NovaPostAuthor? = null,
+    val reel: NovaSharedReel? = null,
 )
 
 
@@ -670,11 +679,26 @@ class NovaMessagingApiClient(
                 avatarUrl = resolveMediaUrl(item.optString("avatar_url")),
             )
         }
+        val reel = json.optJSONObject("reel")?.let { item ->
+            val author = item.optJSONObject("author") ?: JSONObject()
+            NovaSharedReel(
+                id = item.optLong("id"),
+                author = NovaPostAuthor(
+                    id = author.optLong("id"),
+                    username = author.optString("username"),
+                    name = author.optString("name"),
+                    avatarUrl = resolveMediaUrl(author.optString("avatar_url")),
+                ),
+                videoUrl = resolveMediaUrl(item.optString("video_url")),
+                caption = item.optString("caption"),
+            )
+        }
         return NovaMessageShare(
             kind = kind,
             available = true,
             post = post,
             profile = profile,
+            reel = reel,
         )
     }
 
