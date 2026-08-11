@@ -52,7 +52,11 @@ class NovaCallSignalingClient(
     private var stopped = true
     private var reconnectAttempt = 0
     private var peerReady = false
+    private var peerReadySeen = false
     private val pendingPeerSignals = ArrayDeque<String>()
+    private val replayPeerSignals = ArrayDeque<String>()
+    private var lastReceivedOfferSdp: String? = null
+    private var lastReceivedAnswerSdp: String? = null
     private var onEvent: ((NovaCallSignalEvent) -> Unit)? = null
     private var onStatus: ((NovaCallSocketStatus) -> Unit)? = null
     private var onSessionExpired: (() -> Unit)? = null
@@ -67,7 +71,11 @@ class NovaCallSignalingClient(
         stopped = false
         reconnectAttempt = 0
         peerReady = false
+        peerReadySeen = false
         synchronized(pendingPeerSignals) { pendingPeerSignals.clear() }
+        synchronized(replayPeerSignals) { replayPeerSignals.clear() }
+        lastReceivedOfferSdp = null
+        lastReceivedAnswerSdp = null
         this.scope = scope
         this.onEvent = onEvent
         this.onStatus = onStatus
@@ -78,6 +86,7 @@ class NovaCallSignalingClient(
     fun stop() {
         stopped = true
         peerReady = false
+        peerReadySeen = false
         heartbeatJob?.cancel()
         heartbeatJob = null
         reconnectJob?.cancel()
@@ -87,17 +96,30 @@ class NovaCallSignalingClient(
         socket?.close(1000, "Call closed")
         socket = null
         synchronized(pendingPeerSignals) { pendingPeerSignals.clear() }
+        synchronized(replayPeerSignals) { replayPeerSignals.clear() }
+        lastReceivedOfferSdp = null
+        lastReceivedAnswerSdp = null
     }
 
-    fun sendOffer(sdp: String) = sendPeerSignal(JSONObject().put("type", "call.offer").put("sdp", sdp))
-    fun sendAnswer(sdp: String) = sendPeerSignal(JSONObject().put("type", "call.answer").put("sdp", sdp))
+    fun sendOffer(sdp: String) = sendPeerSignal(
+        JSONObject().put("type", "call.offer").put("sdp", sdp),
+        rememberForReconnect = true,
+        startsNegotiation = true,
+    )
+
+    fun sendAnswer(sdp: String) = sendPeerSignal(
+        JSONObject().put("type", "call.answer").put("sdp", sdp),
+        rememberForReconnect = true,
+        startsNegotiation = true,
+    )
 
     fun sendIce(candidate: String, sdpMid: String?, sdpMLineIndex: Int) = sendPeerSignal(
         JSONObject()
             .put("type", "call.ice")
             .put("candidate", candidate)
             .put("sdp_mid", sdpMid.orEmpty())
-            .put("sdp_mline_index", sdpMLineIndex)
+            .put("sdp_mline_index", sdpMLineIndex),
+        rememberForReconnect = true,
     )
 
     fun requestIceRestart() = sendPeerSignal(JSONObject().put("type", "call.ice_restart"))
@@ -111,8 +133,15 @@ class NovaCallSignalingClient(
 
     private fun sendType(type: String) = send(JSONObject().put("type", type))
 
-    private fun sendPeerSignal(json: JSONObject): Boolean {
+    private fun sendPeerSignal(
+        json: JSONObject,
+        rememberForReconnect: Boolean = false,
+        startsNegotiation: Boolean = false,
+    ): Boolean {
         val encoded = json.toString()
+        if (rememberForReconnect) {
+            rememberPeerSignal(encoded, startsNegotiation)
+        }
         if (peerReady && !stopped && socket?.send(encoded) == true) {
             return true
         }
@@ -125,6 +154,20 @@ class NovaCallSignalingClient(
         return true
     }
 
+    private fun rememberPeerSignal(encoded: String, startsNegotiation: Boolean) {
+        synchronized(replayPeerSignals) {
+            if (startsNegotiation) {
+                replayPeerSignals.clear()
+            }
+            if (replayPeerSignals.lastOrNull() != encoded) {
+                replayPeerSignals.addLast(encoded)
+            }
+            while (replayPeerSignals.size > MAX_REPLAY_PEER_SIGNALS) {
+                replayPeerSignals.removeFirstOrNull()
+            }
+        }
+    }
+
     private fun flushPeerSignals() {
         if (!peerReady || stopped) return
         synchronized(pendingPeerSignals) {
@@ -133,6 +176,14 @@ class NovaCallSignalingClient(
                 if (socket?.send(next) != true) return
                 pendingPeerSignals.removeFirst()
             }
+        }
+    }
+
+    private fun replayRememberedPeerSignals() {
+        if (!peerReady || stopped) return
+        val snapshot = synchronized(replayPeerSignals) { replayPeerSignals.toList() }
+        for (signal in snapshot) {
+            if (socket?.send(signal) != true) return
         }
     }
 
@@ -249,13 +300,36 @@ class NovaCallSignalingClient(
         return when (json.optString("type")) {
             "call.ready" -> NovaCallSignalEvent.Ready(parseCall(json.optJSONObject("call") ?: return null))
             "call.peer_ready" -> {
+                val shouldReplay = peerReadySeen
                 peerReady = true
-                flushPeerSignals()
+                if (shouldReplay) {
+                    synchronized(pendingPeerSignals) { pendingPeerSignals.clear() }
+                    replayRememberedPeerSignals()
+                } else {
+                    peerReadySeen = true
+                    flushPeerSignals()
+                }
                 null
             }
             "call.state" -> NovaCallSignalEvent.State(parseCall(json.optJSONObject("call") ?: return null))
-            "call.offer" -> NovaCallSignalEvent.Offer(json.optString("sdp")).takeIf { it.sdp.isNotBlank() }
-            "call.answer" -> NovaCallSignalEvent.Answer(json.optString("sdp")).takeIf { it.sdp.isNotBlank() }
+            "call.offer" -> {
+                val sdp = json.optString("sdp")
+                if (sdp.isBlank() || sdp == lastReceivedOfferSdp) {
+                    null
+                } else {
+                    lastReceivedOfferSdp = sdp
+                    NovaCallSignalEvent.Offer(sdp)
+                }
+            }
+            "call.answer" -> {
+                val sdp = json.optString("sdp")
+                if (sdp.isBlank() || sdp == lastReceivedAnswerSdp) {
+                    null
+                } else {
+                    lastReceivedAnswerSdp = sdp
+                    NovaCallSignalEvent.Answer(sdp)
+                }
+            }
             "call.ice" -> {
                 val candidate = json.optString("candidate")
                 if (candidate.isBlank()) null else NovaCallSignalEvent.Ice(
@@ -305,6 +379,7 @@ class NovaCallSignalingClient(
 
     private companion object {
         const val MAX_PENDING_PEER_SIGNALS = 512
+        const val MAX_REPLAY_PEER_SIGNALS = 256
         const val HEARTBEAT_INTERVAL_MS = 20_000L
         const val HEARTBEAT_MESSAGE = "{\"type\":\"ping\"}"
         val sharedClient: OkHttpClient = OkHttpClient.Builder()
