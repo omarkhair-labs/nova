@@ -27,6 +27,7 @@ from .messaging_views import conversations_for
 from .models import Conversation, Follow, Message
 from .privacy import can_view_user_content
 from .push import send_message_push
+from .reels import visible_reels_for
 from .serializers import PostSerializer
 from .sharing_models import MessageShare, Repost
 from .trust_safety import active_person_for, blocked_user_ids, users_blocked
@@ -271,6 +272,7 @@ class MessageShareView(APIView):
         kind = str(request.data.get("kind") or "").strip().lower()
         shared_post = None
         shared_profile = None
+        shared_reel = None
 
         if kind == MessageShare.Kind.POST:
             try:
@@ -296,6 +298,31 @@ class MessageShareView(APIView):
                 )
                 return Response({"detail": detail}, status=status.HTTP_403_FORBIDDEN)
             marker = f"↗ Shared post by @{shared_post.author.username}"
+
+        elif kind == MessageShare.Kind.REEL:
+            try:
+                reel_id = int(request.data.get("reel_id"))
+            except (TypeError, ValueError):
+                reel_id = 0
+            shared_reel = get_object_or_404(visible_reels_for(request.user), pk=reel_id)
+
+            unavailable = [
+                recipient
+                for recipient in effective_recipients
+                if recipient is not None
+                and (
+                    users_blocked(recipient, shared_reel.author)
+                    or not can_view_user_content(recipient, shared_reel.author)
+                )
+            ]
+            if unavailable:
+                detail = (
+                    "That Reel isn't available to everyone in this group."
+                    if conversation.kind == Conversation.Kind.GROUP
+                    else "That Reel isn't available to this recipient."
+                )
+                return Response({"detail": detail}, status=status.HTTP_403_FORBIDDEN)
+            marker = f"↗ Shared Reel by @{shared_reel.author.username}"
 
         elif kind == MessageShare.Kind.PROFILE:
             profile_username = str(request.data.get("profile_username") or "").strip().lower()
@@ -338,6 +365,7 @@ class MessageShareView(APIView):
                 kind=kind,
                 post=shared_post,
                 profile=shared_profile,
+                reel=shared_reel,
             )
             Conversation.objects.filter(pk=conversation.pk).update(updated_at=timezone.now())
 
@@ -347,6 +375,7 @@ class MessageShareView(APIView):
             "shared_content",
             "shared_content__post__author",
             "shared_content__profile",
+            "shared_content__reel__author",
         ).get(pk=message.pk)
         broadcast_message_created(message)
         send_message_push(message)
