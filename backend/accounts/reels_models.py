@@ -138,3 +138,47 @@ class ReelRepost(models.Model):
 
     def __str__(self):
         return f"@{self.user.username} reposts reel {self.reel_id}"
+
+
+class ReelWatch(models.Model):
+    """Aggregated, viewer-specific playback signals used by Reels ranking."""
+
+    reel = models.ForeignKey(
+        Reel,
+        on_delete=models.CASCADE,
+        related_name="watch_summaries",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="reel_watch_summaries",
+    )
+    sessions = models.PositiveIntegerField(default=0)
+    total_watch_ms = models.PositiveBigIntegerField(default=0)
+    max_completion_permille = models.PositiveSmallIntegerField(default=0)
+    completion_count = models.PositiveIntegerField(default=0)
+    replay_count = models.PositiveIntegerField(default=0)
+    quick_skip_count = models.PositiveIntegerField(default=0)
+    last_session_id = models.UUIDField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_watched_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = "accounts"
+        constraints = [
+            models.UniqueConstraint(
+                fields=("reel", "user"),
+                name="unique_reel_watch_summary",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(max_completion_permille__lte=1000),
+                name="reel_watch_completion_lte_1000",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=("user", "-last_watched_at"), name="reel_watch_user_time_idx"),
+            models.Index(fields=("reel", "-last_watched_at"), name="reel_watch_reel_time_idx"),
+        ]
+
+    def __str__(self):
+        return f"@{self.user.username} watched reel {self.reel_id} ({self.sessions} sessions)"
