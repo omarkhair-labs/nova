@@ -1,0 +1,57 @@
+package com.nova.app
+
+import android.content.Intent
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import com.nova.app.core.push.NovaPushOpenSignal
+import com.nova.app.feature.reels.ReelsScreen
+import com.nova.app.navigation.NovaRootNavigationSignal
+import com.nova.app.navigation.NovaRootTab
+import com.nova.app.ui.components.NovaActiveCallPill
+import com.nova.app.ui.theme.NovaTheme
+
+
+class ReelsActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+
+        setContent {
+            NovaTheme {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    ReelsScreen(
+                        onFinish = { finish() },
+                        onHomeClick = { finishToRoot(NovaRootTab.Home) },
+                        onPeopleClick = { finishToRoot(NovaRootTab.People) },
+                        onProfileClick = { finishToRoot(NovaRootTab.Profile) },
+                        onPersonClick = { username -> openPerson(username) },
+                    )
+                    NovaActiveCallPill(
+                        modifier = Modifier.align(Alignment.TopCenter),
+                    )
+                }
+            }
+        }
+    }
+
+    private fun openPerson(username: String) {
+        NovaPushOpenSignal.offer(
+            Intent()
+                .putExtra("kind", "follow")
+                .putExtra("actor_username", username),
+        )
+        NovaRootNavigationSignal.request(NovaRootTab.Home)
+        finish()
+    }
+
+    private fun finishToRoot(tab: NovaRootTab) {
+        NovaRootNavigationSignal.request(tab)
+        finish()
+    }
+}

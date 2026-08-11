@@ -1,0 +1,222 @@
+from django.db.models import Count, Exists, OuterRef, Q
+from django.shortcuts import get_object_or_404
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from .models import Follow
+from .reels_models import Reel, ReelComment, ReelLike
+from .trust_safety import blocked_user_ids
+
+
+REELS_PAGE_SIZE = 24
+MAX_REEL_VIDEO_BYTES = 120 * 1024 * 1024
+MAX_REEL_CAPTION_LENGTH = 500
+MAX_REEL_COMMENT_LENGTH = 300
+
+
+def _absolute_media_url(request, field):
+    if not field:
+        return ""
+    return request.build_absolute_uri(field.url)
+
+
+def _author_payload(request, user):
+    return {
+        "id": user.pk,
+        "username": user.username,
+        "name": user.name,
+        "avatar_url": _absolute_media_url(request, user.avatar),
+    }
+
+
+def visible_reels_for(user):
+    blocked_ids = blocked_user_ids(user)
+    followed_ids = Follow.objects.filter(follower=user).values_list("following_id", flat=True)
+    liked = ReelLike.objects.filter(reel_id=OuterRef("pk"), user=user)
+    return (
+        Reel.objects.select_related("author")
+        .filter(author__is_active=True)
+        .exclude(author_id__in=blocked_ids)
+        .filter(
+            Q(author=user)
+            | Q(author_id__in=followed_ids)
+            | Q(author__account_privacy__isnull=True)
+            | Q(author__account_privacy__is_private=False)
+        )
+        .annotate(
+            likes_count_value=Count("likes", distinct=True),
+            comments_count_value=Count("comments", distinct=True),
+            is_liked_value=Exists(liked),
+        )
+        .distinct()
+    )
+
+
+def _visible_reel(request, reel_id):
+    return get_object_or_404(visible_reels_for(request.user), pk=reel_id)
+
+
+def _reel_payload(request, reel):
+    likes_count = getattr(reel, "likes_count_value", None)
+    comments_count = getattr(reel, "comments_count_value", None)
+    is_liked = getattr(reel, "is_liked_value", None)
+    if likes_count is None:
+        likes_count = reel.likes.count()
+    if comments_count is None:
+        comments_count = reel.comments.count()
+    if is_liked is None:
+        is_liked = reel.likes.filter(user=request.user).exists()
+    return {
+        "id": reel.pk,
+        "author": _author_payload(request, reel.author),
+        "video_url": _absolute_media_url(request, reel.video),
+        "caption": reel.caption,
+        "created_at": reel.created_at.isoformat(),
+        "is_mine": reel.author_id == request.user.pk,
+        "likes_count": likes_count,
+        "comments_count": comments_count,
+        "is_liked": bool(is_liked),
+    }
+
+
+def _comment_payload(request, comment):
+    return {
+        "id": comment.pk,
+        "author": _author_payload(request, comment.author),
+        "body": comment.body,
+        "created_at": comment.created_at.isoformat(),
+        "is_mine": comment.author_id == request.user.pk,
+    }
+
+
+class ReelFeedView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        raw_cursor = str(request.query_params.get("cursor") or "").strip()
+        queryset = visible_reels_for(request.user).order_by("-created_at", "-id")
+        if raw_cursor:
+            try:
+                cursor = int(raw_cursor)
+            except (TypeError, ValueError):
+                return Response(
+                    {"detail": "Invalid Reels cursor."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            queryset = queryset.filter(pk__lt=cursor)
+
+        rows = list(queryset[: REELS_PAGE_SIZE + 1])
+        has_more = len(rows) > REELS_PAGE_SIZE
+        page = rows[:REELS_PAGE_SIZE]
+        next_cursor = str(page[-1].pk) if has_more and page else None
+        return Response(
+            {
+                "results": [_reel_payload(request, reel) for reel in page],
+                "next_cursor": next_cursor,
+            }
+        )
+
+    def post(self, request):
+        video = request.FILES.get("video")
+        caption = str(request.data.get("caption") or "").strip()
+        if video is None:
+            return Response(
+                {"detail": "Choose a video for your Reel."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(caption) > MAX_REEL_CAPTION_LENGTH:
+            return Response(
+                {"detail": f"Reel caption must be {MAX_REEL_CAPTION_LENGTH} characters or fewer."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        content_type = str(getattr(video, "content_type", "") or "").lower()
+        if not content_type.startswith("video/"):
+            return Response(
+                {"detail": "Reels support video files only."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if video.size > MAX_REEL_VIDEO_BYTES:
+            return Response(
+                {"detail": "Reel video must be 120 MB or smaller."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        reel = Reel.objects.create(author=request.user, video=video, caption=caption)
+        return Response(_reel_payload(request, reel), status=status.HTTP_201_CREATED)
+
+
+class ReelDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, reel_id):
+        return Response(_reel_payload(request, _visible_reel(request, reel_id)))
+
+    def delete(self, request, reel_id):
+        reel = get_object_or_404(Reel, pk=reel_id, author=request.user)
+        reel.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ReelLikeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, reel_id):
+        reel = _visible_reel(request, reel_id)
+        ReelLike.objects.get_or_create(reel=reel, user=request.user)
+        reel = _visible_reel(request, reel_id)
+        return Response(_reel_payload(request, reel))
+
+    def delete(self, request, reel_id):
+        reel = _visible_reel(request, reel_id)
+        ReelLike.objects.filter(reel=reel, user=request.user).delete()
+        reel = _visible_reel(request, reel_id)
+        return Response(_reel_payload(request, reel))
+
+
+class ReelCommentsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, reel_id):
+        reel = _visible_reel(request, reel_id)
+        comments = list(reel.comments.select_related("author").order_by("created_at", "id")[:250])
+        return Response({"results": [_comment_payload(request, comment) for comment in comments]})
+
+    def post(self, request, reel_id):
+        reel = _visible_reel(request, reel_id)
+        body = str(request.data.get("body") or "").strip()
+        if not body:
+            return Response(
+                {"detail": "Write a comment first."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(body) > MAX_REEL_COMMENT_LENGTH:
+            return Response(
+                {"detail": f"Reel comments must be {MAX_REEL_COMMENT_LENGTH} characters or fewer."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        comment = ReelComment.objects.create(reel=reel, author=request.user, body=body)
+        reel = _visible_reel(request, reel_id)
+        return Response(
+            {
+                "comment": _comment_payload(request, comment),
+                "reel": _reel_payload(request, reel),
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ReelCommentDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, comment_id):
+        comment = get_object_or_404(
+            ReelComment.objects.select_related("reel"),
+            pk=comment_id,
+            author=request.user,
+        )
+        reel_id = comment.reel_id
+        comment.delete()
+        reel = _visible_reel(request, reel_id)
+        return Response({"reel": _reel_payload(request, reel)})

@@ -18,3 +18,5 @@ class AccountsConfig(AppConfig):
         from . import sharing_models  # noqa: F401
         # Privacy, follow requests and Close Friends are modular social policy.
         from . import privacy_models  # noqa: F401
+        # Reels are a V3 media surface with their own durable interaction graph.
+        from . import reels_models  # noqa: F401
