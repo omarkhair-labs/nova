@@ -346,7 +346,6 @@ fun ConversationScreenV8(
             isLoadingEarlier = false
         }
     }
-
     fun replyPreview(message: NovaMessage): NovaReplyPreview {
         return NovaReplyPreview(
             id = message.id,
@@ -1296,7 +1295,6 @@ private fun V8MessageBubble(
                     )
                     Spacer(Modifier.height(4.dp))
                 }
-
                 if (message.isDeleted) {
                     Text(
                         "Message deleted",
@@ -1411,6 +1409,7 @@ private fun V8SharedContentCard(
     onOpenPost: (Long) -> Unit,
     onOpenProfile: (String) -> Unit,
 ) {
+    val context = LocalContext.current
     val cardColor = if (mine) NovaBackground.copy(alpha = 0.16f) else NovaBackground
     val borderColor = if (mine) NovaBackground.copy(alpha = 0.25f) else NovaBorder
     val primary = if (mine) NovaBackground else NovaInk
@@ -1425,7 +1424,11 @@ private fun V8SharedContentCard(
         ) {
             Column(Modifier.padding(12.dp)) {
                 Text(
-                    text = if (share.kind == "profile") "Shared profile" else "Shared post",
+                    text = when (share.kind) {
+                        "profile" -> "Shared profile"
+                        "reel" -> "Shared Reel"
+                        else -> "Shared post"
+                    },
                     color = primary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
@@ -1485,6 +1488,64 @@ private fun V8SharedContentCard(
                         maxLines = 3,
                     )
                 }
+            }
+        }
+        return
+    }
+
+    share.reel?.let { reel ->
+        Surface(
+            onClick = {
+                com.nova.app.core.reels.NovaReelsNavigator.openProfile(
+                    context = context,
+                    username = reel.author.username,
+                    initialReelId = reel.id,
+                )
+            },
+            shape = RoundedCornerShape(15.dp),
+            color = cardColor,
+            border = BorderStroke(1.dp, borderColor),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(Modifier.padding(12.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(9.dp),
+                ) {
+                    NovaAvatar(
+                        source = reel.author.avatarUrl,
+                        fallbackText = reel.author.name.ifBlank { reel.author.username },
+                        size = 38.dp,
+                    )
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = reel.author.name.ifBlank { reel.author.username },
+                            color = primary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                        )
+                        Text("@${reel.author.username} · Reel", color = secondary, fontSize = 9.sp, maxLines = 1)
+                    }
+                    Text("▶", color = if (mine) NovaBackground else NovaAccent, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                }
+                if (reel.caption.isNotBlank()) {
+                    Spacer(Modifier.height(9.dp))
+                    Text(
+                        text = reel.caption,
+                        color = primary,
+                        fontSize = 11.sp,
+                        lineHeight = 16.sp,
+                        maxLines = 3,
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Watch Reel",
+                    color = if (mine) NovaBackground else NovaAccent,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                )
             }
         }
         return
@@ -1775,6 +1836,7 @@ private fun replyPreviewTextV8(message: NovaMessage): String = when {
     message.isDeleted -> "Message deleted"
     message.share?.kind == "post" -> "↗ Shared post"
     message.share?.kind == "profile" -> "↗ Shared profile"
+    message.share?.kind == "reel" -> "↗ Shared Reel"
     message.body.isNotBlank() -> message.body
     message.audioUrl.isNotBlank() -> "🎤 Voice message"
     message.imageUrl.isNotBlank() -> "📷 Photo"
