@@ -3,6 +3,9 @@ from django.db import models
 from .models import User
 
 
+REEL_NOTIFICATION_KINDS = ("reel_like", "reel_comment", "reel_repost")
+
+
 class Reel(models.Model):
     author = models.ForeignKey(
         User,
@@ -22,6 +25,15 @@ class Reel(models.Model):
         ]
 
     def delete(self, *args, **kwargs):
+        # Reel Activity rows intentionally reuse Nova's existing Notification
+        # table without a cross-module FK. Clear their durable targets before
+        # removing the Reel so Activity never points at deleted video content.
+        from .models import Notification
+
+        Notification.objects.filter(
+            kind__in=REEL_NOTIFICATION_KINDS,
+            dedupe_key__endswith=f":{self.pk}",
+        ).delete()
         video_name = self.video.name
         storage = self.video.storage
         result = super().delete(*args, **kwargs)
@@ -84,5 +96,45 @@ class ReelComment(models.Model):
             models.Index(fields=("reel", "created_at"), name="reel_comment_time_idx"),
         ]
 
+    def delete(self, *args, **kwargs):
+        from .models import Notification
+
+        Notification.objects.filter(
+            kind="reel_comment",
+            dedupe_key=f"reel_comment:{self.pk}:{self.reel_id}",
+        ).delete()
+        return super().delete(*args, **kwargs)
+
     def __str__(self):
         return f"Comment {self.pk} on reel {self.reel_id} by @{self.author.username}"
+
+
+class ReelRepost(models.Model):
+    reel = models.ForeignKey(
+        Reel,
+        on_delete=models.CASCADE,
+        related_name="reposts",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="reel_reposts",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = "accounts"
+        ordering = ("-created_at", "-id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("reel", "user"),
+                name="unique_reel_repost",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=("reel", "-created_at"), name="reel_repost_time_idx"),
+            models.Index(fields=("user", "-created_at"), name="reel_reposter_time_idx"),
+        ]
+
+    def __str__(self):
+        return f"@{self.user.username} reposts reel {self.reel_id}"
