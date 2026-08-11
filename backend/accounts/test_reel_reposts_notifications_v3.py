@@ -9,6 +9,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from .models import Notification, User
+from .push import _notification_reel_id, _title_and_body
 from .reels_models import Reel, ReelRepost
 
 
@@ -130,6 +131,23 @@ class ReelRepostNotificationTests(APITestCase):
             {"reel_like", "reel_comment", "reel_repost"},
         )
         self.assertEqual(activity.data["unread_count"], 3)
+        for row in activity.data["results"]:
+            self.assertEqual(row["reel_id"], self.reel.pk)
+            self.assertEqual(row["reel_author_username"], self.owner.username)
+            self.assertIsNone(row["post_id"])
+
+    def test_reel_notification_copy_and_target_are_derived_from_dedupe_key(self):
+        notification = Notification.objects.create(
+            recipient=self.owner,
+            actor=self.viewer,
+            kind="reel_repost",
+            dedupe_key=f"reel_repost:{self.viewer.pk}:{self.reel.pk}",
+        )
+        self.assertEqual(_notification_reel_id(notification), self.reel.pk)
+        self.assertEqual(
+            _title_and_body(notification),
+            ("New Reel repost", "Reel Viewer reposted your Reel"),
+        )
 
     def test_own_reel_interactions_do_not_notify_self(self):
         self.client.force_authenticate(self.owner)
