@@ -19,8 +19,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.lazy.pager.VerticalPager
-import androidx.compose.foundation.lazy.pager.rememberPagerState
+import androidx.compose.foundation.pager.VerticalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
@@ -270,7 +270,7 @@ fun ReelsScreen(
 
                 LaunchedEffect(pagerState.currentPage, reelIdentity, overlayOpen) {
                     if (reels.isEmpty()) return@LaunchedEffect
-                    val center = pagerState.currentPage.coerceIn(reels.indices)
+                    val center = pagerState.currentPage.coerceIn(0, reels.lastIndex)
                     playerPool.retainAround(reels, center)
                     playerPool.pauseAllExcept(
                         reels.getOrNull(center)?.id?.takeUnless { overlayOpen }
