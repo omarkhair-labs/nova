@@ -4,6 +4,17 @@ plugins {
     alias(libs.plugins.google.services)
 }
 
+val releaseKeystorePath = System.getenv("NOVA_RELEASE_KEYSTORE_PATH")
+val releaseStorePassword = System.getenv("NOVA_RELEASE_STORE_PASSWORD")
+val releaseKeyAlias = System.getenv("NOVA_RELEASE_KEY_ALIAS")
+val releaseKeyPassword = System.getenv("NOVA_RELEASE_KEY_PASSWORD")
+val releaseSigningConfigured = listOf(
+    releaseKeystorePath,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+).all { !it.isNullOrBlank() }
+
 android {
     namespace = "com.nova.app"
     compileSdk {
@@ -22,9 +33,21 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (releaseSigningConfigured) {
+            create("releaseUpload") {
+                storeFile = file(requireNotNull(releaseKeystorePath))
+                storePassword = requireNotNull(releaseStorePassword)
+                keyAlias = requireNotNull(releaseKeyAlias)
+                keyPassword = requireNotNull(releaseKeyPassword)
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfigs.findByName("releaseUpload")?.let { signingConfig = it }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -62,6 +85,8 @@ dependencies {
     implementation(libs.coil.network.okhttp)
     implementation(libs.firebase.messaging)
     implementation(libs.okhttp)
+    implementation("com.google.android.play:app-update:2.1.0")
+    implementation("com.google.android.play:app-update-ktx:2.1.0")
     implementation("androidx.media3:media3-exoplayer:1.10.1")
     implementation("androidx.media3:media3-ui:1.10.1")
     implementation("androidx.navigation3:navigation3-runtime:1.1.4")
