@@ -279,7 +279,7 @@ fun NotificationsScreen(
                             fontWeight = FontWeight.Bold,
                         )
                         Text(
-                            text = "Follow requests, likes, comments, reposts and new people around you.",
+                            text = "Follow requests, likes, comments, replies, reposts and new people around you.",
                             color = NovaMuted,
                             fontSize = 12.sp,
                         )
@@ -434,7 +434,7 @@ fun NotificationsScreen(
                             )
                             Spacer(modifier = Modifier.height(7.dp))
                             Text(
-                                text = "Follow requests, follows, likes, comments and Reel reposts will show up here.",
+                                text = "Follow requests, follows, likes, comments, replies and Reel reposts will show up here.",
                                 color = NovaMuted,
                                 fontSize = 13.sp,
                                 lineHeight = 19.sp,
@@ -462,11 +462,11 @@ fun NotificationsScreen(
                         onClick = {
                             when (notification.kind) {
                                 "follow" -> onPersonClick(notification.actor.username)
-                                "like", "comment" -> {
+                                "like", "comment", "comment_reply" -> {
                                     notification.postId?.let(::openPost)
                                         ?: onPersonClick(notification.actor.username)
                                 }
-                                "reel_like", "reel_comment", "reel_repost" -> {
+                                "reel_like", "reel_comment", "reel_repost", "reel_reply" -> {
                                     if (notification.reelId != null && notification.reelAuthorUsername.isNotBlank()) {
                                         openReel(notification)
                                     } else {
@@ -689,9 +689,11 @@ private fun notificationText(notification: NovaNotification): String {
                 "$name commented: “${preview.take(90)}${if (preview.length > 90) "…" else ""}”"
             }
         }
+        "comment_reply" -> "$name replied to your comment"
         "reel_like" -> "$name liked your Reel"
         "reel_comment" -> "$name commented on your Reel"
         "reel_repost" -> "$name reposted your Reel"
+        "reel_reply" -> "$name replied to your Reel comment"
         else -> "$name interacted with you"
     }
 }
