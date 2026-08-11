@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 
 from .models import Follow
 from .reels_models import Reel, ReelComment, ReelLike
+from .reels_ranking import encode_rank_cursor, parse_rank_cursor, ranked_reels_for
 from .trust_safety import blocked_user_ids
 
 
@@ -96,21 +97,27 @@ class ReelFeedView(APIView):
 
     def get(self, request):
         raw_cursor = str(request.query_params.get("cursor") or "").strip()
-        queryset = visible_reels_for(request.user).order_by("-created_at", "-id")
-        if raw_cursor:
-            try:
-                cursor = int(raw_cursor)
-            except (TypeError, ValueError):
-                return Response(
-                    {"detail": "Invalid Reels cursor."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            queryset = queryset.filter(pk__lt=cursor)
+        try:
+            offset, legacy_pk_cursor = parse_rank_cursor(raw_cursor)
+        except ValueError:
+            return Response(
+                {"detail": "Invalid Reels cursor."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        rows = list(queryset[: REELS_PAGE_SIZE + 1])
+        queryset = visible_reels_for(request.user)
+        if legacy_pk_cursor is not None:
+            queryset = queryset.filter(pk__lt=legacy_pk_cursor)
+        queryset = ranked_reels_for(request.user, queryset)
+
+        rows = list(queryset[offset : offset + REELS_PAGE_SIZE + 1])
         has_more = len(rows) > REELS_PAGE_SIZE
         page = rows[:REELS_PAGE_SIZE]
-        next_cursor = str(page[-1].pk) if has_more and page else None
+        next_cursor = (
+            encode_rank_cursor(offset + REELS_PAGE_SIZE)
+            if has_more and page
+            else None
+        )
         return Response(
             {
                 "results": [_reel_payload(request, reel) for reel in page],
