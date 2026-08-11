@@ -388,7 +388,7 @@ fun ReelsScreen(
     }
 
     commentsReel?.let { reel ->
-        ReelCommentsSheet(
+        ThreadedReelCommentsSheet(
             reel = reel,
             repository = repository,
             onDismiss = { commentsReel = null },
