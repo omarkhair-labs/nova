@@ -2,7 +2,6 @@ package com.nova.app.feature.stories
 
 import android.content.Intent
 import android.net.Uri
-import android.widget.VideoView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -35,6 +34,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -56,6 +56,12 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
 import com.nova.app.ReelsActivity
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.push.NovaPushOpenSignal
@@ -546,10 +552,16 @@ private fun StoryViewerV2(
                 is ApiResult.Failure -> if (result.statusCode == 401) onSessionExpired()
             }
         }
-        val steps = (STORY_FRAME_MS / STORY_TICK_MS).toInt().coerceAtLeast(1)
-        repeat(steps) { step ->
+    }
+
+    LaunchedEffect(story.id) {
+        if (story.mediaType == "video") return@LaunchedEffect
+        var elapsedMs = 0L
+        while (elapsedMs < STORY_FRAME_MS) {
             delay(STORY_TICK_MS)
-            progress = (step + 1f) / steps
+            if (showViewers || mutationBusy) continue
+            elapsedMs += STORY_TICK_MS
+            progress = (elapsedMs.toFloat() / STORY_FRAME_MS.toFloat()).coerceIn(0f, 1f)
         }
         advance()
     }
@@ -559,7 +571,11 @@ private fun StoryViewerV2(
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
         Box(modifier = Modifier.fillMaxSize().background(StoryV2Background)) {
-            StoryVisualV2(story = story, onVideoFinished = ::advance)
+            StoryVisualV2(
+                story = story,
+                onVideoProgress = { progress = it },
+                onVideoFinished = ::advance,
+            )
 
             Column(
                 modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 12.dp, vertical = 9.dp),
@@ -823,7 +839,13 @@ private fun StoryViewerV2(
 
 
 @Composable
-private fun StoryVisualV2(story: NovaStory, onVideoFinished: () -> Unit) {
+private fun StoryVisualV2(
+    story: NovaStory,
+    onVideoProgress: (Float) -> Unit,
+    onVideoFinished: () -> Unit,
+) {
+    val context = LocalContext.current
+
     when (story.mediaType) {
         "text" -> {
             Box(
@@ -841,20 +863,101 @@ private fun StoryVisualV2(story: NovaStory, onVideoFinished: () -> Unit) {
             }
         }
         "video" -> {
+            val player = remember(story.id) {
+                ExoPlayer.Builder(context.applicationContext).build().apply {
+                    playWhenReady = true
+                    repeatMode = Player.REPEAT_MODE_OFF
+                }
+            }
+            var playbackState by remember(story.id) { mutableStateOf(Player.STATE_IDLE) }
+            var playbackError by remember(story.id) { mutableStateOf<String?>(null) }
+
+            DisposableEffect(story.id, player) {
+                val listener = object : Player.Listener {
+                    override fun onPlaybackStateChanged(state: Int) {
+                        playbackState = state
+                        if (state == Player.STATE_ENDED) {
+                            onVideoProgress(1f)
+                            onVideoFinished()
+                        }
+                    }
+
+                    override fun onPlayerError(error: PlaybackException) {
+                        playbackError = "Video couldn't play"
+                    }
+                }
+
+                player.addListener(listener)
+                player.setMediaItem(MediaItem.fromUri(story.mediaUrl))
+                player.seekTo(0)
+                player.prepare()
+                player.play()
+
+                onDispose {
+                    player.removeListener(listener)
+                    player.release()
+                }
+            }
+
+            LaunchedEffect(story.id, player) {
+                while (true) {
+                    val duration = player.duration
+                    if (duration > 0L) {
+                        onVideoProgress(
+                            (player.currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f),
+                        )
+                    }
+                    delay(STORY_TICK_MS)
+                }
+            }
+
             AndroidView(
                 modifier = Modifier.fillMaxSize().background(Color.Black),
                 factory = { viewContext ->
-                    VideoView(viewContext).apply {
-                        setVideoURI(Uri.parse(story.mediaUrl))
-                        setOnPreparedListener { player ->
-                            player.isLooping = false
-                            start()
-                        }
-                        setOnCompletionListener { onVideoFinished() }
+                    PlayerView(viewContext).apply {
+                        useController = false
+                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        setShutterBackgroundColor(android.graphics.Color.BLACK)
+                        this.player = player
                     }
                 },
-                update = { view -> if (!view.isPlaying) view.start() },
+                update = { view -> view.player = player },
             )
+
+            if (playbackError != null) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Surface(
+                        onClick = {
+                            playbackError = null
+                            playbackState = Player.STATE_BUFFERING
+                            onVideoProgress(0f)
+                            player.setMediaItem(MediaItem.fromUri(story.mediaUrl))
+                            player.seekTo(0)
+                            player.prepare()
+                            player.play()
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color.Black.copy(alpha = 0.66f),
+                        border = BorderStroke(1.dp, StoryV2Ink.copy(alpha = 0.25f)),
+                    ) {
+                        Text(
+                            "Video couldn't play · Tap to retry",
+                            modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp),
+                            color = StoryV2Ink,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+            } else if (playbackState == Player.STATE_IDLE || playbackState == Player.STATE_BUFFERING) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(
+                        color = StoryV2Ink,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+            }
         }
         else -> {
             Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
