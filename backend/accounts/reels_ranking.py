@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone as datetime_timezone
 
 from django.db.models import Case, Exists, F, IntegerField, OuterRef, Value, When
 from django.utils import timezone
@@ -7,7 +7,8 @@ from .models import Follow
 from .reels_models import ReelComment, ReelLike, ReelRepost, ReelWatch
 
 
-RANK_CURSOR_PREFIX = "r1:"
+RANK_CURSOR_PREFIX = "r2:"
+LEGACY_RANK_CURSOR_PREFIX = "r1:"
 
 # Ranking weights intentionally stay server-side so Nova can tune discovery
 # without requiring a new Android release.
@@ -25,15 +26,15 @@ QUICK_SKIPPED_REEL_PENALTY = -26
 OWN_REEL_PENALTY = -16
 
 
-def ranked_reels_for(user, queryset):
-    """
-    Rank already-visible reels for a specific viewer.
+def ranked_reels_for(user, queryset, *, watch_cutoff=None):
+    """Rank already-visible Reels for a specific viewer.
 
-    Visibility is deliberately handled before this function by visible_reels_for;
-    this layer only changes ordering. New/cold-start accounts naturally fall
-    back to freshness + engagement because their affinity boosts are zero.
+    ``watch_cutoff`` freezes watch-derived signals for one pagination session.
+    The Android client reports watch behavior while the user swipes, so without
+    this cutoff page-two ordering could shift underneath an offset cursor.
     """
     now = timezone.now()
+    watch_cutoff = watch_cutoff or now
 
     follows_creator = Follow.objects.filter(
         follower=user,
@@ -55,11 +56,13 @@ def ranked_reels_for(user, queryset):
         user=user,
         reel__author_id=OuterRef("author_id"),
         max_completion_permille__gte=700,
+        last_watched_at__lte=watch_cutoff,
     ).exclude(reel_id=OuterRef("pk"))
     replayed_creator_before = ReelWatch.objects.filter(
         user=user,
         reel__author_id=OuterRef("author_id"),
         replay_count__gte=1,
+        last_watched_at__lte=watch_cutoff,
     ).exclude(reel_id=OuterRef("pk"))
     liked_current_reel = ReelLike.objects.filter(
         user=user,
@@ -73,12 +76,14 @@ def ranked_reels_for(user, queryset):
         user=user,
         reel_id=OuterRef("pk"),
         completion_count__gte=1,
+        last_watched_at__lte=watch_cutoff,
     )
     quick_skipped_current_reel = ReelWatch.objects.filter(
         user=user,
         reel_id=OuterRef("pk"),
         quick_skip_count__gte=1,
         completion_count=0,
+        last_watched_at__lte=watch_cutoff,
     )
 
     return (
@@ -180,25 +185,43 @@ def ranked_reels_for(user, queryset):
 
 
 def parse_rank_cursor(raw_cursor):
-    """
-    Return (offset, legacy_pk_cursor).
+    """Return ``(offset, legacy_pk_cursor, watch_cutoff)``.
 
-    New ranked pages use an opaque offset cursor. Plain numeric cursors from the
-    previous chronological feed are still accepted so an already-open Android
-    session does not break when the backend deploys.
+    V3 watch-aware pages carry the first-page watch cutoff in the opaque cursor
+    so watch events created while scrolling cannot reorder the current session.
+    Old ``r1:<offset>`` and numeric cursors remain accepted during rollout.
     """
     raw = str(raw_cursor or "").strip()
+    now = timezone.now()
     if not raw:
-        return 0, None
+        return 0, None, now
 
     if raw.startswith(RANK_CURSOR_PREFIX):
-        value = raw[len(RANK_CURSOR_PREFIX) :]
-        if not value.isdigit():
+        payload = raw[len(RANK_CURSOR_PREFIX) :]
+        parts = payload.split(":", 1)
+        if len(parts) != 2 or not all(part.isdigit() for part in parts):
             raise ValueError("invalid ranked cursor")
+        cutoff_ms = int(parts[0])
+        offset = int(parts[1])
+        if cutoff_ms <= 0 or offset < 0:
+            raise ValueError("invalid ranked cursor")
+        try:
+            watch_cutoff = datetime.fromtimestamp(
+                cutoff_ms / 1000.0,
+                tz=datetime_timezone.utc,
+            )
+        except (OverflowError, OSError, ValueError) as exc:
+            raise ValueError("invalid ranked cursor") from exc
+        return offset, None, watch_cutoff
+
+    if raw.startswith(LEGACY_RANK_CURSOR_PREFIX):
+        value = raw[len(LEGACY_RANK_CURSOR_PREFIX) :]
+        if not value.isdigit():
+            raise ValueError("invalid legacy ranked cursor")
         offset = int(value)
         if offset < 0:
-            raise ValueError("invalid ranked cursor")
-        return offset, None
+            raise ValueError("invalid legacy ranked cursor")
+        return offset, None, now
 
     try:
         legacy_pk = int(raw)
@@ -206,8 +229,9 @@ def parse_rank_cursor(raw_cursor):
         raise ValueError("invalid legacy cursor") from exc
     if legacy_pk <= 0:
         raise ValueError("invalid legacy cursor")
-    return 0, legacy_pk
+    return 0, legacy_pk, now
 
 
-def encode_rank_cursor(offset):
-    return f"{RANK_CURSOR_PREFIX}{int(offset)}"
+def encode_rank_cursor(offset, watch_cutoff):
+    cutoff_ms = int(watch_cutoff.timestamp() * 1000)
+    return f"{RANK_CURSOR_PREFIX}{cutoff_ms}:{int(offset)}"
