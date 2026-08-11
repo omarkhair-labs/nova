@@ -1,3 +1,6 @@
+import uuid
+
+from django.db import transaction
 from django.db.models import Count, Exists, OuterRef, Q, Subquery
 from django.shortcuts import get_object_or_404
 from rest_framework import status
@@ -7,7 +10,7 @@ from rest_framework.views import APIView
 
 from .models import Follow, Notification, User
 from .push import send_notification_push
-from .reels_models import Reel, ReelComment, ReelLike, ReelRepost
+from .reels_models import Reel, ReelComment, ReelLike, ReelRepost, ReelWatch
 from .reels_ranking import encode_rank_cursor, parse_rank_cursor, ranked_reels_for
 from .trust_safety import blocked_user_ids, users_blocked
 
@@ -16,6 +19,9 @@ REELS_PAGE_SIZE = 24
 MAX_REEL_VIDEO_BYTES = 120 * 1024 * 1024
 MAX_REEL_CAPTION_LENGTH = 500
 MAX_REEL_COMMENT_LENGTH = 300
+MIN_RECORDED_WATCH_MS = 250
+MAX_REEL_WATCH_MS = 30 * 60 * 1000
+MAX_REEL_DURATION_MS = 30 * 60 * 1000
 REEL_LIKE_NOTIFICATION = "reel_like"
 REEL_COMMENT_NOTIFICATION = "reel_comment"
 REEL_REPOST_NOTIFICATION = "reel_repost"
@@ -148,6 +154,40 @@ def _comment_payload(request, comment):
     }
 
 
+def _watch_payload(watch, *, recorded, duplicate=False):
+    if watch is None:
+        return {
+            "recorded": recorded,
+            "duplicate": duplicate,
+            "sessions": 0,
+            "total_watch_ms": 0,
+            "max_completion_permille": 0,
+            "completion_count": 0,
+            "replay_count": 0,
+            "quick_skip_count": 0,
+        }
+    return {
+        "recorded": recorded,
+        "duplicate": duplicate,
+        "sessions": watch.sessions,
+        "total_watch_ms": watch.total_watch_ms,
+        "max_completion_permille": watch.max_completion_permille,
+        "completion_count": watch.completion_count,
+        "replay_count": watch.replay_count,
+        "quick_skip_count": watch.quick_skip_count,
+    }
+
+
+def _parse_watch_int(request, name, *, maximum):
+    try:
+        value = int(request.data.get(name, 0))
+    except (TypeError, ValueError):
+        raise ValueError(name)
+    if value < 0 or value > maximum:
+        raise ValueError(name)
+    return value
+
+
 def _create_reel_notification(*, reel, actor, kind, dedupe_key):
     if reel.author_id == actor.pk or users_blocked(reel.author, actor):
         return None
@@ -238,6 +278,103 @@ class ReelDetailView(APIView):
         reel = get_object_or_404(Reel, pk=reel_id, author=request.user)
         reel.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ReelWatchView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, reel_id):
+        reel = _visible_reel(request, reel_id)
+
+        try:
+            session_id = uuid.UUID(str(request.data.get("session_id") or ""))
+        except (TypeError, ValueError, AttributeError):
+            return Response(
+                {"detail": "A valid Reel watch session id is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            watched_ms = _parse_watch_int(
+                request,
+                "watched_ms",
+                maximum=MAX_REEL_WATCH_MS,
+            )
+            duration_ms = _parse_watch_int(
+                request,
+                "duration_ms",
+                maximum=MAX_REEL_DURATION_MS,
+            )
+            max_position_ms = _parse_watch_int(
+                request,
+                "max_position_ms",
+                maximum=MAX_REEL_DURATION_MS,
+            )
+        except ValueError:
+            return Response(
+                {"detail": "Invalid Reel watch timing values."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Own playback is useful for previewing content but should never teach
+        # the recommendation system that the creator prefers their own Reels.
+        if reel.author_id == request.user.pk:
+            return Response(_watch_payload(None, recorded=False))
+
+        if watched_ms < MIN_RECORDED_WATCH_MS:
+            existing = ReelWatch.objects.filter(reel=reel, user=request.user).first()
+            return Response(_watch_payload(existing, recorded=False))
+
+        if duration_ms > 0:
+            max_position_ms = min(max_position_ms, duration_ms)
+            completion_permille = min(1000, (max_position_ms * 1000) // duration_ms)
+        else:
+            completion_permille = 0
+
+        completed = duration_ms >= 500 and completion_permille >= 900
+        replayed = duration_ms >= 1000 and watched_ms * 100 >= duration_ms * 110
+        quick_skip_threshold = (
+            min(2000, max(500, duration_ms // 4))
+            if duration_ms > 0
+            else 2000
+        )
+        quick_skipped = watched_ms < quick_skip_threshold and completion_permille < 250
+
+        with transaction.atomic():
+            watch, _ = ReelWatch.objects.select_for_update().get_or_create(
+                reel=reel,
+                user=request.user,
+            )
+            if watch.last_session_id == session_id:
+                return Response(_watch_payload(watch, recorded=False, duplicate=True))
+
+            watch.sessions += 1
+            watch.total_watch_ms += watched_ms
+            watch.max_completion_permille = max(
+                watch.max_completion_permille,
+                completion_permille,
+            )
+            if completed:
+                watch.completion_count += 1
+            if replayed:
+                watch.replay_count += 1
+            if quick_skipped:
+                watch.quick_skip_count += 1
+            watch.last_session_id = session_id
+            watch.save(
+                update_fields=[
+                    "sessions",
+                    "total_watch_ms",
+                    "max_completion_permille",
+                    "completion_count",
+                    "replay_count",
+                    "quick_skip_count",
+                    "last_session_id",
+                    "last_watched_at",
+                ]
+            )
+
+        return Response(_watch_payload(watch, recorded=True))
 
 
 class ReelLikeView(APIView):
