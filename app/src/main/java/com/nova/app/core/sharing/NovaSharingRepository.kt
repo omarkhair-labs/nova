@@ -125,6 +125,33 @@ class NovaSharingRepository(
         caption: String = "",
         audience: String = "followers",
     ): ApiResult<Unit> {
+        return addContentToStory(
+            targetKey = "shared_post_id",
+            targetId = postId,
+            caption = caption,
+            audience = audience,
+        )
+    }
+
+    suspend fun addReelToStory(
+        reelId: Long,
+        caption: String = "",
+        audience: String = "followers",
+    ): ApiResult<Unit> {
+        return addContentToStory(
+            targetKey = "shared_reel_id",
+            targetId = reelId,
+            caption = caption,
+            audience = audience,
+        )
+    }
+
+    private suspend fun addContentToStory(
+        targetKey: String,
+        targetId: Long,
+        caption: String,
+        audience: String,
+    ): ApiResult<Unit> {
         val cleanAudience = audience.takeIf { it == "followers" || it == "close_friends" }
             ?: return ApiResult.Failure("Choose a valid Story audience.")
         return authenticatedCall { token ->
@@ -133,7 +160,7 @@ class NovaSharingRepository(
                     path = "stories/",
                     method = "POST",
                     body = JSONObject()
-                        .put("shared_post_id", postId)
+                        .put(targetKey, targetId)
                         .put("caption", caption.trim().take(240))
                         .put("audience", cleanAudience),
                     bearerToken = token,
