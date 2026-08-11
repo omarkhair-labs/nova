@@ -8,7 +8,7 @@ from .privacy import can_view_user_content, is_private_account, pending_follow_r
 from .sharing_models import Repost
 
 User = get_user_model()
-REEL_NOTIFICATION_KINDS = {"reel_like", "reel_comment", "reel_repost"}
+REEL_NOTIFICATION_KINDS = {"reel_like", "reel_comment", "reel_repost", "reel_reply"}
 
 
 class AvatarUrlMixin:
