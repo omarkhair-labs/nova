@@ -5,6 +5,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from .models import Post, User
+from .reels_models import Reel
 
 
 class Story(models.Model):
@@ -12,10 +13,17 @@ class Story(models.Model):
         IMAGE = "image", "Image"
         VIDEO = "video", "Video"
         POST = "post", "Shared post"
+        TEXT = "text", "Text"
 
     class Audience(models.TextChoices):
         FOLLOWERS = "followers", "Followers"
         CLOSE_FRIENDS = "close_friends", "Close friends"
+
+    class BackgroundStyle(models.TextChoices):
+        MIDNIGHT = "midnight", "Midnight"
+        SUNSET = "sunset", "Sunset"
+        OCEAN = "ocean", "Ocean"
+        FOREST = "forest", "Forest"
 
     author = models.ForeignKey(
         User,
@@ -31,12 +39,24 @@ class Story(models.Model):
         null=True,
         blank=True,
     )
+    shared_reel = models.ForeignKey(
+        Reel,
+        on_delete=models.CASCADE,
+        related_name="story_shares",
+        null=True,
+        blank=True,
+    )
     audience = models.CharField(
         max_length=16,
         choices=Audience.choices,
         default=Audience.FOLLOWERS,
     )
     caption = models.CharField(max_length=240, blank=True)
+    background_style = models.CharField(
+        max_length=16,
+        choices=BackgroundStyle.choices,
+        default=BackgroundStyle.MIDNIGHT,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
 
@@ -50,20 +70,35 @@ class Story(models.Model):
         ]
         constraints = [
             models.CheckConstraint(
-                condition=~Q(media="") | Q(shared_post__isnull=False),
-                name="story_has_media_or_post",
+                condition=(
+                    ~Q(media="")
+                    | Q(shared_post__isnull=False)
+                    | Q(shared_reel__isnull=False)
+                    | Q(media_type="text")
+                ),
+                name="story_has_content",
             ),
             models.CheckConstraint(
                 condition=~Q(media_type="post") | Q(shared_post__isnull=False),
                 name="story_post_type_has_target",
             ),
+            models.CheckConstraint(
+                condition=~Q(media_type="text") | ~Q(caption=""),
+                name="story_text_has_caption",
+            ),
+            models.CheckConstraint(
+                condition=~Q(shared_post__isnull=False, shared_reel__isnull=False),
+                name="story_single_shared_target",
+            ),
         ]
 
     def save(self, *args, **kwargs):
-        # A shared post is still linked through shared_post, while the Android
-        # viewer can treat its visual media as a normal image Story.
+        # Shared media keeps its durable source relation while Android can
+        # render it through the normal image/video viewer paths.
         if self.shared_post_id and self.media_type == self.MediaType.POST:
             self.media_type = self.MediaType.IMAGE
+        if self.shared_reel_id:
+            self.media_type = self.MediaType.VIDEO
         if self.expires_at is None:
             self.expires_at = timezone.now() + timedelta(hours=24)
         super().save(*args, **kwargs)
