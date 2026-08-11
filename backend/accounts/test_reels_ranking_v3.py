@@ -157,7 +157,7 @@ class ReelRankingTests(APITestCase):
         first = self.feed()
         self.assertEqual(first.status_code, status.HTTP_200_OK)
         self.assertEqual(len(first.data["results"]), 24)
-        self.assertEqual(first.data["next_cursor"], "r1:24")
+        self.assertTrue(first.data["next_cursor"].startswith("r2:"))
 
         second = self.feed(first.data["next_cursor"])
         self.assertEqual(second.status_code, status.HTTP_200_OK)
@@ -170,9 +170,19 @@ class ReelRankingTests(APITestCase):
         self.assertEqual(first_ids | second_ids, {reel.id for reel in reels})
 
     def test_invalid_rank_cursor_is_rejected(self):
-        response = self.feed("r1:not-a-number")
+        response = self.feed("r2:not-a-number")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["detail"], "Invalid Reels cursor.")
+
+    def test_legacy_rank_cursor_remains_accepted_during_rollout(self):
+        creator = self.make_user("oldrank")
+        for index in range(30):
+            self.make_reel(creator, f"old-rank-{index}", timedelta(minutes=index))
+
+        response = self.feed("r1:24")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 6)
 
     def test_legacy_numeric_cursor_remains_accepted_during_rollout(self):
         creator = self.make_user("legacy")
