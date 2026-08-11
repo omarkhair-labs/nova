@@ -10,7 +10,7 @@ from .trust_safety import blocked_user_ids
 
 logger = logging.getLogger(__name__)
 
-REEL_NOTIFICATION_KINDS = {"reel_like", "reel_comment", "reel_repost"}
+REEL_NOTIFICATION_KINDS = {"reel_like", "reel_comment", "reel_repost", "reel_reply"}
 
 
 @lru_cache(maxsize=1)
@@ -61,6 +61,9 @@ def _title_and_body(notification):
             return "New comment", f"{actor_name}: {preview}"
         return "New comment", f"{actor_name} commented on your post"
 
+    if notification.kind == "comment_reply":
+        return "New reply", f"{actor_name} replied to your comment"
+
     if notification.kind == "reel_like":
         return "New Reel like", f"{actor_name} liked your Reel"
 
@@ -69,6 +72,9 @@ def _title_and_body(notification):
 
     if notification.kind == "reel_repost":
         return "New Reel repost", f"{actor_name} reposted your Reel"
+
+    if notification.kind == "reel_reply":
+        return "New Reel reply", f"{actor_name} replied to your Reel comment"
 
     return "Nova activity", f"{actor_name} interacted with you"
 
