@@ -12,6 +12,7 @@ RANK_CURSOR_PREFIX = "r1:"
 # Ranking weights intentionally stay server-side so Nova can tune discovery
 # without requiring a new Android release.
 FOLLOW_BOOST = 36
+FOLLOWED_REPOST_BOOST = 30
 LIKED_CREATOR_BOOST = 14
 COMMENTED_CREATOR_BOOST = 20
 REPOSTED_CREATOR_BOOST = 18
@@ -62,6 +63,11 @@ def ranked_reels_for(user, queryset):
                 default=Value(0),
                 output_field=IntegerField(),
             ),
+            followed_repost_score=Case(
+                When(has_followed_repost_value=True, then=Value(FOLLOWED_REPOST_BOOST)),
+                default=Value(0),
+                output_field=IntegerField(),
+            ),
             liked_creator_score=Case(
                 When(Exists(liked_creator_before), then=Value(LIKED_CREATOR_BOOST)),
                 default=Value(0),
@@ -109,6 +115,7 @@ def ranked_reels_for(user, queryset):
         .annotate(
             rank_score=(
                 F("follow_score")
+                + F("followed_repost_score")
                 + F("liked_creator_score")
                 + F("commented_creator_score")
                 + F("reposted_creator_score")
