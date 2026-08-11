@@ -140,6 +140,7 @@ class NovaProfileReelsRepository(
             repostsCount = json.optInt("reposts_count", 0),
             isLiked = json.optBoolean("is_liked", false),
             isReposted = json.optBoolean("is_reposted", false),
+            repostedBy = json.optJSONObject("reposted_by")?.let(::parseAuthor),
         )
     }
 
