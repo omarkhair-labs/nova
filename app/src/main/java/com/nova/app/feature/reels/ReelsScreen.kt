@@ -16,19 +16,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.pager.VerticalPager
-import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.lazy.pager.VerticalPager
+import androidx.compose.foundation.lazy.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -53,14 +48,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
-import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.reels.NovaReel
-import com.nova.app.core.reels.NovaReelComment
+import com.nova.app.core.reels.NovaReelWatchRepository
 import com.nova.app.core.reels.NovaReelsRepository
 import com.nova.app.feature.sharing.NovaShareDialog
 import com.nova.app.ui.components.NovaAvatar
@@ -72,6 +65,7 @@ import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 
@@ -90,6 +84,8 @@ fun ReelsScreen(
 ) {
     val context = LocalContext.current
     val repository = remember(context) { NovaReelsRepository(context.applicationContext) }
+    val watchRepository = remember(context) { NovaReelWatchRepository(context.applicationContext) }
+    val playerPool = remember(context) { ReelPlayerPool(context.applicationContext) }
     val scope = rememberCoroutineScope()
 
     var reels by remember { mutableStateOf<List<NovaReel>>(emptyList()) }
@@ -103,6 +99,12 @@ fun ReelsScreen(
     var uploading by remember { mutableStateOf(false) }
     var commentsReel by remember { mutableStateOf<NovaReel?>(null) }
     var shareReelTarget by remember { mutableStateOf<NovaReel?>(null) }
+
+    val overlayOpen = pendingVideo != null || commentsReel != null || shareReelTarget != null
+
+    DisposableEffect(playerPool) {
+        onDispose { playerPool.releaseAll() }
+    }
 
     fun replaceReel(updated: NovaReel) {
         reels = reels.map { if (it.id == updated.id) updated else it }
@@ -264,6 +266,16 @@ fun ReelsScreen(
 
             else -> {
                 val pagerState = rememberPagerState(pageCount = { reels.size })
+                val reelIdentity = reels.map { it.id to it.videoUrl }
+
+                LaunchedEffect(pagerState.currentPage, reelIdentity, overlayOpen) {
+                    if (reels.isEmpty()) return@LaunchedEffect
+                    val center = pagerState.currentPage.coerceIn(reels.indices)
+                    playerPool.retainAround(reels, center)
+                    playerPool.pauseAllExcept(
+                        reels.getOrNull(center)?.id?.takeUnless { overlayOpen }
+                    )
+                }
 
                 LaunchedEffect(pagerState.currentPage, reels.size, nextCursor, loadingMore) {
                     if (
@@ -288,9 +300,13 @@ fun ReelsScreen(
                         key = { index -> reels[index].id },
                     ) { page ->
                         val reel = reels[page]
+                        val player = remember(reel.id, reel.videoUrl) {
+                            playerPool.playerFor(reel)
+                        }
                         ReelPage(
                             reel = reel,
-                            isActive = pagerState.currentPage == page,
+                            player = player,
+                            isActive = pagerState.currentPage == page && !overlayOpen,
                             isLiking = likingId == reel.id,
                             isReposting = repostingId == reel.id,
                             onLike = { toggleLike(reel) },
@@ -298,6 +314,19 @@ fun ReelsScreen(
                             onRepost = { toggleRepost(reel) },
                             onShare = { shareReelTarget = reel },
                             onAuthor = { onPersonClick(reel.author.username) },
+                            onWatchSession = { snapshot ->
+                                if (!reel.isMine && snapshot.watchedMs >= 250L) {
+                                    scope.launch {
+                                        watchRepository.record(
+                                            reelId = reel.id,
+                                            sessionId = snapshot.sessionId,
+                                            watchedMs = snapshot.watchedMs,
+                                            durationMs = snapshot.durationMs,
+                                            maxPositionMs = snapshot.maxPositionMs,
+                                        )
+                                    }
+                                }
+                            },
                         )
                     }
 
@@ -415,6 +444,7 @@ fun ReelsScreen(
 @Composable
 private fun ReelPage(
     reel: NovaReel,
+    player: ExoPlayer,
     isActive: Boolean,
     isLiking: Boolean,
     isReposting: Boolean,
@@ -423,26 +453,31 @@ private fun ReelPage(
     onRepost: () -> Unit,
     onShare: () -> Unit,
     onAuthor: () -> Unit,
+    onWatchSession: (ReelWatchSnapshot) -> Unit,
 ) {
-    val context = LocalContext.current
     var pausedByUser by remember(reel.id) { mutableStateOf(false) }
     var muted by remember(reel.id) { mutableStateOf(false) }
-    val player = remember(reel.id, reel.videoUrl) {
-        ExoPlayer.Builder(context).build().apply {
-            repeatMode = Player.REPEAT_MODE_ONE
-            setMediaItem(MediaItem.fromUri(reel.videoUrl))
-            prepare()
-        }
-    }
 
-    LaunchedEffect(isActive, pausedByUser) {
+    LaunchedEffect(isActive, pausedByUser, player) {
         if (isActive && !pausedByUser) player.play() else player.pause()
     }
-    LaunchedEffect(muted) {
+    LaunchedEffect(muted, player) {
         player.volume = if (muted) 0f else 1f
     }
-    DisposableEffect(player) {
-        onDispose { player.release() }
+    LaunchedEffect(isActive, reel.id, player) {
+        if (!isActive) return@LaunchedEffect
+        val watchSession = ReelWatchSession()
+        try {
+            while (true) {
+                watchSession.sample(player)
+                delay(250)
+            }
+        } finally {
+            val snapshot = watchSession.finish(player)
+            if (snapshot.watchedMs >= 250L) {
+                onWatchSession(snapshot)
+            }
+        }
     }
 
     Box(
@@ -684,7 +719,7 @@ private fun ReelComposerDialog(
                         border = BorderStroke(1.dp, NovaBorder),
                     ) {
                         Text(
-                            "Cancel",
+                            text = "Cancel",
                             modifier = Modifier.padding(vertical = 12.dp),
                             color = NovaInk,
                             fontSize = 13.sp,
@@ -710,202 +745,13 @@ private fun ReelComposerDialog(
                                     strokeWidth = 2.dp,
                                 )
                             } else {
-                                Text("Post Reel", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-
-@Composable
-private fun ReelCommentsSheet(
-    reel: NovaReel,
-    repository: NovaReelsRepository,
-    onDismiss: () -> Unit,
-    onReelUpdated: (NovaReel) -> Unit,
-    onPersonClick: (String) -> Unit,
-    onSessionExpired: () -> Unit,
-) {
-    val scope = rememberCoroutineScope()
-    var comments by remember(reel.id) { mutableStateOf<List<NovaReelComment>>(emptyList()) }
-    var loading by remember(reel.id) { mutableStateOf(true) }
-    var sending by remember(reel.id) { mutableStateOf(false) }
-    var body by remember(reel.id) { mutableStateOf("") }
-    var error by remember(reel.id) { mutableStateOf<String?>(null) }
-
-    fun loadComments() {
-        scope.launch {
-            loading = true
-            error = null
-            when (val result = repository.comments(reel.id)) {
-                is ApiResult.Success -> comments = result.value
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onSessionExpired() else error = result.message
-                }
-            }
-            loading = false
-        }
-    }
-
-    LaunchedEffect(reel.id) { loadComments() }
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = NovaSurface,
-        contentColor = NovaInk,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 18.dp),
-        ) {
-            Text(
-                text = "Comments · ${reel.commentsCount}",
-                color = NovaInk,
-                fontSize = 19.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            when {
-                loading -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(180.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator(color = NovaAccent)
-                    }
-                }
-                comments.isEmpty() -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(150.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = error ?: "No comments yet. Start the conversation.",
-                            color = NovaMuted,
-                            fontSize = 13.sp,
-                        )
-                    }
-                }
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(260.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
-                    ) {
-                        items(comments, key = { it.id }) { comment ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalAlignment = Alignment.Top,
-                            ) {
-                                NovaAvatar(
-                                    source = comment.author.avatarUrl,
-                                    fallbackText = comment.author.displayName,
-                                    size = 34.dp,
-                                    modifier = Modifier.clickable {
-                                        onPersonClick(comment.author.username)
-                                    },
+                                Text(
+                                    "Post Reel",
+                                    color = Color.White,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
                                 )
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "@${comment.author.username}",
-                                        color = NovaInk,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.clickable {
-                                            onPersonClick(comment.author.username)
-                                        },
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = comment.body,
-                                        color = NovaInk,
-                                        fontSize = 13.sp,
-                                        lineHeight = 18.sp,
-                                    )
-                                }
                             }
-                        }
-                    }
-                }
-            }
-
-            error?.let {
-                Text(
-                    text = it,
-                    color = NovaMuted,
-                    fontSize = 11.sp,
-                    modifier = Modifier.padding(bottom = 8.dp),
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 14.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                OutlinedTextField(
-                    value = body,
-                    onValueChange = { body = it.take(300) },
-                    modifier = Modifier.weight(1f),
-                    enabled = !sending,
-                    placeholder = { Text("Add a comment…", color = NovaMuted) },
-                    maxLines = 3,
-                    shape = RoundedCornerShape(16.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = NovaAccent,
-                        unfocusedBorderColor = NovaBorder,
-                        cursorColor = NovaAccent,
-                    ),
-                )
-                Surface(
-                    onClick = {
-                        if (!sending && body.isNotBlank()) {
-                            scope.launch {
-                                sending = true
-                                error = null
-                                when (val result = repository.addComment(reel.id, body)) {
-                                    is ApiResult.Success -> {
-                                        comments = comments + result.value.comment
-                                        onReelUpdated(result.value.reel)
-                                        body = ""
-                                    }
-                                    is ApiResult.Failure -> {
-                                        if (result.statusCode == 401) onSessionExpired() else error = result.message
-                                    }
-                                }
-                                sending = false
-                            }
-                        }
-                    },
-                    enabled = !sending && body.isNotBlank(),
-                    modifier = Modifier.size(48.dp),
-                    shape = CircleShape,
-                    color = if (body.isNotBlank()) NovaAccent else NovaBorder,
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        if (sending) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(17.dp),
-                                color = Color.White,
-                                strokeWidth = 2.dp,
-                            )
-                        } else {
-                            Text("↑", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
