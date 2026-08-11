@@ -1,0 +1,180 @@
+name: Google Play Release
+
+on:
+  push:
+    tags:
+      - "android-v*"
+  workflow_dispatch:
+    inputs:
+      track:
+        description: Google Play track
+        required: true
+        default: internal
+        type: choice
+        options:
+          - internal
+          - alpha
+          - beta
+          - production
+      priority:
+        description: In-app update priority (0-5)
+        required: true
+        default: "2"
+        type: choice
+        options:
+          - "0"
+          - "1"
+          - "2"
+          - "3"
+          - "4"
+          - "5"
+      confirm_production:
+        description: Type PUBLISH only when selecting production
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nova-google-play-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build, sign and publish AAB
+    runs-on: ubuntu-latest
+    env:
+      PLAY_PACKAGE_NAME: com.omarkhair70.nova
+      KEYSTORE_B64: ${{ secrets.NOVA_ANDROID_KEYSTORE_B64 }}
+      STORE_PASSWORD: ${{ secrets.NOVA_RELEASE_STORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.NOVA_RELEASE_KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.NOVA_RELEASE_KEY_PASSWORD }}
+      GOOGLE_SERVICES_JSON_B64: ${{ secrets.NOVA_GOOGLE_SERVICES_JSON_B64 }}
+      PLAY_SERVICE_ACCOUNT_JSON_B64: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_B64 }}
+
+    steps:
+      - name: Checkout release commit
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Resolve safe release target
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            track="${{ inputs.track }}"
+            priority="${{ inputs.priority }}"
+            confirm_production="${{ inputs.confirm_production }}"
+            release_name="manual-${GITHUB_SHA::7}"
+          else
+            track="internal"
+            priority="2"
+            confirm_production=""
+            release_name="${GITHUB_REF_NAME}"
+
+            git fetch origin master
+            if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/master; then
+              echo "Tagged release commit must be contained in master."
+              exit 1
+            fi
+          fi
+
+          if [[ "${track}" == "production" && "${confirm_production}" != "PUBLISH" ]]; then
+            echo "Production publishing requires confirm_production=PUBLISH."
+            exit 1
+          fi
+
+          echo "PLAY_TRACK=${track}" >> "${GITHUB_ENV}"
+          echo "PLAY_PRIORITY=${priority}" >> "${GITHUB_ENV}"
+          echo "PLAY_RELEASE_NAME=${release_name}" >> "${GITHUB_ENV}"
+
+      - name: Validate release secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          for item in \
+            KEYSTORE_B64 \
+            STORE_PASSWORD \
+            KEY_ALIAS \
+            KEY_PASSWORD \
+            GOOGLE_SERVICES_JSON_B64 \
+            PLAY_SERVICE_ACCOUNT_JSON_B64
+          do
+            if [[ -z "${!item:-}" ]]; then
+              echo "Missing GitHub secret for ${item}."
+              missing=1
+            fi
+          done
+          if [[ "${missing}" -ne 0 ]]; then
+            exit 1
+          fi
+
+      - name: Materialize signing and Google credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          keystore_path="${RUNNER_TEMP}/nova-upload.jks"
+          service_account_path="${RUNNER_TEMP}/google-play-service-account.json"
+
+          printf '%s' "${KEYSTORE_B64}" | base64 --decode > "${keystore_path}"
+          printf '%s' "${GOOGLE_SERVICES_JSON_B64}" | base64 --decode > app/google-services.json
+          printf '%s' "${PLAY_SERVICE_ACCOUNT_JSON_B64}" | base64 --decode > "${service_account_path}"
+
+          chmod 600 "${keystore_path}" "${service_account_path}" app/google-services.json
+          echo "NOVA_RELEASE_KEYSTORE_PATH=${keystore_path}" >> "${GITHUB_ENV}"
+          echo "PLAY_SERVICE_ACCOUNT_FILE=${service_account_path}" >> "${GITHUB_ENV}"
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Allow Gradle wrapper execution
+        run: chmod +x gradlew
+
+      - name: Build signed release AAB
+        env:
+          NOVA_RELEASE_STORE_PASSWORD: ${{ secrets.NOVA_RELEASE_STORE_PASSWORD }}
+          NOVA_RELEASE_KEY_ALIAS: ${{ secrets.NOVA_RELEASE_KEY_ALIAS }}
+          NOVA_RELEASE_KEY_PASSWORD: ${{ secrets.NOVA_RELEASE_KEY_PASSWORD }}
+        run: ./gradlew --no-daemon clean bundleRelease
+
+      - name: Verify signed AAB
+        shell: bash
+        run: |
+          set -euo pipefail
+          aab="app/build/outputs/bundle/release/app-release.aab"
+          test -f "${aab}"
+          jarsigner -verify "${aab}"
+          echo "PLAY_AAB_PATH=${aab}" >> "${GITHUB_ENV}"
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scripts/play_release_requirements.txt
+
+      - name: Install Play publishing client
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r scripts/play_release_requirements.txt
+
+      - name: Publish to Google Play
+        run: |
+          python scripts/publish_google_play.py \
+            --package-name "${PLAY_PACKAGE_NAME}" \
+            --bundle "${PLAY_AAB_PATH}" \
+            --track "${PLAY_TRACK}" \
+            --priority "${PLAY_PRIORITY}" \
+            --release-name "${PLAY_RELEASE_NAME}" \
+            --service-account-json-file "${PLAY_SERVICE_ACCOUNT_FILE}"
