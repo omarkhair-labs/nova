@@ -2,6 +2,7 @@ from django.db import models
 from django.db.models import Q
 
 from .models import Message, Post, User
+from .reels_models import Reel
 
 
 class Repost(models.Model):
@@ -39,6 +40,7 @@ class MessageShare(models.Model):
     class Kind(models.TextChoices):
         POST = "post", "Post"
         PROFILE = "profile", "Profile"
+        REEL = "reel", "Reel"
 
     message = models.OneToOneField(
         Message,
@@ -60,6 +62,13 @@ class MessageShare(models.Model):
         null=True,
         blank=True,
     )
+    reel = models.ForeignKey(
+        Reel,
+        on_delete=models.SET_NULL,
+        related_name="message_shares",
+        null=True,
+        blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -70,8 +79,9 @@ class MessageShare(models.Model):
             # require a live target; the DB only prevents cross-kind targets.
             models.CheckConstraint(
                 condition=(
-                    Q(kind="post", profile__isnull=True)
-                    | Q(kind="profile", post__isnull=True)
+                    Q(kind="post", profile__isnull=True, reel__isnull=True)
+                    | Q(kind="profile", post__isnull=True, reel__isnull=True)
+                    | Q(kind="reel", post__isnull=True, profile__isnull=True)
                 ),
                 name="message_share_matches_kind",
             ),
