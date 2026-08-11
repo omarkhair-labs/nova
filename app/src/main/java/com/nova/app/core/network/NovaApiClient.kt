@@ -68,6 +68,9 @@ data class NovaComment(
     val body: String,
     val createdAt: String,
     val isMine: Boolean,
+    val parentId: Long? = null,
+    val repliesCount: Int = 0,
+    val replies: List<NovaComment> = emptyList(),
 )
 
 
@@ -399,8 +402,10 @@ class NovaApiClient(
         accessToken: String,
         postId: Long,
         body: String,
+        parentId: Long? = null,
     ): ApiResult<NovaCommentMutation> {
         val payload = JSONObject().put("body", body)
+        parentId?.takeIf { it > 0L }?.let { payload.put("parent_id", it) }
         return when (
             val response = requestJson(
                 path = "posts/$postId/comments/",
@@ -432,9 +437,23 @@ class NovaApiClient(
         accessToken: String,
         commentId: Long,
     ): ApiResult<NovaPost> {
+        return deleteCommentResource(accessToken, "comments/$commentId/")
+    }
+
+    suspend fun deleteCommentReply(
+        accessToken: String,
+        replyId: Long,
+    ): ApiResult<NovaPost> {
+        return deleteCommentResource(accessToken, "comment-replies/$replyId/")
+    }
+
+    private suspend fun deleteCommentResource(
+        accessToken: String,
+        path: String,
+    ): ApiResult<NovaPost> {
         return when (
             val response = requestJson(
-                path = "comments/$commentId/",
+                path = path,
                 method = "DELETE",
                 bearerToken = accessToken,
             )
@@ -557,12 +576,27 @@ class NovaApiClient(
 
     private fun parseComment(json: JSONObject): NovaComment {
         val author = json.optJSONObject("author") ?: JSONObject()
+        val rawParentId = json.opt("parent_id")
+        val parentId = when (rawParentId) {
+            null, JSONObject.NULL -> null
+            is Number -> rawParentId.toLong().takeIf { it > 0L }
+            else -> rawParentId.toString().toLongOrNull()?.takeIf { it > 0L }
+        }
+        val replyRows = json.optJSONArray("replies") ?: JSONArray()
+        val replies = buildList {
+            for (index in 0 until replyRows.length()) {
+                replyRows.optJSONObject(index)?.let { add(parseComment(it)) }
+            }
+        }
         return NovaComment(
             id = json.optLong("id"),
             author = parsePostAuthor(author),
             body = json.optString("body"),
             createdAt = json.optString("created_at"),
             isMine = json.optBoolean("is_mine", false),
+            parentId = parentId,
+            repliesCount = json.optInt("replies_count", replies.size),
+            replies = replies,
         )
     }
 

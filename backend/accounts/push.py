@@ -10,7 +10,7 @@ from .trust_safety import blocked_user_ids
 
 logger = logging.getLogger(__name__)
 
-REEL_NOTIFICATION_KINDS = {"reel_like", "reel_comment", "reel_repost"}
+REEL_NOTIFICATION_KINDS = {"reel_like", "reel_comment", "reel_repost", "reel_reply"}
 
 
 @lru_cache(maxsize=1)
@@ -43,6 +43,20 @@ def _notification_reel_id(notification):
     return reel_id if reel_id > 0 else None
 
 
+def _notification_reel_author_username(notification):
+    reel_id = _notification_reel_id(notification)
+    if reel_id is None:
+        return ""
+    from .reels_models import Reel
+
+    return (
+        Reel.objects.filter(pk=reel_id, author__is_active=True)
+        .values_list("author__username", flat=True)
+        .first()
+        or ""
+    )
+
+
 def _title_and_body(notification):
     actor_name = notification.actor.name.strip() or f"@{notification.actor.username}"
 
@@ -61,6 +75,9 @@ def _title_and_body(notification):
             return "New comment", f"{actor_name}: {preview}"
         return "New comment", f"{actor_name} commented on your post"
 
+    if notification.kind == "comment_reply":
+        return "New reply", f"{actor_name} replied to your comment"
+
     if notification.kind == "reel_like":
         return "New Reel like", f"{actor_name} liked your Reel"
 
@@ -69,6 +86,9 @@ def _title_and_body(notification):
 
     if notification.kind == "reel_repost":
         return "New Reel repost", f"{actor_name} reposted your Reel"
+
+    if notification.kind == "reel_reply":
+        return "New Reel reply", f"{actor_name} replied to your Reel comment"
 
     return "Nova activity", f"{actor_name} interacted with you"
 
@@ -101,7 +121,7 @@ def send_notification_push(notification):
         "actor_username": notification.actor.username,
         "post_id": str(notification.post_id or ""),
         "reel_id": str(reel_id or ""),
-        "reel_author_username": notification.recipient.username if reel_id else "",
+        "reel_author_username": _notification_reel_author_username(notification),
     }
 
     sent = 0

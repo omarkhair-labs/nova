@@ -3,7 +3,7 @@ from django.db import models
 from .models import User
 
 
-REEL_NOTIFICATION_KINDS = ("reel_like", "reel_comment", "reel_repost")
+REEL_NOTIFICATION_KINDS = ("reel_like", "reel_comment", "reel_repost", "reel_reply")
 
 
 class Reel(models.Model):

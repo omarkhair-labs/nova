@@ -1,9 +1,12 @@
 from django.urls import path
 
+from .comment_threads import (
+    ReelCommentReplyDetailView,
+    ThreadReelCommentDetailView,
+    ThreadReelCommentsView,
+)
 from .profile_reels import ProfileReelsView
 from .reels import (
-    ReelCommentDetailView,
-    ReelCommentsView,
     ReelDetailView,
     ReelFeedView,
     ReelLikeView,
@@ -17,10 +20,15 @@ urlpatterns = [
     path("reels/<int:reel_id>/", ReelDetailView.as_view(), name="reel-detail"),
     path("reels/<int:reel_id>/like/", ReelLikeView.as_view(), name="reel-like"),
     path("reels/<int:reel_id>/repost/", ReelRepostView.as_view(), name="reel-repost"),
-    path("reels/<int:reel_id>/comments/", ReelCommentsView.as_view(), name="reel-comments"),
+    path("reels/<int:reel_id>/comments/", ThreadReelCommentsView.as_view(), name="reel-comments"),
     path(
         "reel-comments/<int:comment_id>/",
-        ReelCommentDetailView.as_view(),
+        ThreadReelCommentDetailView.as_view(),
         name="reel-comment-detail",
+    ),
+    path(
+        "reel-comment-replies/<int:reply_id>/",
+        ReelCommentReplyDetailView.as_view(),
+        name="reel-comment-reply-detail",
     ),
 ]

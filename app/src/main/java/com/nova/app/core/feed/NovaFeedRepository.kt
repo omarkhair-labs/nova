@@ -105,15 +105,22 @@ class NovaFeedRepository(
     suspend fun addComment(
         postId: Long,
         body: String,
+        parentId: Long? = null,
     ): ApiResult<NovaCommentMutation> {
         return authenticatedCall { accessToken ->
-            api.addComment(accessToken, postId, body.trim())
+            api.addComment(accessToken, postId, body.trim(), parentId)
         }
     }
 
     suspend fun deleteComment(commentId: Long): ApiResult<NovaPost> {
         return authenticatedCall { accessToken ->
             api.deleteComment(accessToken, commentId)
+        }
+    }
+
+    suspend fun deleteCommentReply(replyId: Long): ApiResult<NovaPost> {
+        return authenticatedCall { accessToken ->
+            api.deleteCommentReply(accessToken, replyId)
         }
     }
 

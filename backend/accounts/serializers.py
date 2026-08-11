@@ -8,7 +8,7 @@ from .privacy import can_view_user_content, is_private_account, pending_follow_r
 from .sharing_models import Repost
 
 User = get_user_model()
-REEL_NOTIFICATION_KINDS = {"reel_like", "reel_comment", "reel_repost"}
+REEL_NOTIFICATION_KINDS = {"reel_like", "reel_comment", "reel_repost", "reel_reply"}
 
 
 class AvatarUrlMixin:
@@ -309,12 +309,17 @@ class NotificationSerializer(serializers.ModelSerializer):
         return reel_id if reel_id > 0 else None
 
     def get_reel_author_username(self, obj):
-        if self.get_reel_id(obj) is None:
+        reel_id = self.get_reel_id(obj)
+        if reel_id is None:
             return ""
-        request = self.context.get("request")
-        if request and request.user.is_authenticated:
-            return request.user.username
-        return ""
+        from .reels_models import Reel
+
+        return (
+            Reel.objects.filter(pk=reel_id, author__is_active=True)
+            .values_list("author__username", flat=True)
+            .first()
+            or ""
+        )
 
     def get_comment_preview(self, obj):
         return obj.comment.body if obj.comment_id and obj.comment else ""
