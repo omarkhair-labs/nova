@@ -1,5 +1,6 @@
 package com.nova.app
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -8,8 +9,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.nova.app.core.push.NovaPushOpenSignal
 import com.nova.app.feature.reels.ReelsScreen
-import com.nova.app.navigation.NovaPersonOpenSignal
 import com.nova.app.navigation.NovaRootNavigationSignal
 import com.nova.app.navigation.NovaRootTab
 import com.nova.app.ui.components.NovaActiveCallPill
@@ -29,10 +30,7 @@ class ReelsActivity : ComponentActivity() {
                         onHomeClick = { finishToRoot(NovaRootTab.Home) },
                         onPeopleClick = { finishToRoot(NovaRootTab.People) },
                         onProfileClick = { finishToRoot(NovaRootTab.Profile) },
-                        onPersonClick = { username ->
-                            NovaPersonOpenSignal.request(username)
-                            finish()
-                        },
+                        onPersonClick = { username -> openPerson(username) },
                     )
                     NovaActiveCallPill(
                         modifier = Modifier.align(Alignment.TopCenter),
@@ -40,6 +38,16 @@ class ReelsActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun openPerson(username: String) {
+        NovaPushOpenSignal.offer(
+            Intent()
+                .putExtra("kind", "follow")
+                .putExtra("actor_username", username),
+        )
+        NovaRootNavigationSignal.request(NovaRootTab.Home)
+        finish()
     }
 
     private fun finishToRoot(tab: NovaRootTab) {
