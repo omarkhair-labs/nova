@@ -69,6 +69,15 @@ class NovaSharingRepository(
         )
     }
 
+    suspend fun shareReel(recipientUsername: String, reelId: Long): ApiResult<Unit> {
+        return share(
+            JSONObject()
+                .put("recipient_username", recipientUsername.trim().lowercase())
+                .put("kind", "reel")
+                .put("reel_id", reelId)
+        )
+    }
+
     suspend fun shareProfile(recipientUsername: String, profileUsername: String): ApiResult<Unit> {
         return share(
             JSONObject()
@@ -85,6 +94,16 @@ class NovaSharingRepository(
                 .put("conversation_id", conversationId)
                 .put("kind", "post")
                 .put("post_id", postId)
+        )
+    }
+
+    suspend fun shareReelToConversation(conversationId: Long, reelId: Long): ApiResult<Unit> {
+        if (conversationId <= 0L) return ApiResult.Failure("Choose a group to share with.")
+        return share(
+            JSONObject()
+                .put("conversation_id", conversationId)
+                .put("kind", "reel")
+                .put("reel_id", reelId)
         )
     }
 
@@ -253,4 +272,3 @@ class NovaSharingRepository(
     private companion object {
         const val PRODUCTION_API_URL = "https://nova-production-4f6b.up.railway.app/api/v1/"
     }
-}
