@@ -20,3 +20,5 @@ class AccountsConfig(AppConfig):
         from . import privacy_models  # noqa: F401
         # Reels are a V3 media surface with their own durable interaction graph.
         from . import reels_models  # noqa: F401
+        # Comment replies remain modular so legacy comments stay migration-safe.
+        from . import comment_reply_models  # noqa: F401
