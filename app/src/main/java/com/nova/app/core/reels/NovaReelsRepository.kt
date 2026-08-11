@@ -56,6 +56,9 @@ data class NovaReelComment(
     val body: String,
     val createdAt: String,
     val isMine: Boolean,
+    val parentId: Long? = null,
+    val repliesCount: Int = 0,
+    val replies: List<NovaReelComment> = emptyList(),
 )
 
 
@@ -184,15 +187,21 @@ class NovaReelsRepository(
         }
     }
 
-    suspend fun addComment(reelId: Long, body: String): ApiResult<NovaReelCommentMutation> {
+    suspend fun addComment(
+        reelId: Long,
+        body: String,
+        parentId: Long? = null,
+    ): ApiResult<NovaReelCommentMutation> {
         val clean = body.trim()
         if (clean.isBlank()) return ApiResult.Failure("Write a comment first.")
+        val payload = JSONObject().put("body", clean.take(300))
+        parentId?.takeIf { it > 0L }?.let { payload.put("parent_id", it) }
         return authenticatedCall { token ->
             when (
                 val result = requestJson(
                     path = "reels/$reelId/comments/",
                     method = "POST",
-                    body = JSONObject().put("body", clean.take(300)),
+                    body = payload,
                     bearerToken = token,
                 )
             ) {
@@ -208,6 +217,28 @@ class NovaReelsRepository(
                                 reel = parseReel(reel),
                             )
                         )
+                    }
+                }
+                is ApiResult.Failure -> result
+            }
+        }
+    }
+
+    suspend fun deleteCommentReply(replyId: Long): ApiResult<NovaReel> {
+        return authenticatedCall { token ->
+            when (
+                val result = requestJson(
+                    path = "reel-comment-replies/$replyId/",
+                    method = "DELETE",
+                    bearerToken = token,
+                )
+            ) {
+                is ApiResult.Success -> {
+                    val reel = result.value.optJSONObject("reel")
+                    if (reel == null) {
+                        ApiResult.Failure("Nova returned an invalid Reel comment response.")
+                    } else {
+                        ApiResult.Success(parseReel(reel))
                     }
                 }
                 is ApiResult.Failure -> result
@@ -469,12 +500,27 @@ class NovaReelsRepository(
     }
 
     private fun parseComment(json: JSONObject): NovaReelComment {
+        val rawParentId = json.opt("parent_id")
+        val parentId = when (rawParentId) {
+            null, JSONObject.NULL -> null
+            is Number -> rawParentId.toLong().takeIf { it > 0L }
+            else -> rawParentId.toString().toLongOrNull()?.takeIf { it > 0L }
+        }
+        val replyRows = json.optJSONArray("replies") ?: JSONArray()
+        val replies = buildList {
+            for (index in 0 until replyRows.length()) {
+                replyRows.optJSONObject(index)?.let { add(parseComment(it)) }
+            }
+        }
         return NovaReelComment(
             id = json.optLong("id"),
             author = parseAuthor(json.optJSONObject("author") ?: JSONObject()),
             body = json.optString("body"),
             createdAt = json.optString("created_at"),
             isMine = json.optBoolean("is_mine"),
+            parentId = parentId,
+            repliesCount = json.optInt("replies_count", replies.size),
+            replies = replies,
         )
     }
 
