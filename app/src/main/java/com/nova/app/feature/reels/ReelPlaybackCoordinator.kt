@@ -2,6 +2,7 @@ package com.nova.app.feature.reels
 
 import android.content.Context
 import android.os.SystemClock
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -95,7 +96,7 @@ class ReelWatchSession {
         val position = player.currentPosition.coerceAtLeast(0L)
         maxPositionMs = maxOf(maxPositionMs, position)
         val duration = player.duration
-        if (duration > 0L && duration != Player.TIME_UNSET) {
+        if (duration > 0L && duration != C.TIME_UNSET) {
             durationMs = maxOf(durationMs, duration)
         }
     }
