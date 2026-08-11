@@ -137,7 +137,9 @@ class NovaProfileReelsRepository(
             isMine = json.optBoolean("is_mine"),
             likesCount = json.optInt("likes_count", 0),
             commentsCount = json.optInt("comments_count", 0),
+            repostsCount = json.optInt("reposts_count", 0),
             isLiked = json.optBoolean("is_liked", false),
+            isReposted = json.optBoolean("is_reposted", false),
         )
     }
 
