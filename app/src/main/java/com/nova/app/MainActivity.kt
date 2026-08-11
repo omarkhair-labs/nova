@@ -8,8 +8,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.nova.app.core.messaging.NovaMessagesSignal
@@ -19,7 +21,9 @@ import com.nova.app.core.network.ApiResult
 import com.nova.app.core.push.NovaPushOpenSignal
 import com.nova.app.core.push.NovaPushRegistration
 import com.nova.app.core.reels.NovaReelsNavigator
+import com.nova.app.core.update.NovaInAppUpdateController
 import com.nova.app.ui.components.NovaActiveCallPill
+import com.nova.app.ui.components.NovaUpdateReadyBanner
 import com.nova.app.ui.theme.NovaTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,10 +32,27 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val activityScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val updateReadyToInstall = mutableStateOf(false)
+    private lateinit var inAppUpdateController: NovaInAppUpdateController
+
+    private val inAppUpdateLauncher = registerForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (::inAppUpdateController.isInitialized) {
+            inAppUpdateController.onActivityResult(result.resultCode)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        inAppUpdateController = NovaInAppUpdateController(
+            activity = this,
+            launcher = inAppUpdateLauncher,
+            onReadyToInstall = { ready -> updateReadyToInstall.value = ready },
+        )
+        inAppUpdateController.start()
 
         routePushIntent(intent)
         NovaPushRegistration.ensureChannel(this)
@@ -46,6 +67,12 @@ class MainActivity : ComponentActivity() {
                     NovaActiveCallPill(
                         modifier = Modifier.align(Alignment.TopCenter),
                     )
+                    if (updateReadyToInstall.value) {
+                        NovaUpdateReadyBanner(
+                            onRestart = inAppUpdateController::completeUpdate,
+                            modifier = Modifier.align(Alignment.BottomCenter),
+                        )
+                    }
                 }
             }
         }
@@ -54,6 +81,16 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         syncMessageUnreadCount()
+        if (::inAppUpdateController.isInitialized) {
+            inAppUpdateController.onResume()
+        }
+    }
+
+    override fun onDestroy() {
+        if (::inAppUpdateController.isInitialized) {
+            inAppUpdateController.onDestroy()
+        }
+        super.onDestroy()
     }
 
     override fun onNewIntent(intent: Intent) {
