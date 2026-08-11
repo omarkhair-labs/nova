@@ -37,7 +37,9 @@ data class NovaReel(
     val isMine: Boolean,
     val likesCount: Int,
     val commentsCount: Int,
+    val repostsCount: Int,
     val isLiked: Boolean,
+    val isReposted: Boolean,
 )
 
 
@@ -129,6 +131,29 @@ class NovaReelsRepository(
             } else {
                 requestJson(
                     path = "reels/$reelId/like/",
+                    method = "DELETE",
+                    bearerToken = token,
+                )
+            }
+            when (result) {
+                is ApiResult.Success -> ApiResult.Success(parseReel(result.value))
+                is ApiResult.Failure -> result
+            }
+        }
+    }
+
+    suspend fun setReposted(reelId: Long, reposted: Boolean): ApiResult<NovaReel> {
+        return authenticatedCall { token ->
+            val result = if (reposted) {
+                requestJson(
+                    path = "reels/$reelId/repost/",
+                    method = "POST",
+                    body = JSONObject(),
+                    bearerToken = token,
+                )
+            } else {
+                requestJson(
+                    path = "reels/$reelId/repost/",
                     method = "DELETE",
                     bearerToken = token,
                 )
@@ -435,7 +460,9 @@ class NovaReelsRepository(
             isMine = json.optBoolean("is_mine"),
             likesCount = json.optInt("likes_count", 0),
             commentsCount = json.optInt("comments_count", 0),
+            repostsCount = json.optInt("reposts_count", 0),
             isLiked = json.optBoolean("is_liked", false),
+            isReposted = json.optBoolean("is_reposted", false),
         )
     }
 
