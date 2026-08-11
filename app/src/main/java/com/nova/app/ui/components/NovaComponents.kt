@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.core.messaging.NovaMessagingNavigator
+import com.nova.app.core.reels.NovaReelsNavigator
 import com.nova.app.navigation.NovaRootNavigationSignal
 import com.nova.app.navigation.NovaRootTab
 import com.nova.app.navigation.rootNavigationPlan
@@ -180,6 +181,7 @@ fun NovaBottomBar(
     onPeopleClick: () -> Unit,
     onProfileClick: () -> Unit,
     onMessagesClick: (() -> Unit)? = null,
+    onReelsClick: (() -> Unit)? = null,
     messagesUnreadCount: Int? = null,
 ) {
     val context = LocalContext.current
@@ -187,7 +189,7 @@ fun NovaBottomBar(
     val rootRequestVersion = NovaRootNavigationSignal.requestVersion
 
     fun dispatchRoot(requested: NovaRootTab) {
-        if (selected == NovaTab.Messages) {
+        if (selected == NovaTab.Messages || selected == NovaTab.Reels) {
             when (requested) {
                 NovaRootTab.Home -> onHomeClick()
                 NovaRootTab.People -> onPeopleClick()
@@ -200,7 +202,7 @@ fun NovaBottomBar(
             NovaTab.Home -> NovaRootTab.Home
             NovaTab.People -> NovaRootTab.People
             NovaTab.Profile -> NovaRootTab.Profile
-            NovaTab.Messages -> return
+            NovaTab.Messages, NovaTab.Reels -> return
         }
 
         rootNavigationPlan(currentRoot, requested).forEach { step ->
@@ -214,7 +216,7 @@ fun NovaBottomBar(
 
     LaunchedEffect(rootRequestVersion, selected) {
         val requested = NovaRootNavigationSignal.pendingTab ?: return@LaunchedEffect
-        if (selected == NovaTab.Messages) return@LaunchedEffect
+        if (selected == NovaTab.Messages || selected == NovaTab.Reels) return@LaunchedEffect
 
         dispatchRoot(requested)
         NovaRootNavigationSignal.consume(requested)
@@ -229,7 +231,7 @@ fun NovaBottomBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
+                .padding(horizontal = 5.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -244,6 +246,18 @@ fun NovaBottomBar(
                 symbol = "◎",
                 selected = selected == NovaTab.People,
                 onClick = { dispatchRoot(NovaRootTab.People) },
+            )
+            NovaTabItem(
+                label = "Reels",
+                symbol = "▶",
+                selected = selected == NovaTab.Reels,
+                onClick = {
+                    if (onReelsClick != null) {
+                        onReelsClick()
+                    } else {
+                        NovaReelsNavigator.open(context)
+                    }
+                },
             )
             NovaTabItem(
                 label = "Messages",
@@ -282,12 +296,12 @@ private fun NovaTabItem(
         shape = RoundedCornerShape(16.dp),
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
             ) {
                 Text(
                     text = symbol,
@@ -302,9 +316,9 @@ private fun NovaTabItem(
                     ) {
                         Text(
                             text = if (badgeCount > 99) "99+" else badgeCount.toString(),
-                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
                             color = Color.White,
-                            fontSize = 9.sp,
+                            fontSize = 8.sp,
                             fontWeight = FontWeight.Bold,
                         )
                     }
@@ -314,7 +328,7 @@ private fun NovaTabItem(
             Text(
                 text = label,
                 color = if (selected) NovaAccent else NovaMuted,
-                fontSize = 11.sp,
+                fontSize = 10.sp,
                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
             )
         }
@@ -324,6 +338,7 @@ private fun NovaTabItem(
 enum class NovaTab {
     Home,
     People,
+    Reels,
     Messages,
     Profile,
 }
