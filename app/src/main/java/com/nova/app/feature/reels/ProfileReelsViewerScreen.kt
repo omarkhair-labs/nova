@@ -369,11 +369,12 @@ fun ProfileReelsViewerScreen(
     }
 
     commentsReel?.let { reel ->
-        ProfileReelCommentsSheet(
+        ThreadedReelCommentsSheet(
             reel = reel,
             repository = interactionRepository,
             onDismiss = { commentsReel = null },
             onReelUpdated = ::replaceReel,
+            onPersonClick = {},
             onSessionExpired = onFinish,
         )
     }
