@@ -4,7 +4,7 @@ from django.db.models import Case, Exists, F, IntegerField, OuterRef, Value, Whe
 from django.utils import timezone
 
 from .models import Follow
-from .reels_models import ReelComment, ReelLike, ReelRepost
+from .reels_models import ReelComment, ReelLike, ReelRepost, ReelWatch
 
 
 RANK_CURSOR_PREFIX = "r1:"
@@ -16,8 +16,12 @@ FOLLOWED_REPOST_BOOST = 30
 LIKED_CREATOR_BOOST = 14
 COMMENTED_CREATOR_BOOST = 20
 REPOSTED_CREATOR_BOOST = 18
+WATCHED_CREATOR_BOOST = 22
+REPLAYED_CREATOR_BOOST = 12
 LIKED_REEL_PENALTY = -8
 REPOSTED_REEL_PENALTY = -6
+COMPLETED_REEL_PENALTY = -18
+QUICK_SKIPPED_REEL_PENALTY = -26
 OWN_REEL_PENALTY = -16
 
 
@@ -47,6 +51,16 @@ def ranked_reels_for(user, queryset):
         user=user,
         reel__author_id=OuterRef("author_id"),
     ).exclude(reel_id=OuterRef("pk"))
+    watched_creator_well_before = ReelWatch.objects.filter(
+        user=user,
+        reel__author_id=OuterRef("author_id"),
+        max_completion_permille__gte=700,
+    ).exclude(reel_id=OuterRef("pk"))
+    replayed_creator_before = ReelWatch.objects.filter(
+        user=user,
+        reel__author_id=OuterRef("author_id"),
+        replay_count__gte=1,
+    ).exclude(reel_id=OuterRef("pk"))
     liked_current_reel = ReelLike.objects.filter(
         user=user,
         reel_id=OuterRef("pk"),
@@ -54,6 +68,17 @@ def ranked_reels_for(user, queryset):
     reposted_current_reel = ReelRepost.objects.filter(
         user=user,
         reel_id=OuterRef("pk"),
+    )
+    completed_current_reel = ReelWatch.objects.filter(
+        user=user,
+        reel_id=OuterRef("pk"),
+        completion_count__gte=1,
+    )
+    quick_skipped_current_reel = ReelWatch.objects.filter(
+        user=user,
+        reel_id=OuterRef("pk"),
+        quick_skip_count__gte=1,
+        completion_count=0,
     )
 
     return (
@@ -83,6 +108,16 @@ def ranked_reels_for(user, queryset):
                 default=Value(0),
                 output_field=IntegerField(),
             ),
+            watched_creator_score=Case(
+                When(Exists(watched_creator_well_before), then=Value(WATCHED_CREATOR_BOOST)),
+                default=Value(0),
+                output_field=IntegerField(),
+            ),
+            replayed_creator_score=Case(
+                When(Exists(replayed_creator_before), then=Value(REPLAYED_CREATOR_BOOST)),
+                default=Value(0),
+                output_field=IntegerField(),
+            ),
             freshness_score=Case(
                 When(created_at__gte=now - timedelta(hours=6), then=Value(32)),
                 When(created_at__gte=now - timedelta(hours=24), then=Value(26)),
@@ -106,6 +141,16 @@ def ranked_reels_for(user, queryset):
                 default=Value(0),
                 output_field=IntegerField(),
             ),
+            completed_reel_penalty=Case(
+                When(Exists(completed_current_reel), then=Value(COMPLETED_REEL_PENALTY)),
+                default=Value(0),
+                output_field=IntegerField(),
+            ),
+            quick_skipped_reel_penalty=Case(
+                When(Exists(quick_skipped_current_reel), then=Value(QUICK_SKIPPED_REEL_PENALTY)),
+                default=Value(0),
+                output_field=IntegerField(),
+            ),
             own_reel_penalty=Case(
                 When(author=user, then=Value(OWN_REEL_PENALTY)),
                 default=Value(0),
@@ -119,10 +164,14 @@ def ranked_reels_for(user, queryset):
                 + F("liked_creator_score")
                 + F("commented_creator_score")
                 + F("reposted_creator_score")
+                + F("watched_creator_score")
+                + F("replayed_creator_score")
                 + F("freshness_score")
                 + F("engagement_score")
                 + F("liked_reel_penalty")
                 + F("reposted_reel_penalty")
+                + F("completed_reel_penalty")
+                + F("quick_skipped_reel_penalty")
                 + F("own_reel_penalty")
             )
         )
