@@ -43,6 +43,20 @@ def _notification_reel_id(notification):
     return reel_id if reel_id > 0 else None
 
 
+def _notification_reel_author_username(notification):
+    reel_id = _notification_reel_id(notification)
+    if reel_id is None:
+        return ""
+    from .reels_models import Reel
+
+    return (
+        Reel.objects.filter(pk=reel_id, author__is_active=True)
+        .values_list("author__username", flat=True)
+        .first()
+        or ""
+    )
+
+
 def _title_and_body(notification):
     actor_name = notification.actor.name.strip() or f"@{notification.actor.username}"
 
@@ -107,7 +121,7 @@ def send_notification_push(notification):
         "actor_username": notification.actor.username,
         "post_id": str(notification.post_id or ""),
         "reel_id": str(reel_id or ""),
-        "reel_author_username": notification.recipient.username if reel_id else "",
+        "reel_author_username": _notification_reel_author_username(notification),
     }
 
     sent = 0
