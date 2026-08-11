@@ -210,7 +210,7 @@ class ReelFeedView(APIView):
     def get(self, request):
         raw_cursor = str(request.query_params.get("cursor") or "").strip()
         try:
-            offset, legacy_pk_cursor = parse_rank_cursor(raw_cursor)
+            offset, legacy_pk_cursor, watch_cutoff = parse_rank_cursor(raw_cursor)
         except ValueError:
             return Response(
                 {"detail": "Invalid Reels cursor."},
@@ -220,13 +220,17 @@ class ReelFeedView(APIView):
         queryset = visible_reels_for(request.user)
         if legacy_pk_cursor is not None:
             queryset = queryset.filter(pk__lt=legacy_pk_cursor)
-        queryset = ranked_reels_for(request.user, queryset)
+        queryset = ranked_reels_for(
+            request.user,
+            queryset,
+            watch_cutoff=watch_cutoff,
+        )
 
         rows = list(queryset[offset : offset + REELS_PAGE_SIZE + 1])
         has_more = len(rows) > REELS_PAGE_SIZE
         page = _attach_repost_context(rows[:REELS_PAGE_SIZE])
         next_cursor = (
-            encode_rank_cursor(offset + REELS_PAGE_SIZE)
+            encode_rank_cursor(offset + REELS_PAGE_SIZE, watch_cutoff)
             if has_more and page
             else None
         )
@@ -316,8 +320,6 @@ class ReelWatchView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Own playback is useful for previewing content but should never teach
-        # the recommendation system that the creator prefers their own Reels.
         if reel.author_id == request.user.pk:
             return Response(_watch_payload(None, recorded=False))
 
