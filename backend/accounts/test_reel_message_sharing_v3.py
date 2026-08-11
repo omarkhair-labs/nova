@@ -7,7 +7,8 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import User, UserBlock
+from .messaging_models import GroupMembership
+from .models import Conversation, User, UserBlock
 from .privacy_models import AccountPrivacy
 from .reels_models import Reel
 from .sharing_models import MessageShare
@@ -80,6 +81,35 @@ class ReelMessageSharingV3Tests(APITestCase):
         )
         self.assertEqual(messages.status_code, status.HTTP_200_OK)
         self.assertEqual(messages.data["results"][0]["share"]["reel"]["id"], self.reel.pk)
+
+    def test_reel_share_creates_rich_group_message(self):
+        group = Conversation.objects.create(
+            kind=Conversation.Kind.GROUP,
+            title="Reel friends",
+            created_by=self.sender,
+        )
+        GroupMembership.objects.create(
+            conversation=group,
+            user=self.sender,
+            role=GroupMembership.Role.OWNER,
+        )
+        GroupMembership.objects.create(
+            conversation=group,
+            user=self.recipient,
+            role=GroupMembership.Role.MEMBER,
+        )
+
+        self.auth(self.sender)
+        response = self.share(conversation_id=group.pk)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["conversation"]["id"], group.pk)
+        self.assertEqual(response.data["message"]["share"]["kind"], "reel")
+        self.assertEqual(response.data["message"]["share"]["reel"]["id"], self.reel.pk)
+        share = MessageShare.objects.get()
+        self.assertEqual(share.reel_id, self.reel.pk)
+        self.assertEqual(share.message.conversation_id, group.pk)
+        self.assertIsNone(share.message.recipient_id)
 
     def test_private_reel_cannot_be_shared_to_recipient_without_access(self):
         AccountPrivacy.objects.create(user=self.author, is_private=True)
