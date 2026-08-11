@@ -4,7 +4,7 @@ from django.db.models import Case, Exists, F, IntegerField, OuterRef, Value, Whe
 from django.utils import timezone
 
 from .models import Follow
-from .reels_models import ReelComment, ReelLike
+from .reels_models import ReelComment, ReelLike, ReelRepost
 
 
 RANK_CURSOR_PREFIX = "r1:"
@@ -14,7 +14,9 @@ RANK_CURSOR_PREFIX = "r1:"
 FOLLOW_BOOST = 36
 LIKED_CREATOR_BOOST = 14
 COMMENTED_CREATOR_BOOST = 20
+REPOSTED_CREATOR_BOOST = 18
 LIKED_REEL_PENALTY = -8
+REPOSTED_REEL_PENALTY = -6
 OWN_REEL_PENALTY = -16
 
 
@@ -40,7 +42,15 @@ def ranked_reels_for(user, queryset):
         author=user,
         reel__author_id=OuterRef("author_id"),
     ).exclude(reel_id=OuterRef("pk"))
+    reposted_creator_before = ReelRepost.objects.filter(
+        user=user,
+        reel__author_id=OuterRef("author_id"),
+    ).exclude(reel_id=OuterRef("pk"))
     liked_current_reel = ReelLike.objects.filter(
+        user=user,
+        reel_id=OuterRef("pk"),
+    )
+    reposted_current_reel = ReelRepost.objects.filter(
         user=user,
         reel_id=OuterRef("pk"),
     )
@@ -62,6 +72,11 @@ def ranked_reels_for(user, queryset):
                 default=Value(0),
                 output_field=IntegerField(),
             ),
+            reposted_creator_score=Case(
+                When(Exists(reposted_creator_before), then=Value(REPOSTED_CREATOR_BOOST)),
+                default=Value(0),
+                output_field=IntegerField(),
+            ),
             freshness_score=Case(
                 When(created_at__gte=now - timedelta(hours=6), then=Value(32)),
                 When(created_at__gte=now - timedelta(hours=24), then=Value(26)),
@@ -73,9 +88,15 @@ def ranked_reels_for(user, queryset):
             engagement_score=(
                 F("likes_count_value") * Value(2)
                 + F("comments_count_value") * Value(4)
+                + F("reposts_count_value") * Value(3)
             ),
             liked_reel_penalty=Case(
                 When(Exists(liked_current_reel), then=Value(LIKED_REEL_PENALTY)),
+                default=Value(0),
+                output_field=IntegerField(),
+            ),
+            reposted_reel_penalty=Case(
+                When(Exists(reposted_current_reel), then=Value(REPOSTED_REEL_PENALTY)),
                 default=Value(0),
                 output_field=IntegerField(),
             ),
@@ -90,9 +111,11 @@ def ranked_reels_for(user, queryset):
                 F("follow_score")
                 + F("liked_creator_score")
                 + F("commented_creator_score")
+                + F("reposted_creator_score")
                 + F("freshness_score")
                 + F("engagement_score")
                 + F("liked_reel_penalty")
+                + F("reposted_reel_penalty")
                 + F("own_reel_penalty")
             )
         )
