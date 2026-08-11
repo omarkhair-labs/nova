@@ -1,0 +1,276 @@
+package com.nova.app.ui.components
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.nova.app.core.network.ApiResult
+import com.nova.app.core.reels.NovaProfileReelsRepository
+import com.nova.app.core.reels.NovaReel
+import com.nova.app.core.reels.NovaReelsNavigator
+import com.nova.app.ui.theme.NovaAccent
+import com.nova.app.ui.theme.NovaBorder
+import com.nova.app.ui.theme.NovaInk
+import com.nova.app.ui.theme.NovaMuted
+import com.nova.app.ui.theme.NovaSurface
+import kotlinx.coroutines.launch
+
+
+private val ProfileReelBackground = Color(0xFF090B10)
+private val ProfileReelInk = Color(0xFFF6F7FA)
+private val ProfileReelMuted = Color(0xFFB8BDC8)
+
+
+@Composable
+fun NovaProfileReelsGrid(
+    username: String,
+    isOwnProfile: Boolean,
+) {
+    val context = LocalContext.current
+    val repository = remember(context) {
+        NovaProfileReelsRepository(context.applicationContext)
+    }
+    val scope = rememberCoroutineScope()
+
+    var reels by remember(username) { mutableStateOf<List<NovaReel>>(emptyList()) }
+    var nextCursor by remember(username) { mutableStateOf<String?>(null) }
+    var isLoading by remember(username) { mutableStateOf(true) }
+    var isLoadingMore by remember(username) { mutableStateOf(false) }
+    var error by remember(username) { mutableStateOf<String?>(null) }
+
+    suspend fun loadFirstPage() {
+        isLoading = true
+        error = null
+        when (val result = repository.reels(username)) {
+            is ApiResult.Success -> {
+                reels = result.value.reels
+                nextCursor = result.value.nextCursor
+            }
+            is ApiResult.Failure -> error = result.message
+        }
+        isLoading = false
+    }
+
+    fun loadMore() {
+        val cursor = nextCursor ?: return
+        if (isLoadingMore || username.isBlank()) return
+        scope.launch {
+            isLoadingMore = true
+            error = null
+            when (val result = repository.reels(username, cursor)) {
+                is ApiResult.Success -> {
+                    val existingIds = reels.mapTo(mutableSetOf()) { it.id }
+                    reels = reels + result.value.reels.filterNot { it.id in existingIds }
+                    nextCursor = result.value.nextCursor
+                }
+                is ApiResult.Failure -> error = result.message
+            }
+            isLoadingMore = false
+        }
+    }
+
+    LaunchedEffect(username) {
+        if (username.isNotBlank()) {
+            loadFirstPage()
+        } else {
+            isLoading = false
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        when {
+            isLoading && reels.isEmpty() -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 46.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    CircularProgressIndicator(
+                        color = NovaAccent,
+                        strokeWidth = 2.dp,
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "Loading Reels…",
+                        color = NovaMuted,
+                        fontSize = 12.sp,
+                    )
+                }
+            }
+
+            reels.isEmpty() -> {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(22.dp),
+                    color = NovaSurface,
+                    border = BorderStroke(1.dp, NovaBorder),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 28.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            text = if (error != null) "Couldn't load Reels" else "No Reels yet",
+                            color = NovaInk,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = error ?: if (isOwnProfile) {
+                                "Reels you share will show up here."
+                            } else {
+                                "@$username hasn't shared any Reels yet."
+                            },
+                            color = NovaMuted,
+                            fontSize = 12.sp,
+                        )
+                        if (error != null) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Surface(
+                                onClick = { scope.launch { loadFirstPage() } },
+                                shape = RoundedCornerShape(14.dp),
+                                color = Color.Transparent,
+                                border = BorderStroke(1.dp, NovaBorder),
+                            ) {
+                                Text(
+                                    text = "Try again",
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                    color = NovaInk,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            else -> {
+                reels.chunked(3).forEachIndexed { rowIndex, rowReels ->
+                    if (rowIndex > 0) Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        rowReels.forEach { reel ->
+                            ProfileReelCard(
+                                reel = reel,
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    NovaReelsNavigator.openProfile(
+                                        context = context,
+                                        username = username,
+                                        initialReelId = reel.id,
+                                    )
+                                },
+                            )
+                        }
+                        repeat(3 - rowReels.size) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+
+                if (error != null) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = error.orEmpty(),
+                        modifier = Modifier.fillMaxWidth(),
+                        color = NovaMuted,
+                        fontSize = 11.sp,
+                    )
+                }
+
+                if (nextCursor != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    NovaSecondaryButton(
+                        text = if (isLoadingMore) "Loading more…" else "Load more Reels",
+                        onClick = { if (!isLoadingMore) loadMore() },
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun ProfileReelCard(
+    reel: NovaReel,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.aspectRatio(0.72f),
+        shape = RoundedCornerShape(6.dp),
+        color = ProfileReelBackground,
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(ProfileReelBackground),
+        ) {
+            Text(
+                text = "▶",
+                modifier = Modifier.align(Alignment.Center),
+                color = ProfileReelInk.copy(alpha = 0.88f),
+                fontSize = 23.sp,
+            )
+
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .background(Color.Black.copy(alpha = 0.48f))
+                    .padding(horizontal = 7.dp, vertical = 6.dp),
+            ) {
+                if (reel.caption.isNotBlank()) {
+                    Text(
+                        text = reel.caption,
+                        color = ProfileReelInk,
+                        fontSize = 9.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                }
+                Text(
+                    text = "♥ ${reel.likesCount}   ◌ ${reel.commentsCount}",
+                    color = ProfileReelMuted,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+    }
+}

@@ -40,6 +40,7 @@ import kotlinx.coroutines.launch
 
 private enum class ProfileContentTab {
     Posts,
+    Reels,
     Reposts,
 }
 
@@ -76,6 +77,14 @@ fun NovaProfileContentTabs(
                 PostsGridIcon(color = color)
             }
             ProfileTabButton(
+                selected = selectedTab == ProfileContentTab.Reels,
+                contentDescription = "Reels",
+                modifier = Modifier.weight(1f),
+                onClick = { selectedTab = ProfileContentTab.Reels },
+            ) { color ->
+                ReelsIcon(color = color)
+            }
+            ProfileTabButton(
                 selected = selectedTab == ProfileContentTab.Reposts,
                 contentDescription = "Reposts",
                 modifier = Modifier.weight(1f),
@@ -104,6 +113,13 @@ fun NovaProfileContentTabs(
                     onPostClick = onPostClick,
                     emptyTitle = postsEmptyTitle,
                     emptyMessage = postsEmptyMessage,
+                )
+            }
+
+            ProfileContentTab.Reels -> {
+                NovaProfileReelsGrid(
+                    username = username,
+                    isOwnProfile = isOwnProfile,
                 )
             }
 
@@ -170,6 +186,35 @@ private fun PostsGridIcon(color: Color) {
                 )
             }
         }
+    }
+}
+
+
+@Composable
+private fun ReelsIcon(color: Color) {
+    Canvas(modifier = Modifier.size(22.dp)) {
+        val stroke = 1.45.dp.toPx()
+        val left = size.width * 0.18f
+        val right = size.width * 0.82f
+        val top = size.height * 0.10f
+        val bottom = size.height * 0.90f
+
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(left, top),
+            size = Size(right - left, bottom - top),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.8.dp.toPx()),
+            style = Stroke(width = stroke),
+        )
+
+        val center = Offset(size.width * 0.52f, size.height * 0.53f)
+        val triangle = 4.2.dp.toPx()
+        val first = Offset(center.x - triangle * 0.55f, center.y - triangle)
+        val second = Offset(center.x - triangle * 0.55f, center.y + triangle)
+        val third = Offset(center.x + triangle, center.y)
+        drawLine(color, first, second, strokeWidth = stroke, cap = StrokeCap.Round)
+        drawLine(color, second, third, strokeWidth = stroke, cap = StrokeCap.Round)
+        drawLine(color, third, first, strokeWidth = stroke, cap = StrokeCap.Round)
     }
 }
 
