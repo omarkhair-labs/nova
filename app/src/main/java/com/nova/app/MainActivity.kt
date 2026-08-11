@@ -138,6 +138,6 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         const val NOTIFICATION_PERMISSION_REQUEST = 4201
-        val REEL_ACTIVITY_KINDS = setOf("reel_like", "reel_comment", "reel_repost")
+        val REEL_ACTIVITY_KINDS = setOf("reel_like", "reel_comment", "reel_repost", "reel_reply")
     }
 }
