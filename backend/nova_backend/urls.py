@@ -28,6 +28,11 @@ urlpatterns = [
         TemplateView.as_view(template_name="accounts/account_deletion.html"),
         name="account-deletion",
     ),
+    path(
+        "child-safety/",
+        TemplateView.as_view(template_name="accounts/child_safety.html"),
+        name="child-safety",
+    ),
     path("api/v1/health/", HealthView.as_view(), name="health"),
     path("api/v1/", include("accounts.urls")),
 ]
