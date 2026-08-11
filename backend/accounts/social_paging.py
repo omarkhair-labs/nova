@@ -1,4 +1,4 @@
-from django.db.models import Q
+from django.db.models import OuterRef, Q, Subquery
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -7,11 +7,13 @@ from rest_framework.views import APIView
 from .models import User
 from .privacy import can_view_user_content
 from .serializers import PersonSerializer, PostSerializer
+from .sharing_models import Repost
 from .trust_safety import active_person_for, blocked_user_ids, visible_active_users_for
 from .views import public_post_queryset
 
 SOCIAL_PAGE_SIZE = 24
 PROFILE_POST_PAGE_SIZE = 24
+PROFILE_REPOST_PAGE_SIZE = 24
 
 
 def _people_cursor(request):
@@ -72,6 +74,31 @@ def _people_page(request, queryset):
     )
 
 
+def _profile_content_allowed(request, person, noun):
+    if can_view_user_content(request.user, person):
+        return None
+    return Response(
+        {"detail": f"This account is private. Follow to see {noun}."},
+        status=status.HTTP_403_FORBIDDEN,
+    )
+
+
+def _positive_id_cursor(request, error_message):
+    raw_cursor = request.query_params.get("cursor", "").strip()
+    if not raw_cursor:
+        return None
+    try:
+        cursor_id = int(raw_cursor)
+    except ValueError:
+        cursor_id = 0
+    if cursor_id <= 0:
+        return Response(
+            {"detail": error_message},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return cursor_id
+
+
 class PaginatedPeopleView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -121,24 +148,16 @@ class PaginatedPersonPostsView(APIView):
 
     def get(self, request, username):
         person = active_person_for(request.user, username)
-        if not can_view_user_content(request.user, person):
-            return Response(
-                {"detail": "This account is private. Follow to see posts."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+        denied = _profile_content_allowed(request, person, "posts")
+        if denied is not None:
+            return denied
 
         posts = public_post_queryset(request).filter(author=person)
-
-        raw_cursor = request.query_params.get("cursor", "").strip()
-        if raw_cursor:
-            try:
-                cursor_id = int(raw_cursor)
-            except ValueError:
-                return Response(
-                    {"detail": "Invalid profile-post cursor."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            posts = posts.filter(id__lt=cursor_id)
+        cursor = _positive_id_cursor(request, "Invalid profile-post cursor.")
+        if isinstance(cursor, Response):
+            return cursor
+        if cursor is not None:
+            posts = posts.filter(id__lt=cursor)
 
         page_with_extra = list(
             posts.order_by("-id")[: PROFILE_POST_PAGE_SIZE + 1]
@@ -146,6 +165,54 @@ class PaginatedPersonPostsView(APIView):
         has_more = len(page_with_extra) > PROFILE_POST_PAGE_SIZE
         page = page_with_extra[:PROFILE_POST_PAGE_SIZE]
         next_cursor = str(page[-1].id) if has_more and page else None
+        return Response(
+            {
+                "results": PostSerializer(
+                    page,
+                    many=True,
+                    context={"request": request},
+                ).data,
+                "next_cursor": next_cursor,
+            }
+        )
+
+
+class PaginatedPersonRepostsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, username):
+        person = active_person_for(request.user, username)
+        denied = _profile_content_allowed(request, person, "reposts")
+        if denied is not None:
+            return denied
+
+        repost_id = Repost.objects.filter(
+            user=person,
+            post_id=OuterRef("pk"),
+        ).values("id")[:1]
+        posts = (
+            public_post_queryset(request)
+            .annotate(profile_repost_id=Subquery(repost_id))
+            .filter(profile_repost_id__isnull=False)
+        )
+
+        cursor = _positive_id_cursor(request, "Invalid profile-repost cursor.")
+        if isinstance(cursor, Response):
+            return cursor
+        if cursor is not None:
+            posts = posts.filter(profile_repost_id__lt=cursor)
+
+        page_with_extra = list(
+            posts.order_by("-profile_repost_id")[: PROFILE_REPOST_PAGE_SIZE + 1]
+        )
+        has_more = len(page_with_extra) > PROFILE_REPOST_PAGE_SIZE
+        page = page_with_extra[:PROFILE_REPOST_PAGE_SIZE]
+        next_cursor = (
+            str(page[-1].profile_repost_id)
+            if has_more and page
+            else None
+        )
+
         return Response(
             {
                 "results": PostSerializer(

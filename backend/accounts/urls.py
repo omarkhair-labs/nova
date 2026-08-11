@@ -49,6 +49,7 @@ from .social_paging import (
     FollowingView,
     PaginatedPeopleView,
     PaginatedPersonPostsView,
+    PaginatedPersonRepostsView,
 )
 from .stories import (
     StoryDetailView,
@@ -124,6 +125,11 @@ urlpatterns = [
         "people/<str:username>/posts/",
         PaginatedPersonPostsView.as_view(),
         name="person-posts",
+    ),
+    path(
+        "people/<str:username>/reposts/",
+        PaginatedPersonRepostsView.as_view(),
+        name="person-reposts",
     ),
     path(
         "people/<str:username>/followers/",

@@ -86,33 +86,53 @@ class NovaSocialPagingRepository(
         cursor: String? = null,
     ): ApiResult<NovaProfilePostPage> {
         return authenticatedCall { token ->
-            val suffix = if (cursor.isNullOrBlank()) {
-                ""
-            } else {
-                "?cursor=${encode(cursor)}"
-            }
-            when (
-                val response = requestJson(
-                    path = "people/${encode(username.trim().lowercase())}/posts/$suffix",
-                    bearerToken = token,
-                )
-            ) {
-                is ApiResult.Success -> {
-                    val array = response.value.optJSONArray("results") ?: JSONArray()
-                    val posts = buildList {
-                        for (index in 0 until array.length()) {
-                            array.optJSONObject(index)?.let { add(parsePost(it)) }
-                        }
+            requestProfilePostPage(
+                path = "people/${encode(username.trim().lowercase())}/posts/",
+                bearerToken = token,
+                cursor = cursor,
+            )
+        }
+    }
+
+    suspend fun profileReposts(
+        username: String,
+        cursor: String? = null,
+    ): ApiResult<NovaProfilePostPage> {
+        return authenticatedCall { token ->
+            requestProfilePostPage(
+                path = "people/${encode(username.trim().lowercase())}/reposts/",
+                bearerToken = token,
+                cursor = cursor,
+            )
+        }
+    }
+
+    private suspend fun requestProfilePostPage(
+        path: String,
+        bearerToken: String,
+        cursor: String?,
+    ): ApiResult<NovaProfilePostPage> {
+        val resolvedPath = if (cursor.isNullOrBlank()) {
+            path
+        } else {
+            "$path?cursor=${encode(cursor)}"
+        }
+        return when (val response = requestJson(resolvedPath, bearerToken = bearerToken)) {
+            is ApiResult.Success -> {
+                val array = response.value.optJSONArray("results") ?: JSONArray()
+                val posts = buildList {
+                    for (index in 0 until array.length()) {
+                        array.optJSONObject(index)?.let { add(parsePost(it)) }
                     }
-                    ApiResult.Success(
-                        NovaProfilePostPage(
-                            posts = posts,
-                            nextCursor = optionalString(response.value, "next_cursor"),
-                        )
-                    )
                 }
-                is ApiResult.Failure -> response
+                ApiResult.Success(
+                    NovaProfilePostPage(
+                        posts = posts,
+                        nextCursor = optionalString(response.value, "next_cursor"),
+                    )
+                )
             }
+            is ApiResult.Failure -> response
         }
     }
 

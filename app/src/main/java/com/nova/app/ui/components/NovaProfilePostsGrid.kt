@@ -36,17 +36,22 @@ fun NovaProfilePostsGrid(
     onPostClick: (NovaPost) -> Unit,
     emptyTitle: String = "No posts yet",
     emptyMessage: String = "Shared moments will show up here.",
+    sectionTitle: String? = "Posts",
+    loadingLabel: String = "Loading posts…",
+    errorTitle: String = "Couldn't load posts",
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(
-            text = "Posts",
-            color = NovaInk,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-        )
+        if (!sectionTitle.isNullOrBlank()) {
+            Text(
+                text = sectionTitle,
+                color = NovaInk,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
 
         when {
             isLoading && posts.isEmpty() -> {
@@ -62,7 +67,7 @@ fun NovaProfilePostsGrid(
                     ) {
                         CircularProgressIndicator(color = NovaAccent)
                         Text(
-                            text = "Loading posts…",
+                            text = loadingLabel,
                             color = NovaMuted,
                             fontSize = 12.sp,
                             modifier = Modifier.padding(top = 12.dp),
@@ -80,7 +85,7 @@ fun NovaProfilePostsGrid(
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text(
-                            text = "Couldn't load posts",
+                            text = errorTitle,
                             color = NovaInk,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold,
