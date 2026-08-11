@@ -1,20 +1,24 @@
-from django.db.models import Count, Exists, OuterRef, Q
+from django.db.models import Count, Exists, OuterRef, Q, Subquery
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Follow
-from .reels_models import Reel, ReelComment, ReelLike
+from .models import Follow, Notification, User
+from .push import send_notification_push
+from .reels_models import Reel, ReelComment, ReelLike, ReelRepost
 from .reels_ranking import encode_rank_cursor, parse_rank_cursor, ranked_reels_for
-from .trust_safety import blocked_user_ids
+from .trust_safety import blocked_user_ids, users_blocked
 
 
 REELS_PAGE_SIZE = 24
 MAX_REEL_VIDEO_BYTES = 120 * 1024 * 1024
 MAX_REEL_CAPTION_LENGTH = 500
 MAX_REEL_COMMENT_LENGTH = 300
+REEL_LIKE_NOTIFICATION = "reel_like"
+REEL_COMMENT_NOTIFICATION = "reel_comment"
+REEL_REPOST_NOTIFICATION = "reel_repost"
 
 
 def _absolute_media_url(request, field):
@@ -36,6 +40,16 @@ def visible_reels_for(user):
     blocked_ids = blocked_user_ids(user)
     followed_ids = Follow.objects.filter(follower=user).values_list("following_id", flat=True)
     liked = ReelLike.objects.filter(reel_id=OuterRef("pk"), user=user)
+    reposted = ReelRepost.objects.filter(reel_id=OuterRef("pk"), user=user)
+    latest_followed_repost = (
+        ReelRepost.objects.filter(
+            reel_id=OuterRef("pk"),
+            user_id__in=followed_ids,
+            user__is_active=True,
+        )
+        .exclude(user_id__in=blocked_ids)
+        .order_by("-created_at", "-id")
+    )
     return (
         Reel.objects.select_related("author")
         .filter(author__is_active=True)
@@ -47,12 +61,44 @@ def visible_reels_for(user):
             | Q(author__account_privacy__is_private=False)
         )
         .annotate(
-            likes_count_value=Count("likes", distinct=True),
-            comments_count_value=Count("comments", distinct=True),
+            likes_count_value=Count(
+                "likes",
+                filter=~Q(likes__user_id__in=blocked_ids),
+                distinct=True,
+            ),
+            comments_count_value=Count(
+                "comments",
+                filter=~Q(comments__author_id__in=blocked_ids),
+                distinct=True,
+            ),
+            reposts_count_value=Count(
+                "reposts",
+                filter=~Q(reposts__user_id__in=blocked_ids),
+                distinct=True,
+            ),
             is_liked_value=Exists(liked),
+            is_reposted_value=Exists(reposted),
+            has_followed_repost_value=Exists(latest_followed_repost),
+            followed_reposter_id_value=Subquery(
+                latest_followed_repost.values("user_id")[:1]
+            ),
         )
         .distinct()
     )
+
+
+def _attach_repost_context(reels):
+    reposter_ids = {
+        getattr(reel, "followed_reposter_id_value", None)
+        for reel in reels
+        if getattr(reel, "followed_reposter_id_value", None)
+    }
+    reposters = User.objects.filter(pk__in=reposter_ids, is_active=True).in_bulk()
+    for reel in reels:
+        reel.feed_reposted_by_value = reposters.get(
+            getattr(reel, "followed_reposter_id_value", None)
+        )
+    return reels
 
 
 def _visible_reel(request, reel_id):
@@ -62,13 +108,20 @@ def _visible_reel(request, reel_id):
 def _reel_payload(request, reel):
     likes_count = getattr(reel, "likes_count_value", None)
     comments_count = getattr(reel, "comments_count_value", None)
+    reposts_count = getattr(reel, "reposts_count_value", None)
     is_liked = getattr(reel, "is_liked_value", None)
+    is_reposted = getattr(reel, "is_reposted_value", None)
+    reposter = getattr(reel, "feed_reposted_by_value", None)
     if likes_count is None:
         likes_count = reel.likes.count()
     if comments_count is None:
         comments_count = reel.comments.count()
+    if reposts_count is None:
+        reposts_count = reel.reposts.count()
     if is_liked is None:
         is_liked = reel.likes.filter(user=request.user).exists()
+    if is_reposted is None:
+        is_reposted = reel.reposts.filter(user=request.user).exists()
     return {
         "id": reel.pk,
         "author": _author_payload(request, reel.author),
@@ -78,7 +131,10 @@ def _reel_payload(request, reel):
         "is_mine": reel.author_id == request.user.pk,
         "likes_count": likes_count,
         "comments_count": comments_count,
+        "reposts_count": reposts_count,
         "is_liked": bool(is_liked),
+        "is_reposted": bool(is_reposted),
+        "reposted_by": _author_payload(request, reposter) if reposter is not None else None,
     }
 
 
@@ -90,6 +146,22 @@ def _comment_payload(request, comment):
         "created_at": comment.created_at.isoformat(),
         "is_mine": comment.author_id == request.user.pk,
     }
+
+
+def _create_reel_notification(*, reel, actor, kind, dedupe_key):
+    if reel.author_id == actor.pk or users_blocked(reel.author, actor):
+        return None
+    notification, created = Notification.objects.get_or_create(
+        dedupe_key=dedupe_key,
+        defaults={
+            "recipient": reel.author,
+            "actor": actor,
+            "kind": kind,
+        },
+    )
+    if created:
+        send_notification_push(notification)
+    return notification
 
 
 class ReelFeedView(APIView):
@@ -112,7 +184,7 @@ class ReelFeedView(APIView):
 
         rows = list(queryset[offset : offset + REELS_PAGE_SIZE + 1])
         has_more = len(rows) > REELS_PAGE_SIZE
-        page = rows[:REELS_PAGE_SIZE]
+        page = _attach_repost_context(rows[:REELS_PAGE_SIZE])
         next_cursor = (
             encode_rank_cursor(offset + REELS_PAGE_SIZE)
             if has_more and page
@@ -158,7 +230,9 @@ class ReelDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, reel_id):
-        return Response(_reel_payload(request, _visible_reel(request, reel_id)))
+        reel = _visible_reel(request, reel_id)
+        _attach_repost_context([reel])
+        return Response(_reel_payload(request, reel))
 
     def delete(self, request, reel_id):
         reel = get_object_or_404(Reel, pk=reel_id, author=request.user)
@@ -171,14 +245,48 @@ class ReelLikeView(APIView):
 
     def post(self, request, reel_id):
         reel = _visible_reel(request, reel_id)
-        ReelLike.objects.get_or_create(reel=reel, user=request.user)
+        _, created = ReelLike.objects.get_or_create(reel=reel, user=request.user)
+        if created:
+            _create_reel_notification(
+                reel=reel,
+                actor=request.user,
+                kind=REEL_LIKE_NOTIFICATION,
+                dedupe_key=f"reel_like:{request.user.pk}:{reel.pk}",
+            )
         reel = _visible_reel(request, reel_id)
+        _attach_repost_context([reel])
         return Response(_reel_payload(request, reel))
 
     def delete(self, request, reel_id):
         reel = _visible_reel(request, reel_id)
         ReelLike.objects.filter(reel=reel, user=request.user).delete()
         reel = _visible_reel(request, reel_id)
+        _attach_repost_context([reel])
+        return Response(_reel_payload(request, reel))
+
+
+class ReelRepostView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, reel_id):
+        reel = _visible_reel(request, reel_id)
+        _, created = ReelRepost.objects.get_or_create(reel=reel, user=request.user)
+        if created:
+            _create_reel_notification(
+                reel=reel,
+                actor=request.user,
+                kind=REEL_REPOST_NOTIFICATION,
+                dedupe_key=f"reel_repost:{request.user.pk}:{reel.pk}",
+            )
+        reel = _visible_reel(request, reel_id)
+        _attach_repost_context([reel])
+        return Response(_reel_payload(request, reel))
+
+    def delete(self, request, reel_id):
+        reel = _visible_reel(request, reel_id)
+        ReelRepost.objects.filter(reel=reel, user=request.user).delete()
+        reel = _visible_reel(request, reel_id)
+        _attach_repost_context([reel])
         return Response(_reel_payload(request, reel))
 
 
@@ -204,7 +312,14 @@ class ReelCommentsView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         comment = ReelComment.objects.create(reel=reel, author=request.user, body=body)
+        _create_reel_notification(
+            reel=reel,
+            actor=request.user,
+            kind=REEL_COMMENT_NOTIFICATION,
+            dedupe_key=f"reel_comment:{comment.pk}:{reel.pk}",
+        )
         reel = _visible_reel(request, reel_id)
+        _attach_repost_context([reel])
         return Response(
             {
                 "comment": _comment_payload(request, comment),
@@ -226,4 +341,5 @@ class ReelCommentDetailView(APIView):
         reel_id = comment.reel_id
         comment.delete()
         reel = _visible_reel(request, reel_id)
+        _attach_repost_context([reel])
         return Response({"reel": _reel_payload(request, reel)})

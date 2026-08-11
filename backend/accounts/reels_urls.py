@@ -7,6 +7,7 @@ from .reels import (
     ReelDetailView,
     ReelFeedView,
     ReelLikeView,
+    ReelRepostView,
 )
 
 
@@ -15,6 +16,7 @@ urlpatterns = [
     path("reels/profile/<str:username>/", ProfileReelsView.as_view(), name="profile-reels"),
     path("reels/<int:reel_id>/", ReelDetailView.as_view(), name="reel-detail"),
     path("reels/<int:reel_id>/like/", ReelLikeView.as_view(), name="reel-like"),
+    path("reels/<int:reel_id>/repost/", ReelRepostView.as_view(), name="reel-repost"),
     path("reels/<int:reel_id>/comments/", ReelCommentsView.as_view(), name="reel-comments"),
     path(
         "reel-comments/<int:comment_id>/",

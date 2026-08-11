@@ -8,6 +8,7 @@ from .privacy import can_view_user_content, is_private_account, pending_follow_r
 from .sharing_models import Repost
 
 User = get_user_model()
+REEL_NOTIFICATION_KINDS = {"reel_like", "reel_comment", "reel_repost"}
 
 
 class AvatarUrlMixin:
@@ -278,6 +279,8 @@ class CommentSerializer(serializers.ModelSerializer):
 class NotificationSerializer(serializers.ModelSerializer):
     actor = PostAuthorSerializer(read_only=True)
     post_id = serializers.IntegerField(read_only=True, allow_null=True)
+    reel_id = serializers.SerializerMethodField()
+    reel_author_username = serializers.SerializerMethodField()
     comment_preview = serializers.SerializerMethodField()
     is_read = serializers.SerializerMethodField()
 
@@ -288,11 +291,30 @@ class NotificationSerializer(serializers.ModelSerializer):
             "kind",
             "actor",
             "post_id",
+            "reel_id",
+            "reel_author_username",
             "comment_preview",
             "created_at",
             "is_read",
         )
         read_only_fields = fields
+
+    def get_reel_id(self, obj):
+        if obj.kind not in REEL_NOTIFICATION_KINDS:
+            return None
+        try:
+            reel_id = int(str(obj.dedupe_key).rsplit(":", 1)[-1])
+        except (TypeError, ValueError):
+            return None
+        return reel_id if reel_id > 0 else None
+
+    def get_reel_author_username(self, obj):
+        if self.get_reel_id(obj) is None:
+            return ""
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            return request.user.username
+        return ""
 
     def get_comment_preview(self, obj):
         return obj.comment.body if obj.comment_id and obj.comment else ""

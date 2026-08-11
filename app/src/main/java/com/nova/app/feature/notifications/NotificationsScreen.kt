@@ -41,6 +41,7 @@ import com.nova.app.core.notifications.NovaNotification
 import com.nova.app.core.notifications.NovaNotificationRepository
 import com.nova.app.core.privacy.NovaFollowRequest
 import com.nova.app.core.privacy.NovaPrivacyRepository
+import com.nova.app.core.reels.NovaReelsNavigator
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.theme.NovaAccent
@@ -193,6 +194,17 @@ fun NotificationsScreen(
         }
     }
 
+    fun openReel(notification: NovaNotification) {
+        val reelId = notification.reelId ?: return
+        val username = notification.reelAuthorUsername.trim().lowercase()
+        if (reelId <= 0L || username.isBlank()) return
+        NovaReelsNavigator.openProfile(
+            context = context,
+            username = username,
+            initialReelId = reelId,
+        )
+    }
+
     LaunchedEffect(Unit) {
         loadActivity(reset = true)
     }
@@ -267,7 +279,7 @@ fun NotificationsScreen(
                             fontWeight = FontWeight.Bold,
                         )
                         Text(
-                            text = "Follow requests, likes, comments and new people around you.",
+                            text = "Follow requests, likes, comments, reposts and new people around you.",
                             color = NovaMuted,
                             fontSize = 12.sp,
                         )
@@ -422,7 +434,7 @@ fun NotificationsScreen(
                             )
                             Spacer(modifier = Modifier.height(7.dp))
                             Text(
-                                text = "Follow requests, follows, likes and comments will show up here.",
+                                text = "Follow requests, follows, likes, comments and Reel reposts will show up here.",
                                 color = NovaMuted,
                                 fontSize = 13.sp,
                                 lineHeight = 19.sp,
@@ -453,6 +465,13 @@ fun NotificationsScreen(
                                 "like", "comment" -> {
                                     notification.postId?.let(::openPost)
                                         ?: onPersonClick(notification.actor.username)
+                                }
+                                "reel_like", "reel_comment", "reel_repost" -> {
+                                    if (notification.reelId != null && notification.reelAuthorUsername.isNotBlank()) {
+                                        openReel(notification)
+                                    } else {
+                                        onPersonClick(notification.actor.username)
+                                    }
                                 }
                                 else -> onPersonClick(notification.actor.username)
                             }
@@ -670,6 +689,9 @@ private fun notificationText(notification: NovaNotification): String {
                 "$name commented: “${preview.take(90)}${if (preview.length > 90) "…" else ""}”"
             }
         }
+        "reel_like" -> "$name liked your Reel"
+        "reel_comment" -> "$name commented on your Reel"
+        "reel_repost" -> "$name reposted your Reel"
         else -> "$name interacted with you"
     }
 }

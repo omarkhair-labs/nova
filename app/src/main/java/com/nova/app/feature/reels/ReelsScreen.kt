@@ -96,6 +96,7 @@ fun ReelsScreen(
     var loading by remember { mutableStateOf(true) }
     var loadingMore by remember { mutableStateOf(false) }
     var likingId by remember { mutableStateOf<Long?>(null) }
+    var repostingId by remember { mutableStateOf<Long?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var pendingVideo by remember { mutableStateOf<Uri?>(null) }
     var uploading by remember { mutableStateOf(false) }
@@ -146,6 +147,20 @@ fun ReelsScreen(
                 }
             }
             likingId = null
+        }
+    }
+
+    fun toggleRepost(reel: NovaReel) {
+        if (repostingId != null) return
+        scope.launch {
+            repostingId = reel.id
+            when (val result = repository.setReposted(reel.id, !reel.isReposted)) {
+                is ApiResult.Success -> replaceReel(result.value)
+                is ApiResult.Failure -> {
+                    if (result.statusCode == 401) onFinish() else error = result.message
+                }
+            }
+            repostingId = null
         }
     }
 
@@ -274,8 +289,10 @@ fun ReelsScreen(
                             reel = reel,
                             isActive = pagerState.currentPage == page,
                             isLiking = likingId == reel.id,
+                            isReposting = repostingId == reel.id,
                             onLike = { toggleLike(reel) },
                             onComments = { commentsReel = reel },
+                            onRepost = { toggleRepost(reel) },
                             onShare = { shareReel(reel) },
                             onAuthor = { onPersonClick(reel.author.username) },
                         )
@@ -388,8 +405,10 @@ private fun ReelPage(
     reel: NovaReel,
     isActive: Boolean,
     isLiking: Boolean,
+    isReposting: Boolean,
     onLike: () -> Unit,
     onComments: () -> Unit,
+    onRepost: () -> Unit,
     onShare: () -> Unit,
     onAuthor: () -> Unit,
 ) {
@@ -457,7 +476,7 @@ private fun ReelPage(
                 .align(Alignment.BottomEnd)
                 .padding(end = 14.dp, bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             ReelAction(
                 symbol = if (reel.isLiked) "♥" else "♡",
@@ -470,6 +489,13 @@ private fun ReelPage(
                 symbol = "◌",
                 label = reel.commentsCount.toString(),
                 onClick = onComments,
+            )
+            ReelAction(
+                symbol = "↻",
+                label = reel.repostsCount.toString(),
+                active = reel.isReposted,
+                busy = isReposting,
+                onClick = onRepost,
             )
             ReelAction(
                 symbol = "↗",
@@ -489,6 +515,15 @@ private fun ReelPage(
                 .fillMaxWidth(0.78f)
                 .padding(start = 16.dp, end = 10.dp, bottom = 24.dp),
         ) {
+            reel.repostedBy?.let { reposter ->
+                Text(
+                    text = "↻ @${reposter.username} reposted",
+                    color = ReelMuted,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
             Row(
                 modifier = Modifier.clickable(onClick = onAuthor),
                 verticalAlignment = Alignment.CenterVertically,

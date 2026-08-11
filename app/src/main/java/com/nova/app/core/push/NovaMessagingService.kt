@@ -163,6 +163,9 @@ class NovaMessagingService : FirebaseMessagingService() {
             "follow" -> "New follower"
             "like" -> "New like"
             "comment" -> "New comment"
+            "reel_like" -> "New Reel like"
+            "reel_comment" -> "New Reel comment"
+            "reel_repost" -> "New Reel repost"
             "message" -> actor
             else -> "Nova activity"
         }
@@ -178,6 +181,9 @@ class NovaMessagingService : FirebaseMessagingService() {
             "follow" -> "$actor started following you"
             "like" -> "$actor liked your post"
             "comment" -> "$actor commented on your post"
+            "reel_like" -> "$actor liked your Reel"
+            "reel_comment" -> "$actor commented on your Reel"
+            "reel_repost" -> "$actor reposted your Reel"
             "message" -> messagePreview.ifBlank { "$actor sent you a message" }
             else -> "$actor interacted with you"
         }

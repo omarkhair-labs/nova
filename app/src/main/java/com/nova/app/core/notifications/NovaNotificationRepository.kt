@@ -19,6 +19,8 @@ data class NovaNotification(
     val kind: String,
     val actor: NovaPostAuthor,
     val postId: Long?,
+    val reelId: Long?,
+    val reelAuthorUsername: String,
     val commentPreview: String,
     val createdAt: String,
     val isRead: Boolean,
@@ -151,6 +153,12 @@ class NovaNotificationApiClient(
             is Number -> rawPostId.toLong()
             else -> rawPostId.toString().toLongOrNull()
         }
+        val rawReelId = json.opt("reel_id")
+        val reelId = when (rawReelId) {
+            null, JSONObject.NULL -> null
+            is Number -> rawReelId.toLong()
+            else -> rawReelId.toString().toLongOrNull()
+        }
 
         return NovaNotification(
             id = json.optLong("id"),
@@ -162,6 +170,8 @@ class NovaNotificationApiClient(
                 avatarUrl = resolveMediaUrl(actor.optString("avatar_url")),
             ),
             postId = postId,
+            reelId = reelId,
+            reelAuthorUsername = json.optString("reel_author_username"),
             commentPreview = json.optString("comment_preview"),
             createdAt = json.optString("created_at"),
             isRead = json.optBoolean("is_read", false),

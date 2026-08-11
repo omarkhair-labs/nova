@@ -10,7 +10,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from .models import Follow, User
-from .reels_models import Reel, ReelComment, ReelLike
+from .reels_models import Reel, ReelComment, ReelLike, ReelRepost
 
 
 class ReelRankingTests(APITestCase):
@@ -77,6 +77,23 @@ class ReelRankingTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["results"][0]["id"], followed_reel.id)
+
+    def test_followed_person_repost_distributes_reel_with_attribution(self):
+        reposter = self.make_user("reposter")
+        creator = self.make_user("socialcreator")
+        fresh_creator = self.make_user("freshunknown")
+        social_reel = self.make_reel(creator, "social-repost", timedelta(days=3))
+        self.make_reel(fresh_creator, "fresh-unknown", timedelta(hours=1))
+        Follow.objects.create(follower=self.me, following=reposter)
+        ReelRepost.objects.create(reel=social_reel, user=reposter)
+
+        response = self.feed()
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        first = response.data["results"][0]
+        self.assertEqual(first["id"], social_reel.id)
+        self.assertEqual(first["reposted_by"]["username"], reposter.username)
+        self.assertEqual(first["reposts_count"], 1)
 
     def test_previous_like_creates_creator_affinity(self):
         affinity_creator = self.make_user("affinity")

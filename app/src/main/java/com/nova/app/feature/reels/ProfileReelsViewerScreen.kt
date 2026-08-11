@@ -90,6 +90,7 @@ fun ProfileReelsViewerScreen(
     var loadingMore by remember(username) { mutableStateOf(false) }
     var error by remember(username) { mutableStateOf<String?>(null) }
     var likingId by remember(username) { mutableStateOf<Long?>(null) }
+    var repostingId by remember(username) { mutableStateOf<Long?>(null) }
     var commentsReel by remember(username) { mutableStateOf<NovaReel?>(null) }
 
     fun replaceReel(updated: NovaReel) {
@@ -128,6 +129,20 @@ fun ProfileReelsViewerScreen(
                 }
             }
             likingId = null
+        }
+    }
+
+    fun toggleRepost(reel: NovaReel) {
+        if (repostingId != null) return
+        scope.launch {
+            repostingId = reel.id
+            when (val result = interactionRepository.setReposted(reel.id, !reel.isReposted)) {
+                is ApiResult.Success -> replaceReel(result.value)
+                is ApiResult.Failure -> {
+                    if (result.statusCode == 401) onFinish() else error = result.message
+                }
+            }
+            repostingId = null
         }
     }
 
@@ -277,8 +292,10 @@ fun ProfileReelsViewerScreen(
                         reel = reel,
                         isActive = pagerState.currentPage == page,
                         isLiking = likingId == reel.id,
+                        isReposting = repostingId == reel.id,
                         onLike = { toggleLike(reel) },
                         onComments = { commentsReel = reel },
+                        onRepost = { toggleRepost(reel) },
                         onShare = { shareReel(reel) },
                     )
                 }
@@ -368,8 +385,10 @@ private fun ProfileViewerReelPage(
     reel: NovaReel,
     isActive: Boolean,
     isLiking: Boolean,
+    isReposting: Boolean,
     onLike: () -> Unit,
     onComments: () -> Unit,
+    onRepost: () -> Unit,
     onShare: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -436,7 +455,7 @@ private fun ProfileViewerReelPage(
                 .align(Alignment.BottomEnd)
                 .padding(end = 14.dp, bottom = 27.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             ProfileViewerAction(
                 symbol = if (reel.isLiked) "♥" else "♡",
@@ -449,6 +468,13 @@ private fun ProfileViewerReelPage(
                 symbol = "◌",
                 label = reel.commentsCount.toString(),
                 onClick = onComments,
+            )
+            ProfileViewerAction(
+                symbol = "↻",
+                label = reel.repostsCount.toString(),
+                active = reel.isReposted,
+                busy = isReposting,
+                onClick = onRepost,
             )
             ProfileViewerAction(
                 symbol = "↗",

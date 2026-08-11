@@ -10,6 +10,8 @@ from .trust_safety import blocked_user_ids
 
 logger = logging.getLogger(__name__)
 
+REEL_NOTIFICATION_KINDS = {"reel_like", "reel_comment", "reel_repost"}
+
 
 @lru_cache(maxsize=1)
 def _firebase_app():
@@ -31,6 +33,16 @@ def _firebase_app():
         return None
 
 
+def _notification_reel_id(notification):
+    if notification.kind not in REEL_NOTIFICATION_KINDS:
+        return None
+    try:
+        reel_id = int(str(notification.dedupe_key).rsplit(":", 1)[-1])
+    except (TypeError, ValueError):
+        return None
+    return reel_id if reel_id > 0 else None
+
+
 def _title_and_body(notification):
     actor_name = notification.actor.name.strip() or f"@{notification.actor.username}"
 
@@ -48,6 +60,15 @@ def _title_and_body(notification):
             preview = preview[:90] + ("…" if len(preview) > 90 else "")
             return "New comment", f"{actor_name}: {preview}"
         return "New comment", f"{actor_name} commented on your post"
+
+    if notification.kind == "reel_like":
+        return "New Reel like", f"{actor_name} liked your Reel"
+
+    if notification.kind == "reel_comment":
+        return "New Reel comment", f"{actor_name} commented on your Reel"
+
+    if notification.kind == "reel_repost":
+        return "New Reel repost", f"{actor_name} reposted your Reel"
 
     return "Nova activity", f"{actor_name} interacted with you"
 
@@ -73,11 +94,14 @@ def send_notification_push(notification):
         return 0
 
     title, body = _title_and_body(notification)
+    reel_id = _notification_reel_id(notification)
     data = {
         "notification_id": str(notification.pk),
         "kind": notification.kind,
         "actor_username": notification.actor.username,
         "post_id": str(notification.post_id or ""),
+        "reel_id": str(reel_id or ""),
+        "reel_author_username": notification.recipient.username if reel_id else "",
     }
 
     sent = 0

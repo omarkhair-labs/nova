@@ -3,7 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .reels import _reel_payload, visible_reels_for
+from .reels import _attach_repost_context, _reel_payload, visible_reels_for
 
 
 PROFILE_REELS_PAGE_SIZE = 12
@@ -34,7 +34,7 @@ class ProfileReelsView(APIView):
 
         rows = list(queryset[: PROFILE_REELS_PAGE_SIZE + 1])
         has_more = len(rows) > PROFILE_REELS_PAGE_SIZE
-        page = rows[:PROFILE_REELS_PAGE_SIZE]
+        page = _attach_repost_context(rows[:PROFILE_REELS_PAGE_SIZE])
         next_cursor = str(page[-1].pk) if has_more and page else None
 
         return Response(
