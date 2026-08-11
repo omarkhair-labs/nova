@@ -36,6 +36,14 @@ data class NovaStorySharedPost(
 )
 
 
+data class NovaStorySharedReel(
+    val id: Long,
+    val author: NovaStoryAuthor,
+    val videoUrl: String,
+    val caption: String,
+)
+
+
 data class NovaStory(
     val id: Long,
     val author: NovaStoryAuthor,
@@ -49,7 +57,9 @@ data class NovaStory(
     val myReaction: String,
     val viewsCount: Int?,
     val audience: String = "followers",
+    val backgroundStyle: String = "midnight",
     val sharedPost: NovaStorySharedPost? = null,
+    val sharedReel: NovaStorySharedReel? = null,
 )
 
 
@@ -133,6 +143,38 @@ class NovaStoriesRepository(
             }
         } finally {
             prepared.file.delete()
+        }
+    }
+
+    suspend fun createTextStory(
+        text: String,
+        backgroundStyle: String = "midnight",
+        audience: String = "followers",
+    ): ApiResult<NovaStory> {
+        val cleanText = text.trim()
+        if (cleanText.isBlank()) return ApiResult.Failure("Write something for your Story.")
+        val cleanAudience = audience.takeIf { it == "followers" || it == "close_friends" }
+            ?: return ApiResult.Failure("Choose a valid Story audience.")
+        val cleanBackground = backgroundStyle.takeIf {
+            it in setOf("midnight", "sunset", "ocean", "forest")
+        } ?: return ApiResult.Failure("Choose a valid Story background.")
+
+        return authenticatedCall { token ->
+            when (
+                val result = requestJson(
+                    path = "stories/",
+                    method = "POST",
+                    body = JSONObject()
+                        .put("media_type", "text")
+                        .put("caption", cleanText.take(240))
+                        .put("background_style", cleanBackground)
+                        .put("audience", cleanAudience),
+                    bearerToken = token,
+                )
+            ) {
+                is ApiResult.Success -> ApiResult.Success(parseStory(result.value))
+                is ApiResult.Failure -> result
+            }
         }
     }
 
@@ -510,6 +552,14 @@ class NovaStoriesRepository(
                 caption = item.optString("caption"),
             )
         }
+        val sharedReel = json.optJSONObject("shared_reel")?.let { item ->
+            NovaStorySharedReel(
+                id = item.optLong("id"),
+                author = parseAuthor(item.optJSONObject("author") ?: JSONObject()),
+                videoUrl = resolveMediaUrl(item.optString("video_url")),
+                caption = item.optString("caption"),
+            )
+        }
         return NovaStory(
             id = json.optLong("id"),
             author = parseAuthor(json.optJSONObject("author") ?: JSONObject()),
@@ -523,7 +573,9 @@ class NovaStoriesRepository(
             myReaction = json.optString("my_reaction"),
             viewsCount = if (json.isNull("views_count")) null else json.optInt("views_count"),
             audience = json.optString("audience").ifBlank { "followers" },
+            backgroundStyle = json.optString("background_style").ifBlank { "midnight" },
             sharedPost = sharedPost,
+            sharedReel = sharedReel,
         )
     }
 

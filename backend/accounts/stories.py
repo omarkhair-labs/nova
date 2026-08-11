@@ -17,6 +17,7 @@ from .messaging_views import conversations_for
 from .models import Conversation, Follow, Message
 from .privacy import is_private_account
 from .push import send_message_push
+from .reels import visible_reels_for
 from .serializers import PostSerializer
 from .story_models import Story, StoryReaction, StoryView
 from .trust_safety import blocked_user_ids, users_blocked
@@ -46,6 +47,17 @@ def _author_payload(request, user):
     }
 
 
+def _shared_reel_payload(request, reel):
+    if reel is None:
+        return None
+    return {
+        "id": reel.pk,
+        "author": _author_payload(request, reel.author),
+        "video_url": _absolute_media_url(request, reel.video),
+        "caption": reel.caption,
+    }
+
+
 def _allowed_story_author_ids(user):
     followed_ids = Follow.objects.filter(follower=user).values_list("following_id", flat=True)
     return [user.pk, *followed_ids]
@@ -55,7 +67,13 @@ def visible_stories_for(user):
     blocked_ids = blocked_user_ids(user)
     author_ids = _allowed_story_author_ids(user)
     return (
-        Story.objects.select_related("author", "shared_post", "shared_post__author")
+        Story.objects.select_related(
+            "author",
+            "shared_post",
+            "shared_post__author",
+            "shared_reel",
+            "shared_reel__author",
+        )
         .filter(
             expires_at__gt=timezone.now(),
             author__is_active=True,
@@ -78,6 +96,14 @@ def visible_stories_for(user):
             | Q(shared_post__author__account_privacy__is_private=False)
             | Q(shared_post__author_id__in=author_ids)
         )
+        .filter(Q(shared_reel__isnull=True) | Q(shared_reel__author__is_active=True))
+        .exclude(shared_reel__author_id__in=blocked_ids)
+        .filter(
+            Q(shared_reel__isnull=True)
+            | Q(shared_reel__author__account_privacy__isnull=True)
+            | Q(shared_reel__author__account_privacy__is_private=False)
+            | Q(shared_reel__author_id__in=author_ids)
+        )
         .distinct()
     )
 
@@ -91,21 +117,28 @@ def _story_payload(request, story, viewed_story_ids=None, reaction_by_story=None
     reaction_by_story = reaction_by_story or {}
     mine = story.author_id == request.user.pk
     shared_post = story.shared_post
+    shared_reel = story.shared_reel
+    media_url = ""
+    if shared_post is not None:
+        media_url = _absolute_media_url(request, shared_post.image)
+    elif shared_reel is not None:
+        media_url = _absolute_media_url(request, shared_reel.video)
+    elif story.media:
+        media_url = _absolute_media_url(request, story.media)
+
     return {
         "id": story.pk,
         "author": _author_payload(request, story.author),
-        "media_url": (
-            _absolute_media_url(request, shared_post.image)
-            if shared_post is not None
-            else _absolute_media_url(request, story.media)
-        ),
+        "media_url": media_url,
         "media_type": story.media_type,
         "audience": story.audience,
+        "background_style": story.background_style,
         "shared_post": (
             PostSerializer(shared_post, context={"request": request}).data
             if shared_post is not None
             else None
         ),
+        "shared_reel": _shared_reel_payload(request, shared_reel),
         "caption": story.caption,
         "created_at": story.created_at.isoformat(),
         "expires_at": story.expires_at.isoformat(),
@@ -197,7 +230,13 @@ class StoryFeedView(APIView):
         media = request.FILES.get("media")
         caption = str(request.data.get("caption") or "").strip()
         raw_shared_post_id = request.data.get("shared_post_id")
+        raw_shared_reel_id = request.data.get("shared_reel_id")
+        requested_media_type = str(request.data.get("media_type") or "").strip().lower()
+        background_style = str(
+            request.data.get("background_style") or Story.BackgroundStyle.MIDNIGHT
+        ).strip().lower()
         audience = str(request.data.get("audience") or Story.Audience.FOLLOWERS).strip().lower()
+
         if audience not in Story.Audience.values:
             return Response(
                 {"detail": "Choose a valid Story audience."},
@@ -208,13 +247,40 @@ class StoryFeedView(APIView):
                 {"detail": "Story caption must be 240 characters or fewer."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if background_style not in Story.BackgroundStyle.values:
+            return Response(
+                {"detail": "Choose a valid Story background."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        if raw_shared_post_id not in (None, ""):
-            if media is not None:
+        has_post = raw_shared_post_id not in (None, "")
+        has_reel = raw_shared_reel_id not in (None, "")
+        is_text = requested_media_type == Story.MediaType.TEXT
+        chosen_sources = sum((media is not None, has_post, has_reel, is_text))
+        if chosen_sources != 1:
+            return Response(
+                {"detail": "Choose exactly one Story source: photo/video, post, Reel, or text."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if is_text:
+            if not caption:
                 return Response(
-                    {"detail": "Share either a post or new media to a Story, not both."},
+                    {"detail": "Write something for your text Story."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+            story = Story.objects.create(
+                author=request.user,
+                media="",
+                media_type=Story.MediaType.TEXT,
+                audience=audience,
+                caption=caption,
+                background_style=background_style,
+                expires_at=timezone.now() + STORY_DURATION,
+            )
+            return Response(_story_payload(request, story), status=status.HTTP_201_CREATED)
+
+        if has_post:
             try:
                 shared_post_id = int(raw_shared_post_id)
             except (TypeError, ValueError):
@@ -232,18 +298,33 @@ class StoryFeedView(APIView):
                 shared_post=shared_post,
                 audience=audience,
                 caption=caption,
+                background_style=background_style,
                 expires_at=timezone.now() + STORY_DURATION,
             )
-            return Response(
-                _story_payload(request, story),
-                status=status.HTTP_201_CREATED,
-            )
+            return Response(_story_payload(request, story), status=status.HTTP_201_CREATED)
 
-        if media is None:
-            return Response(
-                {"detail": "Choose a photo, video, or post for your story."},
-                status=status.HTTP_400_BAD_REQUEST,
+        if has_reel:
+            try:
+                shared_reel_id = int(raw_shared_reel_id)
+            except (TypeError, ValueError):
+                shared_reel_id = 0
+            shared_reel = get_object_or_404(visible_reels_for(request.user), pk=shared_reel_id)
+            if shared_reel.author_id != request.user.pk and is_private_account(shared_reel.author):
+                return Response(
+                    {"detail": "Private-account Reels can't be reshared to a Story."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            story = Story.objects.create(
+                author=request.user,
+                media="",
+                media_type=Story.MediaType.VIDEO,
+                shared_reel=shared_reel,
+                audience=audience,
+                caption=caption,
+                background_style=background_style,
+                expires_at=timezone.now() + STORY_DURATION,
             )
+            return Response(_story_payload(request, story), status=status.HTTP_201_CREATED)
 
         content_type = str(getattr(media, "content_type", "") or "").lower()
         if content_type.startswith("image/"):
@@ -268,12 +349,10 @@ class StoryFeedView(APIView):
             media_type=media_type,
             audience=audience,
             caption=caption,
+            background_style=background_style,
             expires_at=timezone.now() + STORY_DURATION,
         )
-        return Response(
-            _story_payload(request, story),
-            status=status.HTTP_201_CREATED,
-        )
+        return Response(_story_payload(request, story), status=status.HTTP_201_CREATED)
 
 
 class StoryDetailView(APIView):
