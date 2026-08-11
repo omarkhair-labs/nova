@@ -29,13 +29,17 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nova.app.core.feed.NovaFeedRepository
+import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaComment
 import com.nova.app.core.network.NovaPost
 import com.nova.app.ui.components.NovaAvatar
@@ -51,6 +55,7 @@ import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.launch
 
 
 @Composable
@@ -67,8 +72,21 @@ fun PostCommentsScreen(
     onDelete: (NovaComment) -> Unit,
     onAuthorClick: (String) -> Unit,
 ) {
+    val context = LocalContext.current
+    val replyRepository = remember(context) { NovaFeedRepository(context.applicationContext) }
+    val scope = rememberCoroutineScope()
+
     var draft by remember(post?.id) { mutableStateOf("") }
     var wasSending by remember(post?.id) { mutableStateOf(false) }
+    var localComments by remember(post?.id) { mutableStateOf(comments) }
+    var replyingTo by remember(post?.id) { mutableStateOf<NovaComment?>(null) }
+    var replySending by remember(post?.id) { mutableStateOf(false) }
+    var deletingReplyId by remember(post?.id) { mutableStateOf<Long?>(null) }
+    var replyError by remember(post?.id) { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(comments) {
+        localComments = comments
+    }
 
     LaunchedEffect(isSending, errorMessage) {
         if (wasSending && !isSending && errorMessage == null) {
@@ -76,6 +94,39 @@ fun PostCommentsScreen(
         }
         wasSending = isSending
     }
+
+    fun appendReply(reply: NovaComment) {
+        val parentId = reply.parentId ?: return
+        localComments = localComments.map { parent ->
+            if (parent.id != parentId) {
+                parent
+            } else {
+                val existing = parent.replies.filterNot { it.id == reply.id }
+                parent.copy(
+                    replies = existing + reply,
+                    repliesCount = existing.size + 1,
+                )
+            }
+        }
+    }
+
+    fun removeReply(reply: NovaComment) {
+        val parentId = reply.parentId ?: return
+        localComments = localComments.map { parent ->
+            if (parent.id != parentId) {
+                parent
+            } else {
+                val remaining = parent.replies.filterNot { it.id == reply.id }
+                parent.copy(
+                    replies = remaining,
+                    repliesCount = remaining.size,
+                )
+            }
+        }
+    }
+
+    val composerBusy = isSending || replySending
+    val visibleError = replyError ?: errorMessage
 
     Scaffold(
         containerColor = NovaBackground,
@@ -89,11 +140,41 @@ fun PostCommentsScreen(
             if (post != null) {
                 CommentComposer(
                     draft = draft,
-                    isSending = isSending,
+                    isSending = composerBusy,
+                    replyingTo = replyingTo,
+                    onCancelReply = {
+                        replyingTo = null
+                        replyError = null
+                    },
                     onDraftChange = { draft = it.take(300) },
                     onSend = {
                         val clean = draft.trim()
-                        if (clean.isNotBlank() && !isSending) onSend(clean)
+                        val parent = replyingTo
+                        if (clean.isBlank() || composerBusy) return@CommentComposer
+
+                        if (parent == null) {
+                            onSend(clean)
+                        } else {
+                            scope.launch {
+                                replySending = true
+                                replyError = null
+                                when (
+                                    val result = replyRepository.addComment(
+                                        postId = post.id,
+                                        body = clean,
+                                        parentId = parent.id,
+                                    )
+                                ) {
+                                    is ApiResult.Success -> {
+                                        appendReply(result.value.comment)
+                                        draft = ""
+                                        replyingTo = null
+                                    }
+                                    is ApiResult.Failure -> replyError = result.message
+                                }
+                                replySending = false
+                            }
+                        }
                     },
                 )
             }
@@ -127,12 +208,12 @@ fun PostCommentsScreen(
                     item {
                         EmptyCommentsState(
                             title = "Post unavailable",
-                            message = errorMessage ?: "This post may have been deleted or is no longer available.",
+                            message = visibleError ?: "This post may have been deleted or is no longer available.",
                         )
                     }
                 }
 
-                isLoading && comments.isEmpty() -> {
+                isLoading && localComments.isEmpty() -> {
                     item {
                         Box(
                             modifier = Modifier
@@ -145,11 +226,11 @@ fun PostCommentsScreen(
                     }
                 }
 
-                errorMessage != null && comments.isEmpty() -> {
+                visibleError != null && localComments.isEmpty() -> {
                     item {
                         EmptyCommentsState(
                             title = "Couldn't load comments",
-                            message = errorMessage,
+                            message = visibleError,
                         )
                     }
                     item {
@@ -157,7 +238,7 @@ fun PostCommentsScreen(
                     }
                 }
 
-                comments.isEmpty() -> {
+                localComments.isEmpty() -> {
                     item {
                         EmptyCommentsState(
                             title = "No comments yet",
@@ -167,21 +248,54 @@ fun PostCommentsScreen(
                 }
 
                 else -> {
-                    items(comments, key = { it.id }) { comment ->
-                        CommentRow(
-                            comment = comment,
-                            isDeleting = deletingCommentId == comment.id,
-                            onAuthorClick = { onAuthorClick(comment.author.username) },
-                            onDelete = { onDelete(comment) },
-                        )
+                    items(localComments, key = { it.id }) { comment ->
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            CommentRow(
+                                comment = comment,
+                                isDeleting = deletingCommentId == comment.id,
+                                onAuthorClick = { onAuthorClick(comment.author.username) },
+                                onReply = {
+                                    replyingTo = comment
+                                    replyError = null
+                                },
+                                onDelete = { onDelete(comment) },
+                            )
+
+                            comment.replies.forEach { reply ->
+                                CommentRow(
+                                    comment = reply,
+                                    modifier = Modifier.padding(start = 42.dp),
+                                    isReply = true,
+                                    isDeleting = deletingReplyId == reply.id,
+                                    onAuthorClick = { onAuthorClick(reply.author.username) },
+                                    onReply = {
+                                        replyingTo = comment
+                                        replyError = null
+                                    },
+                                    onDelete = {
+                                        if (deletingReplyId == null && reply.isMine) {
+                                            scope.launch {
+                                                deletingReplyId = reply.id
+                                                replyError = null
+                                                when (val result = replyRepository.deleteCommentReply(reply.id)) {
+                                                    is ApiResult.Success -> removeReply(reply)
+                                                    is ApiResult.Failure -> replyError = result.message
+                                                }
+                                                deletingReplyId = null
+                                            }
+                                        }
+                                    },
+                                )
+                            }
+                        }
                     }
                 }
             }
 
-            if (errorMessage != null && comments.isNotEmpty()) {
+            if (visibleError != null && localComments.isNotEmpty()) {
                 item {
                     Text(
-                        text = errorMessage,
+                        text = visibleError,
                         color = NovaMuted,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(horizontal = 54.dp, vertical = 8.dp),
@@ -250,6 +364,8 @@ private fun CommentsTopBar(
 private fun CommentComposer(
     draft: String,
     isSending: Boolean,
+    replyingTo: NovaComment?,
+    onCancelReply: () -> Unit,
     onDraftChange: (String) -> Unit,
     onSend: () -> Unit,
 ) {
@@ -257,53 +373,83 @@ private fun CommentComposer(
         color = NovaSurface,
         shadowElevation = 6.dp,
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 12.dp, vertical = 9.dp),
-            verticalAlignment = Alignment.Bottom,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                .navigationBarsPadding(),
         ) {
-            OutlinedTextField(
-                value = draft,
-                onValueChange = onDraftChange,
-                modifier = Modifier.weight(1f),
-                placeholder = { Text("Add a comment…", color = NovaMuted) },
-                enabled = !isSending,
-                minLines = 1,
-                maxLines = 4,
-                shape = RoundedCornerShape(24.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = NovaAccent,
-                    unfocusedBorderColor = NovaBorder,
-                    cursorColor = NovaAccent,
-                    focusedContainerColor = NovaBackground,
-                    unfocusedContainerColor = NovaBackground,
-                ),
-            )
+            replyingTo?.let { target ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 12.dp, top = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Replying to @${target.author.username}",
+                        color = NovaMuted,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Surface(onClick = onCancelReply, color = NovaSurface) {
+                        Text("×", color = NovaMuted, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
 
-            val enabled = draft.isNotBlank() && !isSending
-            Surface(
-                onClick = { if (enabled) onSend() },
-                modifier = Modifier.size(50.dp),
-                shape = CircleShape,
-                color = if (enabled) NovaAccent else NovaAccentSoft,
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    if (isSending) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            color = NovaMuted,
-                            strokeWidth = 2.dp,
-                        )
-                    } else {
+                OutlinedTextField(
+                    value = draft,
+                    onValueChange = onDraftChange,
+                    modifier = Modifier.weight(1f),
+                    placeholder = {
                         Text(
-                            text = "↑",
-                            color = if (enabled) NovaBackground else NovaMuted,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
+                            if (replyingTo == null) "Add a comment…" else "Write a reply…",
+                            color = NovaMuted,
                         )
+                    },
+                    enabled = !isSending,
+                    minLines = 1,
+                    maxLines = 4,
+                    shape = RoundedCornerShape(24.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = NovaAccent,
+                        unfocusedBorderColor = NovaBorder,
+                        cursorColor = NovaAccent,
+                        focusedContainerColor = NovaBackground,
+                        unfocusedContainerColor = NovaBackground,
+                    ),
+                )
+
+                val enabled = draft.isNotBlank() && !isSending
+                Surface(
+                    onClick = { if (enabled) onSend() },
+                    modifier = Modifier.size(50.dp),
+                    shape = CircleShape,
+                    color = if (enabled) NovaAccent else NovaAccentSoft,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        if (isSending) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = NovaMuted,
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Text(
+                                text = "↑",
+                                color = if (enabled) NovaBackground else NovaMuted,
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
                     }
                 }
             }
@@ -383,14 +529,21 @@ private fun CommentRow(
     comment: NovaComment,
     isDeleting: Boolean,
     onAuthorClick: () -> Unit,
+    onReply: () -> Unit,
     onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
+    isReply: Boolean = false,
 ) {
-    var showDeleteConfirm by remember(comment.id) { mutableStateOf(false) }
+    var showDeleteConfirm by remember(comment.id, comment.parentId) { mutableStateOf(false) }
 
     if (showDeleteConfirm) {
         NovaConfirmDeleteDialog(
-            title = "Delete this comment?",
-            message = "This comment will be removed. This can't be undone.",
+            title = if (isReply) "Delete this reply?" else "Delete this comment?",
+            message = if (isReply) {
+                "This reply will be removed. This can't be undone."
+            } else {
+                "This comment and its replies will be removed. This can't be undone."
+            },
             isBusy = isDeleting,
             onDismiss = { showDeleteConfirm = false },
             onConfirm = {
@@ -401,9 +554,9 @@ private fun CommentRow(
     }
 
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 2.dp, vertical = 9.dp),
+            .padding(horizontal = 2.dp, vertical = if (isReply) 6.dp else 9.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.Top,
     ) {
@@ -415,7 +568,7 @@ private fun CommentRow(
             NovaAvatar(
                 source = comment.author.avatarUrl,
                 fallbackText = comment.author.name.ifBlank { comment.author.username },
-                size = 40.dp,
+                size = if (isReply) 32.dp else 40.dp,
             )
         }
 
@@ -427,20 +580,20 @@ private fun CommentRow(
                 Text(
                     text = comment.author.name.ifBlank { comment.author.username },
                     color = NovaInk,
-                    fontSize = 13.sp,
+                    fontSize = if (isReply) 12.sp else 13.sp,
                     fontWeight = FontWeight.Bold,
                 )
                 Spacer(modifier = Modifier.size(6.dp))
                 Text(
                     text = "@${comment.author.username}",
                     color = NovaMuted,
-                    fontSize = 11.sp,
+                    fontSize = 10.sp,
                 )
             }
             Text(
                 text = comment.body,
                 color = NovaInk,
-                fontSize = 14.sp,
+                fontSize = if (isReply) 13.sp else 14.sp,
                 lineHeight = 20.sp,
                 modifier = Modifier.padding(top = 3.dp),
             )
@@ -454,6 +607,17 @@ private fun CommentRow(
                     color = NovaMuted,
                     fontSize = 10.sp,
                 )
+                Surface(
+                    onClick = onReply,
+                    color = NovaBackground,
+                ) {
+                    Text(
+                        text = "Reply",
+                        color = NovaMuted,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
                 if (comment.isMine) {
                     Surface(
                         onClick = { if (!isDeleting) showDeleteConfirm = true },
