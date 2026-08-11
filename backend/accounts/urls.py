@@ -15,6 +15,11 @@ from .calls import (
     CallSessionActionView,
     CallSessionDetailView,
 )
+from .comment_threads import (
+    PostCommentReplyDetailView,
+    ThreadCommentDetailView,
+    ThreadPostCommentsView,
+)
 from .group_management import GroupManagementDetailView, GroupMemberRoleView
 from .group_messaging import (
     GroupConversationCreateView,
@@ -61,14 +66,12 @@ from .stories import (
 )
 from .trust_safety import BlockedUsersView, DeleteAccountView, UserBlockView, UserReportView
 from .views import (
-    CommentDetailView,
     DevicePushTokenView,
     FollowView,
     MeView,
     NotificationsReadView,
     NotificationsView,
     PersonView,
-    PostCommentsView,
     PostDetailView,
     PostLikeView,
     PostsView,
@@ -154,8 +157,13 @@ urlpatterns = [
     path("posts/<int:post_id>/", PostDetailView.as_view(), name="post-detail"),
     path("posts/<int:post_id>/like/", PostLikeView.as_view(), name="post-like"),
     path("posts/<int:post_id>/repost/", PostRepostView.as_view(), name="post-repost"),
-    path("posts/<int:post_id>/comments/", PostCommentsView.as_view(), name="post-comments"),
-    path("comments/<int:comment_id>/", CommentDetailView.as_view(), name="comment-detail"),
+    path("posts/<int:post_id>/comments/", ThreadPostCommentsView.as_view(), name="post-comments"),
+    path("comments/<int:comment_id>/", ThreadCommentDetailView.as_view(), name="comment-detail"),
+    path(
+        "comment-replies/<int:reply_id>/",
+        PostCommentReplyDetailView.as_view(),
+        name="comment-reply-detail",
+    ),
     path("feed/", SharingFeedView.as_view(), name="feed"),
     path("shares/messages/", MessageShareView.as_view(), name="message-share"),
     path("notifications/", NotificationsView.as_view(), name="notifications"),
