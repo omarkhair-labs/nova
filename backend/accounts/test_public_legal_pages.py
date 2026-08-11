@@ -21,3 +21,13 @@ class PublicLegalPagesTests(TestCase):
         self.assertContains(response, "Nova account deletion request")
         self.assertContains(response, "Shared message history")
         self.assertContains(response, "privacy")
+
+    def test_child_safety_standards_are_public_and_actionable(self):
+        response = self.client.get(reverse("child-safety"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Child Safety Standards")
+        self.assertContains(response, "zero tolerance")
+        self.assertContains(response, "in-app reporting mechanism")
+        self.assertContains(response, "National Center for Missing")
+        self.assertContains(response, "asrkhair9@gmail.com")
