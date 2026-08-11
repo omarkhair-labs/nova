@@ -309,12 +309,17 @@ class NotificationSerializer(serializers.ModelSerializer):
         return reel_id if reel_id > 0 else None
 
     def get_reel_author_username(self, obj):
-        if self.get_reel_id(obj) is None:
+        reel_id = self.get_reel_id(obj)
+        if reel_id is None:
             return ""
-        request = self.context.get("request")
-        if request and request.user.is_authenticated:
-            return request.user.username
-        return ""
+        from .reels_models import Reel
+
+        return (
+            Reel.objects.filter(pk=reel_id, author__is_active=True)
+            .values_list("author__username", flat=True)
+            .first()
+            or ""
+        )
 
     def get_comment_preview(self, obj):
         return obj.comment.body if obj.comment_id and obj.comment else ""
@@ -338,7 +343,6 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def validate_password(self, value):
         validate_password(value)
-        return value
 
     def create(self, validated_data):
         return User.objects.create_user(**validated_data)
