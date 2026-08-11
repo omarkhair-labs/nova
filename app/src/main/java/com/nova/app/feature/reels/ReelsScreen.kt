@@ -515,6 +515,15 @@ private fun ReelPage(
                 .fillMaxWidth(0.78f)
                 .padding(start = 16.dp, end = 10.dp, bottom = 24.dp),
         ) {
+            reel.repostedBy?.let { reposter ->
+                Text(
+                    text = "↻ @${reposter.username} reposted",
+                    color = ReelMuted,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
             Row(
                 modifier = Modifier.clickable(onClick = onAuthor),
                 verticalAlignment = Alignment.CenterVertically,
