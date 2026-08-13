@@ -3,8 +3,10 @@ package com.nova.app
 import android.app.Activity
 import android.content.Intent
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -89,6 +91,15 @@ fun NovaPrimaryHost() {
     Box(modifier = Modifier.fillMaxSize()) {
         // Keep the social Nav3 tree alive so tab switches do not reset Home/People/You state.
         NovaApp()
+
+        // Stop empty areas in the active root from forwarding touches to the social tree below.
+        if (primaryOverlay != null) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clickable(onClick = {}),
+            )
+        }
 
         when (primaryOverlay) {
             NovaPrimaryDestination.Reels -> {
