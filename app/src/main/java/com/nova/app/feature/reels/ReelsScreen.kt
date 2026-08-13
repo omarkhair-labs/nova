@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -94,13 +95,15 @@ fun ReelsScreen(
     var loadingMore by remember { mutableStateOf(false) }
     var likingId by remember { mutableStateOf<Long?>(null) }
     var repostingId by remember { mutableStateOf<Long?>(null) }
+    var deletingId by remember { mutableStateOf<Long?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var pendingVideo by remember { mutableStateOf<Uri?>(null) }
     var uploading by remember { mutableStateOf(false) }
     var commentsReel by remember { mutableStateOf<NovaReel?>(null) }
     var shareReelTarget by remember { mutableStateOf<NovaReel?>(null) }
+    var deleteReelTarget by remember { mutableStateOf<NovaReel?>(null) }
 
-    val overlayOpen = pendingVideo != null || commentsReel != null || shareReelTarget != null
+    val overlayOpen = pendingVideo != null || commentsReel != null || shareReelTarget != null || deleteReelTarget != null
 
     DisposableEffect(playerPool) {
         onDispose { playerPool.releaseAll() }
@@ -166,6 +169,26 @@ fun ReelsScreen(
                 }
             }
             repostingId = null
+        }
+    }
+
+    fun deleteReel(reel: NovaReel) {
+        if (!reel.isMine || deletingId != null) return
+        scope.launch {
+            deletingId = reel.id
+            error = null
+            when (val result = repository.deleteReel(reel.id)) {
+                is ApiResult.Success -> {
+                    reels = reels.filterNot { it.id == reel.id }
+                    if (commentsReel?.id == reel.id) commentsReel = null
+                    if (shareReelTarget?.id == reel.id) shareReelTarget = null
+                    deleteReelTarget = null
+                }
+                is ApiResult.Failure -> {
+                    if (result.statusCode == 401) onFinish() else error = result.message
+                }
+            }
+            deletingId = null
         }
     }
 
@@ -309,10 +332,12 @@ fun ReelsScreen(
                             isActive = pagerState.currentPage == page && !overlayOpen,
                             isLiking = likingId == reel.id,
                             isReposting = repostingId == reel.id,
+                            isDeleting = deletingId == reel.id,
                             onLike = { toggleLike(reel) },
                             onComments = { commentsReel = reel },
                             onRepost = { toggleRepost(reel) },
                             onShare = { shareReelTarget = reel },
+                            onDelete = { deleteReelTarget = reel },
                             onAuthor = { onPersonClick(reel.author.username) },
                             onWatchSession = { snapshot ->
                                 if (!reel.isMine && snapshot.watchedMs >= 250L) {
@@ -438,6 +463,15 @@ fun ReelsScreen(
             onDismiss = { shareReelTarget = null },
         )
     }
+
+    deleteReelTarget?.let { reel ->
+        ReelDeleteDialog(
+            reel = reel,
+            deleting = deletingId == reel.id,
+            onDismiss = { if (deletingId == null) deleteReelTarget = null },
+            onDelete = { deleteReel(reel) },
+        )
+    }
 }
 
 
@@ -448,10 +482,12 @@ private fun ReelPage(
     isActive: Boolean,
     isLiking: Boolean,
     isReposting: Boolean,
+    isDeleting: Boolean,
     onLike: () -> Unit,
     onComments: () -> Unit,
     onRepost: () -> Unit,
     onShare: () -> Unit,
+    onDelete: () -> Unit,
     onAuthor: () -> Unit,
     onWatchSession: (ReelWatchSnapshot) -> Unit,
 ) {
@@ -484,7 +520,13 @@ private fun ReelPage(
         modifier = Modifier
             .fillMaxSize()
             .background(ReelBackground)
-            .clickable { pausedByUser = !pausedByUser },
+            .combinedClickable(
+                onClick = { pausedByUser = !pausedByUser },
+                onDoubleClick = {
+                    // Double-tap is an idempotent Like gesture. It never unlikes a Reel.
+                    if (!reel.isLiked && !isLiking) onLike()
+                },
+            ),
     ) {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
@@ -549,6 +591,14 @@ private fun ReelPage(
                 label = "Share",
                 onClick = onShare,
             )
+            if (reel.isMine) {
+                ReelAction(
+                    symbol = "×",
+                    label = "Delete",
+                    busy = isDeleting,
+                    onClick = onDelete,
+                )
+            }
             ReelAction(
                 symbol = if (muted) "×" else "♪",
                 label = if (muted) "Muted" else "Sound",
@@ -640,6 +690,83 @@ private fun ReelAction(
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(label, color = ReelInk, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+
+@Composable
+private fun ReelDeleteDialog(
+    reel: NovaReel,
+    deleting: Boolean,
+    onDismiss: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Dialog(onDismissRequest = { if (!deleting) onDismiss() }) {
+        Surface(
+            shape = RoundedCornerShape(22.dp),
+            color = NovaSurface,
+            border = BorderStroke(1.dp, NovaBorder),
+        ) {
+            Column(modifier = Modifier.padding(18.dp)) {
+                Text("Delete Reel?", color = NovaInk, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(7.dp))
+                Text(
+                    text = if (reel.caption.isBlank()) {
+                        "This Reel will be permanently removed from Nova."
+                    } else {
+                        "This Reel and its interactions will be permanently removed from Nova."
+                    },
+                    color = NovaMuted,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Surface(
+                        onClick = onDismiss,
+                        enabled = !deleting,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(15.dp),
+                        color = NovaBackground,
+                        border = BorderStroke(1.dp, NovaBorder),
+                    ) {
+                        Text(
+                            "Cancel",
+                            modifier = Modifier.padding(vertical = 12.dp),
+                            color = NovaInk,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        )
+                    }
+                    Surface(
+                        onClick = onDelete,
+                        enabled = !deleting,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(15.dp),
+                        color = NovaAccent,
+                    ) {
+                        Box(
+                            modifier = Modifier.padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            if (deleting) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(17.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp,
+                                )
+                            } else {
+                                Text("Delete", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
