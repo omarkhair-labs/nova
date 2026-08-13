@@ -19,9 +19,6 @@ object NovaMessagingNavigator {
 
     fun openInbox(context: Context, replaceCurrentActivity: Boolean = false) {
         if (NovaPrimaryNavigationDispatcher.navigate(NovaPrimaryDestination.Messages)) {
-            if (replaceCurrentActivity) {
-                (context as? Activity)?.finish()
-            }
             return
         }
 
