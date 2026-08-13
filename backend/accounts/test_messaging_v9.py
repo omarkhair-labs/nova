@@ -125,14 +125,48 @@ class MessagingV9ApiTests(APITestCase):
         initial = self.client.get(url)
         self.assertEqual(initial.status_code, status.HTTP_200_OK)
         self.assertFalse(initial.data["muted"])
+        self.assertEqual(initial.data["theme_key"], "nova")
 
         muted = self.client.post(url, {"muted": True}, format="json")
         self.assertEqual(muted.status_code, status.HTTP_200_OK)
         self.assertTrue(muted.data["muted"])
+        self.assertEqual(muted.data["theme_key"], "nova")
 
         self.authenticate(self.maya)
         maya = self.client.get(url)
         self.assertFalse(maya.data["muted"])
+        self.assertEqual(maya.data["theme_key"], "nova")
+
+    def test_theme_updates_are_per_user_and_do_not_overwrite_mute(self):
+        url = f"/api/v1/conversations/{self.conversation.pk}/preferences/"
+        self.authenticate(self.omar)
+
+        muted = self.client.post(url, {"muted": True}, format="json")
+        self.assertEqual(muted.status_code, status.HTTP_200_OK)
+
+        themed = self.client.post(url, {"theme_key": "aurora"}, format="json")
+        self.assertEqual(themed.status_code, status.HTTP_200_OK)
+        self.assertTrue(themed.data["muted"])
+        self.assertEqual(themed.data["theme_key"], "aurora")
+
+        unmuted = self.client.post(url, {"muted": False}, format="json")
+        self.assertEqual(unmuted.status_code, status.HTTP_200_OK)
+        self.assertFalse(unmuted.data["muted"])
+        self.assertEqual(unmuted.data["theme_key"], "aurora")
+
+        self.authenticate(self.maya)
+        maya = self.client.get(url)
+        self.assertEqual(maya.data["theme_key"], "nova")
+
+    def test_unknown_conversation_theme_is_rejected_without_changing_preference(self):
+        url = f"/api/v1/conversations/{self.conversation.pk}/preferences/"
+        self.authenticate(self.omar)
+
+        response = self.client.post(url, {"theme_key": "not-a-theme"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        current = self.client.get(url)
+        self.assertEqual(current.data["theme_key"], "nova")
 
     def test_nonparticipant_cannot_use_v9_conversation_tools(self):
         self.authenticate(self.stranger)
