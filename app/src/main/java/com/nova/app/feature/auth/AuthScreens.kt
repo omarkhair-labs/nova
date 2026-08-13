@@ -1,16 +1,10 @@
 package com.nova.app.feature.auth
 
 import android.content.Intent
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -28,11 +22,10 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.AccountSecurityActivity
-import com.nova.app.ui.components.NovaHeader
+import com.nova.app.ui.components.NovaKeyboardAwareFormPage
 import com.nova.app.ui.components.NovaPrimaryButton
 import com.nova.app.ui.components.NovaTextField
 import com.nova.app.ui.theme.NovaAccent
-import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaMuted
 
 @Composable
@@ -116,21 +109,18 @@ private fun AuthPage(
     secondaryActionText: String? = null,
     onSecondaryAction: (() -> Unit)? = null,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(NovaBackground)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .imePadding()
-            .padding(horizontal = 24.dp, vertical = 18.dp),
+    NovaKeyboardAwareFormPage(
+        title = title,
+        subtitle = subtitle,
+        onBack = onBack,
+        action = {
+            NovaPrimaryButton(
+                text = buttonText,
+                onClick = onSubmit,
+                enabled = buttonEnabled && !isLoading,
+            )
+        },
     ) {
-        NovaHeader(
-            title = title,
-            subtitle = subtitle,
-            onBack = onBack,
-        )
-
         Spacer(modifier = Modifier.height(36.dp))
 
         NovaTextField(
@@ -191,14 +181,6 @@ private fun AuthPage(
             fontSize = 12.sp,
             lineHeight = 18.sp,
             fontWeight = FontWeight.Medium,
-        )
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        NovaPrimaryButton(
-            text = buttonText,
-            onClick = onSubmit,
-            enabled = buttonEnabled && !isLoading,
         )
     }
 }

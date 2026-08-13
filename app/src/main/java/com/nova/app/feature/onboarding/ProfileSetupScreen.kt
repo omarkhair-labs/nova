@@ -3,16 +3,9 @@ package com.nova.app.feature.onboarding
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -31,11 +24,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.core.auth.NovaPendingRegistrationPhoto
 import com.nova.app.ui.components.NovaAvatar
-import com.nova.app.ui.components.NovaHeader
+import com.nova.app.ui.components.NovaKeyboardAwareFormPage
 import com.nova.app.ui.components.NovaPrimaryButton
 import com.nova.app.ui.components.NovaTextField
 import com.nova.app.ui.theme.NovaAccent
-import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaMuted
 
 @Composable
@@ -64,21 +56,18 @@ fun ProfileSetupScreen(
         onBack()
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(NovaBackground)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .imePadding()
-            .padding(horizontal = 24.dp, vertical = 18.dp),
+    NovaKeyboardAwareFormPage(
+        title = "Make it yours",
+        subtitle = "This is how people will recognize you around Nova.",
+        onBack = ::back,
+        action = {
+            NovaPrimaryButton(
+                text = if (isLoading) "Creating account…" else "Enter Nova",
+                onClick = { onFinish(name.trim(), username.trim()) },
+                enabled = !isLoading && name.trim().length >= 2 && username.trim().length >= 3,
+            )
+        },
     ) {
-        NovaHeader(
-            title = "Make it yours",
-            subtitle = "This is how people will recognize you around Nova.",
-            onBack = ::back,
-        )
-
         Spacer(modifier = Modifier.height(24.dp))
 
         NovaAvatar(
@@ -176,14 +165,6 @@ fun ProfileSetupScreen(
             color = NovaMuted,
             fontSize = 12.sp,
             lineHeight = 18.sp,
-        )
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        NovaPrimaryButton(
-            text = if (isLoading) "Creating account…" else "Enter Nova",
-            onClick = { onFinish(name.trim(), username.trim()) },
-            enabled = !isLoading && name.trim().length >= 2 && username.trim().length >= 3,
         )
     }
 }
