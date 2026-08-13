@@ -3,15 +3,8 @@ package com.nova.app.feature.profile
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -29,13 +22,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.ui.components.NovaAvatar
-import com.nova.app.ui.components.NovaHeader
+import com.nova.app.ui.components.NovaKeyboardAwareFormPage
 import com.nova.app.ui.components.NovaPrimaryButton
 import com.nova.app.ui.components.NovaTextField
 import com.nova.app.ui.theme.NovaAccent
-import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaMuted
-
 
 @Composable
 fun EditProfileScreen(
@@ -57,21 +48,18 @@ fun EditProfileScreen(
         if (uri != null) selectedPhoto = uri
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(NovaBackground)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .imePadding()
-            .padding(horizontal = 24.dp, vertical = 18.dp),
+    NovaKeyboardAwareFormPage(
+        title = "Edit profile",
+        subtitle = "Keep your Nova identity feeling like you.",
+        onBack = onBack,
+        action = {
+            NovaPrimaryButton(
+                text = if (isLoading) "Saving…" else "Save changes",
+                onClick = { onSave(name.trim(), handle.trim(), selectedPhoto) },
+                enabled = !isLoading && name.trim().length >= 2 && handle.trim().length >= 3,
+            )
+        },
     ) {
-        NovaHeader(
-            title = "Edit profile",
-            subtitle = "Keep your Nova identity feeling like you.",
-            onBack = onBack,
-        )
-
         Spacer(modifier = Modifier.height(26.dp))
 
         NovaAvatar(
@@ -142,13 +130,5 @@ fun EditProfileScreen(
                 lineHeight = 18.sp,
             )
         }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        NovaPrimaryButton(
-            text = if (isLoading) "Saving…" else "Save changes",
-            onClick = { onSave(name.trim(), handle.trim(), selectedPhoto) },
-            enabled = !isLoading && name.trim().length >= 2 && handle.trim().length >= 3,
-        )
     }
 }
