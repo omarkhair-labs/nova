@@ -10,6 +10,7 @@ from .push import send_call_state_push
 
 MAX_SDP_LENGTH = 256_000
 MAX_ICE_CANDIDATE_LENGTH = 16_000
+MAX_NEGOTIATION_ID_LENGTH = 128
 TERMINAL_CALL_STATUSES = {
     CallSession.Status.DECLINED,
     CallSession.Status.CANCELED,
@@ -156,7 +157,15 @@ class CallConsumer(AsyncJsonWebsocketConsumer):
             sdp = str(content.get("sdp") or "")
             if not sdp or len(sdp) > MAX_SDP_LENGTH:
                 return None
-            return {"type": event_type, "sdp": sdp}
+
+            negotiation_id = str(content.get("negotiation_id") or "").strip()
+            if len(negotiation_id) > MAX_NEGOTIATION_ID_LENGTH:
+                return None
+
+            signal = {"type": event_type, "sdp": sdp}
+            if negotiation_id:
+                signal["negotiation_id"] = negotiation_id
+            return signal
 
         candidate = str(content.get("candidate") or "")
         if not candidate or len(candidate) > MAX_ICE_CANDIDATE_LENGTH:

@@ -13,6 +13,7 @@ import org.webrtc.EglBase
 import org.webrtc.IceCandidate
 import org.webrtc.PeerConnection
 import org.webrtc.VideoTrack
+import java.util.UUID
 
 
 sealed interface NovaCallLaunchSpec {
@@ -96,6 +97,8 @@ class NovaCallController(
     private var pendingAccept = false
     private var acceptedLocally = false
     private var pendingOffer: String? = null
+    private var pendingOfferNegotiationId: String? = null
+    private var awaitingAnswerNegotiationId: String? = null
     private val pendingRemoteIce = mutableListOf<IceCandidate>()
     private val pendingLocalIce = mutableListOf<IceCandidate>()
     private var offerCreating = false
@@ -224,6 +227,9 @@ class NovaCallController(
         ringTimeoutJob = null
         recoveryJob?.cancel()
         recoveryJob = null
+        recoveryOfferInFlight = false
+        awaitingAnswerNegotiationId = null
+        pendingOfferNegotiationId = null
         signaling?.stop()
         signaling = null
         engine?.release()
@@ -397,11 +403,24 @@ class NovaCallController(
                 answerCreating = false
                 answerSent = false
                 pendingOffer = event.sdp
+                pendingOfferNegotiationId = event.negotiationId
                 maybeCreateAnswer()
             }
 
             is NovaCallSignalEvent.Answer -> {
-                engine?.setRemoteAnswer(event.sdp)
+                val expectedId = awaitingAnswerNegotiationId
+                val incomingId = event.negotiationId
+                // New clients correlate every Answer to the Offer generation
+                // that produced it. A null ID is still accepted for calls with
+                // an older Nova version; the WebRTC engine's signaling-state
+                // guard remains the final compatibility-safe protection.
+                if (incomingId != null && incomingId != expectedId) {
+                    return
+                }
+                engine?.setRemoteAnswer(event.sdp) {
+                    awaitingAnswerNegotiationId = null
+                    recoveryOfferInFlight = false
+                }
             }
 
             is NovaCallSignalEvent.Ice -> {
@@ -472,12 +491,17 @@ class NovaCallController(
         val call = mutableState.value.session ?: return
         val currentEngine = engine ?: return
         if (!call.isCaller || !signalingReady || offerCreating || offerSent || ending) return
+        val negotiationId = UUID.randomUUID().toString()
         offerCreating = true
         currentEngine.createOffer { sdp ->
             scope.launch {
                 offerCreating = false
-                offerSent = signaling?.sendOffer(sdp) == true
-                if (!offerSent) update { it.copy(error = "Call signaling is reconnecting…") }
+                awaitingAnswerNegotiationId = negotiationId
+                offerSent = signaling?.sendOffer(sdp, negotiationId) == true
+                if (!offerSent) {
+                    awaitingAnswerNegotiationId = null
+                    update { it.copy(error = "Call signaling is reconnecting…") }
+                }
             }
         }
     }
@@ -486,14 +510,17 @@ class NovaCallController(
         val call = mutableState.value.session ?: return
         val currentEngine = engine ?: return
         if (!call.isCaller || call.status != NovaCallStatus.Active || !signalingReady || ending || released) return
-        if (recoveryOfferInFlight) return
+        if (recoveryOfferInFlight || awaitingAnswerNegotiationId != null) return
 
+        val negotiationId = UUID.randomUUID().toString()
         recoveryOfferInFlight = true
         currentEngine.createIceRestartOffer { sdp ->
             scope.launch {
                 recoveryOfferInFlight = false
-                val queued = signaling?.sendOffer(sdp) == true
+                awaitingAnswerNegotiationId = negotiationId
+                val queued = signaling?.sendOffer(sdp, negotiationId) == true
                 if (!queued) {
+                    awaitingAnswerNegotiationId = null
                     update { it.copy(error = "Call recovery is waiting for signaling…") }
                 }
             }
@@ -505,13 +532,15 @@ class NovaCallController(
         val currentEngine = engine ?: return
         val offer = pendingOffer ?: return
         if (call.isCaller || !acceptedLocally || answerCreating || answerSent || ending) return
+        val negotiationId = pendingOfferNegotiationId
         answerCreating = true
         pendingOffer = null
+        pendingOfferNegotiationId = null
         currentEngine.setRemoteOffer(offer) {
             currentEngine.createAnswer { sdp ->
                 scope.launch {
                     answerCreating = false
-                    answerSent = signaling?.sendAnswer(sdp) == true
+                    answerSent = signaling?.sendAnswer(sdp, negotiationId) == true
                     if (!answerSent) update { it.copy(error = "Call signaling is reconnecting…") }
                 }
             }
@@ -588,6 +617,8 @@ class NovaCallController(
         recoveryJob?.cancel()
         recoveryJob = null
         recoveryOfferInFlight = false
+        awaitingAnswerNegotiationId = null
+        pendingOfferNegotiationId = null
         NovaCallNotification.cancel(appContext, call.id)
         queueOrSendAction(action)
         NovaCallActionDispatcher.dispatch(appContext, call.id, action)
@@ -636,6 +667,8 @@ class NovaCallController(
         recoveryJob?.cancel()
         recoveryJob = null
         recoveryOfferInFlight = false
+        awaitingAnswerNegotiationId = null
+        pendingOfferNegotiationId = null
         NovaCallNotification.cancel(appContext, call.id)
         update { it.copy(session = call, stage = terminalLabel(call), connected = false) }
         scope.launch {
@@ -691,6 +724,7 @@ class NovaCallController(
                         recoveryJob?.cancel()
                         recoveryJob = null
                         recoveryOfferInFlight = false
+                        awaitingAnswerNegotiationId = null
                         update { it.copy(stage = "Connected", connected = true, error = null) }
                     }
                     PeerConnection.PeerConnectionState.DISCONNECTED -> {
