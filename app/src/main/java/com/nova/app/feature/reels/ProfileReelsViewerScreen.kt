@@ -3,7 +3,7 @@ package com.nova.app.feature.reels
 import android.content.Intent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,17 +15,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,6 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -53,11 +48,11 @@ import androidx.media3.ui.PlayerView
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.reels.NovaProfileReelsRepository
 import com.nova.app.core.reels.NovaReel
-import com.nova.app.core.reels.NovaReelComment
 import com.nova.app.core.reels.NovaReelsRepository
 import com.nova.app.feature.sharing.NovaShareDialog
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.theme.NovaAccent
+import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
@@ -92,8 +87,12 @@ fun ProfileReelsViewerScreen(
     var error by remember(username) { mutableStateOf<String?>(null) }
     var likingId by remember(username) { mutableStateOf<Long?>(null) }
     var repostingId by remember(username) { mutableStateOf<Long?>(null) }
+    var deletingId by remember(username) { mutableStateOf<Long?>(null) }
     var commentsReel by remember(username) { mutableStateOf<NovaReel?>(null) }
     var shareReelTarget by remember(username) { mutableStateOf<NovaReel?>(null) }
+    var deleteReelTarget by remember(username) { mutableStateOf<NovaReel?>(null) }
+
+    val overlayOpen = commentsReel != null || shareReelTarget != null || deleteReelTarget != null
 
     fun replaceReel(updated: NovaReel) {
         reels = reels.map { existing -> if (existing.id == updated.id) updated else existing }
@@ -146,6 +145,26 @@ fun ProfileReelsViewerScreen(
                 }
             }
             repostingId = null
+        }
+    }
+
+    fun deleteReel(reel: NovaReel) {
+        if (!reel.isMine || deletingId != null) return
+        scope.launch {
+            deletingId = reel.id
+            error = null
+            when (val result = interactionRepository.deleteReel(reel.id)) {
+                is ApiResult.Success -> {
+                    reels = reels.filterNot { it.id == reel.id }
+                    if (commentsReel?.id == reel.id) commentsReel = null
+                    if (shareReelTarget?.id == reel.id) shareReelTarget = null
+                    deleteReelTarget = null
+                }
+                is ApiResult.Failure -> {
+                    if (result.statusCode == 401) onFinish() else error = result.message
+                }
+            }
+            deletingId = null
         }
     }
 
@@ -293,13 +312,15 @@ fun ProfileReelsViewerScreen(
                     val reel = reels[page]
                     ProfileViewerReelPage(
                         reel = reel,
-                        isActive = pagerState.currentPage == page,
+                        isActive = pagerState.currentPage == page && !overlayOpen,
                         isLiking = likingId == reel.id,
                         isReposting = repostingId == reel.id,
+                        isDeleting = deletingId == reel.id,
                         onLike = { toggleLike(reel) },
                         onComments = { commentsReel = reel },
                         onRepost = { toggleRepost(reel) },
                         onShare = { shareReelTarget = reel },
+                        onDelete = { deleteReelTarget = reel },
                     )
                 }
 
@@ -390,6 +411,14 @@ fun ProfileReelsViewerScreen(
             onDismiss = { shareReelTarget = null },
         )
     }
+
+    deleteReelTarget?.let { reel ->
+        ProfileReelDeleteDialog(
+            deleting = deletingId == reel.id,
+            onDismiss = { if (deletingId == null) deleteReelTarget = null },
+            onDelete = { deleteReel(reel) },
+        )
+    }
 }
 
 
@@ -399,10 +428,12 @@ private fun ProfileViewerReelPage(
     isActive: Boolean,
     isLiking: Boolean,
     isReposting: Boolean,
+    isDeleting: Boolean,
     onLike: () -> Unit,
     onComments: () -> Unit,
     onRepost: () -> Unit,
     onShare: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     val context = LocalContext.current
     var pausedByUser by remember(reel.id) { mutableStateOf(false) }
@@ -429,7 +460,13 @@ private fun ProfileViewerReelPage(
         modifier = Modifier
             .fillMaxSize()
             .background(ProfileViewerBackground)
-            .clickable { pausedByUser = !pausedByUser },
+            .combinedClickable(
+                onClick = { pausedByUser = !pausedByUser },
+                onDoubleClick = {
+                    // Double-tap always means Like. Repeating it never unlikes the Reel.
+                    if (!reel.isLiked && !isLiking) onLike()
+                },
+            ),
     ) {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
@@ -494,6 +531,14 @@ private fun ProfileViewerReelPage(
                 label = "Share",
                 onClick = onShare,
             )
+            if (reel.isMine) {
+                ProfileViewerAction(
+                    symbol = "×",
+                    label = "Delete",
+                    busy = isDeleting,
+                    onClick = onDelete,
+                )
+            }
             ProfileViewerAction(
                 symbol = if (muted) "×" else "♪",
                 label = if (muted) "Muted" else "Sound",
@@ -594,170 +639,69 @@ private fun ProfileViewerAction(
 
 
 @Composable
-private fun ProfileReelCommentsSheet(
-    reel: NovaReel,
-    repository: NovaReelsRepository,
+private fun ProfileReelDeleteDialog(
+    deleting: Boolean,
     onDismiss: () -> Unit,
-    onReelUpdated: (NovaReel) -> Unit,
-    onSessionExpired: () -> Unit,
+    onDelete: () -> Unit,
 ) {
-    val scope = rememberCoroutineScope()
-    var comments by remember(reel.id) { mutableStateOf<List<NovaReelComment>>(emptyList()) }
-    var loading by remember(reel.id) { mutableStateOf(true) }
-    var sending by remember(reel.id) { mutableStateOf(false) }
-    var body by remember(reel.id) { mutableStateOf("") }
-    var error by remember(reel.id) { mutableStateOf<String?>(null) }
-
-    fun loadComments() {
-        scope.launch {
-            loading = true
-            error = null
-            when (val result = repository.comments(reel.id)) {
-                is ApiResult.Success -> comments = result.value
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onSessionExpired() else error = result.message
-                }
-            }
-            loading = false
-        }
-    }
-
-    LaunchedEffect(reel.id) { loadComments() }
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = NovaSurface,
-        contentColor = NovaInk,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 18.dp, end = 18.dp, bottom = 24.dp),
+    Dialog(onDismissRequest = { if (!deleting) onDismiss() }) {
+        Surface(
+            shape = RoundedCornerShape(22.dp),
+            color = NovaSurface,
+            border = BorderStroke(1.dp, NovaBorder),
         ) {
-            Text(
-                text = "Comments",
-                color = NovaInk,
-                fontSize = 19.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            when {
-                loading -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(170.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator(color = NovaAccent)
-                    }
-                }
-                comments.isEmpty() -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(120.dp),
-                        contentAlignment = Alignment.Center,
+            Column(modifier = Modifier.padding(18.dp)) {
+                Text("Delete Reel?", color = NovaInk, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(7.dp))
+                Text(
+                    "This Reel and its interactions will be permanently removed from Nova.",
+                    color = NovaMuted,
+                    fontSize = 13.sp,
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Surface(
+                        onClick = onDismiss,
+                        enabled = !deleting,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(15.dp),
+                        color = NovaBackground,
+                        border = BorderStroke(1.dp, NovaBorder),
                     ) {
                         Text(
-                            text = error ?: "Be the first to comment.",
-                            color = NovaMuted,
-                            fontSize = 12.sp,
+                            "Cancel",
+                            modifier = Modifier.padding(vertical = 12.dp),
+                            color = NovaInk,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         )
                     }
-                }
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.height(240.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    Surface(
+                        onClick = onDelete,
+                        enabled = !deleting,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(15.dp),
+                        color = NovaAccent,
                     ) {
-                        items(comments, key = { it.id }) { comment ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.Top,
-                            ) {
-                                NovaAvatar(
-                                    source = comment.author.avatarUrl,
-                                    fallbackText = comment.author.displayName,
-                                    size = 32.dp,
+                        Box(
+                            modifier = Modifier.padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            if (deleting) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(17.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp,
                                 )
-                                Spacer(modifier = Modifier.width(9.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "@${comment.author.username}",
-                                        color = NovaInk,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = comment.body,
-                                        color = NovaInk,
-                                        fontSize = 12.sp,
-                                    )
-                                }
+                            } else {
+                                Text("Delete", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
-                }
-            }
-
-            if (error != null && comments.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(error.orEmpty(), color = NovaMuted, fontSize = 11.sp)
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                OutlinedTextField(
-                    value = body,
-                    onValueChange = { body = it.take(300) },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text("Add a comment…", color = NovaMuted) },
-                    maxLines = 3,
-                    enabled = !sending,
-                    shape = RoundedCornerShape(16.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = NovaAccent,
-                        unfocusedBorderColor = NovaBorder,
-                        cursorColor = NovaAccent,
-                    ),
-                )
-                Surface(
-                    onClick = {
-                        if (!sending && body.isNotBlank()) {
-                            scope.launch {
-                                sending = true
-                                error = null
-                                when (val result = repository.addComment(reel.id, body)) {
-                                    is ApiResult.Success -> {
-                                        comments = comments + result.value.comment
-                                        onReelUpdated(result.value.reel)
-                                        body = ""
-                                    }
-                                    is ApiResult.Failure -> {
-                                        if (result.statusCode == 401) onSessionExpired() else error = result.message
-                                    }
-                                }
-                                sending = false
-                            }
-                        }
-                    },
-                    shape = RoundedCornerShape(14.dp),
-                    color = if (body.isNotBlank()) NovaAccent else NovaBorder,
-                ) {
-                    Text(
-                        text = if (sending) "…" else "Send",
-                        modifier = Modifier.padding(horizontal = 13.dp, vertical = 12.dp),
-                        color = Color.White,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
                 }
             }
         }
