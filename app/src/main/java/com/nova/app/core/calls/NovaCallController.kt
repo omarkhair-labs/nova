@@ -111,6 +111,8 @@ class NovaCallController(
     private var ending = false
     private var released = false
     private var ringTimeoutJob: Job? = null
+    private var durationJob: Job? = null
+    private var callStartedAtEpochMs: Long? = null
     private var recoveryJob: Job? = null
     private var recoveryOfferInFlight = false
     private var qualityMonitorJob: Job? = null
@@ -231,6 +233,7 @@ class NovaCallController(
         released = true
         ringTimeoutJob?.cancel()
         ringTimeoutJob = null
+        stopCallDurationTicker()
         recoveryJob?.cancel()
         recoveryJob = null
         qualityMonitorJob?.cancel()
@@ -293,6 +296,7 @@ class NovaCallController(
     }
 
     private fun onSessionLoaded(call: NovaCallSession) {
+        if (call.status == NovaCallStatus.Active) ensureCallDurationStart(call)
         update {
             it.copy(
                 session = call,
@@ -393,6 +397,7 @@ class NovaCallController(
         when (event) {
             is NovaCallSignalEvent.Ready -> {
                 signalingReady = true
+                if (event.call.status == NovaCallStatus.Active) ensureCallDurationStart(event.call)
                 update { it.copy(session = event.call, stage = stageFor(event.call)) }
                 flushLocalIce()
                 queuedAction?.let { action ->
@@ -448,6 +453,7 @@ class NovaCallController(
             }
 
             is NovaCallSignalEvent.State -> {
+                if (event.call.status == NovaCallStatus.Active) ensureCallDurationStart(event.call)
                 update {
                     it.copy(
                         session = event.call,
@@ -679,6 +685,51 @@ class NovaCallController(
         inboundAudioStallStartedAtMs = null
     }
 
+    private fun ensureCallDurationStart(call: NovaCallSession): Long {
+        callStartedAtEpochMs?.let { return it }
+        val startedAt = NovaCallDuration.answeredAtEpochMs(call.answeredAt)
+            ?: System.currentTimeMillis()
+        callStartedAtEpochMs = startedAt
+        return startedAt
+    }
+
+    private fun startCallDurationTicker() {
+        val call = mutableState.value.session ?: return
+        if (call.status != NovaCallStatus.Active || released || ending) return
+        ensureCallDurationStart(call)
+        if (durationJob?.isActive == true) return
+
+        durationJob = scope.launch {
+            while (!released && !ending) {
+                val currentState = mutableState.value
+                val currentCall = currentState.session
+                if (currentCall?.status != NovaCallStatus.Active) break
+                if (currentState.connected) {
+                    val startedAt = ensureCallDurationStart(currentCall)
+                    update { latest ->
+                        if (latest.connected && latest.session?.status == NovaCallStatus.Active) {
+                            latest.copy(stage = NovaCallDuration.label(startedAt))
+                        } else {
+                            latest
+                        }
+                    }
+                }
+                delay(1_000L)
+            }
+        }
+    }
+
+    private fun stopCallDurationTicker() {
+        durationJob?.cancel()
+        durationJob = null
+        callStartedAtEpochMs = null
+    }
+
+    private fun activeCallStage(call: NovaCallSession): String {
+        val startedAt = ensureCallDurationStart(call)
+        return NovaCallDuration.label(startedAt)
+    }
+
     private fun queueOrSendAction(action: String) {
         if (!signalingReady) {
             queuedAction = action
@@ -710,6 +761,7 @@ class NovaCallController(
         recoveryJob?.cancel()
         recoveryJob = null
         stopAudioQualityMonitor()
+        stopCallDurationTicker()
         recoveryOfferInFlight = false
         awaitingAnswerNegotiationId = null
         pendingOfferNegotiationId = null
@@ -761,6 +813,7 @@ class NovaCallController(
         recoveryJob?.cancel()
         recoveryJob = null
         stopAudioQualityMonitor()
+        stopCallDurationTicker()
         recoveryOfferInFlight = false
         awaitingAnswerNegotiationId = null
         pendingOfferNegotiationId = null
@@ -779,7 +832,7 @@ class NovaCallController(
         return when (call.status) {
             NovaCallStatus.Ringing -> if (call.isCaller) "Calling…" else "Incoming ${if (call.kind == NovaCallKind.Video) "video" else "voice"} call"
             NovaCallStatus.Active -> when {
-                mutableState.value.connected -> "Connected"
+                mutableState.value.connected -> activeCallStage(call)
                 recoveryJob?.isActive == true -> "Reconnecting…"
                 else -> "Connecting…"
             }
@@ -820,7 +873,14 @@ class NovaCallController(
                         recoveryJob = null
                         recoveryOfferInFlight = false
                         awaitingAnswerNegotiationId = null
-                        update { it.copy(stage = "Connected", connected = true, error = null) }
+                        val call = mutableState.value.session
+                        val connectedStage = if (call?.status == NovaCallStatus.Active) {
+                            activeCallStage(call)
+                        } else {
+                            "Connected"
+                        }
+                        update { it.copy(stage = connectedStage, connected = true, error = null) }
+                        startCallDurationTicker()
                         startAudioQualityMonitor()
                     }
                     PeerConnection.PeerConnectionState.DISCONNECTED -> {
