@@ -17,7 +17,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--package-name", required=True)
     parser.add_argument("--bundle", required=True)
-    parser.add_argument("--track", default="internal")
+    parser.add_argument("--track", default="alpha")
     parser.add_argument("--priority", type=int, default=2)
     parser.add_argument("--release-name", required=True)
     parser.add_argument("--service-account-json-file", required=True)
