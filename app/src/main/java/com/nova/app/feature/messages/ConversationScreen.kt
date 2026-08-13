@@ -60,7 +60,7 @@ fun ConversationScreen(
             username = username,
             displayName = liveDisplayName,
             avatarUrl = liveAvatarUrl,
-            toolsEndPadding = if (isGroup) 61.dp else 12.dp,
+            toolsEndPadding = 12.dp,
             onBack = onBack,
             onConversationRead = onConversationRead,
             onSessionExpired = onSessionExpired,
@@ -84,7 +84,7 @@ fun ConversationScreen(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
-                    .padding(top = 10.dp, end = 110.dp),
+                    .padding(top = 10.dp, end = 61.dp),
             )
             ConversationCallAction(
                 icon = Icons.Filled.Videocam,
@@ -93,7 +93,7 @@ fun ConversationScreen(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
-                    .padding(top = 10.dp, end = 61.dp),
+                    .padding(top = 10.dp, end = 12.dp),
             )
         }
     }
