@@ -1,6 +1,5 @@
 package com.nova.app.ui.components
 
-import android.app.Activity
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
@@ -228,12 +227,6 @@ fun NovaBottomBar(
         }
     }
 
-    fun leaveTransientRootAfterCrossActivitySwitch() {
-        if (selected == NovaTab.Reels || selected == NovaTab.Messages) {
-            (context as? Activity)?.finish()
-        }
-    }
-
     LaunchedEffect(rootRequestVersion, selected) {
         val requested = NovaRootNavigationSignal.pendingTab ?: return@LaunchedEffect
         if (selected == NovaTab.Messages || selected == NovaTab.Reels) return@LaunchedEffect
@@ -275,8 +268,10 @@ fun NovaBottomBar(
                     if (onReelsClick != null) {
                         onReelsClick()
                     } else if (selected != NovaTab.Reels) {
-                        NovaReelsNavigator.open(context)
-                        leaveTransientRootAfterCrossActivitySwitch()
+                        NovaReelsNavigator.open(
+                            context = context,
+                            replaceCurrentActivity = selected == NovaTab.Messages,
+                        )
                     }
                 },
             )
@@ -289,8 +284,10 @@ fun NovaBottomBar(
                     if (onMessagesClick != null) {
                         onMessagesClick()
                     } else if (selected != NovaTab.Messages) {
-                        NovaMessagingNavigator.openInbox(context)
-                        leaveTransientRootAfterCrossActivitySwitch()
+                        NovaMessagingNavigator.openInbox(
+                            context = context,
+                            replaceCurrentActivity = selected == NovaTab.Reels,
+                        )
                     }
                 },
             )
