@@ -14,32 +14,18 @@ enum class NovaRootTab {
 
 
 /**
- * Returns the callback sequence needed to move between Nova's root tabs without
- * letting People/Profile accumulate on top of each other in the Nav3 back stack.
+ * Returns the single root destination requested by the bottom bar.
  *
- * Home is the canonical Android root. Moving between the two secondary roots
- * first resets to Home, then opens the requested root. Moving from Home to a
- * secondary root needs only the target callback.
+ * V5 keeps one owner for primary navigation, so switching People ↔ You no longer
+ * needs an intermediate Home hop. The legacy signal remains only as a fallback
+ * for deep-link Activities that still need to hand control back to MainActivity.
  */
 internal fun rootNavigationPlan(
     current: NovaRootTab,
     requested: NovaRootTab,
 ): List<NovaRootTab> {
     if (current == requested) return emptyList()
-
-    return when (requested) {
-        NovaRootTab.Home -> listOf(NovaRootTab.Home)
-        NovaRootTab.People -> if (current == NovaRootTab.Home) {
-            listOf(NovaRootTab.People)
-        } else {
-            listOf(NovaRootTab.Home, NovaRootTab.People)
-        }
-        NovaRootTab.Profile -> if (current == NovaRootTab.Home) {
-            listOf(NovaRootTab.Profile)
-        } else {
-            listOf(NovaRootTab.Home, NovaRootTab.Profile)
-        }
-    }
+    return listOf(requested)
 }
 
 
