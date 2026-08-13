@@ -23,16 +23,27 @@ class NovaProfileReelsRepository(
     suspend fun reels(
         username: String,
         cursor: String? = null,
+    ): ApiResult<NovaReelPage> = profileReels(username, cursor, source = "authored")
+
+    suspend fun repostedReels(
+        username: String,
+        cursor: String? = null,
+    ): ApiResult<NovaReelPage> = profileReels(username, cursor, source = "reposted")
+
+    private suspend fun profileReels(
+        username: String,
+        cursor: String?,
+        source: String,
     ): ApiResult<NovaReelPage> {
         val cleanUsername = username.trim().lowercase()
         if (cleanUsername.isBlank()) return ApiResult.Failure("Choose a profile first.")
 
         val encodedUsername = encode(cleanUsername)
-        val path = if (cursor.isNullOrBlank()) {
-            "reels/profile/$encodedUsername/"
-        } else {
-            "reels/profile/$encodedUsername/?cursor=${encode(cursor.trim())}"
-        }
+        val query = buildList {
+            if (source != "authored") add("source=${encode(source)}")
+            if (!cursor.isNullOrBlank()) add("cursor=${encode(cursor.trim())}")
+        }.joinToString("&")
+        val path = "reels/profile/$encodedUsername/" + if (query.isBlank()) "" else "?$query"
 
         return authenticatedCall { token ->
             when (val result = requestJson(path, token)) {
