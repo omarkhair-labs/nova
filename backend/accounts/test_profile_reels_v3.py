@@ -81,11 +81,11 @@ class ProfileReelsTests(APITestCase):
         AccountPrivacy.objects.create(user=self.maya, is_private=True)
 
         hidden = self.client.get(self.profile_url(self.maya.username))
-        self.assertEqual(hidden.status_code, status.HTTP_200_OK)
-        self.assertEqual(hidden.data["results"], [])
+        self.assertEqual(hidden.status_code, status.HTTP_403_FORBIDDEN)
 
         Follow.objects.create(follower=self.me, following=self.maya)
         visible = self.client.get(self.profile_url(self.maya.username))
+        self.assertEqual(visible.status_code, status.HTTP_200_OK)
         self.assertEqual([item["id"] for item in visible.data["results"]], [reel.pk])
 
     def test_profile_reels_are_cursor_paginated(self):
