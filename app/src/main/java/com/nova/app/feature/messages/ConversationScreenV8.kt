@@ -10,6 +10,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,6 +36,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -114,6 +117,7 @@ private val V8OnlineGreen = Color(0xFF35C982)
 private val V8ReactionChoices = listOf("❤️", "😂", "😮", "😢", "😡", "👍")
 private const val V8MaxVoiceMs = 5 * 60 * 1000L
 private const val V8SwipeReplyThresholdPx = 72f
+private const val V8CallHistoryClientPrefix = "call:"
 
 private enum class V8PendingStatus { Sending, Failed }
 
@@ -488,7 +492,10 @@ fun ConversationScreenV8(
     }
 
     fun startEdit(message: NovaMessage) {
-        if (!message.isMine || message.isDeleted || message.share != null || mutatingMessageId != null) return
+        if (
+            !message.isMine || message.isDeleted || message.share != null ||
+            message.isCallHistoryV8() || mutatingMessageId != null
+        ) return
         if (isRecording) {
             voiceRecorder.cancel()
             isRecording = false
@@ -517,7 +524,7 @@ fun ConversationScreenV8(
 
     fun saveEdit() {
         val target = editingTarget ?: return
-        if (target.isDeleted || target.share != null || mutatingMessageId != null) return
+        if (target.isDeleted || target.share != null || target.isCallHistoryV8() || mutatingMessageId != null) return
         val body = draft.trim()
         if (body == target.body) {
             cancelEdit()
@@ -1274,85 +1281,132 @@ private fun V8MessageBubble(
             Text("↩ Reply", color = NovaAccent, fontSize = 10.sp, modifier = Modifier.padding(bottom = 3.dp))
         }
 
-        Surface(
-            onClick = onToggleActions,
-            shape = RoundedCornerShape(
-                topStart = if (!message.isMine && compactTop) 8.dp else 20.dp,
-                topEnd = if (message.isMine && compactTop) 8.dp else 20.dp,
-                bottomStart = if (!message.isMine && !compactBottom) 5.dp else 20.dp,
-                bottomEnd = if (message.isMine && !compactBottom) 5.dp else 20.dp,
-            ),
-            color = if (message.isMine) NovaAccent else NovaSurface,
-            border = if (message.isMine) null else BorderStroke(1.dp, NovaBorder),
-        ) {
-            Column(modifier = Modifier.widthIn(max = 292.dp).padding(horizontal = 10.dp, vertical = 9.dp)) {
-                if (showSenderName) {
-                    Text(
-                        text = message.sender.name.ifBlank { "@${message.sender.username}" },
-                        color = NovaAccent,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                }
-                if (message.isDeleted) {
-                    Text(
-                        "Message deleted",
-                        color = if (message.isMine) NovaBackground.copy(alpha = 0.78f) else NovaMuted,
-                        fontSize = 13.sp,
-                        fontStyle = FontStyle.Italic,
-                    )
-                } else {
-                    message.replyTo?.let { reply -> V8ReplyPreview(reply, message.isMine) }
+        Box(contentAlignment = if (message.isMine) Alignment.TopEnd else Alignment.TopStart) {
+            Surface(
+                modifier = Modifier.combinedClickable(
+                    enabled = !message.isDeleted,
+                    onClick = {},
+                    onLongClick = onToggleActions,
+                ),
+                shape = RoundedCornerShape(
+                    topStart = if (!message.isMine && compactTop) 8.dp else 20.dp,
+                    topEnd = if (message.isMine && compactTop) 8.dp else 20.dp,
+                    bottomStart = if (!message.isMine && !compactBottom) 5.dp else 20.dp,
+                    bottomEnd = if (message.isMine && !compactBottom) 5.dp else 20.dp,
+                ),
+                color = if (message.isMine) NovaAccent else NovaSurface,
+                border = if (message.isMine) null else BorderStroke(1.dp, NovaBorder),
+            ) {
+                Column(modifier = Modifier.widthIn(max = 292.dp).padding(horizontal = 10.dp, vertical = 9.dp)) {
+                    if (showSenderName) {
+                        Text(
+                            text = message.sender.name.ifBlank { "@${message.sender.username}" },
+                            color = NovaAccent,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                    }
+                    if (message.isDeleted) {
+                        Text(
+                            "Message deleted",
+                            color = if (message.isMine) NovaBackground.copy(alpha = 0.78f) else NovaMuted,
+                            fontSize = 13.sp,
+                            fontStyle = FontStyle.Italic,
+                        )
+                    } else {
+                        message.replyTo?.let { reply -> V8ReplyPreview(reply, message.isMine) }
 
-                    if (message.imageUrl.isNotBlank()) {
-                        Surface(onClick = { onOpenPhoto(message.imageUrl) }, shape = RoundedCornerShape(14.dp), color = Color.Transparent) {
-                            NovaMediaImage(
-                                source = message.imageUrl,
-                                modifier = Modifier.fillMaxWidth().height(240.dp),
-                                contentDescription = "Message photo",
+                        if (message.imageUrl.isNotBlank()) {
+                            Surface(onClick = { onOpenPhoto(message.imageUrl) }, shape = RoundedCornerShape(14.dp), color = Color.Transparent) {
+                                NovaMediaImage(
+                                    source = message.imageUrl,
+                                    modifier = Modifier.fillMaxWidth().height(240.dp),
+                                    contentDescription = "Message photo",
+                                )
+                            }
+                            if (message.body.isNotBlank() || message.share != null) Spacer(Modifier.height(8.dp))
+                        }
+
+                        if (message.audioUrl.isNotBlank()) {
+                            V8VoiceNotePlayer(message.audioUrl, message.audioDurationMs, message.isMine)
+                            if (message.body.isNotBlank() || message.share != null) Spacer(Modifier.height(7.dp))
+                        }
+
+                        message.share?.let { share ->
+                            V8SharedContentCard(
+                                share = share,
+                                mine = message.isMine,
+                                onOpenPost = onOpenSharedPost,
+                                onOpenProfile = onOpenSharedProfile,
                             )
                         }
-                        if (message.body.isNotBlank() || message.share != null) Spacer(Modifier.height(8.dp))
+
+                        if (message.share == null && message.body.isNotBlank()) {
+                            Text(
+                                message.body,
+                                color = if (message.isMine) NovaBackground else NovaInk,
+                                fontSize = 14.sp,
+                                lineHeight = 20.sp,
+                            )
+                        }
                     }
 
-                    if (message.audioUrl.isNotBlank()) {
-                        V8VoiceNotePlayer(message.audioUrl, message.audioDurationMs, message.isMine)
-                        if (message.body.isNotBlank() || message.share != null) Spacer(Modifier.height(7.dp))
+                    Spacer(Modifier.height(4.dp))
+                    val delivery = when {
+                        !message.isMine -> ""
+                        message.readAt != null -> " · Read"
+                        message.deliveredAt != null -> " · Delivered"
+                        else -> " · Sent"
                     }
+                    val edited = if (!message.isDeleted && message.editedAt != null) " · Edited" else ""
+                    Text(
+                        localMessageTimeV8(message.createdAt) + edited + delivery,
+                        color = if (message.isMine) NovaBackground.copy(alpha = 0.72f) else NovaMuted,
+                        fontSize = 9.sp,
+                    )
+                }
+            }
 
-                    message.share?.let { share ->
-                        V8SharedContentCard(
-                            share = share,
-                            mine = message.isMine,
-                            onOpenPost = onOpenSharedPost,
-                            onOpenProfile = onOpenSharedProfile,
-                        )
-                    }
-
-                    if (message.share == null && message.body.isNotBlank()) {
-                        Text(
-                            message.body,
-                            color = if (message.isMine) NovaBackground else NovaInk,
-                            fontSize = 14.sp,
-                            lineHeight = 20.sp,
-                        )
+            DropdownMenu(
+                expanded = showActions && !message.isDeleted,
+                onDismissRequest = onToggleActions,
+                containerColor = NovaSurface,
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    V8ReactionChoices.forEach { emoji ->
+                        Surface(
+                            onClick = { if (!reactionBusy && !mutationBusy) onReact(emoji) },
+                            shape = CircleShape,
+                            color = NovaBackground,
+                        ) {
+                            Text(emoji, modifier = Modifier.padding(6.dp), fontSize = 16.sp)
+                        }
                     }
                 }
-
-                Spacer(Modifier.height(4.dp))
-                val delivery = when {
-                    !message.isMine -> ""
-                    message.readAt != null -> " · Read"
-                    message.deliveredAt != null -> " · Delivered"
-                    else -> " · Sent"
-                }
-                val edited = if (!message.isDeleted && message.editedAt != null) " · Edited" else ""
-                Text(
-                    localMessageTimeV8(message.createdAt) + edited + delivery,
-                    color = if (message.isMine) NovaBackground.copy(alpha = 0.72f) else NovaMuted,
-                    fontSize = 9.sp,
+                DropdownMenuItem(
+                    text = { Text("Reply", color = NovaInk) },
+                    onClick = { if (!mutationBusy) onReply() },
+                    enabled = !mutationBusy,
                 )
+                if (message.isMine && message.share == null && !message.isCallHistoryV8()) {
+                    DropdownMenuItem(
+                        text = { Text("Edit", color = NovaInk) },
+                        onClick = { if (!mutationBusy) onEdit() },
+                        enabled = !mutationBusy,
+                    )
+                }
+                if (message.isMine) {
+                    DropdownMenuItem(
+                        text = { Text("Delete", color = NovaInk) },
+                        onClick = { if (!mutationBusy) onDelete() },
+                        enabled = !mutationBusy,
+                    )
+                }
             }
         }
 
@@ -1366,34 +1420,6 @@ private fun V8MessageBubble(
                         border = BorderStroke(1.dp, if (reaction.reactedByMe) NovaAccent else NovaBorder),
                     ) {
                         Text("${reaction.emoji} ${reaction.count}", modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp), color = NovaInk, fontSize = 11.sp)
-                    }
-                }
-            }
-        }
-
-        if (showActions && !message.isDeleted) {
-            Column(
-                modifier = Modifier.padding(top = 5.dp),
-                horizontalAlignment = if (message.isMine) Alignment.End else Alignment.Start,
-                verticalArrangement = Arrangement.spacedBy(5.dp),
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
-                    V8ActionChip("Reply", !mutationBusy, onReply)
-                    if (message.isMine) {
-                        if (message.share == null) V8ActionChip("Edit", !mutationBusy, onEdit)
-                        V8ActionChip("Delete", !mutationBusy, onDelete)
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
-                    V8ReactionChoices.forEach { emoji ->
-                        Surface(
-                            onClick = { if (!reactionBusy && !mutationBusy) onReact(emoji) },
-                            shape = CircleShape,
-                            color = NovaSurface,
-                            border = BorderStroke(1.dp, NovaBorder),
-                        ) {
-                            Text(emoji, modifier = Modifier.padding(6.dp), fontSize = 15.sp)
-                        }
                     }
                 }
             }
@@ -1831,6 +1857,8 @@ private fun openSharedProfileV8(context: android.content.Context, username: Stri
         }
     )
 }
+
+private fun NovaMessage.isCallHistoryV8(): Boolean = clientId.startsWith(V8CallHistoryClientPrefix)
 
 private fun replyPreviewTextV8(message: NovaMessage): String = when {
     message.isDeleted -> "Message deleted"
