@@ -61,6 +61,7 @@ internal fun ThreadedReelCommentsSheet(
     var comments by remember(reel.id) { mutableStateOf<List<NovaReelComment>>(emptyList()) }
     var loading by remember(reel.id) { mutableStateOf(true) }
     var sending by remember(reel.id) { mutableStateOf(false) }
+    var deletingCommentId by remember(reel.id) { mutableStateOf<Long?>(null) }
     var deletingReplyId by remember(reel.id) { mutableStateOf<Long?>(null) }
     var body by remember(reel.id) { mutableStateOf("") }
     var replyingTo by remember(reel.id) { mutableStateOf<NovaReelComment?>(null) }
@@ -97,6 +98,11 @@ internal fun ThreadedReelCommentsSheet(
                 }
             }
         }
+    }
+
+    fun removeComment(comment: NovaReelComment) {
+        comments = comments.filterNot { it.id == comment.id }
+        if (replyingTo?.id == comment.id) replyingTo = null
     }
 
     fun removeReply(reply: NovaReelComment) {
@@ -168,11 +174,36 @@ internal fun ThreadedReelCommentsSheet(
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 ReelCommentRow(
                                     comment = comment,
+                                    isDeleting = deletingCommentId == comment.id,
                                     onPersonClick = onPersonClick,
                                     onReply = {
                                         replyingTo = comment
                                         error = null
                                     },
+                                    onDelete = if (comment.isMine) {
+                                        {
+                                            if (deletingCommentId == null && deletingReplyId == null) {
+                                                scope.launch {
+                                                    deletingCommentId = comment.id
+                                                    error = null
+                                                    when (val result = repository.deleteComment(comment.id)) {
+                                                        is ApiResult.Success -> {
+                                                            removeComment(comment)
+                                                            onReelUpdated(result.value)
+                                                        }
+                                                        is ApiResult.Failure -> {
+                                                            if (result.statusCode == 401) {
+                                                                onSessionExpired()
+                                                            } else {
+                                                                error = result.message
+                                                            }
+                                                        }
+                                                    }
+                                                    deletingCommentId = null
+                                                }
+                                            }
+                                        }
+                                    } else null,
                                 )
                                 comment.replies.forEach { reply ->
                                     ReelCommentRow(
@@ -187,7 +218,7 @@ internal fun ThreadedReelCommentsSheet(
                                         },
                                         onDelete = if (reply.isMine) {
                                             {
-                                                if (deletingReplyId == null) {
+                                                if (deletingCommentId == null && deletingReplyId == null) {
                                                     scope.launch {
                                                         deletingReplyId = reply.id
                                                         error = null

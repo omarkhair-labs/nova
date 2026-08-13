@@ -224,6 +224,28 @@ class NovaReelsRepository(
         }
     }
 
+    suspend fun deleteComment(commentId: Long): ApiResult<NovaReel> {
+        return authenticatedCall { token ->
+            when (
+                val result = requestJson(
+                    path = "reel-comments/$commentId/",
+                    method = "DELETE",
+                    bearerToken = token,
+                )
+            ) {
+                is ApiResult.Success -> {
+                    val reel = result.value.optJSONObject("reel")
+                    if (reel == null) {
+                        ApiResult.Failure("Nova returned an invalid Reel comment response.")
+                    } else {
+                        ApiResult.Success(parseReel(reel))
+                    }
+                }
+                is ApiResult.Failure -> result
+            }
+        }
+    }
+
     suspend fun deleteCommentReply(replyId: Long): ApiResult<NovaReel> {
         return authenticatedCall { token ->
             when (
@@ -517,7 +539,7 @@ class NovaReelsRepository(
             author = parseAuthor(json.optJSONObject("author") ?: JSONObject()),
             body = json.optString("body"),
             createdAt = json.optString("created_at"),
-            isMine = json.optBoolean("is_mine"),
+            isMine = json.optBoolean("is_mine", false),
             parentId = parentId,
             repliesCount = json.optInt("replies_count", replies.size),
             replies = replies,
