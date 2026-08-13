@@ -63,7 +63,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             NovaTheme {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    NovaApp()
+                    NovaPrimaryHost()
                     NovaActiveCallPill(
                         modifier = Modifier.align(Alignment.TopCenter),
                     )
