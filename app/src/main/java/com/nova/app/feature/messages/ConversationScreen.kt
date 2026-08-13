@@ -118,7 +118,6 @@ fun ConversationScreen(
                 username = username,
                 displayName = liveDisplayName,
                 avatarUrl = liveAvatarUrl,
-                toolsEndPadding = if (isGroup) 61.dp else 110.dp,
                 themeLabel = palette.label,
                 onOpenTheme = { showThemePicker = true },
                 onBack = onBack,
