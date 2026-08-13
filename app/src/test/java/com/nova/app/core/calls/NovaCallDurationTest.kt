@@ -23,7 +23,7 @@ class NovaCallDurationTest {
     @Test
     fun parsesServerAnsweredAtAndRejectsInvalidValues() {
         assertEquals(
-            1_786_602_608_000L,
+            1_786_604_208_000L,
             NovaCallDuration.answeredAtEpochMs("2026-08-13T06:56:48Z"),
         )
         assertNull(NovaCallDuration.answeredAtEpochMs("not-a-time"))
