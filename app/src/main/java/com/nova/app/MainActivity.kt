@@ -22,6 +22,8 @@ import com.nova.app.core.push.NovaPushOpenSignal
 import com.nova.app.core.push.NovaPushRegistration
 import com.nova.app.core.reels.NovaReelsNavigator
 import com.nova.app.core.update.NovaInAppUpdateController
+import com.nova.app.navigation.DeepLinkRouter
+import com.nova.app.navigation.NovaDeepLinkDecision
 import com.nova.app.navigation.NovaPrimaryNavigationDispatcher
 import com.nova.app.ui.components.NovaActiveCallPill
 import com.nova.app.ui.components.NovaUpdateReadyBanner
@@ -108,56 +110,29 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun routePushIntent(intent: Intent?) {
-        val kind = intent?.getStringExtra("kind").orEmpty()
-
-        if (kind == "message") {
-            val conversationId = intent?.getStringExtra("conversation_id")?.toLongOrNull()
-            val conversationKind = intent?.getStringExtra("conversation_kind").orEmpty().ifBlank { "direct" }
-            if (conversationId != null && conversationId > 0L) {
-                if (conversationKind == "group") {
-                    NovaMessagingNavigator.openConversation(
-                        context = this,
-                        conversationId = conversationId,
-                        username = "group",
-                        displayName = intent?.getStringExtra("group_title").orEmpty().ifBlank { "Nova group" },
-                        avatarUrl = "",
-                        kind = "group",
-                        membersCount = 0,
-                    )
-                    return
-                }
-
-                val username = intent?.getStringExtra("actor_username").orEmpty()
-                if (username.isNotBlank()) {
-                    NovaMessagingNavigator.openConversation(
-                        context = this,
-                        conversationId = conversationId,
-                        username = username,
-                        displayName = intent?.getStringExtra("actor_name").orEmpty(),
-                        avatarUrl = intent?.getStringExtra("actor_avatar_url").orEmpty(),
-                    )
-                    return
-                }
+        when (val decision = DeepLinkRouter.decide(intent)) {
+            is NovaDeepLinkDecision.Conversation -> {
+                NovaMessagingNavigator.openConversation(
+                    context = this,
+                    conversationId = decision.conversationId,
+                    username = decision.username,
+                    displayName = decision.displayName,
+                    avatarUrl = decision.avatarUrl,
+                    kind = decision.kind,
+                    membersCount = decision.membersCount,
+                )
             }
-        }
 
-        if (kind in REEL_ACTIVITY_KINDS) {
-            val reelId = intent?.getStringExtra("reel_id")?.toLongOrNull()
-            val reelAuthorUsername = intent?.getStringExtra("reel_author_username")
-                .orEmpty()
-                .trim()
-                .lowercase()
-            if (reelId != null && reelId > 0L && reelAuthorUsername.isNotBlank()) {
+            is NovaDeepLinkDecision.ProfileReel -> {
                 NovaReelsNavigator.openProfile(
                     context = this,
-                    username = reelAuthorUsername,
-                    initialReelId = reelId,
+                    username = decision.username,
+                    initialReelId = decision.initialReelId,
                 )
-                return
             }
-        }
 
-        NovaPushOpenSignal.offer(intent)
+            NovaDeepLinkDecision.InAppSignal -> NovaPushOpenSignal.offer(intent)
+        }
     }
 
     private fun syncMessageUnreadCount() {
@@ -183,6 +158,5 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         const val NOTIFICATION_PERMISSION_REQUEST = 4201
-        val REEL_ACTIVITY_KINDS = setOf("reel_like", "reel_comment", "reel_repost", "reel_reply")
     }
 }

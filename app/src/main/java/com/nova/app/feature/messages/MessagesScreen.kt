@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nova.app.core.auth.shouldExpireNovaSession
 import com.nova.app.core.messaging.NovaConversation
 import com.nova.app.core.messaging.NovaInboxPagingRepository
 import com.nova.app.core.messaging.NovaMessagesSignal
@@ -122,7 +123,7 @@ fun MessagesScreen(
                     if (version == requestVersion) {
                         isLoading = false
                         isLoadingMore = false
-                        if (result.statusCode == 401) {
+                        if (shouldExpireNovaSession(result.statusCode)) {
                             onSessionExpired()
                         } else {
                             errorMessage = result.message

@@ -5,19 +5,20 @@ Update this table in every consolidation PR.
 | Field | Current state |
 |---|---|
 | Current phase | Phase 0 — freeze and baseline |
-| Active PR | Phase 0 PR 1 — documentation and characterization tests |
-| CI status | Pending for Phase 0 PR 1; Phase -1 PR #95 passed on Blacksmith |
-| Completed ownership changes | None; Phase 0 records behavior only |
+| Active PR | Phase 0 PR 2 — testable push/session/Messages policies and conversation chrome contract |
+| CI status | Pending for Phase 0 PR 2; PRs #95 and #96 passed on Blacksmith |
+| Completed ownership changes | Phase 0 records behavior; PR 2 introduces behavior-neutral policy/scaffold seams without changing public ownership |
 | Deleted legacy/versioned files | None |
-| Automated verification | Phase -1 backend/Android CI; Phase 0 test results pending |
+| Automated verification | Phase -1 and Phase 0 PR 1 backend/Android CI; Phase 0 PR 2 results pending |
 | Remaining physical Samsung checks | Entire checklist in `SAMSUNG_SMOKE_CHECKLIST.md`; no device is connected to the development workspace |
-| Exact next PR | Phase 0 PR 2 — add the smallest reliable shell/Messages test seams and device-oriented navigation/IME characterization without production redesign |
+| Exact next PR | Phase 1 PR 3 — introduce the typed `AppNavigator`/destination contract and adapt the existing dispatcher as a compatibility boundary |
 
 ## Completed PRs
 
 | Phase | PR | Purpose | Evidence | Rollback |
 |---|---:|---|---|---|
 | -1 | #95 | replace all three Linux `ubuntu-latest` jobs with `blacksmith-2vcpu-ubuntu-2404` | actionlint; Android and backend CI passed on named Blacksmith runners; no Play release dispatched or path-triggered | revert merge commit `dcbd534` |
+| 0 | #96 | record the governing plan, ownership/routes, Samsung checklist, and baseline entry contracts | Android/backend Blacksmith CI; instrumentation APK compilation; exact 72 REST/3 WebSocket inventory check | revert merge commit `0453ddb` |
 
 ## Phase 0 discovered risks
 
