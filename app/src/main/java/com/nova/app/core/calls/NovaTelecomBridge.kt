@@ -1,6 +1,8 @@
 package com.nova.app.core.calls
 
 import android.content.Context
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.net.Uri
 import android.telecom.DisconnectCause
 import androidx.core.telecom.CallAttributesCompat
@@ -11,8 +13,10 @@ import androidx.core.telecom.CallsManager
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 
@@ -70,6 +74,8 @@ class NovaTelecomBridge(
     private val callsManager = CallsManager(context.applicationContext)
     private var callControlScope: CallControlScope? = null
     private var addCallJob: Job? = null
+    private var ringbackJob: Job? = null
+    private var ringbackTone: ToneGenerator? = null
     private var callType: Int = CallAttributesCompat.CALL_TYPE_AUDIO_CALL
     private var currentEndpoint: CallEndpointCompat? = null
     private var previousNonSpeakerEndpoint: CallEndpointCompat? = null
@@ -105,6 +111,9 @@ class NovaTelecomBridge(
         )
 
         NovaCallAudioRouter.attach(this)
+        if (call.isCaller && call.status == NovaCallStatus.Ringing) {
+            startOutgoingRingback(scope)
+        }
         addCallJob = scope.launch {
             var telecomReady = false
             try {
@@ -150,6 +159,7 @@ class NovaTelecomBridge(
             } catch (error: Throwable) {
                 onFailure(error)
             } finally {
+                stopOutgoingRingback()
                 telecomReady = false
                 callControlScope = null
                 NovaCallAudioRouter.detach(this@NovaTelecomBridge)
@@ -159,12 +169,17 @@ class NovaTelecomBridge(
 
     suspend fun answer(): Boolean = safeControlAction { answer(callType) }
 
-    suspend fun setActive(): Boolean = safeControlAction { setActive() }
+    suspend fun setActive(): Boolean {
+        stopOutgoingRingback()
+        return safeControlAction { setActive() }
+    }
 
     suspend fun setInactive(): Boolean = safeControlAction { setInactive() }
 
-    suspend fun disconnect(reason: Int = DisconnectCause.LOCAL): Boolean =
-        safeControlAction { disconnect(DisconnectCause(reason)) }
+    suspend fun disconnect(reason: Int = DisconnectCause.LOCAL): Boolean {
+        stopOutgoingRingback()
+        return safeControlAction { disconnect(DisconnectCause(reason)) }
+    }
 
     internal suspend fun toggleSpeaker(): Boolean {
         val control = callControlScope ?: return false
@@ -190,10 +205,37 @@ class NovaTelecomBridge(
     }
 
     fun release() {
+        stopOutgoingRingback()
         addCallJob?.cancel()
         addCallJob = null
         callControlScope = null
         NovaCallAudioRouter.detach(this)
+    }
+
+    private fun startOutgoingRingback(scope: CoroutineScope) {
+        stopOutgoingRingback()
+        val tone = runCatching {
+            ToneGenerator(AudioManager.STREAM_VOICE_CALL, RINGBACK_VOLUME_PERCENT)
+        }.getOrNull() ?: return
+        ringbackTone = tone
+        ringbackJob = scope.launch {
+            while (isActive && ringbackTone === tone) {
+                runCatching { tone.startTone(ToneGenerator.TONE_SUP_RINGTONE, RINGBACK_ON_MS) }
+                delay(RINGBACK_ON_MS.toLong())
+                runCatching { tone.stopTone() }
+                delay(RINGBACK_OFF_MS.toLong())
+            }
+        }
+    }
+
+    private fun stopOutgoingRingback() {
+        ringbackJob?.cancel()
+        ringbackJob = null
+        ringbackTone?.let { tone ->
+            runCatching { tone.stopTone() }
+            runCatching { tone.release() }
+        }
+        ringbackTone = null
     }
 
     private suspend fun safeControlAction(
@@ -233,5 +275,11 @@ class NovaTelecomBridge(
                 canToggleSpeaker = hasSpeaker && hasNonSpeaker,
             )
         )
+    }
+
+    private companion object {
+        const val RINGBACK_VOLUME_PERCENT = 55
+        const val RINGBACK_ON_MS = 1_500
+        const val RINGBACK_OFF_MS = 2_500
     }
 }
