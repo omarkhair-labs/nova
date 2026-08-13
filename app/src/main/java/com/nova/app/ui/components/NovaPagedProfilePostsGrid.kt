@@ -7,10 +7,8 @@ import com.nova.app.core.network.NovaPost
 /**
  * Backwards-compatible profile content entry point.
  *
- * Existing profile screens call this component for their post grid. V2 profile
- * closeout upgrades that shared surface to the familiar Posts / Reposts tabs so
- * both your profile and other visible profiles stay consistent without
- * duplicating screen-level state or navigation wiring.
+ * V4 keeps the existing screen-level contract but upgrades the shared profile
+ * content surface so Reposts can include both Reel reposts and Post reposts.
  */
 @Composable
 fun NovaPagedProfilePostsGrid(
@@ -24,7 +22,7 @@ fun NovaPagedProfilePostsGrid(
     emptyMessage: String = "Shared moments will show up here.",
     sectionTitle: String? = "Posts",
 ) {
-    NovaProfileContentTabs(
+    NovaProfileContentTabsV4(
         username = username,
         initialPosts = initialPosts,
         postsLoading = isLoading,
