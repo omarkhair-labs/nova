@@ -18,9 +18,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -256,7 +256,7 @@ fun NovaBottomBar(
             )
             NovaTabItem(
                 label = "People",
-                icon = Icons.Filled.People,
+                icon = Icons.Filled.Search,
                 selected = selected == NovaTab.People,
                 onClick = { dispatchRoot(NovaRootTab.People) },
             )
