@@ -7,6 +7,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.nova.app.core.reels.NovaReel
+import java.lang.ref.WeakReference
 import java.util.UUID
 
 
@@ -18,23 +19,60 @@ data class ReelWatchSnapshot(
 )
 
 
+/**
+ * Activity-level safety net for Reel playback.
+ *
+ * Reels live in their own Activity, but finishing/switching root tabs can happen
+ * before Compose disposes every page. Keeping weak references to active pools lets
+ * the Activity pause audio synchronously from onPause without retaining screens.
+ */
+object ReelPlaybackSafety {
+    private val pools = mutableListOf<WeakReference<ReelPlayerPool>>()
+
+    @Synchronized
+    internal fun register(pool: ReelPlayerPool) {
+        pruneLocked()
+        if (pools.none { it.get() === pool }) {
+            pools += WeakReference(pool)
+        }
+    }
+
+    @Synchronized
+    fun pauseAll() {
+        val activePools = pools.mapNotNull { it.get() }
+        pruneLocked()
+        activePools.forEach { it.pauseAll() }
+    }
+
+    @Synchronized
+    private fun pruneLocked() {
+        pools.removeAll { it.get() == null }
+    }
+}
+
+
 class ReelPlayerPool(context: Context) {
     private val appContext = context.applicationContext
     private val entries = LinkedHashMap<Long, PlayerEntry>()
 
+    init {
+        ReelPlaybackSafety.register(this)
+    }
+
     fun playerFor(reel: NovaReel): ExoPlayer {
-        val existing = entries[reel.id]
-        if (existing != null && existing.videoUrl == reel.videoUrl) {
-            return existing.player
-        }
-        existing?.player?.release()
+        // A Reel's media is immutable after creation. Interaction responses can
+        // rebuild an equivalent absolute URL, so the Reel id is the stable media
+        // identity. Reusing by id preserves the decoder, buffer and playhead across
+        // Like/Repost/comment count updates instead of flashing/restarting playback.
+        entries[reel.id]?.let { return it.player }
+
         return ExoPlayer.Builder(appContext).build().apply {
             repeatMode = Player.REPEAT_MODE_ONE
             playWhenReady = false
             setMediaItem(MediaItem.fromUri(reel.videoUrl))
             prepare()
         }.also { player ->
-            entries[reel.id] = PlayerEntry(reel.videoUrl, player)
+            entries[reel.id] = PlayerEntry(player)
         }
     }
 
@@ -66,13 +104,18 @@ class ReelPlayerPool(context: Context) {
         }
     }
 
+    fun pauseAll() {
+        entries.values.forEach { entry ->
+            if (entry.player.isPlaying) entry.player.pause()
+        }
+    }
+
     fun releaseAll() {
         entries.values.forEach { it.player.release() }
         entries.clear()
     }
 
     private data class PlayerEntry(
-        val videoUrl: String,
         val player: ExoPlayer,
     )
 }

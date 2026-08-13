@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.nova.app.core.push.NovaPushOpenSignal
 import com.nova.app.feature.reels.ProfileReelsViewerScreen
+import com.nova.app.feature.reels.ReelPlaybackSafety
 import com.nova.app.feature.reels.ReelsScreen
 import com.nova.app.navigation.NovaRootNavigationSignal
 import com.nova.app.navigation.NovaRootTab
@@ -53,6 +54,14 @@ class ReelsActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onPause() {
+        // Pause pooled Reel players before another Activity/root tab becomes visible.
+        // Compose disposal can happen a little later, so relying on onDispose alone
+        // allowed audio to leak after leaving Reels on some navigation paths.
+        ReelPlaybackSafety.pauseAll()
+        super.onPause()
     }
 
     private fun openPerson(username: String) {
