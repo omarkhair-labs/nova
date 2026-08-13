@@ -60,6 +60,9 @@ class NovaWebRtcEngine(
     private var cameraCapturer: CameraVideoCapturer? = null
     private var surfaceTextureHelper: SurfaceTextureHelper? = null
     private val pendingRemoteIce = mutableListOf<IceCandidate>()
+    private val appliedRemoteAnswers = ArrayDeque<String>()
+    private val recoveryLock = Any()
+    private var deferredIceRestart: ((String) -> Unit)? = null
     private var hasRemoteDescription = false
 
     var microphoneEnabled: Boolean = true
@@ -142,6 +145,21 @@ class NovaWebRtcEngine(
 
     fun createIceRestartOffer(onReady: (String) -> Unit) {
         val peer = peerConnection ?: return listener.onError("Call connection is not ready.")
+        val signalingState = peer.signalingState()
+        if (signalingState != PeerConnection.SignalingState.STABLE) {
+            synchronized(recoveryLock) {
+                deferredIceRestart = onReady
+            }
+            Log.i(TAG, "Deferring ICE restart while signaling=$signalingState")
+            return
+        }
+        synchronized(recoveryLock) {
+            deferredIceRestart = null
+        }
+        performIceRestart(peer, onReady)
+    }
+
+    private fun performIceRestart(peer: PeerConnection, onReady: (String) -> Unit) {
         Log.i(TAG, "Requesting ICE restart")
         runCatching { peer.restartIce() }
             .onFailure {
@@ -206,7 +224,36 @@ class NovaWebRtcEngine(
     }
 
     fun setRemoteAnswer(sdp: String, onReady: () -> Unit = {}) {
-        setRemoteDescription(SessionDescription.Type.ANSWER, sdp, onReady)
+        val peer = peerConnection ?: return listener.onError("Call connection is not ready.")
+        val alreadyApplied = synchronized(appliedRemoteAnswers) {
+            appliedRemoteAnswers.contains(sdp)
+        }
+        if (alreadyApplied) {
+            Log.i(TAG, "Ignoring replayed remote answer")
+            return
+        }
+
+        val signalingState = peer.signalingState()
+        if (signalingState != PeerConnection.SignalingState.HAVE_LOCAL_OFFER) {
+            // A delayed/replayed answer can arrive after reconnect recovery has
+            // already completed. Applying it in STABLE is invalid WebRTC SDP
+            // sequencing, so treat it as harmless stale signaling instead of
+            // surfacing the native "Called in wrong state: stable" error.
+            Log.w(TAG, "Ignoring stale remote answer while signaling=$signalingState")
+            return
+        }
+
+        setRemoteDescription(SessionDescription.Type.ANSWER, sdp) {
+            synchronized(appliedRemoteAnswers) {
+                if (!appliedRemoteAnswers.contains(sdp)) {
+                    appliedRemoteAnswers.addLast(sdp)
+                }
+                while (appliedRemoteAnswers.size > MAX_APPLIED_REMOTE_ANSWERS) {
+                    appliedRemoteAnswers.removeFirstOrNull()
+                }
+            }
+            onReady()
+        }
     }
 
     fun addRemoteIce(candidate: IceCandidate) {
@@ -246,6 +293,12 @@ class NovaWebRtcEngine(
         if (!released.compareAndSet(false, true)) return
         synchronized(pendingRemoteIce) {
             pendingRemoteIce.clear()
+        }
+        synchronized(appliedRemoteAnswers) {
+            appliedRemoteAnswers.clear()
+        }
+        synchronized(recoveryLock) {
+            deferredIceRestart = null
         }
         runCatching { cameraCapturer?.stopCapture() }
         runCatching { cameraCapturer?.dispose() }
@@ -352,6 +405,18 @@ class NovaWebRtcEngine(
     private val observer = object : PeerConnection.Observer {
         override fun onSignalingChange(newState: PeerConnection.SignalingState?) {
             Log.d(TAG, "signaling=${newState ?: "unknown"}")
+            if (newState != PeerConnection.SignalingState.STABLE || released.get()) return
+
+            val deferred = synchronized(recoveryLock) {
+                deferredIceRestart.also { deferredIceRestart = null }
+            } ?: return
+            val peer = peerConnection ?: return
+            if (peer.connectionState() == PeerConnection.PeerConnectionState.CONNECTED) {
+                Log.i(TAG, "Dropping deferred ICE restart because media recovered")
+                return
+            }
+            Log.i(TAG, "Running deferred ICE restart after signaling returned to STABLE")
+            performIceRestart(peer, deferred)
         }
 
         override fun onIceConnectionChange(newState: PeerConnection.IceConnectionState?) {
@@ -402,6 +467,11 @@ class NovaWebRtcEngine(
         override fun onConnectionChange(newState: PeerConnection.PeerConnectionState?) {
             if (newState != null) {
                 Log.i(TAG, "peerConnection=$newState")
+                if (newState == PeerConnection.PeerConnectionState.CONNECTED) {
+                    synchronized(recoveryLock) {
+                        deferredIceRestart = null
+                    }
+                }
                 listener.onConnectionState(newState)
             }
         }
@@ -430,6 +500,7 @@ class NovaWebRtcEngine(
         const val VIDEO_WIDTH = 1280
         const val VIDEO_HEIGHT = 720
         const val VIDEO_FPS = 30
+        const val MAX_APPLIED_REMOTE_ANSWERS = 4
         val initialized = AtomicBoolean(false)
 
         fun initializeWebRtcOnce(context: Context) {
