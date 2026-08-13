@@ -1,7 +1,9 @@
 package com.nova.app.core.calls
 
 import android.content.Context
+import android.os.SystemClock
 import android.telecom.DisconnectCause
+import android.util.Log
 import com.nova.app.core.network.ApiResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -111,6 +113,10 @@ class NovaCallController(
     private var ringTimeoutJob: Job? = null
     private var recoveryJob: Job? = null
     private var recoveryOfferInFlight = false
+    private var qualityMonitorJob: Job? = null
+    private var lastAudioQualitySnapshot: NovaCallAudioQualitySnapshot? = null
+    private var inboundAudioStallStartedAtMs: Long? = null
+    private var lastMediaQualityRecoveryAtMs = 0L
     private var queuedAction: String? = when (launchSpec) {
         is NovaCallLaunchSpec.Existing -> launchSpec.requestedAction.takeIf { it.isNotBlank() }
         is NovaCallLaunchSpec.Outgoing -> null
@@ -227,6 +233,10 @@ class NovaCallController(
         ringTimeoutJob = null
         recoveryJob?.cancel()
         recoveryJob = null
+        qualityMonitorJob?.cancel()
+        qualityMonitorJob = null
+        lastAudioQualitySnapshot = null
+        inboundAudioStallStartedAtMs = null
         recoveryOfferInFlight = false
         awaitingAnswerNegotiationId = null
         pendingOfferNegotiationId = null
@@ -586,6 +596,89 @@ class NovaCallController(
         }
     }
 
+    private fun startAudioQualityMonitor() {
+        if (qualityMonitorJob?.isActive == true || released || ending) return
+        lastAudioQualitySnapshot = null
+        inboundAudioStallStartedAtMs = null
+        qualityMonitorJob = scope.launch {
+            while (!released && !ending) {
+                val currentCall = mutableState.value.session
+                val currentEngine = engine
+                if (currentCall?.status == NovaCallStatus.Active && currentEngine != null) {
+                    currentEngine.collectAudioQualitySnapshot { snapshot ->
+                        scope.launch { handleAudioQualitySnapshot(snapshot) }
+                    }
+                }
+                delay(QUALITY_POLL_INTERVAL_MS)
+            }
+        }
+    }
+
+    private fun handleAudioQualitySnapshot(snapshot: NovaCallAudioQualitySnapshot) {
+        val previous = lastAudioQualitySnapshot
+        lastAudioQualitySnapshot = snapshot
+        if (previous == null) return
+
+        val delta = NovaCallAudioQualityDelta.between(previous, snapshot)
+        Log.i(
+            QUALITY_TAG,
+            "inKbps=${delta.inboundKbps} outKbps=${delta.outboundKbps} " +
+                "lossPct=${delta.packetLossPercent} jitterMs=${delta.jitterMs} " +
+                "rttMs=${delta.roundTripTimeMs} concealedDelta=${delta.concealedSamplesDelta}",
+        )
+
+        val call = mutableState.value.session
+        if (
+            call?.status != NovaCallStatus.Active ||
+            !mutableState.value.connected ||
+            recoveryJob?.isActive == true ||
+            ending ||
+            released
+        ) {
+            inboundAudioStallStartedAtMs = null
+            return
+        }
+
+        val inboundStalled = delta.inboundPacketsDelta == 0L
+        val outboundAlive = delta.outboundPacketsDelta?.let { it > 0L } == true
+        if (!inboundStalled || !outboundAlive) {
+            inboundAudioStallStartedAtMs = null
+            return
+        }
+
+        val now = SystemClock.elapsedRealtime()
+        val startedAt = inboundAudioStallStartedAtMs ?: now.also {
+            inboundAudioStallStartedAtMs = it
+        }
+        if (now - startedAt < INBOUND_AUDIO_STALL_MS) return
+        if (now - lastMediaQualityRecoveryAtMs < MEDIA_RECOVERY_COOLDOWN_MS) return
+        if (recoveryOfferInFlight || awaitingAnswerNegotiationId != null) return
+
+        lastMediaQualityRecoveryAtMs = now
+        inboundAudioStallStartedAtMs = null
+        Log.w(
+            QUALITY_TAG,
+            "Inbound audio RTP stalled while outbound RTP is alive; requesting one ICE recovery",
+        )
+        requestMediaQualityRecovery(call)
+    }
+
+    private fun requestMediaQualityRecovery(call: NovaCallSession) {
+        if (call.status != NovaCallStatus.Active || ending || released || !signalingReady) return
+        if (call.isCaller) {
+            beginIceRestart()
+        } else {
+            signaling?.requestIceRestart()
+        }
+    }
+
+    private fun stopAudioQualityMonitor() {
+        qualityMonitorJob?.cancel()
+        qualityMonitorJob = null
+        lastAudioQualitySnapshot = null
+        inboundAudioStallStartedAtMs = null
+    }
+
     private fun queueOrSendAction(action: String) {
         if (!signalingReady) {
             queuedAction = action
@@ -616,6 +709,7 @@ class NovaCallController(
         ringTimeoutJob = null
         recoveryJob?.cancel()
         recoveryJob = null
+        stopAudioQualityMonitor()
         recoveryOfferInFlight = false
         awaitingAnswerNegotiationId = null
         pendingOfferNegotiationId = null
@@ -666,6 +760,7 @@ class NovaCallController(
         ringTimeoutJob?.cancel()
         recoveryJob?.cancel()
         recoveryJob = null
+        stopAudioQualityMonitor()
         recoveryOfferInFlight = false
         awaitingAnswerNegotiationId = null
         pendingOfferNegotiationId = null
@@ -726,14 +821,18 @@ class NovaCallController(
                         recoveryOfferInFlight = false
                         awaitingAnswerNegotiationId = null
                         update { it.copy(stage = "Connected", connected = true, error = null) }
+                        startAudioQualityMonitor()
                     }
                     PeerConnection.PeerConnectionState.DISCONNECTED -> {
+                        inboundAudioStallStartedAtMs = null
                         scheduleIceRecovery(immediate = false)
                     }
                     PeerConnection.PeerConnectionState.FAILED -> {
+                        inboundAudioStallStartedAtMs = null
                         scheduleIceRecovery(immediate = true)
                     }
                     PeerConnection.PeerConnectionState.CLOSED -> {
+                        stopAudioQualityMonitor()
                         update { it.copy(connected = false) }
                     }
                     else -> Unit
@@ -759,5 +858,9 @@ class NovaCallController(
         const val ACTION_ANSWER = "answer"
         const val ACTION_DECLINE = "decline"
         const val ACTION_END = "end"
+        private const val QUALITY_TAG = "NovaCallQuality"
+        private const val QUALITY_POLL_INTERVAL_MS = 2_500L
+        private const val INBOUND_AUDIO_STALL_MS = 8_000L
+        private const val MEDIA_RECOVERY_COOLDOWN_MS = 20_000L
     }
 }
