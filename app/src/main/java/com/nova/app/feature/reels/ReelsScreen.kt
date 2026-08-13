@@ -34,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -59,6 +60,7 @@ import com.nova.app.core.reels.NovaReelsRepository
 import com.nova.app.feature.sharing.NovaShareDialog
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
+import com.nova.app.ui.components.NovaLikeBurst
 import com.nova.app.ui.components.NovaTab
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBackground
@@ -493,6 +495,7 @@ private fun ReelPage(
 ) {
     var pausedByUser by remember(reel.id) { mutableStateOf(false) }
     var muted by remember(reel.id) { mutableStateOf(false) }
+    var likeBurstTrigger by remember(reel.id) { mutableIntStateOf(0) }
 
     LaunchedEffect(isActive, pausedByUser, player) {
         if (isActive && !pausedByUser) player.play() else player.pause()
@@ -523,7 +526,8 @@ private fun ReelPage(
             .combinedClickable(
                 onClick = { pausedByUser = !pausedByUser },
                 onDoubleClick = {
-                    // Double-tap is an idempotent Like gesture. It never unlikes a Reel.
+                    // The burst is visual feedback only; double-tap never unlikes.
+                    likeBurstTrigger += 1
                     if (!reel.isLiked && !isLiking) onLike()
                 },
             ),
@@ -544,6 +548,11 @@ private fun ReelPage(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.06f)),
+        )
+
+        NovaLikeBurst(
+            trigger = likeBurstTrigger,
+            modifier = Modifier.fillMaxSize(),
         )
 
         if (pausedByUser) {
