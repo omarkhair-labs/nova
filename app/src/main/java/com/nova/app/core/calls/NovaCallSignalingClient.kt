@@ -26,8 +26,8 @@ enum class NovaCallSocketStatus {
 
 sealed interface NovaCallSignalEvent {
     data class Ready(val call: NovaCallSession) : NovaCallSignalEvent
-    data class Offer(val sdp: String) : NovaCallSignalEvent
-    data class Answer(val sdp: String) : NovaCallSignalEvent
+    data class Offer(val sdp: String, val negotiationId: String?) : NovaCallSignalEvent
+    data class Answer(val sdp: String, val negotiationId: String?) : NovaCallSignalEvent
     data class Ice(
         val candidate: String,
         val sdpMid: String,
@@ -55,8 +55,8 @@ class NovaCallSignalingClient(
     private var peerReadySeen = false
     private val pendingPeerSignals = ArrayDeque<String>()
     private val replayPeerSignals = ArrayDeque<String>()
-    private var lastReceivedOfferSdp: String? = null
-    private var lastReceivedAnswerSdp: String? = null
+    private var lastReceivedOfferKey: String? = null
+    private var lastReceivedAnswerKey: String? = null
     private var onEvent: ((NovaCallSignalEvent) -> Unit)? = null
     private var onStatus: ((NovaCallSocketStatus) -> Unit)? = null
     private var onSessionExpired: (() -> Unit)? = null
@@ -74,8 +74,8 @@ class NovaCallSignalingClient(
         peerReadySeen = false
         synchronized(pendingPeerSignals) { pendingPeerSignals.clear() }
         synchronized(replayPeerSignals) { replayPeerSignals.clear() }
-        lastReceivedOfferSdp = null
-        lastReceivedAnswerSdp = null
+        lastReceivedOfferKey = null
+        lastReceivedAnswerKey = null
         this.scope = scope
         this.onEvent = onEvent
         this.onStatus = onStatus
@@ -97,18 +97,24 @@ class NovaCallSignalingClient(
         socket = null
         synchronized(pendingPeerSignals) { pendingPeerSignals.clear() }
         synchronized(replayPeerSignals) { replayPeerSignals.clear() }
-        lastReceivedOfferSdp = null
-        lastReceivedAnswerSdp = null
+        lastReceivedOfferKey = null
+        lastReceivedAnswerKey = null
     }
 
-    fun sendOffer(sdp: String) = sendPeerSignal(
-        JSONObject().put("type", "call.offer").put("sdp", sdp),
+    fun sendOffer(sdp: String, negotiationId: String? = null) = sendPeerSignal(
+        JSONObject()
+            .put("type", "call.offer")
+            .put("sdp", sdp)
+            .apply { negotiationId?.takeIf { it.isNotBlank() }?.let { put("negotiation_id", it) } },
         rememberForReconnect = true,
         startsNegotiation = true,
     )
 
-    fun sendAnswer(sdp: String) = sendPeerSignal(
-        JSONObject().put("type", "call.answer").put("sdp", sdp),
+    fun sendAnswer(sdp: String, negotiationId: String? = null) = sendPeerSignal(
+        JSONObject()
+            .put("type", "call.answer")
+            .put("sdp", sdp)
+            .apply { negotiationId?.takeIf { it.isNotBlank() }?.let { put("negotiation_id", it) } },
         rememberForReconnect = true,
         startsNegotiation = true,
     )
@@ -314,20 +320,26 @@ class NovaCallSignalingClient(
             "call.state" -> NovaCallSignalEvent.State(parseCall(json.optJSONObject("call") ?: return null))
             "call.offer" -> {
                 val sdp = json.optString("sdp")
-                if (sdp.isBlank() || sdp == lastReceivedOfferSdp) {
+                val negotiationId = json.optString("negotiation_id")
+                    .takeIf { it.isNotBlank() && it != "null" }
+                val key = signalKey(sdp, negotiationId)
+                if (sdp.isBlank() || key == lastReceivedOfferKey) {
                     null
                 } else {
-                    lastReceivedOfferSdp = sdp
-                    NovaCallSignalEvent.Offer(sdp)
+                    lastReceivedOfferKey = key
+                    NovaCallSignalEvent.Offer(sdp, negotiationId)
                 }
             }
             "call.answer" -> {
                 val sdp = json.optString("sdp")
-                if (sdp.isBlank() || sdp == lastReceivedAnswerSdp) {
+                val negotiationId = json.optString("negotiation_id")
+                    .takeIf { it.isNotBlank() && it != "null" }
+                val key = signalKey(sdp, negotiationId)
+                if (sdp.isBlank() || key == lastReceivedAnswerKey) {
                     null
                 } else {
-                    lastReceivedAnswerSdp = sdp
-                    NovaCallSignalEvent.Answer(sdp)
+                    lastReceivedAnswerKey = key
+                    NovaCallSignalEvent.Answer(sdp, negotiationId)
                 }
             }
             "call.ice" -> {
@@ -342,6 +354,10 @@ class NovaCallSignalingClient(
             "call.error" -> NovaCallSignalEvent.Error(json.optString("detail").ifBlank { "Call signaling failed." })
             else -> null
         }
+    }
+
+    private fun signalKey(sdp: String, negotiationId: String?): String {
+        return "${negotiationId.orEmpty()}\u0000$sdp"
     }
 
     private fun parseCall(json: JSONObject): NovaCallSession {
