@@ -77,6 +77,8 @@ fun ConversationScreenV9(
     displayName: String,
     avatarUrl: String,
     toolsEndPadding: Dp = 12.dp,
+    themeLabel: String,
+    onOpenTheme: () -> Unit,
     onBack: () -> Unit,
     onConversationRead: () -> Unit,
     onSessionExpired: () -> Unit,
@@ -145,6 +147,8 @@ fun ConversationScreenV9(
             displayName = displayName,
             avatarUrl = avatarUrl,
             initialTab = detailsStartTab,
+            themeLabel = themeLabel,
+            onOpenTheme = onOpenTheme,
             onDismiss = { showDetails = false },
             onSessionExpired = onSessionExpired,
         )
@@ -159,6 +163,8 @@ private fun V9ConversationDetailsDialog(
     displayName: String,
     avatarUrl: String,
     initialTab: V9ToolsTab,
+    themeLabel: String,
+    onOpenTheme: () -> Unit,
     onDismiss: () -> Unit,
     onSessionExpired: () -> Unit,
 ) {
@@ -360,6 +366,8 @@ private fun V9ConversationDetailsDialog(
 
                     when (tab) {
                         V9ToolsTab.Details -> V9DetailsView(
+                            themeLabel = themeLabel,
+                            onOpenTheme = onOpenTheme,
                             muted = muted,
                             loading = muteLoading || muteSaving,
                             error = muteError,
@@ -465,7 +473,7 @@ private fun V9DetailsHeader(onDismiss: () -> Unit) {
         }
         Column(Modifier.weight(1f)) {
             Text("Conversation details", color = NovaInk, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            Text("Search, media and notification controls", color = NovaMuted, fontSize = 11.sp)
+            Text("Appearance, search, media and notifications", color = NovaMuted, fontSize = 11.sp)
         }
     }
 }
@@ -658,6 +666,8 @@ private fun V9MediaView(
 
 @Composable
 private fun V9DetailsView(
+    themeLabel: String,
+    onOpenTheme: () -> Unit,
     muted: Boolean,
     loading: Boolean,
     error: String?,
@@ -667,6 +677,42 @@ private fun V9DetailsView(
         modifier = Modifier.fillMaxSize().padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        Text("Appearance", color = NovaInk, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+        Surface(
+            onClick = onOpenTheme,
+            shape = RoundedCornerShape(20.dp),
+            color = NovaSurface,
+            border = BorderStroke(1.dp, NovaBorder),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Chat theme", color = NovaInk, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(
+                        "Choose the colors and mood for this conversation.",
+                        color = NovaMuted,
+                        fontSize = 11.sp,
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(15.dp),
+                    color = NovaAccentSoft,
+                ) {
+                    Text(
+                        themeLabel,
+                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
+                        color = NovaAccent,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+        }
+
         Text("Notifications", color = NovaInk, fontSize = 19.sp, fontWeight = FontWeight.Bold)
         Surface(
             onClick = { if (!loading) onToggleMute() },
