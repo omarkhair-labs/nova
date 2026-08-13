@@ -1,13 +1,17 @@
 package com.nova.app.core.reels
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import com.nova.app.ReelsActivity
 
 
 object NovaReelsNavigator {
-    fun open(context: Context) {
+    fun open(context: Context, replaceCurrentActivity: Boolean = false) {
         context.startActivity(Intent(context, ReelsActivity::class.java))
+        if (replaceCurrentActivity) {
+            (context as? Activity)?.finish()
+        }
     }
 
     fun openProfile(
