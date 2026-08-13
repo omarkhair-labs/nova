@@ -11,9 +11,6 @@ import com.nova.app.navigation.NovaPrimaryNavigationDispatcher
 object NovaReelsNavigator {
     fun open(context: Context, replaceCurrentActivity: Boolean = false) {
         if (NovaPrimaryNavigationDispatcher.navigate(NovaPrimaryDestination.Reels)) {
-            if (replaceCurrentActivity) {
-                (context as? Activity)?.finish()
-            }
             return
         }
 
