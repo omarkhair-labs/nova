@@ -14,6 +14,14 @@ from .trust_safety import blocked_user_ids
 SEARCH_LIMIT = 50
 MEDIA_PAGE_SIZE = 30
 CONTEXT_SIDE_SIZE = 20
+CONVERSATION_THEME_KEYS = {
+    "nova",
+    "midnight",
+    "aurora",
+    "ocean",
+    "rose",
+    "ember",
+}
 
 
 def _message_queryset(conversation, request=None):
@@ -162,31 +170,57 @@ class ConversationPreferenceView(APIView):
         )
         return conversation, preference
 
+    def _payload(self, conversation, preference):
+        return {
+            "conversation_id": conversation.pk,
+            "muted": preference.muted,
+            "theme_key": preference.theme_key,
+        }
+
     def get(self, request, conversation_id):
         conversation, preference = self._preference(request, conversation_id)
-        return Response(
-            {
-                "conversation_id": conversation.pk,
-                "muted": preference.muted,
-            }
-        )
+        return Response(self._payload(conversation, preference))
 
     def post(self, request, conversation_id):
         conversation, preference = self._preference(request, conversation_id)
-        muted = request.data.get("muted")
-        if not isinstance(muted, bool):
+        supplied_muted = "muted" in request.data
+        supplied_theme = "theme_key" in request.data
+        if not supplied_muted and not supplied_theme:
             return Response(
-                {"detail": "muted must be true or false."},
+                {"detail": "Provide muted or theme_key."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if preference.muted != muted:
-            preference.muted = muted
-            preference.save(update_fields=("muted", "updated_at"))
+        changed_fields = []
+        if supplied_muted:
+            muted = request.data.get("muted")
+            if not isinstance(muted, bool):
+                return Response(
+                    {"detail": "muted must be true or false."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if preference.muted != muted:
+                preference.muted = muted
+                changed_fields.append("muted")
 
-        return Response(
-            {
-                "conversation_id": conversation.pk,
-                "muted": preference.muted,
-            }
-        )
+        if supplied_theme:
+            theme_key = request.data.get("theme_key")
+            if not isinstance(theme_key, str):
+                return Response(
+                    {"detail": "theme_key must be a string."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            clean_theme = theme_key.strip().lower()
+            if clean_theme not in CONVERSATION_THEME_KEYS:
+                return Response(
+                    {"detail": "That conversation theme is not supported."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if preference.theme_key != clean_theme:
+                preference.theme_key = clean_theme
+                changed_fields.append("theme_key")
+
+        if changed_fields:
+            preference.save(update_fields=(*changed_fields, "updated_at"))
+
+        return Response(self._payload(conversation, preference))

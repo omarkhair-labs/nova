@@ -19,6 +19,7 @@ class ConversationPreference(models.Model):
         related_name="conversation_preferences",
     )
     muted = models.BooleanField(default=False)
+    theme_key = models.CharField(max_length=24, default="nova")
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
