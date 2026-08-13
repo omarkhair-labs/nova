@@ -20,10 +20,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -41,7 +38,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -76,7 +72,6 @@ fun ConversationScreenV9(
     username: String,
     displayName: String,
     avatarUrl: String,
-    toolsEndPadding: Dp = 12.dp,
     themeLabel: String,
     onOpenTheme: () -> Unit,
     onBack: () -> Unit,
@@ -85,7 +80,7 @@ fun ConversationScreenV9(
 ) {
     var showDetails by remember(conversationId) { mutableStateOf(false) }
     var detailsStartTab by remember(conversationId) { mutableStateOf(V9ToolsTab.Details) }
-    val identityEndPadding = if (username == "group") 112.dp else 158.dp
+    val identityEndPadding = if (username == "group") 61.dp else 110.dp
 
     Box(Modifier.fillMaxSize()) {
         ConversationScreenV8(
@@ -113,30 +108,6 @@ fun ConversationScreenV9(
                 .height(52.dp),
         ) {
             Box(Modifier.fillMaxSize())
-        }
-
-        Surface(
-            onClick = {
-                detailsStartTab = V9ToolsTab.Search
-                showDetails = true
-            },
-            shape = CircleShape,
-            color = NovaBackground,
-            border = BorderStroke(1.dp, NovaBorder),
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .statusBarsPadding()
-                .padding(top = 10.dp, end = toolsEndPadding)
-                .size(38.dp),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.Filled.Search,
-                    contentDescription = "Search conversation",
-                    tint = NovaAccent,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
         }
     }
 
