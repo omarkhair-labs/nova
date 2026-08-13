@@ -5,11 +5,10 @@ import org.junit.Test
 
 class NovaRootNavigationPolicyTest {
     @Test
-    fun sameRootDoesNothing() {
-        assertEquals(
-            emptyList<NovaRootTab>(),
-            rootNavigationPlan(NovaRootTab.People, NovaRootTab.People),
-        )
+    fun everyRootIsStableWhenRequestedAgain() {
+        NovaRootTab.entries.forEach { tab ->
+            assertEquals(emptyList<NovaRootTab>(), rootNavigationPlan(tab, tab))
+        }
     }
 
     @Test
@@ -46,5 +45,30 @@ class NovaRootNavigationPolicyTest {
             listOf(NovaRootTab.Home),
             rootNavigationPlan(NovaRootTab.Profile, NovaRootTab.Home),
         )
+    }
+
+    @Test
+    fun allNineRootTransitionsRemainCharacterized() {
+        val expected = mapOf(
+            (NovaRootTab.Home to NovaRootTab.Home) to emptyList(),
+            (NovaRootTab.Home to NovaRootTab.People) to listOf(NovaRootTab.People),
+            (NovaRootTab.Home to NovaRootTab.Profile) to listOf(NovaRootTab.Profile),
+            (NovaRootTab.People to NovaRootTab.Home) to listOf(NovaRootTab.Home),
+            (NovaRootTab.People to NovaRootTab.People) to emptyList(),
+            (NovaRootTab.People to NovaRootTab.Profile) to listOf(
+                NovaRootTab.Home,
+                NovaRootTab.Profile,
+            ),
+            (NovaRootTab.Profile to NovaRootTab.Home) to listOf(NovaRootTab.Home),
+            (NovaRootTab.Profile to NovaRootTab.People) to listOf(
+                NovaRootTab.Home,
+                NovaRootTab.People,
+            ),
+            (NovaRootTab.Profile to NovaRootTab.Profile) to emptyList(),
+        )
+
+        expected.forEach { (transition, plan) ->
+            assertEquals(plan, rootNavigationPlan(transition.first, transition.second))
+        }
     }
 }
