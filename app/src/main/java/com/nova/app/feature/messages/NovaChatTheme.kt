@@ -35,7 +35,7 @@ data class NovaChatPalette(
         ink = ink,
         muted = muted,
         border = border,
-        accent = accent,
+        accent = outgoingBubble,
         accentSoft = accentSoft,
     )
 }
