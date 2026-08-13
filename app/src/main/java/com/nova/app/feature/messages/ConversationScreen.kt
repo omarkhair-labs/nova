@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.nova.app.core.auth.shouldExpireNovaSession
 import com.nova.app.core.messaging.NovaConversationPreferenceRepository
 import com.nova.app.core.network.ApiResult
 import com.nova.app.ui.theme.LocalNovaColorOverride
@@ -76,7 +77,7 @@ fun ConversationScreen(
                 themeError = null
             }
             is ApiResult.Failure -> {
-                if (result.statusCode == 401) onSessionExpired()
+                if (shouldExpireNovaSession(result.statusCode)) onSessionExpired()
                 else themeError = result.message
             }
         }
@@ -96,7 +97,7 @@ fun ConversationScreen(
                 }
                 is ApiResult.Failure -> {
                     themeKey = previousKey
-                    if (result.statusCode == 401) onSessionExpired()
+                    if (shouldExpireNovaSession(result.statusCode)) onSessionExpired()
                     else themeError = result.message
                 }
             }

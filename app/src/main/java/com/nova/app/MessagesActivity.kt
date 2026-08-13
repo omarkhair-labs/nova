@@ -37,9 +37,14 @@ import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.messages.ConversationScreen
+import com.nova.app.feature.messages.ConversationExitAction
 import com.nova.app.feature.messages.MessagesScreen
+import com.nova.app.feature.messages.MessagesBackAction
+import com.nova.app.feature.messages.MessagesBackSnapshot
 import com.nova.app.feature.messages.NewGroupDialog
 import com.nova.app.feature.messages.NewMessageDialog
+import com.nova.app.feature.messages.conversationExitAction
+import com.nova.app.feature.messages.messagesBackAction
 import com.nova.app.navigation.NovaRootNavigationSignal
 import com.nova.app.navigation.NovaRootTab
 import com.nova.app.ui.components.NovaActiveCallPill
@@ -161,21 +166,23 @@ private fun MessagingActivityContent(
     }
 
     fun backFromConversation() {
-        if (openedDirectly) {
-            onFinish()
-        } else {
-            activeConversation = null
-            refreshUnreadCount()
+        when (conversationExitAction(openedDirectly)) {
+            ConversationExitAction.Finish -> onFinish()
+            ConversationExitAction.ReturnToInbox -> {
+                activeConversation = null
+                refreshUnreadCount()
+            }
         }
     }
 
     fun groupClosed() {
         NovaMessagesSignal.requestInboxRefresh()
-        if (openedDirectly) {
-            onFinish()
-        } else {
-            activeConversation = null
-            refreshUnreadCount()
+        when (conversationExitAction(openedDirectly)) {
+            ConversationExitAction.Finish -> onFinish()
+            ConversationExitAction.ReturnToInbox -> {
+                activeConversation = null
+                refreshUnreadCount()
+            }
         }
     }
 
@@ -207,12 +214,21 @@ private fun MessagingActivityContent(
     }
 
     BackHandler {
-        when {
-            showNewMessage -> showNewMessage = false
-            showNewGroup -> showNewGroup = false
-            showCreateMenu -> showCreateMenu = false
-            activeConversation != null -> backFromConversation()
-            else -> onFinish()
+        when (
+            messagesBackAction(
+                MessagesBackSnapshot(
+                    newMessageOpen = showNewMessage,
+                    newGroupOpen = showNewGroup,
+                    createMenuOpen = showCreateMenu,
+                    conversationOpen = activeConversation != null,
+                )
+            )
+        ) {
+            MessagesBackAction.CloseNewMessage -> showNewMessage = false
+            MessagesBackAction.CloseNewGroup -> showNewGroup = false
+            MessagesBackAction.CloseCreateMenu -> showCreateMenu = false
+            MessagesBackAction.CloseConversation -> backFromConversation()
+            MessagesBackAction.Finish -> onFinish()
         }
     }
 
