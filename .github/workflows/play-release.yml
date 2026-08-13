@@ -2,19 +2,21 @@ name: Google Play Release
 
 on:
   push:
-    tags:
-      - "android-v*"
+    branches:
+      - master
+    paths:
+      - "app/build.gradle.kts"
   workflow_dispatch:
     inputs:
       track:
         description: Google Play track
         required: true
-        default: internal
+        default: alpha
         type: choice
         options:
-          - internal
           - alpha
           - beta
+          - internal
           - production
       priority:
         description: In-app update priority (0-5)
@@ -71,16 +73,19 @@ jobs:
             confirm_production="${{ inputs.confirm_production }}"
             release_name="manual-${GITHUB_SHA::7}"
           else
-            track="internal"
-            priority="2"
-            confirm_production=""
-            release_name="${GITHUB_REF_NAME}"
-
-            git fetch origin master
-            if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/master; then
-              echo "Tagged release commit must be contained in master."
+            if [[ "${GITHUB_REF_NAME}" != "master" ]]; then
+              echo "Automatic Google Play publishing is only allowed from master."
               exit 1
             fi
+            track="alpha"
+            priority="2"
+            confirm_production=""
+            version_name="$(sed -n 's/^[[:space:]]*versionName = "\([^"]*\)"/\1/p' app/build.gradle.kts | head -n 1)"
+            if [[ -z "${version_name}" ]]; then
+              echo "Could not resolve Android versionName."
+              exit 1
+            fi
+            release_name="android-v${version_name}"
           fi
 
           if [[ "${track}" == "production" && "${confirm_production}" != "PUBLISH" ]]; then
