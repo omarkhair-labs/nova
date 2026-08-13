@@ -20,7 +20,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -47,6 +50,7 @@ import com.nova.app.core.messaging.NovaMessagingV9ToolsRepository
 import com.nova.app.core.messaging.NovaV9MessageContext
 import com.nova.app.core.messaging.NovaV9MessageItem
 import com.nova.app.core.network.ApiResult
+import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaMediaImage
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
@@ -63,7 +67,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 
-private enum class V9ToolsTab { Search, Media, Settings }
+private enum class V9ToolsTab { Details, Search, Media }
 
 
 @Composable
@@ -77,7 +81,9 @@ fun ConversationScreenV9(
     onConversationRead: () -> Unit,
     onSessionExpired: () -> Unit,
 ) {
-    var showTools by remember(conversationId) { mutableStateOf(false) }
+    var showDetails by remember(conversationId) { mutableStateOf(false) }
+    var detailsStartTab by remember(conversationId) { mutableStateOf(V9ToolsTab.Details) }
+    val identityEndPadding = if (username == "group") 112.dp else 158.dp
 
     Box(Modifier.fillMaxSize()) {
         ConversationScreenV8(
@@ -91,30 +97,55 @@ fun ConversationScreenV9(
         )
 
         Surface(
-            onClick = { showTools = true },
+            onClick = {
+                detailsStartTab = V9ToolsTab.Details
+                showDetails = true
+            },
+            shape = RoundedCornerShape(18.dp),
+            color = Color.Transparent,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(top = 8.dp, start = 58.dp, end = identityEndPadding)
+                .height(52.dp),
+        ) {
+            Box(Modifier.fillMaxSize())
+        }
+
+        Surface(
+            onClick = {
+                detailsStartTab = V9ToolsTab.Search
+                showDetails = true
+            },
             shape = CircleShape,
             color = NovaBackground,
             border = BorderStroke(1.dp, NovaBorder),
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .statusBarsPadding()
-                .padding(top = 10.dp, end = toolsEndPadding),
+                .padding(top = 10.dp, end = toolsEndPadding)
+                .size(38.dp),
         ) {
-            Text(
-                "⋮",
-                modifier = Modifier.padding(horizontal = 13.dp, vertical = 7.dp),
-                color = NovaAccent,
-                fontSize = 19.sp,
-                fontWeight = FontWeight.Bold,
-            )
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Filled.Search,
+                    contentDescription = "Search conversation",
+                    tint = NovaAccent,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
         }
     }
 
-    if (showTools) {
-        V9ConversationToolsDialog(
+    if (showDetails) {
+        V9ConversationDetailsDialog(
             conversationId = conversationId,
             username = username,
-            onDismiss = { showTools = false },
+            displayName = displayName,
+            avatarUrl = avatarUrl,
+            initialTab = detailsStartTab,
+            onDismiss = { showDetails = false },
             onSessionExpired = onSessionExpired,
         )
     }
@@ -122,16 +153,19 @@ fun ConversationScreenV9(
 
 
 @Composable
-private fun V9ConversationToolsDialog(
+private fun V9ConversationDetailsDialog(
     conversationId: Long,
     username: String,
+    displayName: String,
+    avatarUrl: String,
+    initialTab: V9ToolsTab,
     onDismiss: () -> Unit,
     onSessionExpired: () -> Unit,
 ) {
     val context = LocalContext.current
     val repository = remember(context) { NovaMessagingV9ToolsRepository(context.applicationContext) }
 
-    var tab by remember { mutableStateOf(V9ToolsTab.Search) }
+    var tab by remember(initialTab) { mutableStateOf(initialTab) }
     var query by remember { mutableStateOf("") }
     var searchResults by remember { mutableStateOf<List<NovaV9MessageItem>>(emptyList()) }
     var searchLoading by remember { mutableStateOf(false) }
@@ -316,10 +350,26 @@ private fun V9ConversationToolsDialog(
                         .statusBarsPadding()
                         .navigationBarsPadding(),
                 ) {
-                    V9ToolsHeader(username = username, onDismiss = onDismiss)
+                    V9DetailsHeader(onDismiss = onDismiss)
+                    V9IdentitySummary(
+                        username = username,
+                        displayName = displayName,
+                        avatarUrl = avatarUrl,
+                    )
                     V9Tabs(tab = tab, onSelect = { tab = it })
 
                     when (tab) {
+                        V9ToolsTab.Details -> V9DetailsView(
+                            muted = muted,
+                            loading = muteLoading || muteSaving,
+                            error = muteError,
+                            onToggleMute = {
+                                if (!muteSaving) {
+                                    muteSaving = true
+                                    muteError = null
+                                }
+                            },
+                        )
                         V9ToolsTab.Search -> V9SearchView(
                             query = query,
                             results = searchResults,
@@ -354,17 +404,6 @@ private fun V9ConversationToolsDialog(
                                     mediaError = null
                                     mediaLoadedFor = null
                                     mediaCursor = cursor
-                                }
-                            },
-                        )
-                        V9ToolsTab.Settings -> V9SettingsView(
-                            muted = muted,
-                            loading = muteLoading || muteSaving,
-                            error = muteError,
-                            onToggleMute = {
-                                if (!muteSaving) {
-                                    muteSaving = true
-                                    muteError = null
                                 }
                             },
                         )
@@ -415,7 +454,7 @@ private fun V9ConversationToolsDialog(
 
 
 @Composable
-private fun V9ToolsHeader(username: String, onDismiss: () -> Unit) {
+private fun V9DetailsHeader(onDismiss: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -425,8 +464,47 @@ private fun V9ToolsHeader(username: String, onDismiss: () -> Unit) {
             Text("‹", modifier = Modifier.padding(horizontal = 13.dp, vertical = 5.dp), color = NovaInk, fontSize = 27.sp)
         }
         Column(Modifier.weight(1f)) {
-            Text("Conversation tools", color = NovaInk, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            Text("@$username", color = NovaMuted, fontSize = 11.sp)
+            Text("Conversation details", color = NovaInk, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text("Search, media and notification controls", color = NovaMuted, fontSize = 11.sp)
+        }
+    }
+}
+
+
+@Composable
+private fun V9IdentitySummary(username: String, displayName: String, avatarUrl: String) {
+    val isGroup = username == "group"
+    Surface(
+        shape = RoundedCornerShape(22.dp),
+        color = NovaSurface,
+        border = BorderStroke(1.dp, NovaBorder),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            NovaAvatar(
+                source = avatarUrl,
+                fallbackText = displayName.ifBlank { if (isGroup) "Group" else username },
+                size = 58.dp,
+            )
+            Column(Modifier.weight(1f)) {
+                Text(
+                    displayName.ifBlank { if (isGroup) "Group conversation" else username },
+                    color = NovaInk,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                )
+                Text(
+                    if (isGroup) "Group conversation" else "@$username",
+                    color = NovaMuted,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }
@@ -435,12 +513,12 @@ private fun V9ToolsHeader(username: String, onDismiss: () -> Unit) {
 @Composable
 private fun V9Tabs(tab: V9ToolsTab, onSelect: (V9ToolsTab) -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
+        V9TabChip("Details", tab == V9ToolsTab.Details) { onSelect(V9ToolsTab.Details) }
         V9TabChip("Search", tab == V9ToolsTab.Search) { onSelect(V9ToolsTab.Search) }
         V9TabChip("Media", tab == V9ToolsTab.Media) { onSelect(V9ToolsTab.Media) }
-        V9TabChip("Settings", tab == V9ToolsTab.Settings) { onSelect(V9ToolsTab.Settings) }
     }
 }
 
@@ -579,7 +657,7 @@ private fun V9MediaView(
 
 
 @Composable
-private fun V9SettingsView(
+private fun V9DetailsView(
     muted: Boolean,
     loading: Boolean,
     error: String?,
@@ -589,7 +667,7 @@ private fun V9SettingsView(
         modifier = Modifier.fillMaxSize().padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("Conversation settings", color = NovaInk, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+        Text("Notifications", color = NovaInk, fontSize = 19.sp, fontWeight = FontWeight.Bold)
         Surface(
             onClick = { if (!loading) onToggleMute() },
             shape = RoundedCornerShape(20.dp),
