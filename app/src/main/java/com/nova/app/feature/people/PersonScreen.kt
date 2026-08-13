@@ -417,7 +417,7 @@ fun PersonScreen(
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
                     )
-                    if (privacyState.isPrivate) {
+                    if (shouldShowPrivateProfileBadgeV4(privacyState)) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Surface(shape = RoundedCornerShape(14.dp), color = NovaAccentSoft) {
                             Text(
