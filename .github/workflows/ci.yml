@@ -95,11 +95,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Set up Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "17"
+      - name: Verify self-hosted Java 17
+        shell: bash
+        run: |
+          java_version="$(java -version 2>&1 | head -n 1)"
+          echo "$java_version"
+          [[ "$java_version" == *'"17.'* ]]
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
