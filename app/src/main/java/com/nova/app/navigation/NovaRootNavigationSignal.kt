@@ -14,18 +14,32 @@ enum class NovaRootTab {
 
 
 /**
- * Returns the single root destination requested by the bottom bar.
+ * Returns the callback sequence needed to move between Nova's nested social roots
+ * without letting People/Profile accumulate in the Nav3 back stack.
  *
- * V5 keeps one owner for primary navigation, so switching People ↔ You no longer
- * needs an intermediate Home hop. The legacy signal remains only as a fallback
- * for deep-link Activities that still need to hand control back to MainActivity.
+ * MainActivity now owns all five primary destinations, but Home / People / You
+ * still share the existing social Nav3 child stack. Until that child stack is
+ * replaced by independent root state, Home remains its canonical reset point.
  */
 internal fun rootNavigationPlan(
     current: NovaRootTab,
     requested: NovaRootTab,
 ): List<NovaRootTab> {
     if (current == requested) return emptyList()
-    return listOf(requested)
+
+    return when (requested) {
+        NovaRootTab.Home -> listOf(NovaRootTab.Home)
+        NovaRootTab.People -> if (current == NovaRootTab.Home) {
+            listOf(NovaRootTab.People)
+        } else {
+            listOf(NovaRootTab.Home, NovaRootTab.People)
+        }
+        NovaRootTab.Profile -> if (current == NovaRootTab.Home) {
+            listOf(NovaRootTab.Profile)
+        } else {
+            listOf(NovaRootTab.Home, NovaRootTab.Profile)
+        }
+    }
 }
 
 
