@@ -16,7 +16,7 @@ concurrency:
 jobs:
   backend:
     name: Backend tests
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     services:
       postgres:
         image: postgres:17-alpine
@@ -89,7 +89,7 @@ jobs:
 
   android:
     name: Android build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
 
     steps:
       - name: Checkout
@@ -103,6 +103,13 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
+
+      - name: Configure self-hosted Android SDK
+        shell: bash
+        run: |
+          test -f "$HOME/Android/Sdk/platforms/android-36.1/android.jar"
+          test -x "$HOME/Android/Sdk/build-tools/36.1.0/aapt2"
+          printf 'sdk.dir=%s\n' "$HOME/Android/Sdk" > local.properties
 
       - name: Allow Gradle wrapper execution
         run: chmod +x gradlew
