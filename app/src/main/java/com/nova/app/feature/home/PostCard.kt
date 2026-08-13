@@ -17,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -24,7 +25,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -37,6 +37,7 @@ import com.nova.app.core.sharing.NovaSharingRepository
 import com.nova.app.feature.sharing.NovaShareDialog
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaConfirmDeleteDialog
+import com.nova.app.ui.components.NovaLikeBurst
 import com.nova.app.ui.components.NovaMediaImage
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
@@ -46,7 +47,6 @@ import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 
@@ -72,19 +72,12 @@ fun NovaPostCard(
     var repostBusy by remember(post.id) { mutableStateOf(false) }
     var repostError by remember(post.id) { mutableStateOf<String?>(null) }
     var hiddenFromFeed by remember(post.id) { mutableStateOf(false) }
-    var showDoubleTapHeart by remember(post.id) { mutableStateOf(false) }
+    var likeBurstTrigger by remember(post.id) { mutableIntStateOf(0) }
 
     LaunchedEffect(post.id) {
         when (val result = sharingRepository.repostState(post.id)) {
             is ApiResult.Success -> repostState = result.value
             is ApiResult.Failure -> Unit
-        }
-    }
-
-    LaunchedEffect(showDoubleTapHeart) {
-        if (showDoubleTapHeart) {
-            delay(520)
-            showDoubleTapHeart = false
         }
     }
 
@@ -240,7 +233,7 @@ fun NovaPostCard(
                         detectTapGestures(
                             onDoubleTap = {
                                 if (!isLiking) {
-                                    showDoubleTapHeart = true
+                                    likeBurstTrigger += 1
                                     if (!post.isLiked) onLikeToggle()
                                 }
                             }
@@ -256,14 +249,12 @@ fun NovaPostCard(
                         .clip(RoundedCornerShape(0.dp)),
                     contentDescription = "Post by ${post.author.username}",
                 )
-                if (showDoubleTapHeart) {
-                    Text(
-                        text = "♥",
-                        color = Color.White,
-                        fontSize = 76.sp,
-                        fontWeight = FontWeight.Black,
-                    )
-                }
+                NovaLikeBurst(
+                    trigger = likeBurstTrigger,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f),
+                )
             }
 
             Row(
