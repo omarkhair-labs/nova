@@ -46,7 +46,7 @@ concurrency:
 jobs:
   release:
     name: Build, sign and publish AAB
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     env:
       PLAY_PACKAGE_NAME: com.omarkhair70.nova
       KEYSTORE_B64: ${{ secrets.NOVA_ANDROID_KEYSTORE_B64 }}
