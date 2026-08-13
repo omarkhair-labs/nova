@@ -2,13 +2,14 @@ package com.nova.app.feature.messages
 
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
-import com.nova.app.ui.theme.NovaAccent
-import com.nova.app.ui.theme.NovaAccentSoft
-import com.nova.app.ui.theme.NovaBackground
-import com.nova.app.ui.theme.NovaBorder
-import com.nova.app.ui.theme.NovaInk
-import com.nova.app.ui.theme.NovaMuted
-import com.nova.app.ui.theme.NovaSurface
+import com.nova.app.ui.theme.NovaBaseAccent
+import com.nova.app.ui.theme.NovaBaseAccentSoft
+import com.nova.app.ui.theme.NovaBaseBackground
+import com.nova.app.ui.theme.NovaBaseBorder
+import com.nova.app.ui.theme.NovaBaseInk
+import com.nova.app.ui.theme.NovaBaseMuted
+import com.nova.app.ui.theme.NovaBaseSurface
+import com.nova.app.ui.theme.NovaColorOverride
 
 
 data class NovaChatPalette(
@@ -27,26 +28,36 @@ data class NovaChatPalette(
     val muted: Color,
     val border: Color,
     val composer: Color,
-)
+) {
+    fun colorOverride() = NovaColorOverride(
+        background = background,
+        surface = surface,
+        ink = ink,
+        muted = muted,
+        border = border,
+        accent = accent,
+        accentSoft = accentSoft,
+    )
+}
 
 
 object NovaChatThemes {
     val Nova = NovaChatPalette(
         key = "nova",
         label = "Nova",
-        background = NovaBackground,
-        surface = NovaSurface,
+        background = NovaBaseBackground,
+        surface = NovaBaseSurface,
         raisedSurface = Color(0xFFFFFFFF),
-        incomingBubble = NovaSurface,
-        incomingText = NovaInk,
-        outgoingBubble = NovaAccent,
-        outgoingText = NovaBackground,
-        accent = NovaAccent,
-        accentSoft = NovaAccentSoft,
-        ink = NovaInk,
-        muted = NovaMuted,
-        border = NovaBorder,
-        composer = NovaSurface,
+        incomingBubble = NovaBaseSurface,
+        incomingText = NovaBaseInk,
+        outgoingBubble = NovaBaseAccent,
+        outgoingText = NovaBaseBackground,
+        accent = NovaBaseAccent,
+        accentSoft = NovaBaseAccentSoft,
+        ink = NovaBaseInk,
+        muted = NovaBaseMuted,
+        border = NovaBaseBorder,
+        composer = NovaBaseSurface,
     )
 
     val Midnight = NovaChatPalette(
