@@ -1,10 +1,9 @@
 package com.nova.app.feature.messages
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -12,7 +11,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -113,25 +111,18 @@ fun ConversationScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .imePadding(),
+                .background(NovaBackground),
         ) {
             ConversationScreenV9(
                 conversationId = conversationId,
                 username = username,
                 displayName = liveDisplayName,
                 avatarUrl = liveAvatarUrl,
-                toolsEndPadding = if (isGroup) 61.dp else 110.dp,
+                themeLabel = palette.label,
+                onOpenTheme = { showThemePicker = true },
                 onBack = onBack,
                 onConversationRead = onConversationRead,
                 onSessionExpired = onSessionExpired,
-            )
-
-            ConversationThemeAction(
-                onClick = { showThemePicker = true },
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .statusBarsPadding()
-                    .padding(top = 10.dp, end = if (isGroup) 110.dp else 159.dp),
             )
 
             if (isGroup) {
@@ -191,33 +182,6 @@ fun ConversationScreen(
                 },
                 onSessionExpired = onSessionExpired,
             )
-        }
-    }
-}
-
-
-@Composable
-private fun ConversationThemeAction(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val palette = LocalNovaChatPalette.current
-    Surface(
-        onClick = onClick,
-        shape = CircleShape,
-        color = NovaBackground,
-        border = BorderStroke(1.dp, NovaBorder),
-        modifier = modifier.size(38.dp),
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(shape = CircleShape, color = palette.accent, modifier = Modifier.size(9.dp)) {}
-                Surface(
-                    shape = CircleShape,
-                    color = palette.outgoingBubble,
-                    modifier = Modifier.padding(start = 2.dp).size(7.dp),
-                ) {}
-            }
         }
     }
 }

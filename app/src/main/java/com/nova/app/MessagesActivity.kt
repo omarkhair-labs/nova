@@ -99,12 +99,17 @@ fun NovaMessagesRootContent(
     onRootRequested: (NovaRootTab) -> Unit,
     onSessionExpired: () -> Unit,
 ) {
-    MessagingActivityContent(
-        initialConversation = null,
-        onFinish = { onRootRequested(NovaRootTab.Home) },
-        onRootRequested = onRootRequested,
-        onSessionExpired = onSessionExpired,
-    )
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = NovaBackground,
+    ) {
+        MessagingActivityContent(
+            initialConversation = null,
+            onFinish = { onRootRequested(NovaRootTab.Home) },
+            onRootRequested = onRootRequested,
+            onSessionExpired = onSessionExpired,
+        )
+    }
 }
 
 

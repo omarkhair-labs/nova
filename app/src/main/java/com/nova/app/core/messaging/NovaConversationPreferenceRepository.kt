@@ -24,8 +24,13 @@ class NovaConversationPreferenceRepository(
     private val appContext = context.applicationContext
     private val sessionStore = NovaSessionStore(appContext)
     private val authApi = NovaApiClient(baseUrl)
+    private val themePreferences = appContext.getSharedPreferences(
+        THEME_PREFERENCES_NAME,
+        Context.MODE_PRIVATE,
+    )
 
     suspend fun preference(conversationId: Long): ApiResult<NovaConversationPreference> {
+        val localTheme = localTheme(conversationId)
         return authenticatedCall { token ->
             when (
                 val response = requestJson(
@@ -33,7 +38,13 @@ class NovaConversationPreferenceRepository(
                     bearerToken = token,
                 )
             ) {
-                is ApiResult.Success -> ApiResult.Success(parsePreference(response.value))
+                is ApiResult.Success -> {
+                    val preference = parsePreference(response.value, localTheme)
+                    if (response.value.has("theme_key")) {
+                        rememberLocalTheme(conversationId, preference.themeKey)
+                    }
+                    ApiResult.Success(preference)
+                }
                 is ApiResult.Failure -> response
             }
         }
@@ -46,6 +57,7 @@ class NovaConversationPreferenceRepository(
         return update(
             conversationId = conversationId,
             body = JSONObject().put("muted", muted),
+            fallbackThemeKey = localTheme(conversationId),
         )
     }
 
@@ -53,15 +65,81 @@ class NovaConversationPreferenceRepository(
         conversationId: Long,
         themeKey: String,
     ): ApiResult<NovaConversationPreference> {
-        return update(
-            conversationId = conversationId,
-            body = JSONObject().put("theme_key", themeKey.trim().lowercase()),
+        val cleanTheme = themeKey.trim().lowercase().ifBlank { "nova" }
+        rememberLocalTheme(conversationId, cleanTheme)
+
+        return authenticatedCall { token ->
+            when (
+                val response = requestJson(
+                    path = "conversations/$conversationId/preferences/",
+                    method = "POST",
+                    body = JSONObject().put("theme_key", cleanTheme),
+                    bearerToken = token,
+                )
+            ) {
+                is ApiResult.Success -> {
+                    val preference = parsePreference(response.value, cleanTheme)
+                    rememberLocalTheme(conversationId, preference.themeKey)
+                    ApiResult.Success(preference.copy(themeKey = cleanTheme))
+                }
+                is ApiResult.Failure -> {
+                    if (response.statusCode == 400 && response.message.contains("muted must be true or false", ignoreCase = true)) {
+                        setThemeAgainstLegacyBackend(
+                            conversationId = conversationId,
+                            cleanTheme = cleanTheme,
+                            bearerToken = token,
+                        )
+                    } else {
+                        response
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun setThemeAgainstLegacyBackend(
+        conversationId: Long,
+        cleanTheme: String,
+        bearerToken: String,
+    ): ApiResult<NovaConversationPreference> {
+        val current = requestJson(
+            path = "conversations/$conversationId/preferences/",
+            bearerToken = bearerToken,
         )
+        if (current is ApiResult.Failure) return current
+
+        val currentJson = (current as ApiResult.Success).value
+        val muted = currentJson.optBoolean("muted", false)
+        return when (
+            val response = requestJson(
+                path = "conversations/$conversationId/preferences/",
+                method = "POST",
+                body = JSONObject()
+                    .put("muted", muted)
+                    .put("theme_key", cleanTheme),
+                bearerToken = bearerToken,
+            )
+        ) {
+            is ApiResult.Success -> {
+                // Older production backends ignore theme_key and return only muted.
+                // Keep the selected theme locally so appearance still works now;
+                // once the new backend is deployed, the same request syncs it remotely.
+                rememberLocalTheme(conversationId, cleanTheme)
+                ApiResult.Success(
+                    NovaConversationPreference(
+                        muted = response.value.optBoolean("muted", muted),
+                        themeKey = cleanTheme,
+                    )
+                )
+            }
+            is ApiResult.Failure -> response
+        }
     }
 
     private suspend fun update(
         conversationId: Long,
         body: JSONObject,
+        fallbackThemeKey: String,
     ): ApiResult<NovaConversationPreference> {
         return authenticatedCall { token ->
             when (
@@ -72,16 +150,41 @@ class NovaConversationPreferenceRepository(
                     bearerToken = token,
                 )
             ) {
-                is ApiResult.Success -> ApiResult.Success(parsePreference(response.value))
+                is ApiResult.Success -> ApiResult.Success(
+                    parsePreference(response.value, fallbackThemeKey)
+                )
                 is ApiResult.Failure -> response
             }
         }
     }
 
-    private fun parsePreference(json: JSONObject) = NovaConversationPreference(
+    private fun parsePreference(
+        json: JSONObject,
+        fallbackThemeKey: String = "nova",
+    ) = NovaConversationPreference(
         muted = json.optBoolean("muted", false),
-        themeKey = json.optString("theme_key", "nova").ifBlank { "nova" },
+        themeKey = if (json.has("theme_key")) {
+            json.optString("theme_key", fallbackThemeKey).ifBlank { fallbackThemeKey }
+        } else {
+            fallbackThemeKey
+        },
     )
+
+    private fun localTheme(conversationId: Long): String {
+        return themePreferences.getString(themePreferenceKey(conversationId), "nova")
+            ?.trim()
+            ?.lowercase()
+            ?.ifBlank { "nova" }
+            ?: "nova"
+    }
+
+    private fun rememberLocalTheme(conversationId: Long, themeKey: String) {
+        themePreferences.edit()
+            .putString(themePreferenceKey(conversationId), themeKey.trim().lowercase().ifBlank { "nova" })
+            .apply()
+    }
+
+    private fun themePreferenceKey(conversationId: Long) = "conversation_$conversationId"
 
     private suspend fun <T> authenticatedCall(
         call: suspend (String) -> ApiResult<T>,
@@ -162,5 +265,9 @@ class NovaConversationPreferenceRepository(
                 connection?.disconnect()
             }
         }
+    }
+
+    private companion object {
+        const val THEME_PREFERENCES_NAME = "nova_conversation_themes"
     }
 }
