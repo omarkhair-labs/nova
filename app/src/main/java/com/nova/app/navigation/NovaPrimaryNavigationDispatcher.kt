@@ -1,17 +1,8 @@
 package com.nova.app.navigation
 
 
-enum class NovaPrimaryDestination {
-    Home,
-    People,
-    Reels,
-    Messages,
-    Profile,
-}
-
-
 /**
- * Bridge for app-level primary navigation.
+ * Compatibility bridge for app-level primary navigation.
  *
  * MainActivity owns the active handler while it is resumed. Feature navigators
  * can then request a primary destination without starting another root Activity.
@@ -19,15 +10,15 @@ enum class NovaPrimaryDestination {
  * fall back to their existing Activity navigation instead of routing behind the
  * visible screen.
  */
-object NovaPrimaryNavigationDispatcher {
-    private var handler: ((NovaPrimaryDestination) -> Unit)? = null
+object NovaPrimaryNavigationDispatcher : AppNavigator {
+    private var handler: ((AppDestination) -> Unit)? = null
     private var hostActive: Boolean = false
 
-    fun attach(value: (NovaPrimaryDestination) -> Unit) {
+    fun attach(value: (AppDestination) -> Unit) {
         handler = value
     }
 
-    fun detach(value: (NovaPrimaryDestination) -> Unit) {
+    fun detach(value: (AppDestination) -> Unit) {
         if (handler === value) {
             handler = null
             hostActive = false
@@ -38,7 +29,7 @@ object NovaPrimaryNavigationDispatcher {
         hostActive = active
     }
 
-    fun navigate(destination: NovaPrimaryDestination): Boolean {
+    override fun navigate(destination: AppDestination): Boolean {
         if (!hostActive) return false
         val activeHandler = handler ?: return false
         activeHandler(destination)

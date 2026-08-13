@@ -42,7 +42,7 @@ Messages and Reels overlays. That state-preservation behavior is protected.
 |---|---|---|---|
 | Android process bootstrap | `NovaApplication` | app presence and process-level setup | `app/NovaApplication` + `AppContainer` |
 | launcher/window/update/push bootstrap | `MainActivity` | edge-to-edge, `adjustResize`, update controller, notification permission, initial/new intents | thin `MainActivity` + `AppViewModel` |
-| five primary destinations | `NovaPrimaryHost`, `NovaPrimaryNavigationDispatcher` | social roots stay alive under Reels/Messages overlays | `NovaAppHost` + typed `AppNavigator` |
+| five primary destinations | `NovaPrimaryHost`, typed `AppDestination`/`AppNavigator`, `NovaPrimaryNavigationDispatcher` compatibility transport | social roots stay alive under Reels/Messages overlays | `NovaAppHost` + `AppNavigator` without global dispatcher state |
 | nested social roots | `NovaApp`, `NovaRootNavigationSignal`, `rootNavigationPlan` | secondary-to-secondary resets through Home | typed child destinations/policy |
 | push/deep-link parsing | `MainActivity.routePushIntent`, `NovaPushOpenSignal`, special navigators | exact push kinds/data keys and fallback behavior | `DeepLinkRouter` |
 | session expiry | `NovaApp`, `NovaPrimaryHost`, Activities, many screens/repositories | logout/clear state and return to authentication on terminal 401 | one session-expiry coordinator |
@@ -52,8 +52,10 @@ Messages and Reels overlays. That state-preservation behavior is protected.
 
 ## Primary navigation and fallback policy
 
-`NovaPrimaryNavigationDispatcher` consumes navigation only while MainActivity is
-resumed and has an attached handler. When it does not consume:
+`AppNavigator` is the root-navigation consumer contract.
+`NovaPrimaryNavigationDispatcher` remains its compatibility transport and
+consumes navigation only while MainActivity is resumed and has an attached
+handler. When it does not consume:
 
 - `NovaMessagingNavigator.openInbox` starts `MessagesActivity`;
 - `NovaReelsNavigator.open` starts `ReelsActivity`; and
