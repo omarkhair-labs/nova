@@ -267,6 +267,16 @@ class NovaWebRtcEngine(
         peer.addIceCandidate(candidate)
     }
 
+    fun collectAudioQualitySnapshot(onReady: (NovaCallAudioQualitySnapshot) -> Unit) {
+        val peer = peerConnection ?: return
+        if (released.get()) return
+        peer.getStats { report ->
+            if (!released.get()) {
+                onReady(NovaCallAudioQualitySnapshot.from(report))
+            }
+        }
+    }
+
     fun setMicrophoneEnabled(enabled: Boolean) {
         microphoneEnabled = enabled
         localAudioTrack?.setEnabled(enabled)
