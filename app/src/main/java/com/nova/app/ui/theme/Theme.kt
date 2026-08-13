@@ -5,17 +5,17 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 
 private val NovaLightColorScheme = lightColorScheme(
-    primary = NovaAccent,
-    onPrimary = NovaSurface,
-    primaryContainer = NovaAccentSoft,
-    onPrimaryContainer = NovaInk,
-    background = NovaBackground,
-    onBackground = NovaInk,
-    surface = NovaSurface,
-    onSurface = NovaInk,
-    surfaceVariant = NovaAccentSoft,
-    onSurfaceVariant = NovaMuted,
-    outline = NovaBorder,
+    primary = NovaBaseAccent,
+    onPrimary = NovaBaseSurface,
+    primaryContainer = NovaBaseAccentSoft,
+    onPrimaryContainer = NovaBaseInk,
+    background = NovaBaseBackground,
+    onBackground = NovaBaseInk,
+    surface = NovaBaseSurface,
+    onSurface = NovaBaseInk,
+    surfaceVariant = NovaBaseAccentSoft,
+    onSurfaceVariant = NovaBaseMuted,
+    outline = NovaBaseBorder,
     error = NovaDanger,
 )
 
