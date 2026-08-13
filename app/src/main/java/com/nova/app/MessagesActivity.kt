@@ -87,10 +87,33 @@ class MessagesActivity : ComponentActivity() {
 }
 
 
+/**
+ * MainActivity-owned messaging root used by the V5 primary navigator.
+ *
+ * The same inbox, create flows, conversation UI and call actions are reused here
+ * instead of launching a second root Activity. Deep-link conversations can still
+ * use MessagesActivity directly.
+ */
+@Composable
+fun NovaMessagesRootContent(
+    onRootRequested: (NovaRootTab) -> Unit,
+    onSessionExpired: () -> Unit,
+) {
+    MessagingActivityContent(
+        initialConversation = null,
+        onFinish = { onRootRequested(NovaRootTab.Home) },
+        onRootRequested = onRootRequested,
+        onSessionExpired = onSessionExpired,
+    )
+}
+
+
 @Composable
 private fun MessagingActivityContent(
     initialConversation: InitialConversation?,
     onFinish: () -> Unit,
+    onRootRequested: ((NovaRootTab) -> Unit)? = null,
+    onSessionExpired: () -> Unit = onFinish,
 ) {
     val context = LocalContext.current
     val repository = remember(context) {
@@ -152,8 +175,13 @@ private fun MessagingActivityContent(
     }
 
     fun finishToRoot(tab: NovaRootTab) {
-        NovaRootNavigationSignal.request(tab)
-        onFinish()
+        val rootHandler = onRootRequested
+        if (rootHandler != null) {
+            rootHandler(tab)
+        } else {
+            NovaRootNavigationSignal.request(tab)
+            onFinish()
+        }
     }
 
     fun startCall(conversation: InitialConversation, kind: NovaCallKind) {
@@ -192,7 +220,7 @@ private fun MessagingActivityContent(
                 onPeopleClick = { finishToRoot(NovaRootTab.People) },
                 onProfileClick = { finishToRoot(NovaRootTab.Profile) },
                 onUnreadCountChanged = NovaMessagesSignal::updateUnreadCount,
-                onSessionExpired = onFinish,
+                onSessionExpired = onSessionExpired,
             )
 
             Box(
@@ -270,7 +298,7 @@ private fun MessagingActivityContent(
                 onConversationReady = ::selectConversation,
                 onSessionExpired = {
                     showNewMessage = false
-                    onFinish()
+                    onSessionExpired()
                 },
             )
         }
@@ -281,7 +309,7 @@ private fun MessagingActivityContent(
                 onConversationReady = ::selectConversation,
                 onSessionExpired = {
                     showNewGroup = false
-                    onFinish()
+                    onSessionExpired()
                 },
             )
         }
@@ -295,7 +323,7 @@ private fun MessagingActivityContent(
             membersCount = conversation.membersCount,
             onBack = ::backFromConversation,
             onConversationRead = ::refreshUnreadCount,
-            onSessionExpired = onFinish,
+            onSessionExpired = onSessionExpired,
             onGroupLeft = ::groupClosed,
             onAudioCall = { startCall(conversation, NovaCallKind.Audio) },
             onVideoCall = { startCall(conversation, NovaCallKind.Video) },
