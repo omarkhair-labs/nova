@@ -13,7 +13,7 @@ class NovaRootNavigationPolicyTest {
     }
 
     @Test
-    fun rootSwitchesGoDirectlyToRequestedDestination() {
+    fun homeToSecondaryRootOpensOnlyTarget() {
         assertEquals(
             listOf(NovaRootTab.People),
             rootNavigationPlan(NovaRootTab.Home, NovaRootTab.People),
@@ -22,14 +22,22 @@ class NovaRootNavigationPolicyTest {
             listOf(NovaRootTab.Profile),
             rootNavigationPlan(NovaRootTab.Home, NovaRootTab.Profile),
         )
+    }
+
+    @Test
+    fun switchingBetweenNestedSecondaryRootsResetsThroughHome() {
         assertEquals(
-            listOf(NovaRootTab.Profile),
+            listOf(NovaRootTab.Home, NovaRootTab.Profile),
             rootNavigationPlan(NovaRootTab.People, NovaRootTab.Profile),
         )
         assertEquals(
-            listOf(NovaRootTab.People),
+            listOf(NovaRootTab.Home, NovaRootTab.People),
             rootNavigationPlan(NovaRootTab.Profile, NovaRootTab.People),
         )
+    }
+
+    @Test
+    fun anySecondaryRootCanReturnToHomeDirectly() {
         assertEquals(
             listOf(NovaRootTab.Home),
             rootNavigationPlan(NovaRootTab.People, NovaRootTab.Home),
