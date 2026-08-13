@@ -1,5 +1,6 @@
 package com.nova.app.core.messaging
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import com.nova.app.MessagesActivity
@@ -14,8 +15,11 @@ object NovaMessagingNavigator {
     const val EXTRA_MEMBERS_COUNT = "nova_conversation_members_count"
     const val EXTRA_CURRENT_USER_ROLE = "nova_conversation_current_user_role"
 
-    fun openInbox(context: Context) {
+    fun openInbox(context: Context, replaceCurrentActivity: Boolean = false) {
         context.startActivity(Intent(context, MessagesActivity::class.java))
+        if (replaceCurrentActivity) {
+            (context as? Activity)?.finish()
+        }
     }
 
     fun openConversation(context: Context, conversation: NovaConversation) {
