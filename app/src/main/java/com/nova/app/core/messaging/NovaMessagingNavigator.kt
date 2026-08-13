@@ -4,6 +4,8 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import com.nova.app.MessagesActivity
+import com.nova.app.navigation.NovaPrimaryDestination
+import com.nova.app.navigation.NovaPrimaryNavigationDispatcher
 
 
 object NovaMessagingNavigator {
@@ -16,6 +18,10 @@ object NovaMessagingNavigator {
     const val EXTRA_CURRENT_USER_ROLE = "nova_conversation_current_user_role"
 
     fun openInbox(context: Context, replaceCurrentActivity: Boolean = false) {
+        if (NovaPrimaryNavigationDispatcher.navigate(NovaPrimaryDestination.Messages)) {
+            return
+        }
+
         context.startActivity(Intent(context, MessagesActivity::class.java))
         if (replaceCurrentActivity) {
             (context as? Activity)?.finish()

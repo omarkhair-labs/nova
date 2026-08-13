@@ -22,6 +22,7 @@ import com.nova.app.core.push.NovaPushOpenSignal
 import com.nova.app.core.push.NovaPushRegistration
 import com.nova.app.core.reels.NovaReelsNavigator
 import com.nova.app.core.update.NovaInAppUpdateController
+import com.nova.app.navigation.NovaPrimaryNavigationDispatcher
 import com.nova.app.ui.components.NovaActiveCallPill
 import com.nova.app.ui.components.NovaUpdateReadyBanner
 import com.nova.app.ui.theme.NovaTheme
@@ -63,7 +64,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             NovaTheme {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    NovaApp()
+                    NovaPrimaryHost()
                     NovaActiveCallPill(
                         modifier = Modifier.align(Alignment.TopCenter),
                     )
@@ -80,13 +81,20 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        NovaPrimaryNavigationDispatcher.setHostActive(true)
         syncMessageUnreadCount()
         if (::inAppUpdateController.isInitialized) {
             inAppUpdateController.onResume()
         }
     }
 
+    override fun onPause() {
+        NovaPrimaryNavigationDispatcher.setHostActive(false)
+        super.onPause()
+    }
+
     override fun onDestroy() {
+        NovaPrimaryNavigationDispatcher.setHostActive(false)
         if (::inAppUpdateController.isInitialized) {
             inAppUpdateController.onDestroy()
         }

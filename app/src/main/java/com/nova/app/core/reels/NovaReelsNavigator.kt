@@ -4,10 +4,16 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import com.nova.app.ReelsActivity
+import com.nova.app.navigation.NovaPrimaryDestination
+import com.nova.app.navigation.NovaPrimaryNavigationDispatcher
 
 
 object NovaReelsNavigator {
     fun open(context: Context, replaceCurrentActivity: Boolean = false) {
+        if (NovaPrimaryNavigationDispatcher.navigate(NovaPrimaryDestination.Reels)) {
+            return
+        }
+
         context.startActivity(Intent(context, ReelsActivity::class.java))
         if (replaceCurrentActivity) {
             (context as? Activity)?.finish()

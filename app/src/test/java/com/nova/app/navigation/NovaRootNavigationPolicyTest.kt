@@ -25,7 +25,7 @@ class NovaRootNavigationPolicyTest {
     }
 
     @Test
-    fun switchingBetweenSecondaryRootsResetsThroughHome() {
+    fun switchingBetweenNestedSecondaryRootsResetsThroughHome() {
         assertEquals(
             listOf(NovaRootTab.Home, NovaRootTab.Profile),
             rootNavigationPlan(NovaRootTab.People, NovaRootTab.Profile),

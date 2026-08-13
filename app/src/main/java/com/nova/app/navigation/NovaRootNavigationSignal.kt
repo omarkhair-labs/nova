@@ -14,12 +14,12 @@ enum class NovaRootTab {
 
 
 /**
- * Returns the callback sequence needed to move between Nova's root tabs without
- * letting People/Profile accumulate on top of each other in the Nav3 back stack.
+ * Returns the callback sequence needed to move between Nova's nested social roots
+ * without letting People/Profile accumulate in the Nav3 back stack.
  *
- * Home is the canonical Android root. Moving between the two secondary roots
- * first resets to Home, then opens the requested root. Moving from Home to a
- * secondary root needs only the target callback.
+ * MainActivity now owns all five primary destinations, but Home / People / You
+ * still share the existing social Nav3 child stack. Until that child stack is
+ * replaced by independent root state, Home remains its canonical reset point.
  */
 internal fun rootNavigationPlan(
     current: NovaRootTab,
