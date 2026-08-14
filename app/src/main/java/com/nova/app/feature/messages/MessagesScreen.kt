@@ -29,22 +29,18 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nova.app.core.auth.shouldExpireNovaSession
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.nova.app.app.appContainer
 import com.nova.app.feature.messages.domain.model.NovaConversation
-import com.nova.app.core.messaging.NovaInboxPagingRepository
 import com.nova.app.core.messaging.NovaMessagesSignal
-import com.nova.app.core.network.ApiResult
+import com.nova.app.feature.messages.inbox.InboxViewModel
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
 import com.nova.app.ui.components.NovaSecondaryButton
@@ -56,8 +52,6 @@ import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 
 @Composable
@@ -70,78 +64,35 @@ fun MessagesScreen(
     onSessionExpired: () -> Unit,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val repository = remember(context) {
-        NovaInboxPagingRepository(context.applicationContext)
-    }
-    val scope = rememberCoroutineScope()
-
-    var query by remember { mutableStateOf("") }
-    var conversations by remember { mutableStateOf<List<NovaConversation>>(emptyList()) }
-    var unreadCount by remember { mutableStateOf(0) }
-    var nextCursor by remember { mutableStateOf<String?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
-    var isLoadingMore by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var requestVersion by remember { mutableStateOf(0) }
+    val inboxViewModel: InboxViewModel = viewModel(
+        factory = InboxViewModel.factory(context.appContainer.inboxRepository),
+    )
+    val state = inboxViewModel.state
+    val query = state.query
+    val conversations = state.conversations
+    val unreadCount = state.unreadCount
+    val nextCursor = state.nextCursor
+    val isLoading = state.isLoading
+    val isLoadingMore = state.isLoadingMore
+    val errorMessage = state.errorMessage
     val inboxRefreshVersion = NovaMessagesSignal.inboxRefreshVersion
     val initialInboxRefreshVersion = remember { inboxRefreshVersion }
 
-    fun loadInbox(
-        search: String = query,
-        reset: Boolean = true,
-        showSpinner: Boolean = true,
-    ) {
-        if (!reset && (isLoadingMore || nextCursor == null)) return
-        requestVersion += 1
-        val version = requestVersion
-        val cursor = if (reset) null else nextCursor
-        scope.launch {
-            if (reset) {
-                if (showSpinner) isLoading = true
-            } else {
-                isLoadingMore = true
-            }
-            errorMessage = null
-            when (val result = repository.conversations(search, cursor)) {
-                is ApiResult.Success -> {
-                    if (version == requestVersion) {
-                        conversations = if (reset) {
-                            result.value.conversations
-                        } else {
-                            val existingIds = conversations.mapTo(mutableSetOf()) { it.id }
-                            conversations + result.value.conversations.filterNot { it.id in existingIds }
-                        }
-                        unreadCount = result.value.unreadCount
-                        nextCursor = result.value.nextCursor
-                        onUnreadCountChanged(result.value.unreadCount)
-                        isLoading = false
-                        isLoadingMore = false
-                    }
-                }
-
-                is ApiResult.Failure -> {
-                    if (version == requestVersion) {
-                        isLoading = false
-                        isLoadingMore = false
-                        if (shouldExpireNovaSession(result.statusCode)) {
-                            onSessionExpired()
-                        } else {
-                            errorMessage = result.message
-                        }
-                    }
-                }
-            }
+    LaunchedEffect(inboxRefreshVersion) {
+        if (inboxRefreshVersion != initialInboxRefreshVersion) {
+            inboxViewModel.refresh()
         }
     }
 
-    LaunchedEffect(query) {
-        delay(260)
-        loadInbox(query, reset = true, showSpinner = conversations.isEmpty())
+    LaunchedEffect(state.unreadUpdateVersion) {
+        if (state.unreadUpdateVersion > 0) {
+            onUnreadCountChanged(state.unreadCount)
+        }
     }
 
-    LaunchedEffect(inboxRefreshVersion) {
-        if (inboxRefreshVersion != initialInboxRefreshVersion) {
-            loadInbox(query, reset = true, showSpinner = false)
+    LaunchedEffect(state.sessionExpiryVersion) {
+        if (state.sessionExpiryVersion > 0) {
+            onSessionExpired()
         }
     }
 
@@ -193,7 +144,7 @@ fun MessagesScreen(
 
             OutlinedTextField(
                 value = query,
-                onValueChange = { query = it.take(40) },
+                onValueChange = inboxViewModel::onQueryChanged,
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 placeholder = { Text("Search conversations or groups", color = NovaMuted) },
@@ -208,7 +159,7 @@ fun MessagesScreen(
                 trailingIcon = if (query.isNotBlank()) {
                     {
                         Surface(
-                            onClick = { query = "" },
+                            onClick = { inboxViewModel.onQueryChanged("") },
                             shape = CircleShape,
                             color = NovaAccentSoft,
                         ) {
@@ -275,7 +226,7 @@ fun MessagesScreen(
                                 Spacer(modifier = Modifier.height(14.dp))
                                 NovaSecondaryButton(
                                     text = "Try again",
-                                    onClick = { loadInbox(reset = true) },
+                                    onClick = inboxViewModel::retry,
                                 )
                             }
                         }
@@ -371,7 +322,7 @@ fun MessagesScreen(
                                     text = if (isLoadingMore) "Loading more…" else "Load more conversations",
                                     onClick = {
                                         if (!isLoadingMore) {
-                                            loadInbox(query, reset = false, showSpinner = false)
+                                            inboxViewModel.loadMore()
                                         }
                                     },
                                 )
