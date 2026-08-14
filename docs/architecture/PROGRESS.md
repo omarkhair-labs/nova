@@ -4,14 +4,14 @@ Update this table in every consolidation PR.
 
 | Field | Current state |
 |---|---|
-| Current phase | Phase 1 — application shell consolidation |
-| Active PR | Phase 1 PR 4 — application container, host state owner, and shared route factories |
-| CI status | Pending for Phase 1 PR 4; PRs #95–#98 passed on Blacksmith |
-| Completed ownership changes | typed navigation; `AppContainer`; application-scoped navigation bridge; `NovaAppHost`/`AppViewModel` root and session state; shared Messages/Reels route factories |
+| Current phase | Phase 2 — Messages consolidation |
+| Active PR | Phase 2 PR 5 — extract the nine live Messages domain models from the repository implementation |
+| CI status | Pending for Phase 2 PR 5; PRs #95–#99 passed on Blacksmith |
+| Completed ownership changes | Phase 1 shell ownership; Phase 2 establishes `feature/messages/domain/model` as owner of conversation/message/reply/reaction/share/page models |
 | Deleted legacy/versioned files | `NovaPrimaryHost.kt`; global `NovaPrimaryNavigationDispatcher.kt` |
-| Automated verification | Phase -1 through Phase 1 PR 3 passed backend/Android CI; Phase 1 PR 4 full JVM suite, `lintRelease`, debug/release APKs, release AAB, and instrumentation APK compile passed; 13/13 Android 16 emulator tests passed with shared-route round trips |
-| Remaining physical Samsung checks | Entire checklist in `SAMSUNG_SMOKE_CHECKLIST.md`; no device is connected to the development workspace |
-| Exact next PR | Phase 2 PR 5 — extract Messages domain/remote/local models without changing the live UI |
+| Automated verification | Phase -1 through Phase 1 passed Blacksmith CI; Phase 1 finished with 13/13 Android 16 emulator tests; Phase 2 PR 5 clean JVM/domain tests, mutation-sensitive group fallback check, `lintRelease`, debug/release APKs, release AAB, and instrumentation APK compile passed |
+| Remaining physical Samsung checks | Entire checklist in `SAMSUNG_SMOKE_CHECKLIST.md`; a physical Android device is connected but USB-unauthorized and provides no Samsung evidence |
+| Exact next PR | Phase 2 PR 6 — introduce the Messages repository interface and deterministic fake without moving UI orchestration yet |
 
 ## Completed PRs
 
@@ -21,6 +21,7 @@ Update this table in every consolidation PR.
 | 0 | #96 | record the governing plan, ownership/routes, Samsung checklist, and baseline entry contracts | Android/backend Blacksmith CI; instrumentation APK compilation; exact 72 REST/3 WebSocket inventory check | revert merge commit `0453ddb` |
 | 0 | #97 | characterize push/session/Back decisions and conversation chrome | Android/backend Blacksmith CI; 13/13 Android 16 device tests; mutation-sensitive routing test | revert merge commit `dbcf56b` |
 | 1 | #98 | introduce typed `AppDestination`/`AppNavigator` root contract | Android/backend Blacksmith CI; full JVM suite; inactive/active/fallback dispatcher characterization | revert merge commit `d62f3e3` |
+| 1 | #99 | consolidate `AppContainer`/`AppViewModel` shell ownership and shared Messages/Reels routes | Android/backend Blacksmith CI; full local release gate; 13/13 Android 16 emulator tests | revert merge commit `3774fbf` |
 
 ## Phase 0 discovered risks
 

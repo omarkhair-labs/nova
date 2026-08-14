@@ -41,7 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.core.auth.shouldExpireNovaSession
-import com.nova.app.core.messaging.NovaConversation
+import com.nova.app.feature.messages.domain.model.NovaConversation
 import com.nova.app.core.messaging.NovaInboxPagingRepository
 import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.core.network.ApiResult

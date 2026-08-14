@@ -3,6 +3,12 @@ package com.nova.app.core.messaging
 import android.content.Context
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaPostAuthor
+import com.nova.app.feature.messages.domain.model.NovaMessage
+import com.nova.app.feature.messages.domain.model.NovaMessageReaction
+import com.nova.app.feature.messages.domain.model.NovaMessageShare
+import com.nova.app.feature.messages.domain.model.NovaReplyPreview
+import com.nova.app.feature.messages.domain.model.NovaSharedPost
+import com.nova.app.feature.messages.domain.model.NovaSharedReel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

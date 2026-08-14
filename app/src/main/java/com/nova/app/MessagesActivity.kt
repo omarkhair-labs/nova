@@ -31,7 +31,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.core.calls.NovaCallKind
 import com.nova.app.core.calls.NovaCallPerson
-import com.nova.app.core.messaging.NovaConversation
 import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.ApiResult
@@ -42,6 +41,7 @@ import com.nova.app.feature.messages.MessagesBackAction
 import com.nova.app.feature.messages.MessagesBackSnapshot
 import com.nova.app.feature.messages.MessagesRouteArgs
 import com.nova.app.feature.messages.MessagesRouteFactory
+import com.nova.app.feature.messages.domain.model.NovaConversation
 import com.nova.app.feature.messages.NewGroupDialog
 import com.nova.app.feature.messages.NewMessageDialog
 import com.nova.app.feature.messages.conversationExitAction
