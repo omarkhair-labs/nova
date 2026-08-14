@@ -5,9 +5,12 @@ import com.nova.app.NovaApplication
 import com.nova.app.core.auth.NovaAuthRepository
 import com.nova.app.core.feed.NovaFeedRepository
 import com.nova.app.core.messaging.NovaMessagingApiClient
+import com.nova.app.core.messaging.NovaInboxPagingRepository
 import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.social.NovaSocialRepository
+import com.nova.app.feature.messages.data.InboxRepository
+import com.nova.app.feature.messages.data.MessagesRepository
 import com.nova.app.navigation.AppNavigationBridge
 
 
@@ -19,7 +22,8 @@ class AppContainer(context: Context) {
 
     val authRepository = NovaAuthRepository(appContext, api)
     val feedRepository = NovaFeedRepository(appContext, api)
-    val messagingRepository = NovaMessagingRepository(appContext, messagingApi, api)
+    val messagingRepository: MessagesRepository = NovaMessagingRepository(appContext, messagingApi, api)
+    val inboxRepository: InboxRepository = NovaInboxPagingRepository(appContext)
     val socialRepository = NovaSocialRepository(appContext, api)
     val appNavigator = AppNavigationBridge()
 }

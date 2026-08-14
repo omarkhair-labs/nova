@@ -8,6 +8,7 @@ import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.NovaPostAuthor
 import com.nova.app.core.network.UploadFile
+import com.nova.app.feature.messages.data.MessagesRepository
 import com.nova.app.feature.messages.domain.model.NovaConversation
 import com.nova.app.feature.messages.domain.model.NovaConversationList
 import com.nova.app.feature.messages.domain.model.NovaMessage
@@ -33,39 +34,39 @@ class NovaMessagingRepository(
     context: Context,
     private val api: NovaMessagingApiClient = NovaMessagingApiClient(PRODUCTION_API_URL),
     private val authApi: NovaApiClient = NovaApiClient(PRODUCTION_API_URL),
-) {
+) : MessagesRepository {
     private val appContext = context.applicationContext
     private val sessionStore = NovaSessionStore(appContext)
 
-    suspend fun conversations(query: String = ""): ApiResult<NovaConversationList> {
+    override suspend fun conversations(query: String): ApiResult<NovaConversationList> {
         return authenticatedCall { accessToken ->
             api.conversations(accessToken, query)
         }
     }
 
-    suspend fun openConversation(username: String): ApiResult<NovaConversation> {
+    override suspend fun openConversation(username: String): ApiResult<NovaConversation> {
         return authenticatedCall { accessToken ->
             api.openConversation(accessToken, username)
         }
     }
 
-    suspend fun messages(
+    override suspend fun messages(
         conversationId: Long,
-        cursor: String? = null,
+        cursor: String?,
     ): ApiResult<NovaMessagePage> {
         return authenticatedCall { accessToken ->
             api.messages(accessToken, conversationId, cursor)
         }
     }
 
-    suspend fun sendMessage(
+    override suspend fun sendMessage(
         conversationId: Long,
         body: String,
         clientId: String,
-        replyToId: Long? = null,
-        imageUri: Uri? = null,
-        audioFile: File? = null,
-        audioDurationMs: Long? = null,
+        replyToId: Long?,
+        imageUri: Uri?,
+        audioFile: File?,
+        audioDurationMs: Long?,
     ): ApiResult<NovaMessage> {
         if (imageUri != null && audioFile != null) {
             return ApiResult.Failure("Send either a photo or a voice message, not both at once.")
@@ -106,19 +107,19 @@ class NovaMessagingRepository(
         }
     }
 
-    suspend fun editMessage(messageId: Long, body: String): ApiResult<NovaMessage> {
+    override suspend fun editMessage(messageId: Long, body: String): ApiResult<NovaMessage> {
         return authenticatedCall { accessToken ->
             api.editMessage(accessToken, messageId, body)
         }
     }
 
-    suspend fun deleteMessage(messageId: Long): ApiResult<String> {
+    override suspend fun deleteMessage(messageId: Long): ApiResult<String> {
         return authenticatedCall { accessToken ->
             api.deleteMessage(accessToken, messageId)
         }
     }
 
-    suspend fun setReaction(
+    override suspend fun setReaction(
         messageId: Long,
         emoji: String?,
     ): ApiResult<List<NovaMessageReaction>> {
@@ -127,13 +128,13 @@ class NovaMessagingRepository(
         }
     }
 
-    suspend fun markRead(conversationId: Long): ApiResult<Int> {
+    override suspend fun markRead(conversationId: Long): ApiResult<Int> {
         return authenticatedCall { accessToken ->
             api.markRead(accessToken, conversationId)
         }
     }
 
-    suspend fun realtimeAccessToken(): ApiResult<String> {
+    override suspend fun realtimeAccessToken(): ApiResult<String> {
         val stored = sessionStore.load()
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
 

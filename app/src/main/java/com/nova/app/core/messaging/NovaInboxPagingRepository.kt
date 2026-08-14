@@ -5,7 +5,9 @@ import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.NovaPostAuthor
+import com.nova.app.feature.messages.data.InboxRepository
 import com.nova.app.feature.messages.domain.model.NovaConversation
+import com.nova.app.feature.messages.domain.model.NovaConversationPage
 import com.nova.app.feature.messages.domain.model.NovaMessage
 import com.nova.app.feature.messages.domain.model.NovaReplyPreview
 import kotlinx.coroutines.Dispatchers
@@ -17,23 +19,16 @@ import java.net.URL
 import java.net.URLEncoder
 
 
-data class NovaConversationPage(
-    val conversations: List<NovaConversation>,
-    val unreadCount: Int,
-    val nextCursor: String?,
-)
-
-
 class NovaInboxPagingRepository(
     context: Context,
     private val baseUrl: String = PRODUCTION_API_URL,
-) {
+) : InboxRepository {
     private val sessionStore = NovaSessionStore(context.applicationContext)
     private val authApi = NovaApiClient(baseUrl)
 
-    suspend fun conversations(
-        query: String = "",
-        cursor: String? = null,
+    override suspend fun conversations(
+        query: String,
+        cursor: String?,
     ): ApiResult<NovaConversationPage> {
         return authenticatedCall { token ->
             val parameters = buildList {

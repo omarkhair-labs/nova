@@ -9,6 +9,7 @@ import com.nova.app.feature.messages.domain.model.NovaMessageShare
 import com.nova.app.feature.messages.domain.model.NovaReplyPreview
 import com.nova.app.feature.messages.domain.model.NovaSharedPost
 import com.nova.app.feature.messages.domain.model.NovaSharedReel
+import com.nova.app.feature.messages.data.MessagesRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -88,7 +89,7 @@ sealed interface NovaRealtimeEvent {
 class NovaConversationRealtimeClient(
     context: Context,
     private val conversationId: Long,
-    private val repository: NovaMessagingRepository = NovaMessagingRepository(context.applicationContext),
+    private val repository: MessagesRepository = NovaMessagingRepository(context.applicationContext),
 ) {
     private var socket: WebSocket? = null
     private var reconnectJob: Job? = null

@@ -124,10 +124,20 @@ conversation, message, reply, reaction, share, list, and page models. Thirteen
 production/test consumers import that package directly; no compatibility
 typealiases remain in `core/messaging`.
 
-This first Phase 2 slice deliberately leaves JSON parsing, HTTP authentication,
-realtime events, draft/preferences, repository construction, and all route/UI
-state in their previous owners. The next slice introduces a repository interface
-and fake before any UI orchestration moves.
+Phase 2 deliberately leaves JSON parsing, HTTP authentication, realtime events,
+draft/preferences, and all route/UI state in their previous owners until each
+boundary has characterization coverage.
+
+`feature/messages/data/MessagesRepository.kt` defines the existing conversation
+mutation, read-marker, and realtime-token data operations;
+`feature/messages/data/InboxRepository.kt` owns paged inbox/search loading.
+`NovaMessagingRepository` and `NovaInboxPagingRepository` are the production
+implementations. `AppContainer` owns both interfaces, and
+`NovaConversationRealtimeClient` depends on `MessagesRepository`. Deterministic
+test fakes capture every argument and return configured `ApiResult` values. The
+Messages interface temporarily retains Android media inputs for exact composer
+parity; the later composer slice will introduce attachment abstractions with
+dedicated characterization rather than changing media behavior here.
 
 ## Backend ownership map
 
