@@ -5,13 +5,13 @@ Update this table in every consolidation PR.
 | Field | Current state |
 |---|---|
 | Current phase | Phase 2 — Messages consolidation |
-| Active PR | Phase 2 PR 8 — introduce `ConversationViewModel`/`ConversationUiState` around existing repository, draft, mutation, and realtime behavior |
-| CI status | Pending for Phase 2 PR 8; PRs #95–#102 passed on Blacksmith |
-| Completed ownership changes | Phase 1 shell ownership; Phase 2 domain models and repository contracts; inbox state/orchestration plus conversation data/draft/realtime orchestration now have lifecycle-aware owners |
+| Active PR | Phase 2 PR 9 — extract stateless conversation message list, row, date/unread dividers, reply/share context, voice playback, and full-screen photo UI |
+| CI status | Pending for Phase 2 PR 9; PRs #95–#103 passed on Blacksmith |
+| Completed ownership changes | Phase 1 shell ownership; Phase 2 domain/repository/state owners; live conversation list and message-row rendering now sit behind stateless state/callback contracts |
 | Deleted legacy/versioned files | `NovaPrimaryHost.kt`; global `NovaPrimaryNavigationDispatcher.kt` |
-| Automated verification | Phase -1 through Phase 2 PR 7 passed Blacksmith CI; PR 8 conversation state-owner tests, paging-deduplication mutation check, full JVM/release/artifact gate, instrumentation APK compile, and 13/13 Android 16 Pixel 8 emulator tests passed locally |
+| Automated verification | Phase -1 through Phase 2 PR 8 passed Blacksmith CI; PR 9 row grouping/date/unread/reply/voice tests, unread-count mutation check, full JVM/release/artifact gate, instrumentation APK compile, and 13/13 Android 16 Pixel 8 emulator tests passed locally |
 | Remaining physical Samsung checks | Entire manual checklist in `SAMSUNG_SMOKE_CHECKLIST.md`; authorized Samsung SM-A266B detected, but non-destructive test install is blocked by its differently signed existing Nova package |
-| Exact next PR | Phase 2 PR 9 — extract stateless message list, row, date, unread, and context UI from the live conversation implementation |
+| Exact next PR | Phase 2 PR 10 — extract composer, attachment-picker, and voice-recorder state with one documented IME inset owner |
 
 ## Completed PRs
 
@@ -25,6 +25,7 @@ Update this table in every consolidation PR.
 | 2 | #100 | extract nine live Messages domain models from repository implementation | Android/backend Blacksmith CI; mutation-sensitive computed-behavior tests; full local release gate | revert merge commit `6f4748a` |
 | 2 | #101 | establish feature-owned `MessagesRepository`/`InboxRepository` contracts and deterministic fakes | Android/backend Blacksmith CI; fake contract tests; full local release gate | revert merge commit `4908446` |
 | 2 | #102 | move inbox search, paging, unread, and session-effect orchestration into `InboxViewModel`/`InboxUiState` | Android/backend Blacksmith CI; stale-response mutation check; full local release gate | revert merge commit `77ae51c` |
+| 2 | #103 | move conversation repository, draft, mutation, unread/read, typing/presence, and realtime orchestration into `ConversationViewModel` | Android/backend Blacksmith CI; paging-deduplication mutation check; full local release gate; 13/13 Android 16 emulator tests | revert merge commit `ba2385c` |
 
 ## Phase 0 discovered risks
 

@@ -1,6 +1,6 @@
 # Current ownership and entry paths
 
-Snapshot: Phase 2 PR 8, based on `77ae51c986167d86e52d5485aa95c420a39b8e74`.
+Snapshot: Phase 2 PR 9, based on `ba2385cc00ed96fc06dfee483b22c732513dd719`.
 
 This file records current behavior. A row with several current owners identifies
 consolidation work; it does not imply that one of those paths may be removed
@@ -110,7 +110,7 @@ remove that parity before a device test establishes a replacement.
 | Stories | `StoriesRail` | stories repository plus UI-owned orchestration | `feature/stories` |
 | Reels | `ReelsScreen`, `ProfileReelsViewerScreen`, `ReelsActivity` | reels repositories, playback pool/safety, UI orchestration | `feature/reels` |
 | Messages inbox | `MessagesRoute`, `MessagesScreen` | `InboxViewModel`/`InboxUiState`, feature-owned domain models, `InboxRepository`, and refresh signals | `feature/messages/inbox` |
-| Conversation | `ConversationScreen` -> V9 -> V8 | `ConversationViewModel`/`ConversationUiState` own server messages, paging, mutations, drafts, unread/read effects, presence, typing, and realtime reconciliation | `feature/messages/conversation` + stateless content |
+| Conversation | `ConversationScreen` -> V9 -> V8 | `ConversationViewModel`/`ConversationUiState` own server behavior; `ConversationMessageList`/`ConversationMessageRow` render stateless list, row, date/unread, reply/share, voice-player, and photo content | `feature/messages/conversation` + stateless header/composer |
 | Composer/media/voice | outer `ConversationScreen` + V8 composer | V8 owns recorder, permission/picker, attachment draft, and rendering; `ConversationViewModel` owns textual draft persistence and optimistic sends | `feature/messages/composer` with one IME owner |
 | Message details/search/media/theme/groups | V9 dialog, group dialogs, theme picker | V9 tools repository + messaging repositories | responsibility-specific Messages packages |
 | Calls | `CallActivity` | `NovaCallController`, signaling, WebRTC, Telecom, notifications/history | `feature/calls` boundaries with explicit state machine |
@@ -153,8 +153,17 @@ presence/typing state, delivery/read receipts, and realtime update/delete/
 reaction reconciliation. `ConversationRealtime` and `ConversationDraftStore`
 make those behaviors deterministic in JVM tests; the existing production
 realtime client and draft store implement the boundaries, and `AppContainer`
-constructs them. V8 still owns recorder/permission/picker and all rendering,
-which are intentionally reserved for the composer and stateless-UI slices.
+constructs them. V8 still owns recorder/permission/picker and the remaining
+header/composer rendering, which are intentionally reserved for the composer
+slice.
+
+`ConversationMessageList.kt` renders loading/empty/paged list state and delegates
+all intents through callbacks. Its pure `messageRowContext` retains the exact
+date-divider, sender-compaction, group-name, and unread-anchor decisions.
+`ConversationMessageRow.kt` owns message/pending bubbles, reply/share cards,
+reaction/actions, voice playback, receipt labels, swipe-to-reply, and full-screen
+photos. Shared post/profile/Reel navigation is callback-owned by the route, so
+the extracted row does not mutate navigation or construct dependencies.
 
 ## Backend ownership map
 
