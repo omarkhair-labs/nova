@@ -1,6 +1,6 @@
 # Current ownership and entry paths
 
-Snapshot: Phase 2 PR 5, based on `3774fbf7e1f4f7a960948f8c8ac9686539f8d296`.
+Snapshot: Phase 2 PR 7, based on `4908446d26dd2d01cf416fb038a1bf0686da233d`.
 
 This file records current behavior. A row with several current owners identifies
 consolidation work; it does not imply that one of those paths may be removed
@@ -48,7 +48,7 @@ Messages and Reels overlays. That state-preservation behavior is protected.
 | push/deep-link parsing | `MainActivity.routePushIntent`, `NovaPushOpenSignal`, special navigators | exact push kinds/data keys and fallback behavior | `DeepLinkRouter` |
 | session expiry | `AppViewModel` coordinates logout and global state; feature routes report terminal 401 | logout/clear state and return to authentication on terminal 401 | `AppViewModel` until a core session package is extracted |
 | dependency construction | `AppContainer` for shell/auth/feed/social/messages; remaining feature routes still construct specialized repositories | repositories use application context | expand the explicit container feature by feature |
-| unread sync | `MainActivity`, Messages content, `NovaMessagesSignal` | inbox count refresh at startup/resume/read/back | Messages state owner |
+| unread sync | `MainActivity`, `InboxViewModel`, `NovaMessagesSignal` | inbox count refresh at startup/resume/read/back | Messages state owner |
 | global call pill | `MainActivity`, `MessagesActivity`, `ReelsActivity` | active call remains reachable | app host / shared special-entry shell |
 
 ## Primary navigation and fallback policy
@@ -109,7 +109,7 @@ remove that parity before a device test establishes a replacement.
 | people/profile/social graph | `NovaApp`, People/Person/Profile screens, V4 profile components, `SocialGraphActivity` | social repositories + UI orchestration | `feature/people`, `feature/profile` |
 | Stories | `StoriesRail` | stories repository plus UI-owned orchestration | `feature/stories` |
 | Reels | `ReelsScreen`, `ProfileReelsViewerScreen`, `ReelsActivity` | reels repositories, playback pool/safety, UI orchestration | `feature/reels` |
-| Messages inbox | `MessagesRoute`, `MessagesScreen` | feature-owned domain models; `NovaMessagingRepository`, signals, UI state | `feature/messages/inbox` |
+| Messages inbox | `MessagesRoute`, `MessagesScreen` | `InboxViewModel`/`InboxUiState`, feature-owned domain models, `InboxRepository`, and refresh signals | `feature/messages/inbox` |
 | Conversation | `ConversationScreen` -> V9 -> V8 | feature-owned domain models; messaging repository, realtime, draft/preferences, UI state | `feature/messages/conversation` + state owner |
 | Composer/media/voice | outer `ConversationScreen` + V8 composer | V8 coroutine/state/recorder logic | `feature/messages/composer` with one IME owner |
 | Message details/search/media/theme/groups | V9 dialog, group dialogs, theme picker | V9 tools repository + messaging repositories | responsibility-specific Messages packages |
@@ -125,7 +125,7 @@ production/test consumers import that package directly; no compatibility
 typealiases remain in `core/messaging`.
 
 Phase 2 deliberately leaves JSON parsing, HTTP authentication, realtime events,
-draft/preferences, and all route/UI state in their previous owners until each
+draft/preferences, and remaining conversation route/UI state in their previous owners until each
 boundary has characterization coverage.
 
 `feature/messages/data/MessagesRepository.kt` defines the existing conversation
@@ -138,6 +138,13 @@ test fakes capture every argument and return configured `ApiResult` values. The
 Messages interface temporarily retains Android media inputs for exact composer
 parity; the later composer slice will introduce attachment abstractions with
 dedicated characterization rather than changing media behavior here.
+
+`feature/messages/inbox/InboxViewModel.kt` is the lifecycle-aware owner for the
+inbox query, 260 ms debounce, page cursor, ordered ID deduplication, unread
+state, loading/error flags, stale-response suppression, and terminal-session
+effect. `MessagesScreen` renders that state and forwards UI intents; it retains
+the existing refresh signal and route callbacks without constructing a
+repository or launching data coroutines.
 
 ## Backend ownership map
 
@@ -188,3 +195,5 @@ route Composable
 session logout, and durable primary-overlay state. Feature routes still detect
 their own terminal 401 responses and report expiry; moving those status checks
 behind repository/state-owner boundaries belongs to their feature phases.
+The inbox is the first Messages route to complete that state-owner step;
+conversation, composer, tools, and groups still use the earlier pattern.
