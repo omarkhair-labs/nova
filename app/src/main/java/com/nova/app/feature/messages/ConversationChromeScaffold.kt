@@ -19,8 +19,8 @@ internal object ConversationChromeTags {
 
 /**
  * Shared layout contract for the live conversation header, message viewport,
- * and composer. MainActivity/MessagesActivity own window resizing; the route
- * supplies the resized viewport to this scaffold.
+ * and composer. MainActivity/MessagesActivity own window resizing, while the
+ * composer alone consumes navigation-bar and IME insets inside the bottom bar.
  */
 @Composable
 internal fun ConversationChromeScaffold(

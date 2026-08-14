@@ -5,13 +5,13 @@ Update this table in every consolidation PR.
 | Field | Current state |
 |---|---|
 | Current phase | Phase 2 — Messages consolidation |
-| Active PR | Phase 2 PR 9 — extract stateless conversation message list, row, date/unread dividers, reply/share context, voice playback, and full-screen photo UI |
-| CI status | Pending for Phase 2 PR 9; PRs #95–#103 passed on Blacksmith |
-| Completed ownership changes | Phase 1 shell ownership; Phase 2 domain/repository/state owners; live conversation list and message-row rendering now sit behind stateless state/callback contracts |
+| Active PR | Phase 2 PR 10 — extract conversation composer UI and ephemeral photo/voice state with a testable recorder boundary and one IME inset owner |
+| CI status | Pending for Phase 2 PR 10; PRs #95–#104 passed on Blacksmith |
+| Completed ownership changes | Phase 1 shell ownership; Phase 2 domain/repository/state owners; live list/row rendering and composer platform state now sit behind focused state/callback contracts |
 | Deleted legacy/versioned files | `NovaPrimaryHost.kt`; global `NovaPrimaryNavigationDispatcher.kt` |
-| Automated verification | Phase -1 through Phase 2 PR 8 passed Blacksmith CI; PR 9 row grouping/date/unread/reply/voice tests, unread-count mutation check, full JVM/release/artifact gate, instrumentation APK compile, and 13/13 Android 16 Pixel 8 emulator tests passed locally |
+| Automated verification | Phase -1 through Phase 2 PR 9 passed Blacksmith CI; PR 10 composer duration/cleanup/send-rule tests, exact-five-minute mutation check, full JVM/release/artifact gate, and 13/13 Android 16 Pixel 8 emulator tests passed locally |
 | Remaining physical Samsung checks | Entire manual checklist in `SAMSUNG_SMOKE_CHECKLIST.md`; authorized Samsung SM-A266B detected, but non-destructive test install is blocked by its differently signed existing Nova package |
-| Exact next PR | Phase 2 PR 10 — extract composer, attachment-picker, and voice-recorder state with one documented IME inset owner |
+| Exact next PR | Phase 2 PR 11 — extract conversation details/search/media/theme/group orchestration behind responsibility-specific state owners |
 
 ## Completed PRs
 
@@ -26,6 +26,7 @@ Update this table in every consolidation PR.
 | 2 | #101 | establish feature-owned `MessagesRepository`/`InboxRepository` contracts and deterministic fakes | Android/backend Blacksmith CI; fake contract tests; full local release gate | revert merge commit `4908446` |
 | 2 | #102 | move inbox search, paging, unread, and session-effect orchestration into `InboxViewModel`/`InboxUiState` | Android/backend Blacksmith CI; stale-response mutation check; full local release gate | revert merge commit `77ae51c` |
 | 2 | #103 | move conversation repository, draft, mutation, unread/read, typing/presence, and realtime orchestration into `ConversationViewModel` | Android/backend Blacksmith CI; paging-deduplication mutation check; full local release gate; 13/13 Android 16 emulator tests | revert merge commit `ba2385c` |
+| 2 | #104 | extract stateless message list/rows, date/unread grouping, reply/share/voice rendering, and full-screen photo UI | Android/backend Blacksmith CI; unread-count mutation check; full local release gate; 13/13 Android 16 emulator tests | revert merge commit `573fef8` |
 
 ## Phase 0 discovered risks
 
@@ -34,6 +35,6 @@ Update this table in every consolidation PR.
 - terminal 401/session expiry is repeated across many screens and repositories;
 - conversation UI constructs repositories/realtime owners directly, preventing a
   deterministic Compose test without a narrow seam;
-- outer `ConversationScreen` and V8 composer both apply IME-related padding;
+- outer `ConversationScreen` and V8 composer both applied IME-related padding (resolved by Phase 2 PR 10: composer is the sole owner);
 - instrumented/device tests are not run by the current hosted CI; and
 - no physical Samsung device is connected to this workspace.
