@@ -5,13 +5,13 @@ Update this table in every consolidation PR.
 | Field | Current state |
 |---|---|
 | Current phase | Phase 2 — Messages consolidation |
-| Active PR | Phase 2 PR 5 — extract the nine live Messages domain models from the repository implementation |
-| CI status | Pending for Phase 2 PR 5; PRs #95–#99 passed on Blacksmith |
-| Completed ownership changes | Phase 1 shell ownership; Phase 2 establishes `feature/messages/domain/model` as owner of conversation/message/reply/reaction/share/page models |
+| Active PR | Phase 2 PR 6 — establish the `MessagesRepository` contract and deterministic fake |
+| CI status | Pending for Phase 2 PR 6; PRs #95–#100 passed on Blacksmith |
+| Completed ownership changes | Phase 1 shell ownership; Phase 2 domain models plus a feature-owned repository contract consumed by `AppContainer` and realtime coordination |
 | Deleted legacy/versioned files | `NovaPrimaryHost.kt`; global `NovaPrimaryNavigationDispatcher.kt` |
-| Automated verification | Phase -1 through Phase 1 passed Blacksmith CI; Phase 1 finished with 13/13 Android 16 emulator tests; Phase 2 PR 5 clean JVM/domain tests, mutation-sensitive group fallback check, `lintRelease`, debug/release APKs, release AAB, and instrumentation APK compile passed |
+| Automated verification | Phase -1 through Phase 2 PR 5 passed Blacksmith CI; PR 6 fake contract tests, full JVM suite, `lintRelease`, debug/release APKs, release AAB, and instrumentation APK compile passed |
 | Remaining physical Samsung checks | Entire checklist in `SAMSUNG_SMOKE_CHECKLIST.md`; a physical Android device is connected but USB-unauthorized and provides no Samsung evidence |
-| Exact next PR | Phase 2 PR 6 — introduce the Messages repository interface and deterministic fake without moving UI orchestration yet |
+| Exact next PR | Phase 2 PR 7 — introduce `InboxViewModel`/`InboxUiState` and move inbox loading/search/unread orchestration behind `MessagesRepository` |
 
 ## Completed PRs
 
@@ -22,6 +22,7 @@ Update this table in every consolidation PR.
 | 0 | #97 | characterize push/session/Back decisions and conversation chrome | Android/backend Blacksmith CI; 13/13 Android 16 device tests; mutation-sensitive routing test | revert merge commit `dbcf56b` |
 | 1 | #98 | introduce typed `AppDestination`/`AppNavigator` root contract | Android/backend Blacksmith CI; full JVM suite; inactive/active/fallback dispatcher characterization | revert merge commit `d62f3e3` |
 | 1 | #99 | consolidate `AppContainer`/`AppViewModel` shell ownership and shared Messages/Reels routes | Android/backend Blacksmith CI; full local release gate; 13/13 Android 16 emulator tests | revert merge commit `3774fbf` |
+| 2 | #100 | extract nine live Messages domain models from repository implementation | Android/backend Blacksmith CI; mutation-sensitive computed-behavior tests; full local release gate | revert merge commit `6f4748a` |
 
 ## Phase 0 discovered risks
 
