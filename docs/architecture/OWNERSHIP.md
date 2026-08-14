@@ -1,6 +1,6 @@
 # Current ownership and entry paths
 
-Snapshot: Phase 2 PR 9, based on `ba2385cc00ed96fc06dfee483b22c732513dd719`.
+Snapshot: Phase 2 PR 10, based on `573fef87b13f0690f579164b74711385e7c99b72`.
 
 This file records current behavior. A row with several current owners identifies
 consolidation work; it does not imply that one of those paths may be removed
@@ -87,8 +87,8 @@ tree. Empty intents are ignored by the signal.
 
 | Activity | Exported | Entry | Window policy at snapshot | Content inset owners |
 |---|---:|---|---|---|
-| `MainActivity` | yes | launcher and notification `onNewIntent` | edge-to-edge + manifest `adjustResize` | route content owns status/navigation insets; V8 composer and outer conversation both currently touch IME |
-| `MessagesActivity` | no | inbox fallback or direct conversation | edge-to-edge + manifest `adjustResize` | same Messages/Conversation content as primary overlay; duplicate IME ownership remains |
+| `MainActivity` | yes | launcher and notification `onNewIntent` | edge-to-edge + manifest `adjustResize` | route content owns status/navigation insets; `ConversationComposer` alone consumes navigation-bar/IME insets |
+| `MessagesActivity` | no | inbox fallback or direct conversation | edge-to-edge + manifest `adjustResize` | same Messages/Conversation content as primary overlay; composer alone consumes bottom/IME insets |
 | `ReelsActivity` | no | root fallback or profile Reel | edge-to-edge + manifest `adjustResize` | Reels/profile viewer status-bar padding; sheets own bottom insets |
 | `CallActivity` | no | call intents/notifications | edge-to-edge, resizeable, PiP, separate call task affinity | call UI owns status/navigation padding |
 | `SettingsActivity` | no | explicit internal intent | edge-to-edge | screen status/system-bottom padding |
@@ -110,8 +110,8 @@ remove that parity before a device test establishes a replacement.
 | Stories | `StoriesRail` | stories repository plus UI-owned orchestration | `feature/stories` |
 | Reels | `ReelsScreen`, `ProfileReelsViewerScreen`, `ReelsActivity` | reels repositories, playback pool/safety, UI orchestration | `feature/reels` |
 | Messages inbox | `MessagesRoute`, `MessagesScreen` | `InboxViewModel`/`InboxUiState`, feature-owned domain models, `InboxRepository`, and refresh signals | `feature/messages/inbox` |
-| Conversation | `ConversationScreen` -> V9 -> V8 | `ConversationViewModel`/`ConversationUiState` own server behavior; `ConversationMessageList`/`ConversationMessageRow` render stateless list, row, date/unread, reply/share, voice-player, and photo content | `feature/messages/conversation` + stateless header/composer |
-| Composer/media/voice | outer `ConversationScreen` + V8 composer | V8 owns recorder, permission/picker, attachment draft, and rendering; `ConversationViewModel` owns textual draft persistence and optimistic sends | `feature/messages/composer` with one IME owner |
+| Conversation | `ConversationScreen` -> V9 -> V8 | `ConversationViewModel`/`ConversationUiState` own server behavior; stateless list/rows and the focused composer render their state and callbacks | `feature/messages/conversation` + stateless header |
+| Composer/media/voice | `ConversationComposer` | `ConversationComposerState` owns recorder, permission/picker, ephemeral attachment/voice drafts, cleanup, and the sole IME/navigation-bar padding; `ConversationViewModel` owns textual draft persistence and optimistic sends | `feature/messages/conversation` composer boundary |
 | Message details/search/media/theme/groups | V9 dialog, group dialogs, theme picker | V9 tools repository + messaging repositories | responsibility-specific Messages packages |
 | Calls | `CallActivity` | `NovaCallController`, signaling, WebRTC, Telecom, notifications/history | `feature/calls` boundaries with explicit state machine |
 | notifications/sharing | notification screen/share dialog | notification, push, messaging/social repositories | `feature/notifications`, `feature/sharing` |
@@ -153,9 +153,8 @@ presence/typing state, delivery/read receipts, and realtime update/delete/
 reaction reconciliation. `ConversationRealtime` and `ConversationDraftStore`
 make those behaviors deterministic in JVM tests; the existing production
 realtime client and draft store implement the boundaries, and `AppContainer`
-constructs them. V8 still owns recorder/permission/picker and the remaining
-header/composer rendering, which are intentionally reserved for the composer
-slice.
+constructs them. V8 now retains only route wiring, header/delete/photo overlays,
+and shared-item navigation around the extracted list and composer components.
 
 `ConversationMessageList.kt` renders loading/empty/paged list state and delegates
 all intents through callbacks. Its pure `messageRowContext` retains the exact
@@ -164,6 +163,14 @@ date-divider, sender-compaction, group-name, and unread-anchor decisions.
 reaction/actions, voice playback, receipt labels, swipe-to-reply, and full-screen
 photos. Shared post/profile/Reel navigation is callback-owned by the route, so
 the extracted row does not mutate navigation or construct dependencies.
+
+`ConversationComposer.kt` owns photo picking, microphone permission, the
+`ConversationVoiceRecorder` boundary, recording timers and 1-second/5-minute
+rules, temporary-file cleanup, attachment previews, reply/edit context, send
+eligibility, and composer rendering. Its bottom-bar column is the only
+conversation `imePadding` owner; the outer route no longer shifts the header or
+overlays when the IME opens. `ConversationViewModel` remains the owner of text
+drafts and server mutations, so no transport or persistence contract changed.
 
 ## Backend ownership map
 
@@ -214,6 +221,6 @@ route Composable
 session logout, and durable primary-overlay state. Feature routes still detect
 their own terminal 401 responses and report expiry; moving those status checks
 behind repository/state-owner boundaries belongs to their feature phases.
-The inbox and core conversation data path now have state owners. Conversation
-rendering/composer platform work, tools, themes, and groups still use the earlier
-pattern and remain on the Phase 2 extraction path.
+The inbox, core conversation data path, message rendering, and composer platform
+work now have focused owners. Conversation tools, themes, and groups still use
+the earlier pattern and remain on the Phase 2 extraction path.
