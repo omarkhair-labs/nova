@@ -5,17 +5,22 @@ import android.app.Application
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import com.nova.app.app.AppContainer
 import com.nova.app.core.calls.NovaTelecomRegistration
 import com.nova.app.core.presence.NovaAppPresence
 
 
 class NovaApplication : Application(), Application.ActivityLifecycleCallbacks {
+    lateinit var appContainer: AppContainer
+        private set
+
     private val mainHandler = Handler(Looper.getMainLooper())
     private var startedActivities = 0
     private var backgroundRunnable: Runnable? = null
 
     override fun onCreate() {
         super.onCreate()
+        appContainer = AppContainer(this)
         NovaAppPresence.initialize(this)
         NovaTelecomRegistration.register(this)
         registerActivityLifecycleCallbacks(this)

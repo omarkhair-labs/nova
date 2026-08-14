@@ -2,15 +2,13 @@ package com.nova.app.navigation
 
 
 /**
- * Compatibility bridge for app-level primary navigation.
+ * Application-scoped transport between feature entry points and the active app host.
  *
- * MainActivity owns the active handler while it is resumed. Feature navigators
- * can then request a primary destination without starting another root Activity.
- * When MainActivity is paused (for example beneath a deep-link Activity), callers
- * fall back to their existing Activity navigation instead of routing behind the
- * visible screen.
+ * The bridge consumes navigation only while MainActivity is resumed and has an
+ * attached handler. Special-entry Activities therefore retain their existing
+ * fallback behavior while they are visible.
  */
-object NovaPrimaryNavigationDispatcher : AppNavigator {
+class AppNavigationBridge : AppNavigator {
     private var handler: ((AppDestination) -> Unit)? = null
     private var hostActive: Boolean = false
 

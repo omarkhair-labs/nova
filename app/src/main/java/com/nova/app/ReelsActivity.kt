@@ -10,9 +10,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.nova.app.core.push.NovaPushOpenSignal
-import com.nova.app.feature.reels.ProfileReelsViewerScreen
 import com.nova.app.feature.reels.ReelPlaybackSafety
-import com.nova.app.feature.reels.ReelsScreen
+import com.nova.app.feature.reels.ReelsRoute
+import com.nova.app.feature.reels.ReelsRouteFactory
 import com.nova.app.navigation.NovaRootNavigationSignal
 import com.nova.app.navigation.NovaRootTab
 import com.nova.app.ui.components.NovaActiveCallPill
@@ -24,30 +24,19 @@ class ReelsActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        val profileUsername = intent.getStringExtra(EXTRA_PROFILE_USERNAME)
-            .orEmpty()
-            .trim()
-            .lowercase()
-        val initialReelId = intent.getLongExtra(EXTRA_INITIAL_REEL_ID, -1L)
+        val route = ReelsRouteFactory.fromIntent(intent)
 
         setContent {
             NovaTheme {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    if (profileUsername.isNotBlank() && initialReelId > 0L) {
-                        ProfileReelsViewerScreen(
-                            username = profileUsername,
-                            initialReelId = initialReelId,
-                            onFinish = { finish() },
-                        )
-                    } else {
-                        ReelsScreen(
-                            onFinish = { finish() },
-                            onHomeClick = { finishToRoot(NovaRootTab.Home) },
-                            onPeopleClick = { finishToRoot(NovaRootTab.People) },
-                            onProfileClick = { finishToRoot(NovaRootTab.Profile) },
-                            onPersonClick = { username -> openPerson(username) },
-                        )
-                    }
+                    ReelsRoute(
+                        route = route,
+                        onFinish = { finish() },
+                        onHomeClick = { finishToRoot(NovaRootTab.Home) },
+                        onPeopleClick = { finishToRoot(NovaRootTab.People) },
+                        onProfileClick = { finishToRoot(NovaRootTab.Profile) },
+                        onPersonClick = { username -> openPerson(username) },
+                    )
                     NovaActiveCallPill(
                         modifier = Modifier.align(Alignment.TopCenter),
                     )
@@ -80,7 +69,7 @@ class ReelsActivity : ComponentActivity() {
     }
 
     companion object {
-        const val EXTRA_PROFILE_USERNAME = "profile_username"
-        const val EXTRA_INITIAL_REEL_ID = "initial_reel_id"
+        const val EXTRA_PROFILE_USERNAME = ReelsRouteFactory.EXTRA_PROFILE_USERNAME
+        const val EXTRA_INITIAL_REEL_ID = ReelsRouteFactory.EXTRA_INITIAL_REEL_ID
     }
 }

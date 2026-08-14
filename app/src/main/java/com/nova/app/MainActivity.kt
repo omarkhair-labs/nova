@@ -14,9 +14,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.nova.app.app.NovaAppHost
+import com.nova.app.app.appContainer
 import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.core.messaging.NovaMessagingNavigator
-import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.push.NovaPushOpenSignal
 import com.nova.app.core.push.NovaPushRegistration
@@ -24,7 +25,6 @@ import com.nova.app.core.reels.NovaReelsNavigator
 import com.nova.app.core.update.NovaInAppUpdateController
 import com.nova.app.navigation.DeepLinkRouter
 import com.nova.app.navigation.NovaDeepLinkDecision
-import com.nova.app.navigation.NovaPrimaryNavigationDispatcher
 import com.nova.app.ui.components.NovaActiveCallPill
 import com.nova.app.ui.components.NovaUpdateReadyBanner
 import com.nova.app.ui.theme.NovaTheme
@@ -66,7 +66,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             NovaTheme {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    NovaPrimaryHost()
+                    NovaAppHost()
                     NovaActiveCallPill(
                         modifier = Modifier.align(Alignment.TopCenter),
                     )
@@ -83,7 +83,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        NovaPrimaryNavigationDispatcher.setHostActive(true)
+        appContainer.appNavigator.setHostActive(true)
         syncMessageUnreadCount()
         if (::inAppUpdateController.isInitialized) {
             inAppUpdateController.onResume()
@@ -91,12 +91,12 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onPause() {
-        NovaPrimaryNavigationDispatcher.setHostActive(false)
+        appContainer.appNavigator.setHostActive(false)
         super.onPause()
     }
 
     override fun onDestroy() {
-        NovaPrimaryNavigationDispatcher.setHostActive(false)
+        appContainer.appNavigator.setHostActive(false)
         if (::inAppUpdateController.isInitialized) {
             inAppUpdateController.onDestroy()
         }
@@ -137,7 +137,7 @@ class MainActivity : ComponentActivity() {
 
     private fun syncMessageUnreadCount() {
         activityScope.launch {
-            when (val result = NovaMessagingRepository(applicationContext).conversations()) {
+            when (val result = appContainer.messagingRepository.conversations()) {
                 is ApiResult.Success -> NovaMessagesSignal.updateUnreadCount(result.value.unreadCount)
                 is ApiResult.Failure -> Unit
             }

@@ -33,7 +33,6 @@ import com.nova.app.core.calls.NovaCallKind
 import com.nova.app.core.calls.NovaCallPerson
 import com.nova.app.core.messaging.NovaConversation
 import com.nova.app.core.messaging.NovaMessagesSignal
-import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.messages.ConversationScreen
@@ -41,6 +40,8 @@ import com.nova.app.feature.messages.ConversationExitAction
 import com.nova.app.feature.messages.MessagesScreen
 import com.nova.app.feature.messages.MessagesBackAction
 import com.nova.app.feature.messages.MessagesBackSnapshot
+import com.nova.app.feature.messages.MessagesRouteArgs
+import com.nova.app.feature.messages.MessagesRouteFactory
 import com.nova.app.feature.messages.NewGroupDialog
 import com.nova.app.feature.messages.NewMessageDialog
 import com.nova.app.feature.messages.conversationExitAction
@@ -60,25 +61,12 @@ class MessagesActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        val initialConversation = intent.getLongExtra(
-            NovaMessagingNavigator.EXTRA_CONVERSATION_ID,
-            -1L,
-        ).takeIf { it > 0L }?.let { conversationId ->
-            InitialConversation(
-                id = conversationId,
-                username = intent.getStringExtra(NovaMessagingNavigator.EXTRA_USERNAME).orEmpty(),
-                displayName = intent.getStringExtra(NovaMessagingNavigator.EXTRA_DISPLAY_NAME).orEmpty(),
-                avatarUrl = intent.getStringExtra(NovaMessagingNavigator.EXTRA_AVATAR_URL).orEmpty(),
-                kind = intent.getStringExtra(NovaMessagingNavigator.EXTRA_KIND).orEmpty().ifBlank { "direct" },
-                membersCount = intent.getIntExtra(NovaMessagingNavigator.EXTRA_MEMBERS_COUNT, 2),
-                currentUserRole = intent.getStringExtra(NovaMessagingNavigator.EXTRA_CURRENT_USER_ROLE).orEmpty(),
-            )
-        }
+        val initialConversation = MessagesRouteFactory.fromIntent(intent)
 
         setContent {
             NovaTheme {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    MessagingActivityContent(
+                    MessagesRoute(
                         initialConversation = initialConversation,
                         onFinish = { finish() },
                     )
@@ -93,14 +81,14 @@ class MessagesActivity : ComponentActivity() {
 
 
 /**
- * MainActivity-owned messaging root used by the V5 primary navigator.
+ * MainActivity-owned messaging route.
  *
  * The same inbox, create flows, conversation UI and call actions are reused here
  * instead of launching a second root Activity. Deep-link conversations can still
  * use MessagesActivity directly.
  */
 @Composable
-fun NovaMessagesRootContent(
+fun MessagesRootRoute(
     onRootRequested: (NovaRootTab) -> Unit,
     onSessionExpired: () -> Unit,
 ) {
@@ -108,7 +96,7 @@ fun NovaMessagesRootContent(
         modifier = Modifier.fillMaxSize(),
         color = NovaBackground,
     ) {
-        MessagingActivityContent(
+        MessagesRoute(
             initialConversation = null,
             onFinish = { onRootRequested(NovaRootTab.Home) },
             onRootRequested = onRootRequested,
@@ -119,8 +107,8 @@ fun NovaMessagesRootContent(
 
 
 @Composable
-private fun MessagingActivityContent(
-    initialConversation: InitialConversation?,
+internal fun MessagesRoute(
+    initialConversation: MessagesRouteArgs?,
     onFinish: () -> Unit,
     onRootRequested: ((NovaRootTab) -> Unit)? = null,
     onSessionExpired: () -> Unit = onFinish,
@@ -150,7 +138,7 @@ private fun MessagingActivityContent(
         showCreateMenu = false
         showNewMessage = false
         showNewGroup = false
-        activeConversation = InitialConversation(
+        activeConversation = MessagesRouteArgs(
             id = selected.id,
             username = if (selected.isGroup) "group" else selected.otherUser.username,
             displayName = selected.displayName,
@@ -196,7 +184,7 @@ private fun MessagingActivityContent(
         }
     }
 
-    fun startCall(conversation: InitialConversation, kind: NovaCallKind) {
+    fun startCall(conversation: MessagesRouteArgs, kind: NovaCallKind) {
         if (conversation.kind == "group") return
         val callIntent = CallActivity.outgoingIntent(
             context = context,
@@ -351,14 +339,3 @@ private fun MessagingActivityContent(
         )
     }
 }
-
-
-private data class InitialConversation(
-    val id: Long,
-    val username: String,
-    val displayName: String,
-    val avatarUrl: String,
-    val kind: String = "direct",
-    val membersCount: Int = 2,
-    val currentUserRole: String = "",
-)
