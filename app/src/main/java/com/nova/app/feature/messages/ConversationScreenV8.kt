@@ -51,7 +51,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,25 +67,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import com.nova.app.MainActivity
-import com.nova.app.core.auth.NovaSessionStore
+import com.nova.app.app.appContainer
 import com.nova.app.core.messaging.NovaActiveConversation
-import com.nova.app.core.messaging.NovaConversationDraftStore
 import com.nova.app.core.messaging.NovaConversationPresence
-import com.nova.app.core.messaging.NovaConversationRealtimeClient
-import com.nova.app.core.messaging.NovaMessageDeletedEvent
-import com.nova.app.core.messaging.NovaMessageReactionEvent
-import com.nova.app.core.messaging.NovaMessageUpdatedEvent
-import com.nova.app.core.messaging.NovaMessagingRepository
-import com.nova.app.core.messaging.NovaRealtimeEvent
 import com.nova.app.core.messaging.NovaRealtimeStatus
 import com.nova.app.core.messaging.NovaVoiceDraft
 import com.nova.app.core.messaging.NovaVoiceRecorder
-import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaPostAuthor
+import com.nova.app.feature.messages.conversation.ConversationViewModel
+import com.nova.app.feature.messages.conversation.PendingMessage
+import com.nova.app.feature.messages.conversation.PendingMessageStatus
 import com.nova.app.feature.messages.domain.model.NovaMessage
-import com.nova.app.feature.messages.domain.model.NovaMessageReaction
 import com.nova.app.feature.messages.domain.model.NovaMessageShare
 import com.nova.app.feature.messages.domain.model.NovaReplyPreview
 import com.nova.app.ui.components.NovaAvatar
@@ -99,15 +92,12 @@ import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import java.io.File
 import java.time.Instant
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import java.util.UUID
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -117,22 +107,6 @@ private val V8ReactionChoices = listOf("❤️", "😂", "😮", "😢", "😡",
 private const val V8MaxVoiceMs = 5 * 60 * 1000L
 private const val V8SwipeReplyThresholdPx = 72f
 private const val V8CallHistoryClientPrefix = "call:"
-
-private enum class V8PendingStatus { Sending, Failed }
-
-private data class V8PendingMessage(
-    val localId: Long,
-    val clientId: String,
-    val sender: NovaPostAuthor,
-    val body: String,
-    val imageUri: String,
-    val audioPath: String,
-    val audioDurationMs: Long?,
-    val replyTo: NovaReplyPreview?,
-    val createdAt: String,
-    val status: V8PendingStatus,
-    val error: String? = null,
-)
 
 
 @Composable
@@ -147,65 +121,52 @@ fun ConversationScreenV8(
 ) {
     val context = LocalContext.current
     val appContext = context.applicationContext
-    val repository = remember(context) { NovaMessagingRepository(appContext) }
-    val draftStore = remember(context) { NovaConversationDraftStore(appContext) }
-    val sessionStore = remember(context) { NovaSessionStore(appContext) }
-    val realtimeClient = remember(conversationId, repository) {
-        NovaConversationRealtimeClient(
-            context = appContext,
-            conversationId = conversationId,
-            repository = repository,
-        )
+    val container = context.appContainer
+    val realtime = remember(conversationId, container) {
+        container.conversationRealtime(conversationId)
     }
+    val draftStore = remember(container) { container.conversationDraftStore() }
+    val conversationViewModel: ConversationViewModel = viewModel(
+        key = "conversation-$conversationId",
+        factory = ConversationViewModel.factory(
+            conversationId = conversationId,
+            username = username,
+            repository = container.messagingRepository,
+            realtime = realtime,
+            draftStore = draftStore,
+            currentAuthor = container::currentMessageAuthor,
+        ),
+    )
+    val state = conversationViewModel.state
     val voiceRecorder = remember(context) { NovaVoiceRecorder(appContext) }
-    val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val isGroupConversation = username == "group"
+    val messages = state.messages
+    val pendingMessages = state.pendingMessages
+    val nextCursor = state.nextCursor
+    val isLoading = state.isLoading
+    val isLoadingEarlier = state.isLoadingEarlier
+    val mutatingMessageId = state.mutatingMessageId
+    val reactingMessageId = state.reactingMessageId
+    val errorMessage = state.errorMessage
+    val draft = state.draft
+    val replyTarget = state.replyTarget
+    val editingTarget = state.editingTarget
+    val deleteTarget = state.deleteTarget
+    val actionsForMessageId = state.actionsForMessageId
+    val isOtherTyping = state.isOtherTyping
+    val otherPresence = state.otherPresence
+    val realtimeStatus = state.realtimeStatus
+    val unreadAnchorMessageId = state.unreadAnchorMessageId
+    val unreadCountAtOpen = state.unreadCountAtOpen
+    val newMessagesAwayCount = state.newMessagesAwayCount
 
-    val currentAuthor = remember(conversationId) {
-        sessionStore.load()?.cachedUser?.let { user ->
-            NovaPostAuthor(
-                id = user.id,
-                username = user.username,
-                name = user.name,
-                avatarUrl = user.avatarUrl,
-            )
-        } ?: NovaPostAuthor(
-            id = 0L,
-            username = "me",
-            name = "",
-            avatarUrl = "",
-        )
-    }
-
-    var messages by remember(conversationId) { mutableStateOf<List<NovaMessage>>(emptyList()) }
-    var pendingMessages by remember(conversationId) { mutableStateOf<List<V8PendingMessage>>(emptyList()) }
-    var nextCursor by remember(conversationId) { mutableStateOf<String?>(null) }
-    var isLoading by remember(conversationId) { mutableStateOf(true) }
-    var isLoadingEarlier by remember(conversationId) { mutableStateOf(false) }
-    var mutatingMessageId by remember(conversationId) { mutableStateOf<Long?>(null) }
-    var reactingMessageId by remember(conversationId) { mutableStateOf<Long?>(null) }
-    var errorMessage by remember(conversationId) { mutableStateOf<String?>(null) }
-    var draft by remember(conversationId) { mutableStateOf(draftStore.load(conversationId)) }
-    var draftBeforeEdit by remember(conversationId) { mutableStateOf("") }
     var selectedImage by remember(conversationId) { mutableStateOf<Uri?>(null) }
     var voiceDraft by remember(conversationId) { mutableStateOf<NovaVoiceDraft?>(null) }
-    var replyTarget by remember(conversationId) { mutableStateOf<NovaMessage?>(null) }
-    var editingTarget by remember(conversationId) { mutableStateOf<NovaMessage?>(null) }
-    var deleteTarget by remember(conversationId) { mutableStateOf<NovaMessage?>(null) }
-    var actionsForMessageId by remember(conversationId) { mutableStateOf<Long?>(null) }
     var fullScreenPhotoUrl by remember(conversationId) { mutableStateOf<String?>(null) }
     var isRecording by remember(conversationId) { mutableStateOf(false) }
     var recordingStartedAt by remember(conversationId) { mutableLongStateOf(0L) }
     var recordingElapsedMs by remember(conversationId) { mutableLongStateOf(0L) }
-    var isOtherTyping by remember(conversationId) { mutableStateOf(false) }
-    var typingAnnounced by remember(conversationId) { mutableStateOf(false) }
-    var otherPresence by remember(conversationId) { mutableStateOf<NovaConversationPresence?>(null) }
-    var realtimeStatus by remember(conversationId) { mutableStateOf(NovaRealtimeStatus.Connecting) }
-    var initialUnreadCaptured by remember(conversationId) { mutableStateOf(false) }
-    var unreadAnchorMessageId by remember(conversationId) { mutableStateOf<Long?>(null) }
-    var unreadCountAtOpen by remember(conversationId) { mutableStateOf(0) }
-    var newMessagesAwayCount by remember(conversationId) { mutableStateOf(0) }
 
     val nearBottom by remember {
         derivedStateOf {
@@ -221,25 +182,22 @@ fun ConversationScreenV8(
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null && voiceDraft == null && !isRecording && editingTarget == null) {
             selectedImage = uri
-            errorMessage = null
+            conversationViewModel.setErrorMessage(null)
         }
     }
 
     fun beginVoiceRecording() {
         if (editingTarget != null || selectedImage != null || voiceDraft != null || isRecording) return
-        errorMessage = null
+        conversationViewModel.setErrorMessage(null)
         voiceRecorder.start()
             .onSuccess {
                 isRecording = true
                 recordingStartedAt = SystemClock.elapsedRealtime()
                 recordingElapsedMs = 0L
-                if (typingAnnounced) {
-                    realtimeClient.sendTyping(false)
-                    typingAnnounced = false
-                }
+                conversationViewModel.onRecordingChanged(true)
             }
             .onFailure {
-                errorMessage = "Nova couldn't start the microphone. Try again."
+                conversationViewModel.setErrorMessage("Nova couldn't start the microphone. Try again.")
             }
     }
 
@@ -247,19 +205,24 @@ fun ConversationScreenV8(
         if (!isRecording) return
         val result = voiceRecorder.stop()
         isRecording = false
+        conversationViewModel.onRecordingChanged(false)
         recordingStartedAt = 0L
         recordingElapsedMs = 0L
         result.onSuccess { recorded ->
             if (recorded.durationMs < 1_000L) {
                 recorded.file.delete()
-                errorMessage = "Voice message is too short. Record for at least 1 second."
+                conversationViewModel.setErrorMessage(
+                    "Voice message is too short. Record for at least 1 second."
+                )
             } else {
                 voiceDraft?.file?.delete()
                 voiceDraft = recorded
-                errorMessage = null
+                conversationViewModel.setErrorMessage(null)
             }
         }.onFailure {
-            errorMessage = "Nova couldn't finish that recording. Record it again."
+            conversationViewModel.setErrorMessage(
+                "Nova couldn't finish that recording. Record it again."
+            )
         }
     }
 
@@ -267,7 +230,9 @@ fun ConversationScreenV8(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) beginVoiceRecording()
-        else errorMessage = "Microphone permission is required to send voice messages."
+        else conversationViewModel.setErrorMessage(
+            "Microphone permission is required to send voice messages."
+        )
     }
 
     fun requestVoiceRecording() {
@@ -278,361 +243,28 @@ fun ConversationScreenV8(
         }
     }
 
-    fun markConversationRead() {
-        scope.launch {
-            when (val result = repository.markRead(conversationId)) {
-                is ApiResult.Success -> onConversationRead()
-                is ApiResult.Failure -> if (result.statusCode == 401) onSessionExpired()
-            }
-        }
-    }
-
-    fun scrollLatest(animated: Boolean = true) {
-        scope.launch {
-            delay(30)
-            val target = (listState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0)
-            if (animated) listState.animateScrollToItem(target) else listState.scrollToItem(target)
-            newMessagesAwayCount = 0
-        }
-    }
-
-    fun loadLatest(showSpinner: Boolean = true, scrollToBottom: Boolean = false) {
-        scope.launch {
-            if (showSpinner) {
-                isLoading = true
-                errorMessage = null
-            }
-            when (val result = repository.messages(conversationId)) {
-                is ApiResult.Success -> {
-                    messages = result.value.messages
-                    nextCursor = result.value.nextCursor
-                    if (!initialUnreadCaptured) {
-                        if (isGroupConversation) {
-                            unreadAnchorMessageId = null
-                            unreadCountAtOpen = 0
-                        } else {
-                            val unread = result.value.messages.filter { !it.isMine && it.readAt == null }
-                            unreadAnchorMessageId = unread.firstOrNull()?.id
-                            unreadCountAtOpen = unread.size
-                        }
-                        initialUnreadCaptured = true
-                    }
-                    isLoading = false
-                    markConversationRead()
-                    if (scrollToBottom && messages.isNotEmpty()) scrollLatest(animated = false)
-                }
-                is ApiResult.Failure -> {
-                    isLoading = false
-                    if (result.statusCode == 401) onSessionExpired()
-                    else if (showSpinner || messages.isEmpty()) errorMessage = result.message
-                }
-            }
-        }
-    }
-
-    fun loadEarlier() {
-        val cursor = nextCursor ?: return
-        if (isLoadingEarlier) return
-        scope.launch {
-            isLoadingEarlier = true
-            when (val result = repository.messages(conversationId, cursor)) {
-                is ApiResult.Success -> {
-                    val existingIds = messages.mapTo(mutableSetOf()) { it.id }
-                    messages = result.value.messages.filterNot { it.id in existingIds } + messages
-                    nextCursor = result.value.nextCursor
-                }
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onSessionExpired()
-                    else errorMessage = result.message
-                }
-            }
-            isLoadingEarlier = false
-        }
-    }
-    fun replyPreview(message: NovaMessage): NovaReplyPreview {
-        return NovaReplyPreview(
-            id = message.id,
-            sender = message.sender,
-            body = message.body,
-            imageUrl = message.imageUrl,
-            audioUrl = message.audioUrl,
-            audioDurationMs = message.audioDurationMs,
-            isDeleted = message.isDeleted,
-        )
-    }
-
-    fun applyMessageUpdate(event: NovaMessageUpdatedEvent) {
-        messages = messages.map { message ->
-            val reply = message.replyTo?.let {
-                if (it.id == event.messageId && !it.isDeleted) it.copy(body = event.body) else it
-            }
-            if (message.id == event.messageId && !message.isDeleted) {
-                message.copy(body = event.body, editedAt = event.editedAt, replyTo = reply)
-            } else message.copy(replyTo = reply)
-        }
-        editingTarget = editingTarget?.let {
-            if (it.id == event.messageId) it.copy(body = event.body, editedAt = event.editedAt) else it
-        }
-        replyTarget = replyTarget?.let {
-            if (it.id == event.messageId) it.copy(body = event.body, editedAt = event.editedAt) else it
-        }
-    }
-
-    fun applyMessageDelete(event: NovaMessageDeletedEvent) {
-        messages = messages.map { message ->
-            val reply = message.replyTo?.let {
-                if (it.id == event.messageId) {
-                    it.copy(
-                        body = "Message deleted",
-                        imageUrl = "",
-                        audioUrl = "",
-                        audioDurationMs = null,
-                        isDeleted = true,
-                    )
-                } else it
-            }
-            if (message.id == event.messageId) {
-                message.copy(
-                    body = "",
-                    imageUrl = "",
-                    audioUrl = "",
-                    audioDurationMs = null,
-                    replyTo = null,
-                    reactions = emptyList(),
-                    editedAt = null,
-                    deletedAt = event.deletedAt,
-                    share = null,
-                )
-            } else message.copy(replyTo = reply)
-        }
-        if (replyTarget?.id == event.messageId) replyTarget = null
-        if (editingTarget?.id == event.messageId) {
-            editingTarget = null
-            draft = draftBeforeEdit
-            draftBeforeEdit = ""
-        }
-        if (actionsForMessageId == event.messageId) actionsForMessageId = null
-        if (deleteTarget?.id == event.messageId) deleteTarget = null
-    }
-
-    fun completePending(clientId: String, message: NovaMessage) {
-        val pending = pendingMessages.firstOrNull { it.clientId == clientId }
-        pendingMessages = pendingMessages.filterNot { it.clientId == clientId }
-        if (messages.none { it.id == message.id }) messages = messages + message
-        pending?.audioPath?.takeIf { it.isNotBlank() }?.let { File(it).delete() }
-    }
-
-    fun failPending(clientId: String, failure: ApiResult.Failure) {
-        if (failure.statusCode == 401) {
-            onSessionExpired()
-            return
-        }
-        pendingMessages = pendingMessages.map {
-            if (it.clientId == clientId) it.copy(status = V8PendingStatus.Failed, error = failure.message) else it
-        }
-    }
-
-    fun sendPending(pending: V8PendingMessage) {
-        scope.launch {
-            pendingMessages = pendingMessages.map {
-                if (it.clientId == pending.clientId) it.copy(status = V8PendingStatus.Sending, error = null) else it
-            }
-            when (
-                val result = repository.sendMessage(
-                    conversationId = conversationId,
-                    body = pending.body,
-                    clientId = pending.clientId,
-                    replyToId = pending.replyTo?.id,
-                    imageUri = pending.imageUri.takeIf { it.isNotBlank() }?.let(Uri::parse),
-                    audioFile = pending.audioPath.takeIf { it.isNotBlank() }?.let(::File),
-                    audioDurationMs = pending.audioDurationMs,
-                )
-            ) {
-                is ApiResult.Success -> completePending(pending.clientId, result.value)
-                is ApiResult.Failure -> failPending(pending.clientId, result)
-            }
-        }
-    }
-
     fun send() {
-        val body = draft.trim()
-        val image = selectedImage
         val voice = voiceDraft
-        if ((body.isBlank() && image == null && voice == null) || isRecording || editingTarget != null) return
-
-        if (typingAnnounced) {
-            realtimeClient.sendTyping(false)
-            typingAnnounced = false
+        if (conversationViewModel.send(selectedImage, voice?.file, voice?.durationMs)) {
+            selectedImage = null
+            voiceDraft = null
         }
-
-        val pending = V8PendingMessage(
-            localId = -System.nanoTime(),
-            clientId = UUID.randomUUID().toString(),
-            sender = currentAuthor,
-            body = body,
-            imageUri = image?.toString().orEmpty(),
-            audioPath = voice?.file?.absolutePath.orEmpty(),
-            audioDurationMs = voice?.durationMs,
-            replyTo = replyTarget?.let(::replyPreview),
-            createdAt = Instant.now().toString(),
-            status = V8PendingStatus.Sending,
-        )
-
-        pendingMessages = pendingMessages + pending
-        draft = ""
-        draftStore.remove(conversationId)
-        selectedImage = null
-        voiceDraft = null
-        replyTarget = null
-        actionsForMessageId = null
-        errorMessage = null
-        scrollLatest(animated = true)
-        sendPending(pending)
     }
 
     fun startEdit(message: NovaMessage) {
-        if (
-            !message.isMine || message.isDeleted || message.share != null ||
-            message.isCallHistoryV8() || mutatingMessageId != null
-        ) return
+        if (!conversationViewModel.startEdit(message)) return
         if (isRecording) {
             voiceRecorder.cancel()
             isRecording = false
+            conversationViewModel.onRecordingChanged(false)
         }
         voiceDraft?.file?.delete()
         voiceDraft = null
         selectedImage = null
-        replyTarget = null
-        draftBeforeEdit = draft
-        editingTarget = message
-        draft = message.body
-        actionsForMessageId = null
-        errorMessage = null
-        if (typingAnnounced) {
-            realtimeClient.sendTyping(false)
-            typingAnnounced = false
-        }
-    }
-
-    fun cancelEdit() {
-        editingTarget = null
-        draft = draftBeforeEdit
-        draftBeforeEdit = ""
-        errorMessage = null
-    }
-
-    fun saveEdit() {
-        val target = editingTarget ?: return
-        if (target.isDeleted || target.share != null || target.isCallHistoryV8() || mutatingMessageId != null) return
-        val body = draft.trim()
-        if (body == target.body) {
-            cancelEdit()
-            return
-        }
-        if (body.isBlank() && target.imageUrl.isBlank() && target.audioUrl.isBlank()) return
-
-        scope.launch {
-            mutatingMessageId = target.id
-            errorMessage = null
-            when (val result = repository.editMessage(target.id, body)) {
-                is ApiResult.Success -> {
-                    messages = messages.map { if (it.id == target.id) result.value else it }
-                    editingTarget = null
-                    draft = draftBeforeEdit
-                    draftBeforeEdit = ""
-                }
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onSessionExpired() else errorMessage = result.message
-                }
-            }
-            mutatingMessageId = null
-        }
-    }
-
-    fun confirmDelete(message: NovaMessage) {
-        if (!message.isMine || message.isDeleted || mutatingMessageId != null) return
-        deleteTarget = message
-        actionsForMessageId = null
-    }
-
-    fun deleteForEveryone() {
-        val target = deleteTarget ?: return
-        if (mutatingMessageId != null) return
-        scope.launch {
-            mutatingMessageId = target.id
-            errorMessage = null
-            when (val result = repository.deleteMessage(target.id)) {
-                is ApiResult.Success -> applyMessageDelete(
-                    NovaMessageDeletedEvent(messageId = target.id, deletedAt = result.value)
-                )
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onSessionExpired() else errorMessage = result.message
-                }
-            }
-            deleteTarget = null
-            mutatingMessageId = null
-        }
-    }
-
-    fun setReaction(message: NovaMessage, emoji: String) {
-        if (reactingMessageId != null || message.isDeleted) return
-        val current = message.reactions.firstOrNull { it.reactedByMe }?.emoji
-        val desired = if (current == emoji) null else emoji
-        scope.launch {
-            reactingMessageId = message.id
-            when (val result = repository.setReaction(message.id, desired)) {
-                is ApiResult.Success -> {
-                    messages = messages.map {
-                        if (it.id == message.id) it.copy(reactions = result.value) else it
-                    }
-                    actionsForMessageId = null
-                }
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onSessionExpired() else errorMessage = result.message
-                }
-            }
-            reactingMessageId = null
-        }
-    }
-
-    fun applyReactionEvent(event: NovaMessageReactionEvent) {
-        messages = messages.map { message ->
-            if (message.id != event.messageId || message.isDeleted) return@map message
-            val mutable = message.reactions.associateBy { it.emoji }.toMutableMap()
-            if (event.isMine && event.active) {
-                mutable.keys.toList().forEach { key ->
-                    mutable[key]?.let { mutable[key] = it.copy(reactedByMe = false) }
-                }
-            }
-            if (event.count <= 0) mutable.remove(event.emoji)
-            else {
-                val existing = mutable[event.emoji]
-                mutable[event.emoji] = NovaMessageReaction(
-                    emoji = event.emoji,
-                    count = event.count,
-                    reactedByMe = if (event.isMine) event.active else existing?.reactedByMe == true,
-                )
-            }
-            message.copy(
-                reactions = mutable.values.sortedBy {
-                    V8ReactionChoices.indexOf(it.emoji).let { index -> if (index < 0) 99 else index }
-                }
-            )
-        }
-    }
-
-    LaunchedEffect(conversationId) {
-        loadLatest(showSpinner = true, scrollToBottom = true)
-    }
-
-    LaunchedEffect(draft, editingTarget) {
-        if (editingTarget != null) return@LaunchedEffect
-        delay(250)
-        if (draft.isBlank()) draftStore.remove(conversationId) else draftStore.save(conversationId, draft)
     }
 
     LaunchedEffect(nearBottom) {
-        if (nearBottom) newMessagesAwayCount = 0
+        conversationViewModel.onNearBottomChanged(nearBottom)
     }
 
     LaunchedEffect(isRecording, recordingStartedAt) {
@@ -646,97 +278,34 @@ fun ConversationScreenV8(
         }
     }
 
-    LaunchedEffect(draft, realtimeStatus, editingTarget, isRecording) {
-        if (realtimeStatus != NovaRealtimeStatus.Live || editingTarget != null || isRecording) {
-            if (typingAnnounced) realtimeClient.sendTyping(false)
-            typingAnnounced = false
-            return@LaunchedEffect
+    LaunchedEffect(state.scrollRequestVersion) {
+        if (state.scrollRequestVersion > 0) {
+            delay(30)
+            val target = (listState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0)
+            if (state.scrollRequestAnimated) listState.animateScrollToItem(target)
+            else listState.scrollToItem(target)
+            conversationViewModel.onScrollLatestCompleted()
         }
-        if (draft.isBlank()) {
-            if (typingAnnounced) realtimeClient.sendTyping(false)
-            typingAnnounced = false
-            return@LaunchedEffect
-        }
-        if (!typingAnnounced) {
-            realtimeClient.sendTyping(true)
-            typingAnnounced = true
-        }
-        delay(1_400)
-        realtimeClient.sendTyping(false)
-        typingAnnounced = false
     }
 
-    DisposableEffect(conversationId, realtimeClient) {
+    LaunchedEffect(state.conversationReadVersion) {
+        if (state.conversationReadVersion > 0) onConversationRead()
+    }
+
+    LaunchedEffect(state.sessionExpiryVersion) {
+        if (state.sessionExpiryVersion > 0) onSessionExpired()
+    }
+
+    DisposableEffect(conversationId, conversationViewModel) {
         NovaActiveConversation.enter(conversationId)
-        realtimeClient.start(
-            scope = scope,
-            onEvent = { event ->
-                when (event) {
-                    is NovaRealtimeEvent.MessageCreated -> {
-                        val message = event.message
-                        val matchedPending = pendingMessages.any { it.clientId == message.clientId }
-                        if (matchedPending) {
-                            completePending(message.clientId, message)
-                        } else if (messages.none { it.id == message.id }) {
-                            val shouldFollow = nearBottom
-                            messages = messages + message
-                            if (!message.isMine) {
-                                isOtherTyping = false
-                                markConversationRead()
-                                if (!shouldFollow) newMessagesAwayCount += 1
-                            }
-                            if (shouldFollow) scrollLatest(animated = true)
-                        }
-                    }
-                    is NovaRealtimeEvent.MessagesDelivered -> {
-                        if (event.deliveredAt.isNotBlank()) {
-                            messages = messages.map { message ->
-                                if (message.isMine && message.id in event.messageIds) {
-                                    message.copy(deliveredAt = event.deliveredAt)
-                                } else message
-                            }
-                        }
-                    }
-                    is NovaRealtimeEvent.ConversationRead -> {
-                        if (event.readAt.isNotBlank()) {
-                            messages = messages.map { message ->
-                                if (message.isMine && message.id in event.messageIds) {
-                                    message.copy(
-                                        deliveredAt = message.deliveredAt ?: event.readAt,
-                                        readAt = event.readAt,
-                                    )
-                                } else message
-                            }
-                        }
-                    }
-                    is NovaRealtimeEvent.Typing -> isOtherTyping = event.isTyping
-                }
-            },
-            onStatus = {
-                realtimeStatus = it
-                if (it != NovaRealtimeStatus.Live) isOtherTyping = false
-            },
-            onSessionExpired = onSessionExpired,
-            onPresence = { presence ->
-                if (!isGroupConversation && presence.username == username) {
-                    otherPresence = presence
-                    if (!presence.isOnline) isOtherTyping = false
-                }
-            },
-            onReaction = ::applyReactionEvent,
-            onMessageUpdated = ::applyMessageUpdate,
-            onMessageDeleted = ::applyMessageDelete,
-        )
+        conversationViewModel.startRealtime()
+        conversationViewModel.loadLatest(showSpinner = true, scrollToBottom = true)
 
         onDispose {
-            if (typingAnnounced) realtimeClient.sendTyping(false)
             voiceRecorder.cancel()
             voiceDraft?.file?.delete()
-            pendingMessages.forEach { pending ->
-                pending.audioPath.takeIf { it.isNotBlank() }?.let { File(it).delete() }
-            }
             NovaActiveConversation.leave(conversationId)
-            realtimeClient.stop()
+            conversationViewModel.stopRealtime()
         }
     }
 
@@ -750,7 +319,7 @@ fun ConversationScreenV8(
                 realtimeStatus = realtimeStatus,
                 isTyping = isOtherTyping,
                 onBack = onBack,
-                onRefresh = { loadLatest(showSpinner = false) },
+                onRefresh = { conversationViewModel.loadLatest(showSpinner = false) },
             )
         },
         bottomBar = {
@@ -765,7 +334,7 @@ fun ConversationScreenV8(
                 isRecording = isRecording,
                 recordingElapsedMs = recordingElapsedMs,
                 errorMessage = errorMessage,
-                onDraftChange = { draft = it.take(2_000) },
+                onDraftChange = conversationViewModel::onDraftChanged,
                 onPickPhoto = {
                     if (editingTarget == null && voiceDraft == null && !isRecording) imagePicker.launch("image/*")
                 },
@@ -775,6 +344,7 @@ fun ConversationScreenV8(
                 onCancelRecording = {
                     voiceRecorder.cancel()
                     isRecording = false
+                    conversationViewModel.onRecordingChanged(false)
                     recordingStartedAt = 0L
                     recordingElapsedMs = 0L
                 },
@@ -782,9 +352,11 @@ fun ConversationScreenV8(
                     voiceDraft?.file?.delete()
                     voiceDraft = null
                 },
-                onCancelReply = { replyTarget = null },
-                onCancelEdit = ::cancelEdit,
-                onSend = { if (editingTarget != null) saveEdit() else send() },
+                onCancelReply = conversationViewModel::cancelReply,
+                onCancelEdit = conversationViewModel::cancelEdit,
+                onSend = {
+                    if (editingTarget != null) conversationViewModel.saveEdit() else send()
+                },
             )
         },
     ) { innerPadding ->
@@ -827,7 +399,7 @@ fun ConversationScreenV8(
                     if (nextCursor != null) {
                         item(key = "load-earlier") {
                             Surface(
-                                onClick = { if (!isLoadingEarlier) loadEarlier() },
+                                onClick = { if (!isLoadingEarlier) conversationViewModel.loadEarlier() },
                                 modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                                 shape = RoundedCornerShape(16.dp),
                                 color = NovaSurface,
@@ -879,18 +451,12 @@ fun ConversationScreenV8(
                             reactionBusy = reactingMessageId == message.id,
                             mutationBusy = mutatingMessageId == message.id,
                             onToggleActions = {
-                                if (!message.isDeleted) {
-                                    actionsForMessageId = if (actionsForMessageId == message.id) null else message.id
-                                }
+                                conversationViewModel.toggleActions(message.id)
                             },
-                            onReply = {
-                                replyTarget = message
-                                if (editingTarget != null) cancelEdit()
-                                actionsForMessageId = null
-                            },
+                            onReply = { conversationViewModel.startReply(message) },
                             onEdit = { startEdit(message) },
-                            onDelete = { confirmDelete(message) },
-                            onReact = { emoji -> setReaction(message, emoji) },
+                            onDelete = { conversationViewModel.confirmDelete(message) },
+                            onReact = { emoji -> conversationViewModel.setReaction(message, emoji) },
                             onOpenPhoto = { fullScreenPhotoUrl = it },
                             onOpenSharedPost = { postId -> openSharedPostV8(context, postId) },
                             onOpenSharedProfile = { sharedUsername -> openSharedProfileV8(context, sharedUsername) },
@@ -900,14 +466,14 @@ fun ConversationScreenV8(
                     items(pendingMessages, key = { "pending-${it.clientId}" }) { pending ->
                         V8PendingBubble(
                             pending = pending,
-                            onRetry = { sendPending(pending) },
+                            onRetry = { conversationViewModel.retryPending(pending) },
                         )
                     }
                 }
 
                 if (!nearBottom || newMessagesAwayCount > 0) {
                     Surface(
-                        onClick = { scrollLatest(animated = true) },
+                        onClick = { conversationViewModel.requestScrollLatest(animated = true) },
                         shape = RoundedCornerShape(22.dp),
                         color = NovaSurface,
                         border = BorderStroke(1.dp, NovaBorder),
@@ -929,12 +495,14 @@ fun ConversationScreenV8(
 
     deleteTarget?.let { target ->
         AlertDialog(
-            onDismissRequest = { if (mutatingMessageId == null) deleteTarget = null },
+            onDismissRequest = conversationViewModel::dismissDelete,
             title = { Text("Delete message?", color = NovaInk, fontWeight = FontWeight.Bold) },
             text = { Text("This removes the message for everyone. This can't be undone.", color = NovaMuted) },
             confirmButton = {
                 Surface(
-                    onClick = { if (mutatingMessageId == null) deleteForEveryone() },
+                    onClick = {
+                        if (mutatingMessageId == null) conversationViewModel.deleteForEveryone()
+                    },
                     shape = RoundedCornerShape(14.dp),
                     color = NovaAccent,
                 ) {
@@ -948,7 +516,7 @@ fun ConversationScreenV8(
             },
             dismissButton = {
                 Surface(
-                    onClick = { if (mutatingMessageId == null) deleteTarget = null },
+                    onClick = conversationViewModel::dismissDelete,
                     shape = RoundedCornerShape(14.dp),
                     color = NovaSurface,
                     border = BorderStroke(1.dp, NovaBorder),
@@ -1628,12 +1196,12 @@ private fun V8SharedContentCard(
 
 
 @Composable
-private fun V8PendingBubble(pending: V8PendingMessage, onRetry: () -> Unit) {
+private fun V8PendingBubble(pending: PendingMessage, onRetry: () -> Unit) {
     Column(modifier = Modifier.fillMaxWidth().padding(top = 5.dp), horizontalAlignment = Alignment.End) {
         Surface(
-            onClick = { if (pending.status == V8PendingStatus.Failed) onRetry() },
+            onClick = { if (pending.status == PendingMessageStatus.Failed) onRetry() },
             shape = RoundedCornerShape(20.dp, 20.dp, 5.dp, 20.dp),
-            color = if (pending.status == V8PendingStatus.Failed) NovaAccent.copy(alpha = 0.72f) else NovaAccent,
+            color = if (pending.status == PendingMessageStatus.Failed) NovaAccent.copy(alpha = 0.72f) else NovaAccent,
         ) {
             Column(modifier = Modifier.widthIn(max = 292.dp).padding(horizontal = 10.dp, vertical = 9.dp)) {
                 pending.replyTo?.let { V8ReplyPreview(it, mine = true) }
@@ -1659,13 +1227,13 @@ private fun V8PendingBubble(pending: V8PendingMessage, onRetry: () -> Unit) {
                 Spacer(Modifier.height(4.dp))
                 Text(
                     when (pending.status) {
-                        V8PendingStatus.Sending -> "${localMessageTimeV8(pending.createdAt)} · Sending…"
-                        V8PendingStatus.Failed -> "${localMessageTimeV8(pending.createdAt)} · Failed · Tap to retry"
+                        PendingMessageStatus.Sending -> "${localMessageTimeV8(pending.createdAt)} · Sending…"
+                        PendingMessageStatus.Failed -> "${localMessageTimeV8(pending.createdAt)} · Failed · Tap to retry"
                     },
                     color = NovaBackground.copy(alpha = 0.78f),
                     fontSize = 9.sp,
                 )
-                if (pending.status == V8PendingStatus.Failed && !pending.error.isNullOrBlank()) {
+                if (pending.status == PendingMessageStatus.Failed && !pending.error.isNullOrBlank()) {
                     Text(pending.error, color = NovaBackground.copy(alpha = 0.72f), fontSize = 9.sp, maxLines = 2)
                 }
             }

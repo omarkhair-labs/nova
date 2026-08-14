@@ -5,13 +5,13 @@ Update this table in every consolidation PR.
 | Field | Current state |
 |---|---|
 | Current phase | Phase 2 — Messages consolidation |
-| Active PR | Phase 2 PR 7 — introduce `InboxViewModel`/`InboxUiState` and move inbox loading, search, paging, unread, and session-effect orchestration behind `InboxRepository` |
-| CI status | Pending for Phase 2 PR 7; PRs #95–#101 passed on Blacksmith |
-| Completed ownership changes | Phase 1 shell ownership; Phase 2 domain models plus feature-owned repository contracts consumed by `AppContainer` and realtime coordination; inbox state/orchestration now has one lifecycle-aware owner |
+| Active PR | Phase 2 PR 8 — introduce `ConversationViewModel`/`ConversationUiState` around existing repository, draft, mutation, and realtime behavior |
+| CI status | Pending for Phase 2 PR 8; PRs #95–#102 passed on Blacksmith |
+| Completed ownership changes | Phase 1 shell ownership; Phase 2 domain models and repository contracts; inbox state/orchestration plus conversation data/draft/realtime orchestration now have lifecycle-aware owners |
 | Deleted legacy/versioned files | `NovaPrimaryHost.kt`; global `NovaPrimaryNavigationDispatcher.kt` |
-| Automated verification | Phase -1 through Phase 2 PR 6 passed Blacksmith CI; PR 7 inbox state-owner tests, stale-response mutation check, full JVM suite, `lintRelease`, debug/release APKs, release AAB, and instrumentation APK compile passed locally |
-| Remaining physical Samsung checks | Entire checklist in `SAMSUNG_SMOKE_CHECKLIST.md`; a physical Android device is connected but USB-unauthorized and provides no Samsung evidence |
-| Exact next PR | Phase 2 PR 8 — introduce `ConversationViewModel`/`ConversationUiState` and begin moving conversation orchestration behind `MessagesRepository` |
+| Automated verification | Phase -1 through Phase 2 PR 7 passed Blacksmith CI; PR 8 conversation state-owner tests, paging-deduplication mutation check, full JVM/release/artifact gate, instrumentation APK compile, and 13/13 Android 16 Pixel 8 emulator tests passed locally |
+| Remaining physical Samsung checks | Entire manual checklist in `SAMSUNG_SMOKE_CHECKLIST.md`; authorized Samsung SM-A266B detected, but non-destructive test install is blocked by its differently signed existing Nova package |
+| Exact next PR | Phase 2 PR 9 — extract stateless message list, row, date, unread, and context UI from the live conversation implementation |
 
 ## Completed PRs
 
@@ -24,6 +24,7 @@ Update this table in every consolidation PR.
 | 1 | #99 | consolidate `AppContainer`/`AppViewModel` shell ownership and shared Messages/Reels routes | Android/backend Blacksmith CI; full local release gate; 13/13 Android 16 emulator tests | revert merge commit `3774fbf` |
 | 2 | #100 | extract nine live Messages domain models from repository implementation | Android/backend Blacksmith CI; mutation-sensitive computed-behavior tests; full local release gate | revert merge commit `6f4748a` |
 | 2 | #101 | establish feature-owned `MessagesRepository`/`InboxRepository` contracts and deterministic fakes | Android/backend Blacksmith CI; fake contract tests; full local release gate | revert merge commit `4908446` |
+| 2 | #102 | move inbox search, paging, unread, and session-effect orchestration into `InboxViewModel`/`InboxUiState` | Android/backend Blacksmith CI; stale-response mutation check; full local release gate | revert merge commit `77ae51c` |
 
 ## Phase 0 discovered risks
 
