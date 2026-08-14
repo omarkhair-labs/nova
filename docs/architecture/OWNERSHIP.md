@@ -128,14 +128,16 @@ Phase 2 deliberately leaves JSON parsing, HTTP authentication, realtime events,
 draft/preferences, and all route/UI state in their previous owners until each
 boundary has characterization coverage.
 
-`feature/messages/data/MessagesRepository.kt` now defines the existing inbox,
-conversation mutation, read-marker, and realtime-token data operations.
-`NovaMessagingRepository` is the production implementation; `AppContainer` and
-`NovaConversationRealtimeClient` depend on the interface. A deterministic test
-fake captures every argument and returns configured `ApiResult` values. The
-interface temporarily retains Android media inputs for exact composer parity;
-the later composer slice will introduce attachment abstractions with dedicated
-characterization rather than changing media behavior here.
+`feature/messages/data/MessagesRepository.kt` defines the existing conversation
+mutation, read-marker, and realtime-token data operations;
+`feature/messages/data/InboxRepository.kt` owns paged inbox/search loading.
+`NovaMessagingRepository` and `NovaInboxPagingRepository` are the production
+implementations. `AppContainer` owns both interfaces, and
+`NovaConversationRealtimeClient` depends on `MessagesRepository`. Deterministic
+test fakes capture every argument and return configured `ApiResult` values. The
+Messages interface temporarily retains Android media inputs for exact composer
+parity; the later composer slice will introduce attachment abstractions with
+dedicated characterization rather than changing media behavior here.
 
 ## Backend ownership map
 

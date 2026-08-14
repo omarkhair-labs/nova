@@ -107,6 +107,13 @@ data class NovaConversationList(
 )
 
 
+data class NovaConversationPage(
+    val conversations: List<NovaConversation>,
+    val unreadCount: Int,
+    val nextCursor: String?,
+)
+
+
 data class NovaMessagePage(
     val messages: List<NovaMessage>,
     val nextCursor: String?,

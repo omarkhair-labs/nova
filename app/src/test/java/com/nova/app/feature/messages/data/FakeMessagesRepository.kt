@@ -4,6 +4,7 @@ import android.net.Uri
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.messages.domain.model.NovaConversation
 import com.nova.app.feature.messages.domain.model.NovaConversationList
+import com.nova.app.feature.messages.domain.model.NovaConversationPage
 import com.nova.app.feature.messages.domain.model.NovaMessage
 import com.nova.app.feature.messages.domain.model.NovaMessagePage
 import com.nova.app.feature.messages.domain.model.NovaMessageReaction
@@ -115,5 +116,22 @@ class FakeMessagesRepository : MessagesRepository {
 
     private companion object {
         fun notConfigured(): ApiResult.Failure = ApiResult.Failure("Fake result was not configured")
+    }
+}
+
+
+class FakeInboxRepository : InboxRepository {
+    data class ConversationsCall(val query: String, val cursor: String?)
+
+    var conversationsResult: ApiResult<NovaConversationPage> =
+        ApiResult.Failure("Fake result was not configured")
+    val calls = mutableListOf<ConversationsCall>()
+
+    override suspend fun conversations(
+        query: String,
+        cursor: String?,
+    ): ApiResult<NovaConversationPage> {
+        calls += ConversationsCall(query, cursor)
+        return conversationsResult
     }
 }

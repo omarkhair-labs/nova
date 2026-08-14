@@ -5,9 +5,9 @@ Update this table in every consolidation PR.
 | Field | Current state |
 |---|---|
 | Current phase | Phase 2 — Messages consolidation |
-| Active PR | Phase 2 PR 6 — establish the `MessagesRepository` contract and deterministic fake |
+| Active PR | Phase 2 PR 6 — establish the `MessagesRepository`/`InboxRepository` contracts and deterministic fakes |
 | CI status | Pending for Phase 2 PR 6; PRs #95–#100 passed on Blacksmith |
-| Completed ownership changes | Phase 1 shell ownership; Phase 2 domain models plus a feature-owned repository contract consumed by `AppContainer` and realtime coordination |
+| Completed ownership changes | Phase 1 shell ownership; Phase 2 domain models plus feature-owned conversation and paged-inbox repository contracts consumed by `AppContainer` and realtime coordination |
 | Deleted legacy/versioned files | `NovaPrimaryHost.kt`; global `NovaPrimaryNavigationDispatcher.kt` |
 | Automated verification | Phase -1 through Phase 2 PR 5 passed Blacksmith CI; PR 6 fake contract tests, full JVM suite, `lintRelease`, debug/release APKs, release AAB, and instrumentation APK compile passed |
 | Remaining physical Samsung checks | Entire checklist in `SAMSUNG_SMOKE_CHECKLIST.md`; a physical Android device is connected but USB-unauthorized and provides no Samsung evidence |

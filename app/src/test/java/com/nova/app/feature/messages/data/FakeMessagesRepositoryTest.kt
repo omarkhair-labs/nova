@@ -3,6 +3,7 @@ package com.nova.app.feature.messages.data
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaPostAuthor
 import com.nova.app.feature.messages.domain.model.NovaConversationList
+import com.nova.app.feature.messages.domain.model.NovaConversationPage
 import com.nova.app.feature.messages.domain.model.NovaMessage
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -11,6 +12,28 @@ import org.junit.Test
 
 
 class FakeMessagesRepositoryTest {
+    @Test
+    fun inboxFakeCapturesSearchAndPagingCursor() = runBlocking {
+        val expected = ApiResult.Success(
+            NovaConversationPage(
+                conversations = emptyList(),
+                unreadCount = 7,
+                nextCursor = "next-page",
+            )
+        )
+        val fake = FakeInboxRepository().apply {
+            conversationsResult = expected
+        }
+
+        val actual = fake.conversations("nova team", "cursor-1")
+
+        assertSame(expected, actual)
+        assertEquals(
+            listOf(FakeInboxRepository.ConversationsCall("nova team", "cursor-1")),
+            fake.calls,
+        )
+    }
+
     @Test
     fun configuredResultAndInboxQueryAreDeterministic() = runBlocking {
         val expected = ApiResult.Success(NovaConversationList(emptyList(), unreadCount = 3))
