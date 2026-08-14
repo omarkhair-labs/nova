@@ -2,23 +2,22 @@ package com.nova.app.core.reels
 
 import android.app.Activity
 import android.content.Context
-import android.content.Intent
-import com.nova.app.ReelsActivity
+import com.nova.app.app.appContainer
+import com.nova.app.feature.reels.ReelsRouteArgs
+import com.nova.app.feature.reels.ReelsRouteFactory
 import com.nova.app.navigation.AppDestination
 import com.nova.app.navigation.AppNavigator
-import com.nova.app.navigation.NovaPrimaryNavigationDispatcher
 
 
 object NovaReelsNavigator {
-    private val appNavigator: AppNavigator
-        get() = NovaPrimaryNavigationDispatcher
+    private fun appNavigator(context: Context): AppNavigator = context.appContainer.appNavigator
 
     fun open(context: Context, replaceCurrentActivity: Boolean = false) {
-        if (appNavigator.navigate(AppDestination.Reels)) {
+        if (appNavigator(context).navigate(AppDestination.Reels)) {
             return
         }
 
-        context.startActivity(Intent(context, ReelsActivity::class.java))
+        context.startActivity(ReelsRouteFactory.rootIntent(context))
         if (replaceCurrentActivity) {
             (context as? Activity)?.finish()
         }
@@ -33,9 +32,10 @@ object NovaReelsNavigator {
         if (cleanUsername.isBlank() || initialReelId <= 0L) return
 
         context.startActivity(
-            Intent(context, ReelsActivity::class.java)
-                .putExtra(ReelsActivity.EXTRA_PROFILE_USERNAME, cleanUsername)
-                .putExtra(ReelsActivity.EXTRA_INITIAL_REEL_ID, initialReelId)
+            ReelsRouteFactory.profileIntent(
+                context,
+                ReelsRouteArgs.Profile(cleanUsername, initialReelId),
+            ),
         )
     }
 }

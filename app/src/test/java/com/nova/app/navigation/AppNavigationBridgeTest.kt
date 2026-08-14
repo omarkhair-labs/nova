@@ -5,19 +5,19 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class NovaPrimaryNavigationDispatcherTest {
+class AppNavigationBridgeTest {
+    private val bridge = AppNavigationBridge()
+
     @Test
     fun inactiveHostFallsBackWithoutDispatching() {
         val destinations = mutableListOf<AppDestination>()
         val handler: (AppDestination) -> Unit = { destinations += it }
 
-        NovaPrimaryNavigationDispatcher.attach(handler)
-        NovaPrimaryNavigationDispatcher.setHostActive(false)
+        bridge.attach(handler)
+        bridge.setHostActive(false)
 
-        assertFalse(NovaPrimaryNavigationDispatcher.navigate(AppDestination.Messages))
+        assertFalse(bridge.navigate(AppDestination.Messages))
         assertEquals(emptyList<AppDestination>(), destinations)
-
-        NovaPrimaryNavigationDispatcher.detach(handler)
     }
 
     @Test
@@ -25,13 +25,11 @@ class NovaPrimaryNavigationDispatcherTest {
         val destinations = mutableListOf<AppDestination>()
         val handler: (AppDestination) -> Unit = { destinations += it }
 
-        NovaPrimaryNavigationDispatcher.attach(handler)
-        NovaPrimaryNavigationDispatcher.setHostActive(true)
+        bridge.attach(handler)
+        bridge.setHostActive(true)
 
-        assertTrue(NovaPrimaryNavigationDispatcher.navigate(AppDestination.Reels))
+        assertTrue(bridge.navigate(AppDestination.Reels))
         assertEquals(listOf(AppDestination.Reels), destinations)
-
-        NovaPrimaryNavigationDispatcher.detach(handler)
     }
 
     @Test
@@ -39,11 +37,11 @@ class NovaPrimaryNavigationDispatcherTest {
         val destinations = mutableListOf<AppDestination>()
         val handler: (AppDestination) -> Unit = { destinations += it }
 
-        NovaPrimaryNavigationDispatcher.attach(handler)
-        NovaPrimaryNavigationDispatcher.setHostActive(true)
-        NovaPrimaryNavigationDispatcher.detach(handler)
+        bridge.attach(handler)
+        bridge.setHostActive(true)
+        bridge.detach(handler)
 
-        assertFalse(NovaPrimaryNavigationDispatcher.navigate(AppDestination.Messages))
+        assertFalse(bridge.navigate(AppDestination.Messages))
         assertEquals(emptyList<AppDestination>(), destinations)
     }
 
@@ -54,15 +52,13 @@ class NovaPrimaryNavigationDispatcherTest {
         val first: (AppDestination) -> Unit = { firstDestinations += it }
         val second: (AppDestination) -> Unit = { secondDestinations += it }
 
-        NovaPrimaryNavigationDispatcher.attach(first)
-        NovaPrimaryNavigationDispatcher.attach(second)
-        NovaPrimaryNavigationDispatcher.setHostActive(true)
-        NovaPrimaryNavigationDispatcher.detach(first)
+        bridge.attach(first)
+        bridge.attach(second)
+        bridge.setHostActive(true)
+        bridge.detach(first)
 
-        assertTrue(NovaPrimaryNavigationDispatcher.navigate(AppDestination.Profile))
+        assertTrue(bridge.navigate(AppDestination.Profile))
         assertEquals(emptyList<AppDestination>(), firstDestinations)
         assertEquals(listOf(AppDestination.Profile), secondDestinations)
-
-        NovaPrimaryNavigationDispatcher.detach(second)
     }
 }

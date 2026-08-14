@@ -9,6 +9,10 @@ import com.nova.app.MessagesActivity
 import com.nova.app.ReelsActivity
 import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.core.reels.NovaReelsNavigator
+import com.nova.app.feature.messages.MessagesRouteArgs
+import com.nova.app.feature.messages.MessagesRouteFactory
+import com.nova.app.feature.reels.ReelsRouteArgs
+import com.nova.app.feature.reels.ReelsRouteFactory
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -40,6 +44,18 @@ class SpecialEntryIntentContractInstrumentedTest {
         assertEquals("group", intent.getStringExtra(NovaMessagingNavigator.EXTRA_KIND))
         assertEquals(7, intent.getIntExtra(NovaMessagingNavigator.EXTRA_MEMBERS_COUNT, -1))
         assertEquals("admin", intent.getStringExtra(NovaMessagingNavigator.EXTRA_CURRENT_USER_ROLE))
+        assertEquals(
+            MessagesRouteArgs(
+                id = 91L,
+                username = "team",
+                displayName = "Nova Team",
+                avatarUrl = "https://example.test/team.jpg",
+                kind = "group",
+                membersCount = 7,
+                currentUserRole = "admin",
+            ),
+            MessagesRouteFactory.fromIntent(intent),
+        )
     }
 
     @Test
@@ -82,6 +98,10 @@ class SpecialEntryIntentContractInstrumentedTest {
         assertEquals(ReelsActivity::class.java.name, intent.component?.className)
         assertEquals("maya", intent.getStringExtra(ReelsActivity.EXTRA_PROFILE_USERNAME))
         assertEquals(55L, intent.getLongExtra(ReelsActivity.EXTRA_INITIAL_REEL_ID, -1L))
+        assertEquals(
+            ReelsRouteArgs.Profile("maya", 55L),
+            ReelsRouteFactory.fromIntent(intent),
+        )
     }
 
     @Test

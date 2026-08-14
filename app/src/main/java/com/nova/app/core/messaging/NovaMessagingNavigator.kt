@@ -2,31 +2,30 @@ package com.nova.app.core.messaging
 
 import android.app.Activity
 import android.content.Context
-import android.content.Intent
-import com.nova.app.MessagesActivity
+import com.nova.app.app.appContainer
+import com.nova.app.feature.messages.MessagesRouteArgs
+import com.nova.app.feature.messages.MessagesRouteFactory
 import com.nova.app.navigation.AppDestination
 import com.nova.app.navigation.AppNavigator
-import com.nova.app.navigation.NovaPrimaryNavigationDispatcher
 
 
 object NovaMessagingNavigator {
-    private val appNavigator: AppNavigator
-        get() = NovaPrimaryNavigationDispatcher
+    private fun appNavigator(context: Context): AppNavigator = context.appContainer.appNavigator
 
-    const val EXTRA_CONVERSATION_ID = "nova_conversation_id"
-    const val EXTRA_USERNAME = "nova_conversation_username"
-    const val EXTRA_DISPLAY_NAME = "nova_conversation_display_name"
-    const val EXTRA_AVATAR_URL = "nova_conversation_avatar_url"
-    const val EXTRA_KIND = "nova_conversation_kind"
-    const val EXTRA_MEMBERS_COUNT = "nova_conversation_members_count"
-    const val EXTRA_CURRENT_USER_ROLE = "nova_conversation_current_user_role"
+    const val EXTRA_CONVERSATION_ID = MessagesRouteFactory.EXTRA_CONVERSATION_ID
+    const val EXTRA_USERNAME = MessagesRouteFactory.EXTRA_USERNAME
+    const val EXTRA_DISPLAY_NAME = MessagesRouteFactory.EXTRA_DISPLAY_NAME
+    const val EXTRA_AVATAR_URL = MessagesRouteFactory.EXTRA_AVATAR_URL
+    const val EXTRA_KIND = MessagesRouteFactory.EXTRA_KIND
+    const val EXTRA_MEMBERS_COUNT = MessagesRouteFactory.EXTRA_MEMBERS_COUNT
+    const val EXTRA_CURRENT_USER_ROLE = MessagesRouteFactory.EXTRA_CURRENT_USER_ROLE
 
     fun openInbox(context: Context, replaceCurrentActivity: Boolean = false) {
-        if (appNavigator.navigate(AppDestination.Messages)) {
+        if (appNavigator(context).navigate(AppDestination.Messages)) {
             return
         }
 
-        context.startActivity(Intent(context, MessagesActivity::class.java))
+        context.startActivity(MessagesRouteFactory.inboxIntent(context))
         if (replaceCurrentActivity) {
             (context as? Activity)?.finish()
         }
@@ -60,15 +59,18 @@ object NovaMessagingNavigator {
         currentUserRole: String = "",
     ) {
         context.startActivity(
-            Intent(context, MessagesActivity::class.java).apply {
-                putExtra(EXTRA_CONVERSATION_ID, conversationId)
-                putExtra(EXTRA_USERNAME, username)
-                putExtra(EXTRA_DISPLAY_NAME, displayName.ifBlank { username })
-                putExtra(EXTRA_AVATAR_URL, avatarUrl)
-                putExtra(EXTRA_KIND, kind)
-                putExtra(EXTRA_MEMBERS_COUNT, membersCount)
-                putExtra(EXTRA_CURRENT_USER_ROLE, currentUserRole)
-            }
+            MessagesRouteFactory.conversationIntent(
+                context = context,
+                args = MessagesRouteArgs(
+                    id = conversationId,
+                    username = username,
+                    displayName = displayName,
+                    avatarUrl = avatarUrl,
+                    kind = kind,
+                    membersCount = membersCount,
+                    currentUserRole = currentUserRole,
+                ),
+            ),
         )
     }
 }

@@ -18,20 +18,17 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
-import com.nova.app.core.auth.NovaAuthRepository
-import com.nova.app.core.feed.NovaFeedRepository
+import com.nova.app.app.AppContainer
+import com.nova.app.app.AppViewModel
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaComment
 import com.nova.app.core.network.NovaPerson
 import com.nova.app.core.network.NovaPost
-import com.nova.app.core.network.NovaUser
-import com.nova.app.core.social.NovaSocialRepository
 import com.nova.app.feature.auth.CreateAccountScreen
 import com.nova.app.feature.auth.LoginScreen
 import com.nova.app.feature.home.HomeScreen
@@ -53,29 +50,24 @@ import com.nova.app.ui.theme.NovaMuted
 import kotlinx.coroutines.launch
 
 @Composable
-fun NovaApp() {
-    val context = LocalContext.current
-    val authRepository = remember(context) {
-        NovaAuthRepository(context.applicationContext)
-    }
-    val socialRepository = remember(context) {
-        NovaSocialRepository(context.applicationContext)
-    }
-    val feedRepository = remember(context) {
-        NovaFeedRepository(context.applicationContext)
-    }
+fun NovaApp(
+    appContainer: AppContainer,
+    appViewModel: AppViewModel,
+) {
+    val authRepository = appContainer.authRepository
+    val socialRepository = appContainer.socialRepository
+    val feedRepository = appContainer.feedRepository
+    val appState = appViewModel.state
     val scope = rememberCoroutineScope()
 
     val backStack = remember {
         mutableStateListOf<NovaRoute>(NovaRoute.Welcome)
     }
 
-    var currentUser by remember { mutableStateOf<NovaUser?>(null) }
     var pendingEmail by remember { mutableStateOf("") }
     var pendingPassword by remember { mutableStateOf("") }
     var authLoading by remember { mutableStateOf(false) }
     var authError by remember { mutableStateOf<String?>(null) }
-    var isBootstrapping by remember { mutableStateOf(true) }
 
     var people by remember { mutableStateOf<List<NovaPerson>>(emptyList()) }
     var peopleLoading by remember { mutableStateOf(false) }
@@ -129,29 +121,22 @@ fun NovaApp() {
         backStack.add(NovaRoute.Welcome)
     }
 
-    fun expireSession() {
-        authRepository.logout()
-        currentUser = null
+    fun clearSessionUi() {
         pendingEmail = ""
         pendingPassword = ""
         authError = null
         resetToWelcome()
     }
 
+    fun expireSession() {
+        appViewModel.expireSession()
+        clearSessionUi()
+    }
+
     fun refreshCurrentUser() {
         scope.launch {
-            when (val refreshed = authRepository.restoreSession()) {
-                is ApiResult.Success -> {
-                    if (refreshed.value == null) {
-                        expireSession()
-                    } else {
-                        currentUser = refreshed.value
-                    }
-                }
-
-                is ApiResult.Failure -> {
-                    if (refreshed.statusCode == 401) expireSession()
-                }
+            if (!appViewModel.refreshSession()) {
+                clearSessionUi()
             }
         }
     }
@@ -326,24 +311,15 @@ fun NovaApp() {
     }
 
     LaunchedEffect(Unit) {
-        when (val restored = authRepository.restoreSession()) {
-            is ApiResult.Success -> {
-                currentUser = restored.value
-                if (restored.value != null) {
-                    openHome()
-                } else {
-                    resetToWelcome()
-                }
-            }
-
-            is ApiResult.Failure -> {
-                resetToWelcome()
-            }
+        appViewModel.bootstrapSession()
+        if (appViewModel.state.currentUser != null) {
+            openHome()
+        } else {
+            resetToWelcome()
         }
-        isBootstrapping = false
     }
 
-    if (isBootstrapping) {
+    if (appState.isBootstrapping) {
         NovaStartupScreen()
         return
     }
@@ -410,7 +386,7 @@ fun NovaApp() {
 
                                     when (val result = authRepository.login(email, password)) {
                                         is ApiResult.Success -> {
-                                            currentUser = result.value
+                                            appViewModel.onAuthenticated(result.value)
                                             resetSocialState()
                                             authLoading = false
                                             openHome()
@@ -453,7 +429,7 @@ fun NovaApp() {
                                         )
                                     ) {
                                         is ApiResult.Success -> {
-                                            currentUser = result.value
+                                            appViewModel.onAuthenticated(result.value)
                                             pendingPassword = ""
                                             resetSocialState()
                                             authLoading = false
@@ -472,7 +448,7 @@ fun NovaApp() {
                 }
 
                 NovaRoute.Home -> NavEntry(route) {
-                    val user = currentUser
+                    val user = appState.currentUser
                     LaunchedEffect(user?.id) {
                         if (user != null && posts.isEmpty() && !feedLoading) {
                             loadFeed()
@@ -615,7 +591,7 @@ fun NovaApp() {
                         onBack = { backStack.removeLastOrNull() },
                         onRetry = ::loadDetail,
                         onAuthorClick = { username ->
-                            if (username == currentUser?.username) {
+                            if (username == appState.currentUser?.username) {
                                 backStack.add(NovaRoute.Profile)
                             } else {
                                 backStack.add(NovaRoute.Person(username))
@@ -805,7 +781,7 @@ fun NovaApp() {
                             }
                         },
                         onAuthorClick = { username ->
-                            if (username == currentUser?.username) {
+                            if (username == appState.currentUser?.username) {
                                 backStack.add(NovaRoute.Profile)
                             } else {
                                 backStack.add(NovaRoute.Person(username))
@@ -951,7 +927,7 @@ fun NovaApp() {
                 }
 
                 NovaRoute.Profile -> NavEntry(route) {
-                    val user = currentUser
+                    val user = appState.currentUser
                     val profileUsername = user?.username.orEmpty()
                     var profilePosts by remember(profileUsername) { mutableStateOf<List<NovaPost>>(emptyList()) }
                     var profilePostsLoading by remember(profileUsername) { mutableStateOf(true) }
@@ -1028,7 +1004,7 @@ fun NovaApp() {
                 }
 
                 NovaRoute.EditProfile -> NavEntry(route) {
-                    val user = currentUser
+                    val user = appState.currentUser
                     EditProfileScreen(
                         displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
                         username = user?.username ?: "nova",
@@ -1055,7 +1031,7 @@ fun NovaApp() {
                                         )
                                     ) {
                                         is ApiResult.Success -> {
-                                            currentUser = result.value
+                                            appViewModel.onAuthenticated(result.value)
                                             authLoading = false
                                             contentVersion += 1
                                             backStack.removeLastOrNull()
