@@ -10,6 +10,7 @@ import com.nova.app.feature.messages.domain.model.NovaReplyPreview
 import com.nova.app.feature.messages.domain.model.NovaSharedPost
 import com.nova.app.feature.messages.domain.model.NovaSharedReel
 import com.nova.app.feature.messages.data.MessagesRepository
+import com.nova.app.feature.messages.conversation.ConversationRealtime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -90,7 +91,7 @@ class NovaConversationRealtimeClient(
     context: Context,
     private val conversationId: Long,
     private val repository: MessagesRepository = NovaMessagingRepository(context.applicationContext),
-) {
+) : ConversationRealtime {
     private var socket: WebSocket? = null
     private var reconnectJob: Job? = null
     private var connectionJob: Job? = null
@@ -105,15 +106,15 @@ class NovaConversationRealtimeClient(
     private var onMessageDeleted: ((NovaMessageDeletedEvent) -> Unit)? = null
     private var onSessionExpired: (() -> Unit)? = null
 
-    fun start(
+    override fun start(
         scope: CoroutineScope,
         onEvent: (NovaRealtimeEvent) -> Unit,
         onStatus: (NovaRealtimeStatus) -> Unit,
         onSessionExpired: () -> Unit,
-        onPresence: (NovaConversationPresence) -> Unit = {},
-        onReaction: (NovaMessageReactionEvent) -> Unit = {},
-        onMessageUpdated: (NovaMessageUpdatedEvent) -> Unit = {},
-        onMessageDeleted: (NovaMessageDeletedEvent) -> Unit = {},
+        onPresence: (NovaConversationPresence) -> Unit,
+        onReaction: (NovaMessageReactionEvent) -> Unit,
+        onMessageUpdated: (NovaMessageUpdatedEvent) -> Unit,
+        onMessageDeleted: (NovaMessageDeletedEvent) -> Unit,
     ) {
         stop()
         stopped = false
@@ -129,7 +130,7 @@ class NovaConversationRealtimeClient(
         connect(initial = true)
     }
 
-    fun stop() {
+    override fun stop() {
         stopped = true
         reconnectJob?.cancel()
         reconnectJob = null
@@ -139,7 +140,7 @@ class NovaConversationRealtimeClient(
         socket = null
     }
 
-    fun sendTyping(isTyping: Boolean) {
+    override fun sendTyping(isTyping: Boolean) {
         if (stopped) return
         socket?.send(
             JSONObject()

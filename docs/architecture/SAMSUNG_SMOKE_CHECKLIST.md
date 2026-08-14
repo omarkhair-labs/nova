@@ -17,6 +17,14 @@ device release.
 - [ ] Build commit/version:
 - [ ] Tester/date:
 
+Latest non-destructive connection attempt (Phase 2 PR 8): Samsung SM-A266B,
+Android 16, One UI 8.5 (`ro.build.version.oneui=80500`), gesture navigation
+(`navigation_mode=2`). The device was authorized, but Gradle executed zero tests
+because the installed `com.omarkhair70.nova` signature differs from the local
+debug key (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`). The installed app was not
+removed, so no checklist item or build-commit result is claimed from this
+attempt.
+
 ## Shell and primary navigation
 
 - [ ] Cold launch shows the expected authenticated or signed-out destination.
