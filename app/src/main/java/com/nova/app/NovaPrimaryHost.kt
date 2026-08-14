@@ -17,7 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.nova.app.core.auth.NovaAuthRepository
 import com.nova.app.core.push.NovaPushOpenSignal
 import com.nova.app.feature.reels.ReelsScreen
-import com.nova.app.navigation.NovaPrimaryDestination
+import com.nova.app.navigation.AppDestination
 import com.nova.app.navigation.NovaPrimaryNavigationDispatcher
 import com.nova.app.navigation.NovaRootNavigationSignal
 import com.nova.app.navigation.NovaRootTab
@@ -39,7 +39,7 @@ fun NovaPrimaryHost() {
         NovaAuthRepository(context.applicationContext)
     }
 
-    var primaryOverlay by remember { mutableStateOf<NovaPrimaryDestination?>(null) }
+    var primaryOverlay by remember { mutableStateOf<AppDestination?>(null) }
 
     fun showSocialRoot(tab: NovaRootTab) {
         primaryOverlay = null
@@ -65,13 +65,13 @@ fun NovaPrimaryHost() {
     }
 
     val primaryHandler = remember {
-        { destination: NovaPrimaryDestination ->
+        { destination: AppDestination ->
             when (destination) {
-                NovaPrimaryDestination.Home -> showSocialRoot(NovaRootTab.Home)
-                NovaPrimaryDestination.People -> showSocialRoot(NovaRootTab.People)
-                NovaPrimaryDestination.Profile -> showSocialRoot(NovaRootTab.Profile)
-                NovaPrimaryDestination.Reels -> primaryOverlay = NovaPrimaryDestination.Reels
-                NovaPrimaryDestination.Messages -> primaryOverlay = NovaPrimaryDestination.Messages
+                AppDestination.Home -> showSocialRoot(NovaRootTab.Home)
+                AppDestination.People -> showSocialRoot(NovaRootTab.People)
+                AppDestination.Profile -> showSocialRoot(NovaRootTab.Profile)
+                AppDestination.Reels -> primaryOverlay = AppDestination.Reels
+                AppDestination.Messages -> primaryOverlay = AppDestination.Messages
             }
         }
     }
@@ -83,7 +83,7 @@ fun NovaPrimaryHost() {
         }
     }
 
-    BackHandler(enabled = primaryOverlay == NovaPrimaryDestination.Reels) {
+    BackHandler(enabled = primaryOverlay == AppDestination.Reels) {
         primaryOverlay = null
     }
 
@@ -101,7 +101,7 @@ fun NovaPrimaryHost() {
         }
 
         when (primaryOverlay) {
-            NovaPrimaryDestination.Reels -> {
+            AppDestination.Reels -> {
                 ReelsScreen(
                     onFinish = ::expireSession,
                     onHomeClick = { showSocialRoot(NovaRootTab.Home) },
@@ -111,16 +111,16 @@ fun NovaPrimaryHost() {
                 )
             }
 
-            NovaPrimaryDestination.Messages -> {
+            AppDestination.Messages -> {
                 NovaMessagesRootContent(
                     onRootRequested = ::showSocialRoot,
                     onSessionExpired = ::expireSession,
                 )
             }
 
-            NovaPrimaryDestination.Home,
-            NovaPrimaryDestination.People,
-            NovaPrimaryDestination.Profile,
+            AppDestination.Home,
+            AppDestination.People,
+            AppDestination.Profile,
             null -> Unit
         }
     }

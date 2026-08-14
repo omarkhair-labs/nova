@@ -4,13 +4,17 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import com.nova.app.ReelsActivity
-import com.nova.app.navigation.NovaPrimaryDestination
+import com.nova.app.navigation.AppDestination
+import com.nova.app.navigation.AppNavigator
 import com.nova.app.navigation.NovaPrimaryNavigationDispatcher
 
 
 object NovaReelsNavigator {
+    private val appNavigator: AppNavigator
+        get() = NovaPrimaryNavigationDispatcher
+
     fun open(context: Context, replaceCurrentActivity: Boolean = false) {
-        if (NovaPrimaryNavigationDispatcher.navigate(NovaPrimaryDestination.Reels)) {
+        if (appNavigator.navigate(AppDestination.Reels)) {
             return
         }
 
