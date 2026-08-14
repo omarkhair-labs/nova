@@ -5,6 +5,7 @@ import android.content.Context
 import com.nova.app.app.appContainer
 import com.nova.app.feature.messages.MessagesRouteArgs
 import com.nova.app.feature.messages.MessagesRouteFactory
+import com.nova.app.feature.messages.domain.model.NovaConversation
 import com.nova.app.navigation.AppDestination
 import com.nova.app.navigation.AppNavigator
 

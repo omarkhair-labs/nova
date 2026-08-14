@@ -1,6 +1,6 @@
 # Current ownership and entry paths
 
-Snapshot: Phase 1 PR 4, based on `d62f3e3de6adfbb24f84b9f6c34415a421153fc2`.
+Snapshot: Phase 2 PR 5, based on `3774fbf7e1f4f7a960948f8c8ac9686539f8d296`.
 
 This file records current behavior. A row with several current owners identifies
 consolidation work; it does not imply that one of those paths may be removed
@@ -109,13 +109,25 @@ remove that parity before a device test establishes a replacement.
 | people/profile/social graph | `NovaApp`, People/Person/Profile screens, V4 profile components, `SocialGraphActivity` | social repositories + UI orchestration | `feature/people`, `feature/profile` |
 | Stories | `StoriesRail` | stories repository plus UI-owned orchestration | `feature/stories` |
 | Reels | `ReelsScreen`, `ProfileReelsViewerScreen`, `ReelsActivity` | reels repositories, playback pool/safety, UI orchestration | `feature/reels` |
-| Messages inbox | `MessagesRoute`, `MessagesScreen` | `NovaMessagingRepository`, signals, UI state | `feature/messages/inbox` |
-| Conversation | `ConversationScreen` -> V9 -> V8 | messaging repository, realtime, draft/preferences, UI state | `feature/messages/conversation` + state owner |
+| Messages inbox | `MessagesRoute`, `MessagesScreen` | feature-owned domain models; `NovaMessagingRepository`, signals, UI state | `feature/messages/inbox` |
+| Conversation | `ConversationScreen` -> V9 -> V8 | feature-owned domain models; messaging repository, realtime, draft/preferences, UI state | `feature/messages/conversation` + state owner |
 | Composer/media/voice | outer `ConversationScreen` + V8 composer | V8 coroutine/state/recorder logic | `feature/messages/composer` with one IME owner |
 | Message details/search/media/theme/groups | V9 dialog, group dialogs, theme picker | V9 tools repository + messaging repositories | responsibility-specific Messages packages |
 | Calls | `CallActivity` | `NovaCallController`, signaling, WebRTC, Telecom, notifications/history | `feature/calls` boundaries with explicit state machine |
 | notifications/sharing | notification screen/share dialog | notification, push, messaging/social repositories | `feature/notifications`, `feature/sharing` |
 | privacy/settings/security | special Activities and feature screens | privacy/auth/social repositories and UI callbacks | corresponding feature packages |
+
+## Phase 2 Messages dependency boundary
+
+`feature/messages/domain/model/MessagingModels.kt` owns the nine live
+conversation, message, reply, reaction, share, list, and page models. Thirteen
+production/test consumers import that package directly; no compatibility
+typealiases remain in `core/messaging`.
+
+This first Phase 2 slice deliberately leaves JSON parsing, HTTP authentication,
+realtime events, draft/preferences, repository construction, and all route/UI
+state in their previous owners. The next slice introduces a repository interface
+and fake before any UI orchestration moves.
 
 ## Backend ownership map
 
