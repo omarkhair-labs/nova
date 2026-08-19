@@ -40,8 +40,8 @@ import com.nova.app.ui.theme.NovaSurface
 import com.nova.app.ui.theme.NovaTheme
 
 
-private const val PRIVACY_POLICY_URL = "https://nova-production-4f6b.up.railway.app/privacy/"
-private const val ACCOUNT_DELETION_URL = "https://nova-production-4f6b.up.railway.app/account-deletion/"
+private const val PRIVACY_POLICY_URL = "https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/privacy/"
+private const val ACCOUNT_DELETION_URL = "https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/account-deletion/"
 
 
 class SettingsActivity : ComponentActivity() {

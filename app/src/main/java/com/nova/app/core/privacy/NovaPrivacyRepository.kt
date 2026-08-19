@@ -279,6 +279,6 @@ class NovaPrivacyRepository(
     private fun encode(value: String): String = URLEncoder.encode(value, Charsets.UTF_8.name())
 
     private companion object {
-        const val PRODUCTION_API_URL = "https://nova-production-4f6b.up.railway.app/api/v1/"
+        const val PRODUCTION_API_URL = "https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/"
     }
 }

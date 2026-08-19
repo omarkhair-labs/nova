@@ -153,8 +153,8 @@ class NovaCallRepository(
     }
 
     companion object {
-        const val PRODUCTION_API_URL = "https://nova-production-4f6b.up.railway.app/api/v1/"
-        const val PRODUCTION_WS_URL = "wss://nova-production-4f6b.up.railway.app/ws/"
+        const val PRODUCTION_API_URL = "https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/"
+        const val PRODUCTION_WS_URL = "wss://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/ws/"
     }
 }
 

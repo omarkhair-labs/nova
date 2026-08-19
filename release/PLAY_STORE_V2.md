@@ -59,8 +59,8 @@ Use real in-app UI. Avoid adding ranking claims, prices, misleading badges, or r
 
 After this PR is deployed to Nova production:
 
-- Privacy Policy: `https://nova-production-4f6b.up.railway.app/privacy/`
-- Account deletion: `https://nova-production-4f6b.up.railway.app/account-deletion/`
+- Privacy Policy: `https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/privacy/`
+- Account deletion: `https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/account-deletion/`
 
 Both URLs must return successfully from a logged-out browser before Play submission.
 

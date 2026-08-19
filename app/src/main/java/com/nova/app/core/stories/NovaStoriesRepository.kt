@@ -598,6 +598,6 @@ class NovaStoriesRepository(
     }
 
     private companion object {
-        const val PRODUCTION_API_URL = "https://nova-production-4f6b.up.railway.app/api/v1/"
+        const val PRODUCTION_API_URL = "https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/"
     }
 }
