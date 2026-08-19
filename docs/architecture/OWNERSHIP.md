@@ -1,6 +1,6 @@
 # Current ownership and entry paths
 
-Snapshot: Phase 2 PR 11, based on `4766d545a72c0d591303589ee947aeaad168afc3`.
+Snapshot: Phase 2 PR 12, based on `92d9f38134294a2d14c74f76487eb8013342c309`.
 
 This file records current behavior. A row with several current owners identifies
 consolidation work; it does not imply that one of those paths may be removed
@@ -112,7 +112,7 @@ remove that parity before a device test establishes a replacement.
 | Messages inbox | `MessagesRoute`, `MessagesScreen` | `InboxViewModel`/`InboxUiState`, feature-owned domain models, `InboxRepository`, and refresh signals | `feature/messages/inbox` |
 | Conversation | `ConversationScreen` -> V9 -> V8 | `ConversationViewModel`/`ConversationUiState` own server behavior; stateless list/rows and the focused composer render their state and callbacks | `feature/messages/conversation` + stateless header |
 | Composer/media/voice | `ConversationComposer` | `ConversationComposerState` owns recorder, permission/picker, ephemeral attachment/voice drafts, cleanup, and the sole IME/navigation-bar padding; `ConversationViewModel` owns textual draft persistence and optimistic sends | `feature/messages/conversation` composer boundary |
-| Message details/search/media/theme/groups | V9 dialog, group dialogs, theme picker | search/context/media/mute HTTP/auth/parsing now live behind feature-owned `ConversationToolsRepository` with `ConversationToolsRemoteRepository`; the V9 screen still reaches it through temporary compatibility aliases; theme/group orchestration remains in the earlier repositories/UI | responsibility-specific Messages packages |
+| Message details/search/media/theme/groups | V9 dialog, group dialogs, theme picker | V9 now consumes stable `ConversationToolMessage`/`ConversationMessageContext` types and the `AppContainer`-owned `ConversationToolsRepository`; search/context/media/mute asynchronous state is still local to the dialog; theme/group orchestration remains in earlier repositories/UI | responsibility-specific Messages packages |
 | Calls | `CallActivity` | `NovaCallController`, signaling, WebRTC, Telecom, notifications/history | `feature/calls` boundaries with explicit state machine |
 | notifications/sharing | notification screen/share dialog | notification, push, messaging/social repositories | `feature/notifications`, `feature/sharing` |
 | privacy/settings/security | special Activities and feature screens | privacy/auth/social repositories and UI callbacks | corresponding feature packages |
@@ -168,15 +168,17 @@ conversation `imePadding` owner; the outer route no longer shifts the header or
 overlays when the IME opens. `ConversationViewModel` remains the owner of text
 drafts and server mutations, so no transport or persistence contract changed.
 
-Phase 2 PR 11 introduces `feature/messages/details/model` and
+Phase 2 PR 11 introduced `feature/messages/details/model` and
 `feature/messages/details/data`. `ConversationToolsRepository` owns the stable
 search/context/shared-media/mute contract, `ConversationToolsRemoteRepository`
-owns the existing HTTP/auth/refresh/error/parsing implementation, and
-`AppContainer` owns one repository instance. The old V9 implementation body is
-removed from `core/messaging`; temporary deprecated aliases preserve the live
-V9 consumer until the next small switch-over PR. Existing REST paths, media
+owns the unchanged HTTP/auth/refresh/error/parsing implementation, and
+`AppContainer` owns one repository instance. Phase 2 PR 12 switches the live V9
+dialog to that container-owned interface and stable model types, removing the
+temporary V9 compatibility aliases entirely. Existing REST paths, media
 filtering, cursor behavior, reply-preview priority, session refresh/clear
-semantics, and user-facing error mapping are unchanged.
+semantics, and user-facing error mapping remain unchanged. The next slice moves
+the dialog's asynchronous search/media/context/mute orchestration into a
+lifecycle-aware state owner.
 
 ## Backend ownership map
 
@@ -228,6 +230,7 @@ session logout, and durable primary-overlay state. Feature routes still detect
 their own terminal 401 responses and report expiry; moving those status checks
 behind repository/state-owner boundaries belongs to their feature phases.
 The inbox, core conversation data path, message rendering, composer platform
-work, and conversation-tools implementation now have focused owners. The live
-V9 details consumer, details lifecycle state, themes, and groups remain on the
-Phase 2 extraction path.
+work, and conversation-tools data implementation now have focused owners. Direct
+conversation-tools repository construction and V9 compatibility aliases are
+removed; details lifecycle state, themes, groups, and the V8/V9 route layering
+remain on the Phase 2 extraction path.
