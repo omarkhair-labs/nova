@@ -1,6 +1,6 @@
 # Current ownership and entry paths
 
-Snapshot: Phase 2 PR 20, based on `df007171307979febd982a2b22c2643e9c7bf7ef`.
+Snapshot: Phase 2 final enforcement, based on `41117cb0859460a6819c1946b4055799e672ff75`.
 
 This file records current behavior. A row with several current owners identifies
 consolidation work; it does not imply that one of those paths may be removed
@@ -19,8 +19,7 @@ NovaApplication
    |     `- MessagesRoute
    |        |- MessagesScreen
    |        `- ConversationScreen
-   |           `- ConversationScreenV9
-   |              `- ConversationScreenV8
+   |           `- feature/messages/conversation/ConversationContent
    |- NovaActiveCallPill
    `- NovaUpdateReadyBanner
 
@@ -47,7 +46,7 @@ Messages and Reels overlays. That state-preservation behavior is protected.
 | nested social roots | `NovaApp`, `NovaRootNavigationSignal`, `rootNavigationPlan` | secondary-to-secondary resets through Home | typed child destinations/policy |
 | push/deep-link parsing | `MainActivity.routePushIntent`, `NovaPushOpenSignal`, special navigators | exact push kinds/data keys and fallback behavior | `DeepLinkRouter` |
 | session expiry | `AppViewModel` coordinates logout and global state; feature state owners report terminal 401 effects | logout/clear state and return to authentication on terminal 401 | `AppViewModel` until a core session package is extracted |
-| dependency construction | `AppContainer` for shell/auth/feed/social/messages, conversation tools/appearance, managed-group and membership transport, plus conversation realtime/draft factories; remaining feature routes still construct specialized repositories | repositories and transports use application context | expand the explicit container feature by feature |
+| dependency construction | `AppContainer` for shell/auth/feed/social/messages, conversation tools/appearance, group management/membership/people lookup, plus conversation realtime/draft factories | repositories and transports use application context; Messages UI consumes stable interfaces/state owners rather than constructing historical repositories | expand the explicit container feature by feature outside Messages |
 | unread sync | `MainActivity`, `InboxViewModel`, `NovaMessagesSignal` | inbox count refresh at startup/resume/read/back | Messages state owner |
 | global call pill | `MainActivity`, `MessagesActivity`, `ReelsActivity` | active call remains reachable | app host / shared special-entry shell |
 
@@ -109,13 +108,14 @@ remove that parity before a device test establishes a replacement.
 | people/profile/social graph | `NovaApp`, People/Person/Profile screens, V4 profile components, `SocialGraphActivity` | social repositories + UI orchestration | `feature/people`, `feature/profile` |
 | Stories | `StoriesRail` | stories repository plus UI-owned orchestration | `feature/stories` |
 | Reels | `ReelsScreen`, `ProfileReelsViewerScreen`, `ReelsActivity` | reels repositories, playback pool/safety, UI orchestration | `feature/reels` |
-| Messages inbox | `MessagesRoute`, `MessagesScreen` | `InboxViewModel`/`InboxUiState`, feature-owned domain models, `InboxRepository`, and refresh signals | `feature/messages/inbox` |
-| Conversation | `ConversationScreen` -> V9 -> V8 | `ConversationViewModel`/`ConversationUiState` own server behavior; stateless list/rows and the focused composer render their state and callbacks | `feature/messages/conversation` + stateless header |
-| Composer/media/voice | `ConversationComposer` | `ConversationComposerState` owns recorder, permission/picker, ephemeral attachment/voice drafts, cleanup, and the sole IME/navigation-bar padding; `ConversationViewModel` owns textual draft persistence and optimistic sends | `feature/messages/conversation` composer boundary |
-| Message details/search/media | stable `ConversationDetailsDialog` | `ConversationDetailsViewModel`/`ConversationDetailsUiState`, `ConversationToolsRepository`, and stable details data/model packages; dialog owns unchanged media-player/full-photo platform UI | `feature/messages/details` |
-| Conversation theme | `ConversationScreen`, `NovaChatThemePicker` | `ConversationAppearanceViewModel`/`ConversationAppearanceUiState` own load/save/optimistic rollback/picker state and terminal-401 effects; stable appearance repository owns HTTP/auth/local fallback/legacy-backend compatibility; palette/color rendering remains UI-owned | `feature/messages/appearance` |
-| Group management | `ConversationScreen`, `GroupInfoDialog` | stable group models and both stable group repository interfaces own transport; `GroupInfoViewModel`/`GroupInfoUiState` own managed-detail loading, rename/avatar/role/remove/leave/delete async state and terminal effects; add-members search/add orchestration remains UI-owned | `feature/messages/group` |
-| Calls | `CallActivity` | `NovaCallController`, signaling, WebRTC, Telecom, notifications/history | `feature/calls` boundaries with explicit state machine |
+| Messages inbox | `MessagesRoute`, `MessagesScreen` | `InboxViewModel`/`InboxUiState`, feature-owned domain models, `InboxRepository`, and refresh signals | stable `feature/messages/inbox` |
+| New direct message | `NewMessageDialog` | dialog-scoped `NewMessageViewModel` owns 220 ms people search, opening lock, direct-conversation creation, inline errors, and terminal effects using AppContainer dependencies | stable `feature/messages` state owner |
+| Conversation | `ConversationScreen` + `conversation/ConversationContent` | `ConversationViewModel`/`ConversationUiState` own server/realtime behavior; `ConversationScreen` owns details/theme/group/call overlays; `ConversationContent` owns header/list/composer composition | stable `feature/messages/conversation` |
+| Composer/media/voice | `ConversationComposer` | `ConversationComposerState` owns recorder, permission/picker, ephemeral attachment/voice drafts, cleanup, and the sole IME/navigation-bar padding; `ConversationViewModel` owns textual draft persistence and optimistic sends | stable `feature/messages/conversation` composer boundary |
+| Message details/search/media | `ConversationDetailsDialog` | `ConversationDetailsViewModel`/`ConversationDetailsUiState`, `ConversationToolsRepository`, and stable details data/model packages; dialog owns unchanged media-player/full-photo platform UI | stable `feature/messages/details` |
+| Conversation theme | `ConversationScreen`, `NovaChatThemePicker` | `ConversationAppearanceViewModel`/`ConversationAppearanceUiState` own load/save/optimistic rollback/picker state and terminal-401 effects; stable appearance repository owns HTTP/auth/local fallback/legacy-backend compatibility | stable `feature/messages/appearance` |
+| Groups | `ConversationScreen`, `GroupInfoDialog`, `AddGroupMembersDialog`, `NewGroupDialog` | stable group models; `GroupManagementRepository`, `GroupMembershipRepository`, `GroupPeopleRepository`; `GroupInfoViewModel`, `AddGroupMembersViewModel`, and `NewGroupViewModel` own async state and terminal effects | stable `feature/messages/group` |
+| Calls | `CallActivity` | `NovaCallController`, signaling, WebRTC, Telecom, notifications/history | Phase 3 `feature/calls` boundaries with explicit state machine |
 | notifications/sharing | notification screen/share dialog | notification, push, messaging/social repositories | `feature/notifications`, `feature/sharing` |
 | privacy/settings/security | special Activities and feature screens | privacy/auth/social repositories and UI callbacks | corresponding feature packages |
 
@@ -128,9 +128,9 @@ conversation model slice no longer relies on V-number compatibility types.
 `feature/messages/data/MessagesRepository.kt` defines the existing conversation
 mutation, read-marker, and realtime-token data operations;
 `feature/messages/data/InboxRepository.kt` owns paged inbox/search loading.
-`NovaMessagingRepository` and `NovaInboxPagingRepository` are the production
-implementations. `AppContainer` owns both interfaces, and
-`NovaConversationRealtimeClient` depends on `MessagesRepository`.
+`NovaMessagingRepository` and `NovaInboxPagingRepository` remain production
+implementations behind those interfaces. `AppContainer` owns both interfaces,
+and `NovaConversationRealtimeClient` depends on `MessagesRepository`.
 
 `feature/messages/inbox/InboxViewModel.kt` owns inbox query/debounce/paging,
 ordered ID deduplication, unread state, loading/errors, stale-response
@@ -142,6 +142,11 @@ loading, earlier-page deduplication, optimistic send/retry identity, edit/delete
 reaction mutations, text-draft debounce, unread/read effects, presence/typing,
 delivery/read receipts, and realtime reconciliation. Production realtime/draft
 implementations are constructed by `AppContainer`.
+
+`ConversationScreen` is the one stable conversation entry. The former V8 body is
+now `feature/messages/conversation/ConversationContent.kt`; the former V9
+identity/details click layer is owned directly by `ConversationScreen`. There
+are no live V8/V9 conversation screen files or symbols.
 
 `ConversationMessageList.kt` and `ConversationMessageRow.kt` own stateless list
 and row rendering around callback-owned navigation/mutations.
@@ -155,68 +160,32 @@ MediaPlayer lifecycle, and full-photo UI. Characterization preserves the current
 key-based behavior where selecting an already-active media filter or pressing
 the existing load-more control does not issue an additional media request.
 
-Phase 2 PR 15 introduced `feature/messages/appearance/model`, `data`, and
-`data/remote`. `ConversationAppearanceRepository` exposes the current preference
-read and theme write contract; `ConversationAppearanceRemoteRepository` owns the
-existing authenticated REST calls, token refresh/session clearing, local
-`nova_conversation_themes` SharedPreferences fallback, theme-key normalization,
-and legacy-backend fallback that re-sends `muted` with `theme_key`.
+### Phase 2 ownership history
 
-Phase 2 PR 16 adds `ConversationAppearanceViewModel` and
-`ConversationAppearanceUiState`. They own the initial preference load, existing
-`NovaChatThemes.resolve` key semantics (injected from UI so Compose `Color` stays
-out of the state owner), picker visibility, save-in-flight lock, optimistic
-selected key, previous-key rollback, inline non-401 error, and terminal-401
-effect. The view model is scoped to a `ConversationScreen`-owned
-`ViewModelStore` that is cleared when the route leaves composition, preserving
-the prior `remember(conversationId)` lifetime rather than retaining state at
-Activity scope. `ConversationScreen` consumes
-`AppContainer.conversationAppearanceRepository` directly and the temporary
-`NovaConversationPreferenceRepository` compatibility aliases are removed.
-
-Phase 2 PR 17 introduces `feature/messages/group/model/GroupModels.kt` as the
-stable owner for the shared group records used across management, membership,
-and the group-info UI: `GroupMember`, `GroupDetail`, and `ManagedGroupDetail`.
-`NovaGroupMessagingRepository.kt` and `NovaGroupManagementRepository.kt` no
-longer declare those records themselves. Temporary deprecated aliases in
-`core/messaging/GroupModelCompatibility.kt` preserve every existing consumer
-while transport ownership is moved in the next slices. This PR changes no group
-validation, REST path/method/body, avatar upload, membership semantics, auth,
-error mapping, or UI behavior.
-
-Phase 2 PR 18 adds `feature/messages/group/data/GroupManagementRepository.kt`
-and `data/remote/GroupManagementRemoteRepository.kt`. The remote implementation
-is the moved management-side transport: exact `group/manage/` detail/rename/
-avatar/remove-avatar calls, role endpoint, title/role validation, `Uri` and
-ContentResolver media boundary, image-only and 10 MB checks, multipart field and
-timeouts, response parsing, auth refresh/session clearing, error mapping, and
-Coolify URL. `AppContainer` owns the stable interface. The old
-`NovaGroupManagementRepository` symbol is temporarily a constructor-compatible
-typealias so `GroupInfoDialog` remains behaviorally untouched until state/UI
-orchestration moves.
-
-Phase 2 PR 19 adds `feature/messages/group/data/GroupMembershipRepository.kt`
-and `data/remote/GroupMembershipRemoteRepository.kt`. The remote implementation
-is the moved membership-side transport: exact group create/detail/add/remove/
-leave/delete paths and methods, title/member normalization and validation,
-`deleted=true` null-detail behavior, cached-current-user leave semantics,
-conversation/member parsing, auth refresh/session clearing, error mapping,
-timeouts, URL encoding, relative media resolution, and the Coolify production
-URL. `AppContainer` owns the stable interface. The old
-`NovaGroupMessagingRepository` symbol remains temporarily as a
-constructor-compatible typealias so current group dialogs and add-member flows
-continue unchanged until their state/UI orchestration moves.
-
-Phase 2 PR 20 adds `GroupInfoViewModel` and `GroupInfoUiState` under stable
-`feature/messages/group` ownership. They own the initial managed-detail load,
-title draft/edit state, rename/avatar/role/remove/leave/delete in-flight locks,
-inline non-401 errors, terminal-401 effects, group-updated/group-left effects,
-and the existing reload-after-remove/add behavior. The view model is scoped to a
-`GroupInfoDialog`-owned `ViewModelStore` that is cleared when the dialog leaves
-composition, preserving the prior `remember(conversationId)` lifetime instead of
-retaining group dialog state at Activity scope. Permission derivation and photo
-picker rendering remain UI-owned. `AddGroupMembersDialog` intentionally keeps
-its current search/selection/add orchestration for the next slice.
+- PR #110 established stable conversation appearance model/data ownership and
+  preserved local/legacy-backend theme compatibility.
+- PR #111 added conversation-scoped appearance state/picker/save ownership and
+  removed the temporary appearance aliases.
+- PR #112 moved shared group records (`GroupMember`, `GroupDetail`,
+  `ManagedGroupDetail`) into `feature/messages/group/model`.
+- PR #113 moved managed-group detail/rename/avatar/remove-avatar/role transport
+  behind `GroupManagementRepository` and AppContainer ownership.
+- PR #114 moved group create/detail/add/remove/leave/delete transport behind
+  `GroupMembershipRepository`, preserving cached-current-user leave behavior.
+- PR #115 moved group-info load/rename/avatar/role/remove/leave/delete state and
+  terminal effects into dialog-scoped `GroupInfoViewModel`/`GroupInfoUiState`.
+- PR #116 moved add-members and new-group search/selection/submission state into
+  `AddGroupMembersViewModel` and `NewGroupViewModel`, added AppContainer-owned
+  `GroupPeopleRepository`, and deleted the historical group repository aliases.
+- PR #117 moved direct-message people search/open-conversation orchestration into
+  dialog-scoped `NewMessageViewModel`.
+- PR #118 collapsed the live `ConversationScreen -> V9 -> V8` chain into
+  `ConversationScreen -> ConversationContent` and deleted both V-number screen
+  files. The first CI attempt exposed a same-package helper-name collision; the
+  collision was renamed without changing parsing behavior and the replacement
+  run passed all hosted gates.
+- Final Phase 2 enforcement removes the now-unused group-model compatibility
+  aliases and makes CI reject the historical V8/V9/group compatibility names.
 
 ## Backend ownership map
 
@@ -236,13 +205,15 @@ accounts/
 `- behavior/regression test modules
 ```
 
-All domain packages remain inside `accounts` until package boundaries are stable.
-Moving model app ownership, table identity, or migrations is outside the current
-plan.
+All backend domain packages remain inside `accounts` until Phase 6 packaging.
+Moving model app ownership, table identity, or migration history remains outside
+Phase 2. Existing backend endpoint/file naming that participates in public
+messaging contracts is not renamed as part of the Android Messages screen
+consolidation.
 
-## Current construction and error pattern
+## Construction and error pattern after Phase 2
 
-The shell now uses:
+The shell uses:
 
 ```text
 NovaApplication -> AppContainer -> shared API/repositories
@@ -250,24 +221,16 @@ MainActivity -> NovaAppHost -> AppViewModel -> AppState
 feature entry -> AppNavigator -> active host or special-Activity fallback
 ```
 
-Most feature routes still use the earlier pattern, which later phases replace
-one responsibility at a time:
+Within Messages, UI/route owners render stable state and forward intents. Server,
+repository, realtime, paging, group, details, appearance, and dialog async work
+is owned by feature state/data boundaries or AppContainer-constructed production
+implementations. Platform-only UI concerns such as MediaPlayer, photo/microphone
+pickers, recorder state, and IME/navigation-bar consumption stay with their
+focused UI owners.
 
-```text
-route Composable
-|- remember(context) { Repository(applicationContext) }
-|- mutable UI and domain state
-|- coroutines and network/realtime calls
-|- status-code/session interpretation
-|- navigation mutation
-`- rendering
-```
-
-`AppViewModel` owns global session restore/current-user state, terminal session
-logout, and durable primary-overlay state. Feature state owners still report
-terminal session effects to routes; central session-expiry ownership is a later
-cross-feature cleanup. The inbox, conversation core, composer, details data/
-state/UI, appearance data/lifecycle ownership, shared group model ownership,
-both group transport slices, and group-info state now have focused stable
-owners. Add-members orchestration and the V8/V9 route/chrome layering remain on
-the Phase 2 extraction path.
+Other product features may still use the earlier UI-owned repository pattern;
+those are later phases and are not evidence of incomplete Messages ownership.
+`AppViewModel` remains the global terminal-session/logout coordinator while
+feature state owners emit terminal-401 effects upward. Centralizing that repeated
+cross-feature session reporting remains a later shared-core cleanup, not a
+Messages behavior change.
