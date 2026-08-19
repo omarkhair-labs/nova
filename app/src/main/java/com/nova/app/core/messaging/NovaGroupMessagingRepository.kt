@@ -15,19 +15,6 @@ import java.net.URL
 import java.net.URLEncoder
 
 
-data class NovaGroupMember(
-    val user: NovaPostAuthor,
-    val role: String,
-    val joinedAt: String,
-)
-
-
-data class NovaGroupDetail(
-    val conversation: NovaConversation,
-    val members: List<NovaGroupMember>,
-)
-
-
 class NovaGroupMessagingRepository(
     context: Context,
     private val baseUrl: String = PRODUCTION_API_URL,

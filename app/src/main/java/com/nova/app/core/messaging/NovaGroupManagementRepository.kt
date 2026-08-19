@@ -20,15 +20,6 @@ import java.net.URLEncoder
 import java.util.UUID
 
 
-data class NovaManagedGroupDetail(
-    val title: String,
-    val avatarUrl: String,
-    val membersCount: Int,
-    val currentUserRole: String,
-    val members: List<NovaGroupMember>,
-)
-
-
 class NovaGroupManagementRepository(
     context: Context,
     private val baseUrl: String = PRODUCTION_API_URL,
