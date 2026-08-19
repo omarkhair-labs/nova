@@ -11,6 +11,8 @@ import com.nova.app.core.network.NovaCommentMutation
 import com.nova.app.core.network.NovaPost
 import com.nova.app.core.network.NovaPostPage
 import com.nova.app.core.network.UploadFile
+import com.nova.app.feature.feed.data.FeedRepository
+import com.nova.app.feature.posts.data.PostRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -18,12 +20,12 @@ import kotlinx.coroutines.withContext
 class NovaFeedRepository(
     context: Context,
     private val api: NovaApiClient = NovaApiClient("https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/"),
-) {
+) : FeedRepository, PostRepository {
     private val appContext = context.applicationContext
     private val sessionStore = NovaSessionStore(appContext)
     private val feedCache = NovaFeedCache(appContext)
 
-    suspend fun feed(cursor: String? = null): ApiResult<NovaPostPage> {
+    override suspend fun feed(cursor: String?): ApiResult<NovaPostPage> {
         val cachedUserId = sessionStore.load()?.cachedUser?.id?.takeIf { it > 0L }
         val result = authenticatedCall { accessToken ->
             api.feed(accessToken, cursor)
@@ -47,23 +49,23 @@ class NovaFeedRepository(
         return result
     }
 
-    fun cachedFeed(userId: Long): NovaPostPage? {
+    override fun cachedFeed(userId: Long): NovaPostPage? {
         return feedCache.load(userId)
     }
 
-    suspend fun personPosts(username: String): ApiResult<List<NovaPost>> {
+    override suspend fun personPosts(username: String): ApiResult<List<NovaPost>> {
         return authenticatedCall { accessToken ->
             api.personPosts(accessToken, username)
         }
     }
 
-    suspend fun post(postId: Long): ApiResult<NovaPost> {
+    override suspend fun post(postId: Long): ApiResult<NovaPost> {
         return authenticatedCall { accessToken ->
             api.post(accessToken, postId)
         }
     }
 
-    suspend fun createPost(
+    override suspend fun createPost(
         caption: String,
         imageUri: Uri,
     ): ApiResult<NovaPost> {
@@ -81,13 +83,13 @@ class NovaFeedRepository(
         }
     }
 
-    suspend fun deletePost(postId: Long): ApiResult<Unit> {
+    override suspend fun deletePost(postId: Long): ApiResult<Unit> {
         return authenticatedCall { accessToken ->
             api.deletePost(accessToken, postId)
         }
     }
 
-    suspend fun setLiked(
+    override suspend fun setLiked(
         postId: Long,
         liked: Boolean,
     ): ApiResult<NovaPost> {
@@ -96,29 +98,29 @@ class NovaFeedRepository(
         }
     }
 
-    suspend fun comments(postId: Long): ApiResult<List<NovaComment>> {
+    override suspend fun comments(postId: Long): ApiResult<List<NovaComment>> {
         return authenticatedCall { accessToken ->
             api.comments(accessToken, postId)
         }
     }
 
-    suspend fun addComment(
+    override suspend fun addComment(
         postId: Long,
         body: String,
-        parentId: Long? = null,
+        parentId: Long?,
     ): ApiResult<NovaCommentMutation> {
         return authenticatedCall { accessToken ->
             api.addComment(accessToken, postId, body.trim(), parentId)
         }
     }
 
-    suspend fun deleteComment(commentId: Long): ApiResult<NovaPost> {
+    override suspend fun deleteComment(commentId: Long): ApiResult<NovaPost> {
         return authenticatedCall { accessToken ->
             api.deleteComment(accessToken, commentId)
         }
     }
 
-    suspend fun deleteCommentReply(replyId: Long): ApiResult<NovaPost> {
+    override suspend fun deleteCommentReply(replyId: Long): ApiResult<NovaPost> {
         return authenticatedCall { accessToken ->
             api.deleteCommentReply(accessToken, replyId)
         }
