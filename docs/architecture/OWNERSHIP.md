@@ -1,6 +1,6 @@
 # Current ownership and entry paths
 
-Snapshot: Phase 2 PR 15, based on `35799acc443d8a5174b793aeb6e9624423bd635a`.
+Snapshot: Phase 2 PR 16, based on `9faa2c9d6175ae56569cc1a2d25aa169dad828bc`.
 
 This file records current behavior. A row with several current owners identifies
 consolidation work; it does not imply that one of those paths may be removed
@@ -113,7 +113,7 @@ remove that parity before a device test establishes a replacement.
 | Conversation | `ConversationScreen` -> V9 -> V8 | `ConversationViewModel`/`ConversationUiState` own server behavior; stateless list/rows and the focused composer render their state and callbacks | `feature/messages/conversation` + stateless header |
 | Composer/media/voice | `ConversationComposer` | `ConversationComposerState` owns recorder, permission/picker, ephemeral attachment/voice drafts, cleanup, and the sole IME/navigation-bar padding; `ConversationViewModel` owns textual draft persistence and optimistic sends | `feature/messages/conversation` composer boundary |
 | Message details/search/media | stable `ConversationDetailsDialog` | `ConversationDetailsViewModel`/`ConversationDetailsUiState`, `ConversationToolsRepository`, and stable details data/model packages; dialog owns unchanged media-player/full-photo platform UI | `feature/messages/details` |
-| Conversation theme | outer `ConversationScreen`, `NovaChatThemePicker` | stable `ConversationAppearanceRepository`/`ConversationAppearanceRemoteRepository` now own theme HTTP/auth/local fallback/legacy-backend compatibility; outer screen still reaches the old compatibility alias and owns load/save/rollback/picker state until the next slice | `feature/messages/appearance` |
+| Conversation theme | `ConversationScreen`, `NovaChatThemePicker` | `ConversationAppearanceViewModel`/`ConversationAppearanceUiState` own load/save/optimistic rollback/picker state and terminal-401 effects; stable appearance repository owns HTTP/auth/local fallback/legacy-backend compatibility; palette/color rendering remains UI-owned | `feature/messages/appearance` |
 | Group management | `ConversationScreen`, `GroupInfoDialog` | group repositories and UI-owned orchestration | `feature/messages/group` |
 | Calls | `CallActivity` | `NovaCallController`, signaling, WebRTC, Telecom, notifications/history | `feature/calls` boundaries with explicit state machine |
 | notifications/sharing | notification screen/share dialog | notification, push, messaging/social repositories | `feature/notifications`, `feature/sharing` |
@@ -155,16 +155,24 @@ MediaPlayer lifecycle, and full-photo UI. Characterization preserves the current
 key-based behavior where selecting an already-active media filter or pressing
 the existing load-more control does not issue an additional media request.
 
-Phase 2 PR 15 introduces `feature/messages/appearance/model`, `data`, and
+Phase 2 PR 15 introduced `feature/messages/appearance/model`, `data`, and
 `data/remote`. `ConversationAppearanceRepository` exposes the current preference
 read and theme write contract; `ConversationAppearanceRemoteRepository` owns the
 existing authenticated REST calls, token refresh/session clearing, local
 `nova_conversation_themes` SharedPreferences fallback, theme-key normalization,
-and legacy-backend fallback that re-sends `muted` with `theme_key`. The old
-`NovaConversationPreferenceRepository` implementation body is replaced by
-temporary deprecated aliases so the current outer screen behavior remains
-unchanged until the next state-owner switch. `AppContainer` owns the stable
-appearance repository instance.
+and legacy-backend fallback that re-sends `muted` with `theme_key`.
+
+Phase 2 PR 16 adds `ConversationAppearanceViewModel` and
+`ConversationAppearanceUiState`. They own the initial preference load, existing
+`NovaChatThemes.resolve` key semantics (injected from UI so Compose `Color` stays
+out of the state owner), picker visibility, save-in-flight lock, optimistic
+selected key, previous-key rollback, inline non-401 error, and terminal-401
+effect. The view model is scoped to a `ConversationScreen`-owned
+`ViewModelStore` that is cleared when the route leaves composition, preserving
+the prior `remember(conversationId)` lifetime rather than retaining state at
+Activity scope. `ConversationScreen` consumes
+`AppContainer.conversationAppearanceRepository` directly and the temporary
+`NovaConversationPreferenceRepository` compatibility aliases are removed.
 
 ## Backend ownership map
 
@@ -215,6 +223,6 @@ route Composable
 logout, and durable primary-overlay state. Feature state owners still report
 terminal session effects to routes; central session-expiry ownership is a later
 cross-feature cleanup. The inbox, conversation core, composer, details data/
-state/UI, and appearance data implementation now have focused stable owners.
-Theme lifecycle/picker state, groups, and the V8/V9 route/chrome layering remain
-on the Phase 2 extraction path.
+state/UI, and appearance data/lifecycle ownership now have focused stable
+owners. Group orchestration and the V8/V9 route/chrome layering remain on the
+Phase 2 extraction path.
