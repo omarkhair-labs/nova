@@ -5,13 +5,13 @@ Update this table in every consolidation PR.
 | Field | Current state |
 |---|---|
 | Current phase | Phase 2 — Messages consolidation |
-| Active PR | Phase 2 PR 20 — move `GroupInfoDialog` load/rename/avatar/role/remove/leave/delete orchestration into stable `GroupInfoViewModel` / `GroupInfoUiState` ownership |
-| CI status | Pending for Phase 2 PR 20; PRs #95–#114 passed on Blacksmith |
-| Completed ownership changes | Phase 1 shell ownership; Phase 2 domain/repository/inbox/conversation owners; list/rows/composer; stable details data/state/UI; stable appearance data/state; stable group models; stable managed-group and membership transports; PR 20 moves group-info async state/effects behind the two stable group repository interfaces |
-| Deleted legacy/versioned files | `NovaPrimaryHost.kt`; global `NovaPrimaryNavigationDispatcher.kt`; historical V9 tools implementation/aliases; V9 details helper implementation; temporary preference aliases; in-repository group model declarations; historical group-management and membership implementation bodies. The group repository compatibility aliases remain only for still-live add/create flows |
-| Automated verification | #114 passed full hosted backend + Android gates after the membership ownership move. PR 20 adds JVM characterization for group-info initial load, rename validation/success, remove-member exit, terminal 401, and leave failure while preserving the existing dialog-scoped lifecycle; full hosted gates must be green before merge |
+| Active PR | Phase 2 PR 21 — move add-members and new-group people search/selection/submission orchestration into stable group state owners and AppContainer-owned group people lookup |
+| CI status | Pending for Phase 2 PR 21; PRs #95–#115 passed on Blacksmith |
+| Completed ownership changes | Phase 1 shell ownership; Phase 2 domain/repository/inbox/conversation owners; list/rows/composer; stable details data/state/UI; stable appearance data/state; stable group models/transports; #115 moved group-info mutations/state; PR 21 moves the remaining add/create group UI orchestration behind stable state/data boundaries |
+| Deleted legacy/versioned files | `NovaPrimaryHost.kt`; global `NovaPrimaryNavigationDispatcher.kt`; historical V9 tools implementation/aliases; V9 details helper implementation; temporary preference aliases; in-repository group model declarations; historical group-management and membership implementation bodies. Group compatibility aliases are now eligible for deletion after PR 21 because live group UI no longer constructs them |
+| Automated verification | #115 passed full hosted backend + Android gates with new group-info JVM characterization. PR 21 adds JVM characterization for group people filtering, submission, caps/selection requirements, created-conversation effects, and terminal 401; full hosted gates must be green before merge |
 | Remaining physical Samsung checks | Entire manual checklist in `SAMSUNG_SMOKE_CHECKLIST.md`; authorized Samsung SM-A266B detected previously, but non-destructive test install is blocked by its differently signed existing Nova package |
-| Exact next PR | Phase 2 PR 21 — move add-members search/selection/add orchestration behind stable group/social boundaries and remove the live `NovaGroupMessagingRepository` dependency from `GroupInfoDialog` |
+| Exact next PR | Phase 2 PR 22 — collapse the live `ConversationScreen -> V9 -> V8` chain into stable conversation ownership and remove the historical V8/V9 screen files without changing chrome/details/message behavior |
 
 ## Completed PRs
 
@@ -37,6 +37,7 @@ Update this table in every consolidation PR.
 | 2 | #112 | move `GroupMember`, `GroupDetail`, and `ManagedGroupDetail` out of core repositories into stable `feature/messages/group/model` ownership with temporary aliases | Blacksmith backend and Android jobs green; repository diffs only removed passive declarations; JVM/lint/debug/release/AAB green | revert merge commit `088749b` |
 | 2 | #113 | move managed-group detail/rename/avatar/remove-avatar/role HTTP/auth/media transport behind stable `GroupManagementRepository` ownership and `AppContainer` construction | Blacksmith backend and Android jobs green; full Django tests/migration check and Android JVM/lint/debug/release/AAB green | revert merge commit `20b909d` |
 | 2 | #114 | move group create/detail/add/remove/leave/delete HTTP/auth/parsing transport behind stable `GroupMembershipRepository` ownership and `AppContainer` construction | Blacksmith backend and Android jobs green; full Django tests/migration check and Android JVM/lint/debug/release/AAB green | revert merge commit `df00717` |
+| 2 | #115 | move `GroupInfoDialog` managed-detail loading and rename/avatar/role/remove/leave/delete orchestration into dialog-scoped `GroupInfoViewModel`/`GroupInfoUiState` | Blacksmith backend and Android jobs green; new JVM characterization plus lint/debug/release/AAB green | revert merge commit `1adaa04` |
 
 ## Phase 0 discovered risks
 
