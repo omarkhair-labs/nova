@@ -27,11 +27,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -43,10 +39,7 @@ import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nova.app.app.appContainer
 import com.nova.app.core.auth.NovaSessionStore
-import com.nova.app.core.messaging.NovaGroupMessagingRepository
-import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaPerson
-import com.nova.app.core.social.NovaSocialPagingRepository
+import com.nova.app.feature.messages.group.AddGroupMembersDialog
 import com.nova.app.feature.messages.group.GroupInfoViewModel
 import com.nova.app.feature.messages.group.model.GroupMember
 import com.nova.app.ui.components.NovaAvatar
@@ -56,8 +49,6 @@ import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 
 @Composable
@@ -69,9 +60,6 @@ fun GroupInfoDialog(
     onSessionExpired: () -> Unit,
 ) {
     val context = LocalContext.current
-    val addMembersRepository = remember(context) {
-        NovaGroupMessagingRepository(context.applicationContext)
-    }
     val currentUsername = remember(context) {
         NovaSessionStore(context.applicationContext).load()?.cachedUser?.username.orEmpty()
     }
@@ -334,7 +322,6 @@ fun GroupInfoDialog(
         AddGroupMembersDialog(
             conversationId = conversationId,
             existingUsernames = currentDetail.members.map { it.user.username }.toSet(),
-            repository = addMembersRepository,
             onDismiss = groupInfoViewModel::dismissAddMembers,
             onUpdated = {
                 groupInfoViewModel.dismissAddMembers()
@@ -472,141 +459,4 @@ private fun GroupMemberRow(
             }
         }
     }
-}
-
-
-@Composable
-private fun AddGroupMembersDialog(
-    conversationId: Long,
-    existingUsernames: Set<String>,
-    repository: NovaGroupMessagingRepository,
-    onDismiss: () -> Unit,
-    onUpdated: () -> Unit,
-    onSessionExpired: () -> Unit,
-) {
-    val context = LocalContext.current
-    val socialRepository = remember(context) {
-        NovaSocialPagingRepository(context.applicationContext)
-    }
-    val scope = rememberCoroutineScope()
-    var query by remember { mutableStateOf("") }
-    var people by remember { mutableStateOf<List<NovaPerson>>(emptyList()) }
-    var selected by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var loading by remember { mutableStateOf(true) }
-    var adding by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(query) {
-        delay(220)
-        loading = true
-        when (val result = socialRepository.people(query.trim())) {
-            is ApiResult.Success -> {
-                people = result.value.people.filterNot { it.username in existingUsernames }
-                error = null
-            }
-            is ApiResult.Failure -> {
-                if (result.statusCode == 401) onSessionExpired() else error = result.message
-            }
-        }
-        loading = false
-    }
-
-    fun add() {
-        if (adding || selected.isEmpty()) return
-        scope.launch {
-            adding = true
-            error = null
-            when (val result = repository.addMembers(conversationId, selected.toList())) {
-                is ApiResult.Success -> onUpdated()
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onSessionExpired() else error = result.message
-                    adding = false
-                }
-            }
-        }
-    }
-
-    AlertDialog(
-        onDismissRequest = { if (!adding) onDismiss() },
-        title = { Text("Add people") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = { query = it.take(40) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    placeholder = { Text("Search people", color = NovaMuted) },
-                    shape = RoundedCornerShape(16.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = NovaAccent,
-                        unfocusedBorderColor = NovaBorder,
-                        cursorColor = NovaAccent,
-                    ),
-                )
-                if (selected.isNotEmpty()) {
-                    Text("${selected.size} selected", color = NovaAccent, fontSize = 11.sp)
-                }
-                when {
-                    loading && people.isEmpty() -> {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
-                            horizontalArrangement = Arrangement.Center,
-                        ) { CircularProgressIndicator(color = NovaAccent) }
-                    }
-                    people.isEmpty() -> Text(
-                        if (query.isBlank()) "No more people to add." else "No matches.",
-                        color = NovaMuted,
-                        fontSize = 12.sp,
-                    )
-                    else -> LazyColumn(
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 280.dp),
-                        verticalArrangement = Arrangement.spacedBy(7.dp),
-                    ) {
-                        items(people, key = { it.id }) { person ->
-                            val chosen = person.username in selected
-                            Surface(
-                                onClick = {
-                                    selected = if (chosen) selected - person.username else selected + person.username
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(15.dp),
-                                color = if (chosen) NovaAccentSoft else NovaSurface,
-                                border = BorderStroke(1.dp, NovaBorder),
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(9.dp),
-                                ) {
-                                    NovaAvatar(
-                                        source = person.avatarUrl,
-                                        fallbackText = person.name.ifBlank { person.username },
-                                        size = 36.dp,
-                                    )
-                                    Text(
-                                        text = person.name.ifBlank { person.username },
-                                        modifier = Modifier.weight(1f),
-                                        color = NovaInk,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                    )
-                                    Text(if (chosen) "Selected" else "Add", color = NovaAccent, fontSize = 10.sp)
-                                }
-                            }
-                        }
-                    }
-                }
-                if (!error.isNullOrBlank()) Text(error.orEmpty(), color = NovaMuted, fontSize = 11.sp)
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = ::add, enabled = !adding && selected.isNotEmpty()) {
-                Text(if (adding) "Adding…" else "Add")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !adding) { Text("Cancel") }
-        },
-    )
 }
