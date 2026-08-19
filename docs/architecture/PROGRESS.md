@@ -5,13 +5,13 @@ Update this table in every consolidation PR.
 | Field | Current state |
 |---|---|
 | Current phase | Phase 2 — Messages consolidation |
-| Active PR | Phase 2 PR 22 — move new-message people search/open-conversation orchestration into stable `NewMessageViewModel` ownership |
-| CI status | Pending for Phase 2 PR 22; PRs #95–#116 passed on Blacksmith |
-| Completed ownership changes | Phase 1 shell ownership; Phase 2 domain/repository/inbox/conversation owners; list/rows/composer; stable details and appearance; stable group models/transports/state/UI; PR 22 removes the remaining direct-message dialog repository/coroutine orchestration from Compose |
-| Deleted legacy/versioned files | `NovaPrimaryHost.kt`; global `NovaPrimaryNavigationDispatcher.kt`; historical V9 tools implementation/aliases; V9 details helper implementation; temporary preference aliases; historical group repository implementations and aliases. Live V8/V9 conversation screen wrappers remain for the next slice |
-| Automated verification | #116 passed full hosted backend + Android gates after moving add-members/new-group search/selection/submission to stable owners and deleting group repository aliases. PR 22 adds JVM characterization for new-message search caps/results, direct-conversation opening, terminal 401, and failed-open recovery; full hosted gates must be green before merge |
+| Active PR | Phase 2 PR 23 — collapse `ConversationScreen -> V9 -> V8` into stable `ConversationScreen` + `conversation/ConversationContent` ownership and delete both historical screen files |
+| CI status | Pending for Phase 2 PR 23; PRs #95–#117 passed on Blacksmith |
+| Completed ownership changes | Phase 1 shell ownership; Phase 2 domain/repository/inbox/conversation owners; list/rows/composer; stable details/appearance/groups/new-message; PR 23 removes the final live versioned conversation-screen layer while preserving the same message/header/composer/details composition |
+| Deleted legacy/versioned files | `NovaPrimaryHost.kt`; global `NovaPrimaryNavigationDispatcher.kt`; historical V9 tools/details helpers; temporary preference/group repository aliases; PR 23 deletes live `ConversationScreenV8.kt` and `ConversationScreenV9.kt` and renames their live body/header helpers under stable ownership |
+| Automated verification | #117 passed full hosted backend + Android gates with new-message JVM characterization. PR 23 is a structural screen-owner move that preserves the exact header/message/composer/delete/photo/details/call-overlay behavior and must pass full hosted Django + Android JVM/lint/debug/release/AAB gates before merge; hosted CI does not execute instrumented/device tests |
 | Remaining physical Samsung checks | Entire manual checklist in `SAMSUNG_SMOKE_CHECKLIST.md`; authorized Samsung SM-A266B detected previously, but non-destructive test install is blocked by its differently signed existing Nova package |
-| Exact next PR | Phase 2 PR 23 — collapse the live `ConversationScreen -> V9 -> V8` chain into stable conversation ownership and remove the historical V8/V9 screen files without changing chrome/details/message behavior |
+| Exact next PR | Phase 2 final enforcement/cleanup — remove any now-unused group model compatibility aliases, verify no live V8/V9 names or direct repository construction remain in Messages, update ownership/docs, and close Phase 2 if full gates pass |
 
 ## Completed PRs
 
@@ -39,13 +39,14 @@ Update this table in every consolidation PR.
 | 2 | #114 | move group create/detail/add/remove/leave/delete HTTP/auth/parsing transport behind stable `GroupMembershipRepository` ownership and `AppContainer` construction | Blacksmith backend and Android jobs green; full Django tests/migration check and Android JVM/lint/debug/release/AAB green | revert merge commit `df00717` |
 | 2 | #115 | move `GroupInfoDialog` managed-detail loading and rename/avatar/role/remove/leave/delete orchestration into dialog-scoped `GroupInfoViewModel`/`GroupInfoUiState` | Blacksmith backend and Android jobs green; new JVM characterization plus lint/debug/release/AAB green | revert merge commit `1adaa04` |
 | 2 | #116 | move add-members/new-group people search, selection, submission and terminal effects into stable group state owners; add AppContainer-owned group people lookup; delete historical group repository aliases | Blacksmith backend and Android jobs green; group picker JVM characterization plus lint/debug/release/AAB green | revert merge commit `31b485b` |
+| 2 | #117 | move new-message people search/open-conversation async orchestration and terminal effects into dialog-scoped `NewMessageViewModel` using AppContainer-owned dependencies | Blacksmith backend and Android jobs green; new-message JVM characterization plus lint/debug/release/AAB green | revert merge commit `a5e1670` |
 
 ## Phase 0 discovered risks
 
 - root policy/dispatcher have JVM tests, but notification routing is private to
   `MainActivity` and has no pure parser seam;
 - terminal 401/session expiry is repeated across feature state owners and remains a later cross-feature consolidation item;
-- historical V9 now remains only as a wrapper/chrome layer over V8; wrapper/chrome ownership blocks the stable direct screen switch;
+- live V8/V9 screen layering is removed by PR 23; final enforcement must verify no versioned Messages ownership remains;
 - outer `ConversationScreen` and V8 composer both applied IME-related padding (resolved by #105: composer is the sole owner);
 - instrumented/device tests are not run by the current hosted CI; and
 - the physical Samsung smoke matrix remains incomplete because the available device has a differently signed installed Nova package.

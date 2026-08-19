@@ -1,4 +1,4 @@
-package com.nova.app.feature.messages
+package com.nova.app.feature.messages.conversation
 
 import android.content.Intent
 import androidx.compose.foundation.BorderStroke
@@ -40,11 +40,7 @@ import com.nova.app.app.appContainer
 import com.nova.app.core.messaging.NovaActiveConversation
 import com.nova.app.core.messaging.NovaConversationPresence
 import com.nova.app.core.messaging.NovaRealtimeStatus
-import com.nova.app.feature.messages.conversation.ConversationComposer
-import com.nova.app.feature.messages.conversation.ConversationFullScreenPhoto
-import com.nova.app.feature.messages.conversation.ConversationMessageList
-import com.nova.app.feature.messages.conversation.ConversationViewModel
-import com.nova.app.feature.messages.conversation.rememberConversationComposerState
+import com.nova.app.feature.messages.ConversationChromeScaffold
 import com.nova.app.feature.messages.domain.model.NovaMessage
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.theme.NovaAccent
@@ -62,11 +58,12 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 
-private val V8OnlineGreen = Color(0xFF35C982)
+private val ConversationOnlineGreen = Color(0xFF35C982)
 
 
+/** Stable live conversation content: header, message viewport, composer, and mutation dialogs. */
 @Composable
-fun ConversationScreenV8(
+fun ConversationContent(
     conversationId: Long,
     username: String,
     displayName: String,
@@ -170,7 +167,7 @@ fun ConversationScreenV8(
 
     ConversationChromeScaffold(
         topBar = {
-            V8Header(
+            ConversationHeader(
                 username = username,
                 displayName = displayName,
                 avatarUrl = avatarUrl,
@@ -213,8 +210,8 @@ fun ConversationScreenV8(
             onDelete = conversationViewModel::confirmDelete,
             onReact = conversationViewModel::setReaction,
             onOpenPhoto = { fullScreenPhotoUrl = it },
-            onOpenSharedPost = { postId -> openSharedPostV8(context, postId) },
-            onOpenSharedProfile = { sharedUsername -> openSharedProfileV8(context, sharedUsername) },
+            onOpenSharedPost = { postId -> openSharedPost(context, postId) },
+            onOpenSharedProfile = { sharedUsername -> openSharedProfile(context, sharedUsername) },
             onOpenSharedReel = { reelUsername, reelId ->
                 com.nova.app.core.reels.NovaReelsNavigator.openProfile(
                     context = context,
@@ -269,7 +266,7 @@ fun ConversationScreenV8(
 
 
 @Composable
-private fun V8Header(
+private fun ConversationHeader(
     username: String,
     displayName: String,
     avatarUrl: String,
@@ -285,7 +282,7 @@ private fun V8Header(
         realtimeStatus == NovaRealtimeStatus.Live && isTyping -> if (isGroupConversation) "Someone is typing…" else "typing…"
         isGroupConversation && realtimeStatus == NovaRealtimeStatus.Live -> "Group conversation"
         realtimeStatus == NovaRealtimeStatus.Live && online -> "Online"
-        realtimeStatus == NovaRealtimeStatus.Live && presence?.lastSeenAt != null -> formatLastSeenV8(presence.lastSeenAt)
+        realtimeStatus == NovaRealtimeStatus.Live && presence?.lastSeenAt != null -> formatConversationLastSeen(presence.lastSeenAt)
         realtimeStatus == NovaRealtimeStatus.Connecting -> "Connecting…"
         realtimeStatus == NovaRealtimeStatus.Reconnecting -> "Reconnecting…"
         realtimeStatus == NovaRealtimeStatus.Offline -> "Offline"
@@ -306,7 +303,7 @@ private fun V8Header(
                 NovaAvatar(source = avatarUrl, fallbackText = displayName.ifBlank { username }, size = 44.dp)
                 if (online) {
                     Box(
-                        modifier = Modifier.align(Alignment.BottomEnd).size(12.dp).clip(CircleShape).background(V8OnlineGreen)
+                        modifier = Modifier.align(Alignment.BottomEnd).size(12.dp).clip(CircleShape).background(ConversationOnlineGreen)
                     )
                 }
             }
@@ -322,7 +319,7 @@ private fun V8Header(
 }
 
 
-private fun openSharedPostV8(context: android.content.Context, postId: Long) {
+private fun openSharedPost(context: android.content.Context, postId: Long) {
     context.startActivity(
         Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -332,7 +329,7 @@ private fun openSharedPostV8(context: android.content.Context, postId: Long) {
     )
 }
 
-private fun openSharedProfileV8(context: android.content.Context, username: String) {
+private fun openSharedProfile(context: android.content.Context, username: String) {
     if (username.isBlank()) return
     context.startActivity(
         Intent(context, MainActivity::class.java).apply {
@@ -343,14 +340,14 @@ private fun openSharedProfileV8(context: android.content.Context, username: Stri
     )
 }
 
-private fun parseMessageInstantV8(value: String): Instant? {
+private fun parseConversationLastSeenInstant(value: String): Instant? {
     return runCatching { OffsetDateTime.parse(value).toInstant() }
         .recoverCatching { Instant.parse(value) }
         .getOrNull()
 }
 
-private fun formatLastSeenV8(value: String): String {
-    val instant = parseMessageInstantV8(value) ?: return "Last seen recently"
+private fun formatConversationLastSeen(value: String): String {
+    val instant = parseConversationLastSeenInstant(value) ?: return "Last seen recently"
     val zone = instant.atZone(ZoneId.systemDefault())
     val today = LocalDate.now()
     val date = zone.toLocalDate()
