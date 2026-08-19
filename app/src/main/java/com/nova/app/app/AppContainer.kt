@@ -22,6 +22,7 @@ import com.nova.app.feature.calls.domain.model.NovaIceConfig
 import com.nova.app.feature.calls.signaling.CallSignaling
 import com.nova.app.feature.calls.webrtc.CallWebRtcEngine
 import com.nova.app.feature.calls.webrtc.CallWebRtcListener
+import com.nova.app.feature.feed.data.FeedRepository
 import com.nova.app.feature.messages.appearance.data.ConversationAppearanceRepository
 import com.nova.app.feature.messages.appearance.data.remote.ConversationAppearanceRemoteRepository
 import com.nova.app.feature.messages.conversation.ConversationDraftStore
@@ -36,6 +37,7 @@ import com.nova.app.feature.messages.group.data.GroupPeopleRepository
 import com.nova.app.feature.messages.group.data.remote.GroupManagementRemoteRepository
 import com.nova.app.feature.messages.group.data.remote.GroupMembershipRemoteRepository
 import com.nova.app.feature.messages.group.data.remote.GroupPeoplePagingRepository
+import com.nova.app.feature.posts.data.PostRepository
 import com.nova.app.navigation.AppNavigationBridge
 
 
@@ -48,6 +50,8 @@ class AppContainer(context: Context) {
 
     val authRepository = NovaAuthRepository(appContext, api)
     val feedRepository = NovaFeedRepository(appContext, api)
+    val feedDataRepository: FeedRepository = feedRepository
+    val postDataRepository: PostRepository = feedRepository
     val messagingRepository: MessagesRepository = NovaMessagingRepository(appContext, messagingApi, api)
     val inboxRepository: InboxRepository = NovaInboxPagingRepository(appContext)
     val conversationToolsRepository: ConversationToolsRepository = ConversationToolsRemoteRepository(appContext)
