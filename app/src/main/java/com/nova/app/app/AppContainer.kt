@@ -4,6 +4,7 @@ import android.content.Context
 import com.nova.app.NovaApplication
 import com.nova.app.core.auth.NovaAuthRepository
 import com.nova.app.core.auth.NovaSessionStore
+import com.nova.app.core.calls.NovaCallRepository
 import com.nova.app.core.feed.NovaFeedRepository
 import com.nova.app.core.messaging.NovaConversationDraftStore
 import com.nova.app.core.messaging.NovaConversationRealtimeClient
@@ -13,6 +14,7 @@ import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.NovaPostAuthor
 import com.nova.app.core.social.NovaSocialRepository
+import com.nova.app.feature.calls.data.CallRepository
 import com.nova.app.feature.messages.appearance.data.ConversationAppearanceRepository
 import com.nova.app.feature.messages.appearance.data.remote.ConversationAppearanceRemoteRepository
 import com.nova.app.feature.messages.conversation.ConversationDraftStore
@@ -46,6 +48,7 @@ class AppContainer(context: Context) {
     val groupManagementRepository: GroupManagementRepository = GroupManagementRemoteRepository(appContext)
     val groupMembershipRepository: GroupMembershipRepository = GroupMembershipRemoteRepository(appContext)
     val groupPeopleRepository: GroupPeopleRepository = GroupPeoplePagingRepository(appContext)
+    val callRepository: CallRepository = NovaCallRepository(appContext)
     val socialRepository = NovaSocialRepository(appContext, api)
     val appNavigator = AppNavigationBridge()
 
