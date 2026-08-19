@@ -20,22 +20,19 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nova.app.core.messaging.NovaMessagingRepository
-import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaPerson
-import com.nova.app.core.social.NovaSocialRepository
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.nova.app.app.appContainer
 import com.nova.app.feature.messages.domain.model.NovaConversation
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.theme.NovaAccent
@@ -44,8 +41,6 @@ import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 
 @Composable
@@ -55,67 +50,35 @@ fun NewMessageDialog(
     onSessionExpired: () -> Unit,
 ) {
     val context = LocalContext.current
-    val socialRepository = remember(context) {
-        NovaSocialRepository(context.applicationContext)
-    }
-    val messagingRepository = remember(context) {
-        NovaMessagingRepository(context.applicationContext)
-    }
-    val scope = rememberCoroutineScope()
+    val storeOwner = remember { NewMessageStoreOwner() }
+    val viewModel: NewMessageViewModel = viewModel(
+        viewModelStoreOwner = storeOwner,
+        key = "new-message",
+        factory = NewMessageViewModel.factory(
+            messagesRepository = context.appContainer.messagingRepository,
+            peopleSearch = context.appContainer.socialRepository::people,
+        ),
+    )
+    val state = viewModel.state
 
-    var query by remember { mutableStateOf("") }
-    var people by remember { mutableStateOf<List<NovaPerson>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
-    var openingUsername by remember { mutableStateOf<String?>(null) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(query) {
-        delay(220)
-        isLoading = true
-        errorMessage = null
-        when (val result = socialRepository.people(query.trim())) {
-            is ApiResult.Success -> {
-                people = result.value
-                isLoading = false
-            }
-
-            is ApiResult.Failure -> {
-                isLoading = false
-                if (result.statusCode == 401) {
-                    onSessionExpired()
-                } else {
-                    errorMessage = result.message
-                }
-            }
-        }
+    DisposableEffect(storeOwner) {
+        onDispose { storeOwner.viewModelStore.clear() }
     }
 
-    fun openConversation(person: NovaPerson) {
-        if (openingUsername != null) return
-        scope.launch {
-            openingUsername = person.username
-            errorMessage = null
-            when (val result = messagingRepository.openConversation(person.username)) {
-                is ApiResult.Success -> {
-                    openingUsername = null
-                    onConversationReady(result.value)
-                    onDismiss()
-                }
-
-                is ApiResult.Failure -> {
-                    openingUsername = null
-                    if (result.statusCode == 401) {
-                        onSessionExpired()
-                    } else {
-                        errorMessage = result.message
-                    }
-                }
+    LaunchedEffect(state.sessionExpiryVersion) {
+        if (state.sessionExpiryVersion > 0) onSessionExpired()
+    }
+    LaunchedEffect(state.conversationReadyVersion) {
+        if (state.conversationReadyVersion > 0) {
+            state.readyConversation?.let { conversation ->
+                onConversationReady(conversation)
+                onDismiss()
             }
         }
     }
 
     AlertDialog(
-        onDismissRequest = { if (openingUsername == null) onDismiss() },
+        onDismissRequest = { if (state.openingUsername == null) onDismiss() },
         title = { Text("New message") },
         text = {
             Column {
@@ -128,8 +91,8 @@ fun NewMessageDialog(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 OutlinedTextField(
-                    value = query,
-                    onValueChange = { query = it.take(40) },
+                    value = state.query,
+                    onValueChange = viewModel::updateQuery,
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     placeholder = { Text("Name or @username", color = NovaMuted) },
@@ -146,7 +109,7 @@ fun NewMessageDialog(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 when {
-                    isLoading && people.isEmpty() -> {
+                    state.isLoading && state.people.isEmpty() -> {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -158,9 +121,9 @@ fun NewMessageDialog(
                         }
                     }
 
-                    errorMessage != null && people.isEmpty() -> {
+                    state.errorMessage != null && state.people.isEmpty() -> {
                         Text(
-                            text = errorMessage.orEmpty(),
+                            text = state.errorMessage.orEmpty(),
                             color = NovaMuted,
                             fontSize = 12.sp,
                             lineHeight = 18.sp,
@@ -168,9 +131,9 @@ fun NewMessageDialog(
                         )
                     }
 
-                    people.isEmpty() -> {
+                    state.people.isEmpty() -> {
                         Text(
-                            text = if (query.isBlank()) {
+                            text = if (state.query.isBlank()) {
                                 "No one to message yet."
                             } else {
                                 "No people match that search."
@@ -188,10 +151,12 @@ fun NewMessageDialog(
                                 .heightIn(max = 330.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            items(people, key = { it.id }) { person ->
-                                val isOpening = openingUsername == person.username
+                            items(state.people, key = { it.id }) { person ->
+                                val isOpening = state.openingUsername == person.username
                                 Surface(
-                                    onClick = { if (openingUsername == null) openConversation(person) },
+                                    onClick = {
+                                        if (state.openingUsername == null) viewModel.openConversation(person)
+                                    },
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(16.dp),
                                     color = if (isOpening) NovaAccentSoft else NovaSurface,
@@ -233,9 +198,9 @@ fun NewMessageDialog(
                     }
                 }
 
-                if (errorMessage != null && people.isNotEmpty()) {
+                if (state.errorMessage != null && state.people.isNotEmpty()) {
                     Text(
-                        text = errorMessage.orEmpty(),
+                        text = state.errorMessage.orEmpty(),
                         color = NovaMuted,
                         fontSize = 11.sp,
                         modifier = Modifier.padding(top = 10.dp),
@@ -246,10 +211,15 @@ fun NewMessageDialog(
         confirmButton = {
             TextButton(
                 onClick = onDismiss,
-                enabled = openingUsername == null,
+                enabled = state.openingUsername == null,
             ) {
                 Text("Close")
             }
         },
     )
+}
+
+
+private class NewMessageStoreOwner : ViewModelStoreOwner {
+    override val viewModelStore = ViewModelStore()
 }
