@@ -4,10 +4,13 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Info
@@ -25,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -33,6 +37,9 @@ import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nova.app.app.appContainer
 import com.nova.app.feature.messages.appearance.ConversationAppearanceViewModel
+import com.nova.app.feature.messages.conversation.ConversationContent
+import com.nova.app.feature.messages.details.ConversationDetailsDialog
+import com.nova.app.feature.messages.details.ConversationDetailsTab
 import com.nova.app.ui.theme.LocalNovaColorOverride
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBackground
@@ -77,9 +84,12 @@ fun ConversationScreen(
     }
 
     var showGroupInfo by remember(conversationId) { mutableStateOf(false) }
+    var showDetails by remember(conversationId) { mutableStateOf(false) }
+    var detailsStartTab by remember(conversationId) { mutableStateOf(ConversationDetailsTab.Details) }
     var liveDisplayName by remember(conversationId, displayName) { mutableStateOf(displayName) }
     var liveAvatarUrl by remember(conversationId, avatarUrl) { mutableStateOf(avatarUrl) }
     var liveMembersCount by remember(conversationId, membersCount) { mutableIntStateOf(membersCount) }
+    val identityEndPadding = if (username == "group") 61.dp else 110.dp
 
     val palette = NovaChatThemes.resolve(appearanceState.themeKey)
     CompositionLocalProvider(
@@ -91,17 +101,32 @@ fun ConversationScreen(
                 .fillMaxSize()
                 .background(NovaBackground),
         ) {
-            ConversationScreenV9(
+            ConversationContent(
                 conversationId = conversationId,
                 username = username,
                 displayName = liveDisplayName,
                 avatarUrl = liveAvatarUrl,
-                themeLabel = palette.label,
-                onOpenTheme = appearanceViewModel::openPicker,
                 onBack = onBack,
                 onConversationRead = onConversationRead,
                 onSessionExpired = onSessionExpired,
             )
+
+            Surface(
+                onClick = {
+                    detailsStartTab = ConversationDetailsTab.Details
+                    showDetails = true
+                },
+                shape = RoundedCornerShape(18.dp),
+                color = Color.Transparent,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(top = 8.dp, start = 58.dp, end = identityEndPadding)
+                    .height(52.dp),
+            ) {
+                Box(Modifier.fillMaxSize())
+            }
 
             if (isGroup) {
                 ConversationCallAction(
@@ -133,6 +158,20 @@ fun ConversationScreen(
                         .padding(top = 10.dp, end = 12.dp),
                 )
             }
+        }
+
+        if (showDetails) {
+            ConversationDetailsDialog(
+                conversationId = conversationId,
+                username = username,
+                displayName = liveDisplayName,
+                avatarUrl = liveAvatarUrl,
+                initialTab = detailsStartTab,
+                themeLabel = palette.label,
+                onOpenTheme = appearanceViewModel::openPicker,
+                onDismiss = { showDetails = false },
+                onSessionExpired = onSessionExpired,
+            )
         }
 
         if (appearanceState.pickerOpen) {
