@@ -20,23 +20,21 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nova.app.core.messaging.NovaGroupMessagingRepository
-import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaPerson
-import com.nova.app.core.social.NovaSocialPagingRepository
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.nova.app.app.appContainer
 import com.nova.app.feature.messages.domain.model.NovaConversation
+import com.nova.app.feature.messages.group.NewGroupViewModel
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
@@ -44,8 +42,6 @@ import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 
 @Composable
@@ -55,59 +51,35 @@ fun NewGroupDialog(
     onSessionExpired: () -> Unit,
 ) {
     val context = LocalContext.current
-    val socialRepository = remember(context) {
-        NovaSocialPagingRepository(context.applicationContext)
-    }
-    val groupRepository = remember(context) {
-        NovaGroupMessagingRepository(context.applicationContext)
-    }
-    val scope = rememberCoroutineScope()
+    val storeOwner = remember { NewGroupStoreOwner() }
+    val viewModel: NewGroupViewModel = viewModel(
+        viewModelStoreOwner = storeOwner,
+        key = "new-group",
+        factory = NewGroupViewModel.factory(
+            membershipRepository = context.appContainer.groupMembershipRepository,
+            peopleRepository = context.appContainer.groupPeopleRepository,
+        ),
+    )
+    val state = viewModel.state
 
-    var title by remember { mutableStateOf("") }
-    var query by remember { mutableStateOf("") }
-    var people by remember { mutableStateOf<List<NovaPerson>>(emptyList()) }
-    var selected by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var loadingPeople by remember { mutableStateOf(true) }
-    var creating by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(query) {
-        delay(220)
-        loadingPeople = true
-        error = null
-        when (val result = socialRepository.people(query.trim())) {
-            is ApiResult.Success -> {
-                people = result.value.people
-                loadingPeople = false
-            }
-            is ApiResult.Failure -> {
-                loadingPeople = false
-                if (result.statusCode == 401) onSessionExpired() else error = result.message
-            }
-        }
+    DisposableEffect(storeOwner) {
+        onDispose { storeOwner.viewModelStore.clear() }
     }
 
-    fun createGroup() {
-        if (creating || title.isBlank() || selected.size < 2) return
-        scope.launch {
-            creating = true
-            error = null
-            when (val result = groupRepository.createGroup(title, selected.toList())) {
-                is ApiResult.Success -> {
-                    creating = false
-                    onConversationReady(result.value)
-                    onDismiss()
-                }
-                is ApiResult.Failure -> {
-                    creating = false
-                    if (result.statusCode == 401) onSessionExpired() else error = result.message
-                }
+    LaunchedEffect(state.sessionExpiryVersion) {
+        if (state.sessionExpiryVersion > 0) onSessionExpired()
+    }
+    LaunchedEffect(state.conversationReadyVersion) {
+        if (state.conversationReadyVersion > 0) {
+            state.readyConversation?.let { conversation ->
+                onConversationReady(conversation)
+                onDismiss()
             }
         }
     }
 
     AlertDialog(
-        onDismissRequest = { if (!creating) onDismiss() },
+        onDismissRequest = { if (!state.creating) onDismiss() },
         title = { Text("New group") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -118,8 +90,8 @@ fun NewGroupDialog(
                 )
 
                 OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it.take(80) },
+                    value = state.title,
+                    onValueChange = viewModel::updateTitle,
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     placeholder = { Text("Group name", color = NovaMuted) },
@@ -133,9 +105,9 @@ fun NewGroupDialog(
                     ),
                 )
 
-                if (selected.isNotEmpty()) {
+                if (state.selected.isNotEmpty()) {
                     Text(
-                        text = "${selected.size} selected",
+                        text = "${state.selected.size} selected",
                         color = NovaAccent,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -143,8 +115,8 @@ fun NewGroupDialog(
                 }
 
                 OutlinedTextField(
-                    value = query,
-                    onValueChange = { query = it.take(40) },
+                    value = state.query,
+                    onValueChange = viewModel::updateQuery,
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     placeholder = { Text("Search people", color = NovaMuted) },
@@ -159,7 +131,7 @@ fun NewGroupDialog(
                 )
 
                 when {
-                    loadingPeople && people.isEmpty() -> {
+                    state.loadingPeople && state.people.isEmpty() -> {
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
                             horizontalArrangement = Arrangement.Center,
@@ -167,9 +139,9 @@ fun NewGroupDialog(
                             CircularProgressIndicator(color = NovaAccent)
                         }
                     }
-                    people.isEmpty() -> {
+                    state.people.isEmpty() -> {
                         Text(
-                            text = if (query.isBlank()) "No people available yet." else "No people match that search.",
+                            text = if (state.query.isBlank()) "No people available yet." else "No people match that search.",
                             color = NovaMuted,
                             fontSize = 12.sp,
                             modifier = Modifier.padding(vertical = 14.dp),
@@ -180,18 +152,10 @@ fun NewGroupDialog(
                             modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            items(people, key = { it.id }) { person ->
-                                val chosen = person.username in selected
+                            items(state.people, key = { it.id }) { person ->
+                                val chosen = person.username in state.selected
                                 Surface(
-                                    onClick = {
-                                        if (!creating) {
-                                            selected = if (chosen) {
-                                                selected - person.username
-                                            } else {
-                                                selected + person.username
-                                            }
-                                        }
-                                    },
+                                    onClick = { viewModel.toggleSelection(person.username) },
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(16.dp),
                                     color = if (chosen) NovaAccentSoft else NovaSurface,
@@ -236,9 +200,9 @@ fun NewGroupDialog(
                     }
                 }
 
-                if (!error.isNullOrBlank()) {
+                if (!state.errorMessage.isNullOrBlank()) {
                     Text(
-                        text = error.orEmpty(),
+                        text = state.errorMessage.orEmpty(),
                         color = NovaMuted,
                         fontSize = 11.sp,
                     )
@@ -247,16 +211,21 @@ fun NewGroupDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = ::createGroup,
-                enabled = !creating && title.isNotBlank() && selected.size >= 2,
+                onClick = viewModel::createGroup,
+                enabled = state.canCreate,
             ) {
-                Text(if (creating) "Creating…" else "Create group")
+                Text(if (state.creating) "Creating…" else "Create group")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !creating) {
+            TextButton(onClick = onDismiss, enabled = !state.creating) {
                 Text("Cancel")
             }
         },
     )
+}
+
+
+private class NewGroupStoreOwner : ViewModelStoreOwner {
+    override val viewModelStore = ViewModelStore()
 }
