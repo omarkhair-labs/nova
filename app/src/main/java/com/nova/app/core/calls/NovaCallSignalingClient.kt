@@ -2,6 +2,10 @@ package com.nova.app.core.calls
 
 import android.content.Context
 import com.nova.app.core.network.ApiResult
+import com.nova.app.feature.calls.data.CallRepository
+import com.nova.app.feature.calls.signaling.CallSignaling
+import com.nova.app.feature.calls.signaling.NovaCallSignalEvent
+import com.nova.app.feature.calls.signaling.NovaCallSocketStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -16,34 +20,11 @@ import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 
-enum class NovaCallSocketStatus {
-    Connecting,
-    Live,
-    Reconnecting,
-    Offline,
-}
-
-
-sealed interface NovaCallSignalEvent {
-    data class Ready(val call: NovaCallSession) : NovaCallSignalEvent
-    data class Offer(val sdp: String, val negotiationId: String?) : NovaCallSignalEvent
-    data class Answer(val sdp: String, val negotiationId: String?) : NovaCallSignalEvent
-    data class Ice(
-        val candidate: String,
-        val sdpMid: String,
-        val sdpMLineIndex: Int,
-    ) : NovaCallSignalEvent
-    data object IceRestartRequested : NovaCallSignalEvent
-    data class State(val call: NovaCallSession) : NovaCallSignalEvent
-    data class Error(val detail: String) : NovaCallSignalEvent
-}
-
-
 class NovaCallSignalingClient(
     context: Context,
     private val callId: String,
-    private val repository: NovaCallRepository = NovaCallRepository(context.applicationContext),
-) {
+    private val repository: CallRepository = NovaCallRepository(context.applicationContext),
+) : CallSignaling {
     private var socket: WebSocket? = null
     private var scope: CoroutineScope? = null
     private var reconnectJob: Job? = null
@@ -61,7 +42,7 @@ class NovaCallSignalingClient(
     private var onStatus: ((NovaCallSocketStatus) -> Unit)? = null
     private var onSessionExpired: (() -> Unit)? = null
 
-    fun start(
+    override fun start(
         scope: CoroutineScope,
         onEvent: (NovaCallSignalEvent) -> Unit,
         onStatus: (NovaCallSocketStatus) -> Unit,
@@ -83,7 +64,7 @@ class NovaCallSignalingClient(
         connect(initial = true)
     }
 
-    fun stop() {
+    override fun stop() {
         stopped = true
         peerReady = false
         peerReadySeen = false
@@ -101,7 +82,7 @@ class NovaCallSignalingClient(
         lastReceivedAnswerKey = null
     }
 
-    fun sendOffer(sdp: String, negotiationId: String? = null) = sendPeerSignal(
+    override fun sendOffer(sdp: String, negotiationId: String?) = sendPeerSignal(
         JSONObject()
             .put("type", "call.offer")
             .put("sdp", sdp)
@@ -110,7 +91,7 @@ class NovaCallSignalingClient(
         startsNegotiation = true,
     )
 
-    fun sendAnswer(sdp: String, negotiationId: String? = null) = sendPeerSignal(
+    override fun sendAnswer(sdp: String, negotiationId: String?) = sendPeerSignal(
         JSONObject()
             .put("type", "call.answer")
             .put("sdp", sdp)
@@ -119,7 +100,7 @@ class NovaCallSignalingClient(
         startsNegotiation = true,
     )
 
-    fun sendIce(candidate: String, sdpMid: String?, sdpMLineIndex: Int) = sendPeerSignal(
+    override fun sendIce(candidate: String, sdpMid: String?, sdpMLineIndex: Int) = sendPeerSignal(
         JSONObject()
             .put("type", "call.ice")
             .put("candidate", candidate)
@@ -128,14 +109,14 @@ class NovaCallSignalingClient(
         rememberForReconnect = true,
     )
 
-    fun requestIceRestart() = sendPeerSignal(JSONObject().put("type", "call.ice_restart"))
+    override fun requestIceRestart() = sendPeerSignal(JSONObject().put("type", "call.ice_restart"))
 
-    fun accept() = sendType("call.accept")
-    fun decline() = sendType("call.decline")
-    fun cancel() = sendType("call.cancel")
-    fun end() = sendType("call.end")
-    fun timeout() = sendType("call.timeout")
-    fun failed() = sendType("call.failed")
+    override fun accept() = sendType("call.accept")
+    override fun decline() = sendType("call.decline")
+    override fun cancel() = sendType("call.cancel")
+    override fun end() = sendType("call.end")
+    override fun timeout() = sendType("call.timeout")
+    override fun failed() = sendType("call.failed")
 
     private fun sendType(type: String) = send(JSONObject().put("type", type))
 
