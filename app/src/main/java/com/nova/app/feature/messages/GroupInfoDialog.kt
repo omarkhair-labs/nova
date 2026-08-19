@@ -25,6 +25,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,14 +38,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.nova.app.app.appContainer
 import com.nova.app.core.auth.NovaSessionStore
-import com.nova.app.core.messaging.NovaGroupManagementRepository
 import com.nova.app.core.messaging.NovaGroupMessagingRepository
-import com.nova.app.core.messaging.NovaGroupMember
-import com.nova.app.core.messaging.NovaManagedGroupDetail
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaPerson
 import com.nova.app.core.social.NovaSocialPagingRepository
+import com.nova.app.feature.messages.group.GroupInfoViewModel
+import com.nova.app.feature.messages.group.model.GroupMember
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
@@ -65,185 +69,54 @@ fun GroupInfoDialog(
     onSessionExpired: () -> Unit,
 ) {
     val context = LocalContext.current
-    val messagingRepository = remember(context) {
+    val addMembersRepository = remember(context) {
         NovaGroupMessagingRepository(context.applicationContext)
-    }
-    val managementRepository = remember(context) {
-        NovaGroupManagementRepository(context.applicationContext)
     }
     val currentUsername = remember(context) {
         NovaSessionStore(context.applicationContext).load()?.cachedUser?.username.orEmpty()
     }
-    val scope = rememberCoroutineScope()
+    val storeOwner = remember(conversationId) { GroupInfoStoreOwner() }
+    val groupInfoViewModel: GroupInfoViewModel = viewModel(
+        viewModelStoreOwner = storeOwner,
+        key = "group-info-$conversationId",
+        factory = GroupInfoViewModel.factory(
+            conversationId = conversationId,
+            managementRepository = context.appContainer.groupManagementRepository,
+            membershipRepository = context.appContainer.groupMembershipRepository,
+            currentUsername = currentUsername,
+        ),
+    )
+    val state = groupInfoViewModel.state
 
-    var detail by remember(conversationId) { mutableStateOf<NovaManagedGroupDetail?>(null) }
-    var loading by remember(conversationId) { mutableStateOf(true) }
-    var busyAction by remember(conversationId) { mutableStateOf<String?>(null) }
-    var leaving by remember(conversationId) { mutableStateOf(false) }
-    var deleting by remember(conversationId) { mutableStateOf(false) }
-    var showAddMembers by remember(conversationId) { mutableStateOf(false) }
-    var editingTitle by remember(conversationId) { mutableStateOf(false) }
-    var titleDraft by remember(conversationId) { mutableStateOf("") }
-    var error by remember(conversationId) { mutableStateOf<String?>(null) }
-
-    fun applyDetail(updated: NovaManagedGroupDetail) {
-        detail = updated
-        titleDraft = updated.title
-        onGroupUpdated(updated.title, updated.avatarUrl, updated.membersCount)
+    DisposableEffect(storeOwner) {
+        onDispose { storeOwner.viewModelStore.clear() }
     }
 
-    fun load() {
-        scope.launch {
-            loading = true
-            error = null
-            when (val result = managementRepository.detail(conversationId)) {
-                is ApiResult.Success -> applyDetail(result.value)
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onSessionExpired() else error = result.message
-                }
-            }
-            loading = false
-        }
-    }
-
-    fun rename() {
-        if (busyAction != null) return
-        val clean = titleDraft.trim()
-        if (clean.isBlank()) {
-            error = "Give the group a name."
-            return
-        }
-        scope.launch {
-            busyAction = "rename"
-            error = null
-            when (val result = managementRepository.rename(conversationId, clean)) {
-                is ApiResult.Success -> {
-                    applyDetail(result.value)
-                    editingTitle = false
-                }
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onSessionExpired() else error = result.message
-                }
-            }
-            busyAction = null
-        }
-    }
-
-    fun updateAvatar(uri: android.net.Uri) {
-        if (busyAction != null) return
-        scope.launch {
-            busyAction = "avatar"
-            error = null
-            when (val result = managementRepository.updateAvatar(conversationId, uri)) {
-                is ApiResult.Success -> applyDetail(result.value)
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onSessionExpired() else error = result.message
-                }
-            }
-            busyAction = null
-        }
-    }
-
-    fun removeAvatar() {
-        if (busyAction != null) return
-        scope.launch {
-            busyAction = "avatar"
-            error = null
-            when (val result = managementRepository.removeAvatar(conversationId)) {
-                is ApiResult.Success -> applyDetail(result.value)
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onSessionExpired() else error = result.message
-                }
-            }
-            busyAction = null
-        }
-    }
-
-    fun changeRole(member: NovaGroupMember, role: String) {
-        if (busyAction != null) return
-        scope.launch {
-            busyAction = "role:${member.user.username}"
-            error = null
-            when (
-                val result = managementRepository.setRole(
-                    conversationId = conversationId,
-                    username = member.user.username,
-                    role = role,
-                )
-            ) {
-                is ApiResult.Success -> applyDetail(result.value)
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onSessionExpired() else error = result.message
-                }
-            }
-            busyAction = null
-        }
-    }
-
-    fun remove(member: NovaGroupMember) {
-        if (busyAction != null || leaving || deleting) return
-        scope.launch {
-            busyAction = "remove:${member.user.username}"
-            error = null
-            when (val result = messagingRepository.removeMember(conversationId, member.user.username)) {
-                is ApiResult.Success -> {
-                    if (result.value == null) {
-                        onGroupLeft()
-                    } else {
-                        load()
-                    }
-                }
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onSessionExpired() else error = result.message
-                }
-            }
-            busyAction = null
-        }
-    }
-
-    fun leave() {
-        if (leaving || deleting || busyAction != null) return
-        scope.launch {
-            leaving = true
-            error = null
-            when (val result = messagingRepository.leaveGroup(conversationId)) {
-                is ApiResult.Success -> onGroupLeft()
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onSessionExpired() else error = result.message
-                    leaving = false
-                }
+    LaunchedEffect(state.groupUpdatedVersion) {
+        if (state.groupUpdatedVersion > 0) {
+            state.detail?.let { detail ->
+                onGroupUpdated(detail.title, detail.avatarUrl, detail.membersCount)
             }
         }
     }
-
-    fun deleteGroup() {
-        if (leaving || deleting || busyAction != null) return
-        scope.launch {
-            deleting = true
-            error = null
-            when (val result = messagingRepository.deleteGroup(conversationId)) {
-                is ApiResult.Success -> onGroupLeft()
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onSessionExpired() else error = result.message
-                    deleting = false
-                }
-            }
-        }
+    LaunchedEffect(state.groupLeftVersion) {
+        if (state.groupLeftVersion > 0) onGroupLeft()
+    }
+    LaunchedEffect(state.sessionExpiryVersion) {
+        if (state.sessionExpiryVersion > 0) onSessionExpired()
     }
 
     val photoPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
     ) { uri ->
-        if (uri != null) updateAvatar(uri)
+        if (uri != null) groupInfoViewModel.updateAvatar(uri)
     }
 
-    LaunchedEffect(conversationId) { load() }
-
-    val currentDetail = detail
+    val currentDetail = state.detail
     val role = currentDetail?.currentUserRole.orEmpty()
     val canManageAppearance = role == "owner" || role == "admin"
     val isOwner = role == "owner"
-    val blocked = leaving || deleting || busyAction != null
+    val blocked = state.blocked
 
     AlertDialog(
         onDismissRequest = { if (!blocked) onDismiss() },
@@ -251,7 +124,7 @@ fun GroupInfoDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 when {
-                    loading && currentDetail == null -> {
+                    state.loading && currentDetail == null -> {
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 34.dp),
                             horizontalArrangement = Arrangement.Center,
@@ -261,7 +134,7 @@ fun GroupInfoDialog(
                     }
                     currentDetail == null -> {
                         Text(
-                            text = error ?: "Nova couldn't open this group.",
+                            text = state.errorMessage ?: "Nova couldn't open this group.",
                             color = NovaMuted,
                             fontSize = 12.sp,
                         )
@@ -278,7 +151,7 @@ fun GroupInfoDialog(
                                     fallbackText = currentDetail.title,
                                     size = 64.dp,
                                 )
-                                if (busyAction == "avatar") {
+                                if (state.busyAction == "avatar") {
                                     Surface(
                                         modifier = Modifier.size(64.dp),
                                         shape = CircleShape,
@@ -324,15 +197,12 @@ fun GroupInfoDialog(
                                     text = "Rename",
                                     enabled = !blocked,
                                     modifier = Modifier.weight(1f),
-                                    onClick = {
-                                        titleDraft = currentDetail.title
-                                        editingTitle = !editingTitle
-                                    },
+                                    onClick = groupInfoViewModel::toggleTitleEditing,
                                 )
                             }
                             if (currentDetail.avatarUrl.isNotBlank()) {
                                 TextButton(
-                                    onClick = ::removeAvatar,
+                                    onClick = groupInfoViewModel::removeAvatar,
                                     enabled = !blocked,
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
@@ -341,15 +211,15 @@ fun GroupInfoDialog(
                             }
                         }
 
-                        if (editingTitle && canManageAppearance) {
+                        if (state.editingTitle && canManageAppearance) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 OutlinedTextField(
-                                    value = titleDraft,
-                                    onValueChange = { titleDraft = it.take(80) },
+                                    value = state.titleDraft,
+                                    onValueChange = groupInfoViewModel::updateTitleDraft,
                                     modifier = Modifier.weight(1f),
                                     singleLine = true,
                                     placeholder = { Text("Group name") },
@@ -361,13 +231,13 @@ fun GroupInfoDialog(
                                     ),
                                 )
                                 Surface(
-                                    onClick = ::rename,
+                                    onClick = groupInfoViewModel::rename,
                                     shape = CircleShape,
                                     color = NovaAccent,
                                     modifier = Modifier.size(44.dp),
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
-                                        if (busyAction == "rename") {
+                                        if (state.busyAction == "rename") {
                                             CircularProgressIndicator(
                                                 modifier = Modifier.size(18.dp),
                                                 color = NovaSurface,
@@ -383,7 +253,7 @@ fun GroupInfoDialog(
 
                         if (canManageAppearance) {
                             Surface(
-                                onClick = { if (!blocked) showAddMembers = true },
+                                onClick = groupInfoViewModel::openAddMembers,
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(15.dp),
                                 color = NovaAccentSoft,
@@ -411,7 +281,7 @@ fun GroupInfoDialog(
                             verticalArrangement = Arrangement.spacedBy(7.dp),
                         ) {
                             items(currentDetail.members, key = { it.user.id }) { member ->
-                                val isMe = member.user.username == currentUsername
+                                val isMe = member.user.username == state.currentUsername
                                 val canRemove = canManageAppearance && !isMe && member.role != "owner" &&
                                     !(role == "admin" && member.role == "admin")
                                 GroupMemberRow(
@@ -419,34 +289,34 @@ fun GroupInfoDialog(
                                     isMe = isMe,
                                     isOwner = isOwner,
                                     canRemove = canRemove,
-                                    busyAction = busyAction,
-                                    enabled = !blocked || busyAction?.contains(member.user.username) == true,
-                                    onMakeAdmin = { changeRole(member, "admin") },
-                                    onRemoveAdmin = { changeRole(member, "member") },
-                                    onRemove = { remove(member) },
+                                    busyAction = state.busyAction,
+                                    enabled = !blocked || state.busyAction?.contains(member.user.username) == true,
+                                    onMakeAdmin = { groupInfoViewModel.changeRole(member, "admin") },
+                                    onRemoveAdmin = { groupInfoViewModel.changeRole(member, "member") },
+                                    onRemove = { groupInfoViewModel.removeMember(member) },
                                 )
                             }
                         }
 
-                        if (!error.isNullOrBlank()) {
-                            Text(error.orEmpty(), color = NovaMuted, fontSize = 11.sp)
+                        if (!state.errorMessage.isNullOrBlank()) {
+                            Text(state.errorMessage.orEmpty(), color = NovaMuted, fontSize = 11.sp)
                         }
 
                         Spacer(modifier = Modifier.height(1.dp))
                         TextButton(
-                            onClick = ::leave,
+                            onClick = groupInfoViewModel::leave,
                             enabled = !blocked,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
-                            Text(if (leaving) "Leaving…" else "Leave group")
+                            Text(if (state.leaving) "Leaving…" else "Leave group")
                         }
                         if (isOwner) {
                             TextButton(
-                                onClick = ::deleteGroup,
+                                onClick = groupInfoViewModel::deleteGroup,
                                 enabled = !blocked,
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
-                                Text(if (deleting) "Deleting…" else "Delete group")
+                                Text(if (state.deleting) "Deleting…" else "Delete group")
                             }
                         }
                     }
@@ -460,19 +330,24 @@ fun GroupInfoDialog(
         },
     )
 
-    if (showAddMembers && currentDetail != null) {
+    if (state.showAddMembers && currentDetail != null) {
         AddGroupMembersDialog(
             conversationId = conversationId,
             existingUsernames = currentDetail.members.map { it.user.username }.toSet(),
-            repository = messagingRepository,
-            onDismiss = { showAddMembers = false },
+            repository = addMembersRepository,
+            onDismiss = groupInfoViewModel::dismissAddMembers,
             onUpdated = {
-                showAddMembers = false
-                load()
+                groupInfoViewModel.dismissAddMembers()
+                groupInfoViewModel.reload()
             },
             onSessionExpired = onSessionExpired,
         )
     }
+}
+
+
+private class GroupInfoStoreOwner : ViewModelStoreOwner {
+    override val viewModelStore = ViewModelStore()
 }
 
 
@@ -507,7 +382,7 @@ private fun GroupActionChip(
 
 @Composable
 private fun GroupMemberRow(
-    member: NovaGroupMember,
+    member: GroupMember,
     isMe: Boolean,
     isOwner: Boolean,
     canRemove: Boolean,
