@@ -1,10 +1,15 @@
-package com.nova.app.core.messaging
+package com.nova.app.feature.messages.details.data.remote
 
 import android.content.Context
 import com.nova.app.core.auth.NovaSessionStore
+import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.NovaPostAuthor
+import com.nova.app.feature.messages.details.data.ConversationToolsRepository
+import com.nova.app.feature.messages.details.model.ConversationMediaPage
+import com.nova.app.feature.messages.details.model.ConversationMessageContext
+import com.nova.app.feature.messages.details.model.ConversationToolMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -14,47 +19,18 @@ import java.net.URL
 import java.net.URLEncoder
 
 
-data class NovaV9MessageItem(
-    val id: Long,
-    val sender: NovaPostAuthor,
-    val body: String,
-    val imageUrl: String,
-    val audioUrl: String,
-    val audioDurationMs: Long?,
-    val replyToId: Long?,
-    val replyPreview: String,
-    val createdAt: String,
-    val isMine: Boolean,
-    val isDeleted: Boolean,
-)
-
-
-data class NovaV9MediaPage(
-    val items: List<NovaV9MessageItem>,
-    val nextCursor: String?,
-)
-
-
-data class NovaV9MessageContext(
-    val items: List<NovaV9MessageItem>,
-    val targetMessageId: Long,
-    val hasEarlier: Boolean,
-    val hasLater: Boolean,
-)
-
-
-class NovaMessagingV9ToolsRepository(
+class ConversationToolsRemoteRepository(
     context: Context,
     private val baseUrl: String = NovaMessagingRepository.PRODUCTION_API_URL,
-) {
+) : ConversationToolsRepository {
     private val appContext = context.applicationContext
     private val sessionStore = NovaSessionStore(appContext)
     private val authApi = NovaApiClient(baseUrl)
 
-    suspend fun searchMessages(
+    override suspend fun searchMessages(
         conversationId: Long,
         query: String,
-    ): ApiResult<List<NovaV9MessageItem>> {
+    ): ApiResult<List<ConversationToolMessage>> {
         val clean = query.trim()
         if (clean.isBlank()) return ApiResult.Success(emptyList())
         return authenticatedCall { token ->
@@ -70,10 +46,10 @@ class NovaMessagingV9ToolsRepository(
         }
     }
 
-    suspend fun messageContext(
+    override suspend fun messageContext(
         conversationId: Long,
         messageId: Long,
-    ): ApiResult<NovaV9MessageContext> {
+    ): ApiResult<ConversationMessageContext> {
         return authenticatedCall { token ->
             when (
                 val response = requestJson(
@@ -82,7 +58,7 @@ class NovaMessagingV9ToolsRepository(
                 )
             ) {
                 is ApiResult.Success -> ApiResult.Success(
-                    NovaV9MessageContext(
+                    ConversationMessageContext(
                         items = parseItems(response.value.optJSONArray("results")),
                         targetMessageId = response.value.optLong("target_message_id", messageId),
                         hasEarlier = response.value.optBoolean("has_earlier", false),
@@ -94,12 +70,12 @@ class NovaMessagingV9ToolsRepository(
         }
     }
 
-    suspend fun sharedMedia(
+    override suspend fun sharedMedia(
         conversationId: Long,
-        type: String = "all",
-        cursor: String? = null,
-    ): ApiResult<NovaV9MediaPage> {
-        val cleanType = type.takeIf { it in setOf("all", "image", "audio") } ?: "all"
+        type: String,
+        cursor: String?,
+    ): ApiResult<ConversationMediaPage> {
+        val cleanType = normalizeConversationMediaType(type)
         return authenticatedCall { token ->
             fetchMediaPages(
                 token = token,
@@ -110,7 +86,7 @@ class NovaMessagingV9ToolsRepository(
         }
     }
 
-    suspend fun isMuted(conversationId: Long): ApiResult<Boolean> {
+    override suspend fun isMuted(conversationId: Long): ApiResult<Boolean> {
         return authenticatedCall { token ->
             when (
                 val response = requestJson(
@@ -124,7 +100,7 @@ class NovaMessagingV9ToolsRepository(
         }
     }
 
-    suspend fun setMuted(conversationId: Long, muted: Boolean): ApiResult<Boolean> {
+    override suspend fun setMuted(conversationId: Long, muted: Boolean): ApiResult<Boolean> {
         return authenticatedCall { token ->
             when (
                 val response = requestJson(
@@ -145,8 +121,8 @@ class NovaMessagingV9ToolsRepository(
         conversationId: Long,
         type: String,
         initialCursor: String?,
-    ): ApiResult<NovaV9MediaPage> {
-        val collected = mutableListOf<NovaV9MessageItem>()
+    ): ApiResult<ConversationMediaPage> {
+        val collected = mutableListOf<ConversationToolMessage>()
         var cursor = initialCursor
         var pages = 0
 
@@ -173,7 +149,7 @@ class NovaMessagingV9ToolsRepository(
         } while (cursor != null && pages < MAX_AUTO_MEDIA_PAGES)
 
         return ApiResult.Success(
-            NovaV9MediaPage(
+            ConversationMediaPage(
                 items = collected,
                 nextCursor = cursor,
             )
@@ -211,7 +187,7 @@ class NovaMessagingV9ToolsRepository(
         }
     }
 
-    private fun parseItems(array: JSONArray?): List<NovaV9MessageItem> {
+    private fun parseItems(array: JSONArray?): List<ConversationToolMessage> {
         if (array == null) return emptyList()
         return buildList {
             for (index in 0 until array.length()) {
@@ -220,29 +196,31 @@ class NovaMessagingV9ToolsRepository(
         }
     }
 
-    private fun parseItem(json: JSONObject): NovaV9MessageItem {
+    private fun parseItem(json: JSONObject): ConversationToolMessage {
         val sender = json.optJSONObject("sender") ?: JSONObject()
         val reply = json.optJSONObject("reply_to")
-        val replyPreview = when {
-            reply == null -> ""
-            reply.optBoolean("is_deleted", false) -> "Message deleted"
-            reply.optString("body").isNotBlank() -> reply.optString("body")
-            reply.optString("audio_url").isNotBlank() -> "🎤 Voice message"
-            reply.optString("image_url").isNotBlank() -> "📷 Photo"
-            else -> "Message"
+        val replyPreview = if (reply == null) {
+            ""
+        } else {
+            conversationReplyPreview(
+                isDeleted = reply.optBoolean("is_deleted", false),
+                body = reply.optString("body"),
+                audioUrl = reply.optString("audio_url"),
+                imageUrl = reply.optString("image_url"),
+            )
         }
 
-        return NovaV9MessageItem(
+        return ConversationToolMessage(
             id = json.optLong("id"),
             sender = NovaPostAuthor(
                 id = sender.optLong("id"),
                 username = sender.optString("username"),
                 name = sender.optString("name"),
-                avatarUrl = resolveMediaUrl(sender.optString("avatar_url")),
+                avatarUrl = resolveConversationMediaUrl(baseUrl, sender.optString("avatar_url")),
             ),
             body = json.optString("body"),
-            imageUrl = resolveMediaUrl(json.optString("image_url")),
-            audioUrl = resolveMediaUrl(json.optString("audio_url")),
+            imageUrl = resolveConversationMediaUrl(baseUrl, json.optString("image_url")),
+            audioUrl = resolveConversationMediaUrl(baseUrl, json.optString("audio_url")),
             audioDurationMs = nullableLong(json.opt("audio_duration_ms")),
             replyToId = reply?.optLong("id")?.takeIf { it > 0L },
             replyPreview = replyPreview,
@@ -302,15 +280,6 @@ class NovaMessagingV9ToolsRepository(
         }
     }
 
-    private fun resolveMediaUrl(raw: String): String {
-        if (raw.isBlank() || raw == "null") return ""
-        if (raw.startsWith("http://") || raw.startsWith("https://")) return raw
-        return runCatching {
-            val apiUrl = URL(baseUrl)
-            URL("${apiUrl.protocol}://${apiUrl.authority}$raw").toString()
-        }.getOrDefault(raw)
-    }
-
     private fun nullableLong(value: Any?): Long? = when (value) {
         null, JSONObject.NULL -> null
         is Number -> value.toLong()
@@ -327,4 +296,32 @@ class NovaMessagingV9ToolsRepository(
     private companion object {
         const val MAX_AUTO_MEDIA_PAGES = 100
     }
+}
+
+
+internal fun normalizeConversationMediaType(type: String): String =
+    type.takeIf { it in setOf("all", "image", "audio") } ?: "all"
+
+
+internal fun conversationReplyPreview(
+    isDeleted: Boolean,
+    body: String,
+    audioUrl: String,
+    imageUrl: String,
+): String = when {
+    isDeleted -> "Message deleted"
+    body.isNotBlank() -> body
+    audioUrl.isNotBlank() -> "🎤 Voice message"
+    imageUrl.isNotBlank() -> "📷 Photo"
+    else -> "Message"
+}
+
+
+internal fun resolveConversationMediaUrl(baseUrl: String, raw: String): String {
+    if (raw.isBlank() || raw == "null") return ""
+    if (raw.startsWith("http://") || raw.startsWith("https://")) return raw
+    return runCatching {
+        val apiUrl = URL(baseUrl)
+        URL("${apiUrl.protocol}://${apiUrl.authority}$raw").toString()
+    }.getOrDefault(raw)
 }
