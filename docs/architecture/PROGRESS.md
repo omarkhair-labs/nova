@@ -4,14 +4,14 @@ Update this table in every consolidation PR.
 
 | Field | Current state |
 |---|---|
-| Current phase | Phase 3 — Calls isolation (closing enforcement PR) |
-| Active PR | Phase 3 PR 4 — delete unreachable call controller/compatibility aliases, move signaling records to stable ownership, add Calls architecture enforcement, and close the phase without changing production call behavior |
-| CI status | Pending for Phase 3 PR 4; PR #122 merged after Nova CI #365 passed every hosted backend and Android gate |
-| Completed ownership changes | Phase 2 Messages is complete. Phase 3 now has stable call domain/data/signaling/WebRTC ownership, a live `feature/calls/CallStateOwner`, AppContainer-owned production construction, and direct stable-model imports from the remaining core platform/transport adapters |
-| Deleted legacy/versioned files | Phase 2 removed the historical Messages V8/V9 layers and temporary aliases. Phase 3 closing enforcement deletes unreachable `core/calls/NovaCallController.kt`, `CallModelCompatibility.kt`, and `NovaCallAudioQuality.kt`; call quality characterization moves to the stable feature package |
-| Automated verification | #122 passed Calls state JVM characterization plus hosted architecture/whitespace, Django configuration/migrations/full tests, Android JVM/lint/debug/androidTest/release/AAB. PR 4 adds `scripts/check_calls_architecture.py` to reject the deleted controller/aliases and legacy core imports; full hosted Nova CI is required before merge |
+| Current phase | Phase 4 — social content features |
+| Active PR | Phase 4 PR 1 — establish stable feed/posts/comments data contracts and characterize the current feed-page merge behavior without changing live UI orchestration |
+| CI status | Pending for Phase 4 PR 1; Phase 3 closed after corrected Nova CI #368 passed every hosted backend and Android gate |
+| Completed ownership changes | Phase 2 Messages and Phase 3 Calls are complete. Phase 4 starts with stable `FeedRepository` and `PostRepository` contracts implemented by the existing `NovaFeedRepository`, plus AppContainer-exposed stable views of that production instance |
+| Deleted legacy/versioned files | Phase 2 removed the historical Messages V8/V9 layers and temporary aliases. Phase 3 removed the unreachable call controller and call compatibility aliases. No feed/post files are deleted in the Phase 4 foundation PR |
+| Automated verification | Phase 3 #123 passed Calls/Messages architecture, whitespace, Django configuration/migrations/full tests, Android JVM/lint/debug/androidTest/release/AAB in Nova CI #368. Phase 4 PR 1 adds JVM characterization for the current feed-page deduplication semantics and requires the full hosted Nova CI gate |
 | Remaining physical Samsung checks | Manual Samsung smoke remains incomplete: the authorized SM-A266B has a differently signed installed Nova package, so non-destructive replacement remains blocked. No uninstall is authorized |
-| Exact next PR | Phase 4 PR 1 — start social-content consolidation with feed/posts/comments characterization and the first stable ownership seam, preserving current product behavior |
+| Exact next PR | Phase 4 PR 2 — move feed/posts/comments domain models and live async state ownership out of `NovaApiClient`/`NovaApp`, switch consumers to stable contracts, and delete the superseded feed/post orchestration where behavior is proven |
 
 ## Completed PRs
 
@@ -45,7 +45,7 @@ Update this table in every consolidation PR.
 | 3 | #120 | move call domain records and REST/ICE/auth access behind stable `feature/calls` contracts and add AppContainer-owned call repository construction | full hosted Nova CI green; exact call wire/terminal/display-name JVM characterization green | revert merge commit `0602ec7` |
 | 3 | #121 | establish stable call signaling/WebRTC interfaces and production adapters, move media-quality models with the WebRTC boundary, and centralize construction in AppContainer | corrected Nova CI #363 green: Django + JVM/lint/debug/androidTest/release/AAB; no signaling/WebRTC algorithm changes | revert merge commit `c171686` |
 | 3 | #122 | move live call lifecycle/state orchestration into `feature/calls/CallStateOwner`, switch `CallActivity` to that owner, and use AppContainer-owned call data/signaling/WebRTC construction | Nova CI #365 green: Django + JVM/lint/debug/androidTest/release/AAB; `CallPhase` characterization green | revert merge commit `b194d17` |
-| 3 | #123 | delete unreachable call controller/compatibility aliases, move signaling records to stable ownership, and add Calls architecture enforcement | full hosted Calls architecture/whitespace + Django + JVM/lint/debug/androidTest/release/AAB required before merge | revert PR #123 merge commit |
+| 3 | #123 | delete unreachable call controller/compatibility aliases, move signaling records to stable ownership, and add Calls architecture enforcement | corrected Nova CI #368 green: Calls/Messages architecture + whitespace + Django + JVM/lint/debug/androidTest/release/AAB | revert merge commit `9dca359` |
 
 ## Remaining cross-phase risks / follow-up
 
