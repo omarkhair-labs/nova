@@ -1,30 +1,8 @@
 package com.nova.app.feature.calls.signaling
 
-import com.nova.app.feature.calls.domain.model.NovaCallSession
+import com.nova.app.core.calls.NovaCallSignalEvent
+import com.nova.app.core.calls.NovaCallSocketStatus
 import kotlinx.coroutines.CoroutineScope
-
-
-enum class NovaCallSocketStatus {
-    Connecting,
-    Live,
-    Reconnecting,
-    Offline,
-}
-
-
-sealed interface NovaCallSignalEvent {
-    data class Ready(val call: NovaCallSession) : NovaCallSignalEvent
-    data class Offer(val sdp: String, val negotiationId: String?) : NovaCallSignalEvent
-    data class Answer(val sdp: String, val negotiationId: String?) : NovaCallSignalEvent
-    data class Ice(
-        val candidate: String,
-        val sdpMid: String,
-        val sdpMLineIndex: Int,
-    ) : NovaCallSignalEvent
-    data object IceRestartRequested : NovaCallSignalEvent
-    data class State(val call: NovaCallSession) : NovaCallSignalEvent
-    data class Error(val detail: String) : NovaCallSignalEvent
-}
 
 
 interface CallSignaling {
