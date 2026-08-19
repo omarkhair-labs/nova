@@ -1,6 +1,6 @@
 # Current ownership and entry paths
 
-Snapshot: Phase 2 PR 19, based on `20b909ddb9ab225c0954942f859fc73bcd5a1f94`.
+Snapshot: Phase 2 PR 20, based on `df007171307979febd982a2b22c2643e9c7bf7ef`.
 
 This file records current behavior. A row with several current owners identifies
 consolidation work; it does not imply that one of those paths may be removed
@@ -114,7 +114,7 @@ remove that parity before a device test establishes a replacement.
 | Composer/media/voice | `ConversationComposer` | `ConversationComposerState` owns recorder, permission/picker, ephemeral attachment/voice drafts, cleanup, and the sole IME/navigation-bar padding; `ConversationViewModel` owns textual draft persistence and optimistic sends | `feature/messages/conversation` composer boundary |
 | Message details/search/media | stable `ConversationDetailsDialog` | `ConversationDetailsViewModel`/`ConversationDetailsUiState`, `ConversationToolsRepository`, and stable details data/model packages; dialog owns unchanged media-player/full-photo platform UI | `feature/messages/details` |
 | Conversation theme | `ConversationScreen`, `NovaChatThemePicker` | `ConversationAppearanceViewModel`/`ConversationAppearanceUiState` own load/save/optimistic rollback/picker state and terminal-401 effects; stable appearance repository owns HTTP/auth/local fallback/legacy-backend compatibility; palette/color rendering remains UI-owned | `feature/messages/appearance` |
-| Group management | `ConversationScreen`, `GroupInfoDialog` | stable group models plus `GroupManagementRepository`/`GroupManagementRemoteRepository` own managed detail/rename/avatar/remove-avatar/role transport; `GroupMembershipRepository`/`GroupMembershipRemoteRepository` own create/detail/add/remove/leave/delete transport; `AppContainer` owns both interfaces; UI orchestration remains historical | `feature/messages/group` |
+| Group management | `ConversationScreen`, `GroupInfoDialog` | stable group models and both stable group repository interfaces own transport; `GroupInfoViewModel`/`GroupInfoUiState` own managed-detail loading, rename/avatar/role/remove/leave/delete async state and terminal effects; add-members search/add orchestration remains UI-owned | `feature/messages/group` |
 | Calls | `CallActivity` | `NovaCallController`, signaling, WebRTC, Telecom, notifications/history | `feature/calls` boundaries with explicit state machine |
 | notifications/sharing | notification screen/share dialog | notification, push, messaging/social repositories | `feature/notifications`, `feature/sharing` |
 | privacy/settings/security | special Activities and feature screens | privacy/auth/social repositories and UI callbacks | corresponding feature packages |
@@ -207,6 +207,17 @@ URL. `AppContainer` owns the stable interface. The old
 constructor-compatible typealias so current group dialogs and add-member flows
 continue unchanged until their state/UI orchestration moves.
 
+Phase 2 PR 20 adds `GroupInfoViewModel` and `GroupInfoUiState` under stable
+`feature/messages/group` ownership. They own the initial managed-detail load,
+title draft/edit state, rename/avatar/role/remove/leave/delete in-flight locks,
+inline non-401 errors, terminal-401 effects, group-updated/group-left effects,
+and the existing reload-after-remove/add behavior. The view model is scoped to a
+`GroupInfoDialog`-owned `ViewModelStore` that is cleared when the dialog leaves
+composition, preserving the prior `remember(conversationId)` lifetime instead of
+retaining group dialog state at Activity scope. Permission derivation and photo
+picker rendering remain UI-owned. `AddGroupMembersDialog` intentionally keeps
+its current search/selection/add orchestration for the next slice.
+
 ## Backend ownership map
 
 ```text
@@ -256,7 +267,7 @@ route Composable
 logout, and durable primary-overlay state. Feature state owners still report
 terminal session effects to routes; central session-expiry ownership is a later
 cross-feature cleanup. The inbox, conversation core, composer, details data/
-state/UI, appearance data/lifecycle ownership, shared group model ownership, and
-both group transport slices now have focused stable owners. Group UI/state
-orchestration and the V8/V9 route/chrome layering remain on the Phase 2
-extraction path.
+state/UI, appearance data/lifecycle ownership, shared group model ownership,
+both group transport slices, and group-info state now have focused stable
+owners. Add-members orchestration and the V8/V9 route/chrome layering remain on
+the Phase 2 extraction path.
