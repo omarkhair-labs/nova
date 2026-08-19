@@ -92,7 +92,7 @@ tree. Empty intents are ignored by the signal.
 | `ReelsActivity` | no | root fallback or profile Reel | edge-to-edge + manifest `adjustResize` | Reels/profile viewer status-bar padding; sheets own bottom insets |
 | `CallActivity` | no | call intents/notifications | edge-to-edge, resizeable, PiP, separate call task affinity | call UI owns status/navigation padding |
 | `SettingsActivity` | no | explicit internal intent | edge-to-edge | screen status/system-bottom padding |
-| `PrivacyActivity` | no | explicit internal intent | edge-to-edge | privacy screen owns status/navigation/IME padding |
+| `PrivacyActivity` | no | explicit internal intent | edge-to-edge | privacy screen owns status/navigation padding |
 | `AccountSecurityActivity` | no | explicit internal intent | edge-to-edge | security page owns status/navigation/IME padding |
 | `SocialGraphActivity` | no | explicit internal intent with username/mode | edge-to-edge | social graph screen owns status/navigation padding |
 
@@ -113,7 +113,7 @@ remove that parity before a device test establishes a replacement.
 | Conversation | `ConversationScreen` -> V9 -> V8 | `ConversationViewModel`/`ConversationUiState` own server behavior; stateless list/rows and the focused composer render their state and callbacks | `feature/messages/conversation` + stateless header |
 | Composer/media/voice | `ConversationComposer` | `ConversationComposerState` owns recorder, permission/picker, ephemeral attachment/voice drafts, cleanup, and the sole IME/navigation-bar padding; `ConversationViewModel` owns textual draft persistence and optimistic sends | `feature/messages/conversation` composer boundary |
 | Message details/search/media | stable `ConversationDetailsDialog` | `ConversationDetailsViewModel`/`ConversationDetailsUiState`, `ConversationToolsRepository`, and stable details data/model packages; dialog owns unchanged media-player/full-photo platform UI | `feature/messages/details` |
-| Conversation theme | `ConversationScreen`, `NovaChatThemePicker` | `ConversationAppearanceViewModel`/`ConversationAppearanceUiState` own theme load/save, optimistic key, rollback, picker-open/saving/error state and terminal-401 effects; stable appearance repository owns HTTP/auth/local/legacy fallback; palette/color rendering remains UI-owned | `feature/messages/appearance` |
+| Conversation theme | `ConversationScreen`, `NovaChatThemePicker` | `ConversationAppearanceViewModel`/`ConversationAppearanceUiState` own load/save/optimistic rollback/picker state and terminal-401 effects; stable appearance repository owns HTTP/auth/local fallback/legacy-backend compatibility; palette/color rendering remains UI-owned | `feature/messages/appearance` |
 | Group management | `ConversationScreen`, `GroupInfoDialog` | group repositories and UI-owned orchestration | `feature/messages/group` |
 | Calls | `CallActivity` | `NovaCallController`, signaling, WebRTC, Telecom, notifications/history | `feature/calls` boundaries with explicit state machine |
 | notifications/sharing | notification screen/share dialog | notification, push, messaging/social repositories | `feature/notifications`, `feature/sharing` |
@@ -121,17 +121,58 @@ remove that parity before a device test establishes a replacement.
 
 ## Phase 2 Messages dependency boundary
 
-`feature/messages/domain/model/MessagingModels.kt` owns the live conversation/message domain models. `MessagesRepository` and `InboxRepository` own stable feature contracts; `AppContainer` owns production implementations and conversation realtime/draft factories.
+`feature/messages/domain/model/MessagingModels.kt` owns the nine live
+conversation, message, reply, reaction, share, list, and page models. The core
+conversation model slice no longer relies on V-number compatibility types.
 
-`InboxViewModel` owns inbox query/debounce/paging, ordered ID deduplication, unread state, loading/errors, stale-response suppression, and terminal-session effects. `ConversationViewModel` owns message paging, optimistic send/retry identity, mutations, text drafts, read/unread effects, presence/typing, receipts, and realtime reconciliation.
+`feature/messages/data/MessagesRepository.kt` defines the existing conversation
+mutation, read-marker, and realtime-token data operations;
+`feature/messages/data/InboxRepository.kt` owns paged inbox/search loading.
+`NovaMessagingRepository` and `NovaInboxPagingRepository` are the production
+implementations. `AppContainer` owns both interfaces, and
+`NovaConversationRealtimeClient` depends on `MessagesRepository`.
 
-`ConversationMessageList.kt` and `ConversationMessageRow.kt` own stateless list/row rendering. `ConversationComposer.kt` owns photo/microphone/voice-recorder platform state, recording limits, temporary cleanup, previews, reply/edit context, send eligibility, and the sole conversation `imePadding` responsibility.
+`feature/messages/inbox/InboxViewModel.kt` owns inbox query/debounce/paging,
+ordered ID deduplication, unread state, loading/errors, stale-response
+suppression, and terminal-session effects. `MessagesScreen` renders that state
+and forwards intents.
 
-`feature/messages/details` owns stable search/context/shared-media/mute data, lifecycle state, rendering, MediaPlayer lifecycle, and full-photo UI. Its characterization deliberately preserves the current media-filter/load-more key behavior during consolidation.
+`feature/messages/conversation/ConversationViewModel.kt` owns message-page
+loading, earlier-page deduplication, optimistic send/retry identity, edit/delete/
+reaction mutations, text-draft debounce, unread/read effects, presence/typing,
+delivery/read receipts, and realtime reconciliation. Production realtime/draft
+implementations are constructed by `AppContainer`.
 
-`feature/messages/appearance` owns stable preference models, `ConversationAppearanceRepository`, and `ConversationAppearanceRemoteRepository`, including the exact REST/auth/token-refresh/error behavior, `nova_conversation_themes` local fallback, normalization, and legacy-backend compatibility path introduced behind a stable boundary in #110.
+`ConversationMessageList.kt` and `ConversationMessageRow.kt` own stateless list
+and row rendering around callback-owned navigation/mutations.
+`ConversationComposer.kt` owns photo picking, microphone permission, recorder
+platform state, recording limits, temporary cleanup, previews, reply/edit
+context, send eligibility, and the sole conversation `imePadding` responsibility.
 
-Phase 2 PR 16 adds `ConversationAppearanceViewModel`/`ConversationAppearanceUiState`. The state owner begins from `nova`, resolves loaded/server keys through the existing `NovaChatThemes.resolve` callback, owns picker visibility, prevents dismissal while saving, applies the selected key optimistically, rolls back to the previous key on failure, surfaces non-401 errors, and emits a terminal session effect only for 401. It is scoped to a `ConversationScreen`-owned `ViewModelStore` that is cleared when the conversation leaves composition, preserving the previous `remember` lifetime instead of accidentally retaining appearance state at Activity scope. The live route now consumes `AppContainer.conversationAppearanceRepository` directly and the temporary core preference aliases are removed.
+`feature/messages/details` owns stable search/context/shared-media/mute models,
+repository contract/implementation, lifecycle state, dialog rendering,
+MediaPlayer lifecycle, and full-photo UI. Characterization preserves the current
+key-based behavior where selecting an already-active media filter or pressing
+the existing load-more control does not issue an additional media request.
+
+Phase 2 PR 15 introduced `feature/messages/appearance/model`, `data`, and
+`data/remote`. `ConversationAppearanceRepository` exposes the current preference
+read and theme write contract; `ConversationAppearanceRemoteRepository` owns the
+existing authenticated REST calls, token refresh/session clearing, local
+`nova_conversation_themes` SharedPreferences fallback, theme-key normalization,
+and legacy-backend fallback that re-sends `muted` with `theme_key`.
+
+Phase 2 PR 16 adds `ConversationAppearanceViewModel` and
+`ConversationAppearanceUiState`. They own the initial preference load, existing
+`NovaChatThemes.resolve` key semantics (injected from UI so Compose `Color` stays
+out of the state owner), picker visibility, save-in-flight lock, optimistic
+selected key, previous-key rollback, inline non-401 error, and terminal-401
+effect. The view model is scoped to a `ConversationScreen`-owned
+`ViewModelStore` that is cleared when the route leaves composition, preserving
+the prior `remember(conversationId)` lifetime rather than retaining state at
+Activity scope. `ConversationScreen` consumes
+`AppContainer.conversationAppearanceRepository` directly and the temporary
+`NovaConversationPreferenceRepository` compatibility aliases are removed.
 
 ## Backend ownership map
 
@@ -151,11 +192,13 @@ accounts/
 `- behavior/regression test modules
 ```
 
-All domain packages remain inside `accounts` until package boundaries are stable. Moving model app ownership, table identity, or migrations is outside the current plan.
+All domain packages remain inside `accounts` until package boundaries are stable.
+Moving model app ownership, table identity, or migrations is outside the current
+plan.
 
 ## Current construction and error pattern
 
-The shell uses:
+The shell now uses:
 
 ```text
 NovaApplication -> AppContainer -> shared API/repositories
@@ -163,4 +206,23 @@ MainActivity -> NovaAppHost -> AppViewModel -> AppState
 feature entry -> AppNavigator -> active host or special-Activity fallback
 ```
 
-Most un-consolidated feature routes still mix repository construction, mutable domain state, coroutines, status-code interpretation, navigation mutation, and rendering. Messages has progressively removed those responsibilities from inbox, conversation core, composer, details, and appearance. Group orchestration and the remaining V8/V9 route/chrome layering are the next Phase 2 responsibilities before the direct stable conversation-screen switch.
+Most feature routes still use the earlier pattern, which later phases replace
+one responsibility at a time:
+
+```text
+route Composable
+|- remember(context) { Repository(applicationContext) }
+|- mutable UI and domain state
+|- coroutines and network/realtime calls
+|- status-code/session interpretation
+|- navigation mutation
+`- rendering
+```
+
+`AppViewModel` owns global session restore/current-user state, terminal session
+logout, and durable primary-overlay state. Feature state owners still report
+terminal session effects to routes; central session-expiry ownership is a later
+cross-feature cleanup. The inbox, conversation core, composer, details data/
+state/UI, and appearance data/lifecycle ownership now have focused stable
+owners. Group orchestration and the V8/V9 route/chrome layering remain on the
+Phase 2 extraction path.
