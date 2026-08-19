@@ -1,6 +1,6 @@
 # Current ownership and entry paths
 
-Snapshot: Phase 2 PR 18, based on `088749b3f8ddde3772ba5aa7efd7d622b6f9117e`.
+Snapshot: Phase 2 PR 19, based on `20b909ddb9ab225c0954942f859fc73bcd5a1f94`.
 
 This file records current behavior. A row with several current owners identifies
 consolidation work; it does not imply that one of those paths may be removed
@@ -47,7 +47,7 @@ Messages and Reels overlays. That state-preservation behavior is protected.
 | nested social roots | `NovaApp`, `NovaRootNavigationSignal`, `rootNavigationPlan` | secondary-to-secondary resets through Home | typed child destinations/policy |
 | push/deep-link parsing | `MainActivity.routePushIntent`, `NovaPushOpenSignal`, special navigators | exact push kinds/data keys and fallback behavior | `DeepLinkRouter` |
 | session expiry | `AppViewModel` coordinates logout and global state; feature state owners report terminal 401 effects | logout/clear state and return to authentication on terminal 401 | `AppViewModel` until a core session package is extracted |
-| dependency construction | `AppContainer` for shell/auth/feed/social/messages, conversation tools/appearance, managed-group transport, plus conversation realtime/draft factories; remaining feature routes still construct specialized repositories | repositories and transports use application context | expand the explicit container feature by feature |
+| dependency construction | `AppContainer` for shell/auth/feed/social/messages, conversation tools/appearance, managed-group and membership transport, plus conversation realtime/draft factories; remaining feature routes still construct specialized repositories | repositories and transports use application context | expand the explicit container feature by feature |
 | unread sync | `MainActivity`, `InboxViewModel`, `NovaMessagesSignal` | inbox count refresh at startup/resume/read/back | Messages state owner |
 | global call pill | `MainActivity`, `MessagesActivity`, `ReelsActivity` | active call remains reachable | app host / shared special-entry shell |
 
@@ -114,7 +114,7 @@ remove that parity before a device test establishes a replacement.
 | Composer/media/voice | `ConversationComposer` | `ConversationComposerState` owns recorder, permission/picker, ephemeral attachment/voice drafts, cleanup, and the sole IME/navigation-bar padding; `ConversationViewModel` owns textual draft persistence and optimistic sends | `feature/messages/conversation` composer boundary |
 | Message details/search/media | stable `ConversationDetailsDialog` | `ConversationDetailsViewModel`/`ConversationDetailsUiState`, `ConversationToolsRepository`, and stable details data/model packages; dialog owns unchanged media-player/full-photo platform UI | `feature/messages/details` |
 | Conversation theme | `ConversationScreen`, `NovaChatThemePicker` | `ConversationAppearanceViewModel`/`ConversationAppearanceUiState` own load/save/optimistic rollback/picker state and terminal-401 effects; stable appearance repository owns HTTP/auth/local fallback/legacy-backend compatibility; palette/color rendering remains UI-owned | `feature/messages/appearance` |
-| Group management | `ConversationScreen`, `GroupInfoDialog` | stable group models plus `GroupManagementRepository`/`GroupManagementRemoteRepository` own managed detail/rename/avatar/remove-avatar/role transport; `AppContainer` owns that interface; historical membership transport and UI orchestration remain | `feature/messages/group` |
+| Group management | `ConversationScreen`, `GroupInfoDialog` | stable group models plus `GroupManagementRepository`/`GroupManagementRemoteRepository` own managed detail/rename/avatar/remove-avatar/role transport; `GroupMembershipRepository`/`GroupMembershipRemoteRepository` own create/detail/add/remove/leave/delete transport; `AppContainer` owns both interfaces; UI orchestration remains historical | `feature/messages/group` |
 | Calls | `CallActivity` | `NovaCallController`, signaling, WebRTC, Telecom, notifications/history | `feature/calls` boundaries with explicit state machine |
 | notifications/sharing | notification screen/share dialog | notification, push, messaging/social repositories | `feature/notifications`, `feature/sharing` |
 | privacy/settings/security | special Activities and feature screens | privacy/auth/social repositories and UI callbacks | corresponding feature packages |
@@ -193,8 +193,19 @@ timeouts, response parsing, auth refresh/session clearing, error mapping, and
 Coolify URL. `AppContainer` owns the stable interface. The old
 `NovaGroupManagementRepository` symbol is temporarily a constructor-compatible
 typealias so `GroupInfoDialog` remains behaviorally untouched until state/UI
-orchestration moves. The membership-side repository is intentionally unchanged
-in this PR.
+orchestration moves.
+
+Phase 2 PR 19 adds `feature/messages/group/data/GroupMembershipRepository.kt`
+and `data/remote/GroupMembershipRemoteRepository.kt`. The remote implementation
+is the moved membership-side transport: exact group create/detail/add/remove/
+leave/delete paths and methods, title/member normalization and validation,
+`deleted=true` null-detail behavior, cached-current-user leave semantics,
+conversation/member parsing, auth refresh/session clearing, error mapping,
+timeouts, URL encoding, relative media resolution, and the Coolify production
+URL. `AppContainer` owns the stable interface. The old
+`NovaGroupMessagingRepository` symbol remains temporarily as a
+constructor-compatible typealias so current group dialogs and add-member flows
+continue unchanged until their state/UI orchestration moves.
 
 ## Backend ownership map
 
@@ -246,6 +257,6 @@ logout, and durable primary-overlay state. Feature state owners still report
 terminal session effects to routes; central session-expiry ownership is a later
 cross-feature cleanup. The inbox, conversation core, composer, details data/
 state/UI, appearance data/lifecycle ownership, shared group model ownership, and
-management-side group transport now have focused stable owners. Membership
-transport, group UI/state orchestration, and the V8/V9 route/chrome layering
-remain on the Phase 2 extraction path.
+both group transport slices now have focused stable owners. Group UI/state
+orchestration and the V8/V9 route/chrome layering remain on the Phase 2
+extraction path.
