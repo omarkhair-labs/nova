@@ -12,10 +12,10 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.nova.app.MainActivity
 import com.nova.app.R
-import com.nova.app.core.calls.NovaCallKind
 import com.nova.app.core.calls.NovaCallNotification
 import com.nova.app.core.messaging.NovaActiveConversation
 import com.nova.app.core.messaging.NovaMessagesSignal
+import com.nova.app.feature.calls.domain.model.NovaCallKind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
