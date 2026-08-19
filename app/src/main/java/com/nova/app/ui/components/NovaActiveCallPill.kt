@@ -37,8 +37,8 @@ import androidx.compose.ui.unit.sp
 import com.nova.app.CallActivity
 import com.nova.app.core.calls.NovaActiveCallSignal
 import com.nova.app.core.calls.NovaActiveCallSummary
-import com.nova.app.core.calls.NovaCallKind
-import com.nova.app.core.calls.NovaCallStatus
+import com.nova.app.feature.calls.domain.model.NovaCallKind
+import com.nova.app.feature.calls.domain.model.NovaCallStatus
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBorder
