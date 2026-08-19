@@ -4,6 +4,7 @@ import android.content.Context
 import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
+import com.nova.app.feature.calls.data.CallRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -16,102 +17,31 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 
-enum class NovaCallKind(val wireValue: String) {
-    Audio("audio"),
-    Video("video");
-
-    companion object {
-        fun fromWire(value: String): NovaCallKind =
-            if (value.equals("video", ignoreCase = true)) Video else Audio
-    }
-}
-
-
-enum class NovaCallStatus(val wireValue: String) {
-    Ringing("ringing"),
-    Active("active"),
-    Declined("declined"),
-    Canceled("canceled"),
-    Ended("ended"),
-    Missed("missed"),
-    Failed("failed");
-
-    val isTerminal: Boolean
-        get() = this !in setOf(Ringing, Active)
-
-    companion object {
-        fun fromWire(value: String): NovaCallStatus =
-            entries.firstOrNull { it.wireValue == value } ?: Failed
-    }
-}
-
-
-data class NovaCallPerson(
-    val id: Long,
-    val username: String,
-    val name: String,
-    val avatarUrl: String,
-) {
-    val displayName: String
-        get() = name.ifBlank { username }
-}
-
-
-data class NovaCallSession(
-    val id: String,
-    val conversationId: Long,
-    val kind: NovaCallKind,
-    val status: NovaCallStatus,
-    val caller: NovaCallPerson,
-    val callee: NovaCallPerson,
-    val peer: NovaCallPerson,
-    val isCaller: Boolean,
-    val createdAt: String,
-    val answeredAt: String?,
-    val endedAt: String?,
-    val endReason: String,
-    val ringTimeoutSeconds: Int,
-)
-
-
-data class NovaIceServer(
-    val urls: List<String>,
-    val username: String = "",
-    val credential: String = "",
-)
-
-
-data class NovaIceConfig(
-    val servers: List<NovaIceServer>,
-    val turnConfigured: Boolean,
-)
-
-
 class NovaCallRepository(
     context: Context,
     private val api: NovaCallsApiClient = NovaCallsApiClient(PRODUCTION_API_URL),
     private val authApi: NovaApiClient = NovaApiClient(PRODUCTION_API_URL),
-) {
+) : CallRepository {
     private val appContext = context.applicationContext
     private val sessionStore = NovaSessionStore(appContext)
 
-    suspend fun createCall(conversationId: Long, kind: NovaCallKind): ApiResult<NovaCallSession> {
+    override suspend fun createCall(conversationId: Long, kind: NovaCallKind): ApiResult<NovaCallSession> {
         return authenticatedCall { token -> api.createCall(token, conversationId, kind) }
     }
 
-    suspend fun call(callId: String): ApiResult<NovaCallSession> {
+    override suspend fun call(callId: String): ApiResult<NovaCallSession> {
         return authenticatedCall { token -> api.call(token, callId) }
     }
 
-    suspend fun callAction(callId: String, action: String): ApiResult<NovaCallSession> {
+    override suspend fun callAction(callId: String, action: String): ApiResult<NovaCallSession> {
         return authenticatedCall { token -> api.callAction(token, callId, action) }
     }
 
-    suspend fun iceConfig(): ApiResult<NovaIceConfig> {
+    override suspend fun iceConfig(): ApiResult<NovaIceConfig> {
         return authenticatedCall { token -> api.iceConfig(token) }
     }
 
-    suspend fun realtimeAccessToken(): ApiResult<String> {
+    override suspend fun realtimeAccessToken(): ApiResult<String> {
         val stored = sessionStore.load()
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
 
