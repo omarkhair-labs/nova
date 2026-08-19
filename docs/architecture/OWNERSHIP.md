@@ -1,6 +1,6 @@
 # Current ownership and entry paths
 
-Snapshot: Phase 2 PR 14, based on `53347f9ded1db5761207c1a16bcb09d9117bad4a`.
+Snapshot: Phase 2 PR 15, based on `35799acc443d8a5174b793aeb6e9624423bd635a`.
 
 This file records current behavior. A row with several current owners identifies
 consolidation work; it does not imply that one of those paths may be removed
@@ -47,7 +47,7 @@ Messages and Reels overlays. That state-preservation behavior is protected.
 | nested social roots | `NovaApp`, `NovaRootNavigationSignal`, `rootNavigationPlan` | secondary-to-secondary resets through Home | typed child destinations/policy |
 | push/deep-link parsing | `MainActivity.routePushIntent`, `NovaPushOpenSignal`, special navigators | exact push kinds/data keys and fallback behavior | `DeepLinkRouter` |
 | session expiry | `AppViewModel` coordinates logout and global state; feature state owners report terminal 401 effects | logout/clear state and return to authentication on terminal 401 | `AppViewModel` until a core session package is extracted |
-| dependency construction | `AppContainer` for shell/auth/feed/social/messages, conversation tools, plus conversation realtime/draft factories; remaining feature routes still construct specialized repositories | repositories and transports use application context | expand the explicit container feature by feature |
+| dependency construction | `AppContainer` for shell/auth/feed/social/messages, conversation tools and appearance, plus conversation realtime/draft factories; remaining feature routes still construct specialized repositories | repositories and transports use application context | expand the explicit container feature by feature |
 | unread sync | `MainActivity`, `InboxViewModel`, `NovaMessagesSignal` | inbox count refresh at startup/resume/read/back | Messages state owner |
 | global call pill | `MainActivity`, `MessagesActivity`, `ReelsActivity` | active call remains reachable | app host / shared special-entry shell |
 
@@ -112,7 +112,9 @@ remove that parity before a device test establishes a replacement.
 | Messages inbox | `MessagesRoute`, `MessagesScreen` | `InboxViewModel`/`InboxUiState`, feature-owned domain models, `InboxRepository`, and refresh signals | `feature/messages/inbox` |
 | Conversation | `ConversationScreen` -> V9 -> V8 | `ConversationViewModel`/`ConversationUiState` own server behavior; stateless list/rows and the focused composer render their state and callbacks | `feature/messages/conversation` + stateless header |
 | Composer/media/voice | `ConversationComposer` | `ConversationComposerState` owns recorder, permission/picker, ephemeral attachment/voice drafts, cleanup, and the sole IME/navigation-bar padding; `ConversationViewModel` owns textual draft persistence and optimistic sends | `feature/messages/conversation` composer boundary |
-| Message details/search/media/theme/groups | stable `ConversationDetailsDialog`, group dialogs, theme picker | `ConversationDetailsViewModel`/`ConversationDetailsUiState` own tab/query/search/media/context/mute async state and terminal-401 effects; `ConversationToolsRepository` owns data; `ConversationDetailsDialog` owns the unchanged details rendering, media-player lifecycle and full-photo UI; theme/group orchestration remains outside this owner | responsibility-specific Messages packages |
+| Message details/search/media | stable `ConversationDetailsDialog` | `ConversationDetailsViewModel`/`ConversationDetailsUiState`, `ConversationToolsRepository`, and stable details data/model packages; dialog owns unchanged media-player/full-photo platform UI | `feature/messages/details` |
+| Conversation theme | outer `ConversationScreen`, `NovaChatThemePicker` | stable `ConversationAppearanceRepository`/`ConversationAppearanceRemoteRepository` now own theme HTTP/auth/local fallback/legacy-backend compatibility; outer screen still reaches the old compatibility alias and owns load/save/rollback/picker state until the next slice | `feature/messages/appearance` |
+| Group management | `ConversationScreen`, `GroupInfoDialog` | group repositories and UI-owned orchestration | `feature/messages/group` |
 | Calls | `CallActivity` | `NovaCallController`, signaling, WebRTC, Telecom, notifications/history | `feature/calls` boundaries with explicit state machine |
 | notifications/sharing | notification screen/share dialog | notification, push, messaging/social repositories | `feature/notifications`, `feature/sharing` |
 | privacy/settings/security | special Activities and feature screens | privacy/auth/social repositories and UI callbacks | corresponding feature packages |
@@ -120,77 +122,49 @@ remove that parity before a device test establishes a replacement.
 ## Phase 2 Messages dependency boundary
 
 `feature/messages/domain/model/MessagingModels.kt` owns the nine live
-conversation, message, reply, reaction, share, list, and page models. Thirteen
-production/test consumers import that package directly; no compatibility
-typealiases remain in `core/messaging` for the core conversation model slice.
+conversation, message, reply, reaction, share, list, and page models. The core
+conversation model slice no longer relies on V-number compatibility types.
 
 `feature/messages/data/MessagesRepository.kt` defines the existing conversation
 mutation, read-marker, and realtime-token data operations;
 `feature/messages/data/InboxRepository.kt` owns paged inbox/search loading.
 `NovaMessagingRepository` and `NovaInboxPagingRepository` are the production
 implementations. `AppContainer` owns both interfaces, and
-`NovaConversationRealtimeClient` depends on `MessagesRepository`. Deterministic
-test fakes capture every argument and return configured `ApiResult` values. The
-Messages interface temporarily retains Android media inputs for exact composer
-parity; a later data cleanup can replace those Android media types only with
-separate characterization.
+`NovaConversationRealtimeClient` depends on `MessagesRepository`.
 
-`feature/messages/inbox/InboxViewModel.kt` is the lifecycle-aware owner for the
-inbox query, 260 ms debounce, page cursor, ordered ID deduplication, unread
-state, loading/error flags, stale-response suppression, and terminal-session
-effect. `MessagesScreen` renders that state and forwards UI intents; it retains
-the existing refresh signal and route callbacks without constructing a
-repository or launching data coroutines.
+`feature/messages/inbox/InboxViewModel.kt` owns inbox query/debounce/paging,
+ordered ID deduplication, unread state, loading/errors, stale-response
+suppression, and terminal-session effects. `MessagesScreen` renders that state
+and forwards intents.
 
 `feature/messages/conversation/ConversationViewModel.kt` owns message-page
-loading, ordered earlier-page deduplication, optimistic send/retry identity,
-edit/delete/reaction mutations, local text-draft debounce, unread/read effects,
-presence/typing state, delivery/read receipts, and realtime update/delete/
-reaction reconciliation. `ConversationRealtime` and `ConversationDraftStore`
-make those behaviors deterministic in JVM tests; the production realtime client
-and draft store implement the boundaries, and `AppContainer` constructs them.
-V8 retains route wiring, header/delete/photo overlays, and shared-item
-navigation around the extracted list and composer components.
+loading, earlier-page deduplication, optimistic send/retry identity, edit/delete/
+reaction mutations, text-draft debounce, unread/read effects, presence/typing,
+delivery/read receipts, and realtime reconciliation. Production realtime/draft
+implementations are constructed by `AppContainer`.
 
-`ConversationMessageList.kt` renders loading/empty/paged list state and delegates
-all intents through callbacks. Its pure `messageRowContext` retains the exact
-date-divider, sender-compaction, group-name, and unread-anchor decisions.
-`ConversationMessageRow.kt` owns message/pending bubbles, reply/share cards,
-reaction/actions, voice playback, receipt labels, swipe-to-reply, and full-screen
-photos. Shared post/profile/Reel navigation is callback-owned by the route.
+`ConversationMessageList.kt` and `ConversationMessageRow.kt` own stateless list
+and row rendering around callback-owned navigation/mutations.
+`ConversationComposer.kt` owns photo picking, microphone permission, recorder
+platform state, recording limits, temporary cleanup, previews, reply/edit
+context, send eligibility, and the sole conversation `imePadding` responsibility.
 
-`ConversationComposer.kt` owns photo picking, microphone permission, the
-`ConversationVoiceRecorder` boundary, recording timers and 1-second/5-minute
-rules, temporary-file cleanup, attachment previews, reply/edit context, send
-eligibility, and composer rendering. Its bottom-bar column is the only
-conversation `imePadding` owner; the outer route no longer shifts the header or
-overlays when the IME opens. `ConversationViewModel` remains the owner of text
-drafts and server mutations.
+`feature/messages/details` owns stable search/context/shared-media/mute models,
+repository contract/implementation, lifecycle state, dialog rendering,
+MediaPlayer lifecycle, and full-photo UI. Characterization preserves the current
+key-based behavior where selecting an already-active media filter or pressing
+the existing load-more control does not issue an additional media request.
 
-`feature/messages/details/model` and `feature/messages/details/data` own stable
-conversation search/context/shared-media/mute models and contracts.
-`ConversationToolsRemoteRepository` owns the unchanged HTTP/auth/refresh/error/
-parsing implementation and `AppContainer` owns one instance. There are no V9
-compatibility aliases in this data path.
-
-`ConversationDetailsViewModel` and `ConversationDetailsUiState` own the exact
-320 ms/200-character search policy, search/media/context/mute loading and errors,
-tab and target state, terminal-401 effect version, and dialog-scoped
-cancellation. The view model is scoped to a dialog-owned `ViewModelStore`, which
-is cleared when the dialog is removed so reopening resets state and cancels work
-as the previous `LaunchedEffect` implementation did. Characterization preserves
-the current key-based behavior where selecting an already-active media filter
-or pressing the existing load-more control does not issue an additional media
-request. Fixing that product behavior is not part of architecture consolidation.
-
-Phase 2 PR 14 moves the complete details/search/media/context visual tree,
-including the unchanged `MediaPlayer` prepare/play/pause/error lifecycle and
-full-screen shared-photo dialog, into stable
-`feature/messages/details/ConversationDetailsDialog.kt`. Helper names lose the
-historical V9 label while retaining the exact text, dimensions, insets, colors,
-and callbacks. `ConversationScreenV9` is reduced to its remaining historical
-wrapper responsibility: V8 composition plus the transparent identity hit target
-that opens the stable details dialog.
+Phase 2 PR 15 introduces `feature/messages/appearance/model`, `data`, and
+`data/remote`. `ConversationAppearanceRepository` exposes the current preference
+read and theme write contract; `ConversationAppearanceRemoteRepository` owns the
+existing authenticated REST calls, token refresh/session clearing, local
+`nova_conversation_themes` SharedPreferences fallback, theme-key normalization,
+and legacy-backend fallback that re-sends `muted` with `theme_key`. The old
+`NovaConversationPreferenceRepository` implementation body is replaced by
+temporary deprecated aliases so the current outer screen behavior remains
+unchanged until the next state-owner switch. `AppContainer` owns the stable
+appearance repository instance.
 
 ## Backend ownership map
 
@@ -240,8 +214,7 @@ route Composable
 `AppViewModel` owns global session restore/current-user state, terminal session
 logout, and durable primary-overlay state. Feature state owners still report
 terminal session effects to routes; central session-expiry ownership is a later
-cross-feature cleanup. The inbox, core conversation data path, message
-rendering, composer platform work, conversation-tools data implementation,
-details async orchestration, and details visual/platform UI now have focused
-stable owners. Theme preferences, groups, and the V8/V9 route/chrome layering
-remain on the Phase 2 extraction path.
+cross-feature cleanup. The inbox, conversation core, composer, details data/
+state/UI, and appearance data implementation now have focused stable owners.
+Theme lifecycle/picker state, groups, and the V8/V9 route/chrome layering remain
+on the Phase 2 extraction path.

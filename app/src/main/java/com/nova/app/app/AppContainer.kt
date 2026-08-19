@@ -13,6 +13,8 @@ import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.NovaPostAuthor
 import com.nova.app.core.social.NovaSocialRepository
+import com.nova.app.feature.messages.appearance.data.ConversationAppearanceRepository
+import com.nova.app.feature.messages.appearance.data.remote.ConversationAppearanceRemoteRepository
 import com.nova.app.feature.messages.conversation.ConversationDraftStore
 import com.nova.app.feature.messages.conversation.ConversationRealtime
 import com.nova.app.feature.messages.data.InboxRepository
@@ -34,6 +36,7 @@ class AppContainer(context: Context) {
     val messagingRepository: MessagesRepository = NovaMessagingRepository(appContext, messagingApi, api)
     val inboxRepository: InboxRepository = NovaInboxPagingRepository(appContext)
     val conversationToolsRepository: ConversationToolsRepository = ConversationToolsRemoteRepository(appContext)
+    val conversationAppearanceRepository: ConversationAppearanceRepository = ConversationAppearanceRemoteRepository(appContext)
     val socialRepository = NovaSocialRepository(appContext, api)
     val appNavigator = AppNavigationBridge()
 
