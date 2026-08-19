@@ -64,13 +64,14 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.nova.app.app.appContainer
 import com.nova.app.core.calls.NovaAudioRouteState
 import com.nova.app.core.calls.NovaCallAudioRouter
-import com.nova.app.core.calls.NovaCallController
-import com.nova.app.core.calls.NovaCallKind
-import com.nova.app.core.calls.NovaCallLaunchSpec
-import com.nova.app.core.calls.NovaCallPerson
-import com.nova.app.core.calls.NovaCallUiState
+import com.nova.app.feature.calls.CallLaunchSpec
+import com.nova.app.feature.calls.CallStateOwner
+import com.nova.app.feature.calls.CallUiState
+import com.nova.app.feature.calls.domain.model.NovaCallKind
+import com.nova.app.feature.calls.domain.model.NovaCallPerson
 import com.nova.app.ui.components.NovaMediaImage
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
@@ -88,8 +89,8 @@ import org.webrtc.VideoTrack
 
 
 class CallActivity : ComponentActivity() {
-    private lateinit var controller: NovaCallController
-    private var currentUiState: NovaCallUiState? = null
+    private lateinit var controller: CallStateOwner
+    private var currentUiState: CallUiState? = null
     private var pictureInPictureMode by mutableStateOf(false)
 
     private val permissionLauncher = registerForActivityResult(
@@ -113,10 +114,14 @@ class CallActivity : ComponentActivity() {
             finish()
             return
         }
-        controller = NovaCallController(
+        val calls = applicationContext.appContainer
+        controller = CallStateOwner(
             context = applicationContext,
             scope = lifecycleScope,
             launchSpec = spec,
+            repository = calls.callRepository,
+            signalingFactory = calls::callSignaling,
+            webRtcFactory = calls::callWebRtcEngine,
             requestPermissions = ::requestCallPermissions,
             onFinished = {
                 if (!isFinishing) finish()
@@ -193,13 +198,13 @@ class CallActivity : ComponentActivity() {
         }
     }
 
-    private fun minimizeCall(state: NovaCallUiState) {
+    private fun minimizeCall(state: CallUiState) {
         if (!enterVideoPictureInPicture(state)) {
             moveTaskToBack(true)
         }
     }
 
-    private fun enterVideoPictureInPicture(state: NovaCallUiState): Boolean {
+    private fun enterVideoPictureInPicture(state: CallUiState): Boolean {
         if (
             pictureInPictureMode ||
             state.kind != NovaCallKind.Video ||
@@ -242,12 +247,12 @@ class CallActivity : ComponentActivity() {
     private fun hasPermission(permission: String): Boolean =
         ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
 
-    private fun parseLaunchSpec(intent: Intent): NovaCallLaunchSpec? {
+    private fun parseLaunchSpec(intent: Intent): CallLaunchSpec? {
         val mode = intent.getStringExtra(EXTRA_MODE).orEmpty()
         if (mode == MODE_OUTGOING) {
             val conversationId = intent.getLongExtra(EXTRA_CONVERSATION_ID, -1L)
             if (conversationId <= 0L) return null
-            return NovaCallLaunchSpec.Outgoing(
+            return CallLaunchSpec.Outgoing(
                 conversationId = conversationId,
                 kind = NovaCallKind.fromWire(intent.getStringExtra(EXTRA_CALL_KIND).orEmpty()),
                 peer = peerFromIntent(intent),
@@ -256,7 +261,7 @@ class CallActivity : ComponentActivity() {
 
         val callId = intent.getStringExtra(EXTRA_CALL_ID).orEmpty()
         if (callId.isBlank()) return null
-        return NovaCallLaunchSpec.Existing(
+        return CallLaunchSpec.Existing(
             callId = callId,
             requestedAction = actionValue(intent.action),
             fallbackPeer = peerFromIntent(intent).takeIf { it.username.isNotBlank() || it.name.isNotBlank() },
@@ -340,10 +345,10 @@ class CallActivity : ComponentActivity() {
         }
 
         private fun actionValue(action: String?): String = when (action) {
-            ACTION_ANSWER_CALL -> NovaCallController.ACTION_ANSWER
-            ACTION_DECLINE_CALL -> NovaCallController.ACTION_DECLINE
-            ACTION_END_CALL -> NovaCallController.ACTION_END
-            else -> NovaCallController.ACTION_OPEN
+            ACTION_ANSWER_CALL -> CallStateOwner.ACTION_ANSWER
+            ACTION_DECLINE_CALL -> CallStateOwner.ACTION_DECLINE
+            ACTION_END_CALL -> CallStateOwner.ACTION_END
+            else -> CallStateOwner.ACTION_OPEN
         }
     }
 }
@@ -351,7 +356,7 @@ class CallActivity : ComponentActivity() {
 
 @Composable
 private fun CallScreen(
-    state: NovaCallUiState,
+    state: CallUiState,
     audioRoute: NovaAudioRouteState,
     isPictureInPicture: Boolean,
     onAnswer: () -> Unit,
@@ -607,7 +612,7 @@ private fun CallIdentity(
 
 @Composable
 private fun CallControls(
-    state: NovaCallUiState,
+    state: CallUiState,
     audioRoute: NovaAudioRouteState,
     onAnswer: () -> Unit,
     onDecline: () -> Unit,
