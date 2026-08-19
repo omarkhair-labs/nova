@@ -1,6 +1,6 @@
 # Current ownership and entry paths
 
-Snapshot: Phase 2 final enforcement, based on `41117cb0859460a6819c1946b4055799e672ff75`.
+Snapshot: Phase 3 Calls closing enforcement, based on the #123 consolidation branch from `b194d170d1f1a36a8dd6bd80ee5be3815d3115f4`.
 
 This file records current behavior. A row with several current owners identifies
 consolidation work; it does not imply that one of those paths may be removed
@@ -26,7 +26,7 @@ NovaApplication
 Special Activities
 |- MessagesActivity (inbox fallback and direct notification conversation entry)
 |- ReelsActivity (root fallback and profile-Reel entry)
-|- CallActivity (call lifecycle, PiP, Telecom/WebRTC UI)
+|- CallActivity (call window, permissions, PiP, and Compose host)
 |- SettingsActivity
 |- PrivacyActivity
 |- AccountSecurityActivity
@@ -46,7 +46,7 @@ Messages and Reels overlays. That state-preservation behavior is protected.
 | nested social roots | `NovaApp`, `NovaRootNavigationSignal`, `rootNavigationPlan` | secondary-to-secondary resets through Home | typed child destinations/policy |
 | push/deep-link parsing | `MainActivity.routePushIntent`, `NovaPushOpenSignal`, special navigators | exact push kinds/data keys and fallback behavior | `DeepLinkRouter` |
 | session expiry | `AppViewModel` coordinates logout and global state; feature state owners report terminal 401 effects | logout/clear state and return to authentication on terminal 401 | `AppViewModel` until a core session package is extracted |
-| dependency construction | `AppContainer` for shell/auth/feed/social/messages, conversation tools/appearance, group management/membership/people lookup, plus conversation realtime/draft factories; remaining non-Messages feature routes may still construct specialized repositories | repositories and transports use application context; Messages UI consumes stable interfaces/state owners | expand the explicit container feature by feature |
+| dependency construction | `AppContainer` for shell/auth/feed/social/messages and stable Calls repository/signaling/WebRTC construction, plus conversation tools/appearance, group management/membership/people lookup, and conversation realtime/draft factories; remaining non-consolidated feature routes may still construct specialized repositories | repositories and transports use application context; consolidated feature UI consumes stable interfaces/state owners | expand the explicit container feature by feature |
 | unread sync | `MainActivity`, `InboxViewModel`, `NovaMessagesSignal` | inbox count refresh at startup/resume/read/back | Messages state owner |
 | global call pill | `MainActivity`, `MessagesActivity`, `ReelsActivity` | active call remains reachable | app host / shared special-entry shell |
 
@@ -89,7 +89,7 @@ tree. Empty intents are ignored by the signal.
 | `MainActivity` | yes | launcher and notification `onNewIntent` | edge-to-edge + manifest `adjustResize` | route content owns status/navigation insets; `ConversationComposer` alone consumes navigation-bar/IME insets |
 | `MessagesActivity` | no | inbox fallback or direct conversation | edge-to-edge + manifest `adjustResize` | same Messages/Conversation content as primary overlay; composer alone consumes bottom/IME insets |
 | `ReelsActivity` | no | root fallback or profile Reel | edge-to-edge + manifest `adjustResize` | Reels/profile viewer status-bar padding; sheets own bottom insets |
-| `CallActivity` | no | call intents/notifications | edge-to-edge, resizeable, PiP, separate call task affinity | call UI owns status/navigation padding |
+| `CallActivity` | no | call intents/notifications | edge-to-edge, resizeable, PiP, separate call task affinity; delegates call state/lifecycle to `CallStateOwner` | call UI owns status/navigation padding; Activity owns permission launcher and PiP/window policy |
 | `SettingsActivity` | no | explicit internal intent | edge-to-edge | screen status/system-bottom padding |
 | `PrivacyActivity` | no | explicit internal intent | edge-to-edge | privacy screen owns status/navigation padding |
 | `AccountSecurityActivity` | no | explicit internal intent | edge-to-edge | security page owns status/navigation/IME padding |
@@ -115,7 +115,7 @@ remove that parity before a device test establishes a replacement.
 | Message details/search/media | stable `ConversationDetailsDialog` | `ConversationDetailsViewModel`/`ConversationDetailsUiState`, `ConversationToolsRepository`, and stable details data/model packages; dialog owns unchanged media-player/full-photo platform UI | `feature/messages/details` |
 | Conversation theme | `ConversationScreen`, `NovaChatThemePicker` | `ConversationAppearanceViewModel`/`ConversationAppearanceUiState` own load/save/optimistic rollback/picker state and terminal-401 effects; stable appearance repository owns HTTP/auth/local fallback/legacy-backend compatibility; palette/color rendering remains UI-owned | `feature/messages/appearance` |
 | Group management | `ConversationScreen`, `GroupInfoDialog`, stable add-members/new-group dialogs | stable group models and `GroupManagementRepository`/`GroupMembershipRepository`/`GroupPeopleRepository`; `GroupInfoViewModel`, `AddGroupMembersViewModel`, `NewGroupViewModel` own async state and terminal effects | `feature/messages/group` |
-| Calls | `CallActivity` | `NovaCallController`, signaling, WebRTC, Telecom, notifications/history | `feature/calls` boundaries with explicit state machine |
+| Calls | `CallActivity` as Android window/permission/PiP/Compose host | `feature/calls/CallStateOwner`, stable call domain models, `CallRepository`, `CallSignaling`, `CallWebRtcEngine`; `core/calls` retains production REST/signaling/WebRTC/Telecom/notification adapters | stable `feature/calls` ownership with platform adapters behind explicit boundaries |
 | notifications/sharing | notification screen/share dialog | notification, push, messaging/social repositories | `feature/notifications`, `feature/sharing` |
 | privacy/settings/security | special Activities and feature screens | privacy/auth/social repositories and UI callbacks | corresponding feature packages |
 
@@ -247,6 +247,36 @@ consumers use stable group models. `scripts/check_messages_architecture.py` is a
 CI boundary check that rejects the historical V8/V9/group compatibility symbols
 and asserts the focused stable Messages owners are present.
 
+## Phase 3 Calls dependency boundary
+
+`feature/calls/domain/model/CallModels.kt` owns the live call kind/status/person/
+session and ICE records. `feature/calls/data/CallRepository.kt` owns REST/ICE/auth
+access, while `feature/calls/signaling/CallSignaling.kt` owns signaling status and
+event records plus the transport contract. `feature/calls/webrtc` owns the WebRTC
+contract and audio-quality records.
+
+`feature/calls/CallStateOwner.kt` is the live call lifecycle/state owner. It owns
+launch state, permission handoff, accept/decline/end, signaling negotiation and
+recovery, media-quality recovery, duration state, and the call UI state machine.
+`CallActivity` is intentionally limited to Android window/show-when-locked,
+runtime-permission launcher, PiP, Compose rendering, intent parsing, and the
+existing `start()`/`release()` lifecycle timing.
+
+`AppContainer` owns production `CallRepository` construction and the signaling/
+WebRTC factories. `core/calls` retains the production adapters that inherently
+touch Android or transport implementation details: REST parsing, OkHttp WebSocket,
+WebRTC engine, Telecom/audio routing, call notifications, active-call signal, and
+action fallback dispatch. Those adapters import stable feature call records
+directly; the old core model/audio-quality aliases and unreachable
+`NovaCallController` are deleted.
+
+`scripts/check_calls_architecture.py` enforces the stable Calls owners, rejects
+the deleted controller/compatibility files and imports, and verifies that
+`CallActivity` delegates live state to `CallStateOwner`. This structural
+boundary does not alter REST/WS payloads, signaling replay/reconnect/negotiation
+IDs, ICE/TURN/SDP behavior, Telecom callbacks, notification intents/actions,
+ring timeout, or call-history semantics.
+
 ## Backend ownership map
 
 ```text
@@ -281,8 +311,8 @@ MainActivity -> NovaAppHost -> AppViewModel -> AppState
 feature entry -> AppNavigator -> active host or special-Activity fallback
 ```
 
-Most non-Messages feature routes may still use the earlier pattern, which later
-phases replace one responsibility at a time:
+Most non-consolidated feature routes may still use the earlier pattern, which
+later phases replace one responsibility at a time:
 
 ```text
 route Composable
@@ -296,9 +326,12 @@ route Composable
 
 Messages no longer relies on that route-owned network orchestration pattern for
 its inbox, direct-message opening, conversation core, details, appearance, or
-group workflows. `AppViewModel` owns global session restore/current-user state,
-terminal session logout, and durable primary-overlay state. Feature state owners
-still report terminal session effects to routes; central session-expiry ownership
-is a later cross-feature cleanup. Platform-only UI responsibilities such as
-MediaPlayer, picker/permission launchers, recorder state, and the composer's sole
-IME/navigation-bar inset consumption remain intentionally with focused UI owners.
+group workflows. Calls likewise has stable domain/data/signaling/WebRTC
+boundaries and one live `CallStateOwner`, while Android/transport-specific
+implementations remain focused core adapters. `AppViewModel` owns global session
+restore/current-user state, terminal session logout, and durable primary-overlay
+state. Feature state owners still report terminal session effects to routes;
+central session-expiry ownership is a later cross-feature cleanup. Platform-only
+UI responsibilities such as MediaPlayer, picker/permission launchers, recorder
+state, and the composer's sole IME/navigation-bar inset consumption remain
+intentionally with focused UI owners.
