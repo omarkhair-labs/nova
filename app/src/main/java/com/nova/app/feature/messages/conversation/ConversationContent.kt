@@ -282,7 +282,7 @@ private fun ConversationHeader(
         realtimeStatus == NovaRealtimeStatus.Live && isTyping -> if (isGroupConversation) "Someone is typing…" else "typing…"
         isGroupConversation && realtimeStatus == NovaRealtimeStatus.Live -> "Group conversation"
         realtimeStatus == NovaRealtimeStatus.Live && online -> "Online"
-        realtimeStatus == NovaRealtimeStatus.Live && presence?.lastSeenAt != null -> formatLastSeen(presence.lastSeenAt)
+        realtimeStatus == NovaRealtimeStatus.Live && presence?.lastSeenAt != null -> formatConversationLastSeen(presence.lastSeenAt)
         realtimeStatus == NovaRealtimeStatus.Connecting -> "Connecting…"
         realtimeStatus == NovaRealtimeStatus.Reconnecting -> "Reconnecting…"
         realtimeStatus == NovaRealtimeStatus.Offline -> "Offline"
@@ -340,14 +340,14 @@ private fun openSharedProfile(context: android.content.Context, username: String
     )
 }
 
-private fun parseMessageInstant(value: String): Instant? {
+private fun parseConversationLastSeenInstant(value: String): Instant? {
     return runCatching { OffsetDateTime.parse(value).toInstant() }
         .recoverCatching { Instant.parse(value) }
         .getOrNull()
 }
 
-private fun formatLastSeen(value: String): String {
-    val instant = parseMessageInstant(value) ?: return "Last seen recently"
+private fun formatConversationLastSeen(value: String): String {
+    val instant = parseConversationLastSeenInstant(value) ?: return "Last seen recently"
     val zone = instant.atZone(ZoneId.systemDefault())
     val today = LocalDate.now()
     val date = zone.toLocalDate()
