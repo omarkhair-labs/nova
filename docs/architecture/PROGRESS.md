@@ -5,13 +5,13 @@ Update this table in every consolidation PR.
 | Field | Current state |
 |---|---|
 | Current phase | Phase 2 — Messages consolidation |
-| Active PR | Phase 2 PR 12 — switch the live V9 conversation-tools consumer to the `AppContainer`-owned stable repository and remove temporary V9 compatibility aliases |
-| CI status | Pending for Phase 2 PR 12; PRs #95–#106 passed on Blacksmith |
-| Completed ownership changes | Phase 1 shell ownership; Phase 2 domain/repository/state owners; live list/row rendering and composer platform state sit behind focused state/callback contracts; #106 moved conversation-tools HTTP/auth/parsing into `feature/messages/details`; PR 12 removes the remaining compatibility indirection from the live consumer |
-| Deleted legacy/versioned files | `NovaPrimaryHost.kt`; global `NovaPrimaryNavigationDispatcher.kt`; historical `NovaMessagingV9ToolsRepository.kt` implementation; PR 12 removes `ConversationToolsCompatibility.kt` after switching the only live V9 consumer to stable types/ownership |
-| Automated verification | Phase -1 through Phase 2 PR 11 passed Blacksmith CI. #106 passed full backend tests, `makemigrations --check`, Android JVM tests, `lintRelease`, `assembleDebug`, `assembleRelease`, and `bundleRelease`. PR 12 is wiring-only and must pass the same hosted gate before merge |
+| Active PR | Phase 2 PR 13 — move conversation details/search/media/mute asynchronous orchestration into `ConversationDetailsViewModel`/`ConversationDetailsUiState` |
+| CI status | Pending for Phase 2 PR 13; PRs #95–#107 passed on Blacksmith |
+| Completed ownership changes | Phase 1 shell ownership; Phase 2 domain/repository/inbox/conversation owners; list/rows/composer ownership; #106 established stable conversation-tools data ownership; #107 switched the live V9 consumer to `AppContainer`; PR 13 moves details tab/query/media/context/mute state and coroutines behind a lifecycle-aware owner |
+| Deleted legacy/versioned files | `NovaPrimaryHost.kt`; global `NovaPrimaryNavigationDispatcher.kt`; historical `NovaMessagingV9ToolsRepository.kt` implementation; `ConversationToolsCompatibility.kt` |
+| Automated verification | PRs #106 and #107 passed full hosted backend + Android gates. PR 13 adds JVM characterization for 200-character search/debounce, blank-query clearing, context state, mute/session behavior, media loading, and the current key-based active-filter/load-more behavior; hosted CI must be green before merge |
 | Remaining physical Samsung checks | Entire manual checklist in `SAMSUNG_SMOKE_CHECKLIST.md`; authorized Samsung SM-A266B detected previously, but non-destructive test install is blocked by its differently signed existing Nova package |
-| Exact next PR | Phase 2 PR 13 — move conversation details/search/media/mute asynchronous orchestration into a lifecycle-aware `ConversationDetailsViewModel`/state owner while preserving the existing V9 UI |
+| Exact next PR | Phase 2 PR 14 — extract the details/search/media/context rendering and media-player UI out of `ConversationScreenV9` into stable, callback-driven Messages details UI without changing the new state owner |
 
 ## Completed PRs
 
@@ -29,13 +29,14 @@ Update this table in every consolidation PR.
 | 2 | #104 | extract stateless message list/rows, date/unread grouping, reply/share/voice rendering, and full-screen photo UI | Android/backend Blacksmith CI; unread-count mutation check; full local release gate; 13/13 Android 16 emulator tests | revert merge commit `573fef8` |
 | 2 | #105 | extract conversation composer UI, recorder/platform state, attachment drafts, and sole IME/navigation-bar inset ownership | Android/backend Blacksmith CI; full JVM/release/artifact gate; exact-five-minute mutation check; 13/13 Android 16 Pixel 8 emulator tests | revert merge commit `7a3c5ee` |
 | 2 | #106 | establish stable feature-owned conversation search/context/media/mute repository models, contract, implementation, and AppContainer construction | Blacksmith backend and Android jobs green; full Django tests and migration check; JVM/lint/debug/release/AAB green | revert merge commit `92d9f38` |
+| 2 | #107 | switch the live V9 details consumer to `AppContainer`-owned stable repository/model types and remove temporary V9 aliases | Blacksmith backend and Android jobs green; no comments/review blockers; no behavior or contract changes | revert merge commit `e73787e` |
 
 ## Phase 0 discovered risks
 
 - root policy/dispatcher have JVM tests, but notification routing is private to
   `MainActivity` and has no pure parser seam;
 - terminal 401/session expiry is repeated across many screens and repositories;
-- conversation V9 details still owns asynchronous orchestration and status-code/session interpretation; PR 12 removes direct construction/legacy aliases, then PR 13 moves that orchestration into lifecycle state;
+- conversation details UI still carries historical V9 naming/rendering and media-player platform state; PR 13 removes data/coroutine orchestration from it, then PR 14 extracts stable rendering;
 - outer `ConversationScreen` and V8 composer both applied IME-related padding (resolved by #105: composer is the sole owner);
 - instrumented/device tests are not run by the current hosted CI; and
 - the physical Samsung smoke matrix remains incomplete because the available device has a differently signed installed Nova package.

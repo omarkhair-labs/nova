@@ -42,8 +42,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nova.app.app.appContainer
-import com.nova.app.core.network.ApiResult
+import com.nova.app.feature.messages.details.ConversationDetailsTab
+import com.nova.app.feature.messages.details.ConversationDetailsViewModel
 import com.nova.app.feature.messages.details.model.ConversationMessageContext
 import com.nova.app.feature.messages.details.model.ConversationToolMessage
 import com.nova.app.ui.components.NovaAvatar
@@ -55,15 +59,11 @@ import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
-import kotlinx.coroutines.delay
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-
-
-private enum class V9ToolsTab { Details, Search, Media }
 
 
 @Composable
@@ -79,7 +79,7 @@ fun ConversationScreenV9(
     onSessionExpired: () -> Unit,
 ) {
     var showDetails by remember(conversationId) { mutableStateOf(false) }
-    var detailsStartTab by remember(conversationId) { mutableStateOf(V9ToolsTab.Details) }
+    var detailsStartTab by remember(conversationId) { mutableStateOf(ConversationDetailsTab.Details) }
     val identityEndPadding = if (username == "group") 61.dp else 110.dp
 
     Box(Modifier.fillMaxSize()) {
@@ -95,7 +95,7 @@ fun ConversationScreenV9(
 
         Surface(
             onClick = {
-                detailsStartTab = V9ToolsTab.Details
+                detailsStartTab = ConversationDetailsTab.Details
                 showDetails = true
             },
             shape = RoundedCornerShape(18.dp),
@@ -133,39 +133,37 @@ private fun V9ConversationDetailsDialog(
     username: String,
     displayName: String,
     avatarUrl: String,
-    initialTab: V9ToolsTab,
+    initialTab: ConversationDetailsTab,
     themeLabel: String,
     onOpenTheme: () -> Unit,
     onDismiss: () -> Unit,
     onSessionExpired: () -> Unit,
 ) {
     val context = LocalContext.current
-    val repository = remember(context) { context.appContainer.conversationToolsRepository }
+    val detailsStoreOwner = remember(conversationId) { ConversationDetailsStoreOwner() }
+    val detailsViewModel: ConversationDetailsViewModel = viewModel(
+        viewModelStoreOwner = detailsStoreOwner,
+        key = "conversation-details-$conversationId",
+        factory = ConversationDetailsViewModel.factory(
+            conversationId = conversationId,
+            repository = context.appContainer.conversationToolsRepository,
+        ),
+    )
+    val state = detailsViewModel.state
 
-    var tab by remember(initialTab) { mutableStateOf(initialTab) }
-    var query by remember { mutableStateOf("") }
-    var searchResults by remember { mutableStateOf<List<ConversationToolMessage>>(emptyList()) }
-    var searchLoading by remember { mutableStateOf(false) }
-    var searchError by remember { mutableStateOf<String?>(null) }
+    DisposableEffect(detailsStoreOwner, detailsViewModel) {
+        detailsViewModel.onDialogOpened(initialTab)
+        onDispose {
+            detailsViewModel.onDialogClosed()
+            detailsStoreOwner.viewModelStore.clear()
+        }
+    }
 
-    var mediaType by remember { mutableStateOf("all") }
-    var mediaItems by remember { mutableStateOf<List<ConversationToolMessage>>(emptyList()) }
-    var mediaCursor by remember { mutableStateOf<String?>(null) }
-    var mediaLoading by remember { mutableStateOf(false) }
-    var mediaLoadedFor by remember { mutableStateOf<String?>(null) }
-    var mediaError by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(state.sessionExpiryVersion) {
+        if (state.sessionExpiryVersion > 0) onSessionExpired()
+    }
 
-    var muted by remember { mutableStateOf(false) }
-    var muteLoading by remember { mutableStateOf(true) }
-    var muteSaving by remember { mutableStateOf(false) }
-    var muteError by remember { mutableStateOf<String?>(null) }
-
-    var contextTargetId by remember { mutableStateOf<Long?>(null) }
-    var messageContext by remember { mutableStateOf<ConversationMessageContext?>(null) }
-    var contextLoading by remember { mutableStateOf(false) }
-    var contextError by remember { mutableStateOf<String?>(null) }
     var fullPhotoUrl by remember { mutableStateOf<String?>(null) }
-
     var activeVoiceUrl by remember { mutableStateOf<String?>(null) }
     var voicePlaying by remember { mutableStateOf(false) }
     var voicePreparing by remember { mutableStateOf(false) }
@@ -230,73 +228,6 @@ private fun V9ConversationDetailsDialog(
         }
     }
 
-    LaunchedEffect(Unit) {
-        when (val result = repository.isMuted(conversationId)) {
-            is ApiResult.Success -> {
-                muted = result.value
-                muteLoading = false
-            }
-            is ApiResult.Failure -> {
-                muteLoading = false
-                if (result.statusCode == 401) onSessionExpired() else muteError = result.message
-            }
-        }
-    }
-
-    LaunchedEffect(query) {
-        val clean = query.trim()
-        if (clean.isBlank()) {
-            searchResults = emptyList()
-            searchError = null
-            searchLoading = false
-            return@LaunchedEffect
-        }
-        delay(320)
-        searchLoading = true
-        searchError = null
-        when (val result = repository.searchMessages(conversationId, clean)) {
-            is ApiResult.Success -> searchResults = result.value
-            is ApiResult.Failure -> {
-                if (result.statusCode == 401) onSessionExpired() else searchError = result.message
-            }
-        }
-        searchLoading = false
-    }
-
-    LaunchedEffect(tab, mediaType) {
-        if (tab != V9ToolsTab.Media || mediaLoadedFor == mediaType) return@LaunchedEffect
-        mediaLoading = true
-        mediaError = null
-        when (val result = repository.sharedMedia(conversationId, mediaType)) {
-            is ApiResult.Success -> {
-                mediaItems = result.value.items
-                mediaCursor = result.value.nextCursor
-                mediaLoadedFor = mediaType
-            }
-            is ApiResult.Failure -> {
-                if (result.statusCode == 401) onSessionExpired() else mediaError = result.message
-            }
-        }
-        mediaLoading = false
-    }
-
-    LaunchedEffect(contextTargetId) {
-        val target = contextTargetId ?: run {
-            messageContext = null
-            contextError = null
-            return@LaunchedEffect
-        }
-        contextLoading = true
-        contextError = null
-        when (val result = repository.messageContext(conversationId, target)) {
-            is ApiResult.Success -> messageContext = result.value
-            is ApiResult.Failure -> {
-                if (result.statusCode == 401) onSessionExpired() else contextError = result.message
-            }
-        }
-        contextLoading = false
-    }
-
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -305,18 +236,18 @@ private fun V9ConversationDetailsDialog(
             modifier = Modifier.fillMaxSize(),
             color = NovaBackground,
         ) {
-            if (contextTargetId != null) {
+            if (state.contextTargetId != null) {
                 V9ContextView(
                     username = username,
-                    context = messageContext,
-                    loading = contextLoading,
-                    error = contextError,
+                    context = state.messageContext,
+                    loading = state.contextLoading,
+                    error = state.contextError,
                     activeVoiceUrl = activeVoiceUrl,
                     voicePlaying = voicePlaying,
                     voicePreparing = voicePreparing,
                     voiceFailedUrl = voiceFailedUrl,
-                    onBack = { contextTargetId = null },
-                    onJumpReply = { contextTargetId = it },
+                    onBack = detailsViewModel::closeContext,
+                    onJumpReply = detailsViewModel::openContext,
                     onOpenPhoto = { fullPhotoUrl = it },
                     onVoice = ::toggleVoice,
                 )
@@ -333,75 +264,45 @@ private fun V9ConversationDetailsDialog(
                         displayName = displayName,
                         avatarUrl = avatarUrl,
                     )
-                    V9Tabs(tab = tab, onSelect = { tab = it })
+                    V9Tabs(tab = state.tab, onSelect = detailsViewModel::onTabSelected)
 
-                    when (tab) {
-                        V9ToolsTab.Details -> V9DetailsView(
+                    when (state.tab) {
+                        ConversationDetailsTab.Details -> V9DetailsView(
                             themeLabel = themeLabel,
                             onOpenTheme = onOpenTheme,
-                            muted = muted,
-                            loading = muteLoading || muteSaving,
-                            error = muteError,
-                            onToggleMute = {
-                                if (!muteSaving) {
-                                    muteSaving = true
-                                    muteError = null
-                                }
-                            },
+                            muted = state.muted,
+                            loading = state.muteLoading || state.muteSaving,
+                            error = state.muteError,
+                            onToggleMute = detailsViewModel::toggleMute,
                         )
-                        V9ToolsTab.Search -> V9SearchView(
-                            query = query,
-                            results = searchResults,
-                            loading = searchLoading,
-                            error = searchError,
-                            onQueryChange = { query = it.take(200) },
-                            onOpen = { contextTargetId = it.id },
+                        ConversationDetailsTab.Search -> V9SearchView(
+                            query = state.query,
+                            results = state.searchResults,
+                            loading = state.searchLoading,
+                            error = state.searchError,
+                            onQueryChange = detailsViewModel::onQueryChanged,
+                            onOpen = { detailsViewModel.openContext(it.id) },
                         )
-                        V9ToolsTab.Media -> V9MediaView(
-                            type = mediaType,
-                            items = mediaItems,
-                            nextCursor = mediaCursor,
-                            loading = mediaLoading,
-                            error = mediaError,
+                        ConversationDetailsTab.Media -> V9MediaView(
+                            type = state.mediaType,
+                            items = state.mediaItems,
+                            nextCursor = state.mediaCursor,
+                            loading = state.mediaLoading,
+                            error = state.mediaError,
                             activeVoiceUrl = activeVoiceUrl,
                             voicePlaying = voicePlaying,
                             voicePreparing = voicePreparing,
                             voiceFailedUrl = voiceFailedUrl,
-                            onType = {
-                                mediaType = it
-                                mediaLoadedFor = null
-                                mediaItems = emptyList()
-                                mediaCursor = null
-                            },
-                            onOpenContext = { contextTargetId = it.id },
+                            onType = detailsViewModel::onMediaTypeChanged,
+                            onOpenContext = { detailsViewModel.openContext(it.id) },
                             onOpenPhoto = { fullPhotoUrl = it },
                             onVoice = ::toggleVoice,
-                            onLoadMore = {
-                                val cursor = mediaCursor ?: return@V9MediaView
-                                if (!mediaLoading) {
-                                    mediaLoading = true
-                                    mediaError = null
-                                    mediaLoadedFor = null
-                                    mediaCursor = cursor
-                                }
-                            },
+                            onLoadMore = detailsViewModel::onLoadMore,
                         )
                     }
                 }
             }
         }
-    }
-
-    LaunchedEffect(muteSaving) {
-        if (!muteSaving) return@LaunchedEffect
-        val desired = !muted
-        when (val result = repository.setMuted(conversationId, desired)) {
-            is ApiResult.Success -> muted = result.value
-            is ApiResult.Failure -> {
-                if (result.statusCode == 401) onSessionExpired() else muteError = result.message
-            }
-        }
-        muteSaving = false
     }
 
     if (fullPhotoUrl != null) {
@@ -429,6 +330,11 @@ private fun V9ConversationDetailsDialog(
             }
         }
     }
+}
+
+
+private class ConversationDetailsStoreOwner : ViewModelStoreOwner {
+    override val viewModelStore = ViewModelStore()
 }
 
 
@@ -490,14 +396,14 @@ private fun V9IdentitySummary(username: String, displayName: String, avatarUrl: 
 
 
 @Composable
-private fun V9Tabs(tab: V9ToolsTab, onSelect: (V9ToolsTab) -> Unit) {
+private fun V9Tabs(tab: ConversationDetailsTab, onSelect: (ConversationDetailsTab) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
-        V9TabChip("Details", tab == V9ToolsTab.Details) { onSelect(V9ToolsTab.Details) }
-        V9TabChip("Search", tab == V9ToolsTab.Search) { onSelect(V9ToolsTab.Search) }
-        V9TabChip("Media", tab == V9ToolsTab.Media) { onSelect(V9ToolsTab.Media) }
+        V9TabChip("Details", tab == ConversationDetailsTab.Details) { onSelect(ConversationDetailsTab.Details) }
+        V9TabChip("Search", tab == ConversationDetailsTab.Search) { onSelect(ConversationDetailsTab.Search) }
+        V9TabChip("Media", tab == ConversationDetailsTab.Media) { onSelect(ConversationDetailsTab.Media) }
     }
 }
 
