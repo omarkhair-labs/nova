@@ -5,13 +5,13 @@ Update this table in every consolidation PR.
 | Field | Current state |
 |---|---|
 | Current phase | Phase 2 — Messages consolidation |
-| Active PR | Phase 2 PR 17 — extract shared group member/detail/managed-detail models into stable `feature/messages/group/model` ownership |
-| CI status | Pending for Phase 2 PR 17; PRs #95–#111 passed on Blacksmith |
-| Completed ownership changes | Phase 1 shell ownership; Phase 2 domain/repository/inbox/conversation owners; list/rows/composer; stable details data/state/UI; stable appearance data/state; PR 17 removes group domain model ownership from historical core repository files before their transports move |
-| Deleted legacy/versioned files | `NovaPrimaryHost.kt`; global `NovaPrimaryNavigationDispatcher.kt`; historical V9 tools implementation/aliases; V9 details helper implementation; temporary preference aliases. PR 17 deletes the in-repository group model declarations and keeps temporary model aliases only |
-| Automated verification | #111 passed full hosted backend + Android gates with the new appearance state-owner tests. PR 17 is a model-ownership move with no behavioral code changes; hosted backend + Android gates must remain green |
+| Active PR | Phase 2 PR 18 — move managed-group detail/rename/avatar/remove-avatar/role transport behind stable `GroupManagementRepository` ownership |
+| CI status | Pending for Phase 2 PR 18; PRs #95–#112 passed on Blacksmith |
+| Completed ownership changes | Phase 1 shell ownership; Phase 2 domain/repository/inbox/conversation owners; list/rows/composer; stable details data/state/UI; stable appearance data/state; stable group models; PR 18 moves the management-side group transport into `feature/messages/group/data` and gives `AppContainer` the stable owner |
+| Deleted legacy/versioned files | `NovaPrimaryHost.kt`; global `NovaPrimaryNavigationDispatcher.kt`; historical V9 tools implementation/aliases; V9 details helper implementation; temporary preference aliases; in-repository group model declarations. PR 18 replaces the historical group-management implementation body with a temporary constructor-compatible alias |
+| Automated verification | #112 passed full hosted backend + Android gates with no transport changes. PR 18 preserves the exact management implementation and relies on existing backend group-management characterization plus the full hosted Android source/build gate; CI must be green before merge |
 | Remaining physical Samsung checks | Entire manual checklist in `SAMSUNG_SMOKE_CHECKLIST.md`; authorized Samsung SM-A266B detected previously, but non-destructive test install is blocked by its differently signed existing Nova package |
-| Exact next PR | Phase 2 PR 18 — move managed-group detail/rename/avatar/role transport behind a stable `GroupManagementRepository` owned by `AppContainer` |
+| Exact next PR | Phase 2 PR 19 — move group create/detail/add/remove/leave/delete membership transport behind a stable repository boundary, preserving cached-current-user leave semantics |
 
 ## Completed PRs
 
@@ -34,6 +34,7 @@ Update this table in every consolidation PR.
 | 2 | #109 | move details/search/media/context visual tree, MediaPlayer lifecycle, and full-photo UI into stable `ConversationDetailsDialog` and reduce V9 to a small wrapper | Blacksmith backend and Android jobs green; JVM/lint/debug/release/AAB green; no contract changes | revert merge commit `35799ac` |
 | 2 | #110 | establish stable conversation appearance model/repository/remote implementation and AppContainer ownership while preserving local and legacy-backend theme compatibility | Blacksmith backend and Android jobs green; full Django tests/migration check and Android JVM/lint/debug/release/AAB green | revert merge commit `9faa2c9` |
 | 2 | #111 | move theme load/save/optimistic rollback/picker state and terminal-401 effects into conversation-scoped `ConversationAppearanceViewModel`, switch live AppContainer ownership, and remove preference aliases | Blacksmith backend and Android jobs green; appearance JVM tests plus lint/debug/release/AAB green | revert merge commit `e95d50f` |
+| 2 | #112 | move `GroupMember`, `GroupDetail`, and `ManagedGroupDetail` out of core repositories into stable `feature/messages/group/model` ownership with temporary aliases | Blacksmith backend and Android jobs green; repository diffs only removed passive declarations; JVM/lint/debug/release/AAB green | revert merge commit `088749b` |
 
 ## Phase 0 discovered risks
 
