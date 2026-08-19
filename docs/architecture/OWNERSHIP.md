@@ -1,6 +1,6 @@
 # Current ownership and entry paths
 
-Snapshot: Phase 2 PR 16, based on `9faa2c9d6175ae56569cc1a2d25aa169dad828bc`.
+Snapshot: Phase 2 PR 17, based on `e95d50f781b2b8fd1cae4670797edea80d315bbe`.
 
 This file records current behavior. A row with several current owners identifies
 consolidation work; it does not imply that one of those paths may be removed
@@ -114,7 +114,7 @@ remove that parity before a device test establishes a replacement.
 | Composer/media/voice | `ConversationComposer` | `ConversationComposerState` owns recorder, permission/picker, ephemeral attachment/voice drafts, cleanup, and the sole IME/navigation-bar padding; `ConversationViewModel` owns textual draft persistence and optimistic sends | `feature/messages/conversation` composer boundary |
 | Message details/search/media | stable `ConversationDetailsDialog` | `ConversationDetailsViewModel`/`ConversationDetailsUiState`, `ConversationToolsRepository`, and stable details data/model packages; dialog owns unchanged media-player/full-photo platform UI | `feature/messages/details` |
 | Conversation theme | `ConversationScreen`, `NovaChatThemePicker` | `ConversationAppearanceViewModel`/`ConversationAppearanceUiState` own load/save/optimistic rollback/picker state and terminal-401 effects; stable appearance repository owns HTTP/auth/local fallback/legacy-backend compatibility; palette/color rendering remains UI-owned | `feature/messages/appearance` |
-| Group management | `ConversationScreen`, `GroupInfoDialog` | group repositories and UI-owned orchestration | `feature/messages/group` |
+| Group management | `ConversationScreen`, `GroupInfoDialog` | stable `feature/messages/group/model` owns `GroupMember`, `GroupDetail`, and `ManagedGroupDetail`; the two historical core group repositories still own transport through temporary model aliases; UI still owns orchestration | `feature/messages/group` |
 | Calls | `CallActivity` | `NovaCallController`, signaling, WebRTC, Telecom, notifications/history | `feature/calls` boundaries with explicit state machine |
 | notifications/sharing | notification screen/share dialog | notification, push, messaging/social repositories | `feature/notifications`, `feature/sharing` |
 | privacy/settings/security | special Activities and feature screens | privacy/auth/social repositories and UI callbacks | corresponding feature packages |
@@ -174,6 +174,16 @@ Activity scope. `ConversationScreen` consumes
 `AppContainer.conversationAppearanceRepository` directly and the temporary
 `NovaConversationPreferenceRepository` compatibility aliases are removed.
 
+Phase 2 PR 17 introduces `feature/messages/group/model/GroupModels.kt` as the
+stable owner for the shared group records used across management, membership,
+and the group-info UI: `GroupMember`, `GroupDetail`, and `ManagedGroupDetail`.
+`NovaGroupMessagingRepository.kt` and `NovaGroupManagementRepository.kt` no
+longer declare those records themselves. Temporary deprecated aliases in
+`core/messaging/GroupModelCompatibility.kt` preserve every existing consumer
+while transport ownership is moved in the next slices. This PR changes no group
+validation, REST path/method/body, avatar upload, membership semantics, auth,
+error mapping, or UI behavior.
+
 ## Backend ownership map
 
 ```text
@@ -223,6 +233,6 @@ route Composable
 logout, and durable primary-overlay state. Feature state owners still report
 terminal session effects to routes; central session-expiry ownership is a later
 cross-feature cleanup. The inbox, conversation core, composer, details data/
-state/UI, and appearance data/lifecycle ownership now have focused stable
-owners. Group orchestration and the V8/V9 route/chrome layering remain on the
-Phase 2 extraction path.
+state/UI, appearance data/lifecycle ownership, and shared group model ownership
+now have focused stable owners. Group transport/orchestration and the V8/V9
+route/chrome layering remain on the Phase 2 extraction path.
