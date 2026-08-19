@@ -29,11 +29,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nova.app.core.calls.NovaCallKind
-import com.nova.app.core.calls.NovaCallPerson
 import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.ApiResult
+import com.nova.app.feature.calls.domain.model.NovaCallKind
+import com.nova.app.feature.calls.domain.model.NovaCallPerson
 import com.nova.app.feature.messages.ConversationScreen
 import com.nova.app.feature.messages.ConversationExitAction
 import com.nova.app.feature.messages.MessagesScreen

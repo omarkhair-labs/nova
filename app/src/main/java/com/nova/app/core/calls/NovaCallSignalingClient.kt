@@ -3,7 +3,13 @@ package com.nova.app.core.calls
 import android.content.Context
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.calls.data.CallRepository
+import com.nova.app.feature.calls.domain.model.NovaCallKind
+import com.nova.app.feature.calls.domain.model.NovaCallPerson
+import com.nova.app.feature.calls.domain.model.NovaCallSession
+import com.nova.app.feature.calls.domain.model.NovaCallStatus
 import com.nova.app.feature.calls.signaling.CallSignaling
+import com.nova.app.feature.calls.signaling.NovaCallSignalEvent
+import com.nova.app.feature.calls.signaling.NovaCallSocketStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -16,29 +22,6 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
-
-
-enum class NovaCallSocketStatus {
-    Connecting,
-    Live,
-    Reconnecting,
-    Offline,
-}
-
-
-sealed interface NovaCallSignalEvent {
-    data class Ready(val call: NovaCallSession) : NovaCallSignalEvent
-    data class Offer(val sdp: String, val negotiationId: String?) : NovaCallSignalEvent
-    data class Answer(val sdp: String, val negotiationId: String?) : NovaCallSignalEvent
-    data class Ice(
-        val candidate: String,
-        val sdpMid: String,
-        val sdpMLineIndex: Int,
-    ) : NovaCallSignalEvent
-    data object IceRestartRequested : NovaCallSignalEvent
-    data class State(val call: NovaCallSession) : NovaCallSignalEvent
-    data class Error(val detail: String) : NovaCallSignalEvent
-}
 
 
 class NovaCallSignalingClient(

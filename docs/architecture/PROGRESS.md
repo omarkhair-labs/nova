@@ -4,14 +4,14 @@ Update this table in every consolidation PR.
 
 | Field | Current state |
 |---|---|
-| Current phase | Phase 3 — Calls isolation |
-| Active PR | Phase 3 PR 3 — move the live call lifecycle/state orchestration into stable `feature/calls/CallStateOwner`, switch `CallActivity` to the stable owner, and inject the AppContainer-owned call data/signaling/WebRTC boundaries |
-| CI status | Pending for Phase 3 PR 3; PR #121 merged after corrected full hosted Nova CI passed |
-| Completed ownership changes | Phase 2 Messages is complete. Phase 3 now has stable call domain/data ownership, stable signaling/WebRTC contracts, and a live feature-owned call state owner. `CallActivity` remains the window/permission/PiP host while call lifecycle, negotiation/recovery, media-quality monitoring, and call state orchestration are owned by `feature/calls` |
-| Deleted legacy/versioned files | Phase 2 removed the historical Messages V8/V9 layers and temporary aliases. The old `core/calls/NovaCallController` plus call model/audio-quality compatibility aliases remain temporarily unreachable after PR 3 and are scheduled for Phase 3 closing cleanup |
-| Automated verification | #120 and #121 passed hosted architecture/whitespace, Django configuration/migrations/full tests, Android JVM/lint/debug/androidTest/release/AAB. PR 3 adds pure `CallPhase` characterization for incoming/outgoing ringing, connecting/active/recovery, and all terminal statuses; full hosted Nova CI is required before merge |
+| Current phase | Phase 3 — Calls isolation (closing enforcement PR) |
+| Active PR | Phase 3 PR 4 — delete unreachable call controller/compatibility aliases, move signaling records to stable ownership, add Calls architecture enforcement, and close the phase without changing production call behavior |
+| CI status | Pending for Phase 3 PR 4; PR #122 merged after Nova CI #365 passed every hosted backend and Android gate |
+| Completed ownership changes | Phase 2 Messages is complete. Phase 3 now has stable call domain/data/signaling/WebRTC ownership, a live `feature/calls/CallStateOwner`, AppContainer-owned production construction, and direct stable-model imports from the remaining core platform/transport adapters |
+| Deleted legacy/versioned files | Phase 2 removed the historical Messages V8/V9 layers and temporary aliases. Phase 3 closing enforcement deletes unreachable `core/calls/NovaCallController.kt`, `CallModelCompatibility.kt`, and `NovaCallAudioQuality.kt`; call quality characterization moves to the stable feature package |
+| Automated verification | #122 passed Calls state JVM characterization plus hosted architecture/whitespace, Django configuration/migrations/full tests, Android JVM/lint/debug/androidTest/release/AAB. PR 4 adds `scripts/check_calls_architecture.py` to reject the deleted controller/aliases and legacy core imports; full hosted Nova CI is required before merge |
 | Remaining physical Samsung checks | Manual Samsung smoke remains incomplete: the authorized SM-A266B has a differently signed installed Nova package, so non-destructive replacement remains blocked. No uninstall is authorized |
-| Exact next PR | Phase 3 PR 4 — delete unreachable legacy call controller/compatibility aliases, move remaining signaling records to stable ownership, add Calls architecture enforcement, update ownership records, and close Phase 3 without changing production call contracts |
+| Exact next PR | Phase 4 PR 1 — start social-content consolidation with feed/posts/comments characterization and the first stable ownership seam, preserving current product behavior |
 
 ## Completed PRs
 
@@ -44,11 +44,13 @@ Update this table in every consolidation PR.
 | 2 | #119 | remove the final Messages compatibility alias, add stable-Messages architecture enforcement, `git diff --check`, and hosted instrumentation-APK compilation, then close Phase 2 | Nova CI #356 green: architecture/whitespace + Django + JVM/lint/debug/androidTest/release/AAB | revert merge commit `f470392` |
 | 3 | #120 | move call domain records and REST/ICE/auth access behind stable `feature/calls` contracts and add AppContainer-owned call repository construction | full hosted Nova CI green; exact call wire/terminal/display-name JVM characterization green | revert merge commit `0602ec7` |
 | 3 | #121 | establish stable call signaling/WebRTC interfaces and production adapters, move media-quality models with the WebRTC boundary, and centralize construction in AppContainer | corrected Nova CI #363 green: Django + JVM/lint/debug/androidTest/release/AAB; no signaling/WebRTC algorithm changes | revert merge commit `c171686` |
+| 3 | #122 | move live call lifecycle/state orchestration into `feature/calls/CallStateOwner`, switch `CallActivity` to that owner, and use AppContainer-owned call data/signaling/WebRTC construction | Nova CI #365 green: Django + JVM/lint/debug/androidTest/release/AAB; `CallPhase` characterization green | revert merge commit `b194d17` |
+| 3 | #123 | delete unreachable call controller/compatibility aliases, move signaling records to stable ownership, and add Calls architecture enforcement | full hosted Calls architecture/whitespace + Django + JVM/lint/debug/androidTest/release/AAB required before merge | revert PR #123 merge commit |
 
 ## Remaining cross-phase risks / follow-up
 
 - push/root navigation policy has JVM characterization, but broader notification-routing and session-expiry centralization remain later shared-shell work;
-- Phase 3 must continue isolating calls without changing signaling/WebRTC/TURN/Telecom contracts;
+- Phase 4 must consolidate social content one feature at a time without changing current product behavior;
 - current hosted CI compiles the instrumentation APK but still does not execute instrumented tests on a device/emulator;
 - the physical Samsung smoke matrix remains incomplete because the available device has a differently signed installed Nova package; and
-- non-Messages features may still contain historical naming or UI-owned repository patterns to be handled in their designated later phases.
+- non-consolidated social/shared features may still contain historical naming or UI-owned repository patterns to be handled in their designated later phases.

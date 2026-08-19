@@ -7,8 +7,6 @@ import android.util.Log
 import com.nova.app.core.calls.NovaCallActionDispatcher
 import com.nova.app.core.calls.NovaCallDuration
 import com.nova.app.core.calls.NovaCallNotification
-import com.nova.app.core.calls.NovaCallSignalEvent
-import com.nova.app.core.calls.NovaCallSocketStatus
 import com.nova.app.core.calls.NovaTelecomBridge
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.calls.data.CallRepository
@@ -17,6 +15,8 @@ import com.nova.app.feature.calls.domain.model.NovaCallPerson
 import com.nova.app.feature.calls.domain.model.NovaCallSession
 import com.nova.app.feature.calls.domain.model.NovaCallStatus
 import com.nova.app.feature.calls.signaling.CallSignaling
+import com.nova.app.feature.calls.signaling.NovaCallSignalEvent
+import com.nova.app.feature.calls.signaling.NovaCallSocketStatus
 import com.nova.app.feature.calls.webrtc.CallWebRtcEngine
 import com.nova.app.feature.calls.webrtc.CallWebRtcListener
 import com.nova.app.feature.calls.webrtc.model.NovaCallAudioQualityDelta
