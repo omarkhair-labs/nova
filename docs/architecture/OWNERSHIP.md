@@ -155,15 +155,34 @@ MediaPlayer lifecycle, and full-photo UI. Characterization preserves the current
 key-based behavior where selecting an already-active media filter or pressing
 the existing load-more control does not issue an additional media request.
 
-`feature/messages/appearance` owns stable preference models, data transport, and
-conversation-scoped lifecycle state for theme load/save/optimistic rollback/
-picker/session effects. `ConversationScreen` consumes the AppContainer-owned
-appearance repository while palette/color rendering remains UI-owned.
+Phase 2 PR 15 introduced `feature/messages/appearance/model`, `data`, and
+`data/remote`. `ConversationAppearanceRepository` exposes the current preference
+read and theme write contract; `ConversationAppearanceRemoteRepository` owns the
+existing authenticated REST calls, token refresh/session clearing, local
+`nova_conversation_themes` SharedPreferences fallback, theme-key normalization,
+and legacy-backend fallback that re-sends `muted` with `theme_key`.
 
-Phase 2 PR 17 introduced `feature/messages/group/model/GroupModels.kt` as the
-stable owner for `GroupMember`, `GroupDetail`, and `ManagedGroupDetail`.
-Temporary deprecated aliases preserve the two historical group transports and
-existing UI while those owners move.
+Phase 2 PR 16 adds `ConversationAppearanceViewModel` and
+`ConversationAppearanceUiState`. They own the initial preference load, existing
+`NovaChatThemes.resolve` key semantics (injected from UI so Compose `Color` stays
+out of the state owner), picker visibility, save-in-flight lock, optimistic
+selected key, previous-key rollback, inline non-401 error, and terminal-401
+effect. The view model is scoped to a `ConversationScreen`-owned
+`ViewModelStore` that is cleared when the route leaves composition, preserving
+the prior `remember(conversationId)` lifetime rather than retaining state at
+Activity scope. `ConversationScreen` consumes
+`AppContainer.conversationAppearanceRepository` directly and the temporary
+`NovaConversationPreferenceRepository` compatibility aliases are removed.
+
+Phase 2 PR 17 introduces `feature/messages/group/model/GroupModels.kt` as the
+stable owner for the shared group records used across management, membership,
+and the group-info UI: `GroupMember`, `GroupDetail`, and `ManagedGroupDetail`.
+`NovaGroupMessagingRepository.kt` and `NovaGroupManagementRepository.kt` no
+longer declare those records themselves. Temporary deprecated aliases in
+`core/messaging/GroupModelCompatibility.kt` preserve every existing consumer
+while transport ownership is moved in the next slices. This PR changes no group
+validation, REST path/method/body, avatar upload, membership semantics, auth,
+error mapping, or UI behavior.
 
 Phase 2 PR 18 adds `feature/messages/group/data/GroupManagementRepository.kt`
 and `data/remote/GroupManagementRemoteRepository.kt`. The remote implementation
@@ -225,7 +244,8 @@ route Composable
 `AppViewModel` owns global session restore/current-user state, terminal session
 logout, and durable primary-overlay state. Feature state owners still report
 terminal session effects to routes; central session-expiry ownership is a later
-cross-feature cleanup. The inbox, conversation core, composer, details,
-appearance, shared group models, and management-side group transport now have
-focused stable owners. Membership transport, group UI/state orchestration, and
-the V8/V9 route/chrome layering remain on the Phase 2 extraction path.
+cross-feature cleanup. The inbox, conversation core, composer, details data/
+state/UI, appearance data/lifecycle ownership, shared group model ownership, and
+management-side group transport now have focused stable owners. Membership
+transport, group UI/state orchestration, and the V8/V9 route/chrome layering
+remain on the Phase 2 extraction path.
