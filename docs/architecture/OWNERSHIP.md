@@ -1,6 +1,6 @@
 # Current ownership and entry paths
 
-Snapshot: Phase 2 PR 13, based on `e73787ece1820d51cfea9e4426f7084765bf8757`.
+Snapshot: Phase 2 PR 14, based on `53347f9ded1db5761207c1a16bcb09d9117bad4a`.
 
 This file records current behavior. A row with several current owners identifies
 consolidation work; it does not imply that one of those paths may be removed
@@ -112,7 +112,7 @@ remove that parity before a device test establishes a replacement.
 | Messages inbox | `MessagesRoute`, `MessagesScreen` | `InboxViewModel`/`InboxUiState`, feature-owned domain models, `InboxRepository`, and refresh signals | `feature/messages/inbox` |
 | Conversation | `ConversationScreen` -> V9 -> V8 | `ConversationViewModel`/`ConversationUiState` own server behavior; stateless list/rows and the focused composer render their state and callbacks | `feature/messages/conversation` + stateless header |
 | Composer/media/voice | `ConversationComposer` | `ConversationComposerState` owns recorder, permission/picker, ephemeral attachment/voice drafts, cleanup, and the sole IME/navigation-bar padding; `ConversationViewModel` owns textual draft persistence and optimistic sends | `feature/messages/conversation` composer boundary |
-| Message details/search/media/theme/groups | V9 dialog, group dialogs, theme picker | `ConversationDetailsViewModel`/`ConversationDetailsUiState` own tab/query/search/media/context/mute async state and terminal-401 effects; `ConversationToolsRepository` owns data; V9 still owns details rendering and media-player platform UI; theme/group orchestration remains outside this state owner | responsibility-specific Messages packages |
+| Message details/search/media/theme/groups | stable `ConversationDetailsDialog`, group dialogs, theme picker | `ConversationDetailsViewModel`/`ConversationDetailsUiState` own tab/query/search/media/context/mute async state and terminal-401 effects; `ConversationToolsRepository` owns data; `ConversationDetailsDialog` owns the unchanged details rendering, media-player lifecycle and full-photo UI; theme/group orchestration remains outside this owner | responsibility-specific Messages packages |
 | Calls | `CallActivity` | `NovaCallController`, signaling, WebRTC, Telecom, notifications/history | `feature/calls` boundaries with explicit state machine |
 | notifications/sharing | notification screen/share dialog | notification, push, messaging/social repositories | `feature/notifications`, `feature/sharing` |
 | privacy/settings/security | special Activities and feature screens | privacy/auth/social repositories and UI callbacks | corresponding feature packages |
@@ -170,19 +170,27 @@ drafts and server mutations.
 `feature/messages/details/model` and `feature/messages/details/data` own stable
 conversation search/context/shared-media/mute models and contracts.
 `ConversationToolsRemoteRepository` owns the unchanged HTTP/auth/refresh/error/
-parsing implementation and `AppContainer` owns one instance. The live V9 dialog
-uses that interface directly with no compatibility aliases.
+parsing implementation and `AppContainer` owns one instance. There are no V9
+compatibility aliases in this data path.
 
-Phase 2 PR 13 adds `ConversationDetailsViewModel` and
-`ConversationDetailsUiState`. They own the exact 320 ms/200-character search
-policy, search/media/context/mute loading and errors, tab and target state,
-terminal-401 effect version, and dialog-scoped cancellation. The view model is
-scoped to a dialog-owned `ViewModelStore`, which is cleared when the dialog is
-removed so reopening resets state and cancels work as the previous
-`LaunchedEffect` implementation did. Characterization deliberately preserves
+`ConversationDetailsViewModel` and `ConversationDetailsUiState` own the exact
+320 ms/200-character search policy, search/media/context/mute loading and errors,
+tab and target state, terminal-401 effect version, and dialog-scoped
+cancellation. The view model is scoped to a dialog-owned `ViewModelStore`, which
+is cleared when the dialog is removed so reopening resets state and cancels work
+as the previous `LaunchedEffect` implementation did. Characterization preserves
 the current key-based behavior where selecting an already-active media filter
 or pressing the existing load-more control does not issue an additional media
 request. Fixing that product behavior is not part of architecture consolidation.
+
+Phase 2 PR 14 moves the complete details/search/media/context visual tree,
+including the unchanged `MediaPlayer` prepare/play/pause/error lifecycle and
+full-screen shared-photo dialog, into stable
+`feature/messages/details/ConversationDetailsDialog.kt`. Helper names lose the
+historical V9 label while retaining the exact text, dimensions, insets, colors,
+and callbacks. `ConversationScreenV9` is reduced to its remaining historical
+wrapper responsibility: V8 composition plus the transparent identity hit target
+that opens the stable details dialog.
 
 ## Backend ownership map
 
@@ -233,7 +241,7 @@ route Composable
 logout, and durable primary-overlay state. Feature state owners still report
 terminal session effects to routes; central session-expiry ownership is a later
 cross-feature cleanup. The inbox, core conversation data path, message
-rendering, composer platform work, conversation-tools data implementation, and
-details async orchestration now have focused owners. Historical V9 details
-rendering/media playback, themes, groups, and V8 route/chrome layering remain on
-the Phase 2 extraction path.
+rendering, composer platform work, conversation-tools data implementation,
+details async orchestration, and details visual/platform UI now have focused
+stable owners. Theme preferences, groups, and the V8/V9 route/chrome layering
+remain on the Phase 2 extraction path.
