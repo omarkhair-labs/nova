@@ -94,6 +94,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
 
       - name: Set up Java
         uses: actions/setup-java@v5
@@ -106,6 +108,12 @@ jobs:
 
       - name: Allow Gradle wrapper execution
         run: chmod +x gradlew
+
+      - name: Check Messages architecture
+        run: python3 scripts/check_messages_architecture.py
+
+      - name: Check whitespace errors
+        run: git diff --check HEAD^1 HEAD
 
       - name: Create CI Firebase config
         shell: bash
@@ -156,6 +164,9 @@ jobs:
 
       - name: Assemble Android debug APK
         run: ./gradlew --no-daemon assembleDebug
+
+      - name: Assemble Android instrumentation APK
+        run: ./gradlew --no-daemon assembleDebugAndroidTest
 
       - name: Assemble Android release APK
         run: ./gradlew --no-daemon assembleRelease

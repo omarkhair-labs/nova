@@ -4,14 +4,14 @@ Update this table in every consolidation PR.
 
 | Field | Current state |
 |---|---|
-| Current phase | Phase 2 — Messages consolidation |
-| Active PR | Phase 2 PR 23 — collapse `ConversationScreen -> V9 -> V8` into stable `ConversationScreen` + `conversation/ConversationContent` ownership and delete both historical screen files |
-| CI status | Pending for Phase 2 PR 23; PRs #95–#117 passed on Blacksmith |
-| Completed ownership changes | Phase 1 shell ownership; Phase 2 domain/repository/inbox/conversation owners; list/rows/composer; stable details/appearance/groups/new-message; PR 23 removes the final live versioned conversation-screen layer while preserving the same message/header/composer/details composition |
-| Deleted legacy/versioned files | `NovaPrimaryHost.kt`; global `NovaPrimaryNavigationDispatcher.kt`; historical V9 tools/details helpers; temporary preference/group repository aliases; PR 23 deletes live `ConversationScreenV8.kt` and `ConversationScreenV9.kt` and renames their live body/header helpers under stable ownership |
-| Automated verification | #117 passed full hosted backend + Android gates with new-message JVM characterization. PR 23 is a structural screen-owner move that preserves the exact header/message/composer/delete/photo/details/call-overlay behavior and must pass full hosted Django + Android JVM/lint/debug/release/AAB gates before merge; hosted CI does not execute instrumented/device tests |
-| Remaining physical Samsung checks | Entire manual checklist in `SAMSUNG_SMOKE_CHECKLIST.md`; authorized Samsung SM-A266B detected previously, but non-destructive test install is blocked by its differently signed existing Nova package |
-| Exact next PR | Phase 2 final enforcement/cleanup — remove any now-unused group model compatibility aliases, verify no live V8/V9 names or direct repository construction remain in Messages, update ownership/docs, and close Phase 2 if full gates pass |
+| Current phase | Phase 2 — Messages complete; Phase 3 Calls is next |
+| Active PR | Phase 2 final enforcement — remove the last group-model compatibility aliases, enforce stable Messages names in CI, add hosted whitespace + instrumentation-APK gates, and close the phase |
+| CI status | This closing PR must pass the expanded hosted gate before merge; PRs #95–#118 are merged and their final required CI runs passed |
+| Completed ownership changes | Messages now has stable inbox/domain/data ownership; one stable conversation entry/body; focused conversation VM/list/rows/composer; stable details/search/media/mute; stable appearance; stable group models/transports/state/UI; stable new-message state; AppContainer-owned dependencies. No live V8/V9 conversation screen layer remains |
+| Deleted legacy/versioned files | `NovaPrimaryHost.kt`; global `NovaPrimaryNavigationDispatcher.kt`; historical Android V9 tools/details helpers; temporary appearance/group repository aliases; `ConversationScreenV8.kt`; `ConversationScreenV9.kt`; final enforcement deletes `GroupModelCompatibility.kt` |
+| Automated verification | #118 replacement CI #354 passed Django configuration/migrations/full backend tests and Android JVM/lint/debug/release/AAB after a same-package helper-name collision was corrected. Final enforcement additionally runs `scripts/check_messages_architecture.py`, `git diff --check HEAD^1 HEAD`, and `assembleDebugAndroidTest` in hosted CI |
+| Remaining physical Samsung checks | Manual Samsung smoke remains incomplete: the authorized SM-A266B has a differently signed installed Nova package, so non-destructive replacement remains blocked. This does not change the architecture-only hosted evidence and no uninstall is authorized |
+| Exact next PR | Phase 3 — Calls: establish explicit call state/ownership boundaries without changing signaling, WebRTC, TURN, Telecom, notification, or call-history contracts |
 
 ## Completed PRs
 
@@ -40,13 +40,12 @@ Update this table in every consolidation PR.
 | 2 | #115 | move `GroupInfoDialog` managed-detail loading and rename/avatar/role/remove/leave/delete orchestration into dialog-scoped `GroupInfoViewModel`/`GroupInfoUiState` | Blacksmith backend and Android jobs green; new JVM characterization plus lint/debug/release/AAB green | revert merge commit `1adaa04` |
 | 2 | #116 | move add-members/new-group people search, selection, submission and terminal effects into stable group state owners; add AppContainer-owned group people lookup; delete historical group repository aliases | Blacksmith backend and Android jobs green; group picker JVM characterization plus lint/debug/release/AAB green | revert merge commit `31b485b` |
 | 2 | #117 | move new-message people search/open-conversation async orchestration and terminal effects into dialog-scoped `NewMessageViewModel` using AppContainer-owned dependencies | Blacksmith backend and Android jobs green; new-message JVM characterization plus lint/debug/release/AAB green | revert merge commit `a5e1670` |
+| 2 | #118 | collapse `ConversationScreen -> V9 -> V8` into stable `ConversationScreen -> ConversationContent`, preserve the V9 details click layer in the stable entry, and delete both V-number screen files | first Android compile exposed a helper-name collision; corrected head passed Nova CI #354: backend + JVM/lint/debug/release/AAB green | revert merge commit `41117cb` |
 
-## Phase 0 discovered risks
+## Remaining cross-phase risks / follow-up
 
-- root policy/dispatcher have JVM tests, but notification routing is private to
-  `MainActivity` and has no pure parser seam;
-- terminal 401/session expiry is repeated across feature state owners and remains a later cross-feature consolidation item;
-- live V8/V9 screen layering is removed by PR 23; final enforcement must verify no versioned Messages ownership remains;
-- outer `ConversationScreen` and V8 composer both applied IME-related padding (resolved by #105: composer is the sole owner);
-- instrumented/device tests are not run by the current hosted CI; and
-- the physical Samsung smoke matrix remains incomplete because the available device has a differently signed installed Nova package.
+- push/root navigation policy has JVM characterization, but broader notification-routing and session-expiry centralization remain later shared-shell work;
+- Phase 3 must isolate calls without changing signaling/WebRTC/TURN/Telecom contracts;
+- current hosted CI now compiles the instrumentation APK but still does not execute instrumented tests on a device/emulator;
+- the physical Samsung smoke matrix remains incomplete because the available device has a differently signed installed Nova package; and
+- non-Messages features may still contain historical naming or UI-owned repository patterns to be handled in their designated later phases.
