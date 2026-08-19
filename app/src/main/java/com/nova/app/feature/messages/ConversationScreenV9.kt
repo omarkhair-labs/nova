@@ -42,10 +42,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.nova.app.core.messaging.NovaMessagingV9ToolsRepository
-import com.nova.app.core.messaging.NovaV9MessageContext
-import com.nova.app.core.messaging.NovaV9MessageItem
+import com.nova.app.app.appContainer
 import com.nova.app.core.network.ApiResult
+import com.nova.app.feature.messages.details.model.ConversationMessageContext
+import com.nova.app.feature.messages.details.model.ConversationToolMessage
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaMediaImage
 import com.nova.app.ui.theme.NovaAccent
@@ -140,16 +140,16 @@ private fun V9ConversationDetailsDialog(
     onSessionExpired: () -> Unit,
 ) {
     val context = LocalContext.current
-    val repository = remember(context) { NovaMessagingV9ToolsRepository(context.applicationContext) }
+    val repository = remember(context) { context.appContainer.conversationToolsRepository }
 
     var tab by remember(initialTab) { mutableStateOf(initialTab) }
     var query by remember { mutableStateOf("") }
-    var searchResults by remember { mutableStateOf<List<NovaV9MessageItem>>(emptyList()) }
+    var searchResults by remember { mutableStateOf<List<ConversationToolMessage>>(emptyList()) }
     var searchLoading by remember { mutableStateOf(false) }
     var searchError by remember { mutableStateOf<String?>(null) }
 
     var mediaType by remember { mutableStateOf("all") }
-    var mediaItems by remember { mutableStateOf<List<NovaV9MessageItem>>(emptyList()) }
+    var mediaItems by remember { mutableStateOf<List<ConversationToolMessage>>(emptyList()) }
     var mediaCursor by remember { mutableStateOf<String?>(null) }
     var mediaLoading by remember { mutableStateOf(false) }
     var mediaLoadedFor by remember { mutableStateOf<String?>(null) }
@@ -161,7 +161,7 @@ private fun V9ConversationDetailsDialog(
     var muteError by remember { mutableStateOf<String?>(null) }
 
     var contextTargetId by remember { mutableStateOf<Long?>(null) }
-    var messageContext by remember { mutableStateOf<NovaV9MessageContext?>(null) }
+    var messageContext by remember { mutableStateOf<ConversationMessageContext?>(null) }
     var contextLoading by remember { mutableStateOf(false) }
     var contextError by remember { mutableStateOf<String?>(null) }
     var fullPhotoUrl by remember { mutableStateOf<String?>(null) }
@@ -524,11 +524,11 @@ private fun V9TabChip(label: String, active: Boolean, onClick: () -> Unit) {
 @Composable
 private fun V9SearchView(
     query: String,
-    results: List<NovaV9MessageItem>,
+    results: List<ConversationToolMessage>,
     loading: Boolean,
     error: String?,
     onQueryChange: (String) -> Unit,
-    onOpen: (NovaV9MessageItem) -> Unit,
+    onOpen: (ConversationToolMessage) -> Unit,
 ) {
     Column(Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 10.dp)) {
         OutlinedTextField(
@@ -568,7 +568,7 @@ private fun V9SearchView(
 @Composable
 private fun V9MediaView(
     type: String,
-    items: List<NovaV9MessageItem>,
+    items: List<ConversationToolMessage>,
     nextCursor: String?,
     loading: Boolean,
     error: String?,
@@ -577,7 +577,7 @@ private fun V9MediaView(
     voicePreparing: Boolean,
     voiceFailedUrl: String?,
     onType: (String) -> Unit,
-    onOpenContext: (NovaV9MessageItem) -> Unit,
+    onOpenContext: (ConversationToolMessage) -> Unit,
     onOpenPhoto: (String) -> Unit,
     onVoice: (String) -> Unit,
     onLoadMore: () -> Unit,
@@ -731,7 +731,7 @@ private fun V9DetailsView(
 @Composable
 private fun V9ContextView(
     username: String,
-    context: NovaV9MessageContext?,
+    context: ConversationMessageContext?,
     loading: Boolean,
     error: String?,
     activeVoiceUrl: String?,
@@ -795,7 +795,7 @@ private fun V9ContextView(
 
 
 @Composable
-private fun V9ResultCard(item: NovaV9MessageItem, onClick: () -> Unit) {
+private fun V9ResultCard(item: ConversationToolMessage, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(18.dp),
@@ -818,7 +818,7 @@ private fun V9ResultCard(item: NovaV9MessageItem, onClick: () -> Unit) {
 
 @Composable
 private fun V9MediaCard(
-    item: NovaV9MessageItem,
+    item: ConversationToolMessage,
     activeVoiceUrl: String?,
     voicePlaying: Boolean,
     voicePreparing: Boolean,
@@ -873,7 +873,7 @@ private fun V9MediaCard(
 
 @Composable
 private fun V9ContextMessageCard(
-    item: NovaV9MessageItem,
+    item: ConversationToolMessage,
     highlighted: Boolean,
     activeVoiceUrl: String?,
     voicePlaying: Boolean,
@@ -1017,7 +1017,7 @@ private fun V9ContextEdge(text: String) {
 }
 
 
-private fun v9Preview(item: NovaV9MessageItem): String = when {
+private fun v9Preview(item: ConversationToolMessage): String = when {
     item.isDeleted -> "Message deleted"
     item.body.isNotBlank() -> item.body
     item.audioUrl.isNotBlank() -> "🎤 Voice message"
