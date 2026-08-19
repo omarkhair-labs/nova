@@ -16,26 +16,27 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.nova.app.core.auth.shouldExpireNovaSession
-import com.nova.app.core.messaging.NovaConversationPreferenceRepository
-import com.nova.app.core.network.ApiResult
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.nova.app.app.appContainer
+import com.nova.app.feature.messages.appearance.ConversationAppearanceViewModel
 import com.nova.app.ui.theme.LocalNovaColorOverride
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaBorder
-import kotlinx.coroutines.launch
 
 
 /** Stable conversation entry point shared by direct and group messaging. */
@@ -55,56 +56,32 @@ fun ConversationScreen(
     onVideoCall: () -> Unit,
 ) {
     val context = LocalContext.current
-    val preferenceRepository = remember(context) {
-        NovaConversationPreferenceRepository(context.applicationContext)
+    val appearanceStoreOwner = remember(conversationId) { ConversationAppearanceStoreOwner() }
+    val appearanceViewModel: ConversationAppearanceViewModel = viewModel(
+        viewModelStoreOwner = appearanceStoreOwner,
+        key = "conversation-appearance-$conversationId",
+        factory = ConversationAppearanceViewModel.factory(
+            conversationId = conversationId,
+            repository = context.appContainer.conversationAppearanceRepository,
+            resolveThemeKey = { NovaChatThemes.resolve(it).key },
+        ),
+    )
+    val appearanceState = appearanceViewModel.state
+
+    DisposableEffect(appearanceStoreOwner) {
+        onDispose { appearanceStoreOwner.viewModelStore.clear() }
     }
-    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(appearanceState.sessionExpiryVersion) {
+        if (appearanceState.sessionExpiryVersion > 0) onSessionExpired()
+    }
 
     var showGroupInfo by remember(conversationId) { mutableStateOf(false) }
-    var showThemePicker by remember(conversationId) { mutableStateOf(false) }
     var liveDisplayName by remember(conversationId, displayName) { mutableStateOf(displayName) }
     var liveAvatarUrl by remember(conversationId, avatarUrl) { mutableStateOf(avatarUrl) }
     var liveMembersCount by remember(conversationId, membersCount) { mutableIntStateOf(membersCount) }
-    var themeKey by remember(conversationId) { mutableStateOf("nova") }
-    var savingThemeKey by remember(conversationId) { mutableStateOf<String?>(null) }
-    var themeError by remember(conversationId) { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(conversationId) {
-        when (val result = preferenceRepository.preference(conversationId)) {
-            is ApiResult.Success -> {
-                themeKey = NovaChatThemes.resolve(result.value.themeKey).key
-                themeError = null
-            }
-            is ApiResult.Failure -> {
-                if (shouldExpireNovaSession(result.statusCode)) onSessionExpired()
-                else themeError = result.message
-            }
-        }
-    }
-
-    fun selectTheme(selected: NovaChatPalette) {
-        if (savingThemeKey != null || selected.key == themeKey) return
-        val previousKey = themeKey
-        themeKey = selected.key
-        savingThemeKey = selected.key
-        themeError = null
-        scope.launch {
-            when (val result = preferenceRepository.setTheme(conversationId, selected.key)) {
-                is ApiResult.Success -> {
-                    themeKey = NovaChatThemes.resolve(result.value.themeKey).key
-                    themeError = null
-                }
-                is ApiResult.Failure -> {
-                    themeKey = previousKey
-                    if (shouldExpireNovaSession(result.statusCode)) onSessionExpired()
-                    else themeError = result.message
-                }
-            }
-            savingThemeKey = null
-        }
-    }
-
-    val palette = NovaChatThemes.resolve(themeKey)
+    val palette = NovaChatThemes.resolve(appearanceState.themeKey)
     CompositionLocalProvider(
         LocalNovaColorOverride provides palette.colorOverride(),
         LocalNovaChatPalette provides palette,
@@ -120,7 +97,7 @@ fun ConversationScreen(
                 displayName = liveDisplayName,
                 avatarUrl = liveAvatarUrl,
                 themeLabel = palette.label,
-                onOpenTheme = { showThemePicker = true },
+                onOpenTheme = appearanceViewModel::openPicker,
                 onBack = onBack,
                 onConversationRead = onConversationRead,
                 onSessionExpired = onSessionExpired,
@@ -158,13 +135,13 @@ fun ConversationScreen(
             }
         }
 
-        if (showThemePicker) {
+        if (appearanceState.pickerOpen) {
             NovaChatThemePicker(
-                selectedKey = themeKey,
-                savingKey = savingThemeKey,
-                errorMessage = themeError,
-                onSelect = ::selectTheme,
-                onDismiss = { if (savingThemeKey == null) showThemePicker = false },
+                selectedKey = appearanceState.themeKey,
+                savingKey = appearanceState.savingThemeKey,
+                errorMessage = appearanceState.errorMessage,
+                onSelect = { appearanceViewModel.selectTheme(it.key) },
+                onDismiss = appearanceViewModel::dismissPicker,
             )
         }
 
@@ -185,6 +162,11 @@ fun ConversationScreen(
             )
         }
     }
+}
+
+
+private class ConversationAppearanceStoreOwner : ViewModelStoreOwner {
+    override val viewModelStore = ViewModelStore()
 }
 
 
