@@ -63,12 +63,10 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.nova.app.ReelsActivity
-import com.nova.app.core.network.ApiResult
+import com.nova.app.app.appContainer
 import com.nova.app.core.push.NovaPushOpenSignal
-import com.nova.app.core.stories.NovaStoriesRepository
-import com.nova.app.core.stories.NovaStory
-import com.nova.app.core.stories.NovaStoryGroup
-import com.nova.app.core.stories.NovaStoryViewer
+import com.nova.app.feature.stories.domain.model.NovaStory
+import com.nova.app.feature.stories.domain.model.NovaStoryGroup
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaMediaImage
 import com.nova.app.ui.theme.NovaAccent
@@ -79,7 +77,6 @@ import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 
 private val StoryV2Background = Color(0xFF080A0F)
@@ -98,41 +95,32 @@ fun StoriesRail(
     onSessionExpired: () -> Unit,
 ) {
     val context = LocalContext.current
-    val repository = remember(context) { NovaStoriesRepository(context.applicationContext) }
+    val repository = context.appContainer.storiesRepository
     val scope = rememberCoroutineScope()
+    val owner = remember(repository, scope) { StoriesStateOwner(repository, scope) }
+    val state = owner.state
 
-    var groups by remember { mutableStateOf<List<NovaStoryGroup>>(emptyList()) }
-    var loading by remember { mutableStateOf(true) }
-    var error by remember { mutableStateOf<String?>(null) }
     var pendingMedia by remember { mutableStateOf<Uri?>(null) }
     var showTextComposer by remember { mutableStateOf(false) }
-    var uploading by remember { mutableStateOf(false) }
     var viewerGroup by remember { mutableStateOf<NovaStoryGroup?>(null) }
-
-    fun loadStories(showSpinner: Boolean = false) {
-        scope.launch {
-            if (showSpinner) loading = true
-            when (val result = repository.stories()) {
-                is ApiResult.Success -> {
-                    groups = result.value
-                    error = null
-                }
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onSessionExpired() else error = result.message
-                }
-            }
-            loading = false
-        }
-    }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             pendingMedia = uri
-            error = null
+            owner.clearError()
         }
     }
 
-    LaunchedEffect(Unit) { loadStories(showSpinner = true) }
+    LaunchedEffect(Unit) { owner.load(showSpinner = true) }
+    LaunchedEffect(state.sessionExpiryVersion) {
+        if (state.sessionExpiryVersion > 0) onSessionExpired()
+    }
+    LaunchedEffect(state.mediaCreatedVersion) {
+        if (state.mediaCreatedVersion > 0) pendingMedia = null
+    }
+    LaunchedEffect(state.textCreatedVersion) {
+        if (state.textCreatedVersion > 0) showTextComposer = false
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
         Row(
@@ -141,19 +129,19 @@ fun StoriesRail(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text("Stories", color = NovaInk, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-            if (error != null) {
+            if (state.error != null) {
                 Text(
                     "Retry",
                     color = NovaAccent,
                     fontSize = 11.sp,
-                    modifier = Modifier.clickable { loadStories(showSpinner = true) },
+                    modifier = Modifier.clickable { owner.load(showSpinner = true) },
                 )
             } else {
                 Text("24h", color = NovaMuted, fontSize = 10.sp)
             }
         }
 
-        if (loading && groups.isEmpty()) {
+        if (state.loading && state.groups.isEmpty()) {
             Row(
                 modifier = Modifier.fillMaxWidth().height(92.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -162,8 +150,8 @@ fun StoriesRail(
                 CircularProgressIndicator(modifier = Modifier.size(24.dp), color = NovaAccent, strokeWidth = 2.dp)
             }
         } else {
-            val myGroup = groups.firstOrNull { it.isMine }
-            val otherGroups = groups.filterNot { it.isMine }
+            val myGroup = state.groups.firstOrNull { it.isMine }
+            val otherGroups = state.groups.filterNot { it.isMine }
             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 item(key = "story-add-media") {
                     StoryCreateRailItem(
@@ -198,7 +186,7 @@ fun StoriesRail(
             }
         }
 
-        error?.let {
+        state.error?.let {
             Text(it, color = NovaMuted, fontSize = 10.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
@@ -206,44 +194,20 @@ fun StoriesRail(
     pendingMedia?.let { uri ->
         MediaStoryComposerV2(
             mediaUri = uri,
-            uploading = uploading,
-            onDismiss = { if (!uploading) pendingMedia = null },
+            uploading = state.uploading,
+            onDismiss = { if (!state.uploading) pendingMedia = null },
             onPost = { caption, audience ->
-                scope.launch {
-                    uploading = true
-                    when (val result = repository.createStory(uri, caption, audience)) {
-                        is ApiResult.Success -> {
-                            pendingMedia = null
-                            loadStories()
-                        }
-                        is ApiResult.Failure -> {
-                            if (result.statusCode == 401) onSessionExpired() else error = result.message
-                        }
-                    }
-                    uploading = false
-                }
+                owner.createMediaStory(uri, caption, audience)
             },
         )
     }
 
     if (showTextComposer) {
         TextStoryComposerV2(
-            uploading = uploading,
-            onDismiss = { if (!uploading) showTextComposer = false },
+            uploading = state.uploading,
+            onDismiss = { if (!state.uploading) showTextComposer = false },
             onPost = { text, backgroundStyle, audience ->
-                scope.launch {
-                    uploading = true
-                    when (val result = repository.createTextStory(text, backgroundStyle, audience)) {
-                        is ApiResult.Success -> {
-                            showTextComposer = false
-                            loadStories()
-                        }
-                        is ApiResult.Failure -> {
-                            if (result.statusCode == 401) onSessionExpired() else error = result.message
-                        }
-                    }
-                    uploading = false
-                }
+                owner.createTextStory(text, backgroundStyle, audience)
             },
         )
     }
@@ -251,10 +215,9 @@ fun StoriesRail(
     viewerGroup?.let { group ->
         StoryViewerV2(
             initialGroup = group,
-            repository = repository,
             onDismiss = {
                 viewerGroup = null
-                loadStories()
+                owner.load()
             },
             onSessionExpired = {
                 viewerGroup = null
@@ -511,47 +474,36 @@ private fun StoryAudienceChipV2(label: String, selected: Boolean, enabled: Boole
 @Composable
 private fun StoryViewerV2(
     initialGroup: NovaStoryGroup,
-    repository: NovaStoriesRepository,
     onDismiss: () -> Unit,
     onSessionExpired: () -> Unit,
 ) {
     val context = LocalContext.current
+    val repository = context.appContainer.storiesRepository
     val scope = rememberCoroutineScope()
-    var stories by remember(initialGroup.author.id) { mutableStateOf(initialGroup.stories) }
-    var index by remember(initialGroup.author.id) {
-        mutableStateOf(initialGroup.stories.indexOfFirst { !it.isViewed }.let { if (it < 0) 0 else it })
+    val owner = remember(initialGroup.author.id, repository, scope) {
+        StoryViewerStateOwner(initialGroup, repository, scope)
     }
+    val state = owner.state
     var progress by remember { mutableFloatStateOf(0f) }
-    var replyBody by remember { mutableStateOf("") }
-    var mutationBusy by remember { mutableStateOf(false) }
-    var message by remember { mutableStateOf<String?>(null) }
-    var showViewers by remember { mutableStateOf(false) }
 
-    val story = stories.getOrNull(index)
+    val story = state.currentStory
     if (story == null) {
         onDismiss()
         return
     }
 
-    fun advance() {
-        if (index < stories.lastIndex) index += 1 else onDismiss()
+    LaunchedEffect(state.sessionExpiryVersion) {
+        if (state.sessionExpiryVersion > 0) onSessionExpired()
     }
-
-    fun previous() {
-        if (index > 0) index -= 1
+    LaunchedEffect(state.finishedVersion) {
+        if (state.finishedVersion > 0) onDismiss()
     }
-
+    LaunchedEffect(state.deletedVersion) {
+        if (state.deletedVersion > 0) onDismiss()
+    }
     LaunchedEffect(story.id) {
         progress = 0f
-        message = null
-        if (!story.isMine && !story.isViewed) {
-            when (val result = repository.markViewed(story.id)) {
-                is ApiResult.Success -> {
-                    stories = stories.map { if (it.id == story.id) it.copy(isViewed = true) else it }
-                }
-                is ApiResult.Failure -> if (result.statusCode == 401) onSessionExpired()
-            }
-        }
+        owner.enterCurrentStory()
     }
 
     LaunchedEffect(story.id) {
@@ -559,11 +511,11 @@ private fun StoryViewerV2(
         var elapsedMs = 0L
         while (elapsedMs < STORY_FRAME_MS) {
             delay(STORY_TICK_MS)
-            if (showViewers || mutationBusy) continue
+            if (owner.state.viewersVisible || owner.state.mutationBusy) continue
             elapsedMs += STORY_TICK_MS
             progress = (elapsedMs.toFloat() / STORY_FRAME_MS.toFloat()).coerceIn(0f, 1f)
         }
-        advance()
+        owner.advance()
     }
 
     Dialog(
@@ -574,7 +526,7 @@ private fun StoryViewerV2(
             StoryVisualV2(
                 story = story,
                 onVideoProgress = { progress = it },
-                onVideoFinished = ::advance,
+                onVideoFinished = owner::advance,
             )
 
             Column(
@@ -584,7 +536,7 @@ private fun StoryViewerV2(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    stories.forEachIndexed { storyIndex, _ ->
+                    state.stories.forEachIndexed { storyIndex, _ ->
                         Box(
                             modifier = Modifier
                                 .weight(1f)
@@ -593,8 +545,8 @@ private fun StoryViewerV2(
                                 .background(Color.White.copy(alpha = 0.22f)),
                         ) {
                             val fill = when {
-                                storyIndex < index -> 1f
-                                storyIndex == index -> progress
+                                storyIndex < state.index -> 1f
+                                storyIndex == state.index -> progress
                                 else -> 0f
                             }
                             if (fill > 0f) {
@@ -622,8 +574,8 @@ private fun StoryViewerV2(
             }
 
             Row(modifier = Modifier.fillMaxSize().padding(top = 86.dp, bottom = 150.dp)) {
-                Box(Modifier.weight(1f).fillMaxSize().clickable { previous() })
-                Box(Modifier.weight(1f).fillMaxSize().clickable { advance() })
+                Box(Modifier.weight(1f).fillMaxSize().clickable { owner.previous() })
+                Box(Modifier.weight(1f).fillMaxSize().clickable { owner.advance() })
             }
 
             Column(
@@ -705,7 +657,7 @@ private fun StoryViewerV2(
                 if (story.isMine) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Surface(
-                            onClick = { showViewers = true },
+                            onClick = { owner.openViewers() },
                             shape = RoundedCornerShape(14.dp),
                             color = Color.Black.copy(alpha = 0.52f),
                         ) {
@@ -718,24 +670,13 @@ private fun StoryViewerV2(
                         }
                         Surface(
                             onClick = {
-                                if (!mutationBusy) {
-                                    scope.launch {
-                                        mutationBusy = true
-                                        when (val result = repository.deleteStory(story.id)) {
-                                            is ApiResult.Success -> onDismiss()
-                                            is ApiResult.Failure -> {
-                                                if (result.statusCode == 401) onSessionExpired() else message = result.message
-                                            }
-                                        }
-                                        mutationBusy = false
-                                    }
-                                }
+                                if (!state.mutationBusy) owner.deleteCurrentStory()
                             },
                             shape = RoundedCornerShape(14.dp),
                             color = Color.Black.copy(alpha = 0.52f),
                         ) {
                             Text(
-                                if (mutationBusy) "Deleting…" else "Delete",
+                                if (state.mutationBusy) "Deleting…" else "Delete",
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
                                 color = StoryV2Ink,
                                 fontSize = 10.sp,
@@ -747,25 +688,7 @@ private fun StoryViewerV2(
                         StoryReactions.forEach { emoji ->
                             Surface(
                                 onClick = {
-                                    if (!mutationBusy) {
-                                        scope.launch {
-                                            mutationBusy = true
-                                            val result = if (story.myReaction == emoji) repository.removeReaction(story.id)
-                                            else repository.react(story.id, emoji)
-                                            when (result) {
-                                                is ApiResult.Success -> {
-                                                    val nextReaction = if (story.myReaction == emoji) "" else emoji
-                                                    stories = stories.map {
-                                                        if (it.id == story.id) it.copy(myReaction = nextReaction) else it
-                                                    }
-                                                }
-                                                is ApiResult.Failure -> {
-                                                    if (result.statusCode == 401) onSessionExpired() else message = result.message
-                                                }
-                                            }
-                                            mutationBusy = false
-                                        }
-                                    }
+                                    if (!state.mutationBusy) owner.toggleReaction(emoji)
                                 },
                                 modifier = Modifier.size(37.dp),
                                 shape = CircleShape,
@@ -777,10 +700,10 @@ private fun StoryViewerV2(
                     }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(
-                            value = replyBody,
-                            onValueChange = { replyBody = it.take(1000) },
+                            value = state.replyBody,
+                            onValueChange = owner::setReplyBody,
                             modifier = Modifier.weight(1f),
-                            enabled = !mutationBusy,
+                            enabled = !state.mutationBusy,
                             placeholder = { Text("Reply to @${story.author.username}", color = StoryV2Muted) },
                             singleLine = true,
                             shape = RoundedCornerShape(20.dp),
@@ -796,44 +719,25 @@ private fun StoryViewerV2(
                         )
                         Surface(
                             onClick = {
-                                if (!mutationBusy && replyBody.isNotBlank()) {
-                                    scope.launch {
-                                        mutationBusy = true
-                                        when (val result = repository.reply(story.id, replyBody)) {
-                                            is ApiResult.Success -> {
-                                                replyBody = ""
-                                                message = "Reply sent to Messages."
-                                            }
-                                            is ApiResult.Failure -> {
-                                                if (result.statusCode == 401) onSessionExpired() else message = result.message
-                                            }
-                                        }
-                                        mutationBusy = false
-                                    }
-                                }
+                                if (!state.mutationBusy && state.replyBody.isNotBlank()) owner.sendReply()
                             },
                             shape = CircleShape,
-                            color = if (replyBody.isNotBlank()) NovaAccent else Color.Black.copy(alpha = 0.4f),
+                            color = if (state.replyBody.isNotBlank()) NovaAccent else Color.Black.copy(alpha = 0.4f),
                         ) {
                             Text("↑", modifier = Modifier.padding(horizontal = 13.dp, vertical = 9.dp), color = StoryV2Ink, fontSize = 18.sp)
                         }
                     }
                 }
 
-                message?.let {
+                state.message?.let {
                     Text(it, color = StoryV2Muted, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 3.dp))
                 }
             }
         }
     }
 
-    if (showViewers) {
-        StoryViewersDialogV2(
-            storyId = story.id,
-            repository = repository,
-            onDismiss = { showViewers = false },
-            onSessionExpired = onSessionExpired,
-        )
+    if (state.viewersVisible) {
+        StoryViewersDialogV2(owner = owner)
     }
 }
 
@@ -973,40 +877,23 @@ private fun StoryVisualV2(
 
 
 @Composable
-private fun StoryViewersDialogV2(
-    storyId: Long,
-    repository: NovaStoriesRepository,
-    onDismiss: () -> Unit,
-    onSessionExpired: () -> Unit,
-) {
-    var loading by remember(storyId) { mutableStateOf(true) }
-    var viewers by remember(storyId) { mutableStateOf<List<NovaStoryViewer>>(emptyList()) }
-    var error by remember(storyId) { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(storyId) {
-        when (val result = repository.viewers(storyId)) {
-            is ApiResult.Success -> viewers = result.value
-            is ApiResult.Failure -> {
-                if (result.statusCode == 401) onSessionExpired() else error = result.message
-            }
-        }
-        loading = false
-    }
+private fun StoryViewersDialogV2(owner: StoryViewerStateOwner) {
+    val state = owner.state
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = owner::closeViewers,
         title = { Text("Story viewers", color = NovaInk, fontWeight = FontWeight.Bold) },
         text = {
             when {
-                loading -> Box(Modifier.fillMaxWidth().height(140.dp), contentAlignment = Alignment.Center) {
+                state.viewersLoading -> Box(Modifier.fillMaxWidth().height(140.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = NovaAccent)
                 }
-                viewers.isEmpty() -> Text(error ?: "No viewers yet.", color = NovaMuted, fontSize = 12.sp)
+                state.viewers.isEmpty() -> Text(state.viewersError ?: "No viewers yet.", color = NovaMuted, fontSize = 12.sp)
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxWidth().height(280.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    items(viewers, key = { it.user.id }) { viewer ->
+                    items(state.viewers, key = { it.user.id }) { viewer ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             NovaAvatar(source = viewer.user.avatarUrl, fallbackText = viewer.user.displayName, size = 36.dp)
                             Spacer(Modifier.width(9.dp))
@@ -1020,7 +907,7 @@ private fun StoryViewersDialogV2(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
+        confirmButton = { TextButton(onClick = owner::closeViewers) { Text("Done") } },
     )
 }
 
