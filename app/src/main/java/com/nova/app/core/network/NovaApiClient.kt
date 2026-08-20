@@ -27,18 +27,6 @@ data class NovaUser(
 )
 
 
-data class NovaPerson(
-    val id: Long,
-    val username: String,
-    val name: String,
-    val avatarUrl: String,
-    val followersCount: Int,
-    val followingCount: Int,
-    val postsCount: Int,
-    val isFollowing: Boolean,
-)
-
-
 data class NovaPostAuthor(
     val id: Long,
     val username: String,
