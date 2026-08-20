@@ -45,10 +45,8 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
-import com.nova.app.core.network.ApiResult
-import com.nova.app.core.reels.NovaProfileReelsRepository
-import com.nova.app.core.reels.NovaReel
-import com.nova.app.core.reels.NovaReelsRepository
+import com.nova.app.app.appContainer
+import com.nova.app.feature.reels.domain.model.NovaReel
 import com.nova.app.feature.sharing.NovaShareDialog
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.theme.NovaAccent
@@ -57,7 +55,6 @@ import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
-import kotlinx.coroutines.launch
 
 
 private val ProfileViewerBackground = Color(0xFF050608)
@@ -72,100 +69,70 @@ fun ProfileReelsViewerScreen(
     onFinish: () -> Unit,
 ) {
     val context = LocalContext.current
-    val profileRepository = remember(context) {
-        NovaProfileReelsRepository(context.applicationContext)
-    }
-    val interactionRepository = remember(context) {
-        NovaReelsRepository(context.applicationContext)
-    }
+    val appContainer = context.appContainer
+    val profileRepository = appContainer.profileReelsRepository
+    val interactionRepository = appContainer.reelsRepository
     val scope = rememberCoroutineScope()
+    val owner = remember(
+        username,
+        initialReelId,
+        profileRepository,
+        interactionRepository,
+        scope,
+    ) {
+        ProfileReelsViewerStateOwner(
+            username = username,
+            initialReelId = initialReelId,
+            profileRepository = profileRepository,
+            interactionRepository = interactionRepository,
+            scope = scope,
+        )
+    }
+    val state = owner.state
+    val reels = state.reels
+    val nextCursor = state.nextCursor
+    val loading = state.loading
+    val loadingMore = state.loadingMore
+    val error = state.error
+    val likingId = state.likingId
+    val repostingId = state.repostingId
+    val deletingId = state.deletingId
 
-    var reels by remember(username) { mutableStateOf<List<NovaReel>>(emptyList()) }
-    var nextCursor by remember(username) { mutableStateOf<String?>(null) }
-    var loading by remember(username, initialReelId) { mutableStateOf(true) }
-    var loadingMore by remember(username) { mutableStateOf(false) }
-    var error by remember(username) { mutableStateOf<String?>(null) }
-    var likingId by remember(username) { mutableStateOf<Long?>(null) }
-    var repostingId by remember(username) { mutableStateOf<Long?>(null) }
-    var deletingId by remember(username) { mutableStateOf<Long?>(null) }
     var commentsReel by remember(username) { mutableStateOf<NovaReel?>(null) }
     var shareReelTarget by remember(username) { mutableStateOf<NovaReel?>(null) }
     var deleteReelTarget by remember(username) { mutableStateOf<NovaReel?>(null) }
 
     val overlayOpen = commentsReel != null || shareReelTarget != null || deleteReelTarget != null
 
-    fun replaceReel(updated: NovaReel) {
-        reels = reels.map { existing -> if (existing.id == updated.id) updated else existing }
+    LaunchedEffect(owner) {
+        owner.loadInitial()
+    }
+    LaunchedEffect(state.sessionExpiryVersion) {
+        if (state.sessionExpiryVersion > 0) onFinish()
+    }
+    LaunchedEffect(state.deletedVersion) {
+        if (state.deletedVersion > 0) {
+            val deletedId = deleteReelTarget?.id
+            if (deletedId != null) {
+                if (commentsReel?.id == deletedId) commentsReel = null
+                if (shareReelTarget?.id == deletedId) shareReelTarget = null
+            }
+            deleteReelTarget = null
+        }
+    }
+    LaunchedEffect(reels) {
+        commentsReel = commentsReel?.let { target ->
+            reels.firstOrNull { it.id == target.id } ?: target
+        }
+        shareReelTarget = shareReelTarget?.let { target ->
+            reels.firstOrNull { it.id == target.id } ?: target
+        }
+    }
+
+    fun replaceOverlayReel(updated: NovaReel) {
+        owner.replaceReel(updated)
         if (commentsReel?.id == updated.id) commentsReel = updated
         if (shareReelTarget?.id == updated.id) shareReelTarget = updated
-    }
-
-    fun loadMore() {
-        val cursor = nextCursor ?: return
-        if (loadingMore) return
-        scope.launch {
-            loadingMore = true
-            error = null
-            when (val result = profileRepository.reels(username, cursor)) {
-                is ApiResult.Success -> {
-                    val existingIds = reels.mapTo(mutableSetOf()) { it.id }
-                    reels = reels + result.value.reels.filterNot { it.id in existingIds }
-                    nextCursor = result.value.nextCursor
-                }
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onFinish() else error = result.message
-                }
-            }
-            loadingMore = false
-        }
-    }
-
-    fun toggleLike(reel: NovaReel) {
-        if (likingId != null) return
-        scope.launch {
-            likingId = reel.id
-            when (val result = interactionRepository.setLiked(reel.id, !reel.isLiked)) {
-                is ApiResult.Success -> replaceReel(result.value)
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onFinish() else error = result.message
-                }
-            }
-            likingId = null
-        }
-    }
-
-    fun toggleRepost(reel: NovaReel) {
-        if (repostingId != null) return
-        scope.launch {
-            repostingId = reel.id
-            when (val result = interactionRepository.setReposted(reel.id, !reel.isReposted)) {
-                is ApiResult.Success -> replaceReel(result.value)
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onFinish() else error = result.message
-                }
-            }
-            repostingId = null
-        }
-    }
-
-    fun deleteReel(reel: NovaReel) {
-        if (!reel.isMine || deletingId != null) return
-        scope.launch {
-            deletingId = reel.id
-            error = null
-            when (val result = interactionRepository.deleteReel(reel.id)) {
-                is ApiResult.Success -> {
-                    reels = reels.filterNot { it.id == reel.id }
-                    if (commentsReel?.id == reel.id) commentsReel = null
-                    if (shareReelTarget?.id == reel.id) shareReelTarget = null
-                    deleteReelTarget = null
-                }
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onFinish() else error = result.message
-                }
-            }
-            deletingId = null
-        }
     }
 
     fun shareReelOutsideNova(reel: NovaReel) {
@@ -183,40 +150,6 @@ fun ProfileReelsViewerScreen(
                 "Share Reel",
             )
         )
-    }
-
-    LaunchedEffect(username, initialReelId) {
-        loading = true
-        error = null
-        reels = emptyList()
-        nextCursor = null
-
-        var cursor: String? = null
-        var loadedPages = 0
-        var aggregate = emptyList<NovaReel>()
-
-        while (loadedPages < MAX_INITIAL_LOOKUP_PAGES) {
-            when (val result = profileRepository.reels(username, cursor)) {
-                is ApiResult.Success -> {
-                    val existingIds = aggregate.mapTo(mutableSetOf()) { it.id }
-                    aggregate = aggregate + result.value.reels.filterNot { it.id in existingIds }
-                    reels = aggregate
-                    nextCursor = result.value.nextCursor
-                    cursor = result.value.nextCursor
-                    loadedPages += 1
-                    if (aggregate.any { it.id == initialReelId } || cursor == null) break
-                }
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) {
-                        onFinish()
-                    } else {
-                        error = result.message
-                    }
-                    break
-                }
-            }
-        }
-        loading = false
     }
 
     when {
@@ -294,7 +227,7 @@ fun ProfileReelsViewerScreen(
                     nextCursor != null &&
                     !loadingMore
                 ) {
-                    loadMore()
+                    owner.loadMore()
                 }
             }
 
@@ -316,9 +249,9 @@ fun ProfileReelsViewerScreen(
                         isLiking = likingId == reel.id,
                         isReposting = repostingId == reel.id,
                         isDeleting = deletingId == reel.id,
-                        onLike = { toggleLike(reel) },
+                        onLike = { owner.toggleLike(reel) },
                         onComments = { commentsReel = reel },
-                        onRepost = { toggleRepost(reel) },
+                        onRepost = { owner.toggleRepost(reel) },
                         onShare = { shareReelTarget = reel },
                         onDelete = { deleteReelTarget = reel },
                     )
@@ -372,7 +305,7 @@ fun ProfileReelsViewerScreen(
 
                 error?.let { message ->
                     Surface(
-                        onClick = { error = null },
+                        onClick = owner::clearError,
                         modifier = Modifier
                             .align(Alignment.TopCenter)
                             .statusBarsPadding()
@@ -397,7 +330,7 @@ fun ProfileReelsViewerScreen(
             reel = reel,
             repository = interactionRepository,
             onDismiss = { commentsReel = null },
-            onReelUpdated = ::replaceReel,
+            onReelUpdated = ::replaceOverlayReel,
             onPersonClick = {},
             onSessionExpired = onFinish,
         )
@@ -416,7 +349,7 @@ fun ProfileReelsViewerScreen(
         ProfileReelDeleteDialog(
             deleting = deletingId == reel.id,
             onDismiss = { if (deletingId == null) deleteReelTarget = null },
-            onDelete = { deleteReel(reel) },
+            onDelete = { owner.deleteReel(reel) },
         )
     }
 }
@@ -707,6 +640,3 @@ private fun ProfileReelDeleteDialog(
         }
     }
 }
-
-
-private const val MAX_INITIAL_LOOKUP_PAGES = 20
