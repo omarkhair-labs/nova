@@ -2,6 +2,7 @@ package com.nova.app.app
 
 import android.content.Context
 import com.nova.app.NovaApplication
+import com.nova.app.core.auth.NovaAccountSecurityRepository
 import com.nova.app.core.auth.NovaAuthRepository
 import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.calls.NovaCallRepository
@@ -21,6 +22,7 @@ import com.nova.app.core.reels.NovaProfileReelsRepository
 import com.nova.app.core.reels.NovaReelWatchRepository
 import com.nova.app.core.reels.NovaReelsRepository
 import com.nova.app.core.sharing.NovaSharingRepository
+import com.nova.app.core.social.NovaBlockedAccountsRepository
 import com.nova.app.core.social.NovaSocialPagingRepository
 import com.nova.app.core.social.NovaSocialRepository
 import com.nova.app.core.stories.NovaStoriesRepository
@@ -54,6 +56,8 @@ import com.nova.app.feature.privacy.data.PrivacyRepository
 import com.nova.app.feature.reels.data.ProfileReelsRepository
 import com.nova.app.feature.reels.data.ReelWatchRepository
 import com.nova.app.feature.reels.data.ReelsRepository
+import com.nova.app.feature.security.data.BlockedAccountsRepository
+import com.nova.app.feature.security.data.SecurityRepository
 import com.nova.app.feature.sharing.data.SharingRepository
 import com.nova.app.feature.stories.data.StoriesRepository
 import com.nova.app.navigation.AppNavigationBridge
@@ -67,6 +71,8 @@ class AppContainer(context: Context) {
     private val sessionStore = NovaSessionStore(appContext)
 
     val authRepository = NovaAuthRepository(appContext, api)
+    val securityRepository: SecurityRepository = NovaAccountSecurityRepository(appContext)
+    val blockedAccountsRepository: BlockedAccountsRepository = NovaBlockedAccountsRepository(appContext)
     val feedRepository = NovaFeedRepository(appContext, api)
     val feedDataRepository: FeedRepository = feedRepository
     val postDataRepository: PostRepository = feedRepository
