@@ -22,11 +22,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,14 +32,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nova.app.core.feed.NovaFeedRepository
-import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaPost
-import com.nova.app.core.notifications.NovaNotification
-import com.nova.app.core.notifications.NovaNotificationRepository
-import com.nova.app.core.privacy.NovaFollowRequest
-import com.nova.app.core.privacy.NovaPrivacyRepository
+import com.nova.app.app.appContainer
 import com.nova.app.core.reels.NovaReelsNavigator
+import com.nova.app.feature.notifications.domain.model.NovaNotification
+import com.nova.app.feature.posts.domain.model.NovaPost
+import com.nova.app.feature.privacy.domain.model.NovaFollowRequest
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.theme.NovaAccent
@@ -52,7 +47,6 @@ import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.Instant
 
@@ -66,150 +60,36 @@ fun NotificationsScreen(
     onSessionExpired: () -> Unit,
 ) {
     val context = LocalContext.current
-    val repository = remember(context) {
-        NovaNotificationRepository(context.applicationContext)
-    }
-    val privacyRepository = remember(context) {
-        NovaPrivacyRepository(context.applicationContext)
-    }
-    val feedRepository = remember(context) {
-        NovaFeedRepository(context.applicationContext)
-    }
+    val appContainer = context.appContainer
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
-
-    var notifications by remember { mutableStateOf<List<NovaNotification>>(emptyList()) }
-    var followRequests by remember { mutableStateOf<List<NovaFollowRequest>>(emptyList()) }
-    var nextCursor by remember { mutableStateOf<String?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
-    var isLoadingMore by remember { mutableStateOf(false) }
-    var requestsLoading by remember { mutableStateOf(true) }
-    var requestBusyId by remember { mutableStateOf<Long?>(null) }
-    var openingPostId by remember { mutableStateOf<Long?>(null) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var requestError by remember { mutableStateOf<String?>(null) }
-
-    fun loadFollowRequests() {
-        scope.launch {
-            requestsLoading = true
-            requestError = null
-            when (val result = privacyRepository.followRequests()) {
-                is ApiResult.Success -> followRequests = result.value
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onSessionExpired() else requestError = result.message
-                }
-            }
-            requestsLoading = false
-        }
-    }
-
-    fun loadActivity(reset: Boolean) {
-        if (isLoadingMore || (reset && isLoading && notifications.isNotEmpty())) return
-        val cursor = if (reset) null else nextCursor ?: return
-
-        if (reset) loadFollowRequests()
-
-        scope.launch {
-            if (reset) isLoading = true else isLoadingMore = true
-            errorMessage = null
-
-            when (val result = repository.notifications(cursor)) {
-                is ApiResult.Success -> {
-                    notifications = if (reset) {
-                        result.value.notifications
-                    } else {
-                        val existingIds = notifications.mapTo(mutableSetOf()) { it.id }
-                        notifications + result.value.notifications.filterNot { it.id in existingIds }
-                    }
-                    nextCursor = result.value.nextCursor
-                    onUnreadCountChanged(result.value.unreadCount)
-                    isLoading = false
-                    isLoadingMore = false
-
-                    if (reset && result.value.unreadCount > 0) {
-                        when (val readResult = repository.markAllRead()) {
-                            is ApiResult.Success -> onUnreadCountChanged(readResult.value)
-                            is ApiResult.Failure -> {
-                                if (readResult.statusCode == 401) onSessionExpired()
-                            }
-                        }
-                    }
-                }
-
-                is ApiResult.Failure -> {
-                    isLoading = false
-                    isLoadingMore = false
-                    if (result.statusCode == 401) {
-                        onSessionExpired()
-                    } else {
-                        errorMessage = result.message
-                    }
-                }
-            }
-        }
-    }
-
-    fun decideFollowRequest(request: NovaFollowRequest, accept: Boolean) {
-        if (requestBusyId != null) return
-        scope.launch {
-            requestBusyId = request.id
-            requestError = null
-            val result = if (accept) {
-                privacyRepository.acceptFollowRequest(request.id)
-            } else {
-                privacyRepository.declineFollowRequest(request.id)
-            }
-            when (result) {
-                is ApiResult.Success -> {
-                    followRequests = followRequests.filterNot { it.id == request.id }
-                }
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onSessionExpired() else requestError = result.message
-                }
-            }
-            requestBusyId = null
-        }
-    }
-
-    fun openPost(postId: Long) {
-        if (openingPostId != null) return
-        scope.launch {
-            openingPostId = postId
-            errorMessage = null
-            when (val result = feedRepository.post(postId)) {
-                is ApiResult.Success -> {
-                    openingPostId = null
-                    onPostClick(result.value)
-                }
-
-                is ApiResult.Failure -> {
-                    openingPostId = null
-                    if (result.statusCode == 401) {
-                        onSessionExpired()
-                    } else {
-                        errorMessage = result.message
-                    }
-                }
-            }
-        }
-    }
-
-    fun openReel(notification: NovaNotification) {
-        val reelId = notification.reelId ?: return
-        val username = notification.reelAuthorUsername.trim().lowercase()
-        if (reelId <= 0L || username.isBlank()) return
-        NovaReelsNavigator.openProfile(
-            context = context,
-            username = username,
-            initialReelId = reelId,
+    val unreadCallback = rememberUpdatedState(onUnreadCountChanged)
+    val sessionExpiredCallback = rememberUpdatedState(onSessionExpired)
+    val postClickCallback = rememberUpdatedState(onPostClick)
+    val owner = remember(appContainer, scope) {
+        NotificationsStateOwner(
+            notificationsRepository = appContainer.notificationsRepository,
+            followRequestRepository = appContainer.followRequestRepository,
+            postRepository = appContainer.postDataRepository,
+            scope = scope,
+            onUnreadCountChanged = { unreadCallback.value(it) },
+            onSessionExpired = { sessionExpiredCallback.value() },
+            onPostOpened = { postClickCallback.value(it) },
         )
     }
+    val state = owner.state
 
-    LaunchedEffect(Unit) {
-        loadActivity(reset = true)
+    LaunchedEffect(owner) {
+        owner.start()
     }
 
-    LaunchedEffect(listState, nextCursor, isLoading, isLoadingMore, notifications.size) {
+    LaunchedEffect(
+        listState,
+        state.nextCursor,
+        state.isLoading,
+        state.isLoadingMore,
+        state.notifications.size,
+    ) {
         snapshotFlow {
             val layoutInfo = listState.layoutInfo
             val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
@@ -217,22 +97,15 @@ fun NotificationsScreen(
         }
             .distinctUntilChanged()
             .collect { (lastVisible, totalItems) ->
-                if (
-                    nextCursor != null &&
-                    !isLoading &&
-                    !isLoadingMore &&
-                    notifications.isNotEmpty() &&
-                    totalItems > 0 &&
-                    lastVisible >= totalItems - 4
-                ) {
-                    loadActivity(reset = false)
+                if (owner.shouldLoadMore(lastVisible, totalItems)) {
+                    owner.loadActivity(reset = false)
                 }
             }
     }
 
     PullToRefreshBox(
-        isRefreshing = (isLoading || requestsLoading) && (notifications.isNotEmpty() || followRequests.isNotEmpty()),
-        onRefresh = { loadActivity(reset = true) },
+        isRefreshing = state.isRefreshing,
+        onRefresh = { owner.loadActivity(reset = true) },
         modifier = Modifier
             .fillMaxSize()
             .background(NovaBackground)
@@ -287,7 +160,7 @@ fun NotificationsScreen(
                 }
             }
 
-            if (followRequests.isNotEmpty()) {
+            if (state.followRequests.isNotEmpty()) {
                 item(key = "follow-requests-title") {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -301,7 +174,7 @@ fun NotificationsScreen(
                             modifier = Modifier.weight(1f),
                         )
                         Text(
-                            text = followRequests.size.toString(),
+                            text = state.followRequests.size.toString(),
                             color = NovaAccent,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
@@ -309,24 +182,24 @@ fun NotificationsScreen(
                     }
                 }
                 items(
-                    items = followRequests,
+                    items = state.followRequests,
                     key = { "follow-request-${it.id}" },
                 ) { request ->
                     FollowRequestRow(
                         request = request,
-                        busy = requestBusyId == request.id,
-                        enabled = requestBusyId == null,
+                        busy = state.requestBusyId == request.id,
+                        enabled = state.requestBusyId == null,
                         onPersonClick = { onPersonClick(request.requester.username) },
-                        onAccept = { decideFollowRequest(request, accept = true) },
-                        onDecline = { decideFollowRequest(request, accept = false) },
+                        onAccept = { owner.decideFollowRequest(request, accept = true) },
+                        onDecline = { owner.decideFollowRequest(request, accept = false) },
                     )
                 }
-                if (!requestError.isNullOrBlank()) {
+                if (!state.requestError.isNullOrBlank()) {
                     item(key = "follow-request-error") {
-                        Text(requestError.orEmpty(), color = NovaMuted, fontSize = 11.sp)
+                        Text(state.requestError.orEmpty(), color = NovaMuted, fontSize = 11.sp)
                     }
                 }
-            } else if (requestsLoading) {
+            } else if (state.requestsLoading) {
                 item(key = "follow-requests-loading") {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
@@ -337,16 +210,16 @@ fun NotificationsScreen(
                         Text("Checking follow requests…", color = NovaMuted, fontSize = 11.sp)
                     }
                 }
-            } else if (!requestError.isNullOrBlank()) {
+            } else if (!state.requestError.isNullOrBlank()) {
                 item(key = "follow-requests-error") {
                     Surface(
-                        onClick = ::loadFollowRequests,
+                        onClick = owner::loadFollowRequests,
                         shape = RoundedCornerShape(15.dp),
                         color = NovaSurface,
                         border = BorderStroke(1.dp, NovaBorder),
                     ) {
                         Text(
-                            text = "${requestError.orEmpty()} · Try again",
+                            text = "${state.requestError.orEmpty()} · Try again",
                             modifier = Modifier.padding(12.dp),
                             color = NovaMuted,
                             fontSize = 11.sp,
@@ -355,7 +228,7 @@ fun NotificationsScreen(
                 }
             }
 
-            if (isLoading && notifications.isEmpty() && followRequests.isEmpty() && requestsLoading) {
+            if (state.isLoading && state.notifications.isEmpty() && state.followRequests.isEmpty() && state.requestsLoading) {
                 item {
                     Column(
                         modifier = Modifier
@@ -373,7 +246,7 @@ fun NotificationsScreen(
                         )
                     }
                 }
-            } else if (errorMessage != null && notifications.isEmpty() && followRequests.isEmpty()) {
+            } else if (state.errorMessage != null && state.notifications.isEmpty() && state.followRequests.isEmpty()) {
                 item {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
@@ -390,19 +263,19 @@ fun NotificationsScreen(
                             )
                             Spacer(modifier = Modifier.height(7.dp))
                             Text(
-                                text = errorMessage.orEmpty(),
+                                text = state.errorMessage.orEmpty(),
                                 color = NovaMuted,
                                 fontSize = 13.sp,
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             NovaSecondaryButton(
                                 text = "Try again",
-                                onClick = { loadActivity(reset = true) },
+                                onClick = { owner.loadActivity(reset = true) },
                             )
                         }
                     }
                 }
-            } else if (notifications.isEmpty() && followRequests.isEmpty() && !requestsLoading) {
+            } else if (state.notifications.isEmpty() && state.followRequests.isEmpty() && !state.requestsLoading) {
                 item {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
@@ -442,7 +315,7 @@ fun NotificationsScreen(
                         }
                     }
                 }
-            } else if (notifications.isNotEmpty()) {
+            } else if (state.notifications.isNotEmpty()) {
                 item {
                     Text(
                         text = "Recent",
@@ -453,33 +326,28 @@ fun NotificationsScreen(
                 }
 
                 items(
-                    items = notifications,
+                    items = state.notifications,
                     key = { it.id },
                 ) { notification ->
                     NotificationRow(
                         notification = notification,
-                        isOpening = openingPostId == notification.postId && openingPostId != null,
+                        isOpening = state.openingPostId == notification.postId && state.openingPostId != null,
                         onClick = {
-                            when (notification.kind) {
-                                "follow" -> onPersonClick(notification.actor.username)
-                                "like", "comment", "comment_reply" -> {
-                                    notification.postId?.let(::openPost)
-                                        ?: onPersonClick(notification.actor.username)
-                                }
-                                "reel_like", "reel_comment", "reel_repost", "reel_reply" -> {
-                                    if (notification.reelId != null && notification.reelAuthorUsername.isNotBlank()) {
-                                        openReel(notification)
-                                    } else {
-                                        onPersonClick(notification.actor.username)
-                                    }
-                                }
-                                else -> onPersonClick(notification.actor.username)
+                            when (val target = owner.openTarget(notification)) {
+                                is NotificationOpenTarget.Person -> onPersonClick(target.username)
+                                is NotificationOpenTarget.Post -> owner.openPost(target.postId)
+                                is NotificationOpenTarget.Reel -> NovaReelsNavigator.openProfile(
+                                    context = context,
+                                    username = target.username,
+                                    initialReelId = target.reelId,
+                                )
+                                NotificationOpenTarget.None -> Unit
                             }
                         },
                     )
                 }
 
-                if (isLoadingMore) {
+                if (state.isLoadingMore) {
                     item {
                         Column(
                             modifier = Modifier
@@ -493,7 +361,7 @@ fun NotificationsScreen(
                     }
                 }
 
-                if (errorMessage != null) {
+                if (state.errorMessage != null) {
                     item {
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
@@ -503,7 +371,7 @@ fun NotificationsScreen(
                         ) {
                             Column(modifier = Modifier.padding(14.dp)) {
                                 Text(
-                                    text = errorMessage.orEmpty(),
+                                    text = state.errorMessage.orEmpty(),
                                     color = NovaMuted,
                                     fontSize = 12.sp,
                                 )
@@ -511,10 +379,10 @@ fun NotificationsScreen(
                                 NovaSecondaryButton(
                                     text = "Try again",
                                     onClick = {
-                                        if (nextCursor != null) {
-                                            loadActivity(reset = false)
+                                        if (state.nextCursor != null) {
+                                            owner.loadActivity(reset = false)
                                         } else {
-                                            loadActivity(reset = true)
+                                            owner.loadActivity(reset = true)
                                         }
                                     },
                                 )
