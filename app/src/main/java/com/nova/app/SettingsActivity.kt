@@ -29,8 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nova.app.core.auth.NovaAuthRepository
-import com.nova.app.core.auth.NovaSessionStore
+import com.nova.app.app.appContainer
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBorder
@@ -49,8 +48,8 @@ class SettingsActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        val session = NovaSessionStore(applicationContext).load()
-        val username = session?.cachedUser?.username.orEmpty()
+        val appContainer = applicationContext.appContainer
+        val username = appContainer.currentCachedUsername()
 
         fun openExternalUrl(url: String) {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
@@ -85,7 +84,7 @@ class SettingsActivity : ComponentActivity() {
                     onPrivacyPolicy = { openExternalUrl(PRIVACY_POLICY_URL) },
                     onAccountDeletion = { openExternalUrl(ACCOUNT_DELETION_URL) },
                     onLogout = {
-                        NovaAuthRepository(applicationContext).logout()
+                        appContainer.authRepository.logout()
                         startActivity(
                             Intent(this, MainActivity::class.java).addFlags(
                                 Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK,
