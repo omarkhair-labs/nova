@@ -48,6 +48,8 @@ import com.nova.app.feature.notifications.data.remote.CoreNotificationsRepositor
 import com.nova.app.feature.people.data.PeoplePagingRepository
 import com.nova.app.feature.people.data.PeopleRepository
 import com.nova.app.feature.posts.data.PostRepository
+import com.nova.app.feature.privacy.data.FollowRequestRepository
+import com.nova.app.feature.privacy.data.remote.CoreFollowRequestRepositoryAdapter
 import com.nova.app.feature.reels.data.ProfileReelsRepository
 import com.nova.app.feature.reels.data.ReelWatchRepository
 import com.nova.app.feature.reels.data.ReelsRepository
@@ -84,6 +86,7 @@ class AppContainer(context: Context) {
     val reelWatchRepository: ReelWatchRepository = NovaReelWatchRepository(appContext)
     val sharingRepository: SharingRepository = NovaSharingRepository(appContext)
     val notificationsRepository: NotificationsRepository = CoreNotificationsRepositoryAdapter(appContext)
+    val followRequestRepository: FollowRequestRepository = CoreFollowRequestRepositoryAdapter(appContext)
     val appNavigator = AppNavigationBridge()
 
     fun callSignaling(callId: String): CallSignaling =
