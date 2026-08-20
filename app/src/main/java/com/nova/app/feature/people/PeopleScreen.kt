@@ -133,6 +133,7 @@ fun PeopleScreen(
                 Spacer(modifier = Modifier.height(10.dp))
             }
 
+            val visibleError = state.pagingError ?: state.followError
             when {
                 state.firstPageLoading && state.people.isEmpty() -> {
                     Box(
@@ -153,10 +154,10 @@ fun PeopleScreen(
                     }
                 }
 
-                state.pagingError != null && state.people.isEmpty() -> {
+                visibleError != null && state.people.isEmpty() -> {
                     EmptyPeopleCard(
                         title = "Couldn't load people",
-                        subtitle = state.pagingError,
+                        subtitle = visibleError,
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -191,10 +192,10 @@ fun PeopleScreen(
                             )
                         }
 
-                        if (state.pagingError != null) {
+                        if (visibleError != null) {
                             item {
                                 Text(
-                                    text = state.pagingError,
+                                    text = visibleError,
                                     color = NovaMuted,
                                     fontSize = 12.sp,
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
