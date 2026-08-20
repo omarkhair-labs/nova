@@ -15,6 +15,9 @@ import com.nova.app.core.messaging.NovaMessagingApiClient
 import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.NovaPostAuthor
+import com.nova.app.core.reels.NovaProfileReelsRepository
+import com.nova.app.core.reels.NovaReelWatchRepository
+import com.nova.app.core.reels.NovaReelsRepository
 import com.nova.app.core.social.NovaSocialPagingRepository
 import com.nova.app.core.social.NovaSocialRepository
 import com.nova.app.core.stories.NovaStoriesRepository
@@ -45,9 +48,6 @@ import com.nova.app.feature.posts.data.PostRepository
 import com.nova.app.feature.reels.data.ProfileReelsRepository
 import com.nova.app.feature.reels.data.ReelWatchRepository
 import com.nova.app.feature.reels.data.ReelsRepository
-import com.nova.app.feature.reels.data.remote.CoreProfileReelsRepositoryAdapter
-import com.nova.app.feature.reels.data.remote.CoreReelWatchRepositoryAdapter
-import com.nova.app.feature.reels.data.remote.CoreReelsRepositoryAdapter
 import com.nova.app.feature.stories.data.StoriesRepository
 import com.nova.app.navigation.AppNavigationBridge
 
@@ -75,9 +75,9 @@ class AppContainer(context: Context) {
     val peopleRepository: PeopleRepository = socialRepository
     val peoplePagingRepository: PeoplePagingRepository = NovaSocialPagingRepository(appContext)
     val storiesRepository: StoriesRepository = NovaStoriesRepository(appContext)
-    val reelsRepository: ReelsRepository = CoreReelsRepositoryAdapter(appContext)
-    val profileReelsRepository: ProfileReelsRepository = CoreProfileReelsRepositoryAdapter(appContext)
-    val reelWatchRepository: ReelWatchRepository = CoreReelWatchRepositoryAdapter(appContext)
+    val reelsRepository: ReelsRepository = NovaReelsRepository(appContext)
+    val profileReelsRepository: ProfileReelsRepository = NovaProfileReelsRepository(appContext)
+    val reelWatchRepository: ReelWatchRepository = NovaReelWatchRepository(appContext)
     val appNavigator = AppNavigationBridge()
 
     fun callSignaling(callId: String): CallSignaling =
