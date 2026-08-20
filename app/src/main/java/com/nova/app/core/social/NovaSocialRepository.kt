@@ -4,28 +4,29 @@ import android.content.Context
 import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
-import com.nova.app.core.network.NovaPerson
+import com.nova.app.feature.people.data.PeopleRepository
+import com.nova.app.feature.people.domain.model.NovaPerson
 
 
 class NovaSocialRepository(
     context: Context,
     private val api: NovaApiClient = NovaApiClient("https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/"),
-) {
+) : PeopleRepository {
     private val sessionStore = NovaSessionStore(context.applicationContext)
 
-    suspend fun people(query: String = ""): ApiResult<List<NovaPerson>> {
+    override suspend fun people(query: String): ApiResult<List<NovaPerson>> {
         return authenticatedCall { accessToken ->
             api.people(accessToken, query)
         }
     }
 
-    suspend fun person(username: String): ApiResult<NovaPerson> {
+    override suspend fun person(username: String): ApiResult<NovaPerson> {
         return authenticatedCall { accessToken ->
             api.person(accessToken, username)
         }
     }
 
-    suspend fun setFollowing(
+    override suspend fun setFollowing(
         username: String,
         follow: Boolean,
     ): ApiResult<NovaPerson> {
@@ -34,19 +35,19 @@ class NovaSocialRepository(
         }
     }
 
-    suspend fun setBlocked(
+    override suspend fun setBlocked(
         username: String,
-        blocked: Boolean = true,
+        blocked: Boolean,
     ): ApiResult<Unit> {
         return authenticatedCall { accessToken ->
             api.setBlocked(accessToken, username, blocked)
         }
     }
 
-    suspend fun report(
+    override suspend fun report(
         username: String,
         reason: String,
-        details: String = "",
+        details: String,
     ): ApiResult<String> {
         return authenticatedCall { accessToken ->
             api.reportPerson(accessToken, username, reason, details)
