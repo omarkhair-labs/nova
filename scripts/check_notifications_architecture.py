@@ -34,7 +34,6 @@ owner = read(OWNER)
 owner_test = read(OWNER_TEST)
 privacy_model = read(PRIVACY_MODEL)
 privacy_contract = read(PRIVACY_CONTRACT)
-privacy_adapter = read(PRIVACY_ADAPTER)
 container = read(CONTAINER)
 core_repository = read(CORE_REPOSITORY)
 core_privacy = read(CORE_PRIVACY)
@@ -73,7 +72,7 @@ for forbidden in ("NovaFollowRequest", "NovaPrivacyRepository", "FollowRequestRe
     if forbidden in models or forbidden in contract:
         errors.append(f"Notifications data boundary must not absorb Privacy ownership: {forbidden}")
 
-# Exit gate: production implements the stable contract directly; temporary bridge is gone.
+# Exit gate: Notifications production implements the stable contract directly; temporary bridge is gone.
 if ADAPTER.exists():
     errors.append("Notifications exit gate forbids restoring CoreNotificationsRepositoryAdapter.kt")
 if MAPPING_TEST.exists():
@@ -131,7 +130,7 @@ for required in (
     if required not in core_repository:
         errors.append(f"Notifications transport-sensitive seam changed or disappeared: {required}")
 
-# Follow requests remain a narrow Privacy-owned dependency; do not close Privacy early.
+# Follow requests remain a narrow Privacy-owned dependency. Privacy exit may implement that contract directly.
 for required in (
     "data class NovaFollowRequest(",
     "val requester: NovaPerson",
@@ -141,11 +140,15 @@ for required in (
         errors.append(f"stable Privacy follow-request model is missing: {required}")
 if "interface FollowRequestRepository" not in privacy_contract:
     errors.append("Privacy-owned FollowRequestRepository contract is missing")
-if "class CoreFollowRequestRepositoryAdapter(context: Context) : FollowRequestRepository" not in privacy_adapter:
-    errors.append("Privacy follow-request adapter must remain until the Privacy slice")
-if "val followRequestRepository: FollowRequestRepository = CoreFollowRequestRepositoryAdapter(appContext)" not in container:
-    errors.append("AppContainer must retain the Privacy-owned follow-request seam")
+if PRIVACY_ADAPTER.exists():
+    errors.append("Privacy exit must not restore CoreFollowRequestRepositoryAdapter")
 for required in (
+    "import com.nova.app.feature.privacy.data.FollowRequestRepository",
+    "import com.nova.app.feature.privacy.domain.model.NovaFollowRequest",
+    ") : PrivacyRepository, FollowRequestRepository",
+    "override suspend fun followRequests()",
+    "override suspend fun acceptFollowRequest(requestId: Long)",
+    "override suspend fun declineFollowRequest(requestId: Long)",
     'requestJson("follow-requests/", bearerToken = token)',
     'requestDecision(requestId, "accept")',
     'requestDecision(requestId, "decline")',
@@ -153,7 +156,15 @@ for required in (
     'method = "POST"',
 ):
     if required not in core_privacy:
-        errors.append(f"Privacy follow-request transport-sensitive seam changed or disappeared: {required}")
+        errors.append(f"Privacy-owned follow-request production seam changed or disappeared: {required}")
+for required in (
+    "private val privacyTransport = NovaPrivacyRepository(appContext)",
+    "val followRequestRepository: FollowRequestRepository = privacyTransport",
+):
+    if required not in container:
+        errors.append(f"AppContainer must retain the Privacy-owned follow-request seam: {required}")
+if "CoreFollowRequestRepositoryAdapter" in container:
+    errors.append("AppContainer must not restore the temporary Privacy follow-request adapter")
 
 # Characterized owner remains the sole Notifications async server-state owner.
 for required in (
