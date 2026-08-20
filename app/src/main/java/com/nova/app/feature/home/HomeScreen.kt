@@ -36,12 +36,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nova.app.core.feed.NovaFeedRepository
 import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaPost
 import com.nova.app.core.notifications.NovaNotificationRepository
 import com.nova.app.core.push.NovaPushOpenSignal
 import com.nova.app.feature.notifications.NotificationsScreen
+import com.nova.app.feature.posts.domain.model.NovaPost
 import com.nova.app.feature.stories.StoriesRail
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
@@ -76,6 +75,7 @@ fun HomeScreen(
     onDeletePost: (NovaPost) -> Unit,
     onLikeToggle: (NovaPost) -> Unit,
     onCommentsClick: (NovaPost) -> Unit,
+    onResolvePost: suspend (Long) -> ApiResult<NovaPost>,
     onPersonClick: (String) -> Unit,
     onPeopleClick: () -> Unit,
     onProfileClick: () -> Unit,
@@ -83,9 +83,6 @@ fun HomeScreen(
     val context = LocalContext.current
     val notificationRepository = remember(context) {
         NovaNotificationRepository(context.applicationContext)
-    }
-    val feedRepository = remember(context) {
-        NovaFeedRepository(context.applicationContext)
     }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
@@ -127,7 +124,7 @@ fun HomeScreen(
                     NovaPushOpenSignal.consume()
                     showActivity = true
                 } else {
-                    when (val result = feedRepository.post(postId)) {
+                    when (val result = onResolvePost(postId)) {
                         is ApiResult.Success -> {
                             NovaPushOpenSignal.consume()
                             onCommentsClick(result.value)
