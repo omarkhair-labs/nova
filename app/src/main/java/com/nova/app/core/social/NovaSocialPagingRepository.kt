@@ -4,10 +4,13 @@ import android.content.Context
 import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
-import com.nova.app.core.network.NovaPerson
-import com.nova.app.core.network.NovaPost
 import com.nova.app.core.network.NovaPostAuthor
 import com.nova.app.core.privacy.NovaPersonPrivacyState
+import com.nova.app.feature.people.data.PeoplePagingRepository
+import com.nova.app.feature.people.domain.model.NovaPerson
+import com.nova.app.feature.people.domain.model.NovaPersonPage
+import com.nova.app.feature.people.domain.model.NovaProfilePostPage
+import com.nova.app.feature.posts.domain.model.NovaPost
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -17,29 +20,16 @@ import java.net.URL
 import java.net.URLEncoder
 
 
-data class NovaPersonPage(
-    val people: List<NovaPerson>,
-    val nextCursor: String?,
-    val privacyByUserId: Map<Long, NovaPersonPrivacyState> = emptyMap(),
-)
-
-
-data class NovaProfilePostPage(
-    val posts: List<NovaPost>,
-    val nextCursor: String?,
-)
-
-
 class NovaSocialPagingRepository(
     context: Context,
     private val baseUrl: String = PRODUCTION_API_URL,
-) {
+) : PeoplePagingRepository {
     private val sessionStore = NovaSessionStore(context.applicationContext)
     private val authApi = NovaApiClient(baseUrl)
 
-    suspend fun people(
-        query: String = "",
-        cursor: String? = null,
+    override suspend fun people(
+        query: String,
+        cursor: String?,
     ): ApiResult<NovaPersonPage> {
         return authenticatedCall { token ->
             requestPeoplePage(
@@ -51,10 +41,10 @@ class NovaSocialPagingRepository(
         }
     }
 
-    suspend fun followers(
+    override suspend fun followers(
         username: String,
-        query: String = "",
-        cursor: String? = null,
+        query: String,
+        cursor: String?,
     ): ApiResult<NovaPersonPage> {
         return authenticatedCall { token ->
             requestPeoplePage(
@@ -66,10 +56,10 @@ class NovaSocialPagingRepository(
         }
     }
 
-    suspend fun following(
+    override suspend fun following(
         username: String,
-        query: String = "",
-        cursor: String? = null,
+        query: String,
+        cursor: String?,
     ): ApiResult<NovaPersonPage> {
         return authenticatedCall { token ->
             requestPeoplePage(
@@ -81,9 +71,9 @@ class NovaSocialPagingRepository(
         }
     }
 
-    suspend fun profilePosts(
+    override suspend fun profilePosts(
         username: String,
-        cursor: String? = null,
+        cursor: String?,
     ): ApiResult<NovaProfilePostPage> {
         return authenticatedCall { token ->
             requestProfilePostPage(
@@ -94,9 +84,9 @@ class NovaSocialPagingRepository(
         }
     }
 
-    suspend fun profileReposts(
+    override suspend fun profileReposts(
         username: String,
-        cursor: String? = null,
+        cursor: String?,
     ): ApiResult<NovaProfilePostPage> {
         return authenticatedCall { token ->
             requestProfilePostPage(
