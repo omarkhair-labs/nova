@@ -1,6 +1,6 @@
 # Current ownership and entry paths
 
-Snapshot: Phase 4 Reels data-boundary work, based on the #133 merge `e0b465d3c8d2cfdb3b276d1a32eb35f9358790db` with #134 as the active Reels boundary PR.
+Snapshot: Phase 4 Reels state-owner characterization, based on the #134 merge `db8a4e9f5b06dca46a51d3caf5dab4b18524a130` with #135 as the active Reels state-owner PR.
 
 This file records current behavior. A row with several current owners identifies
 consolidation work; it does not imply that one of those paths may be removed
@@ -46,7 +46,7 @@ Messages and Reels overlays. That state-preservation behavior is protected.
 | nested social roots | `NovaApp`, `NovaRootNavigationSignal`, `rootNavigationPlan` | secondary-to-secondary resets through Home | typed child destinations/policy |
 | push/deep-link parsing | `MainActivity.routePushIntent`, `NovaPushOpenSignal`, special navigators | exact push kinds/data keys and fallback behavior | `DeepLinkRouter` |
 | session expiry | `AppViewModel` coordinates logout and global state; feature state owners report terminal 401 effects | logout/clear state and return to authentication on terminal 401 | `AppViewModel` until a core session package is extracted |
-| dependency construction | `AppContainer` for shell/auth/feed/people/messages plus stable Calls repository/signaling/WebRTC construction, stable feed/posts and People contract views, stable Stories repository construction, stable Reels feed/profile/watch contract views, conversation tools/appearance, group management/membership/people lookup, and conversation realtime/draft factories; live Reels routes still construct the legacy concrete repositories until the next equivalence slice | repositories and transports use application context; consolidated feature UI consumes stable interfaces/state owners | expand the explicit container feature by feature |
+| dependency construction | `AppContainer` for shell/auth/feed/people/messages plus stable Calls repository/signaling/WebRTC construction, stable feed/posts and People contract views, stable Stories repository construction, stable Reels feed/profile/watch contract views, conversation tools/appearance, group management/membership/people lookup, and conversation realtime/draft factories; #135 adds Reels lifecycle state owners over those stable contracts but live Reels routes still construct the legacy concrete repositories until the next equivalence slice | repositories and transports use application context; consolidated feature UI consumes stable interfaces/state owners | expand the explicit container feature by feature |
 | unread sync | `MainActivity`, `InboxViewModel`, `NovaMessagesSignal` | inbox count refresh at startup/resume/read/back | Messages state owner |
 | global call pill | `MainActivity`, `MessagesActivity`, `ReelsActivity` | active call remains reachable | app host / shared special-entry shell |
 
@@ -107,7 +107,7 @@ remove that parity before a device test establishes a replacement.
 | feed/posts/comments | `NovaApp` as navigation/session-effect bridge; `HomeScreen`, `NovaPostCard`, `PostDetailScreen`, `PostCommentsScreen` render state and emit callbacks | `FeedStateOwner`, `PostDetailStateOwner`, `PostCommentsStateOwner`; stable `FeedRepository`/`PostRepository` and `feature/posts/domain/model/PostModels.kt`; `NovaFeedRepository`/`NovaApiClient` remain concrete transport/parser adapters | stable `feature/feed` + `feature/posts`; downstream compatibility imports removed in each later feature slice |
 | people/profile/social graph | `NovaApp` as People/Person effect/navigation bridge; `PeopleScreen` and `SocialConnectionsScreen` render stable state/callbacks; `PersonScreen` still owns privacy/safety/message UI residuals; Profile self-screen remains separate; `SocialGraphActivity` hosts the graph owner | stable `PeopleRepository`/`PeoplePagingRepository`, `PeopleStateOwner`, `PersonStateOwner`, `SocialConnectionsStateOwner`; core social repositories remain production adapters | `feature/people` is the stable People state/data owner; profile-specific and cross-feature privacy/sharing/message residuals remain focused follow-up |
 | Stories | `StoriesRail` owns picker/composer/dialog rendering, image timer, ExoPlayer/video progress, navigation, and insets only | `feature/stories/domain/model/StoryModels.kt`, stable `StoriesRepository`, `StoriesStateOwner`, `StoryViewerStateOwner`; `NovaStoriesRepository` is the production HTTP/auth/media implementation exposed through `AppContainer` | stable `feature/stories`; feature exit gate satisfied in #133 |
-| Reels | `ReelsScreen`, `ProfileReelsViewerScreen`, `ThreadedReelCommentsSheet`, `ReelsActivity` still own live async/UI/playback orchestration | stable `feature/reels` models and `ReelsRepository`/`ProfileReelsRepository`/`ReelWatchRepository` contracts are exposed through `AppContainer` via explicit core adapters in #134; legacy core repositories/records remain live until the next slice | stable `feature/reels`; state-owner migration follows the data boundary |
+| Reels | `ReelsScreen`, `ProfileReelsViewerScreen`, `NovaProfileReelsGrid`, `NovaProfileRepostedReelsGrid`, `ThreadedReelCommentsSheet`, and `ReelsActivity` still own the live Compose/platform wiring in #135 | stable feature models and `ReelsRepository`/`ProfileReelsRepository`/`ReelWatchRepository` contracts from #134 plus characterized `ReelsStateOwner`, `ProfileReelsViewerStateOwner`, `ProfileReelsGridStateOwner`, and `ReelCommentsStateOwner` from #135; legacy concrete repositories/records remain live until the next switch | stable `feature/reels`; next PR switches live async state to the characterized owners while retaining playback/picker/overlay/navigation ownership in UI |
 | Messages inbox | `MessagesRoute`, `MessagesScreen` | `InboxViewModel`/`InboxUiState`, feature-owned domain models, `InboxRepository`, and refresh signals | `feature/messages/inbox` |
 | New direct message | `NewMessageDialog` | dialog-scoped `NewMessageViewModel` owns people search/open-conversation state and terminal effects using AppContainer dependencies | `feature/messages` stable state owner |
 | Conversation | `ConversationScreen` -> `conversation/ConversationContent` | `ConversationViewModel`/`ConversationUiState` own server behavior; `ConversationScreen` owns details/theme/group/call overlays; stable list/rows/composer render state/callbacks | `feature/messages/conversation` + stateless header/content |
@@ -246,8 +246,7 @@ page, threaded-comment, and comment-mutation graph introduced by #134.
 matches the three existing production responsibilities rather than creating a
 single oversized Reels repository.
 
-The first boundary intentionally does not rewrite `core/reels`. The existing
-`NovaReelsRepository`, `NovaProfileReelsRepository`, and
+The existing `NovaReelsRepository`, `NovaProfileReelsRepository`, and
 `NovaReelWatchRepository` remain the production HTTP/auth/media implementations,
 and the existing core Reel records remain temporary transport-side records.
 `CoreReelsRepositoryAdapter`, `CoreProfileReelsRepositoryAdapter`, and
@@ -256,18 +255,37 @@ contracts. Explicit mapping preserves every Reel field, page order/duplicates an
 cursor, plus nested comment/reply structure. `AppContainer` owns all three stable
 contract views.
 
-Live `ReelsScreen`, `ProfileReelsViewerScreen`, and
-`ThreadedReelCommentsSheet` still construct/use the concrete core repositories
-and own their existing async state in #134. `ReelPlaybackCoordinator`, player
-pool/ExoPlayer behavior, picker, overlays, sharing, navigation, and the special
-`ReelsActivity` entry path are not changed. This is intentional: the next
-Reels slice moves live async state behind feature-owned state owners only after
-this boundary passes CI.
+#135 adds four feature-owned lifecycle owners without switching the UI yet.
+`ReelsStateOwner` owns root feed loading/paging, create, like/repost/delete locks,
+terminal-401 effects, exact legacy page merging, and best-effort watch telemetry.
+`ProfileReelsViewerStateOwner` owns the authored profile viewer's initial lookup,
+including the exact 20-page cap, paging, mutations, and terminal-401 effects.
+`ProfileReelsGridStateOwner` owns authored/reposted grid paging while preserving
+the legacy grid rule that every failure, including 401, remains an inline error.
+`ReelCommentsStateOwner` owns threaded-comment loading, composer/reply target,
+send/delete locks, nested reply replacement/order/count updates, updated-Reel
+effects, and terminal-401 behavior.
 
-`scripts/check_reels_architecture.py` requires the stable model/contracts/adapters
-and AppContainer seams, while also asserting that the first boundary has not
-silently switched or removed the current live transport/state ownership. The
-next state-owner PR must evolve that gate as live consumers migrate.
+The characterization deliberately preserves the less-obvious contracts: an
+incoming page drops IDs that existed before the page but keeps duplicates that
+occur only inside that incoming page; watch telemetry is skipped for owned Reels
+and sessions below 250 ms and ignores all results including 401; profile lookup
+stops after finding the target, exhausting the cursor, or 20 pages; adding an
+existing reply removes that reply then appends the replacement and recomputes the
+local reply count; failed comment sends keep the draft/reply target.
+
+Live `ReelsScreen`, `ProfileReelsViewerScreen`, `NovaProfileReelsGrid`,
+`NovaProfileRepostedReelsGrid`, and `ThreadedReelCommentsSheet` still use their
+pre-switch concrete repository/coroutine state in #135. `ReelPlaybackCoordinator`,
+player pool/profile ExoPlayer lifecycles, picker, overlays, sharing, navigation,
+and the special `ReelsActivity` entry path remain UI/platform-owned and unchanged.
+
+`scripts/check_reels_architecture.py` now requires the stable models/contracts/
+adapters/AppContainer seams plus all four characterized state owners, rejects
+core Reels repository/model dependencies from those owners, and explicitly
+asserts that #135 has not silently performed the live switch. The next focused
+PR evolves this gate to require live owner wiring; transport-record cleanup stays
+a later Reels exit slice.
 
 ## Phase 2 Messages dependency boundary
 
@@ -486,13 +504,13 @@ still has explicit cross-feature privacy/safety/message orchestration residuals.
 Stories has one feature-owned Story model graph, stable data/state owners, and
 live UI that delegates network/session behavior while retaining only
 picker/playback/timer/navigation/dialog/inset platform responsibilities. Reels
-now has a stable feature data/model boundary and AppContainer contract views, but
-its live screens intentionally still use the route-owned repository/state pattern
-until the next Reels equivalence slice. Android/transport-specific implementations
-remain focused core adapters. `AppViewModel` owns global session restore/current-
-user state, terminal session logout, and durable primary-overlay state. Feature
-state owners still report terminal session effects to routes; central session-
-expiry ownership is a later cross-feature cleanup. Platform-only UI
-responsibilities such as MediaPlayer, picker/permission launchers, recorder
-state, and the composer's sole IME/navigation-bar inset consumption remain
-intentionally with focused UI owners.
+now has a stable feature data/model boundary plus characterized root/profile/grid/
+comment state owners over AppContainer contracts, but its live screens intentionally
+still use the route-owned repository/state pattern until the next Reels equivalence
+slice. Android/transport-specific implementations remain focused core adapters.
+`AppViewModel` owns global session restore/current-user state, terminal session
+logout, and durable primary-overlay state. Feature state owners still report
+terminal session effects to routes; central session-expiry ownership is a later
+cross-feature cleanup. Platform-only UI responsibilities such as MediaPlayer,
+picker/permission launchers, recorder state, and the composer's sole
+IME/navigation-bar inset consumption remain intentionally with focused UI owners.
