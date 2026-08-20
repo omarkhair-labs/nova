@@ -2,7 +2,6 @@ package com.nova.app.feature.people
 
 import android.net.Uri
 import com.nova.app.core.network.ApiResult
-import com.nova.app.core.privacy.NovaPersonPrivacyState
 import com.nova.app.feature.people.data.PeoplePagingRepository
 import com.nova.app.feature.people.data.PeopleRepository
 import com.nova.app.feature.people.domain.model.NovaPerson
@@ -12,6 +11,7 @@ import com.nova.app.feature.posts.data.PostRepository
 import com.nova.app.feature.posts.domain.model.NovaComment
 import com.nova.app.feature.posts.domain.model.NovaCommentMutation
 import com.nova.app.feature.posts.domain.model.NovaPost
+import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
