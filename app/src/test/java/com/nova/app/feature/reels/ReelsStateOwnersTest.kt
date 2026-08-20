@@ -16,7 +16,6 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 
@@ -192,8 +191,10 @@ class ReelsStateOwnersTest {
 
     @Test
     fun `comment send clears composer after success and emits updated Reel`() = runBlocking {
+        val parent = comment(10)
         val updatedReel = reel(1, comments = 3)
         val repository = FakeReelsRepository(
+            commentPages = mutableListOf(ApiResult.Success(listOf(parent))),
             addCommentResults = mutableListOf(
                 ApiResult.Success(
                     NovaReelCommentMutation(
@@ -204,8 +205,7 @@ class ReelsStateOwnersTest {
             ),
         )
         val owner = ReelCommentsStateOwner(reelId = 1, repository = repository, scope = testScope())
-        val parent = comment(10)
-        owner.seedCommentsForTest(listOf(parent))
+        owner.loadCommentsNow()
         owner.setBody("reply body")
         owner.beginReply(parent)
 
@@ -237,13 +237,6 @@ class ReelsStateOwnersTest {
         assertNull(owner.state.error)
         assertFalse(owner.state.sending)
     }
-}
-
-
-private fun ReelCommentsStateOwner.seedCommentsForTest(comments: List<NovaReelComment>) {
-    val stateField = ReelCommentsStateOwner::class.java.getDeclaredField("state$delegate")
-    stateField.isAccessible = true
-    error("Reflection test helper should never execute")
 }
 
 
