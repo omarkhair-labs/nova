@@ -33,12 +33,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Videocam
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -73,6 +69,10 @@ import com.nova.app.feature.calls.CallUiState
 import com.nova.app.feature.calls.domain.model.NovaCallKind
 import com.nova.app.feature.calls.domain.model.NovaCallPerson
 import com.nova.app.ui.components.NovaMediaImage
+import com.nova.app.ui.icons.CallEnd
+import com.nova.app.ui.icons.Mic
+import com.nova.app.ui.icons.Videocam
+import com.nova.app.ui.icons.VolumeUp
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground

@@ -14,7 +14,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -40,6 +39,7 @@ import com.nova.app.feature.messages.appearance.ConversationAppearanceViewModel
 import com.nova.app.feature.messages.conversation.ConversationContent
 import com.nova.app.feature.messages.details.ConversationDetailsDialog
 import com.nova.app.feature.messages.details.ConversationDetailsTab
+import com.nova.app.ui.icons.Videocam
 import com.nova.app.ui.theme.LocalNovaColorOverride
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBackground
