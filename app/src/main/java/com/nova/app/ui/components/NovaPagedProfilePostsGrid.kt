@@ -63,7 +63,13 @@ fun NovaPagedProfilePostsGrid(
             postRepository = container.postDataRepository,
             pagingRepository = container.peoplePagingRepository,
             scope = scope,
-        )
+        ).also {
+            it.synchronizeExternalPosts(
+                posts = initialPosts,
+                isLoading = isLoading,
+                errorMessage = errorMessage,
+            )
+        }
     }
 
     LaunchedEffect(username, initialPosts, isLoading, errorMessage) {
