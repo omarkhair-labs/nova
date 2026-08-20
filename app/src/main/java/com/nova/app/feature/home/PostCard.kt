@@ -31,9 +31,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaPost
 import com.nova.app.core.sharing.NovaRepostState
 import com.nova.app.core.sharing.NovaSharingRepository
+import com.nova.app.feature.posts.domain.model.NovaPost
 import com.nova.app.feature.sharing.NovaShareDialog
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaConfirmDeleteDialog
