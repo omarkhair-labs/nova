@@ -8,6 +8,8 @@ MODELS = ROOT / "app/src/main/java/com/nova/app/feature/stories/domain/model/Sto
 CONTRACT = ROOT / "app/src/main/java/com/nova/app/feature/stories/data/StoriesRepository.kt"
 ADAPTER = ROOT / "app/src/main/java/com/nova/app/feature/stories/data/remote/CoreStoriesRepositoryAdapter.kt"
 CONTAINER = ROOT / "app/src/main/java/com/nova/app/app/AppContainer.kt"
+RAIL_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/stories/StoriesStateOwner.kt"
+VIEWER_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/stories/StoryViewerStateOwner.kt"
 RAIL = ROOT / "app/src/main/java/com/nova/app/feature/stories/StoriesRail.kt"
 CORE_REPOSITORY = ROOT / "app/src/main/java/com/nova/app/core/stories/NovaStoriesRepository.kt"
 
@@ -25,6 +27,8 @@ models = read(MODELS)
 contract = read(CONTRACT)
 adapter = read(ADAPTER)
 container = read(CONTAINER)
+rail_owner = read(RAIL_OWNER)
+viewer_owner = read(VIEWER_OWNER)
 rail = read(RAIL)
 core_repository = read(CORE_REPOSITORY)
 
@@ -65,14 +69,51 @@ if "private val delegate: NovaStoriesRepository" not in adapter:
 if "val storiesRepository: StoriesRepository = CoreStoriesRepositoryAdapter(NovaStoriesRepository(appContext))" not in container:
     errors.append("AppContainer must own the stable StoriesRepository")
 
-# This first Stories slice intentionally does not alter live UI orchestration yet.
-# Keep that explicit so a later PR must remove the legacy construction rather than
-# silently claiming the feature is already complete.
+if "class StoriesStateOwner(" not in rail_owner:
+    errors.append("StoriesStateOwner must own rail/create async state")
+if "private val repository: StoriesRepository" not in rail_owner:
+    errors.append("StoriesStateOwner must depend on the stable StoriesRepository")
+for required in (
+    "sessionExpiryVersion",
+    "mediaCreatedVersion",
+    "textCreatedVersion",
+    "createMediaStoryNow(",
+    "createTextStoryNow(",
+):
+    if required not in rail_owner:
+        errors.append(f"StoriesStateOwner is missing protected seam: {required}")
+if "NovaStoriesRepository" in rail_owner:
+    errors.append("StoriesStateOwner must not depend on the core Stories transport")
+
+if "class StoryViewerStateOwner(" not in viewer_owner:
+    errors.append("StoryViewerStateOwner must own viewer mutation state")
+if "private val repository: StoriesRepository" not in viewer_owner:
+    errors.append("StoryViewerStateOwner must depend on the stable StoriesRepository")
+for required in (
+    "markViewedNow(",
+    "toggleReactionNow(",
+    "sendReplyNow(",
+    "deleteStoryNow(",
+    "loadViewersNow(",
+    "viewersVisible",
+    "mutationBusy",
+    "sessionExpiryVersion",
+):
+    if required not in viewer_owner:
+        errors.append(f"StoryViewerStateOwner is missing protected seam: {required}")
+if "NovaStoriesRepository" in viewer_owner:
+    errors.append("StoryViewerStateOwner must not depend on the core Stories transport")
+
+# The state-owner seam is now established, but the live switch is deliberately
+# the next PR. Keep that debt explicit so this slice cannot be mistaken for the
+# Stories feature exit gate.
 if "NovaStoriesRepository" not in rail:
-    errors.append("first Stories boundary PR unexpectedly changed live StoriesRail ownership")
+    errors.append("Stories state-owner prep unexpectedly changed live StoriesRail ownership")
+if "rememberCoroutineScope" not in rail or "ApiResult" not in rail:
+    errors.append("Stories state-owner prep unexpectedly removed legacy live orchestration")
 
 if "class NovaStoriesRepository(" not in core_repository:
-    errors.append("existing production Stories transport must remain intact in this slice")
+    errors.append("existing production Stories transport must remain intact before the live switch")
 
 if errors:
     print("Stories architecture check failed:")
