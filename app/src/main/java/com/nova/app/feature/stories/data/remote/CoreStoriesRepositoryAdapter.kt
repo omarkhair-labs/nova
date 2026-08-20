@@ -23,20 +23,20 @@ class CoreStoriesRepositoryAdapter(
     private val delegate: NovaStoriesRepository,
 ) : StoriesRepository {
     override suspend fun stories(): ApiResult<List<NovaStoryGroup>> =
-        delegate.stories().mapValue { groups -> groups.map(CoreStoryGroup::toStable) }
+        delegate.stories().mapValue { groups -> groups.map { it.toStable() } }
 
     override suspend fun createStory(
         mediaUri: Uri,
         caption: String,
         audience: String,
-    ): ApiResult<NovaStory> = delegate.createStory(mediaUri, caption, audience).mapValue(CoreStory::toStable)
+    ): ApiResult<NovaStory> = delegate.createStory(mediaUri, caption, audience).mapValue { it.toStable() }
 
     override suspend fun createTextStory(
         text: String,
         backgroundStyle: String,
         audience: String,
     ): ApiResult<NovaStory> =
-        delegate.createTextStory(text, backgroundStyle, audience).mapValue(CoreStory::toStable)
+        delegate.createTextStory(text, backgroundStyle, audience).mapValue { it.toStable() }
 
     override suspend fun markViewed(storyId: Long): ApiResult<Unit> = delegate.markViewed(storyId)
 
@@ -47,7 +47,7 @@ class CoreStoriesRepositoryAdapter(
     override suspend fun reply(storyId: Long, body: String): ApiResult<Unit> = delegate.reply(storyId, body)
 
     override suspend fun viewers(storyId: Long): ApiResult<List<NovaStoryViewer>> =
-        delegate.viewers(storyId).mapValue { viewers -> viewers.map(CoreStoryViewer::toStable) }
+        delegate.viewers(storyId).mapValue { viewers -> viewers.map { it.toStable() } }
 
     override suspend fun deleteStory(storyId: Long): ApiResult<Unit> = delegate.deleteStory(storyId)
 }
@@ -99,7 +99,7 @@ internal fun CoreStory.toStable() = NovaStory(
 
 internal fun CoreStoryGroup.toStable() = NovaStoryGroup(
     author = author.toStable(),
-    stories = stories.map(CoreStory::toStable),
+    stories = stories.map { it.toStable() },
     hasUnseen = hasUnseen,
     isMine = isMine,
 )
