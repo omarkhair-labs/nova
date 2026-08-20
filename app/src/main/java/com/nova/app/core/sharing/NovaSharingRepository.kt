@@ -5,6 +5,7 @@ import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.NovaPostAuthor
+import com.nova.app.feature.sharing.data.SharingRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -24,7 +25,7 @@ data class NovaRepostState(
 class NovaSharingRepository(
     context: Context,
     private val baseUrl: String = PRODUCTION_API_URL,
-) {
+) : SharingRepository {
     private val sessionStore = NovaSessionStore(context.applicationContext)
     private val authApi = NovaApiClient(baseUrl)
 
@@ -60,7 +61,7 @@ class NovaSharingRepository(
         }
     }
 
-    suspend fun sharePost(recipientUsername: String, postId: Long): ApiResult<Unit> {
+    override suspend fun sharePost(recipientUsername: String, postId: Long): ApiResult<Unit> {
         return share(
             JSONObject()
                 .put("recipient_username", recipientUsername.trim().lowercase())
@@ -69,7 +70,7 @@ class NovaSharingRepository(
         )
     }
 
-    suspend fun shareReel(recipientUsername: String, reelId: Long): ApiResult<Unit> {
+    override suspend fun shareReel(recipientUsername: String, reelId: Long): ApiResult<Unit> {
         return share(
             JSONObject()
                 .put("recipient_username", recipientUsername.trim().lowercase())
@@ -78,7 +79,7 @@ class NovaSharingRepository(
         )
     }
 
-    suspend fun shareProfile(recipientUsername: String, profileUsername: String): ApiResult<Unit> {
+    override suspend fun shareProfile(recipientUsername: String, profileUsername: String): ApiResult<Unit> {
         return share(
             JSONObject()
                 .put("recipient_username", recipientUsername.trim().lowercase())
@@ -87,7 +88,7 @@ class NovaSharingRepository(
         )
     }
 
-    suspend fun sharePostToConversation(conversationId: Long, postId: Long): ApiResult<Unit> {
+    override suspend fun sharePostToConversation(conversationId: Long, postId: Long): ApiResult<Unit> {
         if (conversationId <= 0L) return ApiResult.Failure("Choose a group to share with.")
         return share(
             JSONObject()
@@ -97,7 +98,7 @@ class NovaSharingRepository(
         )
     }
 
-    suspend fun shareReelToConversation(conversationId: Long, reelId: Long): ApiResult<Unit> {
+    override suspend fun shareReelToConversation(conversationId: Long, reelId: Long): ApiResult<Unit> {
         if (conversationId <= 0L) return ApiResult.Failure("Choose a group to share with.")
         return share(
             JSONObject()
@@ -107,7 +108,7 @@ class NovaSharingRepository(
         )
     }
 
-    suspend fun shareProfileToConversation(
+    override suspend fun shareProfileToConversation(
         conversationId: Long,
         profileUsername: String,
     ): ApiResult<Unit> {
@@ -120,10 +121,10 @@ class NovaSharingRepository(
         )
     }
 
-    suspend fun addPostToStory(
+    override suspend fun addPostToStory(
         postId: Long,
-        caption: String = "",
-        audience: String = "followers",
+        caption: String,
+        audience: String,
     ): ApiResult<Unit> {
         return addContentToStory(
             targetKey = "shared_post_id",
@@ -133,10 +134,10 @@ class NovaSharingRepository(
         )
     }
 
-    suspend fun addReelToStory(
+    override suspend fun addReelToStory(
         reelId: Long,
-        caption: String = "",
-        audience: String = "followers",
+        caption: String,
+        audience: String,
     ): ApiResult<Unit> {
         return addContentToStory(
             targetKey = "shared_reel_id",
