@@ -6,11 +6,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 
-class PrivateProfileBadgeV4Test {
+class PrivateProfileBadgeTest {
     @Test
     fun privateBadge_onlyShowsWhenPrivateContentIsStillLocked() {
         assertTrue(
-            shouldShowPrivateProfileBadgeV4(
+            shouldShowPrivateProfileBadge(
                 NovaPersonPrivacyState(
                     isPrivate = true,
                     followRequested = true,
@@ -19,7 +19,7 @@ class PrivateProfileBadgeV4Test {
             )
         )
         assertFalse(
-            shouldShowPrivateProfileBadgeV4(
+            shouldShowPrivateProfileBadge(
                 NovaPersonPrivacyState(
                     isPrivate = true,
                     followRequested = false,
@@ -28,7 +28,7 @@ class PrivateProfileBadgeV4Test {
             )
         )
         assertFalse(
-            shouldShowPrivateProfileBadgeV4(
+            shouldShowPrivateProfileBadge(
                 NovaPersonPrivacyState(
                     isPrivate = false,
                     followRequested = false,

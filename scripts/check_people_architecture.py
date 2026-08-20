@@ -16,8 +16,12 @@ PERSON_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/people/PersonState
 CONNECTIONS_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/people/SocialConnectionsStateOwner.kt"
 PROFILE_CONTENT_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/profile/ProfileContentStateOwner.kt"
 PEOPLE_SCREEN = ROOT / "app/src/main/java/com/nova/app/feature/people/PeopleScreen.kt"
+PERSON_SCREEN = ROOT / "app/src/main/java/com/nova/app/feature/people/PersonScreen.kt"
 CONNECTIONS_SCREEN = ROOT / "app/src/main/java/com/nova/app/feature/people/SocialConnectionsScreen.kt"
 PROFILE_SCREEN = ROOT / "app/src/main/java/com/nova/app/feature/profile/ProfileScreen.kt"
+PRIVATE_PROFILE_BADGE = ROOT / "app/src/main/java/com/nova/app/feature/people/PrivateProfileBadge.kt"
+PRIVATE_PROFILE_BADGE_V4 = ROOT / "app/src/main/java/com/nova/app/feature/people/PrivateProfileBadgeV4.kt"
+PRIVATE_PROFILE_BADGE_V4_TEST = ROOT / "app/src/test/java/com/nova/app/feature/people/PrivateProfileBadgeV4Test.kt"
 PROFILE_TABS = ROOT / "app/src/main/java/com/nova/app/ui/components/NovaProfileContentTabs.kt"
 PROFILE_TABS_V4 = ROOT / "app/src/main/java/com/nova/app/ui/components/NovaProfileContentTabsV4.kt"
 PROFILE_GRID = ROOT / "app/src/main/java/com/nova/app/ui/components/NovaPagedProfilePostsGrid.kt"
@@ -45,8 +49,10 @@ person_owner = read(PERSON_OWNER)
 connections_owner = read(CONNECTIONS_OWNER)
 profile_content_owner = read(PROFILE_CONTENT_OWNER)
 people_screen = read(PEOPLE_SCREEN)
+person_screen = read(PERSON_SCREEN)
 connections_screen = read(CONNECTIONS_SCREEN)
 profile_screen = read(PROFILE_SCREEN)
+private_profile_badge = read(PRIVATE_PROFILE_BADGE)
 profile_tabs = read(PROFILE_TABS)
 profile_grid = read(PROFILE_GRID)
 social_graph_activity = read(SOCIAL_GRAPH_ACTIVITY)
@@ -138,6 +144,24 @@ if "SocialConnectionsStateOwner(" not in social_graph_activity:
 
 if PROFILE_TABS_V4.exists():
     errors.append("NovaProfileContentTabsV4.kt must stay deleted after stable profile consolidation")
+
+if PRIVATE_PROFILE_BADGE_V4.exists():
+    errors.append("PrivateProfileBadgeV4.kt must stay deleted after stable profile cleanup")
+
+if PRIVATE_PROFILE_BADGE_V4_TEST.exists():
+    errors.append("PrivateProfileBadgeV4Test.kt must stay deleted after stable profile cleanup")
+
+if "internal fun shouldShowPrivateProfileBadge(state: NovaPersonPrivacyState): Boolean" not in private_profile_badge:
+    errors.append("stable private-profile badge helper seam is missing")
+
+if "shouldShowPrivateProfileBadge(privacyState)" not in person_screen:
+    errors.append("PersonScreen must use the stable private-profile badge helper")
+
+for path in (ROOT / "app/src").rglob("*.kt"):
+    if "shouldShowPrivateProfileBadgeV4" in path.read_text(encoding="utf-8"):
+        errors.append(
+            f"{path.relative_to(ROOT)} must not reintroduce shouldShowPrivateProfileBadgeV4"
+        )
 
 for forbidden in ("NovaSocialPagingRepository", "rememberCoroutineScope", "ApiResult", "NovaProfileContentTabsV4"):
     if forbidden in profile_tabs:
