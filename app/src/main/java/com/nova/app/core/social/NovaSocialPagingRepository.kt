@@ -5,12 +5,12 @@ import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.NovaPostAuthor
-import com.nova.app.core.privacy.NovaPersonPrivacyState
 import com.nova.app.feature.people.data.PeoplePagingRepository
 import com.nova.app.feature.people.domain.model.NovaPerson
 import com.nova.app.feature.people.domain.model.NovaPersonPage as StableNovaPersonPage
 import com.nova.app.feature.people.domain.model.NovaProfilePostPage as StableNovaProfilePostPage
 import com.nova.app.feature.posts.domain.model.NovaPost
+import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray

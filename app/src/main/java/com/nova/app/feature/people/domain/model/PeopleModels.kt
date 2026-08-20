@@ -1,7 +1,7 @@
 package com.nova.app.feature.people.domain.model
 
-import com.nova.app.core.privacy.NovaPersonPrivacyState
 import com.nova.app.feature.posts.domain.model.NovaPost
+import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState
 
 
 data class NovaPerson(

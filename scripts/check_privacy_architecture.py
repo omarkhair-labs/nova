@@ -5,11 +5,9 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 
 MODELS = ROOT / "app/src/main/java/com/nova/app/feature/privacy/domain/model/PrivacyModels.kt"
+FOLLOW_MODELS = ROOT / "app/src/main/java/com/nova/app/feature/privacy/domain/model/FollowRequestModels.kt"
 CONTRACT = ROOT / "app/src/main/java/com/nova/app/feature/privacy/data/PrivacyRepository.kt"
-ADAPTER = ROOT / "app/src/main/java/com/nova/app/feature/privacy/data/remote/CorePrivacyRepositoryAdapter.kt"
-MAPPING_TEST = ROOT / "app/src/test/java/com/nova/app/feature/privacy/CorePrivacyRepositoryAdapterTest.kt"
 FOLLOW_CONTRACT = ROOT / "app/src/main/java/com/nova/app/feature/privacy/data/FollowRequestRepository.kt"
-FOLLOW_ADAPTER = ROOT / "app/src/main/java/com/nova/app/feature/privacy/data/remote/CoreFollowRequestRepositoryAdapter.kt"
 OWNER = ROOT / "app/src/main/java/com/nova/app/feature/privacy/PrivacyStateOwner.kt"
 OWNER_TEST = ROOT / "app/src/test/java/com/nova/app/feature/privacy/PrivacyStateOwnerTest.kt"
 CONTAINER = ROOT / "app/src/main/java/com/nova/app/app/AppContainer.kt"
@@ -18,6 +16,15 @@ SCREEN = ROOT / "app/src/main/java/com/nova/app/feature/privacy/PrivacyScreen.kt
 PERSON_SCREEN = ROOT / "app/src/main/java/com/nova/app/feature/people/PersonScreen.kt"
 PRIVATE_BADGE = ROOT / "app/src/main/java/com/nova/app/feature/people/PrivateProfileBadgeV4.kt"
 PRIVATE_BADGE_TEST = ROOT / "app/src/test/java/com/nova/app/feature/people/PrivateProfileBadgeV4Test.kt"
+PEOPLE_MODELS = ROOT / "app/src/main/java/com/nova/app/feature/people/domain/model/PeopleModels.kt"
+PEOPLE_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/people/PeopleStateOwner.kt"
+CONNECTIONS_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/people/SocialConnectionsStateOwner.kt"
+PEOPLE_PAGING = ROOT / "app/src/main/java/com/nova/app/core/social/NovaSocialPagingRepository.kt"
+PEOPLE_OWNER_TEST = ROOT / "app/src/test/java/com/nova/app/feature/people/PeopleStateOwnersTest.kt"
+PRIVACY_ADAPTER = ROOT / "app/src/main/java/com/nova/app/feature/privacy/data/remote/CorePrivacyRepositoryAdapter.kt"
+FOLLOW_ADAPTER = ROOT / "app/src/main/java/com/nova/app/feature/privacy/data/remote/CoreFollowRequestRepositoryAdapter.kt"
+PRIVACY_MAPPING_TEST = ROOT / "app/src/test/java/com/nova/app/feature/privacy/CorePrivacyRepositoryAdapterTest.kt"
+FOLLOW_MAPPING_TEST = ROOT / "app/src/test/java/com/nova/app/feature/privacy/CoreFollowRequestRepositoryAdapterTest.kt"
 
 errors: list[str] = []
 
@@ -30,11 +37,9 @@ def read(path: Path) -> str:
 
 
 models = read(MODELS)
+follow_models = read(FOLLOW_MODELS)
 contract = read(CONTRACT)
-adapter = read(ADAPTER)
-mapping_test = read(MAPPING_TEST)
 follow_contract = read(FOLLOW_CONTRACT)
-follow_adapter = read(FOLLOW_ADAPTER)
 owner = read(OWNER)
 owner_test = read(OWNER_TEST)
 container = read(CONTAINER)
@@ -43,8 +48,13 @@ screen = read(SCREEN)
 person_screen = read(PERSON_SCREEN)
 private_badge = read(PRIVATE_BADGE)
 private_badge_test = read(PRIVATE_BADGE_TEST)
+people_models = read(PEOPLE_MODELS)
+people_owner = read(PEOPLE_OWNER)
+connections_owner = read(CONNECTIONS_OWNER)
+people_paging = read(PEOPLE_PAGING)
+people_owner_test = read(PEOPLE_OWNER_TEST)
 
-# Stable Privacy-owned models exclude the already-separated follow-request record.
+# Stable Privacy owns all Privacy records. Follow requests stay a separate narrow contract.
 for required in (
     "data class NovaPersonPrivacyState(",
     "val isPrivate: Boolean",
@@ -58,7 +68,9 @@ for required in (
     if required not in models:
         errors.append(f"stable Privacy models are missing field/seam: {required}")
 if "NovaFollowRequest" in models:
-    errors.append("PrivacyModels.kt must not duplicate the existing follow-request model")
+    errors.append("PrivacyModels.kt must not duplicate the separate follow-request record")
+if "data class NovaFollowRequest(" not in follow_models:
+    errors.append("FollowRequestModels.kt must own NovaFollowRequest")
 
 if "interface PrivacyRepository" not in contract:
     errors.append("stable PrivacyRepository contract is missing")
@@ -73,120 +85,51 @@ for operation in (
         errors.append(f"stable PrivacyRepository is missing operation: {operation}")
 for forbidden in ("followRequests", "acceptFollowRequest", "declineFollowRequest"):
     if forbidden in contract:
-        errors.append(f"PrivacyRepository must not absorb the separate FollowRequestRepository operation: {forbidden}")
+        errors.append(f"PrivacyRepository must not absorb FollowRequestRepository operation: {forbidden}")
 
-# Production remains adapter-backed until the focused People/privacy edge cleanup closes the feature.
-if "class CorePrivacyRepositoryAdapter(context: Context) : PrivacyRepository" not in adapter:
-    errors.append("Privacy production adapter must implement PrivacyRepository")
-for required in (
-    "private val delegate = NovaPrivacyRepository(context.applicationContext)",
-    "delegate.summary()",
-    "delegate.setPrivate(isPrivate)",
-    "delegate.personState(username)",
-    "delegate.closeFriends()",
-    "delegate.setCloseFriend(username, enabled)",
-    "internal fun CorePrivacySummary.toStablePrivacySummary()",
-    "internal fun CorePersonPrivacyState.toStablePersonPrivacyState()",
-):
-    if required not in adapter:
-        errors.append(f"Privacy adapter is missing mapping/delegation seam: {required}")
-
-if "val privacyRepository: PrivacyRepository = CorePrivacyRepositoryAdapter(appContext)" not in container:
-    errors.append("AppContainer is missing the stable Privacy repository seam")
-if "fun currentCachedUsername(): String = sessionStore.load()?.cachedUser?.username.orEmpty()" not in container:
-    errors.append("AppContainer is missing the explicit cached-username seam for PrivacyScreen")
-
-for test_name in (
-    "privacy summary mapping preserves every live field",
-    "person privacy mapping preserves private request and content state",
-):
-    if test_name not in mapping_test:
-        errors.append(f"Privacy mapping characterization is missing test: {test_name}")
-
-# Follow requests remain their own Privacy-owned contract, shared with Notifications and PrivacyScreen.
 if "interface FollowRequestRepository" not in follow_contract:
-    errors.append("existing Privacy-owned FollowRequestRepository must remain")
+    errors.append("stable FollowRequestRepository contract is missing")
 for operation in ("followRequests", "acceptFollowRequest", "declineFollowRequest"):
     if operation not in follow_contract:
         errors.append(f"FollowRequestRepository lost operation: {operation}")
-if "class CoreFollowRequestRepositoryAdapter(context: Context) : FollowRequestRepository" not in follow_adapter:
-    errors.append("existing follow-request production adapter must remain until Privacy exit cleanup")
-if "val followRequestRepository: FollowRequestRepository = CoreFollowRequestRepositoryAdapter(appContext)" not in container:
-    errors.append("AppContainer must keep the independent follow-request seam")
 
-# Characterized Privacy state/orchestration remains the sole live async/domain owner for PrivacyScreen.
+# Privacy exit: no temporary adapters or adapter-only mapping tests may return.
+for legacy_path in (PRIVACY_ADAPTER, FOLLOW_ADAPTER, PRIVACY_MAPPING_TEST, FOLLOW_MAPPING_TEST):
+    if legacy_path.exists():
+        errors.append(f"Privacy exit file must stay deleted: {legacy_path.relative_to(ROOT)}")
+
+# Production transport implements both stable contracts directly and emits feature-owned records.
 for required in (
-    "data class PrivacyUiState(",
-    "val summary: NovaPrivacySummary? = null",
-    "val requests: List<NovaFollowRequest> = emptyList()",
-    "val closeFriends: List<NovaPerson> = emptyList()",
-    "val followers: List<NovaPerson> = emptyList()",
-    "val followerCursor: String? = null",
-    "val followerQuery: String = \"\"",
-    "val loading: Boolean = true",
-    "val loadingFollowers: Boolean = false",
-    "val loadingMore: Boolean = false",
-    "val privacyBusy: Boolean = false",
-    "val requestBusyId: Long? = null",
-    "val closeFriendBusyId: Long? = null",
-    "val error: String? = null",
-    "val feedback: String? = null",
-    "class PrivacyStateOwner(",
-    "private val username: String",
-    "private val privacyRepository: PrivacyRepository",
-    "private val followRequestRepository: FollowRequestRepository",
-    "private val peoplePagingRepository: PeoplePagingRepository",
-    "private val scope: CoroutineScope",
-    "private val onSessionExpired: () -> Unit",
-    "fun start()",
-    "loadSummaryBundle()",
-    "loadFollowers(reset = true)",
-    "scheduleFollowerQueryLoad()",
-    "privacyRepository.summary()",
-    "followRequestRepository.followRequests()",
-    "privacyRepository.closeFriends()",
-    "raw.take(FOLLOWER_QUERY_MAX_LENGTH)",
-    "delay(FOLLOWER_SEARCH_DEBOUNCE_MS)",
-    "query = state.followerQuery.trim()",
-    "val existingIds = state.followers.mapTo(mutableSetOf()) { it.id }",
-    "state.followers + page.people.filterNot { it.id in existingIds }",
-    "if (state.privacyBusy) return",
-    "if (summary.acceptedPendingRequests > 0)",
-    "pending follow requests were accepted.",
-    "if (state.requestBusyId != null) return",
-    "if (accept) loadFollowers(reset = true)",
-    "Follow request declined.",
-    "if (state.closeFriendBusyId != null) return",
-    "Added @${person.username} to Close Friends.",
-    "Removed @${person.username} from Close Friends.",
-    "if (result.statusCode == 401)",
-    "onSessionExpired()",
-    "internal const val FOLLOWER_SEARCH_DEBOUNCE_MS = 280L",
-    "internal const val FOLLOWER_QUERY_MAX_LENGTH = 50",
+    "import com.nova.app.feature.people.domain.model.NovaPerson",
+    "import com.nova.app.feature.privacy.data.FollowRequestRepository",
+    "import com.nova.app.feature.privacy.data.PrivacyRepository",
+    "import com.nova.app.feature.privacy.domain.model.NovaFollowRequest",
+    "import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState",
+    "import com.nova.app.feature.privacy.domain.model.NovaPrivacySummary",
+    "class NovaPrivacyRepository(",
+    ") : PrivacyRepository, FollowRequestRepository",
+    "override suspend fun summary()",
+    "override suspend fun setPrivate(isPrivate: Boolean)",
+    "override suspend fun personState(username: String)",
+    "override suspend fun followRequests()",
+    "override suspend fun acceptFollowRequest(requestId: Long)",
+    "override suspend fun declineFollowRequest(requestId: Long)",
+    "override suspend fun closeFriends()",
+    "override suspend fun setCloseFriend(username: String, enabled: Boolean)",
 ):
-    if required not in owner:
-        errors.append(f"Privacy state characterization is missing seam: {required}")
-
-for test_name in (
-    "summary bundle keeps summary requests close friends order",
-    "summary bundle reports 401 terminal but continues remaining bundle calls",
-    "followers paging trims query and preserves duplicates inside incoming page",
-    "followers failures keep non401 inline and report 401 terminal",
-    "private toggle accepted pending clears requests and refreshes followers",
-    "follow request decision keeps one global busy id and refreshes only accept",
-    "close friend toggle keeps one global busy id and updates summary count",
-    "follower query keeps 50 character cap and 280 ms debounce contract",
-    "load more without cursor stays a no op",
-):
-    if test_name not in owner_test:
-        errors.append(f"Privacy state-owner characterization is missing test: {test_name}")
-
-# Preserve the exact current Privacy transport/auth/parser behavior until the exit cleanup moves ownership directly.
-for required in (
+    if required not in core_repository:
+        errors.append(f"direct Privacy production implementation is missing seam: {required}")
+for forbidden in (
     "data class NovaPersonPrivacyState(",
     "data class NovaPrivacySummary(",
     "data class NovaFollowRequest(",
-    "class NovaPrivacyRepository(",
+    "import com.nova.app.core.network.NovaPerson",
+):
+    if forbidden in core_repository:
+        errors.append(f"core Privacy repository must not own duplicate model seam: {forbidden}")
+
+# Preserve the exact Privacy transport/auth/parser behavior.
+for required in (
     'requestJson("privacy/", bearerToken = token)',
     'path = "privacy/"',
     'JSONObject().put("is_private", isPrivate)',
@@ -213,20 +156,100 @@ for required in (
     if required not in core_repository:
         errors.append(f"Privacy transport-sensitive seam changed or disappeared: {required}")
 
-# Live PrivacyScreen must render only the AppContainer-backed PrivacyStateOwner.
+# AppContainer exposes both narrow interfaces from one direct production transport instance.
 for required in (
-    "import com.nova.app.app.appContainer",
-    "import com.nova.app.feature.people.domain.model.NovaPerson",
+    "import com.nova.app.core.privacy.NovaPrivacyRepository",
+    "private val privacyTransport = NovaPrivacyRepository(appContext)",
+    "val privacyRepository: PrivacyRepository = privacyTransport",
+    "val followRequestRepository: FollowRequestRepository = privacyTransport",
+    "fun currentCachedUsername(): String = sessionStore.load()?.cachedUser?.username.orEmpty()",
+):
+    if required not in container:
+        errors.append(f"AppContainer direct Privacy wiring is missing seam: {required}")
+for forbidden in ("CorePrivacyRepositoryAdapter", "CoreFollowRequestRepositoryAdapter"):
+    if forbidden in container:
+        errors.append(f"AppContainer must not restore Privacy adapter: {forbidden}")
+
+# People paging/state is part of the Privacy model exit edge and must use the stable model directly.
+for text, name in (
+    (people_models, "PeopleModels.kt"),
+    (people_owner, "PeopleStateOwner.kt"),
+    (connections_owner, "SocialConnectionsStateOwner.kt"),
+    (people_paging, "NovaSocialPagingRepository.kt"),
+    (people_owner_test, "PeopleStateOwnersTest.kt"),
+    (person_screen, "PersonScreen.kt"),
+    (private_badge, "PrivateProfileBadgeV4.kt"),
+    (private_badge_test, "PrivateProfileBadgeV4Test.kt"),
+):
+    if "com.nova.app.core.privacy.NovaPersonPrivacyState" in text:
+        errors.append(f"{name} must not import the core Privacy state record")
+for text, name in (
+    (people_models, "PeopleModels.kt"),
+    (people_owner, "PeopleStateOwner.kt"),
+    (connections_owner, "SocialConnectionsStateOwner.kt"),
+    (people_paging, "NovaSocialPagingRepository.kt"),
+    (people_owner_test, "PeopleStateOwnersTest.kt"),
+    (person_screen, "PersonScreen.kt"),
+    (private_badge, "PrivateProfileBadgeV4.kt"),
+    (private_badge_test, "PrivateProfileBadgeV4Test.kt"),
+):
+    if "com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState" not in text:
+        errors.append(f"{name} must consume the stable Privacy state record")
+if "val privacyByUserId: Map<Long, NovaPersonPrivacyState> = emptyMap()" not in people_models:
+    errors.append("NovaPersonPage must retain the privacyByUserId stable seam")
+if "val privacy = mutableMapOf<Long, NovaPersonPrivacyState>()" not in people_paging:
+    errors.append("People paging transport must parse privacy state into the stable model")
+
+# Characterized Privacy state owner remains the sole live async/domain owner for PrivacyScreen.
+for required in (
+    "data class PrivacyUiState(",
+    "class PrivacyStateOwner(",
+    "private val privacyRepository: PrivacyRepository",
+    "private val followRequestRepository: FollowRequestRepository",
+    "private val peoplePagingRepository: PeoplePagingRepository",
+    "fun start()",
+    "loadSummaryBundle()",
+    "loadFollowers(reset = true)",
+    "raw.take(FOLLOWER_QUERY_MAX_LENGTH)",
+    "delay(FOLLOWER_SEARCH_DEBOUNCE_MS)",
+    "query = state.followerQuery.trim()",
+    "val existingIds = state.followers.mapTo(mutableSetOf()) { it.id }",
+    "state.followers + page.people.filterNot { it.id in existingIds }",
+    "if (state.privacyBusy) return",
+    "if (summary.acceptedPendingRequests > 0)",
+    "if (state.requestBusyId != null) return",
+    "if (accept) loadFollowers(reset = true)",
+    "if (state.closeFriendBusyId != null) return",
+    "if (result.statusCode == 401)",
+    "onSessionExpired()",
+    "internal const val FOLLOWER_SEARCH_DEBOUNCE_MS = 280L",
+    "internal const val FOLLOWER_QUERY_MAX_LENGTH = 50",
+):
+    if required not in owner:
+        errors.append(f"Privacy state characterization lost seam: {required}")
+for test_name in (
+    "summary bundle keeps summary requests close friends order",
+    "summary bundle reports 401 terminal but continues remaining bundle calls",
+    "followers paging trims query and preserves duplicates inside incoming page",
+    "followers failures keep non401 inline and report 401 terminal",
+    "private toggle accepted pending clears requests and refreshes followers",
+    "follow request decision keeps one global busy id and refreshes only accept",
+    "close friend toggle keeps one global busy id and updates summary count",
+    "follower query keeps 50 character cap and 280 ms debounce contract",
+    "load more without cursor stays a no op",
+):
+    if test_name not in owner_test:
+        errors.append(f"Privacy state-owner characterization is missing test: {test_name}")
+
+# Live PrivacyScreen remains owner-backed with unchanged visible seams.
+for required in (
     "val appContainer = context.appContainer",
-    "val sessionExpiredCallback = rememberUpdatedState(onSessionExpired)",
-    "val owner = remember(appContainer, scope)",
     "PrivacyStateOwner(",
     "username = appContainer.currentCachedUsername()",
     "privacyRepository = appContainer.privacyRepository",
     "followRequestRepository = appContainer.followRequestRepository",
     "peoplePagingRepository = appContainer.peoplePagingRepository",
     "onSessionExpired = { sessionExpiredCallback.value() }",
-    "val state = owner.state",
     "LaunchedEffect(owner)",
     "owner.start()",
     "onCheckedChange = owner::togglePrivate",
@@ -235,54 +258,29 @@ for required in (
     "onValueChange = owner::setFollowerQuery",
     "owner.toggleCloseFriend(person)",
     "owner.loadFollowers(reset = false)",
-    'text = if (state.loadingMore) "Loading more…" else "Load more followers"',
-    ".statusBarsPadding()",
-    ".navigationBarsPadding()",
-    ".verticalScroll(rememberScrollState())",
     'title = "Privacy"',
-    'subtitle = "Control who can follow you and who sees your closer moments."',
     'text = "Private account"',
     'title = "Follow requests"',
     'title = "Close Friends"',
-    'placeholder = { Text("Search your followers", color = NovaMuted) }',
 ):
     if required not in screen:
-        errors.append(f"live PrivacyScreen is missing stable owner/UI seam: {required}")
+        errors.append(f"live PrivacyScreen is missing owner/UI seam: {required}")
 for forbidden in (
-    "import com.nova.app.core.auth.NovaSessionStore",
-    "import com.nova.app.core.network.ApiResult",
-    "import com.nova.app.core.privacy.NovaFollowRequest",
-    "import com.nova.app.core.privacy.NovaPrivacyRepository",
-    "import com.nova.app.core.privacy.NovaPrivacySummary",
-    "import com.nova.app.core.social.NovaSocialPagingRepository",
     "NovaPrivacyRepository(context.applicationContext)",
     "NovaSocialPagingRepository(context.applicationContext)",
     "NovaSessionStore(context.applicationContext)",
     "mutableStateOf<",
-    "privacyRepository.summary()",
-    "privacyRepository.followRequests()",
-    "privacyRepository.closeFriends()",
-    "privacyRepository.setPrivate(",
-    "privacyRepository.setCloseFriend(",
-    "delay(280)",
 ):
     if forbidden in screen:
-        errors.append(f"live PrivacyScreen must not restore route-local Privacy orchestration: {forbidden}")
+        errors.append(f"PrivacyScreen must not restore route-local orchestration: {forbidden}")
 
-# PersonScreen now consumes the stable Privacy model/repository, while its pre-existing safety/message/share
-# responsibilities and request-cancel quirk deliberately stay local for this focused residual slice.
+# PersonScreen keeps its characterized local safety/message/share behavior but reads Privacy via AppContainer.
 for required in (
-    "import com.nova.app.app.appContainer",
-    "import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState",
     "val privacyRepository = context.appContainer.privacyRepository",
-    "mutableStateOf(NovaPersonPrivacyState(isPrivate = false, followRequested = false, canViewContent = true))",
     "privacyRepository.personState(selected.username)",
     "is ApiResult.Success -> privacyState = result.value",
     "is ApiResult.Failure -> messageError = result.message",
-    "NovaSocialRepository(context.applicationContext)",
     "socialRepository.setFollowing(selectedPerson.username, false)",
-    "followRequested = false",
-    "canViewContent = !privacyState.isPrivate",
     'safetyMessage = "Follow request canceled."',
     'safetyMessage = "Follow request sent."',
     "onFollowToggle(selectedPerson)",
@@ -292,24 +290,21 @@ for required in (
     "NovaShareDialog(",
 ):
     if required not in person_screen:
-        errors.append(f"PersonScreen stable Privacy residual lost protected seam: {required}")
-for forbidden in (
-    "import com.nova.app.core.privacy.NovaPersonPrivacyState",
-    "import com.nova.app.core.privacy.NovaPrivacyRepository",
-    "NovaPrivacyRepository(context.applicationContext)",
-    "CorePrivacyRepositoryAdapter",
-):
-    if forbidden in person_screen:
-        errors.append(f"PersonScreen must not restore concrete/core Privacy ownership: {forbidden}")
+        errors.append(f"PersonScreen Privacy residual lost protected seam: {required}")
 
-for badge_text, badge_name in (
-    (private_badge, "PrivateProfileBadgeV4.kt"),
-    (private_badge_test, "PrivateProfileBadgeV4Test.kt"),
-):
-    if "import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState" not in badge_text:
-        errors.append(f"{badge_name} must consume the stable Privacy state model")
-    if "import com.nova.app.core.privacy.NovaPersonPrivacyState" in badge_text:
-        errors.append(f"{badge_name} must not restore the core Privacy state model")
+# Reject any reintroduction of the deleted core Privacy record imports or adapters across production/test Kotlin.
+for kotlin_file in (ROOT / "app/src").rglob("*.kt"):
+    text = kotlin_file.read_text(encoding="utf-8")
+    relative = kotlin_file.relative_to(ROOT)
+    for forbidden in (
+        "import com.nova.app.core.privacy.NovaPersonPrivacyState",
+        "import com.nova.app.core.privacy.NovaPrivacySummary",
+        "import com.nova.app.core.privacy.NovaFollowRequest",
+        "CorePrivacyRepositoryAdapter",
+        "CoreFollowRequestRepositoryAdapter",
+    ):
+        if forbidden in text:
+            errors.append(f"Privacy exit boundary restored {forbidden} in {relative}")
 
 if errors:
     print("Privacy architecture check failed:")
