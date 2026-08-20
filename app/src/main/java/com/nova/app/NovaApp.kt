@@ -26,11 +26,11 @@ import androidx.navigation3.ui.NavDisplay
 import com.nova.app.app.AppContainer
 import com.nova.app.app.AppViewModel
 import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaComment
 import com.nova.app.core.network.NovaPerson
 import com.nova.app.core.network.NovaPost
 import com.nova.app.feature.auth.CreateAccountScreen
 import com.nova.app.feature.auth.LoginScreen
+import com.nova.app.feature.feed.FeedStateOwner
 import com.nova.app.feature.home.HomeScreen
 import com.nova.app.feature.legal.PrivacyScreen
 import com.nova.app.feature.legal.TermsScreen
@@ -40,6 +40,8 @@ import com.nova.app.feature.people.PersonScreen
 import com.nova.app.feature.post.CreatePostScreen
 import com.nova.app.feature.post.PostCommentsScreen
 import com.nova.app.feature.post.PostDetailScreen
+import com.nova.app.feature.posts.comments.PostCommentsStateOwner
+import com.nova.app.feature.posts.detail.PostDetailStateOwner
 import com.nova.app.feature.profile.EditProfileScreen
 import com.nova.app.feature.profile.ProfileScreen
 import com.nova.app.feature.welcome.WelcomeScreen
@@ -56,9 +58,14 @@ fun NovaApp(
 ) {
     val authRepository = appContainer.authRepository
     val socialRepository = appContainer.socialRepository
-    val feedRepository = appContainer.feedRepository
+    val feedRepository = appContainer.feedDataRepository
+    val postRepository = appContainer.postDataRepository
     val appState = appViewModel.state
     val scope = rememberCoroutineScope()
+    val feedOwner = remember(feedRepository, postRepository, scope) {
+        FeedStateOwner(feedRepository, postRepository, scope)
+    }
+    val feedState = feedOwner.state
 
     val backStack = remember {
         mutableStateListOf<NovaRoute>(NovaRoute.Welcome)
@@ -75,26 +82,13 @@ fun NovaApp(
     var followingUsername by remember { mutableStateOf<String?>(null) }
     var peopleRequestVersion by remember { mutableStateOf(0) }
 
-    var posts by remember { mutableStateOf<List<NovaPost>>(emptyList()) }
-    var feedLoading by remember { mutableStateOf(false) }
-    var feedLoadingMore by remember { mutableStateOf(false) }
-    var feedNextCursor by remember { mutableStateOf<String?>(null) }
-    var feedError by remember { mutableStateOf<String?>(null) }
-    var deletingPostId by remember { mutableStateOf<Long?>(null) }
-    var likingPostId by remember { mutableStateOf<Long?>(null) }
-    var postUploading by remember { mutableStateOf(false) }
-    var postError by remember { mutableStateOf<String?>(null) }
-    var contentVersion by remember { mutableStateOf(0) }
+    var handledFeedSessionExpiry by remember { mutableStateOf(0) }
+    var handledProfileRefresh by remember { mutableStateOf(0) }
+    var handledPostCreated by remember { mutableStateOf(0) }
 
     fun openHome() {
         backStack.clear()
         backStack.add(NovaRoute.Home)
-    }
-
-    fun replacePost(updated: NovaPost) {
-        posts = posts.map { existing ->
-            if (existing.id == updated.id) updated else existing
-        }
     }
 
     fun resetSocialState() {
@@ -103,16 +97,7 @@ fun NovaApp(
         peopleError = null
         followingUsername = null
         peopleRequestVersion += 1
-        posts = emptyList()
-        feedLoading = false
-        feedLoadingMore = false
-        feedNextCursor = null
-        feedError = null
-        deletingPostId = null
-        likingPostId = null
-        postUploading = false
-        postError = null
-        contentVersion += 1
+        feedOwner.reset()
     }
 
     fun resetToWelcome() {
@@ -141,108 +126,24 @@ fun NovaApp(
         }
     }
 
-    fun loadFeed() {
-        if (feedLoading || feedLoadingMore) return
-        scope.launch {
-            feedLoading = true
-            feedError = null
-            when (val result = feedRepository.feed()) {
-                is ApiResult.Success -> {
-                    posts = result.value.posts
-                    feedNextCursor = result.value.nextCursor
-                    feedLoading = false
-                }
-
-                is ApiResult.Failure -> {
-                    feedLoading = false
-                    if (result.statusCode == 401) {
-                        expireSession()
-                    } else {
-                        feedError = result.message
-                    }
-                }
-            }
+    LaunchedEffect(feedState.sessionExpiryVersion) {
+        if (feedState.sessionExpiryVersion > handledFeedSessionExpiry) {
+            handledFeedSessionExpiry = feedState.sessionExpiryVersion
+            expireSession()
         }
     }
 
-    fun loadMoreFeed() {
-        val cursor = feedNextCursor ?: return
-        if (feedLoading || feedLoadingMore) return
-
-        scope.launch {
-            feedLoadingMore = true
-            feedError = null
-            when (val result = feedRepository.feed(cursor)) {
-                is ApiResult.Success -> {
-                    val existingIds = posts.mapTo(mutableSetOf()) { it.id }
-                    posts = posts + result.value.posts.filterNot { it.id in existingIds }
-                    feedNextCursor = result.value.nextCursor
-                    feedLoadingMore = false
-                }
-
-                is ApiResult.Failure -> {
-                    feedLoadingMore = false
-                    if (result.statusCode == 401) {
-                        expireSession()
-                    } else {
-                        feedError = result.message
-                    }
-                }
-            }
+    LaunchedEffect(feedState.profileRefreshVersion) {
+        if (feedState.profileRefreshVersion > handledProfileRefresh) {
+            handledProfileRefresh = feedState.profileRefreshVersion
+            refreshCurrentUser()
         }
     }
 
-    fun deletePost(post: NovaPost) {
-        if (deletingPostId != null || !post.isMine) return
-        scope.launch {
-            deletingPostId = post.id
-            feedError = null
-            when (val result = feedRepository.deletePost(post.id)) {
-                is ApiResult.Success -> {
-                    posts = posts.filterNot { it.id == post.id }
-                    deletingPostId = null
-                    contentVersion += 1
-                    refreshCurrentUser()
-                }
-
-                is ApiResult.Failure -> {
-                    deletingPostId = null
-                    if (result.statusCode == 401) {
-                        expireSession()
-                    } else {
-                        feedError = result.message
-                    }
-                }
-            }
-        }
-    }
-
-    fun toggleLike(post: NovaPost) {
-        if (likingPostId != null) return
-        scope.launch {
-            likingPostId = post.id
-            feedError = null
-            when (
-                val result = feedRepository.setLiked(
-                    postId = post.id,
-                    liked = !post.isLiked,
-                )
-            ) {
-                is ApiResult.Success -> {
-                    replacePost(result.value)
-                    likingPostId = null
-                    contentVersion += 1
-                }
-
-                is ApiResult.Failure -> {
-                    likingPostId = null
-                    if (result.statusCode == 401) {
-                        expireSession()
-                    } else {
-                        feedError = result.message
-                    }
-                }
-            }
+    LaunchedEffect(feedState.postCreatedVersion) {
+        if (feedState.postCreatedVersion > handledPostCreated) {
+            handledPostCreated = feedState.postCreatedVersion
+            backStack.removeLastOrNull()
         }
     }
 
@@ -295,7 +196,7 @@ fun NovaApp(
                     }
                     followingUsername = null
                     refreshCurrentUser()
-                    loadFeed()
+                    feedOwner.loadFeed()
                 }
 
                 is ApiResult.Failure -> {
@@ -327,7 +228,7 @@ fun NovaApp(
     NavDisplay(
         backStack = backStack,
         onBack = {
-            if (!authLoading && !postUploading && backStack.size > 1) {
+            if (!authLoading && !feedState.isUploadingPost && backStack.size > 1) {
                 backStack.removeLastOrNull()
             }
         },
@@ -450,8 +351,8 @@ fun NovaApp(
                 NovaRoute.Home -> NavEntry(route) {
                     val user = appState.currentUser
                     LaunchedEffect(user?.id) {
-                        if (user != null && posts.isEmpty() && !feedLoading) {
-                            loadFeed()
+                        if (user != null && feedState.posts.isEmpty() && !feedState.isLoading) {
+                            feedOwner.loadFeed()
                         }
                     }
 
@@ -459,22 +360,22 @@ fun NovaApp(
                         displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
                         username = user?.username ?: "nova",
                         avatarUrl = user?.avatarUrl.orEmpty(),
-                        posts = posts,
-                        isLoading = feedLoading,
-                        isLoadingMore = feedLoadingMore,
-                        hasMore = feedNextCursor != null,
-                        errorMessage = feedError,
-                        deletingPostId = deletingPostId,
-                        likingPostId = likingPostId,
+                        posts = feedState.posts,
+                        isLoading = feedState.isLoading,
+                        isLoadingMore = feedState.isLoadingMore,
+                        hasMore = feedState.hasMore,
+                        errorMessage = feedState.errorMessage,
+                        deletingPostId = feedState.deletingPostId,
+                        likingPostId = feedState.likingPostId,
                         onCreatePost = {
-                            postError = null
+                            feedOwner.clearPostError()
                             backStack.add(NovaRoute.CreatePost)
                         },
-                        onRefresh = ::loadFeed,
-                        onLoadMore = ::loadMoreFeed,
-                        onRetry = ::loadFeed,
-                        onDeletePost = ::deletePost,
-                        onLikeToggle = ::toggleLike,
+                        onRefresh = feedOwner::loadFeed,
+                        onLoadMore = feedOwner::loadMore,
+                        onRetry = feedOwner::loadFeed,
+                        onDeletePost = feedOwner::deletePost,
+                        onLikeToggle = feedOwner::toggleLike,
                         onCommentsClick = { post ->
                             backStack.add(NovaRoute.PostComments(post.id))
                         },
@@ -488,108 +389,65 @@ fun NovaApp(
 
                 NovaRoute.CreatePost -> NavEntry(route) {
                     CreatePostScreen(
-                        isLoading = postUploading,
-                        errorMessage = postError,
+                        isLoading = feedState.isUploadingPost,
+                        errorMessage = feedState.postErrorMessage,
                         onBack = {
-                            if (!postUploading) {
-                                postError = null
+                            if (!feedState.isUploadingPost) {
+                                feedOwner.clearPostError()
                                 backStack.removeLastOrNull()
                             }
                         },
                         onShare = { imageUri, caption ->
-                            if (!postUploading) {
-                                scope.launch {
-                                    postUploading = true
-                                    postError = null
-                                    when (
-                                        val result = feedRepository.createPost(
-                                            caption = caption,
-                                            imageUri = imageUri,
-                                        )
-                                    ) {
-                                        is ApiResult.Success -> {
-                                            posts = listOf(result.value) + posts.filterNot {
-                                                it.id == result.value.id
-                                            }
-                                            postUploading = false
-                                            contentVersion += 1
-                                            refreshCurrentUser()
-                                            backStack.removeLastOrNull()
-                                        }
-
-                                        is ApiResult.Failure -> {
-                                            postUploading = false
-                                            if (result.statusCode == 401) {
-                                                expireSession()
-                                            } else {
-                                                postError = result.message
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            feedOwner.createPost(caption = caption, imageUri = imageUri)
                         },
                     )
                 }
 
                 is NovaRoute.PostDetail -> NavEntry(route) {
-                    var detailPost by remember(route.postId) { mutableStateOf<NovaPost?>(null) }
-                    var detailLoading by remember(route.postId) { mutableStateOf(true) }
-                    var detailLiking by remember(route.postId) { mutableStateOf(false) }
-                    var detailDeleting by remember(route.postId) { mutableStateOf(false) }
-                    var detailError by remember(route.postId) { mutableStateOf<String?>(null) }
+                    val detailScope = rememberCoroutineScope()
+                    val detailOwner = remember(route.postId, postRepository, detailScope) {
+                        PostDetailStateOwner(route.postId, postRepository, detailScope)
+                    }
+                    val detailState = detailOwner.state
+                    var handledSessionExpiry by remember(detailOwner) { mutableStateOf(0) }
+                    var handledMutation by remember(detailOwner) { mutableStateOf(0) }
+                    var handledDelete by remember(detailOwner) { mutableStateOf(0) }
 
-                    fun loadDetail() {
-                        scope.launch {
-                            detailLoading = true
-                            detailError = null
-                            when (val result = feedRepository.post(route.postId)) {
-                                is ApiResult.Success -> {
-                                    detailPost = result.value
-                                    replacePost(result.value)
-                                    detailLoading = false
-                                }
-
-                                is ApiResult.Failure -> {
-                                    detailLoading = false
-                                    if (result.statusCode == 401) {
-                                        expireSession()
-                                    } else {
-                                        detailError = result.message
-                                    }
-                                }
-                            }
+                    LaunchedEffect(route.postId, feedState.contentVersion) {
+                        detailOwner.load()
+                    }
+                    LaunchedEffect(detailState.post) {
+                        detailState.post?.let(feedOwner::synchronizePost)
+                    }
+                    LaunchedEffect(detailState.sessionExpiryVersion) {
+                        if (detailState.sessionExpiryVersion > handledSessionExpiry) {
+                            handledSessionExpiry = detailState.sessionExpiryVersion
+                            expireSession()
                         }
                     }
-
-                    LaunchedEffect(route.postId, contentVersion) {
-                        when (val result = feedRepository.post(route.postId)) {
-                            is ApiResult.Success -> {
-                                detailPost = result.value
-                                replacePost(result.value)
-                                detailLoading = false
-                                detailError = null
-                            }
-
-                            is ApiResult.Failure -> {
-                                detailLoading = false
-                                if (result.statusCode == 401) {
-                                    expireSession()
-                                } else {
-                                    detailError = result.message
-                                }
-                            }
+                    LaunchedEffect(detailState.contentMutationVersion) {
+                        if (detailState.contentMutationVersion > handledMutation) {
+                            handledMutation = detailState.contentMutationVersion
+                            feedOwner.markContentChanged()
+                        }
+                    }
+                    LaunchedEffect(detailState.deletedVersion) {
+                        if (detailState.deletedVersion > handledDelete) {
+                            handledDelete = detailState.deletedVersion
+                            feedOwner.removePost(route.postId)
+                            refreshCurrentUser()
+                            backStack.removeLastOrNull()
                         }
                     }
 
                     PostDetailScreen(
-                        post = detailPost,
-                        isLoading = detailLoading,
-                        isLiking = detailLiking,
-                        isDeleting = detailDeleting,
-                        errorMessage = detailError,
+                        post = detailState.post,
+                        isLoading = detailState.isLoading,
+                        isLiking = detailState.isLiking,
+                        isDeleting = detailState.isDeleting,
+                        errorMessage = detailState.errorMessage,
                         onBack = { backStack.removeLastOrNull() },
-                        onRetry = ::loadDetail,
+                        onRetry = detailOwner::load,
                         onAuthorClick = { username ->
                             if (username == appState.currentUser?.username) {
                                 backStack.add(NovaRoute.Profile)
@@ -597,189 +455,58 @@ fun NovaApp(
                                 backStack.add(NovaRoute.Person(username))
                             }
                         },
-                        onLikeToggle = { selectedPost ->
-                            if (!detailLiking) {
-                                scope.launch {
-                                    detailLiking = true
-                                    detailError = null
-                                    when (
-                                        val result = feedRepository.setLiked(
-                                            postId = selectedPost.id,
-                                            liked = !selectedPost.isLiked,
-                                        )
-                                    ) {
-                                        is ApiResult.Success -> {
-                                            detailPost = result.value
-                                            replacePost(result.value)
-                                            detailLiking = false
-                                            contentVersion += 1
-                                        }
-
-                                        is ApiResult.Failure -> {
-                                            detailLiking = false
-                                            if (result.statusCode == 401) {
-                                                expireSession()
-                                            } else {
-                                                detailError = result.message
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        },
+                        onLikeToggle = detailOwner::toggleLike,
                         onCommentsClick = { selectedPost ->
                             backStack.add(NovaRoute.PostComments(selectedPost.id))
                         },
-                        onDelete = { selectedPost ->
-                            if (!detailDeleting && selectedPost.isMine) {
-                                scope.launch {
-                                    detailDeleting = true
-                                    detailError = null
-                                    when (val result = feedRepository.deletePost(selectedPost.id)) {
-                                        is ApiResult.Success -> {
-                                            posts = posts.filterNot { it.id == selectedPost.id }
-                                            detailDeleting = false
-                                            contentVersion += 1
-                                            refreshCurrentUser()
-                                            backStack.removeLastOrNull()
-                                        }
-
-                                        is ApiResult.Failure -> {
-                                            detailDeleting = false
-                                            if (result.statusCode == 401) {
-                                                expireSession()
-                                            } else {
-                                                detailError = result.message
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        },
+                        onDelete = detailOwner::delete,
                     )
                 }
 
                 is NovaRoute.PostComments -> NavEntry(route) {
-                    var commentPost by remember(route.postId) {
-                        mutableStateOf(posts.firstOrNull { it.id == route.postId })
+                    val commentsScope = rememberCoroutineScope()
+                    val commentsOwner = remember(route.postId, postRepository, commentsScope) {
+                        PostCommentsStateOwner(
+                            postId = route.postId,
+                            initialPost = feedState.posts.firstOrNull { it.id == route.postId },
+                            repository = postRepository,
+                            scope = commentsScope,
+                        )
                     }
-                    var comments by remember(route.postId) {
-                        mutableStateOf<List<NovaComment>>(emptyList())
+                    val commentsState = commentsOwner.state
+                    var handledSessionExpiry by remember(commentsOwner) { mutableStateOf(0) }
+                    var handledMutation by remember(commentsOwner) { mutableStateOf(0) }
+
+                    LaunchedEffect(route.postId) {
+                        commentsOwner.load()
                     }
-                    var commentsLoading by remember(route.postId) { mutableStateOf(true) }
-                    var commentSending by remember(route.postId) { mutableStateOf(false) }
-                    var deletingCommentId by remember(route.postId) { mutableStateOf<Long?>(null) }
-                    var commentsError by remember(route.postId) { mutableStateOf<String?>(null) }
-
-                    fun loadComments() {
-                        scope.launch {
-                            commentsLoading = true
-                            commentsError = null
-
-                            when (val postResult = feedRepository.post(route.postId)) {
-                                is ApiResult.Success -> {
-                                    commentPost = postResult.value
-                                    replacePost(postResult.value)
-                                }
-
-                                is ApiResult.Failure -> {
-                                    if (postResult.statusCode == 401) {
-                                        expireSession()
-                                        return@launch
-                                    } else {
-                                        commentsError = postResult.message
-                                    }
-                                }
-                            }
-
-                            when (val result = feedRepository.comments(route.postId)) {
-                                is ApiResult.Success -> {
-                                    comments = result.value
-                                    commentsLoading = false
-                                }
-
-                                is ApiResult.Failure -> {
-                                    commentsLoading = false
-                                    if (result.statusCode == 401) {
-                                        expireSession()
-                                    } else {
-                                        commentsError = result.message
-                                    }
-                                }
-                            }
+                    LaunchedEffect(commentsState.post) {
+                        commentsState.post?.let(feedOwner::synchronizePost)
+                    }
+                    LaunchedEffect(commentsState.sessionExpiryVersion) {
+                        if (commentsState.sessionExpiryVersion > handledSessionExpiry) {
+                            handledSessionExpiry = commentsState.sessionExpiryVersion
+                            expireSession()
+                        }
+                    }
+                    LaunchedEffect(commentsState.contentMutationVersion) {
+                        if (commentsState.contentMutationVersion > handledMutation) {
+                            handledMutation = commentsState.contentMutationVersion
+                            feedOwner.markContentChanged()
                         }
                     }
 
-                    LaunchedEffect(route.postId) {
-                        loadComments()
-                    }
-
                     PostCommentsScreen(
-                        post = commentPost,
-                        comments = comments,
-                        isLoading = commentsLoading,
-                        isSending = commentSending,
-                        deletingCommentId = deletingCommentId,
-                        errorMessage = commentsError,
+                        post = commentsState.post,
+                        comments = commentsState.comments,
+                        isLoading = commentsState.isLoading,
+                        isSending = commentsState.isSending,
+                        deletingCommentId = commentsState.deletingCommentId,
+                        errorMessage = commentsState.errorMessage,
                         onBack = { backStack.removeLastOrNull() },
-                        onRetry = ::loadComments,
-                        onSend = { body ->
-                            if (!commentSending) {
-                                scope.launch {
-                                    commentSending = true
-                                    commentsError = null
-                                    when (
-                                        val result = feedRepository.addComment(
-                                            postId = route.postId,
-                                            body = body,
-                                        )
-                                    ) {
-                                        is ApiResult.Success -> {
-                                            comments = comments + result.value.comment
-                                            commentPost = result.value.post
-                                            replacePost(result.value.post)
-                                            commentSending = false
-                                            contentVersion += 1
-                                        }
-
-                                        is ApiResult.Failure -> {
-                                            commentSending = false
-                                            if (result.statusCode == 401) {
-                                                expireSession()
-                                            } else {
-                                                commentsError = result.message
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        },
-                        onDelete = { comment ->
-                            if (deletingCommentId == null && comment.isMine) {
-                                scope.launch {
-                                    deletingCommentId = comment.id
-                                    commentsError = null
-                                    when (val result = feedRepository.deleteComment(comment.id)) {
-                                        is ApiResult.Success -> {
-                                            comments = comments.filterNot { it.id == comment.id }
-                                            commentPost = result.value
-                                            replacePost(result.value)
-                                            deletingCommentId = null
-                                            contentVersion += 1
-                                        }
-
-                                        is ApiResult.Failure -> {
-                                            deletingCommentId = null
-                                            if (result.statusCode == 401) {
-                                                expireSession()
-                                            } else {
-                                                commentsError = result.message
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        },
+                        onRetry = commentsOwner::load,
+                        onSend = commentsOwner::sendComment,
+                        onDelete = commentsOwner::deleteComment,
                         onAuthorClick = { username ->
                             if (username == appState.currentUser?.username) {
                                 backStack.add(NovaRoute.Profile)
@@ -818,7 +545,7 @@ fun NovaApp(
                         scope.launch {
                             profilePostsLoading = true
                             profilePostsError = null
-                            when (val result = feedRepository.personPosts(route.username)) {
+                            when (val result = postRepository.personPosts(route.username)) {
                                 is ApiResult.Success -> {
                                     profilePosts = result.value
                                     profilePostsLoading = false
@@ -852,10 +579,10 @@ fun NovaApp(
                         personLoading = false
                     }
 
-                    LaunchedEffect(route.username, contentVersion) {
+                    LaunchedEffect(route.username, feedState.contentVersion) {
                         profilePostsLoading = true
                         profilePostsError = null
-                        when (val result = feedRepository.personPosts(route.username)) {
+                        when (val result = postRepository.personPosts(route.username)) {
                             is ApiResult.Success -> {
                                 profilePosts = result.value
                                 profilePostsLoading = false
@@ -901,7 +628,7 @@ fun NovaApp(
                                                 if (existing.id == result.value.id) result.value else existing
                                             }
                                             refreshCurrentUser()
-                                            loadFeed()
+                                            feedOwner.loadFeed()
                                         }
 
                                         is ApiResult.Failure -> {
@@ -918,8 +645,7 @@ fun NovaApp(
                         },
                         onBlocked = { blockedPerson ->
                             people = people.filterNot { it.id == blockedPerson.id }
-                            posts = posts.filterNot { it.author.id == blockedPerson.id }
-                            contentVersion += 1
+                            feedOwner.removePostsByAuthor(blockedPerson.id)
                             refreshCurrentUser()
                             backStack.removeLastOrNull()
                         },
@@ -938,7 +664,7 @@ fun NovaApp(
                         scope.launch {
                             profilePostsLoading = true
                             profilePostsError = null
-                            when (val result = feedRepository.personPosts(profileUsername)) {
+                            when (val result = postRepository.personPosts(profileUsername)) {
                                 is ApiResult.Success -> {
                                     profilePosts = result.value
                                     profilePostsLoading = false
@@ -956,11 +682,11 @@ fun NovaApp(
                         }
                     }
 
-                    LaunchedEffect(profileUsername, contentVersion) {
+                    LaunchedEffect(profileUsername, feedState.contentVersion) {
                         if (profileUsername.isNotBlank()) {
                             profilePostsLoading = true
                             profilePostsError = null
-                            when (val result = feedRepository.personPosts(profileUsername)) {
+                            when (val result = postRepository.personPosts(profileUsername)) {
                                 is ApiResult.Success -> {
                                     profilePosts = result.value
                                     profilePostsLoading = false
@@ -1033,7 +759,7 @@ fun NovaApp(
                                         is ApiResult.Success -> {
                                             appViewModel.onAuthenticated(result.value)
                                             authLoading = false
-                                            contentVersion += 1
+                                            feedOwner.markContentChanged()
                                             backStack.removeLastOrNull()
                                         }
 
