@@ -83,6 +83,26 @@ class PeopleStateOwnersTest {
     }
 
     @Test
+    fun `normal follow error survives the automatic paging refresh`() = runBlocking {
+        val selected = person(9)
+        val paging = QueuePeoplePagingRepository(
+            ApiResult.Success(NovaPersonPage(listOf(selected), null)),
+            ApiResult.Success(NovaPersonPage(listOf(selected), null)),
+        )
+        val people = QueuePeopleRepository(
+            followResults = mutableListOf(ApiResult.Failure("follow failed", 500)),
+        )
+        val owner = PeopleStateOwner(people, paging, CoroutineScope(Dispatchers.Unconfined))
+        owner.loadPageNow(reset = true)
+
+        owner.toggleFollow(selected)
+
+        assertEquals("follow failed", owner.state.followError)
+        assertNull(owner.state.pagingError)
+        assertEquals(0, owner.state.sessionExpiryVersion)
+    }
+
+    @Test
     fun `social graph 401 is terminal and does not become inline error`() = runBlocking {
         val owner = SocialConnectionsStateOwner(
             username = "omar",
