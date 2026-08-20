@@ -5,6 +5,9 @@ import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.NovaPostAuthor
+import com.nova.app.feature.notifications.data.NotificationsRepository
+import com.nova.app.feature.notifications.domain.model.NovaNotification
+import com.nova.app.feature.notifications.domain.model.NovaNotificationPage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -14,40 +17,20 @@ import java.net.URL
 import java.net.URLEncoder
 
 
-data class NovaNotification(
-    val id: Long,
-    val kind: String,
-    val actor: NovaPostAuthor,
-    val postId: Long?,
-    val reelId: Long?,
-    val reelAuthorUsername: String,
-    val commentPreview: String,
-    val createdAt: String,
-    val isRead: Boolean,
-)
-
-
-data class NovaNotificationPage(
-    val notifications: List<NovaNotification>,
-    val nextCursor: String?,
-    val unreadCount: Int,
-)
-
-
 class NovaNotificationRepository(
     context: Context,
     private val api: NovaNotificationApiClient = NovaNotificationApiClient(PRODUCTION_API_URL),
     private val authApi: NovaApiClient = NovaApiClient(PRODUCTION_API_URL),
-) {
+) : NotificationsRepository {
     private val sessionStore = NovaSessionStore(context.applicationContext)
 
-    suspend fun notifications(cursor: String? = null): ApiResult<NovaNotificationPage> {
+    override suspend fun notifications(cursor: String?): ApiResult<NovaNotificationPage> {
         return authenticatedCall { accessToken ->
             api.notifications(accessToken, cursor)
         }
     }
 
-    suspend fun markAllRead(): ApiResult<Int> {
+    override suspend fun markAllRead(): ApiResult<Int> {
         return authenticatedCall { accessToken ->
             api.markAllRead(accessToken)
         }
