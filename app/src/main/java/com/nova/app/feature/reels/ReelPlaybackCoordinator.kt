@@ -6,7 +6,7 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
-import com.nova.app.core.reels.NovaReel
+import com.nova.app.feature.reels.domain.model.NovaReel
 import java.lang.ref.WeakReference
 import java.util.UUID
 
