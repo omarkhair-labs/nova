@@ -2,9 +2,9 @@ package com.nova.app.feature.posts.data
 
 import android.net.Uri
 import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaComment
-import com.nova.app.core.network.NovaCommentMutation
-import com.nova.app.core.network.NovaPost
+import com.nova.app.feature.posts.domain.model.NovaComment
+import com.nova.app.feature.posts.domain.model.NovaCommentMutation
+import com.nova.app.feature.posts.domain.model.NovaPost
 
 
 interface PostRepository {
