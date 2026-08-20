@@ -82,6 +82,8 @@ class AppContainer(context: Context) {
 
     fun conversationDraftStore(): ConversationDraftStore = NovaConversationDraftStore(appContext)
 
+    fun currentCachedUserId(): Long? = sessionStore.load()?.cachedUser?.id
+
     fun currentMessageAuthor(): NovaPostAuthor = sessionStore.load()?.cachedUser?.let { user ->
         NovaPostAuthor(
             id = user.id,
