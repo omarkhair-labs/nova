@@ -136,6 +136,9 @@ jobs:
       - name: Check Privacy architecture
         run: python3 scripts/check_privacy_architecture.py
 
+      - name: Check Settings architecture
+        run: python3 scripts/check_settings_architecture.py
+
       - name: Check whitespace errors
         run: git diff --check HEAD^1 HEAD
 
