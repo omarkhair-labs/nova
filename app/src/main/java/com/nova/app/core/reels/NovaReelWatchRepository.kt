@@ -4,6 +4,7 @@ import android.content.Context
 import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
+import com.nova.app.feature.reels.data.ReelWatchRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -14,11 +15,11 @@ import java.net.URL
 class NovaReelWatchRepository(
     context: Context,
     private val baseUrl: String = PRODUCTION_API_URL,
-) {
+) : ReelWatchRepository {
     private val sessionStore = NovaSessionStore(context.applicationContext)
     private val authApi = NovaApiClient(baseUrl)
 
-    suspend fun record(
+    override suspend fun record(
         reelId: Long,
         sessionId: String,
         watchedMs: Long,

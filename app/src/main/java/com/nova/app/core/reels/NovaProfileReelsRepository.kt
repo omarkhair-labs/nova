@@ -4,6 +4,10 @@ import android.content.Context
 import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
+import com.nova.app.feature.reels.data.ProfileReelsRepository
+import com.nova.app.feature.reels.domain.model.NovaReel
+import com.nova.app.feature.reels.domain.model.NovaReelAuthor
+import com.nova.app.feature.reels.domain.model.NovaReelPage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -16,18 +20,18 @@ import java.net.URLEncoder
 class NovaProfileReelsRepository(
     context: Context,
     private val baseUrl: String = PRODUCTION_API_URL,
-) {
+) : ProfileReelsRepository {
     private val sessionStore = NovaSessionStore(context.applicationContext)
     private val authApi = NovaApiClient(baseUrl)
 
-    suspend fun reels(
+    override suspend fun reels(
         username: String,
-        cursor: String? = null,
+        cursor: String?,
     ): ApiResult<NovaReelPage> = profileReels(username, cursor, source = "authored")
 
-    suspend fun repostedReels(
+    override suspend fun repostedReels(
         username: String,
-        cursor: String? = null,
+        cursor: String?,
     ): ApiResult<NovaReelPage> = profileReels(username, cursor, source = "reposted")
 
     private suspend fun profileReels(

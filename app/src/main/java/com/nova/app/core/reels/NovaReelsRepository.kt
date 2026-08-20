@@ -7,6 +7,12 @@ import android.webkit.MimeTypeMap
 import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
+import com.nova.app.feature.reels.data.ReelsRepository
+import com.nova.app.feature.reels.domain.model.NovaReel
+import com.nova.app.feature.reels.domain.model.NovaReelAuthor
+import com.nova.app.feature.reels.domain.model.NovaReelComment
+import com.nova.app.feature.reels.domain.model.NovaReelCommentMutation
+import com.nova.app.feature.reels.domain.model.NovaReelPage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -16,56 +22,6 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.UUID
-
-
-data class NovaReelAuthor(
-    val id: Long,
-    val username: String,
-    val name: String,
-    val avatarUrl: String,
-) {
-    val displayName: String get() = name.ifBlank { username }
-}
-
-
-data class NovaReel(
-    val id: Long,
-    val author: NovaReelAuthor,
-    val videoUrl: String,
-    val caption: String,
-    val createdAt: String,
-    val isMine: Boolean,
-    val likesCount: Int,
-    val commentsCount: Int,
-    val repostsCount: Int,
-    val isLiked: Boolean,
-    val isReposted: Boolean,
-    val repostedBy: NovaReelAuthor?,
-)
-
-
-data class NovaReelPage(
-    val reels: List<NovaReel>,
-    val nextCursor: String?,
-)
-
-
-data class NovaReelComment(
-    val id: Long,
-    val author: NovaReelAuthor,
-    val body: String,
-    val createdAt: String,
-    val isMine: Boolean,
-    val parentId: Long? = null,
-    val repliesCount: Int = 0,
-    val replies: List<NovaReelComment> = emptyList(),
-)
-
-
-data class NovaReelCommentMutation(
-    val comment: NovaReelComment,
-    val reel: NovaReel,
-)
 
 
 private data class PreparedReelVideo(
@@ -78,12 +34,12 @@ private data class PreparedReelVideo(
 class NovaReelsRepository(
     context: Context,
     private val baseUrl: String = PRODUCTION_API_URL,
-) {
+) : ReelsRepository {
     private val appContext = context.applicationContext
     private val sessionStore = NovaSessionStore(appContext)
     private val authApi = NovaApiClient(baseUrl)
 
-    suspend fun reels(cursor: String? = null): ApiResult<NovaReelPage> {
+    override suspend fun reels(cursor: String?): ApiResult<NovaReelPage> {
         val path = if (cursor.isNullOrBlank()) "reels/" else "reels/?cursor=${cursor.trim()}"
         return authenticatedCall { token ->
             when (val result = requestJson(path, bearerToken = token)) {
@@ -107,7 +63,7 @@ class NovaReelsRepository(
         }
     }
 
-    suspend fun createReel(videoUri: Uri, caption: String): ApiResult<NovaReel> {
+    override suspend fun createReel(videoUri: Uri, caption: String): ApiResult<NovaReel> {
         val mimeType = resolveVideoMimeType(videoUri)
             ?: return ApiResult.Failure("Reels support video files only.")
         val prepared = when (val result = prepareVideo(videoUri, mimeType)) {
@@ -123,7 +79,7 @@ class NovaReelsRepository(
         }
     }
 
-    suspend fun setLiked(reelId: Long, liked: Boolean): ApiResult<NovaReel> {
+    override suspend fun setLiked(reelId: Long, liked: Boolean): ApiResult<NovaReel> {
         return authenticatedCall { token ->
             val result = if (liked) {
                 requestJson(
@@ -146,7 +102,7 @@ class NovaReelsRepository(
         }
     }
 
-    suspend fun setReposted(reelId: Long, reposted: Boolean): ApiResult<NovaReel> {
+    override suspend fun setReposted(reelId: Long, reposted: Boolean): ApiResult<NovaReel> {
         return authenticatedCall { token ->
             val result = if (reposted) {
                 requestJson(
@@ -169,7 +125,7 @@ class NovaReelsRepository(
         }
     }
 
-    suspend fun comments(reelId: Long): ApiResult<List<NovaReelComment>> {
+    override suspend fun comments(reelId: Long): ApiResult<List<NovaReelComment>> {
         return authenticatedCall { token ->
             when (val result = requestJson("reels/$reelId/comments/", bearerToken = token)) {
                 is ApiResult.Success -> {
@@ -187,10 +143,10 @@ class NovaReelsRepository(
         }
     }
 
-    suspend fun addComment(
+    override suspend fun addComment(
         reelId: Long,
         body: String,
-        parentId: Long? = null,
+        parentId: Long?,
     ): ApiResult<NovaReelCommentMutation> {
         val clean = body.trim()
         if (clean.isBlank()) return ApiResult.Failure("Write a comment first.")
@@ -224,7 +180,7 @@ class NovaReelsRepository(
         }
     }
 
-    suspend fun deleteComment(commentId: Long): ApiResult<NovaReel> {
+    override suspend fun deleteComment(commentId: Long): ApiResult<NovaReel> {
         return authenticatedCall { token ->
             when (
                 val result = requestJson(
@@ -246,7 +202,7 @@ class NovaReelsRepository(
         }
     }
 
-    suspend fun deleteCommentReply(replyId: Long): ApiResult<NovaReel> {
+    override suspend fun deleteCommentReply(replyId: Long): ApiResult<NovaReel> {
         return authenticatedCall { token ->
             when (
                 val result = requestJson(
@@ -268,7 +224,7 @@ class NovaReelsRepository(
         }
     }
 
-    suspend fun deleteReel(reelId: Long): ApiResult<Unit> {
+    override suspend fun deleteReel(reelId: Long): ApiResult<Unit> {
         return authenticatedCall { token ->
             when (
                 val result = requestJson(

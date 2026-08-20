@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MODELS = ROOT / "app/src/main/java/com/nova/app/feature/reels/domain/model/ReelModels.kt"
 CONTRACT = ROOT / "app/src/main/java/com/nova/app/feature/reels/data/ReelsRepository.kt"
 ADAPTERS = ROOT / "app/src/main/java/com/nova/app/feature/reels/data/remote/CoreReelsRepositoryAdapters.kt"
+ADAPTER_TEST = ROOT / "app/src/test/java/com/nova/app/feature/reels/data/remote/CoreReelsRepositoryAdaptersTest.kt"
 ROOT_STATE_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/reels/ReelsStateOwner.kt"
 PROFILE_STATE_OWNERS = ROOT / "app/src/main/java/com/nova/app/feature/reels/ProfileReelsStateOwners.kt"
 COMMENTS_STATE_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/reels/ReelCommentsStateOwner.kt"
@@ -20,6 +21,8 @@ COMMENTS_SHEET = ROOT / "app/src/main/java/com/nova/app/feature/reels/ThreadedRe
 PLAYBACK = ROOT / "app/src/main/java/com/nova/app/feature/reels/ReelPlaybackCoordinator.kt"
 PROFILE_GRID = ROOT / "app/src/main/java/com/nova/app/ui/components/NovaProfileReelsGrid.kt"
 REPOSTED_GRID = ROOT / "app/src/main/java/com/nova/app/ui/components/NovaProfileRepostedReelsGrid.kt"
+MAIN_KOTLIN = ROOT / "app/src/main/java"
+TEST_KOTLIN = ROOT / "app/src/test/java"
 
 errors: list[str] = []
 
@@ -33,7 +36,6 @@ def read(path: Path) -> str:
 
 models = read(MODELS)
 contract = read(CONTRACT)
-adapters = read(ADAPTERS)
 root_state_owner = read(ROOT_STATE_OWNER)
 profile_state_owners = read(PROFILE_STATE_OWNERS)
 comments_state_owner = read(COMMENTS_STATE_OWNER)
@@ -82,31 +84,63 @@ for operation in (
     if operation not in contract:
         errors.append(f"stable Reels contracts are missing current operation: {operation}")
 
-for adapter in (
-    "class CoreReelsRepositoryAdapter(context: Context) : ReelsRepository",
-    "class CoreProfileReelsRepositoryAdapter(context: Context) : ProfileReelsRepository",
-    "class CoreReelWatchRepositoryAdapter(context: Context) : ReelWatchRepository",
+# Reels exit gate: production repositories directly implement stable contracts.
+for source_name, source, contract_name in (
+    ("NovaReelsRepository", core_repository, "ReelsRepository"),
+    ("NovaProfileReelsRepository", core_profile_repository, "ProfileReelsRepository"),
+    ("NovaReelWatchRepository", core_watch_repository, "ReelWatchRepository"),
 ):
-    if adapter not in adapters:
-        errors.append(f"Reels production bridge is missing: {adapter}")
+    if f") : {contract_name} {{" not in source:
+        errors.append(f"{source_name} must directly implement {contract_name}")
 
-for mapper in (
-    "internal fun CoreNovaReelAuthor.toStable()",
-    "internal fun CoreNovaReel.toStable()",
-    "internal fun CoreNovaReelPage.toStable()",
-    "internal fun CoreNovaReelComment.toStable()",
-    "internal fun CoreNovaReelCommentMutation.toStable()",
+for stable_import in (
+    "import com.nova.app.feature.reels.domain.model.NovaReel\n",
+    "import com.nova.app.feature.reels.domain.model.NovaReelAuthor\n",
+    "import com.nova.app.feature.reels.domain.model.NovaReelComment\n",
+    "import com.nova.app.feature.reels.domain.model.NovaReelCommentMutation\n",
+    "import com.nova.app.feature.reels.domain.model.NovaReelPage\n",
 ):
-    if mapper not in adapters:
-        errors.append(f"Reels bridge is missing explicit model mapping: {mapper}")
+    if stable_import not in core_repository:
+        errors.append(f"NovaReelsRepository must parse directly into stable model: {stable_import.strip()}")
+
+for stable_import in (
+    "import com.nova.app.feature.reels.domain.model.NovaReel\n",
+    "import com.nova.app.feature.reels.domain.model.NovaReelAuthor\n",
+    "import com.nova.app.feature.reels.domain.model.NovaReelPage\n",
+):
+    if stable_import not in core_profile_repository:
+        errors.append(f"NovaProfileReelsRepository must parse directly into stable model: {stable_import.strip()}")
+
+for duplicate in (
+    "data class NovaReelAuthor(",
+    "data class NovaReel(",
+    "data class NovaReelPage(",
+    "data class NovaReelComment(",
+    "data class NovaReelCommentMutation(",
+):
+    if duplicate in core_repository:
+        errors.append(f"duplicate core Reel record must stay deleted: {duplicate}")
+
+if ADAPTERS.exists():
+    errors.append("temporary CoreReelsRepositoryAdapters.kt must stay deleted after Reels exit")
+if ADAPTER_TEST.exists():
+    errors.append("obsolete CoreReelsRepositoryAdaptersTest.kt must stay deleted after Reels exit")
 
 for seam in (
-    "val reelsRepository: ReelsRepository = CoreReelsRepositoryAdapter(appContext)",
-    "val profileReelsRepository: ProfileReelsRepository = CoreProfileReelsRepositoryAdapter(appContext)",
-    "val reelWatchRepository: ReelWatchRepository = CoreReelWatchRepositoryAdapter(appContext)",
+    "val reelsRepository: ReelsRepository = NovaReelsRepository(appContext)",
+    "val profileReelsRepository: ProfileReelsRepository = NovaProfileReelsRepository(appContext)",
+    "val reelWatchRepository: ReelWatchRepository = NovaReelWatchRepository(appContext)",
 ):
     if seam not in container:
-        errors.append(f"AppContainer is missing stable Reels construction seam: {seam}")
+        errors.append(f"AppContainer is missing direct Reels construction seam: {seam}")
+
+for forbidden in (
+    "CoreReelsRepositoryAdapter",
+    "CoreProfileReelsRepositoryAdapter",
+    "CoreReelWatchRepositoryAdapter",
+):
+    if forbidden in container:
+        errors.append(f"AppContainer must not restore temporary Reels adapter: {forbidden}")
 
 for owner, source in (
     ("class ReelsStateOwner(", root_state_owner),
@@ -159,21 +193,42 @@ for required in (
     if required not in comments_state_owner:
         errors.append(f"Reel comments state owner is missing characterized behavior seam: {required}")
 
-# Transport records remain temporary until the later Reels cleanup slice.
-for legacy_declaration in (
-    "data class NovaReelAuthor(",
-    "data class NovaReel(",
-    "data class NovaReelPage(",
-    "data class NovaReelComment(",
-    "data class NovaReelCommentMutation(",
+# Preserve transport-sensitive behavior while changing only ownership/types.
+for required in (
+    '"reels/?cursor=${cursor.trim()}"',
+    "caption.trim().take(500)",
+    "clean.take(300)",
+    'path = "reels/$reelId/like/"',
+    'path = "reels/$reelId/repost/"',
+    'requestJson("reels/$reelId/comments/"',
+    'path = "reel-comments/$commentId/"',
+    'path = "reel-comment-replies/$replyId/"',
+    'path = "reels/$reelId/"',
+    "const val MAX_REEL_VIDEO_BYTES = 120L * 1024 * 1024",
 ):
-    if legacy_declaration not in core_repository:
-        errors.append(f"live switch must not remove transport record yet: {legacy_declaration}")
+    if required not in core_repository:
+        errors.append(f"NovaReelsRepository lost protected transport behavior seam: {required}")
 
-if "class NovaProfileReelsRepository(" not in core_profile_repository:
-    errors.append("live switch must retain the existing profile transport")
-if "class NovaReelWatchRepository(" not in core_watch_repository:
-    errors.append("live switch must retain the existing watch transport")
+for required in (
+    "username.trim().lowercase()",
+    'ApiResult.Failure("Choose a profile first.")',
+    'source = "authored"',
+    'source = "reposted"',
+    'val path = "reels/profile/$encodedUsername/"',
+    'add("cursor=${encode(cursor.trim())}")',
+):
+    if required not in core_profile_repository:
+        errors.append(f"NovaProfileReelsRepository lost protected transport behavior seam: {required}")
+
+for required in (
+    "reelId <= 0L || sessionId.isBlank() || watchedMs < 250L",
+    '.put("watched_ms", watchedMs.coerceAtLeast(0L))',
+    '.put("duration_ms", durationMs.coerceAtLeast(0L))',
+    '.put("max_position_ms", maxPositionMs.coerceAtLeast(0L))',
+    'path = "reels/$reelId/watch/"',
+):
+    if required not in core_watch_repository:
+        errors.append(f"NovaReelWatchRepository lost protected telemetry behavior seam: {required}")
 
 for required in (
     "val appContainer = context.appContainer",
@@ -276,10 +331,28 @@ if "username = username" not in profile_grid:
 if "username = reel.author.username" not in reposted_grid:
     errors.append("reposted profile Reel grid must continue opening the original author's authored source")
 
+# No Kotlin source may restore ownership of the removed core Reel record graph.
+legacy_model_imports = (
+    "import com.nova.app.core.reels.NovaReel\n",
+    "import com.nova.app.core.reels.NovaReelAuthor\n",
+    "import com.nova.app.core.reels.NovaReelPage\n",
+    "import com.nova.app.core.reels.NovaReelComment\n",
+    "import com.nova.app.core.reels.NovaReelCommentMutation\n",
+    "import com.nova.app.core.reels.*\n",
+)
+for source_root in (MAIN_KOTLIN, TEST_KOTLIN):
+    for path in source_root.rglob("*.kt"):
+        source = path.read_text(encoding="utf-8")
+        for forbidden in legacy_model_imports:
+            if forbidden in source:
+                errors.append(
+                    f"legacy core Reel model import must stay removed: {path.relative_to(ROOT)} -> {forbidden.strip()}"
+                )
+
 if errors:
     print("Reels architecture check failed:")
     for error in errors:
         print(f"- {error}")
     sys.exit(1)
 
-print("Reels architecture check passed.")
+print("Reels architecture exit gate passed.")
