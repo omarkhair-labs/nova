@@ -7,6 +7,13 @@ import android.webkit.MimeTypeMap
 import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
+import com.nova.app.feature.stories.data.StoriesRepository
+import com.nova.app.feature.stories.domain.model.NovaStory
+import com.nova.app.feature.stories.domain.model.NovaStoryAuthor
+import com.nova.app.feature.stories.domain.model.NovaStoryGroup
+import com.nova.app.feature.stories.domain.model.NovaStorySharedPost
+import com.nova.app.feature.stories.domain.model.NovaStorySharedReel
+import com.nova.app.feature.stories.domain.model.NovaStoryViewer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -16,66 +23,6 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.UUID
-
-
-data class NovaStoryAuthor(
-    val id: Long,
-    val username: String,
-    val name: String,
-    val avatarUrl: String,
-) {
-    val displayName: String get() = name.ifBlank { username }
-}
-
-
-data class NovaStorySharedPost(
-    val id: Long,
-    val author: NovaStoryAuthor,
-    val imageUrl: String,
-    val caption: String,
-)
-
-
-data class NovaStorySharedReel(
-    val id: Long,
-    val author: NovaStoryAuthor,
-    val videoUrl: String,
-    val caption: String,
-)
-
-
-data class NovaStory(
-    val id: Long,
-    val author: NovaStoryAuthor,
-    val mediaUrl: String,
-    val mediaType: String,
-    val caption: String,
-    val createdAt: String,
-    val expiresAt: String,
-    val isMine: Boolean,
-    val isViewed: Boolean,
-    val myReaction: String,
-    val viewsCount: Int?,
-    val audience: String = "followers",
-    val backgroundStyle: String = "midnight",
-    val sharedPost: NovaStorySharedPost? = null,
-    val sharedReel: NovaStorySharedReel? = null,
-)
-
-
-data class NovaStoryGroup(
-    val author: NovaStoryAuthor,
-    val stories: List<NovaStory>,
-    val hasUnseen: Boolean,
-    val isMine: Boolean,
-)
-
-
-data class NovaStoryViewer(
-    val user: NovaStoryAuthor,
-    val viewedAt: String,
-    val reaction: String,
-)
 
 
 private data class PreparedStoryMedia(
@@ -88,12 +35,12 @@ private data class PreparedStoryMedia(
 class NovaStoriesRepository(
     context: Context,
     private val baseUrl: String = PRODUCTION_API_URL,
-) {
+) : StoriesRepository {
     private val appContext = context.applicationContext
     private val sessionStore = NovaSessionStore(appContext)
     private val authApi = NovaApiClient(baseUrl)
 
-    suspend fun stories(): ApiResult<List<NovaStoryGroup>> {
+    override suspend fun stories(): ApiResult<List<NovaStoryGroup>> {
         return authenticatedCall { token ->
             when (val result = requestJson("stories/", bearerToken = token)) {
                 is ApiResult.Success -> {
@@ -112,10 +59,10 @@ class NovaStoriesRepository(
         }
     }
 
-    suspend fun createStory(
+    override suspend fun createStory(
         mediaUri: Uri,
-        caption: String = "",
-        audience: String = "followers",
+        caption: String,
+        audience: String,
     ): ApiResult<NovaStory> {
         val cleanAudience = audience.takeIf { it == "followers" || it == "close_friends" }
             ?: return ApiResult.Failure("Choose a valid Story audience.")
@@ -146,10 +93,10 @@ class NovaStoriesRepository(
         }
     }
 
-    suspend fun createTextStory(
+    override suspend fun createTextStory(
         text: String,
-        backgroundStyle: String = "midnight",
-        audience: String = "followers",
+        backgroundStyle: String,
+        audience: String,
     ): ApiResult<NovaStory> {
         val cleanText = text.trim()
         if (cleanText.isBlank()) return ApiResult.Failure("Write something for your Story.")
@@ -178,7 +125,7 @@ class NovaStoriesRepository(
         }
     }
 
-    suspend fun markViewed(storyId: Long): ApiResult<Unit> {
+    override suspend fun markViewed(storyId: Long): ApiResult<Unit> {
         return authenticatedCall { token ->
             when (
                 val result = requestJson(
@@ -194,7 +141,7 @@ class NovaStoriesRepository(
         }
     }
 
-    suspend fun react(storyId: Long, emoji: String): ApiResult<String> {
+    override suspend fun react(storyId: Long, emoji: String): ApiResult<String> {
         return authenticatedCall { token ->
             when (
                 val result = requestJson(
@@ -210,7 +157,7 @@ class NovaStoriesRepository(
         }
     }
 
-    suspend fun removeReaction(storyId: Long): ApiResult<Unit> {
+    override suspend fun removeReaction(storyId: Long): ApiResult<Unit> {
         return authenticatedCall { token ->
             when (
                 val result = requestJson(
@@ -225,7 +172,7 @@ class NovaStoriesRepository(
         }
     }
 
-    suspend fun reply(storyId: Long, body: String): ApiResult<Unit> {
+    override suspend fun reply(storyId: Long, body: String): ApiResult<Unit> {
         val clean = body.trim()
         if (clean.isBlank()) return ApiResult.Failure("Write a reply first.")
         return authenticatedCall { token ->
@@ -243,7 +190,7 @@ class NovaStoriesRepository(
         }
     }
 
-    suspend fun viewers(storyId: Long): ApiResult<List<NovaStoryViewer>> {
+    override suspend fun viewers(storyId: Long): ApiResult<List<NovaStoryViewer>> {
         return authenticatedCall { token ->
             when (val result = requestJson("stories/$storyId/viewers/", bearerToken = token)) {
                 is ApiResult.Success -> {
@@ -269,7 +216,7 @@ class NovaStoriesRepository(
         }
     }
 
-    suspend fun deleteStory(storyId: Long): ApiResult<Unit> {
+    override suspend fun deleteStory(storyId: Long): ApiResult<Unit> {
         return authenticatedCall { token ->
             when (
                 val result = requestJson(
