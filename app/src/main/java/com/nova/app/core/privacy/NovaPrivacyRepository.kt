@@ -4,7 +4,12 @@ import android.content.Context
 import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
-import com.nova.app.core.network.NovaPerson
+import com.nova.app.feature.people.domain.model.NovaPerson
+import com.nova.app.feature.privacy.data.FollowRequestRepository
+import com.nova.app.feature.privacy.data.PrivacyRepository
+import com.nova.app.feature.privacy.domain.model.NovaFollowRequest
+import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState
+import com.nova.app.feature.privacy.domain.model.NovaPrivacySummary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -14,43 +19,21 @@ import java.net.URL
 import java.net.URLEncoder
 
 
-data class NovaPersonPrivacyState(
-    val isPrivate: Boolean,
-    val followRequested: Boolean,
-    val canViewContent: Boolean,
-)
-
-
-data class NovaPrivacySummary(
-    val isPrivate: Boolean,
-    val pendingFollowRequests: Int,
-    val closeFriendsCount: Int,
-    val acceptedPendingRequests: Int = 0,
-)
-
-
-data class NovaFollowRequest(
-    val id: Long,
-    val requester: NovaPerson,
-    val createdAt: String,
-)
-
-
 class NovaPrivacyRepository(
     context: Context,
     private val baseUrl: String = PRODUCTION_API_URL,
-) {
+) : PrivacyRepository, FollowRequestRepository {
     private val sessionStore = NovaSessionStore(context.applicationContext)
     private val authApi = NovaApiClient(baseUrl)
 
-    suspend fun summary(): ApiResult<NovaPrivacySummary> = authenticatedCall { token ->
+    override suspend fun summary(): ApiResult<NovaPrivacySummary> = authenticatedCall { token ->
         when (val response = requestJson("privacy/", bearerToken = token)) {
             is ApiResult.Success -> ApiResult.Success(parseSummary(response.value))
             is ApiResult.Failure -> response
         }
     }
 
-    suspend fun setPrivate(isPrivate: Boolean): ApiResult<NovaPrivacySummary> = authenticatedCall { token ->
+    override suspend fun setPrivate(isPrivate: Boolean): ApiResult<NovaPrivacySummary> = authenticatedCall { token ->
         when (
             val response = requestJson(
                 path = "privacy/",
@@ -64,7 +47,7 @@ class NovaPrivacyRepository(
         }
     }
 
-    suspend fun personState(username: String): ApiResult<NovaPersonPrivacyState> = authenticatedCall { token ->
+    override suspend fun personState(username: String): ApiResult<NovaPersonPrivacyState> = authenticatedCall { token ->
         when (
             val response = requestJson(
                 path = "people/${encode(username.trim().lowercase())}/",
@@ -76,7 +59,7 @@ class NovaPrivacyRepository(
         }
     }
 
-    suspend fun followRequests(): ApiResult<List<NovaFollowRequest>> = authenticatedCall { token ->
+    override suspend fun followRequests(): ApiResult<List<NovaFollowRequest>> = authenticatedCall { token ->
         when (val response = requestJson("follow-requests/", bearerToken = token)) {
             is ApiResult.Success -> {
                 val rows = response.value.optJSONArray("results") ?: JSONArray()
@@ -100,11 +83,13 @@ class NovaPrivacyRepository(
         }
     }
 
-    suspend fun acceptFollowRequest(requestId: Long): ApiResult<Unit> = requestDecision(requestId, "accept")
+    override suspend fun acceptFollowRequest(requestId: Long): ApiResult<Unit> =
+        requestDecision(requestId, "accept")
 
-    suspend fun declineFollowRequest(requestId: Long): ApiResult<Unit> = requestDecision(requestId, "decline")
+    override suspend fun declineFollowRequest(requestId: Long): ApiResult<Unit> =
+        requestDecision(requestId, "decline")
 
-    suspend fun closeFriends(): ApiResult<List<NovaPerson>> = authenticatedCall { token ->
+    override suspend fun closeFriends(): ApiResult<List<NovaPerson>> = authenticatedCall { token ->
         when (val response = requestJson("close-friends/", bearerToken = token)) {
             is ApiResult.Success -> {
                 val rows = response.value.optJSONArray("results") ?: JSONArray()
@@ -120,7 +105,7 @@ class NovaPrivacyRepository(
         }
     }
 
-    suspend fun setCloseFriend(username: String, enabled: Boolean): ApiResult<Unit> = authenticatedCall { token ->
+    override suspend fun setCloseFriend(username: String, enabled: Boolean): ApiResult<Unit> = authenticatedCall { token ->
         val clean = username.trim().lowercase()
         val response = if (enabled) {
             requestJson(
