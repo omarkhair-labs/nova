@@ -71,7 +71,7 @@ for forbidden in ("followRequests", "acceptFollowRequest", "declineFollowRequest
     if forbidden in contract:
         errors.append(f"PrivacyRepository must not absorb the separate FollowRequestRepository operation: {forbidden}")
 
-# Production remains adapter-backed until all Privacy consumers switch.
+# Production remains adapter-backed until the residual PersonScreen consumer switches.
 if "class CorePrivacyRepositoryAdapter(context: Context) : PrivacyRepository" not in adapter:
     errors.append("Privacy production adapter must implement PrivacyRepository")
 for required in (
@@ -90,7 +90,7 @@ for required in (
 if "val privacyRepository: PrivacyRepository = CorePrivacyRepositoryAdapter(appContext)" not in container:
     errors.append("AppContainer is missing the stable Privacy repository seam")
 if "fun currentCachedUsername(): String = sessionStore.load()?.cachedUser?.username.orEmpty()" not in container:
-    errors.append("AppContainer is missing the explicit cached-username seam for the later live switch")
+    errors.append("AppContainer is missing the explicit cached-username seam for PrivacyScreen")
 
 for test_name in (
     "privacy summary mapping preserves every live field",
@@ -99,18 +99,18 @@ for test_name in (
     if test_name not in mapping_test:
         errors.append(f"Privacy mapping characterization is missing test: {test_name}")
 
-# Follow requests remain their own Privacy-owned contract, shared with Notifications.
+# Follow requests remain their own Privacy-owned contract, shared with Notifications and PrivacyScreen.
 if "interface FollowRequestRepository" not in follow_contract:
     errors.append("existing Privacy-owned FollowRequestRepository must remain")
 for operation in ("followRequests", "acceptFollowRequest", "declineFollowRequest"):
     if operation not in follow_contract:
         errors.append(f"FollowRequestRepository lost operation: {operation}")
 if "class CoreFollowRequestRepositoryAdapter(context: Context) : FollowRequestRepository" not in follow_adapter:
-    errors.append("existing follow-request production adapter must remain during Privacy characterization")
+    errors.append("existing follow-request production adapter must remain during Privacy live switch")
 if "val followRequestRepository: FollowRequestRepository = CoreFollowRequestRepositoryAdapter(appContext)" not in container:
     errors.append("AppContainer must keep the independent follow-request seam")
 
-# Characterize the PrivacyScreen state/orchestration before switching the live UI.
+# Characterized Privacy state/orchestration remains the sole live async/domain owner.
 for required in (
     "data class PrivacyUiState(",
     "val summary: NovaPrivacySummary? = null",
@@ -209,8 +209,42 @@ for required in (
     if required not in core_repository:
         errors.append(f"Privacy transport-sensitive seam changed or disappeared: {required}")
 
-# Characterization PR intentionally leaves live PrivacyScreen behavior untouched.
+# Live PrivacyScreen must now render only the AppContainer-backed PrivacyStateOwner.
 for required in (
+    "import com.nova.app.app.appContainer",
+    "import com.nova.app.feature.people.domain.model.NovaPerson",
+    "val appContainer = context.appContainer",
+    "val sessionExpiredCallback = rememberUpdatedState(onSessionExpired)",
+    "val owner = remember(appContainer, scope)",
+    "PrivacyStateOwner(",
+    "username = appContainer.currentCachedUsername()",
+    "privacyRepository = appContainer.privacyRepository",
+    "followRequestRepository = appContainer.followRequestRepository",
+    "peoplePagingRepository = appContainer.peoplePagingRepository",
+    "onSessionExpired = { sessionExpiredCallback.value() }",
+    "val state = owner.state",
+    "LaunchedEffect(owner)",
+    "owner.start()",
+    "onCheckedChange = owner::togglePrivate",
+    "owner.decideFollowRequest(item, true)",
+    "owner.decideFollowRequest(item, false)",
+    "onValueChange = owner::setFollowerQuery",
+    "owner.toggleCloseFriend(person)",
+    "owner.loadFollowers(reset = false)",
+    'text = if (state.loadingMore) "Loading more…" else "Load more followers"',
+    ".statusBarsPadding()",
+    ".navigationBarsPadding()",
+    ".verticalScroll(rememberScrollState())",
+    'title = "Privacy"',
+    'subtitle = "Control who can follow you and who sees your closer moments."',
+    'text = "Private account"',
+    'title = "Follow requests"',
+    'title = "Close Friends"',
+    'placeholder = { Text("Search your followers", color = NovaMuted) }',
+):
+    if required not in screen:
+        errors.append(f"live PrivacyScreen is missing stable owner/UI seam: {required}")
+for forbidden in (
     "import com.nova.app.core.auth.NovaSessionStore",
     "import com.nova.app.core.network.ApiResult",
     "import com.nova.app.core.privacy.NovaFollowRequest",
@@ -219,30 +253,19 @@ for required in (
     "import com.nova.app.core.social.NovaSocialPagingRepository",
     "NovaPrivacyRepository(context.applicationContext)",
     "NovaSocialPagingRepository(context.applicationContext)",
-    "NovaSessionStore(context.applicationContext).load()?.cachedUser?.username.orEmpty()",
-    "mutableStateOf<NovaPrivacySummary?>(null)",
-    "mutableStateOf<List<NovaFollowRequest>>(emptyList())",
+    "NovaSessionStore(context.applicationContext)",
+    "mutableStateOf<",
     "privacyRepository.summary()",
     "privacyRepository.followRequests()",
     "privacyRepository.closeFriends()",
-    "privacyRepository.setPrivate(enabled)",
-    "privacyRepository.setCloseFriend(person.username, !currentlyClose)",
+    "privacyRepository.setPrivate(",
+    "privacyRepository.setCloseFriend(",
     "delay(280)",
-    "followerQuery = it.take(50)",
-    'text = if (loadingMore) "Loading more…" else "Load more followers"',
-):
-    if required not in screen:
-        errors.append(f"Privacy characterization PR must preserve current live-screen wiring/behavior: {required}")
-for forbidden in (
-    "PrivacyStateOwner(",
-    "context.appContainer.privacyRepository",
-    "import com.nova.app.feature.privacy.data.PrivacyRepository",
-    "CorePrivacyRepositoryAdapter",
 ):
     if forbidden in screen:
-        errors.append(f"Privacy characterization PR must not switch live PrivacyScreen yet: {forbidden}")
+        errors.append(f"live PrivacyScreen must not restore route-local Privacy orchestration: {forbidden}")
 
-# PersonScreen is another live consumer of personState and remains untouched until its focused Privacy residual switch.
+# PersonScreen remains the only residual concrete personState consumer until the next focused Privacy slice.
 for required in (
     "import com.nova.app.core.privacy.NovaPersonPrivacyState",
     "import com.nova.app.core.privacy.NovaPrivacyRepository",
@@ -250,14 +273,14 @@ for required in (
     "privacyRepository.personState(selected.username)",
 ):
     if required not in person_screen:
-        errors.append(f"Privacy characterization PR must preserve current PersonScreen privacy wiring: {required}")
+        errors.append(f"Privacy live-switch PR must preserve current PersonScreen residual wiring: {required}")
 for forbidden in (
     "context.appContainer.privacyRepository",
     "import com.nova.app.feature.privacy.data.PrivacyRepository",
     "CorePrivacyRepositoryAdapter",
 ):
     if forbidden in person_screen:
-        errors.append(f"Privacy characterization PR must not switch PersonScreen yet: {forbidden}")
+        errors.append(f"Privacy live-switch PR must not switch PersonScreen yet: {forbidden}")
 
 if errors:
     print("Privacy architecture check failed:")
