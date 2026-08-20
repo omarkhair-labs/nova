@@ -7,7 +7,15 @@ MAIN = ROOT / "app/src/main/java"
 SHADOW_ANDROIDX = MAIN / "androidx"
 CALL_ACTIVITY = MAIN / "com/nova/app/CallActivity.kt"
 ICON_ALIASES = MAIN / "com/nova/app/ui/icons/NovaMaterialIconAliases.kt"
+SHARED_COMPONENTS = MAIN / "com/nova/app/ui/components"
+LEGACY_COMPONENTS = SHARED_COMPONENTS / "NovaComponents.kt"
 COMMUNICATION_ICON_ALIASES = ("CallEnd", "Mic", "Videocam", "VolumeUp")
+NARROW_COMPONENT_SEAMS = {
+    "NovaButtons.kt": ("fun NovaPrimaryButton(", "fun NovaSecondaryButton("),
+    "NovaTextField.kt": ("fun NovaTextField(",),
+    "NovaHeader.kt": ("fun NovaHeader(",),
+    "NovaBottomBar.kt": ("fun NovaBottomBar(", "enum class NovaTab"),
+}
 
 errors: list[str] = []
 
@@ -27,6 +35,22 @@ for source in MAIN.rglob("*.kt"):
                 "communication icon alias must be imported from app-owned ui.icons: "
                 f"{source.relative_to(ROOT)} -> {forbidden}"
             )
+
+if LEGACY_COMPONENTS.exists():
+    errors.append(
+        "shared UI must stay split by responsibility; legacy dumping-ground file exists: "
+        f"{LEGACY_COMPONENTS.relative_to(ROOT)}"
+    )
+
+for file_name, seams in NARROW_COMPONENT_SEAMS.items():
+    component_file = SHARED_COMPONENTS / file_name
+    if not component_file.is_file():
+        errors.append(f"missing narrow shared UI owner: {component_file.relative_to(ROOT)}")
+        continue
+    component_text = component_file.read_text(encoding="utf-8")
+    for seam in seams:
+        if seam not in component_text:
+            errors.append(f"shared UI public seam moved unexpectedly: {file_name} -> {seam}")
 
 if not ICON_ALIASES.is_file():
     errors.append("missing app-owned communication icon aliases")
