@@ -58,28 +58,11 @@ class ProfileContentStateOwner(
         state = state.copy(postsLoading = true, postsError = null)
 
         when (val result = postRepository.personPosts(username)) {
-            is ApiResult.Success -> {
-                firstPagePosts = result.value
-                state = if (state.selectedTab == ProfileContentTab.Posts) {
-                    if (!hasLoadedOlderPosts) {
-                        state.copy(
-                            posts = firstPagePosts,
-                            postsLoading = false,
-                            postsError = null,
-                            postsNextCursor = initialPostsCursor(firstPagePosts),
-                        )
-                    } else {
-                        val freshIds = firstPagePosts.mapTo(mutableSetOf()) { it.id }
-                        state.copy(
-                            posts = firstPagePosts + state.posts.filterNot { it.id in freshIds },
-                            postsLoading = false,
-                            postsError = null,
-                        )
-                    }
-                } else {
-                    state.copy(postsLoading = false, postsError = null)
-                }
-            }
+            is ApiResult.Success -> synchronizePosts(
+                posts = result.value,
+                isLoading = false,
+                errorMessage = null,
+            )
 
             is ApiResult.Failure -> {
                 state = if (result.statusCode == 401) {
@@ -91,6 +74,42 @@ class ProfileContentStateOwner(
                     state.copy(postsLoading = false, postsError = result.message)
                 }
             }
+        }
+    }
+
+    /** Mirrors an externally owned first page, used by PersonStateOwner without duplicating its request. */
+    fun synchronizeExternalPosts(
+        posts: List<NovaPost>,
+        isLoading: Boolean,
+        errorMessage: String?,
+    ) {
+        synchronizePosts(posts, isLoading, errorMessage)
+    }
+
+    private fun synchronizePosts(
+        posts: List<NovaPost>,
+        isLoading: Boolean,
+        errorMessage: String?,
+    ) {
+        firstPagePosts = posts
+        state = if (state.selectedTab == ProfileContentTab.Posts) {
+            if (!hasLoadedOlderPosts) {
+                state.copy(
+                    posts = firstPagePosts,
+                    postsLoading = isLoading,
+                    postsError = errorMessage,
+                    postsNextCursor = initialPostsCursor(firstPagePosts),
+                )
+            } else {
+                val freshIds = firstPagePosts.mapTo(mutableSetOf()) { it.id }
+                state.copy(
+                    posts = firstPagePosts + state.posts.filterNot { it.id in freshIds },
+                    postsLoading = isLoading,
+                    postsError = errorMessage,
+                )
+            }
+        } else {
+            state.copy(postsLoading = isLoading, postsError = errorMessage)
         }
     }
 
