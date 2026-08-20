@@ -70,6 +70,7 @@ fun PostCommentsScreen(
     onDelete: (NovaComment) -> Unit,
     onSendReply: (NovaComment, String) -> Unit,
     onDeleteReply: (NovaComment) -> Unit,
+    onClearReplyError: () -> Unit,
     onAuthorClick: (String) -> Unit,
 ) {
     var draft by remember(post?.id) { mutableStateOf("") }
@@ -109,7 +110,10 @@ fun PostCommentsScreen(
                     draft = draft,
                     isSending = composerBusy,
                     replyingTo = replyingTo,
-                    onCancelReply = { replyingTo = null },
+                    onCancelReply = {
+                        replyingTo = null
+                        onClearReplyError()
+                    },
                     onDraftChange = { draft = it.take(300) },
                     onSend = {
                         val clean = draft.trim()
@@ -200,7 +204,10 @@ fun PostCommentsScreen(
                                 comment = comment,
                                 isDeleting = deletingCommentId == comment.id,
                                 onAuthorClick = { onAuthorClick(comment.author.username) },
-                                onReply = { replyingTo = comment },
+                                onReply = {
+                                    replyingTo = comment
+                                    onClearReplyError()
+                                },
                                 onDelete = { onDelete(comment) },
                             )
 
@@ -211,7 +218,10 @@ fun PostCommentsScreen(
                                     isReply = true,
                                     isDeleting = deletingReplyId == reply.id,
                                     onAuthorClick = { onAuthorClick(reply.author.username) },
-                                    onReply = { replyingTo = comment },
+                                    onReply = {
+                                        replyingTo = comment
+                                        onClearReplyError()
+                                    },
                                     onDelete = { onDeleteReply(reply) },
                                 )
                             }
