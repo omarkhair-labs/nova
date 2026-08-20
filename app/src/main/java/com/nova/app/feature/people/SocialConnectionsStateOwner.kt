@@ -64,7 +64,9 @@ class SocialConnectionsStateOwner(
         queryJob?.cancel()
         queryJob = scope.launch {
             delay(240)
-            loadNow(reset = true)
+            // Match the old LaunchedEffect -> rememberCoroutineScope handoff so
+            // a later debounce does not cancel an already-started request.
+            scope.launch { loadNow(reset = true) }
         }
     }
 
