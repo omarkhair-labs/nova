@@ -132,7 +132,7 @@ for test_seam in (
     if test_seam not in state_test:
         errors.append(f"Sharing state-owner characterization is missing test: {test_seam}")
 
-# The production transport remains unchanged during state characterization.
+# Production transport remains unchanged during the live state-owner switch.
 for required in (
     "data class NovaRepostState(",
     "suspend fun repostState(",
@@ -149,7 +149,7 @@ for required in (
     if required not in core_repository:
         errors.append(f"Sharing transport-sensitive seam changed or disappeared: {required}")
 
-# Stable dependencies must remain the exact live search implementations needed for the later switch.
+# Stable dependencies remain the exact implementations that backed the pre-switch dialog.
 if "suspend fun people(query: String = \"\")" not in people_contract:
     errors.append("PeopleRepository must expose the existing people(query) search seam")
 if "interface MessagesRepository" not in messages_contract or "suspend fun conversations(query: String = \"\")" not in messages_contract:
@@ -159,23 +159,57 @@ if "val messagingRepository: MessagesRepository = NovaMessagingRepository(" not 
 if "val peopleRepository: PeopleRepository = socialRepository" not in container:
     errors.append("AppContainer peopleRepository must remain the current NovaSocialRepository implementation")
 
-# Characterization PR intentionally does not switch the live dialog yet.
+# The live dialog must now be a thin AppContainer/state-owner renderer while preserving its visual/external-share tree.
 for required in (
-    "NovaSocialRepository(context.applicationContext)",
-    "NovaMessagingRepository(context.applicationContext)",
-    "NovaSharingRepository(context.applicationContext)",
+    "import com.nova.app.app.appContainer",
+    "import com.nova.app.feature.people.domain.model.NovaPerson",
+    "SharingTarget.Post(postId)",
+    "SharingTarget.Reel(reelId)",
+    "SharingTarget.Profile(profileUsername.orEmpty())",
+    "SharingStateOwner(",
+    "messagesRepository = container.messagingRepository",
+    "peopleRepository = container.peopleRepository",
+    "sharingRepository = container.sharingRepository",
+    "LaunchedEffect(owner)",
+    "owner.start()",
+    "val state = owner.state",
+    "val busy = state.busy",
+    "val canAddToStory = owner.canAddToStory",
+    "value = state.query",
+    "onValueChange = owner::setQuery",
+    'owner.addToStory("followers")',
+    'owner.addToStory("close_friends")',
+    "owner.sendToConversation(conversation)",
+    "owner.sendToPerson(person)",
+    "state.busyConversationId == conversation.id",
+    "state.busyUsername == person.username",
+    "state.message?.takeIf",
+    "state.error?.takeIf",
+    'Text("Share outside Nova"',
+    'Text("Use Android\'s share menu"',
+    "if (!busy) {",
+    "onExternalShare()",
+):
+    if required not in dialog:
+        errors.append(f"live Sharing dialog is missing stable owner/rendering seam: {required}")
+
+for forbidden in (
+    "NovaSocialRepository",
+    "NovaMessagingRepository",
+    "NovaSharingRepository",
+    "com.nova.app.core.network.ApiResult",
+    "com.nova.app.core.network.NovaPerson",
+    "mutableStateOf",
+    "scope.launch",
     "delay(220)",
-    "messagingRepository.conversations(query.trim())",
-    "socialRepository.people(query.trim())",
+    "messagingRepository.conversations(",
+    "socialRepository.people(",
     "sharingRepository.sharePost(",
     "sharingRepository.shareReel(",
     "sharingRepository.shareProfile(",
 ):
-    if required not in dialog:
-        errors.append(f"Sharing state-owner PR must preserve current live-dialog wiring: {required}")
-
-if "SharingStateOwner(" in dialog or "context.appContainer.sharingRepository" in dialog:
-    errors.append("Sharing state-owner characterization PR must not switch the live dialog")
+    if forbidden in dialog:
+        errors.append(f"live Sharing dialog must not retain pre-switch repository/orchestration dependency: {forbidden}")
 
 if errors:
     print("Sharing architecture check failed:")
