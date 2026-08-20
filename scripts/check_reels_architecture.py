@@ -17,6 +17,7 @@ CORE_WATCH_REPOSITORY = ROOT / "app/src/main/java/com/nova/app/core/reels/NovaRe
 REELS_SCREEN = ROOT / "app/src/main/java/com/nova/app/feature/reels/ReelsScreen.kt"
 PROFILE_VIEWER = ROOT / "app/src/main/java/com/nova/app/feature/reels/ProfileReelsViewerScreen.kt"
 COMMENTS_SHEET = ROOT / "app/src/main/java/com/nova/app/feature/reels/ThreadedReelCommentsSheet.kt"
+PLAYBACK = ROOT / "app/src/main/java/com/nova/app/feature/reels/ReelPlaybackCoordinator.kt"
 
 errors: list[str] = []
 
@@ -41,6 +42,7 @@ core_watch_repository = read(CORE_WATCH_REPOSITORY)
 reels_screen = read(REELS_SCREEN)
 profile_viewer = read(PROFILE_VIEWER)
 comments_sheet = read(COMMENTS_SHEET)
+playback = read(PLAYBACK)
 
 for declaration in (
     "data class NovaReelAuthor(",
@@ -153,9 +155,7 @@ for required in (
     if required not in comments_state_owner:
         errors.append(f"Reel comments state owner is missing characterized behavior seam: {required}")
 
-# This characterization slice intentionally leaves current transport records and live
-# Compose repository/state wiring untouched. The next Reels PR performs the live switch
-# only after these state owners pass the full hosted gate.
+# Transport records remain temporary until the later Reels cleanup slice.
 for legacy_declaration in (
     "data class NovaReelAuthor(",
     "data class NovaReel(",
@@ -164,33 +164,70 @@ for legacy_declaration in (
     "data class NovaReelCommentMutation(",
 ):
     if legacy_declaration not in core_repository:
-        errors.append(
-            f"Reels state-owner characterization must not remove transport records yet: {legacy_declaration}"
-        )
+        errors.append(f"root live switch must not remove transport record yet: {legacy_declaration}")
 
 if "class NovaProfileReelsRepository(" not in core_profile_repository:
-    errors.append("Reels state-owner characterization must retain the existing profile transport")
+    errors.append("root live switch must retain the existing profile transport")
 if "class NovaReelWatchRepository(" not in core_watch_repository:
-    errors.append("Reels state-owner characterization must retain the existing watch transport")
+    errors.append("root live switch must retain the existing watch transport")
 
 for required in (
-    "NovaReelsRepository(context.applicationContext)",
-    "NovaReelWatchRepository(context.applicationContext)",
-    "var reels by remember { mutableStateOf<List<NovaReel>>(emptyList()) }",
+    "val appContainer = context.appContainer",
+    "val repository = appContainer.reelsRepository",
+    "ReelsStateOwner(",
+    "watchRepository = appContainer.reelWatchRepository",
+    "owner.load(reset = true)",
+    "owner.recordWatch(reel, snapshot)",
+    "repository = repository",
 ):
     if required not in reels_screen:
-        errors.append(f"state-owner characterization must leave live ReelsScreen wiring unchanged: {required}")
+        errors.append(f"root Reels live screen is missing stable-owner wiring: {required}")
 
+for forbidden in (
+    "com.nova.app.core.network.ApiResult",
+    "com.nova.app.core.reels.NovaReel",
+    "com.nova.app.core.reels.NovaReelsRepository",
+    "com.nova.app.core.reels.NovaReelWatchRepository",
+    "NovaReelsRepository(context.applicationContext)",
+    "NovaReelWatchRepository(context.applicationContext)",
+):
+    if forbidden in reels_screen:
+        errors.append(f"root Reels live screen must not retain legacy orchestration dependency: {forbidden}")
+
+for required in (
+    "repository: ReelsRepository",
+    "ReelCommentsStateOwner(",
+    "owner.loadComments()",
+    "owner.send",
+    "owner.deleteComment(comment)",
+    "owner.deleteReply(reply)",
+):
+    if required not in comments_sheet:
+        errors.append(f"threaded Reel comments are missing stable-owner wiring: {required}")
+
+for forbidden in (
+    "com.nova.app.core.network.ApiResult",
+    "com.nova.app.core.reels.NovaReel",
+    "com.nova.app.core.reels.NovaReelComment",
+    "com.nova.app.core.reels.NovaReelsRepository",
+    "repository: NovaReelsRepository",
+):
+    if forbidden in comments_sheet:
+        errors.append(f"threaded Reel comments must not retain legacy orchestration dependency: {forbidden}")
+
+if "import com.nova.app.feature.reels.domain.model.NovaReel" not in playback:
+    errors.append("Reel playback pool must consume the stable Reel model")
+if "import com.nova.app.core.reels.NovaReel" in playback:
+    errors.append("Reel playback pool must not retain the core Reel record import")
+
+# Profile viewer intentionally stays on pre-switch wiring for the next focused PR.
 for required in (
     "NovaProfileReelsRepository(context.applicationContext)",
     "NovaReelsRepository(context.applicationContext)",
     "var reels by remember(username) { mutableStateOf<List<NovaReel>>(emptyList()) }",
 ):
     if required not in profile_viewer:
-        errors.append(f"state-owner characterization must leave profile viewer wiring unchanged: {required}")
-
-if "repository: NovaReelsRepository" not in comments_sheet:
-    errors.append("state-owner characterization must leave threaded comment transport wiring unchanged")
+        errors.append(f"root live switch must leave profile viewer wiring unchanged: {required}")
 
 if errors:
     print("Reels architecture check failed:")
