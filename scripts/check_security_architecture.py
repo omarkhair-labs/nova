@@ -148,27 +148,75 @@ for test_name in (
     if test_name not in owner_test:
         errors.append(f"Security state characterization is missing test: {test_name}")
 
-# Boundary/characterization PR intentionally leaves live screens pre-switch.
+# Exit gate: all three live Security surfaces must render stable owner state and
+# use AppContainer-owned contracts rather than constructing concrete repositories
+# or launching request coroutines themselves.
 for required in (
-    "import com.nova.app.core.auth.NovaAccountSecurityRepository",
-    "NovaAccountSecurityRepository(context.applicationContext)",
-    "rememberCoroutineScope()",
-    "mutableStateOf",
+    "import com.nova.app.app.appContainer",
+    "import com.nova.app.feature.security.PasswordRecoveryStateOwner",
+    "import com.nova.app.feature.security.PasswordRecoveryStage",
+    "import com.nova.app.feature.security.AccountSecurityStateOwner",
+    "PasswordRecoveryStateOwner(",
+    "repository = container.securityRepository",
+    "when (state.stage)",
+    "onValueChange = owner::setEmail",
+    "onValueChange = owner::setCode",
+    "onClick = owner::requestResetCode",
+    "onClick = owner::resetPassword",
+    "AccountSecurityStateOwner(",
+    "onAccountDeleted = { currentOnAccountDeleted() }",
+    "onValueChange = owner::setCurrentPassword",
+    "onValueChange = owner::setNewPassword",
+    "onValueChange = owner::setConfirmPassword",
+    "onClick = owner::changePassword",
+    "onClick = owner::revokeOtherSessions",
+    "onClick = owner::requestDeleteConfirmation",
+    "onClick = owner::confirmDelete",
 ):
     if required not in account_screens:
-        errors.append(f"Security boundary PR must leave AccountSecurity screens pre-switch: {required}")
+        errors.append(f"live Account Security/Recovery owner wiring is missing seam: {required}")
+
+for forbidden in (
+    "NovaAccountSecurityRepository",
+    "import com.nova.app.core.network.ApiResult",
+    "mutableStateOf",
+    "scope.launch",
+    "repository.requestPasswordReset",
+    "repository.resetPassword",
+    "repository.changePassword",
+    "repository.revokeOtherSessions",
+    "repository.deleteAccount",
+):
+    if forbidden in account_screens:
+        errors.append(f"Security exit gate rejects route-owned account-security orchestration: {forbidden}")
 
 for required in (
-    "import com.nova.app.core.social.NovaBlockedAccountsRepository",
-    "NovaBlockedAccountsRepository(context.applicationContext)",
-    "rememberCoroutineScope()",
-    "mutableStateOf",
-    "LaunchedEffect(Unit) { load() }",
+    "import com.nova.app.app.appContainer",
+    "import com.nova.app.feature.security.BlockedAccountsStateOwner",
+    "BlockedAccountsStateOwner(",
+    "repository = container.blockedAccountsRepository",
+    "onSessionExpired = { currentOnSessionExpired() }",
+    "LaunchedEffect(Unit) { owner.load() }",
+    'NovaSecondaryButton(text = "Try again", onClick = owner::load)',
+    "owner.unblock(person)",
+    "items(state.blocked, key = { it.id })",
 ):
     if required not in blocked_screen:
-        errors.append(f"Security boundary PR must leave BlockedAccounts screen pre-switch: {required}")
+        errors.append(f"live Blocked Accounts owner wiring is missing seam: {required}")
 
-# Preserve special-Activity modes and recovery entry while ownership is introduced.
+for forbidden in (
+    "NovaBlockedAccountsRepository",
+    "import com.nova.app.core.network.ApiResult",
+    "import com.nova.app.core.network.NovaPerson",
+    "mutableStateOf",
+    "scope.launch",
+    "repository.blockedAccounts",
+    "repository.unblock",
+):
+    if forbidden in blocked_screen:
+        errors.append(f"Security exit gate rejects route-owned blocked-account orchestration: {forbidden}")
+
+# Preserve special-Activity modes and recovery entry after the live switch.
 for required in (
     'const val EXTRA_MODE = "account_security_mode"',
     'const val MODE_RECOVERY = "recovery"',
