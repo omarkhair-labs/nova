@@ -18,6 +18,8 @@ REELS_SCREEN = ROOT / "app/src/main/java/com/nova/app/feature/reels/ReelsScreen.
 PROFILE_VIEWER = ROOT / "app/src/main/java/com/nova/app/feature/reels/ProfileReelsViewerScreen.kt"
 COMMENTS_SHEET = ROOT / "app/src/main/java/com/nova/app/feature/reels/ThreadedReelCommentsSheet.kt"
 PLAYBACK = ROOT / "app/src/main/java/com/nova/app/feature/reels/ReelPlaybackCoordinator.kt"
+PROFILE_GRID = ROOT / "app/src/main/java/com/nova/app/ui/components/NovaProfileReelsGrid.kt"
+REPOSTED_GRID = ROOT / "app/src/main/java/com/nova/app/ui/components/NovaProfileRepostedReelsGrid.kt"
 
 errors: list[str] = []
 
@@ -43,6 +45,8 @@ reels_screen = read(REELS_SCREEN)
 profile_viewer = read(PROFILE_VIEWER)
 comments_sheet = read(COMMENTS_SHEET)
 playback = read(PLAYBACK)
+profile_grid = read(PROFILE_GRID)
+reposted_grid = read(REPOSTED_GRID)
 
 for declaration in (
     "data class NovaReelAuthor(",
@@ -164,12 +168,12 @@ for legacy_declaration in (
     "data class NovaReelCommentMutation(",
 ):
     if legacy_declaration not in core_repository:
-        errors.append(f"root live switch must not remove transport record yet: {legacy_declaration}")
+        errors.append(f"live switch must not remove transport record yet: {legacy_declaration}")
 
 if "class NovaProfileReelsRepository(" not in core_profile_repository:
-    errors.append("root live switch must retain the existing profile transport")
+    errors.append("live switch must retain the existing profile transport")
 if "class NovaReelWatchRepository(" not in core_watch_repository:
-    errors.append("root live switch must retain the existing watch transport")
+    errors.append("live switch must retain the existing watch transport")
 
 for required in (
     "val appContainer = context.appContainer",
@@ -198,7 +202,7 @@ for required in (
     "repository: ReelsRepository",
     "ReelCommentsStateOwner(",
     "owner.loadComments()",
-    "owner.send",
+    "owner::send",
     "owner.deleteComment(comment)",
     "owner.deleteReply(reply)",
 ):
@@ -220,14 +224,42 @@ if "import com.nova.app.feature.reels.domain.model.NovaReel" not in playback:
 if "import com.nova.app.core.reels.NovaReel" in playback:
     errors.append("Reel playback pool must not retain the core Reel record import")
 
-# Profile viewer intentionally stays on pre-switch wiring for the next focused PR.
 for required in (
-    "NovaProfileReelsRepository(context.applicationContext)",
-    "NovaReelsRepository(context.applicationContext)",
-    "var reels by remember(username) { mutableStateOf<List<NovaReel>>(emptyList()) }",
+    "val appContainer = context.appContainer",
+    "val profileRepository = appContainer.profileReelsRepository",
+    "val interactionRepository = appContainer.reelsRepository",
+    "ProfileReelsViewerStateOwner(",
+    "owner.loadInitial()",
+    "owner.loadMore()",
+    "repository = interactionRepository",
 ):
     if required not in profile_viewer:
-        errors.append(f"root live switch must leave profile viewer wiring unchanged: {required}")
+        errors.append(f"profile Reel viewer is missing stable-owner wiring: {required}")
+
+for forbidden in (
+    "com.nova.app.core.network.ApiResult",
+    "com.nova.app.core.reels.NovaProfileReelsRepository",
+    "com.nova.app.core.reels.NovaReel",
+    "com.nova.app.core.reels.NovaReelsRepository",
+    "NovaProfileReelsRepository(context.applicationContext)",
+    "NovaReelsRepository(context.applicationContext)",
+):
+    if forbidden in profile_viewer:
+        errors.append(f"profile Reel viewer must not retain legacy orchestration dependency: {forbidden}")
+
+# Profile grids stay on the old wiring for one more focused PR. This prevents the
+# viewer/comments dependency from forcing unrelated grid paging changes into this slice.
+for grid_name, grid in (
+    ("authored profile Reel grid", profile_grid),
+    ("reposted profile Reel grid", reposted_grid),
+):
+    for required in (
+        "NovaProfileReelsRepository(context.applicationContext)",
+        "mutableStateOf<List<NovaReel>>(emptyList())",
+        "com.nova.app.core.network.ApiResult",
+    ):
+        if required not in grid:
+            errors.append(f"{grid_name} must remain on pre-switch wiring in this PR: {required}")
 
 if errors:
     print("Reels architecture check failed:")
