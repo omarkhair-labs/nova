@@ -18,11 +18,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -31,16 +28,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nova.app.core.network.ApiResult
-import com.nova.app.core.reels.NovaProfileReelsRepository
-import com.nova.app.core.reels.NovaReel
+import com.nova.app.app.appContainer
 import com.nova.app.core.reels.NovaReelsNavigator
+import com.nova.app.feature.reels.ProfileReelsGridStateOwner
+import com.nova.app.feature.reels.ProfileReelsSource
+import com.nova.app.feature.reels.domain.model.NovaReel
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
-import kotlinx.coroutines.launch
 
 
 private val RepostedReelBackground = Color(0xFF090B10)
@@ -54,51 +51,24 @@ fun NovaProfileRepostedReelsGrid(
     isOwnProfile: Boolean,
 ) {
     val context = LocalContext.current
-    val repository = remember(context) {
-        NovaProfileReelsRepository(context.applicationContext)
-    }
+    val repository = context.appContainer.profileReelsRepository
     val scope = rememberCoroutineScope()
-
-    var reels by remember(username) { mutableStateOf<List<NovaReel>>(emptyList()) }
-    var nextCursor by remember(username) { mutableStateOf<String?>(null) }
-    var loading by remember(username) { mutableStateOf(true) }
-    var loadingMore by remember(username) { mutableStateOf(false) }
-    var error by remember(username) { mutableStateOf<String?>(null) }
-
-    suspend fun loadFirstPage() {
-        loading = true
-        error = null
-        when (val result = repository.repostedReels(username)) {
-            is ApiResult.Success -> {
-                reels = result.value.reels
-                nextCursor = result.value.nextCursor
-            }
-            is ApiResult.Failure -> error = result.message
-        }
-        loading = false
+    val owner = remember(username, repository, scope) {
+        ProfileReelsGridStateOwner(
+            username = username,
+            source = ProfileReelsSource.Reposted,
+            repository = repository,
+            scope = scope,
+        )
     }
+    val state = owner.state
+    val reels = state.reels
+    val nextCursor = state.nextCursor
+    val loading = state.loading
+    val loadingMore = state.loadingMore
+    val error = state.error
 
-    fun loadMore() {
-        val cursor = nextCursor ?: return
-        if (loadingMore || username.isBlank()) return
-        scope.launch {
-            loadingMore = true
-            error = null
-            when (val result = repository.repostedReels(username, cursor)) {
-                is ApiResult.Success -> {
-                    val ids = reels.mapTo(mutableSetOf()) { it.id }
-                    reels = reels + result.value.reels.filterNot { it.id in ids }
-                    nextCursor = result.value.nextCursor
-                }
-                is ApiResult.Failure -> error = result.message
-            }
-            loadingMore = false
-        }
-    }
-
-    LaunchedEffect(username) {
-        if (username.isBlank()) loading = false else loadFirstPage()
-    }
+    LaunchedEffect(owner) { owner.loadFirstPage() }
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -126,7 +96,7 @@ fun NovaProfileRepostedReelsGrid(
             }
             error != null && reels.isEmpty() -> {
                 Surface(
-                    onClick = { scope.launch { loadFirstPage() } },
+                    onClick = owner::loadFirstPage,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     color = NovaSurface,
@@ -184,7 +154,7 @@ fun NovaProfileRepostedReelsGrid(
                 if (nextCursor != null) {
                     NovaSecondaryButton(
                         text = if (loadingMore) "Loading more…" else "Load more Reposted Reels",
-                        onClick = { if (!loadingMore) loadMore() },
+                        onClick = { if (!loadingMore) owner.loadMore() },
                     )
                 }
             }
