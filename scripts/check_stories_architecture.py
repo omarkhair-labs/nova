@@ -12,6 +12,10 @@ RAIL_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/stories/StoriesState
 VIEWER_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/stories/StoryViewerStateOwner.kt"
 RAIL = ROOT / "app/src/main/java/com/nova/app/feature/stories/StoriesRail.kt"
 CORE_REPOSITORY = ROOT / "app/src/main/java/com/nova/app/core/stories/NovaStoriesRepository.kt"
+KOTLIN_ROOTS = (
+    ROOT / "app/src/main/java",
+    ROOT / "app/src/test/java",
+)
 
 errors: list[str] = []
 
@@ -25,7 +29,6 @@ def read(path: Path) -> str:
 
 models = read(MODELS)
 contract = read(CONTRACT)
-adapter = read(ADAPTER)
 container = read(CONTAINER)
 rail_owner = read(RAIL_OWNER)
 viewer_owner = read(VIEWER_OWNER)
@@ -42,6 +45,8 @@ for declaration in (
 ):
     if declaration not in models:
         errors.append(f"stable Stories domain owner is missing {declaration}")
+    if declaration in core_repository:
+        errors.append(f"core Stories transport must not redeclare stable model: {declaration}")
 
 if "interface StoriesRepository" not in contract:
     errors.append("stable StoriesRepository contract is missing")
@@ -60,14 +65,27 @@ for method in (
     if method not in contract:
         errors.append(f"StoriesRepository is missing current operation: {method}")
 
-if ") : StoriesRepository" not in adapter:
-    errors.append("production Stories adapter must implement StoriesRepository")
+if ADAPTER.exists():
+    errors.append("obsolete CoreStoriesRepositoryAdapter must be removed after the live switch")
 
-if "private val delegate: NovaStoriesRepository" not in adapter:
-    errors.append("Stories adapter must delegate to the existing production transport")
+if ") : StoriesRepository" not in core_repository:
+    errors.append("production NovaStoriesRepository must implement StoriesRepository directly")
 
-if "val storiesRepository: StoriesRepository = CoreStoriesRepositoryAdapter(NovaStoriesRepository(appContext))" not in container:
-    errors.append("AppContainer must own the stable StoriesRepository")
+for stable_import in (
+    "import com.nova.app.feature.stories.domain.model.NovaStory\n",
+    "import com.nova.app.feature.stories.domain.model.NovaStoryAuthor\n",
+    "import com.nova.app.feature.stories.domain.model.NovaStoryGroup\n",
+    "import com.nova.app.feature.stories.domain.model.NovaStorySharedPost\n",
+    "import com.nova.app.feature.stories.domain.model.NovaStorySharedReel\n",
+    "import com.nova.app.feature.stories.domain.model.NovaStoryViewer\n",
+):
+    if stable_import not in core_repository:
+        errors.append(f"production Stories transport must parse into stable model: {stable_import.strip()}")
+
+if "val storiesRepository: StoriesRepository = NovaStoriesRepository(appContext)" not in container:
+    errors.append("AppContainer must expose NovaStoriesRepository through the stable StoriesRepository contract")
+if "CoreStoriesRepositoryAdapter" in container:
+    errors.append("AppContainer must not restore the removed Stories adapter")
 
 if "class StoriesStateOwner(" not in rail_owner:
     errors.append("StoriesStateOwner must own rail/create async state")
@@ -108,7 +126,7 @@ for required in (
     "context.appContainer.storiesRepository",
     "StoriesStateOwner(repository, scope)",
     "StoryViewerStateOwner(initialGroup, repository, scope)",
-    "StoryViewersDialogV2(owner = owner)",
+    "StoryViewersDialog(owner = owner)",
 ):
     if required not in rail:
         errors.append(f"live Stories UI is missing stable owner wiring: {required}")
@@ -130,11 +148,42 @@ for forbidden in (
     if forbidden in rail:
         errors.append(f"live Stories UI must not own repository/network orchestration: {forbidden}")
 
-# The live consumer now uses stable owners. The old core transport still exists
-# temporarily behind the adapter; its passive records/helper naming are audited
-# in the next cleanup slice before declaring the Stories feature exit gate.
-if "class NovaStoriesRepository(" not in core_repository:
-    errors.append("production Stories transport disappeared before the cleanup slice")
+for obsolete_name in (
+    "StoryV2Background",
+    "StoryV2Ink",
+    "StoryV2Muted",
+    "MediaStoryComposerV2",
+    "TextStoryComposerV2",
+    "StoryAudienceChooserV2",
+    "StoryAudienceChipV2",
+    "StoryViewerV2",
+    "StoryVisualV2",
+    "StoryViewersDialogV2",
+):
+    if obsolete_name in rail:
+        errors.append(f"live Stories implementation must not retain superseded helper name: {obsolete_name}")
+
+legacy_model_imports = (
+    "import com.nova.app.core.stories.NovaStory\n",
+    "import com.nova.app.core.stories.NovaStoryAuthor\n",
+    "import com.nova.app.core.stories.NovaStoryGroup\n",
+    "import com.nova.app.core.stories.NovaStorySharedPost\n",
+    "import com.nova.app.core.stories.NovaStorySharedReel\n",
+    "import com.nova.app.core.stories.NovaStoryViewer\n",
+)
+for kotlin_root in KOTLIN_ROOTS:
+    if not kotlin_root.exists():
+        continue
+    for path in kotlin_root.rglob("*.kt"):
+        text = path.read_text(encoding="utf-8")
+        relative = path.relative_to(ROOT)
+        for legacy_import in legacy_model_imports:
+            if legacy_import in text:
+                errors.append(
+                    f"legacy core Story model import remains in {relative}: {legacy_import.strip()}"
+                )
+        if "CoreStoriesRepositoryAdapter" in text:
+            errors.append(f"removed Stories adapter is still referenced by {relative}")
 
 if errors:
     print("Stories architecture check failed:")
