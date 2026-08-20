@@ -115,6 +115,9 @@ jobs:
       - name: Check Calls architecture
         run: python3 scripts/check_calls_architecture.py
 
+      - name: Check Feed/posts architecture
+        run: python3 scripts/check_feed_posts_architecture.py
+
       - name: Check whitespace errors
         run: git diff --check HEAD^1 HEAD
 

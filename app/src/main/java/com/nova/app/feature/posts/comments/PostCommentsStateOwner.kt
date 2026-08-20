@@ -4,9 +4,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaComment
-import com.nova.app.core.network.NovaPost
 import com.nova.app.feature.posts.data.PostRepository
+import com.nova.app.feature.posts.domain.model.NovaComment
+import com.nova.app.feature.posts.domain.model.NovaPost
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -38,6 +38,10 @@ class PostCommentsStateOwner(
 
     fun load() {
         scope.launch { loadNow() }
+    }
+
+    fun clearReplyError() {
+        state = state.copy(replyErrorMessage = null)
     }
 
     internal suspend fun loadNow() {

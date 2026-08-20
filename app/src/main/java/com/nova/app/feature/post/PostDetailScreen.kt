@@ -22,8 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nova.app.core.network.NovaPost
 import com.nova.app.feature.home.NovaPostCard
+import com.nova.app.feature.posts.domain.model.NovaPost
 import com.nova.app.ui.components.NovaHeader
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.theme.NovaAccent

@@ -5,9 +5,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaPost
 import com.nova.app.feature.feed.data.FeedRepository
 import com.nova.app.feature.posts.data.PostRepository
+import com.nova.app.feature.posts.domain.model.NovaPost
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 

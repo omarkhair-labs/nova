@@ -5,13 +5,13 @@ Update this table in every consolidation PR.
 | Field | Current state |
 |---|---|
 | Current phase | Phase 4 — social content features |
-| Active PR | Phase 4 PR 2 — move live feed, post-detail, and top-level comment async orchestration out of `NovaApp` into feature-owned lifecycle-scoped state owners while preserving current navigation/session effects |
-| CI status | Pending for Phase 4 PR 2; PR #124 merged after Nova CI #370 passed every hosted backend and Android gate |
-| Completed ownership changes | Phase 2 Messages and Phase 3 Calls are complete. Phase 4 now has stable `FeedRepository`/`PostRepository` contracts plus feature-owned `FeedStateOwner`, `PostDetailStateOwner`, and `PostCommentsStateOwner`; `NovaApp` wires their state/actions instead of performing those feed/post/comment requests directly |
-| Deleted legacy/versioned files | Phase 2 removed the historical Messages V8/V9 layers and temporary aliases. Phase 3 removed the unreachable call controller and call compatibility aliases. No feed/post files are deleted yet because model relocation and the remaining screen-local reply transport still need an equivalence PR |
-| Automated verification | #124 passed Nova CI #370: Calls/Messages architecture, whitespace, Django configuration/migrations/full tests, Android JVM/lint/debug/androidTest/release/AAB. PR 2 adds feed paging/session tests and reply-list characterization; full hosted Nova CI remains required before merge |
+| Active PR | Phase 4 PR 3 — close the feed/posts/comments slice by moving post/comment records to stable feature ownership, removing feed/reply repository construction from UI, and adding feed/posts architecture enforcement |
+| CI status | Pending for Phase 4 PR 3; PR #125 merged after Nova CI #372 passed the hosted gate |
+| Completed ownership changes | Phase 2 Messages and Phase 3 Calls are complete. Phase 4 feed/posts/comments now has stable `PostModels`, `FeedRepository`/`PostRepository`, `FeedStateOwner`, `PostDetailStateOwner`, and `PostCommentsStateOwner`; `NovaApp` is the navigation/session bridge, while `HomeScreen` and post screens consume state/callbacks instead of constructing the feed repository |
+| Deleted legacy/versioned files | Phase 2 removed the historical Messages V8/V9 layers and temporary aliases. Phase 3 removed the unreachable call controller and call compatibility aliases. Phase 4 PR 3 removes actual `NovaPost`/`NovaPostPage`/`NovaComment`/`NovaCommentMutation` declarations from `NovaApiClient`; a deprecated compatibility file remains only for not-yet-consolidated downstream features and is not accepted inside the completed feed/posts slice |
+| Automated verification | #124 passed Nova CI #370 and #125 passed Nova CI #372. PR 3 adds `scripts/check_feed_posts_architecture.py` on top of the existing feed paging/session and reply-list characterization, and still requires the full hosted Django + Android JVM/lint/debug/androidTest/release/AAB gate |
 | Remaining physical Samsung checks | Manual Samsung smoke remains incomplete: the authorized SM-A266B has a differently signed installed Nova package, so non-destructive replacement remains blocked. No uninstall is authorized |
-| Exact next PR | Phase 4 PR 3 — move feed/post/comment models out of `NovaApiClient`, remove the remaining `PostCommentsScreen` reply repository construction, switch remaining live social-content consumers to stable ownership, and close the feed/posts/comments slice |
+| Exact next PR | Phase 4 next slice — start people/profile/social-graph consolidation, including replacing their temporary post-model compatibility imports as ownership moves; do not mix Stories/Reels into that PR |
 
 ## Completed PRs
 
@@ -47,11 +47,14 @@ Update this table in every consolidation PR.
 | 3 | #122 | move live call lifecycle/state orchestration into `feature/calls/CallStateOwner`, switch `CallActivity` to that owner, and use AppContainer-owned call data/signaling/WebRTC construction | Nova CI #365 green: Django + JVM/lint/debug/androidTest/release/AAB; `CallPhase` characterization green | revert merge commit `b194d17` |
 | 3 | #123 | delete unreachable call controller/compatibility aliases, move signaling records to stable ownership, and add Calls architecture enforcement | corrected Nova CI #368 green: Calls/Messages architecture + whitespace + Django + JVM/lint/debug/androidTest/release/AAB | revert merge commit `9dca359` |
 | 4 | #124 | establish stable feed/posts/comments repository contracts and characterize current feed-page merge behavior without changing live UI orchestration | Nova CI #370 green: Calls/Messages architecture + whitespace + Django + JVM/lint/debug/androidTest/release/AAB | revert merge commit `8dbefc0` |
+| 4 | #125 | move feed paging/create/delete/like, post-detail, and top-level comment async state out of `NovaApp` into feature-owned state owners | Nova CI #372 green; PR auto-merged after the hosted gate completed | revert merge commit `6fc13bb` |
+| 4 | #126 | move post/comment records to stable feature ownership, make Home post-resolution and comment replies callback/state-owner driven, and add feed/posts architecture enforcement | pending full hosted Nova CI | revert PR #126 merge commit |
 
 ## Remaining cross-phase risks / follow-up
 
 - push/root navigation policy has JVM characterization, but broader notification-routing and session-expiry centralization remain later shared-shell work;
-- the current feed/posts/comments slice still has wire models in `NovaApiClient`, `HomeScreen`/`PostCommentsScreen` retain small screen-local repository construction, and reply-local 401 behavior intentionally remains legacy until the next equivalence PR;
+- deprecated post-model compatibility aliases remain for not-yet-consolidated downstream features such as people/profile/notifications; completed feed/posts code is CI-enforced against using those aliases;
+- `NovaPostAuthor` intentionally remains shared in `core.network` because messaging and social-content code both consume that identity record; moving shared DTO ownership belongs to the later network/shared cleanup rather than this feature slice;
 - Phase 4 must consolidate the remaining social content one feature at a time without changing current product behavior;
 - current hosted CI compiles the instrumentation APK but still does not execute instrumented tests on a device/emulator;
 - the physical Samsung smoke matrix remains incomplete because the available device has a differently signed installed Nova package; and

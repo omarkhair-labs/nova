@@ -2,13 +2,13 @@ package com.nova.app.feature.feed
 
 import android.net.Uri
 import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaComment
-import com.nova.app.core.network.NovaCommentMutation
-import com.nova.app.core.network.NovaPost
 import com.nova.app.core.network.NovaPostAuthor
-import com.nova.app.core.network.NovaPostPage
 import com.nova.app.feature.feed.data.FeedRepository
 import com.nova.app.feature.posts.data.PostRepository
+import com.nova.app.feature.posts.domain.model.NovaComment
+import com.nova.app.feature.posts.domain.model.NovaCommentMutation
+import com.nova.app.feature.posts.domain.model.NovaPost
+import com.nova.app.feature.posts.domain.model.NovaPostPage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking

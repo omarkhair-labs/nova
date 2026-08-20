@@ -27,7 +27,6 @@ import com.nova.app.app.AppContainer
 import com.nova.app.app.AppViewModel
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaPerson
-import com.nova.app.core.network.NovaPost
 import com.nova.app.feature.auth.CreateAccountScreen
 import com.nova.app.feature.auth.LoginScreen
 import com.nova.app.feature.feed.FeedStateOwner
@@ -42,6 +41,7 @@ import com.nova.app.feature.post.PostCommentsScreen
 import com.nova.app.feature.post.PostDetailScreen
 import com.nova.app.feature.posts.comments.PostCommentsStateOwner
 import com.nova.app.feature.posts.detail.PostDetailStateOwner
+import com.nova.app.feature.posts.domain.model.NovaPost
 import com.nova.app.feature.profile.EditProfileScreen
 import com.nova.app.feature.profile.ProfileScreen
 import com.nova.app.feature.welcome.WelcomeScreen
@@ -379,6 +379,7 @@ fun NovaApp(
                         onCommentsClick = { post ->
                             backStack.add(NovaRoute.PostComments(post.id))
                         },
+                        onResolvePost = postRepository::post,
                         onPersonClick = { username ->
                             backStack.add(NovaRoute.Person(username))
                         },
@@ -502,11 +503,17 @@ fun NovaApp(
                         isLoading = commentsState.isLoading,
                         isSending = commentsState.isSending,
                         deletingCommentId = commentsState.deletingCommentId,
+                        isReplySending = commentsState.isReplySending,
+                        deletingReplyId = commentsState.deletingReplyId,
                         errorMessage = commentsState.errorMessage,
+                        replyErrorMessage = commentsState.replyErrorMessage,
                         onBack = { backStack.removeLastOrNull() },
                         onRetry = commentsOwner::load,
                         onSend = commentsOwner::sendComment,
                         onDelete = commentsOwner::deleteComment,
+                        onSendReply = commentsOwner::sendReply,
+                        onDeleteReply = commentsOwner::deleteReply,
+                        onClearReplyError = commentsOwner::clearReplyError,
                         onAuthorClick = { username ->
                             if (username == appState.currentUser?.username) {
                                 backStack.add(NovaRoute.Profile)

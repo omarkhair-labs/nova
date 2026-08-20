@@ -1,5 +1,9 @@
 package com.nova.app.core.network
 
+import com.nova.app.feature.posts.domain.model.NovaComment
+import com.nova.app.feature.posts.domain.model.NovaCommentMutation
+import com.nova.app.feature.posts.domain.model.NovaPost
+import com.nova.app.feature.posts.domain.model.NovaPostPage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -40,43 +44,6 @@ data class NovaPostAuthor(
     val username: String,
     val name: String,
     val avatarUrl: String,
-)
-
-
-data class NovaPost(
-    val id: Long,
-    val author: NovaPostAuthor,
-    val imageUrl: String,
-    val caption: String,
-    val createdAt: String,
-    val isMine: Boolean,
-    val likesCount: Int = 0,
-    val commentsCount: Int = 0,
-    val isLiked: Boolean = false,
-)
-
-
-data class NovaPostPage(
-    val posts: List<NovaPost>,
-    val nextCursor: String?,
-)
-
-
-data class NovaComment(
-    val id: Long,
-    val author: NovaPostAuthor,
-    val body: String,
-    val createdAt: String,
-    val isMine: Boolean,
-    val parentId: Long? = null,
-    val repliesCount: Int = 0,
-    val replies: List<NovaComment> = emptyList(),
-)
-
-
-data class NovaCommentMutation(
-    val comment: NovaComment,
-    val post: NovaPost,
 )
 
 
