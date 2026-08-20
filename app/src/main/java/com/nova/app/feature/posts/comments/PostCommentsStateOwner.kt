@@ -40,6 +40,10 @@ class PostCommentsStateOwner(
         scope.launch { loadNow() }
     }
 
+    fun clearReplyError() {
+        state = state.copy(replyErrorMessage = null)
+    }
+
     internal suspend fun loadNow() {
         state = state.copy(isLoading = true, errorMessage = null)
 
