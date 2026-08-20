@@ -33,11 +33,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,10 +53,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
-import com.nova.app.core.network.ApiResult
-import com.nova.app.core.reels.NovaReel
-import com.nova.app.core.reels.NovaReelWatchRepository
-import com.nova.app.core.reels.NovaReelsRepository
+import com.nova.app.app.appContainer
+import com.nova.app.feature.reels.domain.model.NovaReel
 import com.nova.app.feature.sharing.NovaShareDialog
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
@@ -69,7 +67,6 @@ import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 
 private val ReelBackground = Color(0xFF050608)
@@ -86,21 +83,29 @@ fun ReelsScreen(
     onPersonClick: (String) -> Unit,
 ) {
     val context = LocalContext.current
-    val repository = remember(context) { NovaReelsRepository(context.applicationContext) }
-    val watchRepository = remember(context) { NovaReelWatchRepository(context.applicationContext) }
-    val playerPool = remember(context) { ReelPlayerPool(context.applicationContext) }
+    val appContainer = context.appContainer
+    val repository = appContainer.reelsRepository
     val scope = rememberCoroutineScope()
+    val owner = remember(repository, appContainer.reelWatchRepository, scope) {
+        ReelsStateOwner(
+            repository = repository,
+            watchRepository = appContainer.reelWatchRepository,
+            scope = scope,
+        )
+    }
+    val state = owner.state
+    val reels = state.reels
+    val nextCursor = state.nextCursor
+    val loading = state.loading
+    val loadingMore = state.loadingMore
+    val likingId = state.likingId
+    val repostingId = state.repostingId
+    val deletingId = state.deletingId
+    val error = state.error
+    val uploading = state.uploading
+    val playerPool = remember(context) { ReelPlayerPool(context.applicationContext) }
 
-    var reels by remember { mutableStateOf<List<NovaReel>>(emptyList()) }
-    var nextCursor by remember { mutableStateOf<String?>(null) }
-    var loading by remember { mutableStateOf(true) }
-    var loadingMore by remember { mutableStateOf(false) }
-    var likingId by remember { mutableStateOf<Long?>(null) }
-    var repostingId by remember { mutableStateOf<Long?>(null) }
-    var deletingId by remember { mutableStateOf<Long?>(null) }
-    var error by remember { mutableStateOf<String?>(null) }
     var pendingVideo by remember { mutableStateOf<Uri?>(null) }
-    var uploading by remember { mutableStateOf(false) }
     var commentsReel by remember { mutableStateOf<NovaReel?>(null) }
     var shareReelTarget by remember { mutableStateOf<NovaReel?>(null) }
     var deleteReelTarget by remember { mutableStateOf<NovaReel?>(null) }
@@ -111,87 +116,38 @@ fun ReelsScreen(
         onDispose { playerPool.releaseAll() }
     }
 
-    fun replaceReel(updated: NovaReel) {
-        reels = reels.map { if (it.id == updated.id) updated else it }
+    LaunchedEffect(Unit) {
+        owner.load(reset = true)
+    }
+    LaunchedEffect(state.sessionExpiryVersion) {
+        if (state.sessionExpiryVersion > 0) onFinish()
+    }
+    LaunchedEffect(state.createdVersion) {
+        if (state.createdVersion > 0) pendingVideo = null
+    }
+    LaunchedEffect(state.deletedVersion) {
+        if (state.deletedVersion > 0) {
+            val deletedId = deleteReelTarget?.id
+            if (deletedId != null) {
+                if (commentsReel?.id == deletedId) commentsReel = null
+                if (shareReelTarget?.id == deletedId) shareReelTarget = null
+            }
+            deleteReelTarget = null
+        }
+    }
+    LaunchedEffect(reels) {
+        commentsReel = commentsReel?.let { target ->
+            reels.firstOrNull { it.id == target.id } ?: target
+        }
+        shareReelTarget = shareReelTarget?.let { target ->
+            reels.firstOrNull { it.id == target.id } ?: target
+        }
+    }
+
+    fun replaceOverlayReel(updated: NovaReel) {
+        owner.replaceReel(updated)
         if (commentsReel?.id == updated.id) commentsReel = updated
         if (shareReelTarget?.id == updated.id) shareReelTarget = updated
-    }
-
-    fun load(reset: Boolean) {
-        if (reset) {
-            if (loading && reels.isNotEmpty()) return
-        } else if (loadingMore || nextCursor == null) {
-            return
-        }
-        val cursor = if (reset) null else nextCursor
-        scope.launch {
-            if (reset) loading = true else loadingMore = true
-            error = null
-            when (val result = repository.reels(cursor)) {
-                is ApiResult.Success -> {
-                    reels = if (reset) {
-                        result.value.reels
-                    } else {
-                        val existing = reels.mapTo(mutableSetOf()) { it.id }
-                        reels + result.value.reels.filterNot { it.id in existing }
-                    }
-                    nextCursor = result.value.nextCursor
-                }
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onFinish() else error = result.message
-                }
-            }
-            loading = false
-            loadingMore = false
-        }
-    }
-
-    fun toggleLike(reel: NovaReel) {
-        if (likingId != null) return
-        scope.launch {
-            likingId = reel.id
-            when (val result = repository.setLiked(reel.id, !reel.isLiked)) {
-                is ApiResult.Success -> replaceReel(result.value)
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onFinish() else error = result.message
-                }
-            }
-            likingId = null
-        }
-    }
-
-    fun toggleRepost(reel: NovaReel) {
-        if (repostingId != null) return
-        scope.launch {
-            repostingId = reel.id
-            when (val result = repository.setReposted(reel.id, !reel.isReposted)) {
-                is ApiResult.Success -> replaceReel(result.value)
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onFinish() else error = result.message
-                }
-            }
-            repostingId = null
-        }
-    }
-
-    fun deleteReel(reel: NovaReel) {
-        if (!reel.isMine || deletingId != null) return
-        scope.launch {
-            deletingId = reel.id
-            error = null
-            when (val result = repository.deleteReel(reel.id)) {
-                is ApiResult.Success -> {
-                    reels = reels.filterNot { it.id == reel.id }
-                    if (commentsReel?.id == reel.id) commentsReel = null
-                    if (shareReelTarget?.id == reel.id) shareReelTarget = null
-                    deleteReelTarget = null
-                }
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onFinish() else error = result.message
-                }
-            }
-            deletingId = null
-        }
     }
 
     fun shareReelOutsideNova(reel: NovaReel) {
@@ -210,11 +166,9 @@ fun ReelsScreen(
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             pendingVideo = uri
-            error = null
+            owner.clearError()
         }
     }
-
-    LaunchedEffect(Unit) { load(reset = true) }
 
     Scaffold(
         containerColor = ReelBackground,
@@ -279,7 +233,7 @@ fun ReelsScreen(
                         if (error != null) {
                             Spacer(modifier = Modifier.height(10.dp))
                             Surface(
-                                onClick = { load(reset = true) },
+                                onClick = { owner.load(reset = true) },
                                 color = Color.Transparent,
                             ) {
                                 Text("Try again", color = NovaAccent, fontSize = 13.sp)
@@ -308,7 +262,7 @@ fun ReelsScreen(
                         nextCursor != null &&
                         !loadingMore
                     ) {
-                        load(reset = false)
+                        owner.load(reset = false)
                     }
                 }
 
@@ -335,25 +289,13 @@ fun ReelsScreen(
                             isLiking = likingId == reel.id,
                             isReposting = repostingId == reel.id,
                             isDeleting = deletingId == reel.id,
-                            onLike = { toggleLike(reel) },
+                            onLike = { owner.toggleLike(reel) },
                             onComments = { commentsReel = reel },
-                            onRepost = { toggleRepost(reel) },
+                            onRepost = { owner.toggleRepost(reel) },
                             onShare = { shareReelTarget = reel },
                             onDelete = { deleteReelTarget = reel },
                             onAuthor = { onPersonClick(reel.author.username) },
-                            onWatchSession = { snapshot ->
-                                if (!reel.isMine && snapshot.watchedMs >= 250L) {
-                                    scope.launch {
-                                        watchRepository.record(
-                                            reelId = reel.id,
-                                            sessionId = snapshot.sessionId,
-                                            watchedMs = snapshot.watchedMs,
-                                            durationMs = snapshot.durationMs,
-                                            maxPositionMs = snapshot.maxPositionMs,
-                                        )
-                                    }
-                                }
-                            },
+                            onWatchSession = { snapshot -> owner.recordWatch(reel, snapshot) },
                         )
                     }
 
@@ -400,7 +342,7 @@ fun ReelsScreen(
 
                     error?.let { message ->
                         Surface(
-                            onClick = { error = null },
+                            onClick = owner::clearError,
                             modifier = Modifier
                                 .align(Alignment.TopCenter)
                                 .statusBarsPadding()
@@ -427,22 +369,7 @@ fun ReelsScreen(
             videoUri = uri,
             uploading = uploading,
             onDismiss = { if (!uploading) pendingVideo = null },
-            onPost = { caption ->
-                scope.launch {
-                    uploading = true
-                    error = null
-                    when (val result = repository.createReel(uri, caption)) {
-                        is ApiResult.Success -> {
-                            reels = listOf(result.value) + reels.filterNot { it.id == result.value.id }
-                            pendingVideo = null
-                        }
-                        is ApiResult.Failure -> {
-                            if (result.statusCode == 401) onFinish() else error = result.message
-                        }
-                    }
-                    uploading = false
-                }
-            },
+            onPost = { caption -> owner.createReel(uri, caption) },
         )
     }
 
@@ -451,7 +378,7 @@ fun ReelsScreen(
             reel = reel,
             repository = repository,
             onDismiss = { commentsReel = null },
-            onReelUpdated = ::replaceReel,
+            onReelUpdated = ::replaceOverlayReel,
             onPersonClick = onPersonClick,
             onSessionExpired = onFinish,
         )
@@ -471,7 +398,7 @@ fun ReelsScreen(
             reel = reel,
             deleting = deletingId == reel.id,
             onDismiss = { if (deletingId == null) deleteReelTarget = null },
-            onDelete = { deleteReel(reel) },
+            onDelete = { owner.deleteReel(reel) },
         )
     }
 }
