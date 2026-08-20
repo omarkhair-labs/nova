@@ -7,6 +7,9 @@ ROOT = Path(__file__).resolve().parents[1]
 MODELS = ROOT / "app/src/main/java/com/nova/app/feature/reels/domain/model/ReelModels.kt"
 CONTRACT = ROOT / "app/src/main/java/com/nova/app/feature/reels/data/ReelsRepository.kt"
 ADAPTERS = ROOT / "app/src/main/java/com/nova/app/feature/reels/data/remote/CoreReelsRepositoryAdapters.kt"
+ROOT_STATE_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/reels/ReelsStateOwner.kt"
+PROFILE_STATE_OWNERS = ROOT / "app/src/main/java/com/nova/app/feature/reels/ProfileReelsStateOwners.kt"
+COMMENTS_STATE_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/reels/ReelCommentsStateOwner.kt"
 CONTAINER = ROOT / "app/src/main/java/com/nova/app/app/AppContainer.kt"
 CORE_REPOSITORY = ROOT / "app/src/main/java/com/nova/app/core/reels/NovaReelsRepository.kt"
 CORE_PROFILE_REPOSITORY = ROOT / "app/src/main/java/com/nova/app/core/reels/NovaProfileReelsRepository.kt"
@@ -28,6 +31,9 @@ def read(path: Path) -> str:
 models = read(MODELS)
 contract = read(CONTRACT)
 adapters = read(ADAPTERS)
+root_state_owner = read(ROOT_STATE_OWNER)
+profile_state_owners = read(PROFILE_STATE_OWNERS)
+comments_state_owner = read(COMMENTS_STATE_OWNER)
 container = read(CONTAINER)
 core_repository = read(CORE_REPOSITORY)
 core_profile_repository = read(CORE_PROFILE_REPOSITORY)
@@ -96,9 +102,60 @@ for seam in (
     if seam not in container:
         errors.append(f"AppContainer is missing stable Reels construction seam: {seam}")
 
-# This first boundary PR intentionally leaves the current transport records and live
-# UI orchestration untouched. The next Reels slice must remove these assertions as
-# it moves live state to the stable feature boundary.
+for owner, source in (
+    ("class ReelsStateOwner(", root_state_owner),
+    ("class ProfileReelsViewerStateOwner(", profile_state_owners),
+    ("class ProfileReelsGridStateOwner(", profile_state_owners),
+    ("class ReelCommentsStateOwner(", comments_state_owner),
+):
+    if owner not in source:
+        errors.append(f"Reels state-owner slice is missing: {owner}")
+
+for source_name, source in (
+    ("ReelsStateOwner", root_state_owner),
+    ("ProfileReelsStateOwners", profile_state_owners),
+    ("ReelCommentsStateOwner", comments_state_owner),
+):
+    for forbidden in (
+        "com.nova.app.core.reels.NovaReelsRepository",
+        "com.nova.app.core.reels.NovaProfileReelsRepository",
+        "com.nova.app.core.reels.NovaReelWatchRepository",
+        "com.nova.app.core.reels.NovaReel\n",
+        "com.nova.app.core.reels.NovaReelComment",
+    ):
+        if forbidden in source:
+            errors.append(f"{source_name} must depend on stable Reels contracts/models, not {forbidden.strip()}")
+
+for required in (
+    "appendPagePreservingIncomingDuplicates",
+    "watchedMs < 250L",
+    "reel.isMine",
+    "sessionExpiryVersion",
+):
+    if required not in root_state_owner:
+        errors.append(f"root Reels state owner is missing characterized behavior seam: {required}")
+
+for required in (
+    "MAX_INITIAL_LOOKUP_PAGES = 20",
+    "ProfileReelsSource.Authored",
+    "ProfileReelsSource.Reposted",
+    "sessionExpiryVersion",
+):
+    if required not in profile_state_owners:
+        errors.append(f"profile Reels state owners are missing characterized behavior seam: {required}")
+
+for required in (
+    "replies = existing + comment",
+    "repliesCount = existing.size + 1",
+    "deletingCommentId != null || state.deletingReplyId != null",
+    "sessionExpiryVersion",
+):
+    if required not in comments_state_owner:
+        errors.append(f"Reel comments state owner is missing characterized behavior seam: {required}")
+
+# This characterization slice intentionally leaves current transport records and live
+# Compose repository/state wiring untouched. The next Reels PR performs the live switch
+# only after these state owners pass the full hosted gate.
 for legacy_declaration in (
     "data class NovaReelAuthor(",
     "data class NovaReel(",
@@ -108,13 +165,13 @@ for legacy_declaration in (
 ):
     if legacy_declaration not in core_repository:
         errors.append(
-            f"first Reels boundary must not silently remove legacy transport record yet: {legacy_declaration}"
+            f"Reels state-owner characterization must not remove transport records yet: {legacy_declaration}"
         )
 
 if "class NovaProfileReelsRepository(" not in core_profile_repository:
-    errors.append("first Reels boundary must retain the existing profile transport")
+    errors.append("Reels state-owner characterization must retain the existing profile transport")
 if "class NovaReelWatchRepository(" not in core_watch_repository:
-    errors.append("first Reels boundary must retain the existing watch transport")
+    errors.append("Reels state-owner characterization must retain the existing watch transport")
 
 for required in (
     "NovaReelsRepository(context.applicationContext)",
@@ -122,7 +179,7 @@ for required in (
     "var reels by remember { mutableStateOf<List<NovaReel>>(emptyList()) }",
 ):
     if required not in reels_screen:
-        errors.append(f"first Reels boundary must leave live ReelsScreen ownership unchanged: {required}")
+        errors.append(f"state-owner characterization must leave live ReelsScreen wiring unchanged: {required}")
 
 for required in (
     "NovaProfileReelsRepository(context.applicationContext)",
@@ -130,10 +187,10 @@ for required in (
     "var reels by remember(username) { mutableStateOf<List<NovaReel>>(emptyList()) }",
 ):
     if required not in profile_viewer:
-        errors.append(f"first Reels boundary must leave profile viewer ownership unchanged: {required}")
+        errors.append(f"state-owner characterization must leave profile viewer wiring unchanged: {required}")
 
 if "repository: NovaReelsRepository" not in comments_sheet:
-    errors.append("first Reels boundary must leave threaded comment transport ownership unchanged")
+    errors.append("state-owner characterization must leave threaded comment transport wiring unchanged")
 
 if errors:
     print("Reels architecture check failed:")
