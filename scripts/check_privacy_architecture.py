@@ -14,8 +14,8 @@ CONTAINER = ROOT / "app/src/main/java/com/nova/app/app/AppContainer.kt"
 CORE_REPOSITORY = ROOT / "app/src/main/java/com/nova/app/core/privacy/NovaPrivacyRepository.kt"
 SCREEN = ROOT / "app/src/main/java/com/nova/app/feature/privacy/PrivacyScreen.kt"
 PERSON_SCREEN = ROOT / "app/src/main/java/com/nova/app/feature/people/PersonScreen.kt"
-PRIVATE_BADGE = ROOT / "app/src/main/java/com/nova/app/feature/people/PrivateProfileBadgeV4.kt"
-PRIVATE_BADGE_TEST = ROOT / "app/src/test/java/com/nova/app/feature/people/PrivateProfileBadgeV4Test.kt"
+PRIVATE_BADGE = ROOT / "app/src/main/java/com/nova/app/feature/people/PrivateProfileBadge.kt"
+PRIVATE_BADGE_TEST = ROOT / "app/src/test/java/com/nova/app/feature/people/PrivateProfileBadgeTest.kt"
 PEOPLE_MODELS = ROOT / "app/src/main/java/com/nova/app/feature/people/domain/model/PeopleModels.kt"
 PEOPLE_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/people/PeopleStateOwner.kt"
 CONNECTIONS_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/people/SocialConnectionsStateOwner.kt"
@@ -178,8 +178,8 @@ for text, name in (
     (people_paging, "NovaSocialPagingRepository.kt"),
     (people_owner_test, "PeopleStateOwnersTest.kt"),
     (person_screen, "PersonScreen.kt"),
-    (private_badge, "PrivateProfileBadgeV4.kt"),
-    (private_badge_test, "PrivateProfileBadgeV4Test.kt"),
+    (private_badge, "PrivateProfileBadge.kt"),
+    (private_badge_test, "PrivateProfileBadgeTest.kt"),
 ):
     if "com.nova.app.core.privacy.NovaPersonPrivacyState" in text:
         errors.append(f"{name} must not import the core Privacy state record")
@@ -190,8 +190,8 @@ for text, name in (
     (people_paging, "NovaSocialPagingRepository.kt"),
     (people_owner_test, "PeopleStateOwnersTest.kt"),
     (person_screen, "PersonScreen.kt"),
-    (private_badge, "PrivateProfileBadgeV4.kt"),
-    (private_badge_test, "PrivateProfileBadgeV4Test.kt"),
+    (private_badge, "PrivateProfileBadge.kt"),
+    (private_badge_test, "PrivateProfileBadgeTest.kt"),
 ):
     if "com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState" not in text:
         errors.append(f"{name} must consume the stable Privacy state record")
