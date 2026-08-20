@@ -14,8 +14,13 @@ APP = ROOT / "app/src/main/java/com/nova/app/NovaApp.kt"
 PEOPLE_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/people/PeopleStateOwner.kt"
 PERSON_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/people/PersonStateOwner.kt"
 CONNECTIONS_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/people/SocialConnectionsStateOwner.kt"
+PROFILE_CONTENT_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/profile/ProfileContentStateOwner.kt"
 PEOPLE_SCREEN = ROOT / "app/src/main/java/com/nova/app/feature/people/PeopleScreen.kt"
 CONNECTIONS_SCREEN = ROOT / "app/src/main/java/com/nova/app/feature/people/SocialConnectionsScreen.kt"
+PROFILE_SCREEN = ROOT / "app/src/main/java/com/nova/app/feature/profile/ProfileScreen.kt"
+PROFILE_TABS = ROOT / "app/src/main/java/com/nova/app/ui/components/NovaProfileContentTabs.kt"
+PROFILE_TABS_V4 = ROOT / "app/src/main/java/com/nova/app/ui/components/NovaProfileContentTabsV4.kt"
+PROFILE_GRID = ROOT / "app/src/main/java/com/nova/app/ui/components/NovaPagedProfilePostsGrid.kt"
 SOCIAL_GRAPH_ACTIVITY = ROOT / "app/src/main/java/com/nova/app/SocialGraphActivity.kt"
 
 errors: list[str] = []
@@ -38,8 +43,12 @@ app = read(APP)
 people_owner = read(PEOPLE_OWNER)
 person_owner = read(PERSON_OWNER)
 connections_owner = read(CONNECTIONS_OWNER)
+profile_content_owner = read(PROFILE_CONTENT_OWNER)
 people_screen = read(PEOPLE_SCREEN)
 connections_screen = read(CONNECTIONS_SCREEN)
+profile_screen = read(PROFILE_SCREEN)
+profile_tabs = read(PROFILE_TABS)
+profile_grid = read(PROFILE_GRID)
 social_graph_activity = read(SOCIAL_GRAPH_ACTIVITY)
 
 for declaration in ("data class NovaPerson(", "data class NovaPersonPage(", "data class NovaProfilePostPage("):
@@ -82,9 +91,10 @@ for owner_text, owner_name in (
     (people_owner, "PeopleStateOwner"),
     (person_owner, "PersonStateOwner"),
     (connections_owner, "SocialConnectionsStateOwner"),
+    (profile_content_owner, "ProfileContentStateOwner"),
 ):
     if f"class {owner_name}(" not in owner_text:
-        errors.append(f"missing stable People state owner {owner_name}")
+        errors.append(f"missing stable People/Profile state owner {owner_name}")
 
 for forbidden in ("NovaSocialPagingRepository", "NovaSocialRepository", "rememberCoroutineScope", "ApiResult"):
     if forbidden in people_screen:
@@ -106,26 +116,43 @@ for forbidden in (
     "var peopleLoading by remember",
     "var followingUsername by remember",
     "val socialRepository = appContainer.socialRepository",
+    "var profilePosts by remember",
+    "fun loadProfilePosts(",
 ):
     if forbidden in app:
-        errors.append(f"NovaApp must not retain legacy People orchestration: {forbidden}")
+        errors.append(f"NovaApp must not retain legacy People/Profile orchestration: {forbidden}")
 
 for required in (
     "PeopleStateOwner(",
     "PersonStateOwner(",
+    "ProfileContentStateOwner(",
     "state = peopleState",
     "onFollowToggle = personOwner::toggleFollow",
+    "profileContentOwner = profileContentOwner",
 ):
     if required not in app:
-        errors.append(f"NovaApp is missing stable People wiring: {required}")
+        errors.append(f"NovaApp is missing stable People/Profile wiring: {required}")
 
 if "SocialConnectionsStateOwner(" not in social_graph_activity:
     errors.append("SocialGraphActivity must host SocialConnectionsStateOwner")
 
+if PROFILE_TABS_V4.exists():
+    errors.append("NovaProfileContentTabsV4.kt must stay deleted after stable profile consolidation")
+
+for forbidden in ("NovaSocialPagingRepository", "rememberCoroutineScope", "ApiResult", "NovaProfileContentTabsV4"):
+    if forbidden in profile_tabs:
+        errors.append(f"NovaProfileContentTabs must render stable state/callbacks and not own {forbidden}")
+
+if "NovaSocialPagingRepository" in profile_grid:
+    errors.append("NovaPagedProfilePostsGrid must use AppContainer stable contracts, not construct NovaSocialPagingRepository")
+
+if "com.nova.app.core.network.NovaPost" in profile_screen:
+    errors.append("ProfileScreen must import the stable post model directly")
+
 if errors:
-    print("People architecture check failed:")
+    print("People/Profile architecture check failed:")
     for error in errors:
         print(f"- {error}")
     sys.exit(1)
 
-print("People architecture check passed.")
+print("People/Profile architecture check passed.")
