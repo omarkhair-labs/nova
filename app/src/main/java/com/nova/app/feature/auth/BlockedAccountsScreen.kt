@@ -22,19 +22,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaPerson
-import com.nova.app.core.social.NovaBlockedAccountsRepository
+import com.nova.app.app.appContainer
+import com.nova.app.feature.security.BlockedAccountsStateOwner
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaHeader
 import com.nova.app.ui.components.NovaSecondaryButton
@@ -45,7 +43,6 @@ import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
-import kotlinx.coroutines.launch
 
 
 @Composable
@@ -54,54 +51,19 @@ fun BlockedAccountsScreen(
     onSessionExpired: () -> Unit,
 ) {
     val context = LocalContext.current
-    val repository = remember(context) {
-        NovaBlockedAccountsRepository(context.applicationContext)
-    }
+    val container = context.applicationContext.appContainer
     val scope = rememberCoroutineScope()
-
-    var blocked by remember { mutableStateOf<List<NovaPerson>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
-    var unblockingUsername by remember { mutableStateOf<String?>(null) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-
-    fun load() {
-        scope.launch {
-            isLoading = true
-            errorMessage = null
-            when (val result = repository.blockedAccounts()) {
-                is ApiResult.Success -> blocked = result.value
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) {
-                        onSessionExpired()
-                        return@launch
-                    }
-                    errorMessage = result.message
-                }
-            }
-            isLoading = false
-        }
+    val currentOnSessionExpired by rememberUpdatedState(onSessionExpired)
+    val owner = remember(container, scope) {
+        BlockedAccountsStateOwner(
+            repository = container.blockedAccountsRepository,
+            scope = scope,
+            onSessionExpired = { currentOnSessionExpired() },
+        )
     }
+    val state = owner.state
 
-    fun unblock(person: NovaPerson) {
-        if (unblockingUsername != null) return
-        scope.launch {
-            unblockingUsername = person.username
-            errorMessage = null
-            when (val result = repository.unblock(person.username)) {
-                is ApiResult.Success -> blocked = blocked.filterNot { it.id == person.id }
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) {
-                        onSessionExpired()
-                        return@launch
-                    }
-                    errorMessage = result.message
-                }
-            }
-            unblockingUsername = null
-        }
-    }
-
-    LaunchedEffect(Unit) { load() }
+    LaunchedEffect(Unit) { owner.load() }
 
     Column(
         modifier = Modifier
@@ -118,7 +80,7 @@ fun BlockedAccountsScreen(
         )
         Spacer(modifier = Modifier.height(22.dp))
 
-        if (!errorMessage.isNullOrBlank()) {
+        if (!state.errorMessage.isNullOrBlank()) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(18.dp),
@@ -127,20 +89,20 @@ fun BlockedAccountsScreen(
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     Text(
-                        text = errorMessage.orEmpty(),
+                        text = state.errorMessage.orEmpty(),
                         color = NovaMuted,
                         fontSize = 12.sp,
                         lineHeight = 18.sp,
                     )
                     Spacer(modifier = Modifier.height(10.dp))
-                    NovaSecondaryButton(text = "Try again", onClick = ::load)
+                    NovaSecondaryButton(text = "Try again", onClick = owner::load)
                 }
             }
             Spacer(modifier = Modifier.height(14.dp))
         }
 
         when {
-            isLoading && blocked.isEmpty() -> {
+            state.isLoading && state.blocked.isEmpty() -> {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
@@ -149,7 +111,7 @@ fun BlockedAccountsScreen(
                 }
             }
 
-            blocked.isEmpty() -> {
+            state.blocked.isEmpty() -> {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
@@ -200,7 +162,7 @@ fun BlockedAccountsScreen(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    items(blocked, key = { it.id }) { person ->
+                    items(state.blocked, key = { it.id }) { person ->
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(20.dp),
@@ -232,13 +194,13 @@ fun BlockedAccountsScreen(
                                 }
                                 Surface(
                                     onClick = {
-                                        if (unblockingUsername == null) unblock(person)
+                                        if (state.unblockingUsername == null) owner.unblock(person)
                                     },
                                     shape = RoundedCornerShape(14.dp),
                                     color = NovaAccentSoft,
                                 ) {
                                     Text(
-                                        text = if (unblockingUsername == person.username) "…" else "Unblock",
+                                        text = if (state.unblockingUsername == person.username) "…" else "Unblock",
                                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                                         color = NovaAccent,
                                         fontSize = 11.sp,

@@ -1,6 +1,6 @@
 # Current ownership and entry paths
 
-Snapshot: Phase 4 Settings cleanup, based on the #152 merge `e30b137e525ea25e4abc6240a92ee250ffb5d216` with #153 as the active Settings exit-gate PR.
+Snapshot: Phase 4 final Security/Blocked-Accounts live exit, based on the #154 merge `5387a69b49d03692a7e341c3a4fe56b062cc0d77` with #155 as the active Phase 4 closing PR.
 
 This file records current behavior. A row with several current owners identifies
 consolidation work; it does not imply that one of those paths may be removed
@@ -46,7 +46,7 @@ Messages and Reels overlays. That state-preservation behavior is protected.
 | nested social roots | `NovaApp`, `NovaRootNavigationSignal`, `rootNavigationPlan` | secondary-to-secondary resets through Home | typed child destinations/policy |
 | push/deep-link parsing | `MainActivity.routePushIntent`, `NovaPushOpenSignal`, special navigators | exact push kinds/data keys and fallback behavior | `DeepLinkRouter` |
 | session expiry | `AppViewModel` coordinates logout and global state; feature state owners report terminal 401 effects | logout/clear state and return to authentication on terminal 401 | `AppViewModel` until a core session package is extracted |
-| dependency construction | `AppContainer` for shell/auth/feed/people/messages plus stable Calls repository/signaling/WebRTC construction, stable feed/posts and People contract views, stable Stories repository construction, direct stable Reels feed/profile/watch production repository construction, direct stable Sharing construction, direct stable Notifications production construction, direct stable Privacy and Privacy-owned follow-request production construction, Settings cached-username/logout consumption, conversation tools/appearance, group management/membership/people lookup, and conversation realtime/draft factories; consolidated live surfaces consume those AppContainer-owned seams instead of constructing repositories/session stores in UI | repositories and transports use application context; consolidated feature UI consumes stable interfaces/state owners or explicit AppContainer shell seams | expand the explicit container feature by feature |
+| dependency construction | `AppContainer` for shell/auth/feed/people/messages plus stable Calls repository/signaling/WebRTC construction, stable feed/posts and People contract views, stable Stories repository construction, direct stable Reels feed/profile/watch production repository construction, direct stable Sharing construction, direct stable Notifications production construction, direct stable Privacy and Privacy-owned follow-request production construction, direct stable Security and Blocked-Accounts production construction, Settings cached-username/logout consumption, conversation tools/appearance, group management/membership/people lookup, and conversation realtime/draft factories; consolidated live surfaces consume those AppContainer-owned seams instead of constructing repositories/session stores in UI | repositories and transports use application context; consolidated feature UI consumes stable interfaces/state owners or explicit AppContainer shell seams | expand the explicit container feature by feature |
 | unread sync | `MainActivity`, `InboxViewModel`, `NovaMessagesSignal` | inbox count refresh at startup/resume/read/back | Messages state owner |
 | global call pill | `MainActivity`, `MessagesActivity`, `ReelsActivity` | active call remains reachable | app host / shared special-entry shell |
 
@@ -92,7 +92,7 @@ tree. Empty intents are ignored by the signal.
 | `CallActivity` | no | call intents/notifications | edge-to-edge, resizeable, PiP, separate call task affinity; delegates call state/lifecycle to `CallStateOwner` | call UI owns status/navigation padding; Activity owns permission launcher and PiP/window policy |
 | `SettingsActivity` | no | explicit internal intent | edge-to-edge | screen status/system-bottom padding |
 | `PrivacyActivity` | no | explicit internal intent | edge-to-edge | privacy screen owns status/navigation padding |
-| `AccountSecurityActivity` | no | explicit internal intent | edge-to-edge | security page owns status/navigation/IME padding |
+| `AccountSecurityActivity` | no | explicit internal intent | edge-to-edge; mode-only host for recovery/security/blocked screens and account-deleted/session-expired task reset | security pages own status/navigation/IME padding; blocked page owns status/navigation padding |
 | `SocialGraphActivity` | no | explicit internal intent with username/mode; hosts `SocialConnectionsStateOwner` and terminal-session effect bridging | edge-to-edge | social graph screen owns status/navigation padding |
 
 The current manifest gives `adjustResize` to Main, Messages, and Reels. The
@@ -117,7 +117,7 @@ remove that parity before a device test establishes a replacement.
 | Group management | `ConversationScreen`, `GroupInfoDialog`, stable add-members/new-group dialogs | stable group models and `GroupManagementRepository`/`GroupMembershipRepository`/`GroupPeopleRepository`; `GroupInfoViewModel`, `AddGroupMembersViewModel`, `NewGroupViewModel` own async state and terminal effects | `feature/messages/group` |
 | Calls | `CallActivity` as Android window/permission/PiP/Compose host | `feature/calls/CallStateOwner`, stable call domain models, `CallRepository`, `CallSignaling`, `CallWebRtcEngine`; `core/calls` retains production REST/signaling/WebRTC/Telecom/notification adapters | stable `feature/calls` ownership with platform adapters behind explicit boundaries |
 | notifications/sharing | `NotificationsScreen` renders owner state and retains list observation plus Person/Reel navigation; `NovaShareDialog` renders Sharing owner state and retains external Android sharing | `NotificationsStateOwner` over stable `NotificationsRepository`, Privacy-owned `FollowRequestRepository`, and stable `PostRepository`; `NovaNotificationRepository` directly implements the stable Notifications contract; `SharingStateOwner` uses stable Sharing/Messages/People seams; `NovaPrivacyRepository` directly implements the Privacy-owned follow-request contract consumed by Notifications | `feature/notifications` exit gate satisfied in #147; `feature/sharing` exit gate satisfied in #142; follow-request ownership remains Privacy-owned without a cross-family adapter |
-| privacy/settings/security | `PrivacyActivity` hosts owner-backed `PrivacyScreen`; `PersonScreen` reads person privacy state through the stable AppContainer seam; `SettingsActivity` remains the Settings UI/navigation/platform host; `AccountSecurityActivity` remains the Security/Blocked host | Privacy uses `PrivacyStateOwner` plus stable Privacy/follow-request/People seams with direct production implementation. Settings reads its cached username through `AppContainer.currentCachedUsername()` and logs out through the shared `AppContainer.authRepository`; it no longer constructs `NovaSessionStore` or `NovaAuthRepository`. Security/Blocked Accounts still own concrete repositories/manual async state | `feature/privacy` exit gate satisfied in #152; Settings exit gate active in #153; Security/Blocked Accounts is the final Phase 4 family |
+| privacy/settings/security | `PrivacyActivity` hosts owner-backed `PrivacyScreen`; `PersonScreen` reads person privacy state through the stable AppContainer seam; `SettingsActivity` remains the Settings UI/navigation/platform host; `AccountSecurityActivity` is a thin mode/window/task-reset host while `PasswordRecoveryScreen`, `AccountSecurityScreen`, and `BlockedAccountsScreen` render owner state/callbacks | Privacy uses `PrivacyStateOwner` plus stable Privacy/follow-request/People seams. Settings uses AppContainer cached-user/auth seams. Security uses stable `SecurityRepository`/`BlockedAccountsRepository`, direct production implementations, and `PasswordRecoveryStateOwner`/`AccountSecurityStateOwner`/`BlockedAccountsStateOwner`; live screens no longer construct concrete Security/Blocked repositories or interpret `ApiResult` | `feature/privacy` exit gate satisfied in #152; Settings exit gate satisfied in #153; `feature/security` exit gate active in #155 and closes Phase 4 after full-green merge |
 
 ## Phase 4 feed/posts/comments dependency boundary
 
@@ -361,6 +361,48 @@ session construction or async state in Settings, and protects the exact legal
 URLs, Activity modes/intents, logout task flags, visible row labels, and the
 existing push/session cleanup inside `NovaAuthRepository.logout()`.
 
+## Phase 4 Security/Blocked Accounts dependency boundary
+
+`feature/security/data/SecurityRepository.kt` owns the narrow password-recovery,
+password-change, other-session revocation, account-deletion, blocked-list, and
+unblock contracts. `NovaAccountSecurityRepository` and
+`NovaBlockedAccountsRepository` remain the existing production HTTP/auth/session
+implementations and implement those stable interfaces directly; no temporary
+adapter layer is introduced. `AppContainer` exposes both stable interfaces, and
+the blocked-account list uses the feature-owned People `NovaPerson` record.
+
+`PasswordRecoveryStateOwner` owns the recovery stage and email/code/password
+inputs plus send/reset loading/error/info state. `AccountSecurityStateOwner` owns
+password drafts, one global change/revoke/delete action lock, delete-confirmation
+state, feedback/errors, and the account-deleted effect. `BlockedAccountsStateOwner`
+owns initial/retry loading, blocked rows, one global unblock username lock, inline
+non-401 errors, and terminal-401 effects. The nine JVM characterization tests from
+#154 preserve the input normalization, recovery resend-info behavior, password
+success drafts/feedback, global locks, delete confirmation/effects, blocked-list
+errors, unblock-by-id semantics, and the historical terminal-401 loading/busy
+states that the Activity exits away from.
+
+In #155 the three live surfaces consume those owners through
+`applicationContext.appContainer`. `PasswordRecoveryScreen` and
+`AccountSecurityScreen` no longer construct `NovaAccountSecurityRepository`,
+interpret `ApiResult`, or launch request coroutines. `BlockedAccountsScreen` no
+longer constructs `NovaBlockedAccountsRepository`, owns network/domain mutable
+state, or interprets status codes. The screens retain their exact visual tree,
+copy, field enablement, alerts, loading labels, retry/unblock controls, and insets.
+`rememberUpdatedState` keeps the Activity-owned account-deleted and
+session-expired callbacks current without recreating owner state.
+
+`AccountSecurityActivity` remains the same mode/window host with the exact
+`account_security_mode` extra and `recovery`/`security`/`blocked` values. The
+login screen still enters recovery through the same Activity mode. Account delete
+and blocked-session expiry still restart `MainActivity` with
+`FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_CLEAR_TASK` and finish the Security
+Activity. `scripts/check_security_architecture.py` is the final Security exit
+gate: it protects the transport/session/timeouts, stable production/AppContainer
+contracts, owner characterization, Activity/recovery-entry seams, requires live
+owner wiring, and rejects restoration of route-owned concrete repositories,
+`ApiResult`, or request coroutines.
+
 ## Phase 2 Messages dependency boundary
 
 `feature/messages/domain/model/MessagingModels.kt` owns the nine live
@@ -592,15 +634,16 @@ parses feature-owned notification records. Privacy likewise uses feature-owned
 summary/person-state/follow-request models, `PrivacyStateOwner`, stable Privacy
 and follow-request interfaces, and one direct `NovaPrivacyRepository` production
 implementation behind both narrow AppContainer views; its temporary adapters and
-duplicate core records are gone in #152. Settings now uses AppContainer for its
+duplicate core records are gone in #152. Settings uses AppContainer for its
 cached username and shared auth logout while retaining only UI/navigation/legal
-URL/task-reset responsibilities. Security/Blocked Accounts is the remaining
-Phase 4 route family that still owns concrete repositories/manual async state.
-Android/transport-specific implementations remain focused core adapters where
-platform concerns require them. `AppViewModel` owns global session restore/current-
-user state, terminal session logout, and durable primary-overlay state. Feature
-state owners still report terminal session effects to routes; central session-
-expiry ownership is a later cross-feature cleanup. Platform-only UI
+URL/task-reset responsibilities. Security/Blocked Accounts now uses stable
+feature contracts and state owners for all three live recovery/security/blocked
+surfaces; `AccountSecurityActivity` remains only the Android mode/task-effect
+host. Android/transport-specific implementations remain focused core adapters
+where platform concerns require them. `AppViewModel` owns global session restore/
+current-user state, terminal session logout, and durable primary-overlay state.
+Feature state owners still report terminal session effects to routes; central
+session-expiry ownership is a later cross-feature cleanup. Platform-only UI
 responsibilities such as MediaPlayer, picker/permission launchers, recorder state,
 and the composer's sole IME/navigation-bar inset consumption remain intentionally
 with focused UI owners.

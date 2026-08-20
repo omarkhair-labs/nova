@@ -21,10 +21,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -33,8 +32,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nova.app.core.auth.NovaAccountSecurityRepository
-import com.nova.app.core.network.ApiResult
+import com.nova.app.app.appContainer
+import com.nova.app.feature.security.AccountSecurityStateOwner
+import com.nova.app.feature.security.PasswordRecoveryStage
+import com.nova.app.feature.security.PasswordRecoveryStateOwner
 import com.nova.app.ui.components.NovaHeader
 import com.nova.app.ui.components.NovaPrimaryButton
 import com.nova.app.ui.components.NovaSecondaryButton
@@ -43,10 +44,6 @@ import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
-import kotlinx.coroutines.launch
-
-
-private enum class RecoveryStage { Email, Code, Done }
 
 
 @Composable
@@ -54,38 +51,34 @@ fun PasswordRecoveryScreen(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
-    val repository = remember(context) {
-        NovaAccountSecurityRepository(context.applicationContext)
-    }
+    val container = context.applicationContext.appContainer
     val scope = rememberCoroutineScope()
-
-    var stage by remember { mutableStateOf(RecoveryStage.Email) }
-    var email by remember { mutableStateOf("") }
-    var code by remember { mutableStateOf("") }
-    var newPassword by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
-    var loading by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var info by remember { mutableStateOf<String?>(null) }
+    val owner = remember(container, scope) {
+        PasswordRecoveryStateOwner(
+            repository = container.securityRepository,
+            scope = scope,
+        )
+    }
+    val state = owner.state
 
     SecurityPage(
-        title = when (stage) {
-            RecoveryStage.Email -> "Reset your password"
-            RecoveryStage.Code -> "Check your email"
-            RecoveryStage.Done -> "Password changed"
+        title = when (state.stage) {
+            PasswordRecoveryStage.Email -> "Reset your password"
+            PasswordRecoveryStage.Code -> "Check your email"
+            PasswordRecoveryStage.Done -> "Password changed"
         },
-        subtitle = when (stage) {
-            RecoveryStage.Email -> "Enter the email on your Nova account. We'll send a 6-digit code."
-            RecoveryStage.Code -> "Enter the code sent to $email and choose a new password."
-            RecoveryStage.Done -> "Your old password and previous Nova sessions can no longer be used."
+        subtitle = when (state.stage) {
+            PasswordRecoveryStage.Email -> "Enter the email on your Nova account. We'll send a 6-digit code."
+            PasswordRecoveryStage.Code -> "Enter the code sent to ${state.email} and choose a new password."
+            PasswordRecoveryStage.Done -> "Your old password and previous Nova sessions can no longer be used."
         },
         onBack = onBack,
     ) {
-        when (stage) {
-            RecoveryStage.Email -> {
+        when (state.stage) {
+            PasswordRecoveryStage.Email -> {
                 NovaTextField(
-                    value = email,
-                    onValueChange = { email = it.trim() },
+                    value = state.email,
+                    onValueChange = owner::setEmail,
                     label = "Email",
                     placeholder = "you@example.com",
                     keyboardOptions = KeyboardOptions(
@@ -94,34 +87,19 @@ fun PasswordRecoveryScreen(
                     ),
                 )
                 Spacer(Modifier.height(14.dp))
-                StatusText(error = error, info = info)
+                StatusText(error = state.error, info = state.info)
                 Spacer(Modifier.weight(1f))
                 NovaPrimaryButton(
-                    text = if (loading) "Sending…" else "Send reset code",
-                    enabled = !loading && email.contains('@'),
-                    onClick = {
-                        if (loading) return@NovaPrimaryButton
-                        scope.launch {
-                            loading = true
-                            error = null
-                            info = null
-                            when (val result = repository.requestPasswordReset(email)) {
-                                is ApiResult.Success -> {
-                                    info = result.value
-                                    stage = RecoveryStage.Code
-                                }
-                                is ApiResult.Failure -> error = result.message
-                            }
-                            loading = false
-                        }
-                    },
+                    text = if (state.loading) "Sending…" else "Send reset code",
+                    enabled = !state.loading && state.email.contains('@'),
+                    onClick = owner::requestResetCode,
                 )
             }
 
-            RecoveryStage.Code -> {
+            PasswordRecoveryStage.Code -> {
                 NovaTextField(
-                    value = code,
-                    onValueChange = { value -> code = value.filter(Char::isDigit).take(6) },
+                    value = state.code,
+                    onValueChange = owner::setCode,
                     label = "6-digit code",
                     placeholder = "000000",
                     keyboardOptions = KeyboardOptions(
@@ -131,8 +109,8 @@ fun PasswordRecoveryScreen(
                 )
                 Spacer(Modifier.height(12.dp))
                 NovaTextField(
-                    value = newPassword,
-                    onValueChange = { newPassword = it },
+                    value = state.newPassword,
+                    onValueChange = owner::setNewPassword,
                     label = "New password",
                     placeholder = "At least 8 characters",
                     keyboardOptions = KeyboardOptions(
@@ -143,8 +121,8 @@ fun PasswordRecoveryScreen(
                 )
                 Spacer(Modifier.height(12.dp))
                 NovaTextField(
-                    value = confirmPassword,
-                    onValueChange = { confirmPassword = it },
+                    value = state.confirmPassword,
+                    onValueChange = owner::setConfirmPassword,
                     label = "Confirm new password",
                     placeholder = "Repeat your password",
                     keyboardOptions = KeyboardOptions(
@@ -154,54 +132,22 @@ fun PasswordRecoveryScreen(
                     visualTransformation = PasswordVisualTransformation(),
                 )
                 Spacer(Modifier.height(12.dp))
-                StatusText(error = error, info = info)
+                StatusText(error = state.error, info = state.info)
                 Spacer(Modifier.weight(1f))
                 NovaSecondaryButton(
                     text = "Send a new code",
-                    onClick = {
-                        if (loading) return@NovaSecondaryButton
-                        scope.launch {
-                            loading = true
-                            error = null
-                            when (val result = repository.requestPasswordReset(email)) {
-                                is ApiResult.Success -> info = result.value
-                                is ApiResult.Failure -> error = result.message
-                            }
-                            loading = false
-                        }
-                    },
+                    onClick = owner::requestResetCode,
                 )
                 Spacer(Modifier.height(10.dp))
                 NovaPrimaryButton(
-                    text = if (loading) "Changing…" else "Change password",
-                    enabled = !loading && code.length == 6 &&
-                        newPassword.length >= 8 && newPassword == confirmPassword,
-                    onClick = {
-                        if (loading) return@NovaPrimaryButton
-                        scope.launch {
-                            loading = true
-                            error = null
-                            info = null
-                            when (
-                                val result = repository.resetPassword(
-                                    email = email,
-                                    code = code,
-                                    newPassword = newPassword,
-                                )
-                            ) {
-                                is ApiResult.Success -> {
-                                    info = result.value
-                                    stage = RecoveryStage.Done
-                                }
-                                is ApiResult.Failure -> error = result.message
-                            }
-                            loading = false
-                        }
-                    },
+                    text = if (state.loading) "Changing…" else "Change password",
+                    enabled = !state.loading && state.code.length == 6 &&
+                        state.newPassword.length >= 8 && state.newPassword == state.confirmPassword,
+                    onClick = owner::resetPassword,
                 )
             }
 
-            RecoveryStage.Done -> {
+            PasswordRecoveryStage.Done -> {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     color = NovaAccentSoft,
@@ -216,7 +162,7 @@ fun PasswordRecoveryScreen(
                         )
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            info ?: "Log in again with your new password.",
+                            state.info ?: "Log in again with your new password.",
                             color = NovaMuted,
                             fontSize = 13.sp,
                             lineHeight = 19.sp,
@@ -237,24 +183,21 @@ fun AccountSecurityScreen(
     onAccountDeleted: () -> Unit,
 ) {
     val context = LocalContext.current
-    val repository = remember(context) {
-        NovaAccountSecurityRepository(context.applicationContext)
-    }
+    val container = context.applicationContext.appContainer
     val scope = rememberCoroutineScope()
+    val currentOnAccountDeleted by rememberUpdatedState(onAccountDeleted)
+    val owner = remember(container, scope) {
+        AccountSecurityStateOwner(
+            repository = container.securityRepository,
+            scope = scope,
+            onAccountDeleted = { currentOnAccountDeleted() },
+        )
+    }
+    val state = owner.state
 
-    var currentPassword by remember { mutableStateOf("") }
-    var newPassword by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
-    var loadingAction by remember { mutableStateOf<String?>(null) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var info by remember { mutableStateOf<String?>(null) }
-    var showDeleteConfirm by remember { mutableStateOf(false) }
-
-    if (showDeleteConfirm) {
+    if (state.showDeleteConfirm) {
         AlertDialog(
-            onDismissRequest = {
-                if (loadingAction == null) showDeleteConfirm = false
-            },
+            onDismissRequest = owner::dismissDeleteConfirmation,
             title = { Text("Delete your Nova account?") },
             text = {
                 Text(
@@ -263,34 +206,19 @@ fun AccountSecurityScreen(
             },
             confirmButton = {
                 TextButton(
-                    onClick = {
-                        if (loadingAction != null) return@TextButton
-                        scope.launch {
-                            loadingAction = "delete"
-                            error = null
-                            info = null
-                            when (val result = repository.deleteAccount(currentPassword)) {
-                                is ApiResult.Success -> onAccountDeleted()
-                                is ApiResult.Failure -> {
-                                    error = result.message
-                                    showDeleteConfirm = false
-                                    loadingAction = null
-                                }
-                            }
-                        }
-                    },
-                    enabled = loadingAction == null,
+                    onClick = owner::confirmDelete,
+                    enabled = state.loadingAction == null,
                 ) {
                     Text(
-                        if (loadingAction == "delete") "Deleting…" else "Delete account",
+                        if (state.loadingAction == "delete") "Deleting…" else "Delete account",
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
             },
             dismissButton = {
                 TextButton(
-                    onClick = { showDeleteConfirm = false },
-                    enabled = loadingAction == null,
+                    onClick = owner::dismissDeleteConfirmation,
+                    enabled = state.loadingAction == null,
                 ) { Text("Cancel") }
             },
         )
@@ -304,8 +232,8 @@ fun AccountSecurityScreen(
         Text("Password", color = NovaInk, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(12.dp))
         NovaTextField(
-            value = currentPassword,
-            onValueChange = { currentPassword = it },
+            value = state.currentPassword,
+            onValueChange = owner::setCurrentPassword,
             label = "Current password",
             placeholder = "Your current password",
             keyboardOptions = KeyboardOptions(
@@ -316,8 +244,8 @@ fun AccountSecurityScreen(
         )
         Spacer(Modifier.height(12.dp))
         NovaTextField(
-            value = newPassword,
-            onValueChange = { newPassword = it },
+            value = state.newPassword,
+            onValueChange = owner::setNewPassword,
             label = "New password",
             placeholder = "At least 8 characters",
             keyboardOptions = KeyboardOptions(
@@ -328,8 +256,8 @@ fun AccountSecurityScreen(
         )
         Spacer(Modifier.height(12.dp))
         NovaTextField(
-            value = confirmPassword,
-            onValueChange = { confirmPassword = it },
+            value = state.confirmPassword,
+            onValueChange = owner::setConfirmPassword,
             label = "Confirm new password",
             placeholder = "Repeat new password",
             keyboardOptions = KeyboardOptions(
@@ -339,35 +267,13 @@ fun AccountSecurityScreen(
             visualTransformation = PasswordVisualTransformation(),
         )
         Spacer(Modifier.height(12.dp))
-        StatusText(error = error, info = info)
+        StatusText(error = state.error, info = state.info)
         Spacer(Modifier.height(18.dp))
         NovaPrimaryButton(
-            text = if (loadingAction == "change") "Changing…" else "Change password",
-            enabled = loadingAction == null && currentPassword.isNotBlank() &&
-                newPassword.length >= 8 && newPassword == confirmPassword,
-            onClick = {
-                if (loadingAction != null) return@NovaPrimaryButton
-                scope.launch {
-                    loadingAction = "change"
-                    error = null
-                    info = null
-                    when (
-                        val result = repository.changePassword(
-                            currentPassword = currentPassword,
-                            newPassword = newPassword,
-                        )
-                    ) {
-                        is ApiResult.Success -> {
-                            info = "Password changed. Other sessions were signed out."
-                            currentPassword = newPassword
-                            newPassword = ""
-                            confirmPassword = ""
-                        }
-                        is ApiResult.Failure -> error = result.message
-                    }
-                    loadingAction = null
-                }
-            },
+            text = if (state.loadingAction == "change") "Changing…" else "Change password",
+            enabled = state.loadingAction == null && state.currentPassword.isNotBlank() &&
+                state.newPassword.length >= 8 && state.newPassword == state.confirmPassword,
+            onClick = owner::changePassword,
         )
 
         Spacer(Modifier.height(30.dp))
@@ -381,20 +287,8 @@ fun AccountSecurityScreen(
         )
         Spacer(Modifier.height(14.dp))
         NovaSecondaryButton(
-            text = if (loadingAction == "revoke") "Signing out devices…" else "Log out other devices",
-            onClick = {
-                if (loadingAction != null || currentPassword.isBlank()) return@NovaSecondaryButton
-                scope.launch {
-                    loadingAction = "revoke"
-                    error = null
-                    info = null
-                    when (val result = repository.revokeOtherSessions(currentPassword)) {
-                        is ApiResult.Success -> info = "Other Nova sessions were signed out."
-                        is ApiResult.Failure -> error = result.message
-                    }
-                    loadingAction = null
-                }
-            },
+            text = if (state.loadingAction == "revoke") "Signing out devices…" else "Log out other devices",
+            onClick = owner::revokeOtherSessions,
         )
 
         Spacer(Modifier.height(24.dp))
@@ -414,15 +308,7 @@ fun AccountSecurityScreen(
         Spacer(Modifier.height(12.dp))
         NovaSecondaryButton(
             text = "Delete account",
-            onClick = {
-                if (loadingAction != null) return@NovaSecondaryButton
-                if (currentPassword.isBlank()) {
-                    error = "Enter your current password first."
-                } else {
-                    error = null
-                    showDeleteConfirm = true
-                }
-            },
+            onClick = owner::requestDeleteConfirmation,
         )
         Spacer(Modifier.height(14.dp))
     }
