@@ -49,7 +49,9 @@ import com.nova.app.feature.people.data.PeoplePagingRepository
 import com.nova.app.feature.people.data.PeopleRepository
 import com.nova.app.feature.posts.data.PostRepository
 import com.nova.app.feature.privacy.data.FollowRequestRepository
+import com.nova.app.feature.privacy.data.PrivacyRepository
 import com.nova.app.feature.privacy.data.remote.CoreFollowRequestRepositoryAdapter
+import com.nova.app.feature.privacy.data.remote.CorePrivacyRepositoryAdapter
 import com.nova.app.feature.reels.data.ProfileReelsRepository
 import com.nova.app.feature.reels.data.ReelWatchRepository
 import com.nova.app.feature.reels.data.ReelsRepository
@@ -86,6 +88,7 @@ class AppContainer(context: Context) {
     val reelWatchRepository: ReelWatchRepository = NovaReelWatchRepository(appContext)
     val sharingRepository: SharingRepository = NovaSharingRepository(appContext)
     val notificationsRepository: NotificationsRepository = NovaNotificationRepository(appContext)
+    val privacyRepository: PrivacyRepository = CorePrivacyRepositoryAdapter(appContext)
     val followRequestRepository: FollowRequestRepository = CoreFollowRequestRepositoryAdapter(appContext)
     val appNavigator = AppNavigationBridge()
 
