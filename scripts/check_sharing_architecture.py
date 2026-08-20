@@ -25,7 +25,6 @@ def read(path: Path) -> str:
 
 
 contract = read(CONTRACT)
-adapter = read(ADAPTER)
 state_owner = read(STATE_OWNER)
 state_test = read(STATE_TEST)
 container = read(CONTAINER)
@@ -58,25 +57,32 @@ for forbidden in (
     if forbidden in contract:
         errors.append(f"Sharing dialog contract must not absorb post-repost ownership: {forbidden}")
 
-if "class CoreSharingRepositoryAdapter(context: Context) : SharingRepository" not in adapter:
-    errors.append("Sharing production adapter must implement SharingRepository")
-if "private val delegate = NovaSharingRepository(context.applicationContext)" not in adapter:
-    errors.append("Sharing adapter must delegate to the existing production transport")
-for delegated in (
-    "delegate.sharePost(",
-    "delegate.shareReel(",
-    "delegate.shareProfile(",
-    "delegate.sharePostToConversation(",
-    "delegate.shareReelToConversation(",
-    "delegate.shareProfileToConversation(",
-    "delegate.addPostToStory(",
-    "delegate.addReelToStory(",
+# Sharing exit boundary: production transport implements the stable dialog contract directly.
+if "class NovaSharingRepository(" not in core_repository or ") : SharingRepository" not in core_repository:
+    errors.append("NovaSharingRepository must implement SharingRepository directly")
+if "import com.nova.app.feature.sharing.data.SharingRepository" not in core_repository:
+    errors.append("NovaSharingRepository is missing the stable SharingRepository import")
+for operation in (
+    "override suspend fun sharePost(",
+    "override suspend fun shareReel(",
+    "override suspend fun shareProfile(",
+    "override suspend fun sharePostToConversation(",
+    "override suspend fun shareReelToConversation(",
+    "override suspend fun shareProfileToConversation(",
+    "override suspend fun addPostToStory(",
+    "override suspend fun addReelToStory(",
 ):
-    if delegated not in adapter:
-        errors.append(f"Sharing adapter is missing delegation: {delegated}")
+    if operation not in core_repository:
+        errors.append(f"production Sharing repository must directly override stable operation: {operation}")
 
-if "val sharingRepository: SharingRepository = CoreSharingRepositoryAdapter(appContext)" not in container:
-    errors.append("AppContainer is missing the stable Sharing construction seam")
+if ADAPTER.exists():
+    errors.append("temporary CoreSharingRepositoryAdapter must be deleted at Sharing exit")
+if "CoreSharingRepositoryAdapter" in container:
+    errors.append("AppContainer must not retain the temporary Sharing adapter")
+if "import com.nova.app.core.sharing.NovaSharingRepository" not in container:
+    errors.append("AppContainer must import the direct Sharing production implementation")
+if "val sharingRepository: SharingRepository = NovaSharingRepository(appContext)" not in container:
+    errors.append("AppContainer must construct NovaSharingRepository directly behind SharingRepository")
 
 for required in (
     "sealed interface SharingTarget",
@@ -132,11 +138,12 @@ for test_seam in (
     if test_seam not in state_test:
         errors.append(f"Sharing state-owner characterization is missing test: {test_seam}")
 
-# Production transport remains unchanged during the live state-owner switch.
+# Repost transport stays explicitly outside the dialog contract and is preserved for its current consumers.
 for required in (
     "data class NovaRepostState(",
     "suspend fun repostState(",
     "suspend fun setReposted(",
+    'path = "posts/$postId/repost/"',
     'path = "shares/messages/"',
     'path = "stories/"',
     '.put("recipient_username", recipientUsername.trim().lowercase())',
@@ -149,7 +156,7 @@ for required in (
     if required not in core_repository:
         errors.append(f"Sharing transport-sensitive seam changed or disappeared: {required}")
 
-# Stable dependencies remain the exact implementations that backed the pre-switch dialog.
+# Stable search dependencies remain the exact implementations that backed the pre-switch dialog.
 if "suspend fun people(query: String = \"\")" not in people_contract:
     errors.append("PeopleRepository must expose the existing people(query) search seam")
 if "interface MessagesRepository" not in messages_contract or "suspend fun conversations(query: String = \"\")" not in messages_contract:
@@ -159,7 +166,7 @@ if "val messagingRepository: MessagesRepository = NovaMessagingRepository(" not 
 if "val peopleRepository: PeopleRepository = socialRepository" not in container:
     errors.append("AppContainer peopleRepository must remain the current NovaSocialRepository implementation")
 
-# The live dialog must now be a thin AppContainer/state-owner renderer while preserving its visual/external-share tree.
+# The live dialog remains a thin AppContainer/state-owner renderer while preserving its visual/external-share tree.
 for required in (
     "import com.nova.app.app.appContainer",
     "import com.nova.app.feature.people.domain.model.NovaPerson",
@@ -210,6 +217,12 @@ for forbidden in (
 ):
     if forbidden in dialog:
         errors.append(f"live Sharing dialog must not retain pre-switch repository/orchestration dependency: {forbidden}")
+
+# Exhaustively reject restoration of the deleted adapter from Kotlin production/test sources.
+for kotlin in list((ROOT / "app/src/main/java").rglob("*.kt")) + list((ROOT / "app/src/test/java").rglob("*.kt")):
+    text = kotlin.read_text(encoding="utf-8")
+    if "CoreSharingRepositoryAdapter" in text:
+        errors.append(f"deleted Sharing adapter referenced by {kotlin.relative_to(ROOT)}")
 
 if errors:
     print("Sharing architecture check failed:")
