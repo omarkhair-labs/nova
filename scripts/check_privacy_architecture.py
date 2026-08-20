@@ -162,7 +162,7 @@ for required in (
         errors.append(f"Privacy boundary PR must preserve current live-screen wiring/behavior: {required}")
 for forbidden in (
     "context.appContainer.privacyRepository",
-    "PrivacyRepository",
+    "import com.nova.app.feature.privacy.data.PrivacyRepository",
     "CorePrivacyRepositoryAdapter",
 ):
     if forbidden in screen:
@@ -177,7 +177,11 @@ for required in (
 ):
     if required not in person_screen:
         errors.append(f"Privacy boundary PR must preserve current PersonScreen privacy wiring: {required}")
-for forbidden in ("context.appContainer.privacyRepository", "CorePrivacyRepositoryAdapter"):
+for forbidden in (
+    "context.appContainer.privacyRepository",
+    "import com.nova.app.feature.privacy.data.PrivacyRepository",
+    "CorePrivacyRepositoryAdapter",
+):
     if forbidden in person_screen:
         errors.append(f"Privacy boundary PR must not switch PersonScreen yet: {forbidden}")
 
