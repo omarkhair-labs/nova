@@ -140,7 +140,7 @@ if "val followRequestRepository: FollowRequestRepository = CoreFollowRequestRepo
 if "follow request mapping preserves id requester and created at" not in privacy_mapping_test:
     errors.append("follow-request field mapping characterization is missing")
 
-# Characterize the full async Activity state before switching the live Compose screen.
+# Characterized async Activity state remains the sole server-state owner.
 for required in (
     "data class NotificationsUiState(",
     "val notifications: List<NovaNotification>",
@@ -206,7 +206,7 @@ for test_name in (
     if test_name not in owner_test:
         errors.append(f"Notifications state characterization is missing test: {test_name}")
 
-# Preserve the current production notification routes/parser/auth/error behavior.
+# Preserve production notification routes/parser/auth/error behavior.
 for required in (
     "data class NovaNotification(",
     "data class NovaNotificationPage(",
@@ -229,7 +229,7 @@ for required in (
     if required not in core_repository:
         errors.append(f"Notifications transport-sensitive seam changed or disappeared: {required}")
 
-# Preserve the current Privacy follow-request transport while exposing the narrow adapter.
+# Preserve current Privacy follow-request transport while exposing the narrow adapter.
 for required in (
     'requestJson("follow-requests/", bearerToken = token)',
     'requestDecision(requestId, "accept")',
@@ -240,31 +240,62 @@ for required in (
     if required not in core_privacy:
         errors.append(f"Privacy follow-request transport-sensitive seam changed or disappeared: {required}")
 
-# Characterization PR intentionally leaves the live screen on concrete/local-state wiring.
+# The live screen must now be render/navigation-only over AppContainer-backed state ownership.
 for required in (
+    "import com.nova.app.app.appContainer",
+    "import com.nova.app.feature.notifications.domain.model.NovaNotification",
+    "import com.nova.app.feature.posts.domain.model.NovaPost",
+    "import com.nova.app.feature.privacy.domain.model.NovaFollowRequest",
+    "val appContainer = context.appContainer",
+    "NotificationsStateOwner(",
+    "notificationsRepository = appContainer.notificationsRepository",
+    "followRequestRepository = appContainer.followRequestRepository",
+    "postRepository = appContainer.postDataRepository",
+    "val state = owner.state",
+    "LaunchedEffect(owner)",
+    "owner.start()",
+    "owner.shouldLoadMore(lastVisible, totalItems)",
+    "owner.loadActivity(reset = false)",
+    "isRefreshing = state.isRefreshing",
+    "onRefresh = { owner.loadActivity(reset = true) }",
+    "onAccept = { owner.decideFollowRequest(request, accept = true) }",
+    "onDecline = { owner.decideFollowRequest(request, accept = false) }",
+    "when (val target = owner.openTarget(notification))",
+    "is NotificationOpenTarget.Person -> onPersonClick(target.username)",
+    "is NotificationOpenTarget.Post -> owner.openPost(target.postId)",
+    "is NotificationOpenTarget.Reel -> NovaReelsNavigator.openProfile(",
+    "NotificationOpenTarget.None -> Unit",
+    'text = "Activity"',
+    'text = "Follow requests, likes, comments, replies, reposts and new people around you."',
+    'text = "Quiet for now."',
+    'text = "Follow requests, follows, likes, comments, replies and Reel reposts will show up here."',
+    "preview.take(90)",
+):
+    if required not in screen:
+        errors.append(f"live Notifications screen is missing stable rendering/navigation seam: {required}")
+
+for forbidden in (
+    "import com.nova.app.core.feed.NovaFeedRepository",
+    "import com.nova.app.core.network.ApiResult",
+    "import com.nova.app.core.network.NovaPost",
     "import com.nova.app.core.notifications.NovaNotification",
     "import com.nova.app.core.notifications.NovaNotificationRepository",
+    "import com.nova.app.core.privacy.NovaFollowRequest",
+    "import com.nova.app.core.privacy.NovaPrivacyRepository",
     "NovaNotificationRepository(context.applicationContext)",
     "NovaPrivacyRepository(context.applicationContext)",
     "NovaFeedRepository(context.applicationContext)",
-    "mutableStateOf<List<NovaNotification>>(emptyList())",
-    "repository.notifications(cursor)",
+    "mutableStateOf",
+    "scope.launch",
+    "repository.notifications(",
     "repository.markAllRead()",
     "privacyRepository.followRequests()",
-    "feedRepository.post(postId)",
-):
-    if required not in screen:
-        errors.append(f"Notifications characterization PR must preserve current live-screen wiring: {required}")
-
-for forbidden in (
-    "NotificationsStateOwner",
-    "NotificationsRepository",
-    "FollowRequestRepository",
-    "context.appContainer.notificationsRepository",
-    "context.appContainer.followRequestRepository",
+    "privacyRepository.acceptFollowRequest(",
+    "privacyRepository.declineFollowRequest(",
+    "feedRepository.post(",
 ):
     if forbidden in screen:
-        errors.append(f"Notifications characterization PR must not switch the live screen yet: {forbidden}")
+        errors.append(f"live Notifications screen restored concrete/manual async ownership: {forbidden}")
 
 if errors:
     print("Notifications architecture check failed:")
