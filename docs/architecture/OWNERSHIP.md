@@ -1,6 +1,6 @@
 # Current ownership and entry paths
 
-Snapshot: Phase 3 Calls closing enforcement, based on the #123 consolidation branch from `b194d170d1f1a36a8dd6bd80ee5be3815d3115f4`.
+Snapshot: Phase 4 feed/posts/comments closing slice, based on the #126 branch from `6fc13bb192223e3c7dd771af845f8ec892d6216e`.
 
 This file records current behavior. A row with several current owners identifies
 consolidation work; it does not imply that one of those paths may be removed
@@ -46,7 +46,7 @@ Messages and Reels overlays. That state-preservation behavior is protected.
 | nested social roots | `NovaApp`, `NovaRootNavigationSignal`, `rootNavigationPlan` | secondary-to-secondary resets through Home | typed child destinations/policy |
 | push/deep-link parsing | `MainActivity.routePushIntent`, `NovaPushOpenSignal`, special navigators | exact push kinds/data keys and fallback behavior | `DeepLinkRouter` |
 | session expiry | `AppViewModel` coordinates logout and global state; feature state owners report terminal 401 effects | logout/clear state and return to authentication on terminal 401 | `AppViewModel` until a core session package is extracted |
-| dependency construction | `AppContainer` for shell/auth/feed/social/messages and stable Calls repository/signaling/WebRTC construction, plus conversation tools/appearance, group management/membership/people lookup, and conversation realtime/draft factories; remaining non-consolidated feature routes may still construct specialized repositories | repositories and transports use application context; consolidated feature UI consumes stable interfaces/state owners | expand the explicit container feature by feature |
+| dependency construction | `AppContainer` for shell/auth/feed/social/messages and stable Calls repository/signaling/WebRTC construction, plus stable feed/posts contract views, conversation tools/appearance, group management/membership/people lookup, and conversation realtime/draft factories; remaining non-consolidated feature routes may still construct specialized repositories | repositories and transports use application context; consolidated feature UI consumes stable interfaces/state owners | expand the explicit container feature by feature |
 | unread sync | `MainActivity`, `InboxViewModel`, `NovaMessagesSignal` | inbox count refresh at startup/resume/read/back | Messages state owner |
 | global call pill | `MainActivity`, `MessagesActivity`, `ReelsActivity` | active call remains reachable | app host / shared special-entry shell |
 
@@ -104,7 +104,7 @@ remove that parity before a device test establishes a replacement.
 | Feature | Route/UI owner(s) now | Data/control owner(s) now | Consolidation destination |
 |---|---|---|---|
 | auth/onboarding | `NovaApp`, auth/welcome/onboarding screens | `NovaAuthRepository`, `NovaSessionStore`, `NovaApiClient` | `feature/auth` + `core/session` |
-| feed/posts/comments | `NovaApp`, `HomeScreen`, post screens/cards | API client and post/comment calls orchestrated by UI | `feature/feed`, `feature/posts` |
+| feed/posts/comments | `NovaApp` as navigation/session-effect bridge; `HomeScreen`, `NovaPostCard`, `PostDetailScreen`, `PostCommentsScreen` render state and emit callbacks | `FeedStateOwner`, `PostDetailStateOwner`, `PostCommentsStateOwner`; stable `FeedRepository`/`PostRepository` and `feature/posts/domain/model/PostModels.kt`; `NovaFeedRepository`/`NovaApiClient` remain concrete transport/parser adapters | stable `feature/feed` + `feature/posts`; downstream compatibility imports removed in each later feature slice |
 | people/profile/social graph | `NovaApp`, People/Person/Profile screens, V4 profile components, `SocialGraphActivity` | social repositories + UI orchestration | `feature/people`, `feature/profile` |
 | Stories | `StoriesRail` | stories repository plus UI-owned orchestration | `feature/stories` |
 | Reels | `ReelsScreen`, `ProfileReelsViewerScreen`, `ReelsActivity` | reels repositories, playback pool/safety, UI orchestration | `feature/reels` |
@@ -118,6 +118,45 @@ remove that parity before a device test establishes a replacement.
 | Calls | `CallActivity` as Android window/permission/PiP/Compose host | `feature/calls/CallStateOwner`, stable call domain models, `CallRepository`, `CallSignaling`, `CallWebRtcEngine`; `core/calls` retains production REST/signaling/WebRTC/Telecom/notification adapters | stable `feature/calls` ownership with platform adapters behind explicit boundaries |
 | notifications/sharing | notification screen/share dialog | notification, push, messaging/social repositories | `feature/notifications`, `feature/sharing` |
 | privacy/settings/security | special Activities and feature screens | privacy/auth/social repositories and UI callbacks | corresponding feature packages |
+
+## Phase 4 feed/posts/comments dependency boundary
+
+`feature/posts/domain/model/PostModels.kt` is the actual owner of `NovaPost`,
+`NovaPostPage`, `NovaComment`, and `NovaCommentMutation`. `NovaApiClient` keeps the
+same JSON parsing and HTTP endpoints but no longer declares those records.
+`NovaPostAuthor` intentionally remains a shared `core.network` identity record
+because messaging and other social features also consume it; shared DTO
+ownership is handled in the later network cleanup rather than being forced into
+this feature.
+
+`feature/feed/data/FeedRepository.kt` and `feature/posts/data/PostRepository.kt`
+are the stable data contracts. `NovaFeedRepository` is the existing production
+implementation and preserves the same authentication refresh behavior, feed
+cache, multipart post upload, 10 MB image limit, REST paths, and error mapping.
+`AppContainer` exposes stable contract views of that production instance.
+
+`FeedStateOwner` owns feed first-page/loading-more state, the existing page-merge
+semantics, post create/delete/like state, shared post synchronization, content
+invalidation, and session/profile-refresh effects. `PostDetailStateOwner` owns
+route-local post load/like/delete state. `PostCommentsStateOwner` owns post and
+comment loading plus top-level comment and reply mutations. Reply failures keep
+the legacy local-error behavior, including terminal HTTP errors, and reply
+mutations intentionally do not update the shared post/content version because
+the pre-consolidation screen did not do so.
+
+`HomeScreen` no longer constructs `NovaFeedRepository`; push-target post
+resolution is supplied as a callback while the exact consume/success/fallback
+behavior remains unchanged. `PostCommentsScreen` no longer constructs a
+repository or launches comment-reply requests; it owns only ephemeral composer
+UI state and emits callbacks to `PostCommentsStateOwner`.
+
+`scripts/check_feed_posts_architecture.py` prevents the completed
+`NovaApp`/feed/home/post/posts slice from importing the deprecated core post
+model aliases, prevents `NovaApiClient` from redeclaring post/comment models,
+and rejects feed repository ownership from `HomeScreen`/`PostCommentsScreen`.
+`core/network/PostModelCompatibility.kt` is a temporary deprecated bridge only
+for downstream features whose Phase 4 slice has not run yet; it does not restore
+core ownership and is removed as those consumers migrate.
 
 ## Phase 2 Messages dependency boundary
 
@@ -327,11 +366,12 @@ route Composable
 Messages no longer relies on that route-owned network orchestration pattern for
 its inbox, direct-message opening, conversation core, details, appearance, or
 group workflows. Calls likewise has stable domain/data/signaling/WebRTC
-boundaries and one live `CallStateOwner`, while Android/transport-specific
-implementations remain focused core adapters. `AppViewModel` owns global session
-restore/current-user state, terminal session logout, and durable primary-overlay
-state. Feature state owners still report terminal session effects to routes;
-central session-expiry ownership is a later cross-feature cleanup. Platform-only
-UI responsibilities such as MediaPlayer, picker/permission launchers, recorder
-state, and the composer's sole IME/navigation-bar inset consumption remain
-intentionally with focused UI owners.
+boundaries and one live `CallStateOwner`. Feed/posts/comments now has stable
+model/data/state ownership and its UI no longer constructs the feed repository;
+Android/transport-specific implementations remain focused core adapters.
+`AppViewModel` owns global session restore/current-user state, terminal session
+logout, and durable primary-overlay state. Feature state owners still report
+terminal session effects to routes; central session-expiry ownership is a later
+cross-feature cleanup. Platform-only UI responsibilities such as MediaPlayer,
+picker/permission launchers, recorder state, and the composer's sole
+IME/navigation-bar inset consumption remain intentionally with focused UI owners.
