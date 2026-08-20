@@ -17,6 +17,7 @@ import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.NovaPostAuthor
 import com.nova.app.core.social.NovaSocialPagingRepository
 import com.nova.app.core.social.NovaSocialRepository
+import com.nova.app.core.stories.NovaStoriesRepository
 import com.nova.app.feature.calls.data.CallRepository
 import com.nova.app.feature.calls.domain.model.NovaCallKind
 import com.nova.app.feature.calls.domain.model.NovaIceConfig
@@ -41,6 +42,8 @@ import com.nova.app.feature.messages.group.data.remote.GroupPeoplePagingReposito
 import com.nova.app.feature.people.data.PeoplePagingRepository
 import com.nova.app.feature.people.data.PeopleRepository
 import com.nova.app.feature.posts.data.PostRepository
+import com.nova.app.feature.stories.data.StoriesRepository
+import com.nova.app.feature.stories.data.remote.CoreStoriesRepositoryAdapter
 import com.nova.app.navigation.AppNavigationBridge
 
 
@@ -66,6 +69,7 @@ class AppContainer(context: Context) {
     val socialRepository = NovaSocialRepository(appContext, api)
     val peopleRepository: PeopleRepository = socialRepository
     val peoplePagingRepository: PeoplePagingRepository = NovaSocialPagingRepository(appContext)
+    val storiesRepository: StoriesRepository = CoreStoriesRepositoryAdapter(NovaStoriesRepository(appContext))
     val appNavigator = AppNavigationBridge()
 
     fun callSignaling(callId: String): CallSignaling =
