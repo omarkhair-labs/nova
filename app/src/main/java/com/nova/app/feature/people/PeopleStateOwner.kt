@@ -65,7 +65,11 @@ class PeopleStateOwner(
         val showSpinner = state.people.isEmpty()
         queryJob = scope.launch {
             delay(280)
-            loadPageNow(reset = true, showSpinner = showSpinner)
+            // Match the old LaunchedEffect -> rememberCoroutineScope handoff:
+            // cancelling a later debounce must not cancel an already-started request.
+            scope.launch {
+                loadPageNow(reset = true, showSpinner = showSpinner)
+            }
         }
     }
 
