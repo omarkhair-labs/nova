@@ -513,6 +513,7 @@ fun NovaApp(
                         onDelete = commentsOwner::deleteComment,
                         onSendReply = commentsOwner::sendReply,
                         onDeleteReply = commentsOwner::deleteReply,
+                        onClearReplyError = commentsOwner::clearReplyError,
                         onAuthorClick = { username ->
                             if (username == appState.currentUser?.username) {
                                 backStack.add(NovaRoute.Profile)
