@@ -43,7 +43,6 @@ import com.nova.app.feature.people.data.PeoplePagingRepository
 import com.nova.app.feature.people.data.PeopleRepository
 import com.nova.app.feature.posts.data.PostRepository
 import com.nova.app.feature.stories.data.StoriesRepository
-import com.nova.app.feature.stories.data.remote.CoreStoriesRepositoryAdapter
 import com.nova.app.navigation.AppNavigationBridge
 
 
@@ -69,7 +68,7 @@ class AppContainer(context: Context) {
     val socialRepository = NovaSocialRepository(appContext, api)
     val peopleRepository: PeopleRepository = socialRepository
     val peoplePagingRepository: PeoplePagingRepository = NovaSocialPagingRepository(appContext)
-    val storiesRepository: StoriesRepository = CoreStoriesRepositoryAdapter(NovaStoriesRepository(appContext))
+    val storiesRepository: StoriesRepository = NovaStoriesRepository(appContext)
     val appNavigator = AppNavigationBridge()
 
     fun callSignaling(callId: String): CallSignaling =

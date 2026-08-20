@@ -79,9 +79,9 @@ import com.nova.app.ui.theme.NovaSurface
 import kotlinx.coroutines.delay
 
 
-private val StoryV2Background = Color(0xFF080A0F)
-private val StoryV2Ink = Color(0xFFF7F8FA)
-private val StoryV2Muted = Color(0xFFB8BDC8)
+private val StoryBackground = Color(0xFF080A0F)
+private val StoryInk = Color(0xFFF7F8FA)
+private val StoryMuted = Color(0xFFB8BDC8)
 private val StoryReactions = listOf("❤️", "😂", "😮", "😢", "🔥", "👏")
 private const val STORY_FRAME_MS = 5_500L
 private const val STORY_TICK_MS = 55L
@@ -192,7 +192,7 @@ fun StoriesRail(
     }
 
     pendingMedia?.let { uri ->
-        MediaStoryComposerV2(
+        MediaStoryComposer(
             mediaUri = uri,
             uploading = state.uploading,
             onDismiss = { if (!state.uploading) pendingMedia = null },
@@ -203,7 +203,7 @@ fun StoriesRail(
     }
 
     if (showTextComposer) {
-        TextStoryComposerV2(
+        TextStoryComposer(
             uploading = state.uploading,
             onDismiss = { if (!state.uploading) showTextComposer = false },
             onPost = { text, backgroundStyle, audience ->
@@ -213,7 +213,7 @@ fun StoriesRail(
     }
 
     viewerGroup?.let { group ->
-        StoryViewerV2(
+        StoryViewer(
             initialGroup = group,
             onDismiss = {
                 viewerGroup = null
@@ -299,7 +299,7 @@ private fun StoryGroupRailItem(group: NovaStoryGroup, label: String, onClick: ()
 
 
 @Composable
-private fun MediaStoryComposerV2(
+private fun MediaStoryComposer(
     mediaUri: Uri,
     uploading: Boolean,
     onDismiss: () -> Unit,
@@ -334,7 +334,7 @@ private fun MediaStoryComposerV2(
                     shape = RoundedCornerShape(16.dp),
                     colors = storyFieldColors(),
                 )
-                StoryAudienceChooserV2(audience, !uploading) { audience = it }
+                StoryAudienceChooser(audience, !uploading) { audience = it }
             }
         },
         confirmButton = {
@@ -350,7 +350,7 @@ private fun MediaStoryComposerV2(
 
 
 @Composable
-private fun TextStoryComposerV2(
+private fun TextStoryComposer(
     uploading: Boolean,
     onDismiss: () -> Unit,
     onPost: (String, String, String) -> Unit,
@@ -380,7 +380,7 @@ private fun TextStoryComposerV2(
                 ) {
                     Text(
                         text.ifBlank { "Say something…" },
-                        color = StoryV2Ink.copy(alpha = if (text.isBlank()) 0.62f else 1f),
+                        color = StoryInk.copy(alpha = if (text.isBlank()) 0.62f else 1f),
                         fontSize = 23.sp,
                         lineHeight = 29.sp,
                         textAlign = TextAlign.Center,
@@ -411,7 +411,7 @@ private fun TextStoryComposerV2(
                         }
                     }
                 }
-                StoryAudienceChooserV2(audience, !uploading) { audience = it }
+                StoryAudienceChooser(audience, !uploading) { audience = it }
             }
         },
         confirmButton = {
@@ -430,19 +430,19 @@ private fun TextStoryComposerV2(
 
 
 @Composable
-private fun StoryAudienceChooserV2(
+private fun StoryAudienceChooser(
     audience: String,
     enabled: Boolean,
     onChange: (String) -> Unit,
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        StoryAudienceChipV2(
+        StoryAudienceChip(
             label = "Followers",
             selected = audience == "followers",
             enabled = enabled,
             onClick = { onChange("followers") },
         )
-        StoryAudienceChipV2(
+        StoryAudienceChip(
             label = "★ Close Friends",
             selected = audience == "close_friends",
             enabled = enabled,
@@ -453,7 +453,7 @@ private fun StoryAudienceChooserV2(
 
 
 @Composable
-private fun StoryAudienceChipV2(label: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
+private fun StoryAudienceChip(label: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
     Surface(
         onClick = { if (enabled) onClick() },
         shape = RoundedCornerShape(14.dp),
@@ -472,7 +472,7 @@ private fun StoryAudienceChipV2(label: String, selected: Boolean, enabled: Boole
 
 
 @Composable
-private fun StoryViewerV2(
+private fun StoryViewer(
     initialGroup: NovaStoryGroup,
     onDismiss: () -> Unit,
     onSessionExpired: () -> Unit,
@@ -522,8 +522,8 @@ private fun StoryViewerV2(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
-        Box(modifier = Modifier.fillMaxSize().background(StoryV2Background)) {
-            StoryVisualV2(
+        Box(modifier = Modifier.fillMaxSize().background(StoryBackground)) {
+            StoryVisual(
                 story = story,
                 onVideoProgress = { progress = it },
                 onVideoFinished = owner::advance,
@@ -560,15 +560,15 @@ private fun StoryViewerV2(
                     NovaAvatar(source = story.author.avatarUrl, fallbackText = story.author.displayName, size = 38.dp)
                     Spacer(Modifier.width(9.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(story.author.displayName, color = StoryV2Ink, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text(story.author.displayName, color = StoryInk, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         Text(
                             "@${story.author.username}${if (story.audience == "close_friends") " · ★ Close Friends" else ""}",
-                            color = StoryV2Muted,
+                            color = StoryMuted,
                             fontSize = 9.sp,
                         )
                     }
                     Surface(onClick = onDismiss, shape = CircleShape, color = Color.Black.copy(alpha = 0.35f)) {
-                        Text("×", modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp), color = StoryV2Ink, fontSize = 20.sp)
+                        Text("×", modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp), color = StoryInk, fontSize = 20.sp)
                     }
                 }
             }
@@ -592,7 +592,7 @@ private fun StoryViewerV2(
                         Text(
                             story.caption,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
-                            color = StoryV2Ink,
+                            color = StoryInk,
                             fontSize = 12.sp,
                             maxLines = 3,
                             overflow = TextOverflow.Ellipsis,
@@ -621,10 +621,10 @@ private fun StoryViewerV2(
                             Text("▶", color = NovaAccent, fontSize = 15.sp)
                             Spacer(Modifier.width(9.dp))
                             Column(Modifier.weight(1f)) {
-                                Text("Watch original Reel", color = StoryV2Ink, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                Text("@${shared.author.username}", color = StoryV2Muted, fontSize = 9.sp)
+                                Text("Watch original Reel", color = StoryInk, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text("@${shared.author.username}", color = StoryMuted, fontSize = 9.sp)
                             }
-                            Text("›", color = StoryV2Muted, fontSize = 18.sp)
+                            Text("›", color = StoryMuted, fontSize = 18.sp)
                         }
                     }
                 }
@@ -646,10 +646,10 @@ private fun StoryViewerV2(
                             Text("▣", color = NovaAccent, fontSize = 15.sp)
                             Spacer(Modifier.width(9.dp))
                             Column(Modifier.weight(1f)) {
-                                Text("View original post", color = StoryV2Ink, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                Text("@${shared.author.username}", color = StoryV2Muted, fontSize = 9.sp)
+                                Text("View original post", color = StoryInk, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text("@${shared.author.username}", color = StoryMuted, fontSize = 9.sp)
                             }
-                            Text("›", color = StoryV2Muted, fontSize = 18.sp)
+                            Text("›", color = StoryMuted, fontSize = 18.sp)
                         }
                     }
                 }
@@ -664,7 +664,7 @@ private fun StoryViewerV2(
                             Text(
                                 "◉ ${story.viewsCount ?: 0} viewers",
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
-                                color = StoryV2Ink,
+                                color = StoryInk,
                                 fontSize = 10.sp,
                             )
                         }
@@ -678,7 +678,7 @@ private fun StoryViewerV2(
                             Text(
                                 if (state.mutationBusy) "Deleting…" else "Delete",
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
-                                color = StoryV2Ink,
+                                color = StoryInk,
                                 fontSize = 10.sp,
                             )
                         }
@@ -704,12 +704,12 @@ private fun StoryViewerV2(
                             onValueChange = owner::setReplyBody,
                             modifier = Modifier.weight(1f),
                             enabled = !state.mutationBusy,
-                            placeholder = { Text("Reply to @${story.author.username}", color = StoryV2Muted) },
+                            placeholder = { Text("Reply to @${story.author.username}", color = StoryMuted) },
                             singleLine = true,
                             shape = RoundedCornerShape(20.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = StoryV2Ink,
-                                unfocusedTextColor = StoryV2Ink,
+                                focusedTextColor = StoryInk,
+                                unfocusedTextColor = StoryInk,
                                 focusedBorderColor = Color.White.copy(alpha = 0.5f),
                                 unfocusedBorderColor = Color.White.copy(alpha = 0.25f),
                                 cursorColor = NovaAccent,
@@ -724,26 +724,26 @@ private fun StoryViewerV2(
                             shape = CircleShape,
                             color = if (state.replyBody.isNotBlank()) NovaAccent else Color.Black.copy(alpha = 0.4f),
                         ) {
-                            Text("↑", modifier = Modifier.padding(horizontal = 13.dp, vertical = 9.dp), color = StoryV2Ink, fontSize = 18.sp)
+                            Text("↑", modifier = Modifier.padding(horizontal = 13.dp, vertical = 9.dp), color = StoryInk, fontSize = 18.sp)
                         }
                     }
                 }
 
                 state.message?.let {
-                    Text(it, color = StoryV2Muted, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 3.dp))
+                    Text(it, color = StoryMuted, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 3.dp))
                 }
             }
         }
     }
 
     if (state.viewersVisible) {
-        StoryViewersDialogV2(owner = owner)
+        StoryViewersDialog(owner = owner)
     }
 }
 
 
 @Composable
-private fun StoryVisualV2(
+private fun StoryVisual(
     story: NovaStory,
     onVideoProgress: (Float) -> Unit,
     onVideoFinished: () -> Unit,
@@ -758,7 +758,7 @@ private fun StoryVisualV2(
             ) {
                 Text(
                     story.caption,
-                    color = StoryV2Ink,
+                    color = StoryInk,
                     fontSize = 31.sp,
                     lineHeight = 38.sp,
                     textAlign = TextAlign.Center,
@@ -842,12 +842,12 @@ private fun StoryVisualV2(
                         },
                         shape = RoundedCornerShape(16.dp),
                         color = Color.Black.copy(alpha = 0.66f),
-                        border = BorderStroke(1.dp, StoryV2Ink.copy(alpha = 0.25f)),
+                        border = BorderStroke(1.dp, StoryInk.copy(alpha = 0.25f)),
                     ) {
                         Text(
                             "Video couldn't play · Tap to retry",
                             modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp),
-                            color = StoryV2Ink,
+                            color = StoryInk,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                         )
@@ -856,7 +856,7 @@ private fun StoryVisualV2(
             } else if (playbackState == Player.STATE_IDLE || playbackState == Player.STATE_BUFFERING) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(
-                        color = StoryV2Ink,
+                        color = StoryInk,
                         strokeWidth = 2.dp,
                         modifier = Modifier.size(28.dp),
                     )
@@ -877,7 +877,7 @@ private fun StoryVisualV2(
 
 
 @Composable
-private fun StoryViewersDialogV2(owner: StoryViewerStateOwner) {
+private fun StoryViewersDialog(owner: StoryViewerStateOwner) {
     val state = owner.state
 
     AlertDialog(

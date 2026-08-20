@@ -1,6 +1,6 @@
 # Current ownership and entry paths
 
-Snapshot: Phase 4 People state-owner slice, based on the #127 merge `0ba75516d62c04784bef4df7e6dfade37dc147aa`.
+Snapshot: Phase 4 Stories exit cleanup, based on the #132 merge `4547b1cb4367169b5a549705c13bb53cb34a6ba5` with #133 as the active exit-gate PR.
 
 This file records current behavior. A row with several current owners identifies
 consolidation work; it does not imply that one of those paths may be removed
@@ -46,7 +46,7 @@ Messages and Reels overlays. That state-preservation behavior is protected.
 | nested social roots | `NovaApp`, `NovaRootNavigationSignal`, `rootNavigationPlan` | secondary-to-secondary resets through Home | typed child destinations/policy |
 | push/deep-link parsing | `MainActivity.routePushIntent`, `NovaPushOpenSignal`, special navigators | exact push kinds/data keys and fallback behavior | `DeepLinkRouter` |
 | session expiry | `AppViewModel` coordinates logout and global state; feature state owners report terminal 401 effects | logout/clear state and return to authentication on terminal 401 | `AppViewModel` until a core session package is extracted |
-| dependency construction | `AppContainer` for shell/auth/feed/people/messages and stable Calls repository/signaling/WebRTC construction, plus stable feed/posts and People contract views, conversation tools/appearance, group management/membership/people lookup, and conversation realtime/draft factories; remaining non-consolidated feature routes may still construct specialized repositories | repositories and transports use application context; consolidated feature UI consumes stable interfaces/state owners | expand the explicit container feature by feature |
+| dependency construction | `AppContainer` for shell/auth/feed/people/messages plus stable Calls repository/signaling/WebRTC construction, stable feed/posts and People contract views, stable Stories repository construction, conversation tools/appearance, group management/membership/people lookup, and conversation realtime/draft factories; remaining non-consolidated feature routes may still construct specialized repositories | repositories and transports use application context; consolidated feature UI consumes stable interfaces/state owners | expand the explicit container feature by feature |
 | unread sync | `MainActivity`, `InboxViewModel`, `NovaMessagesSignal` | inbox count refresh at startup/resume/read/back | Messages state owner |
 | global call pill | `MainActivity`, `MessagesActivity`, `ReelsActivity` | active call remains reachable | app host / shared special-entry shell |
 
@@ -106,7 +106,7 @@ remove that parity before a device test establishes a replacement.
 | auth/onboarding | `NovaApp`, auth/welcome/onboarding screens | `NovaAuthRepository`, `NovaSessionStore`, `NovaApiClient` | `feature/auth` + `core/session` |
 | feed/posts/comments | `NovaApp` as navigation/session-effect bridge; `HomeScreen`, `NovaPostCard`, `PostDetailScreen`, `PostCommentsScreen` render state and emit callbacks | `FeedStateOwner`, `PostDetailStateOwner`, `PostCommentsStateOwner`; stable `FeedRepository`/`PostRepository` and `feature/posts/domain/model/PostModels.kt`; `NovaFeedRepository`/`NovaApiClient` remain concrete transport/parser adapters | stable `feature/feed` + `feature/posts`; downstream compatibility imports removed in each later feature slice |
 | people/profile/social graph | `NovaApp` as People/Person effect/navigation bridge; `PeopleScreen` and `SocialConnectionsScreen` render stable state/callbacks; `PersonScreen` still owns privacy/safety/message UI residuals; Profile self-screen remains separate; `SocialGraphActivity` hosts the graph owner | stable `PeopleRepository`/`PeoplePagingRepository`, `PeopleStateOwner`, `PersonStateOwner`, `SocialConnectionsStateOwner`; core social repositories remain production adapters | `feature/people` is the stable People state/data owner; profile-specific and cross-feature privacy/sharing/message residuals remain focused follow-up |
-| Stories | `StoriesRail` | stories repository plus UI-owned orchestration | `feature/stories` |
+| Stories | `StoriesRail` owns picker/composer/dialog rendering, image timer, ExoPlayer/video progress, navigation, and insets only | `feature/stories/domain/model/StoryModels.kt`, stable `StoriesRepository`, `StoriesStateOwner`, `StoryViewerStateOwner`; `NovaStoriesRepository` is the production HTTP/auth/media implementation exposed through `AppContainer` | stable `feature/stories`; #133 is the feature exit gate |
 | Reels | `ReelsScreen`, `ProfileReelsViewerScreen`, `ReelsActivity` | reels repositories, playback pool/safety, UI orchestration | `feature/reels` |
 | Messages inbox | `MessagesRoute`, `MessagesScreen` | `InboxViewModel`/`InboxUiState`, feature-owned domain models, `InboxRepository`, and refresh signals | `feature/messages/inbox` |
 | New direct message | `NewMessageDialog` | dialog-scoped `NewMessageViewModel` owns people search/open-conversation state and terminal effects using AppContainer dependencies | `feature/messages` stable state owner |
@@ -201,6 +201,39 @@ state-owner seams, render-only People/social-connections screens, and removal of
 the former `NovaApp` People orchestration. Temporary core person/social-page
 aliases remain only until a focused residual audit proves all remaining consumers
 have migrated.
+
+## Phase 4 Stories dependency boundary
+
+`feature/stories/domain/model/StoryModels.kt` is the single owner of the current
+Story author/shared-post/shared-Reel/story/group/viewer record graph.
+`feature/stories/data/StoriesRepository.kt` is the stable data contract.
+`NovaStoriesRepository` keeps the existing production HTTP, authentication,
+refresh/session clearing, JSON parsing, media URL resolution, multipart upload,
+validation, timeout, and error-mapping behavior, but in #133 it implements the
+stable contract directly and parses into feature-owned records. The temporary
+`CoreStoriesRepositoryAdapter` and its field-for-field mapping test are deleted.
+
+`StoriesStateOwner` owns rail loading/error state, media/text create state,
+completion versions, sibling reload behavior, and terminal-session effects.
+`StoryViewerStateOwner` owns ordered viewer navigation, local viewed/reaction
+state, the shared mutation lock, reply state, delete completion, viewers-dialog
+loading/errors, and terminal-session effects. Existing first-unseen selection,
+401 distinctions, reply persistence, and reaction-toggle behavior remain
+characterized by JVM tests.
+
+`StoriesRail` now owns only UI/platform responsibilities: document picker and
+composer visibility, image-frame timing, video progress/ExoPlayer lifecycle,
+shared Post/Reel navigation, dialogs, and system/IME inset behavior. Superseded
+V2 implementation helper identifiers are removed in #133 without changing those
+behaviors. The visible `Aa · Nova V3` Text Story copy remains untouched because
+this cleanup does not rewrite user-visible product copy.
+
+`scripts/check_stories_architecture.py` is the Stories exit gate. It requires the
+stable models/contract/state-owner/live wiring, requires the production
+repository to implement the stable contract directly, rejects duplicate core
+Story declarations and adapter restoration, scans main/test Kotlin sources for
+legacy core Story model imports, rejects direct repository/network orchestration
+from `StoriesRail`, and rejects the superseded live helper identifiers.
 
 ## Phase 2 Messages dependency boundary
 
@@ -416,6 +449,9 @@ People discovery, Person route loading/following, and followers/following now
 have stable feature-owned data/state boundaries; `NovaApp` and
 `SocialGraphActivity` are effect/navigation hosts for those flows. `PersonScreen`
 still has explicit cross-feature privacy/safety/message orchestration residuals.
+Stories now has one feature-owned Story model graph, stable data/state owners,
+and live UI that delegates network/session behavior while retaining only
+picker/playback/timer/navigation/dialog/inset platform responsibilities.
 Android/transport-specific implementations remain focused core adapters.
 `AppViewModel` owns global session restore/current-user state, terminal session
 logout, and durable primary-overlay state. Feature state owners still report
