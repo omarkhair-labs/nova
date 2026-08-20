@@ -24,11 +24,9 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -36,13 +34,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nova.app.core.auth.NovaSessionStore
-import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaPerson
-import com.nova.app.core.privacy.NovaFollowRequest
-import com.nova.app.core.privacy.NovaPrivacyRepository
-import com.nova.app.core.privacy.NovaPrivacySummary
-import com.nova.app.core.social.NovaSocialPagingRepository
+import com.nova.app.app.appContainer
+import com.nova.app.feature.people.domain.model.NovaPerson
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaHeader
 import com.nova.app.ui.components.NovaSecondaryButton
@@ -53,8 +46,6 @@ import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 
 @Composable
@@ -63,167 +54,23 @@ fun PrivacyScreen(
     onSessionExpired: () -> Unit,
 ) {
     val context = LocalContext.current
-    val privacyRepository = remember(context) { NovaPrivacyRepository(context.applicationContext) }
-    val socialRepository = remember(context) { NovaSocialPagingRepository(context.applicationContext) }
-    val username = remember(context) {
-        NovaSessionStore(context.applicationContext).load()?.cachedUser?.username.orEmpty()
-    }
+    val appContainer = context.appContainer
     val scope = rememberCoroutineScope()
-
-    var summary by remember { mutableStateOf<NovaPrivacySummary?>(null) }
-    var requests by remember { mutableStateOf<List<NovaFollowRequest>>(emptyList()) }
-    var closeFriends by remember { mutableStateOf<List<NovaPerson>>(emptyList()) }
-    var followers by remember { mutableStateOf<List<NovaPerson>>(emptyList()) }
-    var followerCursor by remember { mutableStateOf<String?>(null) }
-    var followerQuery by remember { mutableStateOf("") }
-    var loading by remember { mutableStateOf(true) }
-    var loadingFollowers by remember { mutableStateOf(false) }
-    var loadingMore by remember { mutableStateOf(false) }
-    var privacyBusy by remember { mutableStateOf(false) }
-    var requestBusyId by remember { mutableStateOf<Long?>(null) }
-    var closeFriendBusyId by remember { mutableStateOf<Long?>(null) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var feedback by remember { mutableStateOf<String?>(null) }
-
-    fun handleFailure(result: ApiResult.Failure) {
-        if (result.statusCode == 401) onSessionExpired() else error = result.message
+    val sessionExpiredCallback = rememberUpdatedState(onSessionExpired)
+    val owner = remember(appContainer, scope) {
+        PrivacyStateOwner(
+            username = appContainer.currentCachedUsername(),
+            privacyRepository = appContainer.privacyRepository,
+            followRequestRepository = appContainer.followRequestRepository,
+            peoplePagingRepository = appContainer.peoplePagingRepository,
+            scope = scope,
+            onSessionExpired = { sessionExpiredCallback.value() },
+        )
     }
+    val state = owner.state
 
-    fun loadSummaryBundle() {
-        scope.launch {
-            loading = true
-            error = null
-            when (val result = privacyRepository.summary()) {
-                is ApiResult.Success -> summary = result.value
-                is ApiResult.Failure -> handleFailure(result)
-            }
-            when (val result = privacyRepository.followRequests()) {
-                is ApiResult.Success -> requests = result.value
-                is ApiResult.Failure -> handleFailure(result)
-            }
-            when (val result = privacyRepository.closeFriends()) {
-                is ApiResult.Success -> closeFriends = result.value
-                is ApiResult.Failure -> handleFailure(result)
-            }
-            loading = false
-        }
-    }
-
-    fun loadFollowers(reset: Boolean) {
-        if (username.isBlank()) return
-        if (!reset && (loadingMore || followerCursor == null)) return
-        scope.launch {
-            if (reset) loadingFollowers = true else loadingMore = true
-            error = null
-            when (
-                val result = socialRepository.followers(
-                    username = username,
-                    query = followerQuery.trim(),
-                    cursor = if (reset) null else followerCursor,
-                )
-            ) {
-                is ApiResult.Success -> {
-                    followers = if (reset) {
-                        result.value.people
-                    } else {
-                        val ids = followers.mapTo(mutableSetOf()) { it.id }
-                        followers + result.value.people.filterNot { it.id in ids }
-                    }
-                    followerCursor = result.value.nextCursor
-                }
-                is ApiResult.Failure -> handleFailure(result)
-            }
-            loadingFollowers = false
-            loadingMore = false
-        }
-    }
-
-    fun togglePrivate(enabled: Boolean) {
-        if (privacyBusy) return
-        scope.launch {
-            privacyBusy = true
-            error = null
-            feedback = null
-            when (val result = privacyRepository.setPrivate(enabled)) {
-                is ApiResult.Success -> {
-                    summary = result.value
-                    if (result.value.acceptedPendingRequests > 0) {
-                        feedback = "${result.value.acceptedPendingRequests} pending follow requests were accepted."
-                        requests = emptyList()
-                        loadFollowers(reset = true)
-                    } else {
-                        feedback = if (enabled) "Your account is now private." else "Your account is now public."
-                    }
-                }
-                is ApiResult.Failure -> handleFailure(result)
-            }
-            privacyBusy = false
-        }
-    }
-
-    fun decideFollowRequest(item: NovaFollowRequest, accept: Boolean) {
-        if (requestBusyId != null) return
-        scope.launch {
-            requestBusyId = item.id
-            error = null
-            val result = if (accept) {
-                privacyRepository.acceptFollowRequest(item.id)
-            } else {
-                privacyRepository.declineFollowRequest(item.id)
-            }
-            when (result) {
-                is ApiResult.Success -> {
-                    requests = requests.filterNot { it.id == item.id }
-                    summary = summary?.copy(
-                        pendingFollowRequests = (summary?.pendingFollowRequests ?: 1).minus(1).coerceAtLeast(0)
-                    )
-                    feedback = if (accept) {
-                        "@${item.requester.username} can now follow you."
-                    } else {
-                        "Follow request declined."
-                    }
-                    if (accept) loadFollowers(reset = true)
-                }
-                is ApiResult.Failure -> handleFailure(result)
-            }
-            requestBusyId = null
-        }
-    }
-
-    fun toggleCloseFriend(person: NovaPerson) {
-        if (closeFriendBusyId != null) return
-        val currentlyClose = closeFriends.any { it.id == person.id }
-        scope.launch {
-            closeFriendBusyId = person.id
-            error = null
-            when (val result = privacyRepository.setCloseFriend(person.username, !currentlyClose)) {
-                is ApiResult.Success -> {
-                    closeFriends = if (currentlyClose) {
-                        closeFriends.filterNot { it.id == person.id }
-                    } else {
-                        closeFriends + person
-                    }
-                    summary = summary?.copy(closeFriendsCount = closeFriends.size)
-                    feedback = if (currentlyClose) {
-                        "Removed @${person.username} from Close Friends."
-                    } else {
-                        "Added @${person.username} to Close Friends."
-                    }
-                }
-                is ApiResult.Failure -> handleFailure(result)
-            }
-            closeFriendBusyId = null
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        loadSummaryBundle()
-        loadFollowers(reset = true)
-    }
-
-    LaunchedEffect(followerQuery) {
-        delay(280)
-        loadFollowers(reset = true)
+    LaunchedEffect(owner) {
+        owner.start()
     }
 
     Column(
@@ -243,7 +90,7 @@ fun PrivacyScreen(
 
         Spacer(Modifier.height(22.dp))
 
-        if (loading && summary == null) {
+        if (state.loading && state.summary == null) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 36.dp),
                 horizontalArrangement = Arrangement.Center,
@@ -271,7 +118,7 @@ fun PrivacyScreen(
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = if (summary?.isPrivate == true) {
+                            text = if (state.summary?.isPrivate == true) {
                                 "Only people you approve can see your posts, followers and following."
                             } else {
                                 "Anyone on Nova can follow you and see your posts."
@@ -282,9 +129,9 @@ fun PrivacyScreen(
                         )
                     }
                     Switch(
-                        checked = summary?.isPrivate == true,
-                        onCheckedChange = { togglePrivate(it) },
-                        enabled = !privacyBusy,
+                        checked = state.summary?.isPrivate == true,
+                        onCheckedChange = owner::togglePrivate,
+                        enabled = !state.privacyBusy,
                         colors = SwitchDefaults.colors(checkedThumbColor = NovaBackground, checkedTrackColor = NovaAccent),
                     )
                 }
@@ -294,20 +141,20 @@ fun PrivacyScreen(
 
             SectionTitle(
                 title = "Follow requests",
-                count = summary?.pendingFollowRequests ?: requests.size,
+                count = state.summary?.pendingFollowRequests ?: state.requests.size,
                 subtitle = "People waiting for approval to follow your private account.",
             )
             Spacer(Modifier.height(10.dp))
 
-            if (requests.isEmpty()) {
+            if (state.requests.isEmpty()) {
                 EmptyCard("No pending requests", "New requests will appear here when your account is private.")
             } else {
-                requests.forEach { item ->
+                state.requests.forEach { item ->
                     PersonDecisionCard(
                         person = item.requester,
-                        busy = requestBusyId == item.id,
-                        onPrimary = { decideFollowRequest(item, true) },
-                        onSecondary = { decideFollowRequest(item, false) },
+                        busy = state.requestBusyId == item.id,
+                        onPrimary = { owner.decideFollowRequest(item, true) },
+                        onSecondary = { owner.decideFollowRequest(item, false) },
                     )
                     Spacer(Modifier.height(8.dp))
                 }
@@ -317,14 +164,14 @@ fun PrivacyScreen(
 
             SectionTitle(
                 title = "Close Friends",
-                count = closeFriends.size,
+                count = state.closeFriends.size,
                 subtitle = "Choose from people who already follow you. Close Friends Stories are only visible to them.",
             )
             Spacer(Modifier.height(10.dp))
 
             OutlinedTextField(
-                value = followerQuery,
-                onValueChange = { followerQuery = it.take(50) },
+                value = state.followerQuery,
+                onValueChange = owner::setFollowerQuery,
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("Search your followers", color = NovaMuted) },
                 singleLine = true,
@@ -337,43 +184,43 @@ fun PrivacyScreen(
             )
             Spacer(Modifier.height(10.dp))
 
-            if (loadingFollowers && followers.isEmpty()) {
+            if (state.loadingFollowers && state.followers.isEmpty()) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
                     horizontalArrangement = Arrangement.Center,
                 ) {
                     CircularProgressIndicator(color = NovaAccent)
                 }
-            } else if (followers.isEmpty()) {
+            } else if (state.followers.isEmpty()) {
                 EmptyCard(
-                    if (followerQuery.isBlank()) "No followers yet" else "No matching followers",
-                    if (followerQuery.isBlank()) {
+                    if (state.followerQuery.isBlank()) "No followers yet" else "No matching followers",
+                    if (state.followerQuery.isBlank()) {
                         "When people follow you, you can add them to Close Friends here."
                     } else {
                         "Try a different name or username."
                     },
                 )
             } else {
-                followers.forEach { person ->
-                    val selected = closeFriends.any { it.id == person.id }
+                state.followers.forEach { person ->
+                    val selected = state.closeFriends.any { it.id == person.id }
                     CloseFriendRow(
                         person = person,
                         selected = selected,
-                        busy = closeFriendBusyId == person.id,
-                        onToggle = { toggleCloseFriend(person) },
+                        busy = state.closeFriendBusyId == person.id,
+                        onToggle = { owner.toggleCloseFriend(person) },
                     )
                     Spacer(Modifier.height(8.dp))
                 }
-                if (followerCursor != null) {
+                if (state.followerCursor != null) {
                     NovaSecondaryButton(
-                        text = if (loadingMore) "Loading more…" else "Load more followers",
-                        onClick = { if (!loadingMore) loadFollowers(reset = false) },
+                        text = if (state.loadingMore) "Loading more…" else "Load more followers",
+                        onClick = { if (!state.loadingMore) owner.loadFollowers(reset = false) },
                     )
                 }
             }
         }
 
-        feedback?.let {
+        state.feedback?.let {
             Spacer(Modifier.height(14.dp))
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -389,7 +236,7 @@ fun PrivacyScreen(
                 )
             }
         }
-        error?.let {
+        state.error?.let {
             Spacer(Modifier.height(10.dp))
             Surface(
                 modifier = Modifier.fillMaxWidth(),
