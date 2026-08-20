@@ -24,100 +24,55 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nova.app.core.network.ApiResult
-import com.nova.app.core.reels.NovaReel
-import com.nova.app.core.reels.NovaReelComment
-import com.nova.app.core.reels.NovaReelsRepository
+import com.nova.app.feature.reels.data.ReelsRepository
+import com.nova.app.feature.reels.domain.model.NovaReel
+import com.nova.app.feature.reels.domain.model.NovaReelComment
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
-import kotlinx.coroutines.launch
 
 
 @Composable
 internal fun ThreadedReelCommentsSheet(
     reel: NovaReel,
-    repository: NovaReelsRepository,
+    repository: ReelsRepository,
     onDismiss: () -> Unit,
     onReelUpdated: (NovaReel) -> Unit,
     onPersonClick: (String) -> Unit,
     onSessionExpired: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
-    var comments by remember(reel.id) { mutableStateOf<List<NovaReelComment>>(emptyList()) }
-    var loading by remember(reel.id) { mutableStateOf(true) }
-    var sending by remember(reel.id) { mutableStateOf(false) }
-    var deletingCommentId by remember(reel.id) { mutableStateOf<Long?>(null) }
-    var deletingReplyId by remember(reel.id) { mutableStateOf<Long?>(null) }
-    var body by remember(reel.id) { mutableStateOf("") }
-    var replyingTo by remember(reel.id) { mutableStateOf<NovaReelComment?>(null) }
-    var error by remember(reel.id) { mutableStateOf<String?>(null) }
+    val owner = remember(reel.id, repository, scope) {
+        ReelCommentsStateOwner(
+            reelId = reel.id,
+            repository = repository,
+            scope = scope,
+        )
+    }
+    val state = owner.state
 
-    fun loadComments() {
-        scope.launch {
-            loading = true
-            error = null
-            when (val result = repository.comments(reel.id)) {
-                is ApiResult.Success -> comments = result.value
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onSessionExpired() else error = result.message
-                }
-            }
-            loading = false
+    LaunchedEffect(owner) {
+        owner.loadComments()
+    }
+    LaunchedEffect(state.sessionExpiryVersion) {
+        if (state.sessionExpiryVersion > 0) onSessionExpired()
+    }
+    LaunchedEffect(state.reelUpdatedVersion) {
+        if (state.reelUpdatedVersion > 0) {
+            state.updatedReel?.let(onReelUpdated)
         }
     }
-
-    fun appendComment(comment: NovaReelComment) {
-        val parentId = comment.parentId
-        comments = if (parentId == null) {
-            comments + comment
-        } else {
-            comments.map { parent ->
-                if (parent.id != parentId) {
-                    parent
-                } else {
-                    val existing = parent.replies.filterNot { it.id == comment.id }
-                    parent.copy(
-                        replies = existing + comment,
-                        repliesCount = existing.size + 1,
-                    )
-                }
-            }
-        }
-    }
-
-    fun removeComment(comment: NovaReelComment) {
-        comments = comments.filterNot { it.id == comment.id }
-        if (replyingTo?.id == comment.id) replyingTo = null
-    }
-
-    fun removeReply(reply: NovaReelComment) {
-        val parentId = reply.parentId ?: return
-        comments = comments.map { parent ->
-            if (parent.id != parentId) {
-                parent
-            } else {
-                val remaining = parent.replies.filterNot { it.id == reply.id }
-                parent.copy(replies = remaining, repliesCount = remaining.size)
-            }
-        }
-    }
-
-    LaunchedEffect(reel.id) { loadComments() }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -139,7 +94,7 @@ internal fun ThreadedReelCommentsSheet(
             Spacer(modifier = Modifier.height(12.dp))
 
             when {
-                loading -> {
+                state.loading -> {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -149,7 +104,7 @@ internal fun ThreadedReelCommentsSheet(
                         CircularProgressIndicator(color = NovaAccent)
                     }
                 }
-                comments.isEmpty() -> {
+                state.comments.isEmpty() -> {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -157,7 +112,7 @@ internal fun ThreadedReelCommentsSheet(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = error ?: "No comments yet. Start the conversation.",
+                            text = state.error ?: "No comments yet. Start the conversation.",
                             color = NovaMuted,
                             fontSize = 13.sp,
                         )
@@ -170,39 +125,15 @@ internal fun ThreadedReelCommentsSheet(
                             .height(300.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        items(comments, key = { "comment-${it.id}" }) { comment ->
+                        items(state.comments, key = { "comment-${it.id}" }) { comment ->
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 ReelCommentRow(
                                     comment = comment,
-                                    isDeleting = deletingCommentId == comment.id,
+                                    isDeleting = state.deletingCommentId == comment.id,
                                     onPersonClick = onPersonClick,
-                                    onReply = {
-                                        replyingTo = comment
-                                        error = null
-                                    },
+                                    onReply = { owner.beginReply(comment) },
                                     onDelete = if (comment.isMine) {
-                                        {
-                                            if (deletingCommentId == null && deletingReplyId == null) {
-                                                scope.launch {
-                                                    deletingCommentId = comment.id
-                                                    error = null
-                                                    when (val result = repository.deleteComment(comment.id)) {
-                                                        is ApiResult.Success -> {
-                                                            removeComment(comment)
-                                                            onReelUpdated(result.value)
-                                                        }
-                                                        is ApiResult.Failure -> {
-                                                            if (result.statusCode == 401) {
-                                                                onSessionExpired()
-                                                            } else {
-                                                                error = result.message
-                                                            }
-                                                        }
-                                                    }
-                                                    deletingCommentId = null
-                                                }
-                                            }
-                                        }
+                                        { owner.deleteComment(comment) }
                                     } else null,
                                 )
                                 comment.replies.forEach { reply ->
@@ -210,35 +141,11 @@ internal fun ThreadedReelCommentsSheet(
                                         comment = reply,
                                         modifier = Modifier.padding(start = 42.dp, top = 3.dp),
                                         isReply = true,
-                                        isDeleting = deletingReplyId == reply.id,
+                                        isDeleting = state.deletingReplyId == reply.id,
                                         onPersonClick = onPersonClick,
-                                        onReply = {
-                                            replyingTo = comment
-                                            error = null
-                                        },
+                                        onReply = { owner.beginReply(comment) },
                                         onDelete = if (reply.isMine) {
-                                            {
-                                                if (deletingCommentId == null && deletingReplyId == null) {
-                                                    scope.launch {
-                                                        deletingReplyId = reply.id
-                                                        error = null
-                                                        when (val result = repository.deleteCommentReply(reply.id)) {
-                                                            is ApiResult.Success -> {
-                                                                removeReply(reply)
-                                                                onReelUpdated(result.value)
-                                                            }
-                                                            is ApiResult.Failure -> {
-                                                                if (result.statusCode == 401) {
-                                                                    onSessionExpired()
-                                                                } else {
-                                                                    error = result.message
-                                                                }
-                                                            }
-                                                        }
-                                                        deletingReplyId = null
-                                                    }
-                                                }
-                                            }
+                                            { owner.deleteReply(reply) }
                                         } else null,
                                     )
                                 }
@@ -248,7 +155,7 @@ internal fun ThreadedReelCommentsSheet(
                 }
             }
 
-            error?.let {
+            state.error?.let {
                 Text(
                     text = it,
                     color = NovaMuted,
@@ -257,7 +164,7 @@ internal fun ThreadedReelCommentsSheet(
                 )
             }
 
-            replyingTo?.let { target ->
+            state.replyingTo?.let { target ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -272,7 +179,7 @@ internal fun ThreadedReelCommentsSheet(
                         fontWeight = FontWeight.SemiBold,
                     )
                     Surface(
-                        onClick = { replyingTo = null },
+                        onClick = owner::cancelReply,
                         color = Color.Transparent,
                     ) {
                         Text("×", color = NovaMuted, fontSize = 18.sp, fontWeight = FontWeight.Bold)
@@ -288,13 +195,13 @@ internal fun ThreadedReelCommentsSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 OutlinedTextField(
-                    value = body,
-                    onValueChange = { body = it.take(300) },
+                    value = state.body,
+                    onValueChange = owner::setBody,
                     modifier = Modifier.weight(1f),
-                    enabled = !sending,
+                    enabled = !state.sending,
                     placeholder = {
                         Text(
-                            if (replyingTo == null) "Add a comment…" else "Write a reply…",
+                            if (state.replyingTo == null) "Add a comment…" else "Write a reply…",
                             color = NovaMuted,
                         )
                     },
@@ -307,34 +214,14 @@ internal fun ThreadedReelCommentsSheet(
                     ),
                 )
                 Surface(
-                    onClick = {
-                        if (!sending && body.isNotBlank()) {
-                            val parentId = replyingTo?.id
-                            scope.launch {
-                                sending = true
-                                error = null
-                                when (val result = repository.addComment(reel.id, body, parentId)) {
-                                    is ApiResult.Success -> {
-                                        appendComment(result.value.comment)
-                                        onReelUpdated(result.value.reel)
-                                        body = ""
-                                        replyingTo = null
-                                    }
-                                    is ApiResult.Failure -> {
-                                        if (result.statusCode == 401) onSessionExpired() else error = result.message
-                                    }
-                                }
-                                sending = false
-                            }
-                        }
-                    },
-                    enabled = !sending && body.isNotBlank(),
+                    onClick = owner::send,
+                    enabled = !state.sending && state.body.isNotBlank(),
                     modifier = Modifier.size(48.dp),
                     shape = CircleShape,
-                    color = if (body.isNotBlank()) NovaAccent else NovaBorder,
+                    color = if (state.body.isNotBlank()) NovaAccent else NovaBorder,
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        if (sending) {
+                        if (state.sending) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(17.dp),
                                 color = Color.White,
