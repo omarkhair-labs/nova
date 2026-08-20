@@ -1,6 +1,6 @@
 package com.nova.app.feature.people
 
-import com.nova.app.core.privacy.NovaPersonPrivacyState
+import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
