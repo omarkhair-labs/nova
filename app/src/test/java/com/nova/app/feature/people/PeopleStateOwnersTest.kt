@@ -2,7 +2,6 @@ package com.nova.app.feature.people
 
 import android.net.Uri
 import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaPostAuthor
 import com.nova.app.core.privacy.NovaPersonPrivacyState
 import com.nova.app.feature.people.data.PeoplePagingRepository
 import com.nova.app.feature.people.data.PeopleRepository
@@ -105,14 +104,17 @@ class PeopleStateOwnersTest {
     fun `person follow success updates person and emits both refresh effects`() = runBlocking {
         val before = person(8, following = false)
         val after = before.copy(isFollowing = true, followersCount = before.followersCount + 1)
-        val people = QueuePeopleRepository(followResults = mutableListOf(ApiResult.Success(after)))
+        val people = QueuePeopleRepository(
+            personResults = mutableListOf(ApiResult.Success(before)),
+            followResults = mutableListOf(ApiResult.Success(after)),
+        )
         val owner = PersonStateOwner(
             username = before.username,
             peopleRepository = people,
             postRepository = NoOpPostRepository(),
             scope = CoroutineScope(Dispatchers.Unconfined),
         )
-        owner.loadPersonSeed(before)
+        owner.loadPersonNow()
 
         owner.toggleFollowNow(before)
 
@@ -135,24 +137,17 @@ class PeopleStateOwnersTest {
 }
 
 
-private suspend fun PersonStateOwner.loadPersonSeed(person: NovaPerson) {
-    val repositoryField = this
-    // Seed through the public transport path by using the fake repository configured by the test.
-    repositoryField.loadPersonNow()
-}
-
-
 private class QueuePeopleRepository(
     private val personResults: MutableList<ApiResult<NovaPerson>> = mutableListOf(),
-    val followResults: MutableList<ApiResult<NovaPerson>> = mutableListOf(),
+    private val followResults: MutableList<ApiResult<NovaPerson>> = mutableListOf(),
 ) : PeopleRepository {
     override suspend fun people(query: String): ApiResult<List<NovaPerson>> = ApiResult.Success(emptyList())
 
-    override suspend fun person(username: String): ApiResult<NovaPerson> = personResults.removeFirstOrNull()
-        ?: ApiResult.Failure("not configured")
+    override suspend fun person(username: String): ApiResult<NovaPerson> =
+        personResults.takeFirstOrNull() ?: ApiResult.Failure("not configured")
 
     override suspend fun setFollowing(username: String, follow: Boolean): ApiResult<NovaPerson> =
-        followResults.removeFirstOrNull() ?: ApiResult.Failure("not configured")
+        followResults.takeFirstOrNull() ?: ApiResult.Failure("not configured")
 
     override suspend fun setBlocked(username: String, blocked: Boolean): ApiResult<Unit> = ApiResult.Success(Unit)
 
@@ -200,3 +195,6 @@ private class NoOpPostRepository : PostRepository {
 
     private fun <T> unsupported(): T = error("not used")
 }
+
+
+private fun <T> MutableList<T>.takeFirstOrNull(): T? = if (isEmpty()) null else removeAt(0)
