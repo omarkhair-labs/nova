@@ -4,10 +4,13 @@ import android.content.Context
 import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
-import com.nova.app.core.network.NovaPerson
-import com.nova.app.core.network.NovaPost
 import com.nova.app.core.network.NovaPostAuthor
 import com.nova.app.core.privacy.NovaPersonPrivacyState
+import com.nova.app.feature.people.data.PeoplePagingRepository
+import com.nova.app.feature.people.domain.model.NovaPerson
+import com.nova.app.feature.people.domain.model.NovaPersonPage as StableNovaPersonPage
+import com.nova.app.feature.people.domain.model.NovaProfilePostPage as StableNovaProfilePostPage
+import com.nova.app.feature.posts.domain.model.NovaPost
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -17,30 +20,17 @@ import java.net.URL
 import java.net.URLEncoder
 
 
-data class NovaPersonPage(
-    val people: List<NovaPerson>,
-    val nextCursor: String?,
-    val privacyByUserId: Map<Long, NovaPersonPrivacyState> = emptyMap(),
-)
-
-
-data class NovaProfilePostPage(
-    val posts: List<NovaPost>,
-    val nextCursor: String?,
-)
-
-
 class NovaSocialPagingRepository(
     context: Context,
     private val baseUrl: String = PRODUCTION_API_URL,
-) {
+) : PeoplePagingRepository {
     private val sessionStore = NovaSessionStore(context.applicationContext)
     private val authApi = NovaApiClient(baseUrl)
 
-    suspend fun people(
-        query: String = "",
-        cursor: String? = null,
-    ): ApiResult<NovaPersonPage> {
+    override suspend fun people(
+        query: String,
+        cursor: String?,
+    ): ApiResult<StableNovaPersonPage> {
         return authenticatedCall { token ->
             requestPeoplePage(
                 path = "people/",
@@ -51,11 +41,11 @@ class NovaSocialPagingRepository(
         }
     }
 
-    suspend fun followers(
+    override suspend fun followers(
         username: String,
-        query: String = "",
-        cursor: String? = null,
-    ): ApiResult<NovaPersonPage> {
+        query: String,
+        cursor: String?,
+    ): ApiResult<StableNovaPersonPage> {
         return authenticatedCall { token ->
             requestPeoplePage(
                 path = "people/${encode(username.trim().lowercase())}/followers/",
@@ -66,11 +56,11 @@ class NovaSocialPagingRepository(
         }
     }
 
-    suspend fun following(
+    override suspend fun following(
         username: String,
-        query: String = "",
-        cursor: String? = null,
-    ): ApiResult<NovaPersonPage> {
+        query: String,
+        cursor: String?,
+    ): ApiResult<StableNovaPersonPage> {
         return authenticatedCall { token ->
             requestPeoplePage(
                 path = "people/${encode(username.trim().lowercase())}/following/",
@@ -81,10 +71,10 @@ class NovaSocialPagingRepository(
         }
     }
 
-    suspend fun profilePosts(
+    override suspend fun profilePosts(
         username: String,
-        cursor: String? = null,
-    ): ApiResult<NovaProfilePostPage> {
+        cursor: String?,
+    ): ApiResult<StableNovaProfilePostPage> {
         return authenticatedCall { token ->
             requestProfilePostPage(
                 path = "people/${encode(username.trim().lowercase())}/posts/",
@@ -94,10 +84,10 @@ class NovaSocialPagingRepository(
         }
     }
 
-    suspend fun profileReposts(
+    override suspend fun profileReposts(
         username: String,
-        cursor: String? = null,
-    ): ApiResult<NovaProfilePostPage> {
+        cursor: String?,
+    ): ApiResult<StableNovaProfilePostPage> {
         return authenticatedCall { token ->
             requestProfilePostPage(
                 path = "people/${encode(username.trim().lowercase())}/reposts/",
@@ -111,7 +101,7 @@ class NovaSocialPagingRepository(
         path: String,
         bearerToken: String,
         cursor: String?,
-    ): ApiResult<NovaProfilePostPage> {
+    ): ApiResult<StableNovaProfilePostPage> {
         val resolvedPath = if (cursor.isNullOrBlank()) {
             path
         } else {
@@ -126,7 +116,7 @@ class NovaSocialPagingRepository(
                     }
                 }
                 ApiResult.Success(
-                    NovaProfilePostPage(
+                    StableNovaProfilePostPage(
                         posts = posts,
                         nextCursor = optionalString(response.value, "next_cursor"),
                     )
@@ -141,7 +131,7 @@ class NovaSocialPagingRepository(
         bearerToken: String,
         query: String,
         cursor: String?,
-    ): ApiResult<NovaPersonPage> {
+    ): ApiResult<StableNovaPersonPage> {
         val parameters = buildList {
             val cleanQuery = query.trim()
             if (cleanQuery.isNotBlank()) add("q=${encode(cleanQuery)}")
@@ -161,7 +151,7 @@ class NovaSocialPagingRepository(
                     privacy[person.id] = parsePrivacyState(item)
                 }
                 ApiResult.Success(
-                    NovaPersonPage(
+                    StableNovaPersonPage(
                         people = people,
                         nextCursor = optionalString(response.value, "next_cursor"),
                         privacyByUserId = privacy,
