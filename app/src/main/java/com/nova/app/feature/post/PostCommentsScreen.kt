@@ -29,19 +29,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nova.app.core.feed.NovaFeedRepository
-import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaComment
-import com.nova.app.core.network.NovaPost
+import com.nova.app.feature.posts.domain.model.NovaComment
+import com.nova.app.feature.posts.domain.model.NovaPost
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaConfirmDeleteDialog
 import com.nova.app.ui.components.NovaMediaImage
@@ -55,7 +51,6 @@ import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
-import kotlinx.coroutines.launch
 
 
 @Composable
@@ -65,28 +60,22 @@ fun PostCommentsScreen(
     isLoading: Boolean,
     isSending: Boolean,
     deletingCommentId: Long?,
+    isReplySending: Boolean,
+    deletingReplyId: Long?,
     errorMessage: String?,
+    replyErrorMessage: String?,
     onBack: () -> Unit,
     onRetry: () -> Unit,
     onSend: (String) -> Unit,
     onDelete: (NovaComment) -> Unit,
+    onSendReply: (NovaComment, String) -> Unit,
+    onDeleteReply: (NovaComment) -> Unit,
     onAuthorClick: (String) -> Unit,
 ) {
-    val context = LocalContext.current
-    val replyRepository = remember(context) { NovaFeedRepository(context.applicationContext) }
-    val scope = rememberCoroutineScope()
-
     var draft by remember(post?.id) { mutableStateOf("") }
     var wasSending by remember(post?.id) { mutableStateOf(false) }
-    var localComments by remember(post?.id) { mutableStateOf(comments) }
+    var wasReplySending by remember(post?.id) { mutableStateOf(false) }
     var replyingTo by remember(post?.id) { mutableStateOf<NovaComment?>(null) }
-    var replySending by remember(post?.id) { mutableStateOf(false) }
-    var deletingReplyId by remember(post?.id) { mutableStateOf<Long?>(null) }
-    var replyError by remember(post?.id) { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(comments) {
-        localComments = comments
-    }
 
     LaunchedEffect(isSending, errorMessage) {
         if (wasSending && !isSending && errorMessage == null) {
@@ -95,38 +84,16 @@ fun PostCommentsScreen(
         wasSending = isSending
     }
 
-    fun appendReply(reply: NovaComment) {
-        val parentId = reply.parentId ?: return
-        localComments = localComments.map { parent ->
-            if (parent.id != parentId) {
-                parent
-            } else {
-                val existing = parent.replies.filterNot { it.id == reply.id }
-                parent.copy(
-                    replies = existing + reply,
-                    repliesCount = existing.size + 1,
-                )
-            }
+    LaunchedEffect(isReplySending, replyErrorMessage) {
+        if (wasReplySending && !isReplySending && replyErrorMessage == null) {
+            draft = ""
+            replyingTo = null
         }
+        wasReplySending = isReplySending
     }
 
-    fun removeReply(reply: NovaComment) {
-        val parentId = reply.parentId ?: return
-        localComments = localComments.map { parent ->
-            if (parent.id != parentId) {
-                parent
-            } else {
-                val remaining = parent.replies.filterNot { it.id == reply.id }
-                parent.copy(
-                    replies = remaining,
-                    repliesCount = remaining.size,
-                )
-            }
-        }
-    }
-
-    val composerBusy = isSending || replySending
-    val visibleError = replyError ?: errorMessage
+    val composerBusy = isSending || isReplySending
+    val visibleError = replyErrorMessage ?: errorMessage
 
     Scaffold(
         containerColor = NovaBackground,
@@ -142,10 +109,7 @@ fun PostCommentsScreen(
                     draft = draft,
                     isSending = composerBusy,
                     replyingTo = replyingTo,
-                    onCancelReply = {
-                        replyingTo = null
-                        replyError = null
-                    },
+                    onCancelReply = { replyingTo = null },
                     onDraftChange = { draft = it.take(300) },
                     onSend = {
                         val clean = draft.trim()
@@ -155,25 +119,7 @@ fun PostCommentsScreen(
                         if (parent == null) {
                             onSend(clean)
                         } else {
-                            scope.launch {
-                                replySending = true
-                                replyError = null
-                                when (
-                                    val result = replyRepository.addComment(
-                                        postId = post.id,
-                                        body = clean,
-                                        parentId = parent.id,
-                                    )
-                                ) {
-                                    is ApiResult.Success -> {
-                                        appendReply(result.value.comment)
-                                        draft = ""
-                                        replyingTo = null
-                                    }
-                                    is ApiResult.Failure -> replyError = result.message
-                                }
-                                replySending = false
-                            }
+                            onSendReply(parent, clean)
                         }
                     },
                 )
@@ -213,7 +159,7 @@ fun PostCommentsScreen(
                     }
                 }
 
-                isLoading && localComments.isEmpty() -> {
+                isLoading && comments.isEmpty() -> {
                     item {
                         Box(
                             modifier = Modifier
@@ -226,7 +172,7 @@ fun PostCommentsScreen(
                     }
                 }
 
-                visibleError != null && localComments.isEmpty() -> {
+                visibleError != null && comments.isEmpty() -> {
                     item {
                         EmptyCommentsState(
                             title = "Couldn't load comments",
@@ -238,7 +184,7 @@ fun PostCommentsScreen(
                     }
                 }
 
-                localComments.isEmpty() -> {
+                comments.isEmpty() -> {
                     item {
                         EmptyCommentsState(
                             title = "No comments yet",
@@ -248,16 +194,13 @@ fun PostCommentsScreen(
                 }
 
                 else -> {
-                    items(localComments, key = { it.id }) { comment ->
+                    items(comments, key = { it.id }) { comment ->
                         Column(modifier = Modifier.fillMaxWidth()) {
                             CommentRow(
                                 comment = comment,
                                 isDeleting = deletingCommentId == comment.id,
                                 onAuthorClick = { onAuthorClick(comment.author.username) },
-                                onReply = {
-                                    replyingTo = comment
-                                    replyError = null
-                                },
+                                onReply = { replyingTo = comment },
                                 onDelete = { onDelete(comment) },
                             )
 
@@ -268,23 +211,8 @@ fun PostCommentsScreen(
                                     isReply = true,
                                     isDeleting = deletingReplyId == reply.id,
                                     onAuthorClick = { onAuthorClick(reply.author.username) },
-                                    onReply = {
-                                        replyingTo = comment
-                                        replyError = null
-                                    },
-                                    onDelete = {
-                                        if (deletingReplyId == null && reply.isMine) {
-                                            scope.launch {
-                                                deletingReplyId = reply.id
-                                                replyError = null
-                                                when (val result = replyRepository.deleteCommentReply(reply.id)) {
-                                                    is ApiResult.Success -> removeReply(reply)
-                                                    is ApiResult.Failure -> replyError = result.message
-                                                }
-                                                deletingReplyId = null
-                                            }
-                                        }
-                                    },
+                                    onReply = { replyingTo = comment },
+                                    onDelete = { onDeleteReply(reply) },
                                 )
                             }
                         }
@@ -292,7 +220,7 @@ fun PostCommentsScreen(
                 }
             }
 
-            if (visibleError != null && localComments.isNotEmpty()) {
+            if (visibleError != null && comments.isNotEmpty()) {
                 item {
                     Text(
                         text = visibleError,
