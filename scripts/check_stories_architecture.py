@@ -104,16 +104,37 @@ for required in (
 if "NovaStoriesRepository" in viewer_owner:
     errors.append("StoryViewerStateOwner must not depend on the core Stories transport")
 
-# The state-owner seam is now established, but the live switch is deliberately
-# the next PR. Keep that debt explicit so this slice cannot be mistaken for the
-# Stories feature exit gate.
-if "NovaStoriesRepository" not in rail:
-    errors.append("Stories state-owner prep unexpectedly changed live StoriesRail ownership")
-if "rememberCoroutineScope" not in rail or "ApiResult" not in rail:
-    errors.append("Stories state-owner prep unexpectedly removed legacy live orchestration")
+for required in (
+    "context.appContainer.storiesRepository",
+    "StoriesStateOwner(repository, scope)",
+    "StoryViewerStateOwner(initialGroup, repository, scope)",
+    "StoryViewersDialogV2(owner = owner)",
+):
+    if required not in rail:
+        errors.append(f"live Stories UI is missing stable owner wiring: {required}")
 
+for forbidden in (
+    "com.nova.app.core.stories",
+    "NovaStoriesRepository",
+    "ApiResult",
+    "repository.stories()",
+    "repository.createStory(",
+    "repository.createTextStory(",
+    "repository.markViewed(",
+    "repository.react(",
+    "repository.removeReaction(",
+    "repository.reply(",
+    "repository.viewers(",
+    "repository.deleteStory(",
+):
+    if forbidden in rail:
+        errors.append(f"live Stories UI must not own repository/network orchestration: {forbidden}")
+
+# The live consumer now uses stable owners. The old core transport still exists
+# temporarily behind the adapter; its passive records/helper naming are audited
+# in the next cleanup slice before declaring the Stories feature exit gate.
 if "class NovaStoriesRepository(" not in core_repository:
-    errors.append("existing production Stories transport must remain intact before the live switch")
+    errors.append("production Stories transport disappeared before the cleanup slice")
 
 if errors:
     print("Stories architecture check failed:")
