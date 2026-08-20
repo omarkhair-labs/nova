@@ -83,8 +83,8 @@ for required in (
     'path = "stories/"',
     '.put("recipient_username", recipientUsername.trim().lowercase())',
     '.put("conversation_id", conversationId)',
-    '.put("shared_post_id"',
-    '.put("shared_reel_id"',
+    'targetKey = "shared_post_id"',
+    'targetKey = "shared_reel_id"',
     '.put("caption", caption.trim().take(240))',
     'audience.takeIf { it == "followers" || it == "close_friends" }',
 ):
