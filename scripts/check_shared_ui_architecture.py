@@ -7,6 +7,7 @@ MAIN = ROOT / "app/src/main/java"
 SHADOW_ANDROIDX = MAIN / "androidx"
 CALL_ACTIVITY = MAIN / "com/nova/app/CallActivity.kt"
 ICON_ALIASES = MAIN / "com/nova/app/ui/icons/NovaMaterialIconAliases.kt"
+COMMUNICATION_ICON_ALIASES = ("CallEnd", "Mic", "Videocam", "VolumeUp")
 
 errors: list[str] = []
 
@@ -16,6 +17,16 @@ for path in shadow_sources:
         "application source must not shadow the androidx namespace: "
         f"{path.relative_to(ROOT)}"
     )
+
+for source in MAIN.rglob("*.kt"):
+    text = source.read_text(encoding="utf-8")
+    for import_name in COMMUNICATION_ICON_ALIASES:
+        forbidden = f"import androidx.compose.material.icons.filled.{import_name}"
+        if forbidden in text:
+            errors.append(
+                "communication icon alias must be imported from app-owned ui.icons: "
+                f"{source.relative_to(ROOT)} -> {forbidden}"
+            )
 
 if not ICON_ALIASES.is_file():
     errors.append("missing app-owned communication icon aliases")
@@ -37,13 +48,10 @@ else:
             errors.append(f"app-owned communication icon alias seam changed: {seam}")
 
 activity = CALL_ACTIVITY.read_text(encoding="utf-8")
-for import_name in ("CallEnd", "Mic", "Videocam", "VolumeUp"):
+for import_name in COMMUNICATION_ICON_ALIASES:
     required = f"import com.nova.app.ui.icons.{import_name}"
     if required not in activity:
         errors.append(f"CallActivity must import app-owned icon alias: {required}")
-    forbidden = f"import androidx.compose.material.icons.filled.{import_name}"
-    if forbidden in activity:
-        errors.append(f"CallActivity must not import framework-shadow icon alias: {forbidden}")
 
 for usage in (
     "Icons.Filled.CallEnd",
