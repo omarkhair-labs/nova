@@ -247,19 +247,34 @@ for forbidden in (
     if forbidden in profile_viewer:
         errors.append(f"profile Reel viewer must not retain legacy orchestration dependency: {forbidden}")
 
-# Profile grids stay on the old wiring for one more focused PR. This prevents the
-# viewer/comments dependency from forcing unrelated grid paging changes into this slice.
-for grid_name, grid in (
-    ("authored profile Reel grid", profile_grid),
-    ("reposted profile Reel grid", reposted_grid),
+for grid_name, grid, source in (
+    ("authored profile Reel grid", profile_grid, "ProfileReelsSource.Authored"),
+    ("reposted profile Reel grid", reposted_grid, "ProfileReelsSource.Reposted"),
 ):
     for required in (
-        "NovaProfileReelsRepository(context.applicationContext)",
-        "mutableStateOf<List<NovaReel>>(emptyList())",
-        "com.nova.app.core.network.ApiResult",
+        "context.appContainer.profileReelsRepository",
+        "ProfileReelsGridStateOwner(",
+        source,
+        "owner.loadFirstPage()",
+        "owner.loadMore()",
+        "com.nova.app.feature.reels.domain.model.NovaReel",
     ):
         if required not in grid:
-            errors.append(f"{grid_name} must remain on pre-switch wiring in this PR: {required}")
+            errors.append(f"{grid_name} is missing stable-owner wiring: {required}")
+    for forbidden in (
+        "com.nova.app.core.network.ApiResult",
+        "com.nova.app.core.reels.NovaProfileReelsRepository",
+        "com.nova.app.core.reels.NovaReel\n",
+        "NovaProfileReelsRepository(context.applicationContext)",
+        "mutableStateOf<List<NovaReel>>(emptyList())",
+    ):
+        if forbidden in grid:
+            errors.append(f"{grid_name} must not retain legacy grid orchestration: {forbidden.strip()}")
+
+if "username = username" not in profile_grid:
+    errors.append("authored profile Reel grid must continue opening the current profile's authored source")
+if "username = reel.author.username" not in reposted_grid:
+    errors.append("reposted profile Reel grid must continue opening the original author's authored source")
 
 if errors:
     print("Reels architecture check failed:")
