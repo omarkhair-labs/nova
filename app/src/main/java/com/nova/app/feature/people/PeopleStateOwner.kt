@@ -22,6 +22,7 @@ data class PeopleUiState(
     val firstPageLoading: Boolean = true,
     val loadingMore: Boolean = false,
     val pagingError: String? = null,
+    val followError: String? = null,
     val followingUsername: String? = null,
     val cancelingUsername: String? = null,
     val sessionExpiryVersion: Int = 0,
@@ -175,7 +176,10 @@ class PeopleStateOwner(
         // Preserve the old split-owner quirk: optimistic UI happened before NovaApp's global follow lock.
         if (state.followingUsername != null) return
 
-        state = state.copy(followingUsername = person.username, pagingError = null)
+        state = state.copy(
+            followingUsername = person.username,
+            followError = null,
+        )
         scope.launch {
             when (
                 val result = peopleRepository.setFollowing(
@@ -198,7 +202,7 @@ class PeopleStateOwner(
                             sessionExpiryVersion = state.sessionExpiryVersion + 1,
                         )
                     } else {
-                        state = state.copy(pagingError = result.message)
+                        state = state.copy(followError = result.message)
                         // The former outer error triggered a no-spinner paging refresh in PeopleScreen.
                         loadPageNow(reset = true, showSpinner = false)
                     }
