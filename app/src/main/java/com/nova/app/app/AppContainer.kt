@@ -15,6 +15,7 @@ import com.nova.app.core.messaging.NovaMessagingApiClient
 import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.NovaPostAuthor
+import com.nova.app.core.notifications.NovaNotificationRepository
 import com.nova.app.core.reels.NovaProfileReelsRepository
 import com.nova.app.core.reels.NovaReelWatchRepository
 import com.nova.app.core.reels.NovaReelsRepository
@@ -44,7 +45,6 @@ import com.nova.app.feature.messages.group.data.remote.GroupManagementRemoteRepo
 import com.nova.app.feature.messages.group.data.remote.GroupMembershipRemoteRepository
 import com.nova.app.feature.messages.group.data.remote.GroupPeoplePagingRepository
 import com.nova.app.feature.notifications.data.NotificationsRepository
-import com.nova.app.feature.notifications.data.remote.CoreNotificationsRepositoryAdapter
 import com.nova.app.feature.people.data.PeoplePagingRepository
 import com.nova.app.feature.people.data.PeopleRepository
 import com.nova.app.feature.posts.data.PostRepository
@@ -85,7 +85,7 @@ class AppContainer(context: Context) {
     val profileReelsRepository: ProfileReelsRepository = NovaProfileReelsRepository(appContext)
     val reelWatchRepository: ReelWatchRepository = NovaReelWatchRepository(appContext)
     val sharingRepository: SharingRepository = NovaSharingRepository(appContext)
-    val notificationsRepository: NotificationsRepository = CoreNotificationsRepositoryAdapter(appContext)
+    val notificationsRepository: NotificationsRepository = NovaNotificationRepository(appContext)
     val followRequestRepository: FollowRequestRepository = CoreFollowRequestRepositoryAdapter(appContext)
     val appNavigator = AppNavigationBridge()
 
