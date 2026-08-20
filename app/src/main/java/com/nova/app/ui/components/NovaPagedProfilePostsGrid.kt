@@ -1,33 +1,29 @@
 package com.nova.app.ui.components
 
 import androidx.compose.runtime.Composable
-import com.nova.app.core.network.NovaPost
+import com.nova.app.feature.posts.domain.model.NovaPost
+import com.nova.app.feature.profile.ProfileContentStateOwner
 
 
-/**
- * Backwards-compatible profile content entry point.
- *
- * V4 keeps the existing screen-level contract but upgrades the shared profile
- * content surface so Reposts can include both Reel reposts and Post reposts.
- */
+/** Stable profile content entry point shared by self and person profiles. */
 @Composable
 fun NovaPagedProfilePostsGrid(
     username: String,
-    initialPosts: List<NovaPost>,
-    isLoading: Boolean,
-    errorMessage: String?,
-    onRetry: () -> Unit,
+    owner: ProfileContentStateOwner,
     onPostClick: (NovaPost) -> Unit,
     emptyTitle: String = "No posts yet",
     emptyMessage: String = "Shared moments will show up here.",
     sectionTitle: String? = "Posts",
 ) {
-    NovaProfileContentTabsV4(
+    val state = owner.state
+    NovaProfileContentTabs(
         username = username,
-        initialPosts = initialPosts,
-        postsLoading = isLoading,
-        postsError = errorMessage,
-        onRetryPosts = onRetry,
+        state = state,
+        onTabSelected = owner::selectTab,
+        onRetryPosts = owner::loadPosts,
+        onLoadMorePosts = owner::loadMorePosts,
+        onRetryReposts = owner::retryReposts,
+        onLoadMoreReposts = owner::loadMoreReposts,
         onPostClick = onPostClick,
         postsEmptyTitle = emptyTitle,
         postsEmptyMessage = emptyMessage,
