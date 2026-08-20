@@ -1,0 +1,74 @@
+#!/usr/bin/env python3
+from pathlib import Path
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+
+MODEL = ROOT / "app/src/main/java/com/nova/app/feature/people/domain/model/PeopleModels.kt"
+CONTRACT = ROOT / "app/src/main/java/com/nova/app/feature/people/data/PeopleRepository.kt"
+API = ROOT / "app/src/main/java/com/nova/app/core/network/NovaApiClient.kt"
+SOCIAL = ROOT / "app/src/main/java/com/nova/app/core/social/NovaSocialRepository.kt"
+PAGING = ROOT / "app/src/main/java/com/nova/app/core/social/NovaSocialPagingRepository.kt"
+CONTAINER = ROOT / "app/src/main/java/com/nova/app/app/AppContainer.kt"
+
+errors: list[str] = []
+
+
+def read(path: Path) -> str:
+    if not path.exists():
+        errors.append(f"missing required people architecture file: {path.relative_to(ROOT)}")
+        return ""
+    return path.read_text(encoding="utf-8")
+
+
+model = read(MODEL)
+contract = read(CONTRACT)
+api = read(API)
+social = read(SOCIAL)
+paging = read(PAGING)
+container = read(CONTAINER)
+
+for declaration in ("data class NovaPerson(", "data class NovaPersonPage(", "data class NovaProfilePostPage("):
+    if declaration not in model:
+        errors.append(f"stable people model owner is missing {declaration}")
+
+for declaration in ("data class NovaPerson(",):
+    if declaration in api:
+        errors.append("NovaApiClient must not own NovaPerson")
+
+for declaration in ("data class NovaPersonPage(", "data class NovaProfilePostPage("):
+    if declaration in paging:
+        errors.append(f"NovaSocialPagingRepository must not own {declaration}")
+
+for interface_name in ("interface PeopleRepository", "interface PeoplePagingRepository"):
+    if interface_name not in contract:
+        errors.append(f"stable people contract is missing {interface_name}")
+
+if ") : PeopleRepository" not in social:
+    errors.append("NovaSocialRepository must implement PeopleRepository")
+
+if ") : PeoplePagingRepository" not in paging:
+    errors.append("NovaSocialPagingRepository must implement PeoplePagingRepository")
+
+required_stable_imports = (
+    "com.nova.app.feature.people.domain.model.NovaPerson",
+    "com.nova.app.feature.people.domain.model.NovaPersonPage",
+    "com.nova.app.feature.people.domain.model.NovaProfilePostPage",
+)
+for stable_import in required_stable_imports:
+    if stable_import not in paging:
+        errors.append(f"NovaSocialPagingRepository must import {stable_import}")
+
+if "val peopleRepository: PeopleRepository = socialRepository" not in container:
+    errors.append("AppContainer must expose the stable PeopleRepository")
+
+if "val peoplePagingRepository: PeoplePagingRepository = NovaSocialPagingRepository(appContext)" not in container:
+    errors.append("AppContainer must expose the stable PeoplePagingRepository")
+
+if errors:
+    print("People architecture check failed:")
+    for error in errors:
+        print(f"- {error}")
+    sys.exit(1)
+
+print("People architecture check passed.")
