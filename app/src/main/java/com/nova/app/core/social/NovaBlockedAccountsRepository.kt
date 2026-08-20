@@ -4,7 +4,8 @@ import android.content.Context
 import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
-import com.nova.app.core.network.NovaPerson
+import com.nova.app.feature.people.domain.model.NovaPerson
+import com.nova.app.feature.security.data.BlockedAccountsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -17,11 +18,11 @@ import java.net.URLEncoder
 class NovaBlockedAccountsRepository(
     context: Context,
     private val baseUrl: String = PRODUCTION_API_URL,
-) {
+) : BlockedAccountsRepository {
     private val sessionStore = NovaSessionStore(context.applicationContext)
     private val authApi = NovaApiClient(baseUrl)
 
-    suspend fun blockedAccounts(): ApiResult<List<NovaPerson>> {
+    override suspend fun blockedAccounts(): ApiResult<List<NovaPerson>> {
         return authenticatedCall { token ->
             when (val response = requestJson("auth/blocks/", bearerToken = token)) {
                 is ApiResult.Success -> {
@@ -40,7 +41,7 @@ class NovaBlockedAccountsRepository(
         }
     }
 
-    suspend fun unblock(username: String): ApiResult<Unit> {
+    override suspend fun unblock(username: String): ApiResult<Unit> {
         return authenticatedCall { token ->
             when (
                 val response = requestJson(
