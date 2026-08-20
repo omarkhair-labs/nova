@@ -43,6 +43,8 @@ import com.nova.app.feature.messages.group.data.GroupPeopleRepository
 import com.nova.app.feature.messages.group.data.remote.GroupManagementRemoteRepository
 import com.nova.app.feature.messages.group.data.remote.GroupMembershipRemoteRepository
 import com.nova.app.feature.messages.group.data.remote.GroupPeoplePagingRepository
+import com.nova.app.feature.notifications.data.NotificationsRepository
+import com.nova.app.feature.notifications.data.remote.CoreNotificationsRepositoryAdapter
 import com.nova.app.feature.people.data.PeoplePagingRepository
 import com.nova.app.feature.people.data.PeopleRepository
 import com.nova.app.feature.posts.data.PostRepository
@@ -81,6 +83,7 @@ class AppContainer(context: Context) {
     val profileReelsRepository: ProfileReelsRepository = NovaProfileReelsRepository(appContext)
     val reelWatchRepository: ReelWatchRepository = NovaReelWatchRepository(appContext)
     val sharingRepository: SharingRepository = NovaSharingRepository(appContext)
+    val notificationsRepository: NotificationsRepository = CoreNotificationsRepositoryAdapter(appContext)
     val appNavigator = AppNavigationBridge()
 
     fun callSignaling(callId: String): CallSignaling =

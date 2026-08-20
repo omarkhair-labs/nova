@@ -130,6 +130,9 @@ jobs:
       - name: Check Sharing architecture
         run: python3 scripts/check_sharing_architecture.py
 
+      - name: Check Notifications architecture
+        run: python3 scripts/check_notifications_architecture.py
+
       - name: Check whitespace errors
         run: git diff --check HEAD^1 HEAD
 
