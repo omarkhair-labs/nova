@@ -108,6 +108,8 @@ class AppContainer(context: Context) {
 
     fun currentCachedUserId(): Long? = sessionStore.load()?.cachedUser?.id
 
+    fun currentCachedUsername(): String = sessionStore.load()?.cachedUser?.username.orEmpty()
+
     fun currentMessageAuthor(): NovaPostAuthor = sessionStore.load()?.cachedUser?.let { user ->
         NovaPostAuthor(
             id = user.id,
