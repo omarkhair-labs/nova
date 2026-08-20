@@ -1,6 +1,6 @@
 # Current ownership and entry paths
 
-Snapshot: Phase 4 Notifications live switch, based on the #145 merge `e1cf1e58d4d53d3981ee61a7573a09c8cb022d73` with #146 as the active live-ownership PR.
+Snapshot: Phase 4 Notifications exit cleanup, based on the #146 merge `e834d2d21106ab90bf2289b3b922ab7106a5b7f9` with #147 as the active Notifications exit-gate PR.
 
 This file records current behavior. A row with several current owners identifies
 consolidation work; it does not imply that one of those paths may be removed
@@ -46,7 +46,7 @@ Messages and Reels overlays. That state-preservation behavior is protected.
 | nested social roots | `NovaApp`, `NovaRootNavigationSignal`, `rootNavigationPlan` | secondary-to-secondary resets through Home | typed child destinations/policy |
 | push/deep-link parsing | `MainActivity.routePushIntent`, `NovaPushOpenSignal`, special navigators | exact push kinds/data keys and fallback behavior | `DeepLinkRouter` |
 | session expiry | `AppViewModel` coordinates logout and global state; feature state owners report terminal 401 effects | logout/clear state and return to authentication on terminal 401 | `AppViewModel` until a core session package is extracted |
-| dependency construction | `AppContainer` for shell/auth/feed/people/messages plus stable Calls repository/signaling/WebRTC construction, stable feed/posts and People contract views, stable Stories repository construction, direct stable Reels feed/profile/watch production repository construction, direct stable Sharing construction, stable Notifications construction, the Privacy-owned follow-request seam, conversation tools/appearance, group management/membership/people lookup, and conversation realtime/draft factories; consolidated live social surfaces consume those AppContainer-owned contracts through feature state owners | repositories and transports use application context; consolidated feature UI consumes stable interfaces/state owners | expand the explicit container feature by feature |
+| dependency construction | `AppContainer` for shell/auth/feed/people/messages plus stable Calls repository/signaling/WebRTC construction, stable feed/posts and People contract views, stable Stories repository construction, direct stable Reels feed/profile/watch production repository construction, direct stable Sharing construction, direct stable Notifications production construction, the Privacy-owned follow-request seam, conversation tools/appearance, group management/membership/people lookup, and conversation realtime/draft factories; consolidated live social surfaces consume those AppContainer-owned contracts through feature state owners | repositories and transports use application context; consolidated feature UI consumes stable interfaces/state owners | expand the explicit container feature by feature |
 | unread sync | `MainActivity`, `InboxViewModel`, `NovaMessagesSignal` | inbox count refresh at startup/resume/read/back | Messages state owner |
 | global call pill | `MainActivity`, `MessagesActivity`, `ReelsActivity` | active call remains reachable | app host / shared special-entry shell |
 
@@ -116,7 +116,7 @@ remove that parity before a device test establishes a replacement.
 | Conversation theme | `ConversationScreen`, `NovaChatThemePicker` | `ConversationAppearanceViewModel`/`ConversationAppearanceUiState` own load/save/optimistic rollback/picker state and terminal-401 effects; stable appearance repository owns HTTP/auth/local fallback/legacy-backend compatibility; palette/color rendering remains UI-owned | `feature/messages/appearance` |
 | Group management | `ConversationScreen`, `GroupInfoDialog`, stable add-members/new-group dialogs | stable group models and `GroupManagementRepository`/`GroupMembershipRepository`/`GroupPeopleRepository`; `GroupInfoViewModel`, `AddGroupMembersViewModel`, `NewGroupViewModel` own async state and terminal effects | `feature/messages/group` |
 | Calls | `CallActivity` as Android window/permission/PiP/Compose host | `feature/calls/CallStateOwner`, stable call domain models, `CallRepository`, `CallSignaling`, `CallWebRtcEngine`; `core/calls` retains production REST/signaling/WebRTC/Telecom/notification adapters | stable `feature/calls` ownership with platform adapters behind explicit boundaries |
-| notifications/sharing | `NotificationsScreen` renders owner state and retains list observation plus Person/Reel navigation; `NovaShareDialog` renders Sharing owner state and retains external Android sharing | `NotificationsStateOwner` over stable `NotificationsRepository`, Privacy-owned `FollowRequestRepository`, and stable `PostRepository`; `SharingStateOwner` over stable Sharing/Messages/People seams; notification transport and Privacy follow-request adapters remain temporary production bridges | `feature/notifications` live owner active in #146; `feature/sharing` exit gate satisfied in #142; Privacy follow-request seam remains Privacy-owned for its later slice |
+| notifications/sharing | `NotificationsScreen` renders owner state and retains list observation plus Person/Reel navigation; `NovaShareDialog` renders Sharing owner state and retains external Android sharing | `NotificationsStateOwner` over stable `NotificationsRepository`, Privacy-owned `FollowRequestRepository`, and stable `PostRepository`; `NovaNotificationRepository` directly implements the stable Notifications contract and parses feature-owned models; `SharingStateOwner` uses stable Sharing/Messages/People seams; only the Privacy follow-request adapter remains as a temporary cross-family production bridge | `feature/notifications` exit gate active in #147; `feature/sharing` exit gate satisfied in #142; Privacy follow-request seam remains Privacy-owned for its later slice |
 | privacy/settings/security | special Activities and feature screens | privacy/auth/social repositories and UI callbacks; Privacy now also owns the narrow stable follow-request contract consumed by Notifications | corresponding feature packages |
 
 ## Phase 4 feed/posts/comments dependency boundary
@@ -527,13 +527,15 @@ stable feature-owned dialog data/state ownership and its live dialog delegates
 all server actions while retaining external Android sharing. Notifications now
 uses feature-owned notification models, `NotificationsStateOwner`, stable
 Notifications/Post contracts and the Privacy-owned follow-request seam; the live
-screen retains only list observation, Person/Reel navigation and rendering. The
-existing notification transport adapter and Privacy follow-request adapter remain
-temporary production bridges pending their focused exit/Privacy slices.
-Android/transport-specific implementations remain focused core adapters where
-platform concerns require them. `AppViewModel` owns global session restore/current-user state,
-terminal session logout, and durable primary-overlay state. Feature state owners
-still report terminal session effects to routes; central session-expiry ownership
-is a later cross-feature cleanup. Platform-only UI responsibilities such as
+screen retains only list observation, Person/Reel navigation and rendering.
+`NovaNotificationRepository` directly implements `NotificationsRepository` and
+parses the feature-owned notification records; the temporary Notifications
+adapter/mapping bridge is gone. The Privacy follow-request adapter remains a
+focused production bridge until the Privacy slice. Android/transport-specific
+implementations remain focused core adapters where platform concerns require
+them. `AppViewModel` owns global session restore/current-user state, terminal
+session logout, and durable primary-overlay state. Feature state owners still
+report terminal session effects to routes; central session-expiry ownership is a
+later cross-feature cleanup. Platform-only UI responsibilities such as
 MediaPlayer, picker/permission launchers, recorder state, and the composer's sole
 IME/navigation-bar inset consumption remain intentionally with focused UI owners.
