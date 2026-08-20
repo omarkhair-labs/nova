@@ -64,9 +64,9 @@ class FeedStateOwnerTest {
 private class QueueFeedRepository(
     vararg results: ApiResult<NovaPostPage>,
 ) : FeedRepository {
-    private val queue = ArrayDeque(results.toList())
+    private val queue = results.toMutableList()
 
-    override suspend fun feed(cursor: String?): ApiResult<NovaPostPage> = queue.removeFirst()
+    override suspend fun feed(cursor: String?): ApiResult<NovaPostPage> = queue.removeAt(0)
 
     override fun cachedFeed(userId: Long): NovaPostPage? = null
 }
