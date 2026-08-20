@@ -58,28 +58,28 @@ private inline fun <T, R> ApiResult<T>.mapValue(transform: (T) -> R): ApiResult<
     is ApiResult.Failure -> this
 }
 
-private fun CoreStoryAuthor.toStable() = NovaStoryAuthor(
+internal fun CoreStoryAuthor.toStable() = NovaStoryAuthor(
     id = id,
     username = username,
     name = name,
     avatarUrl = avatarUrl,
 )
 
-private fun CoreStorySharedPost.toStable() = NovaStorySharedPost(
+internal fun CoreStorySharedPost.toStable() = NovaStorySharedPost(
     id = id,
     author = author.toStable(),
     imageUrl = imageUrl,
     caption = caption,
 )
 
-private fun CoreStorySharedReel.toStable() = NovaStorySharedReel(
+internal fun CoreStorySharedReel.toStable() = NovaStorySharedReel(
     id = id,
     author = author.toStable(),
     videoUrl = videoUrl,
     caption = caption,
 )
 
-private fun CoreStory.toStable() = NovaStory(
+internal fun CoreStory.toStable() = NovaStory(
     id = id,
     author = author.toStable(),
     mediaUrl = mediaUrl,
@@ -97,14 +97,14 @@ private fun CoreStory.toStable() = NovaStory(
     sharedReel = sharedReel?.toStable(),
 )
 
-private fun CoreStoryGroup.toStable() = NovaStoryGroup(
+internal fun CoreStoryGroup.toStable() = NovaStoryGroup(
     author = author.toStable(),
     stories = stories.map(CoreStory::toStable),
     hasUnseen = hasUnseen,
     isMine = isMine,
 )
 
-private fun CoreStoryViewer.toStable() = NovaStoryViewer(
+internal fun CoreStoryViewer.toStable() = NovaStoryViewer(
     user = user.toStable(),
     viewedAt = viewedAt,
     reaction = reaction,
