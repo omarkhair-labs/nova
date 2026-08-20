@@ -42,8 +42,8 @@ import com.nova.app.feature.post.PostCommentsScreen
 import com.nova.app.feature.post.PostDetailScreen
 import com.nova.app.feature.posts.comments.PostCommentsStateOwner
 import com.nova.app.feature.posts.detail.PostDetailStateOwner
-import com.nova.app.feature.posts.domain.model.NovaPost
 import com.nova.app.feature.profile.EditProfileScreen
+import com.nova.app.feature.profile.ProfileContentStateOwner
 import com.nova.app.feature.profile.ProfileScreen
 import com.nova.app.feature.welcome.WelcomeScreen
 import com.nova.app.navigation.NovaRoute
@@ -560,52 +560,30 @@ fun NovaApp(
                 NovaRoute.Profile -> NavEntry(route) {
                     val user = appState.currentUser
                     val profileUsername = user?.username.orEmpty()
-                    var profilePosts by remember(profileUsername) { mutableStateOf<List<NovaPost>>(emptyList()) }
-                    var profilePostsLoading by remember(profileUsername) { mutableStateOf(true) }
-                    var profilePostsError by remember(profileUsername) { mutableStateOf<String?>(null) }
-
-                    fun loadProfilePosts() {
-                        if (profileUsername.isBlank()) return
-                        scope.launch {
-                            profilePostsLoading = true
-                            profilePostsError = null
-                            when (val result = postRepository.personPosts(profileUsername)) {
-                                is ApiResult.Success -> {
-                                    profilePosts = result.value
-                                    profilePostsLoading = false
-                                }
-
-                                is ApiResult.Failure -> {
-                                    profilePostsLoading = false
-                                    if (result.statusCode == 401) {
-                                        expireSession()
-                                    } else {
-                                        profilePostsError = result.message
-                                    }
-                                }
-                            }
-                        }
+                    val profileScope = rememberCoroutineScope()
+                    val profileContentOwner = remember(
+                        profileUsername,
+                        postRepository,
+                        peoplePagingRepository,
+                        profileScope,
+                    ) {
+                        ProfileContentStateOwner(
+                            username = profileUsername,
+                            postRepository = postRepository,
+                            pagingRepository = peoplePagingRepository,
+                            scope = profileScope,
+                        )
                     }
+                    val profileContentState = profileContentOwner.state
+                    var handledContentSessionExpiry by remember(profileContentOwner) { mutableStateOf(0) }
 
                     LaunchedEffect(profileUsername, feedState.contentVersion) {
-                        if (profileUsername.isNotBlank()) {
-                            profilePostsLoading = true
-                            profilePostsError = null
-                            when (val result = postRepository.personPosts(profileUsername)) {
-                                is ApiResult.Success -> {
-                                    profilePosts = result.value
-                                    profilePostsLoading = false
-                                }
-
-                                is ApiResult.Failure -> {
-                                    profilePostsLoading = false
-                                    if (result.statusCode == 401) {
-                                        expireSession()
-                                    } else {
-                                        profilePostsError = result.message
-                                    }
-                                }
-                            }
+                        profileContentOwner.loadPosts()
+                    }
+                    LaunchedEffect(profileContentState.sessionExpiryVersion) {
+                        if (profileContentState.sessionExpiryVersion > handledContentSessionExpiry) {
+                            handledContentSessionExpiry = profileContentState.sessionExpiryVersion
+                            expireSession()
                         }
                     }
 
@@ -617,10 +595,7 @@ fun NovaApp(
                         postsCount = user?.postsCount ?: 0,
                         followersCount = user?.followersCount ?: 0,
                         followingCount = user?.followingCount ?: 0,
-                        profilePosts = profilePosts,
-                        postsLoading = profilePostsLoading,
-                        postsError = profilePostsError,
-                        onRetryPosts = ::loadProfilePosts,
+                        profileContentOwner = profileContentOwner,
                         onPostClick = { post ->
                             backStack.add(NovaRoute.PostDetail(post.id))
                         },

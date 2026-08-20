@@ -34,9 +34,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.SettingsActivity
 import com.nova.app.SocialGraphActivity
-import com.nova.app.core.network.NovaPost
 import com.nova.app.feature.people.MODE_FOLLOWERS
 import com.nova.app.feature.people.MODE_FOLLOWING
+import com.nova.app.feature.posts.domain.model.NovaPost
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
 import com.nova.app.ui.components.NovaPagedProfilePostsGrid
@@ -58,10 +58,7 @@ fun ProfileScreen(
     postsCount: Int,
     followersCount: Int,
     followingCount: Int,
-    profilePosts: List<NovaPost>,
-    postsLoading: Boolean,
-    postsError: String?,
-    onRetryPosts: () -> Unit,
+    profileContentOwner: ProfileContentStateOwner,
     onPostClick: (NovaPost) -> Unit,
     onHomeClick: () -> Unit,
     onPeopleClick: () -> Unit,
@@ -220,10 +217,7 @@ fun ProfileScreen(
 
             NovaPagedProfilePostsGrid(
                 username = username,
-                initialPosts = profilePosts,
-                isLoading = postsLoading,
-                errorMessage = postsError,
-                onRetry = onRetryPosts,
+                owner = profileContentOwner,
                 onPostClick = onPostClick,
                 emptyTitle = "Share your first moment",
                 emptyMessage = "Your posts will build a visual history here.",
