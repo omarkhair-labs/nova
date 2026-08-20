@@ -10,7 +10,7 @@ CONTAINER = ROOT / "app/src/main/java/com/nova/app/app/AppContainer.kt"
 CORE_REPOSITORY = ROOT / "app/src/main/java/com/nova/app/core/sharing/NovaSharingRepository.kt"
 DIALOG = ROOT / "app/src/main/java/com/nova/app/feature/sharing/NovaShareDialog.kt"
 PEOPLE_CONTRACT = ROOT / "app/src/main/java/com/nova/app/feature/people/data/PeopleRepository.kt"
-INBOX_CONTRACT = ROOT / "app/src/main/java/com/nova/app/feature/messages/data/InboxRepository.kt"
+MESSAGES_CONTRACT = ROOT / "app/src/main/java/com/nova/app/feature/messages/data/MessagesRepository.kt"
 
 errors: list[str] = []
 
@@ -28,7 +28,7 @@ container = read(CONTAINER)
 core_repository = read(CORE_REPOSITORY)
 dialog = read(DIALOG)
 people_contract = read(PEOPLE_CONTRACT)
-inbox_contract = read(INBOX_CONTRACT)
+messages_contract = read(MESSAGES_CONTRACT)
 
 if "interface SharingRepository" not in contract:
     errors.append("stable SharingRepository contract is missing")
@@ -91,11 +91,15 @@ for required in (
     if required not in core_repository:
         errors.append(f"Sharing transport-sensitive seam changed or disappeared: {required}")
 
-# Stable search dependencies already exist for the next state-owner/live-wiring slice.
+# Stable dependencies already expose the exact live search implementations needed next.
 if "suspend fun people(query: String = \"\")" not in people_contract:
     errors.append("PeopleRepository must expose the existing people(query) search seam")
-if "interface InboxRepository" not in inbox_contract or "suspend fun conversations(" not in inbox_contract:
-    errors.append("InboxRepository must expose the existing conversation-search seam")
+if "interface MessagesRepository" not in messages_contract or "suspend fun conversations(query: String = \"\")" not in messages_contract:
+    errors.append("MessagesRepository must expose the existing conversation-search seam")
+if "val messagingRepository: MessagesRepository = NovaMessagingRepository(" not in container:
+    errors.append("AppContainer messagingRepository must remain the current NovaMessagingRepository implementation")
+if "val peopleRepository: PeopleRepository = socialRepository" not in container:
+    errors.append("AppContainer peopleRepository must remain the current NovaSocialRepository implementation")
 
 # Boundary PR intentionally does not change the live dialog yet.
 for required in (
