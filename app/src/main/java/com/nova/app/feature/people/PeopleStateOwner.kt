@@ -4,10 +4,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.nova.app.core.network.ApiResult
-import com.nova.app.core.privacy.NovaPersonPrivacyState
 import com.nova.app.feature.people.data.PeoplePagingRepository
 import com.nova.app.feature.people.data.PeopleRepository
 import com.nova.app.feature.people.domain.model.NovaPerson
+import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
