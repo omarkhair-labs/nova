@@ -1,6 +1,6 @@
 package com.nova.app.feature.feed
 
-import com.nova.app.core.network.NovaPost
+import com.nova.app.feature.posts.domain.model.NovaPost
 
 
 fun mergeFeedPage(
