@@ -16,6 +16,7 @@ import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.NovaPostAuthor
 import com.nova.app.core.notifications.NovaNotificationRepository
+import com.nova.app.core.privacy.NovaPrivacyRepository
 import com.nova.app.core.reels.NovaProfileReelsRepository
 import com.nova.app.core.reels.NovaReelWatchRepository
 import com.nova.app.core.reels.NovaReelsRepository
@@ -50,8 +51,6 @@ import com.nova.app.feature.people.data.PeopleRepository
 import com.nova.app.feature.posts.data.PostRepository
 import com.nova.app.feature.privacy.data.FollowRequestRepository
 import com.nova.app.feature.privacy.data.PrivacyRepository
-import com.nova.app.feature.privacy.data.remote.CoreFollowRequestRepositoryAdapter
-import com.nova.app.feature.privacy.data.remote.CorePrivacyRepositoryAdapter
 import com.nova.app.feature.reels.data.ProfileReelsRepository
 import com.nova.app.feature.reels.data.ReelWatchRepository
 import com.nova.app.feature.reels.data.ReelsRepository
@@ -88,8 +87,9 @@ class AppContainer(context: Context) {
     val reelWatchRepository: ReelWatchRepository = NovaReelWatchRepository(appContext)
     val sharingRepository: SharingRepository = NovaSharingRepository(appContext)
     val notificationsRepository: NotificationsRepository = NovaNotificationRepository(appContext)
-    val privacyRepository: PrivacyRepository = CorePrivacyRepositoryAdapter(appContext)
-    val followRequestRepository: FollowRequestRepository = CoreFollowRequestRepositoryAdapter(appContext)
+    private val privacyTransport = NovaPrivacyRepository(appContext)
+    val privacyRepository: PrivacyRepository = privacyTransport
+    val followRequestRepository: FollowRequestRepository = privacyTransport
     val appNavigator = AppNavigationBridge()
 
     fun callSignaling(callId: String): CallSignaling =
