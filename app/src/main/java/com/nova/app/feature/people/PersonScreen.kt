@@ -39,14 +39,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.SocialGraphActivity
+import com.nova.app.app.appContainer
 import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaPerson
 import com.nova.app.core.network.NovaPost
-import com.nova.app.core.privacy.NovaPersonPrivacyState
-import com.nova.app.core.privacy.NovaPrivacyRepository
 import com.nova.app.core.social.NovaSocialRepository
+import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState
 import com.nova.app.feature.sharing.NovaShareDialog
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaHeader
@@ -96,9 +96,7 @@ fun PersonScreen(
     val socialRepository = remember(context) {
         NovaSocialRepository(context.applicationContext)
     }
-    val privacyRepository = remember(context) {
-        NovaPrivacyRepository(context.applicationContext)
-    }
+    val privacyRepository = context.appContainer.privacyRepository
     val scope = rememberCoroutineScope()
     var isOpeningMessage by remember(person?.username) { mutableStateOf(false) }
     var messageError by remember(person?.username) { mutableStateOf<String?>(null) }
