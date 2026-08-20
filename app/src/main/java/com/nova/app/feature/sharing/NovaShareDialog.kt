@@ -19,23 +19,17 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nova.app.core.messaging.NovaMessagingRepository
-import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaPerson
-import com.nova.app.core.sharing.NovaSharingRepository
-import com.nova.app.core.social.NovaSocialRepository
+import com.nova.app.app.appContainer
 import com.nova.app.feature.messages.domain.model.NovaConversation
+import com.nova.app.feature.people.domain.model.NovaPerson
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
@@ -43,8 +37,6 @@ import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 
 @Composable
@@ -61,124 +53,31 @@ fun NovaShareDialog(
     }
 
     val context = LocalContext.current
-    val socialRepository = remember(context) { NovaSocialRepository(context.applicationContext) }
-    val messagingRepository = remember(context) { NovaMessagingRepository(context.applicationContext) }
-    val sharingRepository = remember(context) { NovaSharingRepository(context.applicationContext) }
     val scope = rememberCoroutineScope()
-
-    var query by remember { mutableStateOf("") }
-    var people by remember { mutableStateOf<List<NovaPerson>>(emptyList()) }
-    var conversations by remember { mutableStateOf<List<NovaConversation>>(emptyList()) }
-    var loadingPeople by remember { mutableStateOf(true) }
-    var loadingConversations by remember { mutableStateOf(true) }
-    var busyUsername by remember { mutableStateOf<String?>(null) }
-    var busyConversationId by remember { mutableStateOf<Long?>(null) }
-    var addingToStory by remember { mutableStateOf(false) }
-    var message by remember { mutableStateOf<String?>(null) }
-    var error by remember { mutableStateOf<String?>(null) }
-
-    val busy = busyUsername != null || busyConversationId != null || addingToStory
-    val canAddToStory = postId != null || reelId != null
-
-    LaunchedEffect(query) {
-        delay(220)
-        loadingPeople = true
-        loadingConversations = true
-        error = null
-
-        when (val result = messagingRepository.conversations(query.trim())) {
-            is ApiResult.Success -> conversations = result.value.conversations
-            is ApiResult.Failure -> {
-                conversations = emptyList()
-                error = result.message
-            }
-        }
-        loadingConversations = false
-
-        when (val result = socialRepository.people(query.trim())) {
-            is ApiResult.Success -> {
-                val directUsernames = conversations
-                    .filterNot { it.isGroup }
-                    .mapTo(mutableSetOf()) { it.otherUser.username.lowercase() }
-                people = result.value.filterNot { it.username.lowercase() in directUsernames }
-            }
-            is ApiResult.Failure -> {
-                people = emptyList()
-                if (error == null) error = result.message
-            }
-        }
-        loadingPeople = false
-    }
-
-    suspend fun shareToPerson(username: String): ApiResult<Unit> = when {
-        postId != null -> sharingRepository.sharePost(username, postId)
-        reelId != null -> sharingRepository.shareReel(username, reelId)
-        else -> sharingRepository.shareProfile(username, profileUsername.orEmpty())
-    }
-
-    suspend fun shareToGroup(conversationId: Long): ApiResult<Unit> = when {
-        postId != null -> sharingRepository.sharePostToConversation(conversationId, postId)
-        reelId != null -> sharingRepository.shareReelToConversation(conversationId, reelId)
-        else -> sharingRepository.shareProfileToConversation(conversationId, profileUsername.orEmpty())
-    }
-
-    fun sendTo(person: NovaPerson) {
-        if (busy) return
-        scope.launch {
-            busyUsername = person.username
-            error = null
-            message = null
-            when (val result = shareToPerson(person.username)) {
-                is ApiResult.Success -> message = "Sent to @${person.username}"
-                is ApiResult.Failure -> error = result.message
-            }
-            busyUsername = null
+    val target = remember(postId, profileUsername, reelId) {
+        when {
+            postId != null -> SharingTarget.Post(postId)
+            reelId != null -> SharingTarget.Reel(reelId)
+            else -> SharingTarget.Profile(profileUsername.orEmpty())
         }
     }
-
-    fun sendToConversation(conversation: NovaConversation) {
-        if (busy) return
-        scope.launch {
-            busyConversationId = conversation.id
-            error = null
-            message = null
-            val result = if (conversation.isGroup) {
-                shareToGroup(conversation.id)
-            } else {
-                shareToPerson(conversation.otherUser.username)
-            }
-            when (result) {
-                is ApiResult.Success -> message = "Sent to ${conversation.displayName}"
-                is ApiResult.Failure -> error = result.message
-            }
-            busyConversationId = null
-        }
+    val owner = remember(context, target, scope) {
+        val container = context.appContainer
+        SharingStateOwner(
+            target = target,
+            messagesRepository = container.messagingRepository,
+            peopleRepository = container.peopleRepository,
+            sharingRepository = container.sharingRepository,
+            scope = scope,
+        )
+    }
+    LaunchedEffect(owner) {
+        owner.start()
     }
 
-    fun addToStory(audience: String) {
-        if (!canAddToStory || busy) return
-        scope.launch {
-            addingToStory = true
-            error = null
-            message = null
-            val result = when {
-                postId != null -> sharingRepository.addPostToStory(postId, audience = audience)
-                reelId != null -> sharingRepository.addReelToStory(reelId, audience = audience)
-                else -> ApiResult.Failure("That content can't be added to a Story.")
-            }
-            when (result) {
-                is ApiResult.Success -> {
-                    message = if (audience == "close_friends") {
-                        "Added to your Close Friends Story"
-                    } else {
-                        "Added to your Story"
-                    }
-                }
-                is ApiResult.Failure -> error = result.message
-            }
-            addingToStory = false
-        }
-    }
+    val state = owner.state
+    val busy = state.busy
+    val canAddToStory = owner.canAddToStory
 
     AlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
@@ -196,20 +95,20 @@ fun NovaShareDialog(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         StoryAudienceAction(
-                            title = if (addingToStory) "Adding…" else "Your Story",
+                            title = if (state.addingToStory) "Adding…" else "Your Story",
                             subtitle = "Followers",
                             symbol = "✦",
                             modifier = Modifier.weight(1f),
                             enabled = !busy,
-                            onClick = { addToStory("followers") },
+                            onClick = { owner.addToStory("followers") },
                         )
                         StoryAudienceAction(
-                            title = if (addingToStory) "Adding…" else "Close Friends",
+                            title = if (state.addingToStory) "Adding…" else "Close Friends",
                             subtitle = "Selected people",
                             symbol = "★",
                             modifier = Modifier.weight(1f),
                             enabled = !busy,
-                            onClick = { addToStory("close_friends") },
+                            onClick = { owner.addToStory("close_friends") },
                         )
                     }
                 }
@@ -242,11 +141,8 @@ fun NovaShareDialog(
                 }
 
                 OutlinedTextField(
-                    value = query,
-                    onValueChange = {
-                        query = it.take(60)
-                        error = null
-                    },
+                    value = state.query,
+                    onValueChange = owner::setQuery,
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text("Search chats or people", color = NovaMuted) },
                     singleLine = true,
@@ -258,16 +154,16 @@ fun NovaShareDialog(
                     ),
                 )
 
-                if (loadingPeople || loadingConversations) {
+                if (state.loadingPeople || state.loadingConversations) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp),
                         horizontalArrangement = Arrangement.Center,
                     ) {
                         CircularProgressIndicator(color = NovaAccent)
                     }
-                } else if (people.isEmpty() && conversations.isEmpty()) {
+                } else if (state.people.isEmpty() && state.conversations.isEmpty()) {
                     Text(
-                        if (query.isBlank()) "No chats or people available to share with yet."
+                        if (state.query.isBlank()) "No chats or people available to share with yet."
                         else "No chats or people match that search.",
                         color = NovaMuted,
                         fontSize = 12.sp,
@@ -277,45 +173,45 @@ fun NovaShareDialog(
                         modifier = Modifier.fillMaxWidth().heightIn(max = 310.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        if (conversations.isNotEmpty()) {
+                        if (state.conversations.isNotEmpty()) {
                             item(key = "chats-label") {
                                 Text("Recent chats", color = NovaMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                             }
-                            items(conversations, key = { "conversation-${it.id}" }) { conversation ->
+                            items(state.conversations, key = { "conversation-${it.id}" }) { conversation ->
                                 ShareConversationRow(
                                     conversation = conversation,
-                                    busy = busyConversationId == conversation.id,
+                                    busy = state.busyConversationId == conversation.id,
                                     enabled = !busy,
-                                    onSend = { sendToConversation(conversation) },
+                                    onSend = { owner.sendToConversation(conversation) },
                                 )
                             }
                         }
-                        if (people.isNotEmpty()) {
+                        if (state.people.isNotEmpty()) {
                             item(key = "people-label") {
                                 Text(
                                     "People",
                                     color = NovaMuted,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(top = if (conversations.isEmpty()) 0.dp else 4.dp),
+                                    modifier = Modifier.padding(top = if (state.conversations.isEmpty()) 0.dp else 4.dp),
                                 )
                             }
-                            items(people, key = { "person-${it.id}" }) { person ->
+                            items(state.people, key = { "person-${it.id}" }) { person ->
                                 SharePersonRow(
                                     person = person,
-                                    busy = busyUsername == person.username,
+                                    busy = state.busyUsername == person.username,
                                     enabled = !busy,
-                                    onSend = { sendTo(person) },
+                                    onSend = { owner.sendToPerson(person) },
                                 )
                             }
                         }
                     }
                 }
 
-                message?.takeIf { it.isNotBlank() }?.let {
+                state.message?.takeIf { it.isNotBlank() }?.let {
                     Text(it, color = NovaAccent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
-                error?.takeIf { it.isNotBlank() }?.let {
+                state.error?.takeIf { it.isNotBlank() }?.let {
                     Text(it, color = NovaMuted, fontSize = 12.sp)
                 }
             }
