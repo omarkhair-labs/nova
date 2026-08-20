@@ -15,6 +15,7 @@ import com.nova.app.core.messaging.NovaMessagingApiClient
 import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.NovaPostAuthor
+import com.nova.app.core.social.NovaSocialPagingRepository
 import com.nova.app.core.social.NovaSocialRepository
 import com.nova.app.feature.calls.data.CallRepository
 import com.nova.app.feature.calls.domain.model.NovaCallKind
@@ -37,6 +38,8 @@ import com.nova.app.feature.messages.group.data.GroupPeopleRepository
 import com.nova.app.feature.messages.group.data.remote.GroupManagementRemoteRepository
 import com.nova.app.feature.messages.group.data.remote.GroupMembershipRemoteRepository
 import com.nova.app.feature.messages.group.data.remote.GroupPeoplePagingRepository
+import com.nova.app.feature.people.data.PeoplePagingRepository
+import com.nova.app.feature.people.data.PeopleRepository
 import com.nova.app.feature.posts.data.PostRepository
 import com.nova.app.navigation.AppNavigationBridge
 
@@ -61,6 +64,8 @@ class AppContainer(context: Context) {
     val groupPeopleRepository: GroupPeopleRepository = GroupPeoplePagingRepository(appContext)
     val callRepository: CallRepository = NovaCallRepository(appContext)
     val socialRepository = NovaSocialRepository(appContext, api)
+    val peopleRepository: PeopleRepository = socialRepository
+    val peoplePagingRepository: PeoplePagingRepository = NovaSocialPagingRepository(appContext)
     val appNavigator = AppNavigationBridge()
 
     fun callSignaling(callId: String): CallSignaling =
