@@ -6,6 +6,7 @@ import com.nova.app.core.network.AuthSession
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.NovaUser
 import com.nova.app.core.push.NovaPushRegistration
+import com.nova.app.feature.security.data.SecurityRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -16,12 +17,12 @@ import java.net.URL
 class NovaAccountSecurityRepository(
     context: Context,
     private val baseUrl: String = PRODUCTION_API_URL,
-) {
+) : SecurityRepository {
     private val appContext = context.applicationContext
     private val sessionStore = NovaSessionStore(appContext)
     private val authApi = NovaApiClient(baseUrl)
 
-    suspend fun requestPasswordReset(email: String): ApiResult<String> {
+    override suspend fun requestPasswordReset(email: String): ApiResult<String> {
         val body = JSONObject().put("email", email.trim().lowercase())
         return when (
             val result = requestJson(
@@ -39,7 +40,7 @@ class NovaAccountSecurityRepository(
         }
     }
 
-    suspend fun resetPassword(
+    override suspend fun resetPassword(
         email: String,
         code: String,
         newPassword: String,
@@ -64,7 +65,7 @@ class NovaAccountSecurityRepository(
         }
     }
 
-    suspend fun changePassword(
+    override suspend fun changePassword(
         currentPassword: String,
         newPassword: String,
     ): ApiResult<NovaUser> {
@@ -76,14 +77,14 @@ class NovaAccountSecurityRepository(
         )
     }
 
-    suspend fun revokeOtherSessions(currentPassword: String): ApiResult<NovaUser> {
+    override suspend fun revokeOtherSessions(currentPassword: String): ApiResult<NovaUser> {
         return authenticatedSessionCall(
             path = "auth/sessions/revoke-others/",
             body = JSONObject().put("current_password", currentPassword),
         )
     }
 
-    suspend fun deleteAccount(currentPassword: String): ApiResult<String> {
+    override suspend fun deleteAccount(currentPassword: String): ApiResult<String> {
         val stored = sessionStore.load()
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
         val body = JSONObject().put("current_password", currentPassword)
