@@ -16,6 +16,8 @@ CONTAINER = ROOT / "app/src/main/java/com/nova/app/app/AppContainer.kt"
 CORE_REPOSITORY = ROOT / "app/src/main/java/com/nova/app/core/privacy/NovaPrivacyRepository.kt"
 SCREEN = ROOT / "app/src/main/java/com/nova/app/feature/privacy/PrivacyScreen.kt"
 PERSON_SCREEN = ROOT / "app/src/main/java/com/nova/app/feature/people/PersonScreen.kt"
+PRIVATE_BADGE = ROOT / "app/src/main/java/com/nova/app/feature/people/PrivateProfileBadgeV4.kt"
+PRIVATE_BADGE_TEST = ROOT / "app/src/test/java/com/nova/app/feature/people/PrivateProfileBadgeV4Test.kt"
 
 errors: list[str] = []
 
@@ -39,6 +41,8 @@ container = read(CONTAINER)
 core_repository = read(CORE_REPOSITORY)
 screen = read(SCREEN)
 person_screen = read(PERSON_SCREEN)
+private_badge = read(PRIVATE_BADGE)
+private_badge_test = read(PRIVATE_BADGE_TEST)
 
 # Stable Privacy-owned models exclude the already-separated follow-request record.
 for required in (
@@ -71,7 +75,7 @@ for forbidden in ("followRequests", "acceptFollowRequest", "declineFollowRequest
     if forbidden in contract:
         errors.append(f"PrivacyRepository must not absorb the separate FollowRequestRepository operation: {forbidden}")
 
-# Production remains adapter-backed until the residual PersonScreen consumer switches.
+# Production remains adapter-backed until the focused People/privacy edge cleanup closes the feature.
 if "class CorePrivacyRepositoryAdapter(context: Context) : PrivacyRepository" not in adapter:
     errors.append("Privacy production adapter must implement PrivacyRepository")
 for required in (
@@ -106,11 +110,11 @@ for operation in ("followRequests", "acceptFollowRequest", "declineFollowRequest
     if operation not in follow_contract:
         errors.append(f"FollowRequestRepository lost operation: {operation}")
 if "class CoreFollowRequestRepositoryAdapter(context: Context) : FollowRequestRepository" not in follow_adapter:
-    errors.append("existing follow-request production adapter must remain during Privacy live switch")
+    errors.append("existing follow-request production adapter must remain until Privacy exit cleanup")
 if "val followRequestRepository: FollowRequestRepository = CoreFollowRequestRepositoryAdapter(appContext)" not in container:
     errors.append("AppContainer must keep the independent follow-request seam")
 
-# Characterized Privacy state/orchestration remains the sole live async/domain owner.
+# Characterized Privacy state/orchestration remains the sole live async/domain owner for PrivacyScreen.
 for required in (
     "data class PrivacyUiState(",
     "val summary: NovaPrivacySummary? = null",
@@ -177,7 +181,7 @@ for test_name in (
     if test_name not in owner_test:
         errors.append(f"Privacy state-owner characterization is missing test: {test_name}")
 
-# Preserve the exact current Privacy transport/auth/parser behavior.
+# Preserve the exact current Privacy transport/auth/parser behavior until the exit cleanup moves ownership directly.
 for required in (
     "data class NovaPersonPrivacyState(",
     "data class NovaPrivacySummary(",
@@ -209,7 +213,7 @@ for required in (
     if required not in core_repository:
         errors.append(f"Privacy transport-sensitive seam changed or disappeared: {required}")
 
-# Live PrivacyScreen must now render only the AppContainer-backed PrivacyStateOwner.
+# Live PrivacyScreen must render only the AppContainer-backed PrivacyStateOwner.
 for required in (
     "import com.nova.app.app.appContainer",
     "import com.nova.app.feature.people.domain.model.NovaPerson",
@@ -265,22 +269,47 @@ for forbidden in (
     if forbidden in screen:
         errors.append(f"live PrivacyScreen must not restore route-local Privacy orchestration: {forbidden}")
 
-# PersonScreen remains the only residual concrete personState consumer until the next focused Privacy slice.
+# PersonScreen now consumes the stable Privacy model/repository, while its pre-existing safety/message/share
+# responsibilities and request-cancel quirk deliberately stay local for this focused residual slice.
 for required in (
+    "import com.nova.app.app.appContainer",
+    "import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState",
+    "val privacyRepository = context.appContainer.privacyRepository",
+    "mutableStateOf(NovaPersonPrivacyState(isPrivate = false, followRequested = false, canViewContent = true))",
+    "privacyRepository.personState(selected.username)",
+    "is ApiResult.Success -> privacyState = result.value",
+    "is ApiResult.Failure -> messageError = result.message",
+    "NovaSocialRepository(context.applicationContext)",
+    "socialRepository.setFollowing(selectedPerson.username, false)",
+    "followRequested = false",
+    "canViewContent = !privacyState.isPrivate",
+    'safetyMessage = "Follow request canceled."',
+    'safetyMessage = "Follow request sent."',
+    "onFollowToggle(selectedPerson)",
+    "socialRepository.setBlocked(selectedPerson.username, true)",
+    "socialRepository.report(",
+    "NovaMessagingRepository(context.applicationContext)",
+    "NovaShareDialog(",
+):
+    if required not in person_screen:
+        errors.append(f"PersonScreen stable Privacy residual lost protected seam: {required}")
+for forbidden in (
     "import com.nova.app.core.privacy.NovaPersonPrivacyState",
     "import com.nova.app.core.privacy.NovaPrivacyRepository",
     "NovaPrivacyRepository(context.applicationContext)",
-    "privacyRepository.personState(selected.username)",
-):
-    if required not in person_screen:
-        errors.append(f"Privacy live-switch PR must preserve current PersonScreen residual wiring: {required}")
-for forbidden in (
-    "context.appContainer.privacyRepository",
-    "import com.nova.app.feature.privacy.data.PrivacyRepository",
     "CorePrivacyRepositoryAdapter",
 ):
     if forbidden in person_screen:
-        errors.append(f"Privacy live-switch PR must not switch PersonScreen yet: {forbidden}")
+        errors.append(f"PersonScreen must not restore concrete/core Privacy ownership: {forbidden}")
+
+for badge_text, badge_name in (
+    (private_badge, "PrivateProfileBadgeV4.kt"),
+    (private_badge_test, "PrivateProfileBadgeV4Test.kt"),
+):
+    if "import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState" not in badge_text:
+        errors.append(f"{badge_name} must consume the stable Privacy state model")
+    if "import com.nova.app.core.privacy.NovaPersonPrivacyState" in badge_text:
+        errors.append(f"{badge_name} must not restore the core Privacy state model")
 
 if errors:
     print("Privacy architecture check failed:")
