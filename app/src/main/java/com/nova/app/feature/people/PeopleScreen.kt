@@ -22,25 +22,15 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaPerson
 import com.nova.app.core.privacy.NovaPersonPrivacyState
-import com.nova.app.core.social.NovaSocialPagingRepository
-import com.nova.app.core.social.NovaSocialRepository
+import com.nova.app.feature.people.domain.model.NovaPerson
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
 import com.nova.app.ui.components.NovaSecondaryButton
@@ -52,114 +42,18 @@ import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+
 
 @Composable
 fun PeopleScreen(
-    people: List<NovaPerson>,
-    isLoading: Boolean,
-    errorMessage: String?,
-    followingUsername: String?,
-    onSearch: (String) -> Unit,
+    state: PeopleUiState,
+    onQueryChange: (String) -> Unit,
     onPersonClick: (String) -> Unit,
     onFollowToggle: (NovaPerson) -> Unit,
+    onLoadMore: () -> Unit,
     onHomeClick: () -> Unit,
     onProfileClick: () -> Unit,
 ) {
-    val context = LocalContext.current
-    val repository = remember(context) {
-        NovaSocialPagingRepository(context.applicationContext)
-    }
-    val socialRepository = remember(context) {
-        NovaSocialRepository(context.applicationContext)
-    }
-    val scope = rememberCoroutineScope()
-
-    var query by remember { mutableStateOf("") }
-    var pagedPeople by remember { mutableStateOf<List<NovaPerson>>(people) }
-    var privacyByUserId by remember { mutableStateOf<Map<Long, NovaPersonPrivacyState>>(emptyMap()) }
-    var nextCursor by remember { mutableStateOf<String?>(null) }
-    var firstPageLoading by remember { mutableStateOf(true) }
-    var loadingMore by remember { mutableStateOf(false) }
-    var pagingError by remember { mutableStateOf<String?>(null) }
-    var cancelingUsername by remember { mutableStateOf<String?>(null) }
-    var requestVersion by remember { mutableStateOf(0) }
-
-    fun loadPage(reset: Boolean, showSpinner: Boolean = true) {
-        if (!reset && (loadingMore || nextCursor == null)) return
-        requestVersion += 1
-        val version = requestVersion
-        val cursor = if (reset) null else nextCursor
-        scope.launch {
-            if (reset) {
-                if (showSpinner) firstPageLoading = true
-            } else {
-                loadingMore = true
-            }
-            pagingError = null
-            when (val result = repository.people(query = query, cursor = cursor)) {
-                is ApiResult.Success -> {
-                    if (version == requestVersion) {
-                        pagedPeople = if (reset) {
-                            result.value.people
-                        } else {
-                            val existingIds = pagedPeople.mapTo(mutableSetOf()) { it.id }
-                            pagedPeople + result.value.people.filterNot { it.id in existingIds }
-                        }
-                        privacyByUserId = if (reset) {
-                            result.value.privacyByUserId
-                        } else {
-                            privacyByUserId + result.value.privacyByUserId
-                        }
-                        nextCursor = result.value.nextCursor
-                        firstPageLoading = false
-                        loadingMore = false
-                    }
-                }
-                is ApiResult.Failure -> {
-                    if (version == requestVersion) {
-                        firstPageLoading = false
-                        loadingMore = false
-                        pagingError = result.message
-                        if (result.statusCode == 401) {
-                            onSearch(query)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    fun cancelRequest(person: NovaPerson) {
-        if (cancelingUsername != null || followingUsername == person.username) return
-        scope.launch {
-            cancelingUsername = person.username
-            when (val result = socialRepository.setFollowing(person.username, false)) {
-                is ApiResult.Success -> {
-                    privacyByUserId = privacyByUserId + (
-                        person.id to (privacyByUserId[person.id] ?: NovaPersonPrivacyState(false, false, true)).copy(
-                            followRequested = false,
-                        )
-                    )
-                }
-                is ApiResult.Failure -> pagingError = result.message
-            }
-            cancelingUsername = null
-        }
-    }
-
-    LaunchedEffect(query) {
-        delay(280)
-        loadPage(reset = true, showSpinner = pagedPeople.isEmpty())
-    }
-
-    LaunchedEffect(errorMessage) {
-        if (!errorMessage.isNullOrBlank()) {
-            loadPage(reset = true, showSpinner = false)
-        }
-    }
-
     androidx.compose.material3.Scaffold(
         containerColor = NovaBackground,
         bottomBar = {
@@ -198,22 +92,22 @@ fun PeopleScreen(
             Spacer(modifier = Modifier.height(18.dp))
 
             NovaTextField(
-                value = query,
-                onValueChange = { query = it.take(40) },
+                value = state.query,
+                onValueChange = onQueryChange,
                 label = "Search",
                 placeholder = "Name or @username",
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (pagedPeople.isNotEmpty()) {
+            if (state.people.isNotEmpty()) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = if (query.isBlank()) "Discover" else "Results",
+                        text = if (state.query.isBlank()) "Discover" else "Results",
                         color = NovaInk,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -222,7 +116,7 @@ fun PeopleScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        if (firstPageLoading && pagedPeople.isNotEmpty()) {
+                        if (state.firstPageLoading && state.people.isNotEmpty()) {
                             CircularProgressIndicator(
                                 color = NovaAccent,
                                 strokeWidth = 2.dp,
@@ -230,7 +124,7 @@ fun PeopleScreen(
                             )
                         }
                         Text(
-                            text = "${pagedPeople.size} loaded",
+                            text = "${state.people.size} loaded",
                             color = NovaMuted,
                             fontSize = 11.sp,
                         )
@@ -239,9 +133,9 @@ fun PeopleScreen(
                 Spacer(modifier = Modifier.height(10.dp))
             }
 
-            val visibleError = pagingError ?: errorMessage
+            val visibleError = state.pagingError ?: state.followError
             when {
-                firstPageLoading && pagedPeople.isEmpty() -> {
+                state.firstPageLoading && state.people.isEmpty() -> {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -260,7 +154,7 @@ fun PeopleScreen(
                     }
                 }
 
-                visibleError != null && pagedPeople.isEmpty() -> {
+                visibleError != null && state.people.isEmpty() -> {
                     EmptyPeopleCard(
                         title = "Couldn't load people",
                         subtitle = visibleError,
@@ -268,10 +162,10 @@ fun PeopleScreen(
                     )
                 }
 
-                pagedPeople.isEmpty() -> {
+                state.people.isEmpty() -> {
                     EmptyPeopleCard(
-                        title = if (query.isBlank()) "No one to show yet" else "No matches",
-                        subtitle = if (query.isBlank()) {
+                        title = if (state.query.isBlank()) "No one to show yet" else "No matches",
+                        subtitle = if (state.query.isBlank()) {
                             "Your discovery space will grow as more people join Nova."
                         } else {
                             "Try a different name or username."
@@ -285,44 +179,16 @@ fun PeopleScreen(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        items(pagedPeople, key = { it.id }) { person ->
-                            val privacy = privacyByUserId[person.id]
+                        items(state.people, key = { it.id }) { person ->
+                            val privacy = state.privacyByUserId[person.id]
                                 ?: NovaPersonPrivacyState(false, false, true)
                             PersonRow(
                                 person = person,
                                 privacy = privacy,
-                                isUpdating = followingUsername == person.username || cancelingUsername == person.username,
+                                isUpdating = state.followingUsername == person.username ||
+                                    state.cancelingUsername == person.username,
                                 onClick = { onPersonClick(person.username) },
-                                onFollowToggle = {
-                                    if (privacy.followRequested && !person.isFollowing) {
-                                        cancelRequest(person)
-                                    } else {
-                                        val wasFollowing = person.isFollowing
-                                        if (!wasFollowing && privacy.isPrivate) {
-                                            privacyByUserId = privacyByUserId + (
-                                                person.id to privacy.copy(followRequested = true)
-                                            )
-                                        } else {
-                                            pagedPeople = pagedPeople.map { existing ->
-                                                if (existing.id == person.id) {
-                                                    existing.copy(
-                                                        isFollowing = !wasFollowing,
-                                                        followersCount = (existing.followersCount + if (wasFollowing) -1 else 1)
-                                                            .coerceAtLeast(0),
-                                                    )
-                                                } else {
-                                                    existing
-                                                }
-                                            }
-                                            if (wasFollowing && privacy.isPrivate) {
-                                                privacyByUserId = privacyByUserId + (
-                                                    person.id to privacy.copy(canViewContent = false)
-                                                )
-                                            }
-                                        }
-                                        onFollowToggle(person)
-                                    }
-                                },
+                                onFollowToggle = { onFollowToggle(person) },
                             )
                         }
 
@@ -337,11 +203,11 @@ fun PeopleScreen(
                             }
                         }
 
-                        if (nextCursor != null) {
+                        if (state.nextCursor != null) {
                             item {
                                 NovaSecondaryButton(
-                                    text = if (loadingMore) "Loading more…" else "Load more people",
-                                    onClick = { if (!loadingMore) loadPage(reset = false) },
+                                    text = if (state.loadingMore) "Loading more…" else "Load more people",
+                                    onClick = { if (!state.loadingMore) onLoadMore() },
                                 )
                             }
                         }
@@ -352,6 +218,7 @@ fun PeopleScreen(
         }
     }
 }
+
 
 @Composable
 private fun PersonRow(
@@ -424,6 +291,7 @@ private fun PersonRow(
                         )
                     }
                 }
+
                 privacy.followRequested -> {
                     OutlinedButton(
                         onClick = onFollowToggle,
@@ -443,6 +311,7 @@ private fun PersonRow(
                         )
                     }
                 }
+
                 else -> {
                     Button(
                         onClick = onFollowToggle,
@@ -468,6 +337,7 @@ private fun PersonRow(
         }
     }
 }
+
 
 @Composable
 private fun EmptyPeopleCard(

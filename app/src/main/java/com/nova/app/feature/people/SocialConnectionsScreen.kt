@@ -23,25 +23,14 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nova.app.core.auth.NovaSessionStore
-import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaPerson
 import com.nova.app.core.privacy.NovaPersonPrivacyState
-import com.nova.app.core.social.NovaSocialPagingRepository
-import com.nova.app.core.social.NovaSocialRepository
+import com.nova.app.feature.people.domain.model.NovaPerson
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaHeader
 import com.nova.app.ui.components.NovaSecondaryButton
@@ -52,139 +41,21 @@ import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 
 @Composable
 fun SocialConnectionsScreen(
     username: String,
     mode: String,
+    state: SocialConnectionsUiState,
+    onQueryChange: (String) -> Unit,
+    onRetry: () -> Unit,
+    onLoadMore: () -> Unit,
+    onFollowToggle: (NovaPerson) -> Unit,
     onBack: () -> Unit,
-    onSessionExpired: () -> Unit,
 ) {
-    val context = LocalContext.current
-    val pagingRepository = remember(context) {
-        NovaSocialPagingRepository(context.applicationContext)
-    }
-    val socialRepository = remember(context) {
-        NovaSocialRepository(context.applicationContext)
-    }
-    val currentUserId = remember(context) {
-        NovaSessionStore(context.applicationContext).load()?.cachedUser?.id
-    }
-    val scope = rememberCoroutineScope()
-
-    var query by remember { mutableStateOf("") }
-    var people by remember(username, mode) { mutableStateOf<List<NovaPerson>>(emptyList()) }
-    var privacyByUserId by remember(username, mode) { mutableStateOf<Map<Long, NovaPersonPrivacyState>>(emptyMap()) }
-    var nextCursor by remember(username, mode) { mutableStateOf<String?>(null) }
-    var isLoading by remember(username, mode) { mutableStateOf(true) }
-    var isLoadingMore by remember(username, mode) { mutableStateOf(false) }
-    var updatingUsername by remember(username, mode) { mutableStateOf<String?>(null) }
-    var errorMessage by remember(username, mode) { mutableStateOf<String?>(null) }
-    var requestVersion by remember(username, mode) { mutableStateOf(0) }
-
     val normalizedMode = if (mode == MODE_FOLLOWING) MODE_FOLLOWING else MODE_FOLLOWERS
     val title = if (normalizedMode == MODE_FOLLOWING) "Following" else "Followers"
-
-    fun load(reset: Boolean) {
-        if (!reset && (isLoadingMore || nextCursor == null)) return
-        requestVersion += 1
-        val version = requestVersion
-        val cursor = if (reset) null else nextCursor
-        scope.launch {
-            if (reset) isLoading = true else isLoadingMore = true
-            errorMessage = null
-            val result = if (normalizedMode == MODE_FOLLOWING) {
-                pagingRepository.following(username, query, cursor)
-            } else {
-                pagingRepository.followers(username, query, cursor)
-            }
-            when (result) {
-                is ApiResult.Success -> {
-                    if (version == requestVersion) {
-                        people = if (reset) {
-                            result.value.people
-                        } else {
-                            val existingIds = people.mapTo(mutableSetOf()) { it.id }
-                            people + result.value.people.filterNot { it.id in existingIds }
-                        }
-                        privacyByUserId = if (reset) {
-                            result.value.privacyByUserId
-                        } else {
-                            privacyByUserId + result.value.privacyByUserId
-                        }
-                        nextCursor = result.value.nextCursor
-                        isLoading = false
-                        isLoadingMore = false
-                    }
-                }
-                is ApiResult.Failure -> {
-                    if (version == requestVersion) {
-                        isLoading = false
-                        isLoadingMore = false
-                        if (result.statusCode == 401) {
-                            onSessionExpired()
-                        } else {
-                            errorMessage = result.message
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    fun toggleFollow(person: NovaPerson) {
-        if (updatingUsername != null || person.id == currentUserId) return
-        val privacy = privacyByUserId[person.id] ?: NovaPersonPrivacyState(false, false, true)
-        val shouldFollow = !person.isFollowing && !privacy.followRequested
-        scope.launch {
-            updatingUsername = person.username
-            errorMessage = null
-            when (
-                val result = socialRepository.setFollowing(
-                    username = person.username,
-                    follow = shouldFollow,
-                )
-            ) {
-                is ApiResult.Success -> {
-                    when {
-                        privacy.followRequested -> {
-                            privacyByUserId = privacyByUserId + (
-                                person.id to privacy.copy(followRequested = false)
-                            )
-                        }
-                        privacy.isPrivate && !person.isFollowing -> {
-                            privacyByUserId = privacyByUserId + (
-                                person.id to privacy.copy(followRequested = true, canViewContent = false)
-                            )
-                        }
-                        else -> {
-                            people = people.map { existing ->
-                                if (existing.id == result.value.id) result.value else existing
-                            }
-                            if (privacy.isPrivate && person.isFollowing) {
-                                privacyByUserId = privacyByUserId + (
-                                    person.id to privacy.copy(canViewContent = false)
-                                )
-                            }
-                        }
-                    }
-                }
-                is ApiResult.Failure -> {
-                    if (result.statusCode == 401) onSessionExpired()
-                    else errorMessage = result.message
-                }
-            }
-            updatingUsername = null
-        }
-    }
-
-    LaunchedEffect(username, normalizedMode, query) {
-        delay(240)
-        load(reset = true)
-    }
 
     Column(
         modifier = Modifier
@@ -202,15 +73,15 @@ fun SocialConnectionsScreen(
 
         Spacer(modifier = Modifier.height(18.dp))
         NovaTextField(
-            value = query,
-            onValueChange = { query = it.take(40) },
+            value = state.query,
+            onValueChange = onQueryChange,
             label = "Search",
             placeholder = "Name or @username",
         )
         Spacer(modifier = Modifier.height(16.dp))
 
         when {
-            isLoading && people.isEmpty() -> {
+            state.isLoading && state.people.isEmpty() -> {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
@@ -219,7 +90,7 @@ fun SocialConnectionsScreen(
                 }
             }
 
-            errorMessage != null && people.isEmpty() -> {
+            state.errorMessage != null && state.people.isEmpty() -> {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(22.dp),
@@ -234,21 +105,21 @@ fun SocialConnectionsScreen(
                             fontWeight = FontWeight.Bold,
                         )
                         Text(
-                            text = errorMessage.orEmpty(),
+                            text = state.errorMessage,
                             color = NovaMuted,
                             fontSize = 12.sp,
                             modifier = Modifier.padding(top = 6.dp),
                         )
                         NovaSecondaryButton(
                             text = "Try again",
-                            onClick = { load(reset = true) },
+                            onClick = onRetry,
                             modifier = Modifier.padding(top = 14.dp),
                         )
                     }
                 }
             }
 
-            people.isEmpty() -> {
+            state.people.isEmpty() -> {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(22.dp),
@@ -260,13 +131,13 @@ fun SocialConnectionsScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(
-                            text = if (query.isBlank()) "No $title yet" else "No matches",
+                            text = if (state.query.isBlank()) "No $title yet" else "No matches",
                             color = NovaInk,
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
                         )
                         Text(
-                            text = if (query.isBlank()) {
+                            text = if (state.query.isBlank()) {
                                 if (normalizedMode == MODE_FOLLOWING) {
                                     "Accounts followed by @$username will appear here."
                                 } else {
@@ -286,7 +157,7 @@ fun SocialConnectionsScreen(
 
             else -> {
                 Text(
-                    text = "${people.size} loaded",
+                    text = "${state.people.size} loaded",
                     color = NovaMuted,
                     fontSize = 11.sp,
                     modifier = Modifier.padding(bottom = 10.dp),
@@ -295,31 +166,31 @@ fun SocialConnectionsScreen(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(9.dp),
                 ) {
-                    items(people, key = { it.id }) { person ->
+                    items(state.people, key = { it.id }) { person ->
                         ConnectionRow(
                             person = person,
-                            privacy = privacyByUserId[person.id]
+                            privacy = state.privacyByUserId[person.id]
                                 ?: NovaPersonPrivacyState(false, false, true),
-                            isSelf = person.id == currentUserId,
-                            isUpdating = updatingUsername == person.username,
-                            onFollowToggle = { toggleFollow(person) },
+                            isSelf = person.id == state.currentUserId,
+                            isUpdating = state.updatingUsername == person.username,
+                            onFollowToggle = { onFollowToggle(person) },
                         )
                     }
-                    if (errorMessage != null) {
+                    if (state.errorMessage != null) {
                         item {
                             Text(
-                                text = errorMessage.orEmpty(),
+                                text = state.errorMessage,
                                 color = NovaMuted,
                                 fontSize = 12.sp,
                                 modifier = Modifier.padding(horizontal = 6.dp),
                             )
                         }
                     }
-                    if (nextCursor != null) {
+                    if (state.nextCursor != null) {
                         item {
                             NovaSecondaryButton(
-                                text = if (isLoadingMore) "Loading more…" else "Load more",
-                                onClick = { if (!isLoadingMore) load(reset = false) },
+                                text = if (state.isLoadingMore) "Loading more…" else "Load more",
+                                onClick = { if (!state.isLoadingMore) onLoadMore() },
                             )
                         }
                     }
@@ -390,6 +261,7 @@ private fun ConnectionRow(
                             )
                         }
                     }
+
                     privacy.followRequested -> {
                         OutlinedButton(
                             onClick = onFollowToggle,
@@ -404,6 +276,7 @@ private fun ConnectionRow(
                             )
                         }
                     }
+
                     else -> {
                         Button(
                             onClick = onFollowToggle,
@@ -425,6 +298,3 @@ private fun ConnectionRow(
         }
     }
 }
-
-const val MODE_FOLLOWERS = "followers"
-const val MODE_FOLLOWING = "following"

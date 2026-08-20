@@ -1,6 +1,6 @@
 # Current ownership and entry paths
 
-Snapshot: Phase 4 feed/posts/comments closing slice, based on the #126 branch from `6fc13bb192223e3c7dd771af845f8ec892d6216e`.
+Snapshot: Phase 4 People state-owner slice, based on the #127 merge `0ba75516d62c04784bef4df7e6dfade37dc147aa`.
 
 This file records current behavior. A row with several current owners identifies
 consolidation work; it does not imply that one of those paths may be removed
@@ -46,7 +46,7 @@ Messages and Reels overlays. That state-preservation behavior is protected.
 | nested social roots | `NovaApp`, `NovaRootNavigationSignal`, `rootNavigationPlan` | secondary-to-secondary resets through Home | typed child destinations/policy |
 | push/deep-link parsing | `MainActivity.routePushIntent`, `NovaPushOpenSignal`, special navigators | exact push kinds/data keys and fallback behavior | `DeepLinkRouter` |
 | session expiry | `AppViewModel` coordinates logout and global state; feature state owners report terminal 401 effects | logout/clear state and return to authentication on terminal 401 | `AppViewModel` until a core session package is extracted |
-| dependency construction | `AppContainer` for shell/auth/feed/social/messages and stable Calls repository/signaling/WebRTC construction, plus stable feed/posts contract views, conversation tools/appearance, group management/membership/people lookup, and conversation realtime/draft factories; remaining non-consolidated feature routes may still construct specialized repositories | repositories and transports use application context; consolidated feature UI consumes stable interfaces/state owners | expand the explicit container feature by feature |
+| dependency construction | `AppContainer` for shell/auth/feed/people/messages and stable Calls repository/signaling/WebRTC construction, plus stable feed/posts and People contract views, conversation tools/appearance, group management/membership/people lookup, and conversation realtime/draft factories; remaining non-consolidated feature routes may still construct specialized repositories | repositories and transports use application context; consolidated feature UI consumes stable interfaces/state owners | expand the explicit container feature by feature |
 | unread sync | `MainActivity`, `InboxViewModel`, `NovaMessagesSignal` | inbox count refresh at startup/resume/read/back | Messages state owner |
 | global call pill | `MainActivity`, `MessagesActivity`, `ReelsActivity` | active call remains reachable | app host / shared special-entry shell |
 
@@ -93,7 +93,7 @@ tree. Empty intents are ignored by the signal.
 | `SettingsActivity` | no | explicit internal intent | edge-to-edge | screen status/system-bottom padding |
 | `PrivacyActivity` | no | explicit internal intent | edge-to-edge | privacy screen owns status/navigation padding |
 | `AccountSecurityActivity` | no | explicit internal intent | edge-to-edge | security page owns status/navigation/IME padding |
-| `SocialGraphActivity` | no | explicit internal intent with username/mode | edge-to-edge | social graph screen owns status/navigation padding |
+| `SocialGraphActivity` | no | explicit internal intent with username/mode; hosts `SocialConnectionsStateOwner` and terminal-session effect bridging | edge-to-edge | social graph screen owns status/navigation padding |
 
 The current manifest gives `adjustResize` to Main, Messages, and Reels. The
 2.1.3 fix added MainActivity because normal Messages now lives there. Do not
@@ -105,7 +105,7 @@ remove that parity before a device test establishes a replacement.
 |---|---|---|---|
 | auth/onboarding | `NovaApp`, auth/welcome/onboarding screens | `NovaAuthRepository`, `NovaSessionStore`, `NovaApiClient` | `feature/auth` + `core/session` |
 | feed/posts/comments | `NovaApp` as navigation/session-effect bridge; `HomeScreen`, `NovaPostCard`, `PostDetailScreen`, `PostCommentsScreen` render state and emit callbacks | `FeedStateOwner`, `PostDetailStateOwner`, `PostCommentsStateOwner`; stable `FeedRepository`/`PostRepository` and `feature/posts/domain/model/PostModels.kt`; `NovaFeedRepository`/`NovaApiClient` remain concrete transport/parser adapters | stable `feature/feed` + `feature/posts`; downstream compatibility imports removed in each later feature slice |
-| people/profile/social graph | `NovaApp`, People/Person/Profile screens, V4 profile components, `SocialGraphActivity` | social repositories + UI orchestration | `feature/people`, `feature/profile` |
+| people/profile/social graph | `NovaApp` as People/Person effect/navigation bridge; `PeopleScreen` and `SocialConnectionsScreen` render stable state/callbacks; `PersonScreen` still owns privacy/safety/message UI residuals; Profile self-screen remains separate; `SocialGraphActivity` hosts the graph owner | stable `PeopleRepository`/`PeoplePagingRepository`, `PeopleStateOwner`, `PersonStateOwner`, `SocialConnectionsStateOwner`; core social repositories remain production adapters | `feature/people` is the stable People state/data owner; profile-specific and cross-feature privacy/sharing/message residuals remain focused follow-up |
 | Stories | `StoriesRail` | stories repository plus UI-owned orchestration | `feature/stories` |
 | Reels | `ReelsScreen`, `ProfileReelsViewerScreen`, `ReelsActivity` | reels repositories, playback pool/safety, UI orchestration | `feature/reels` |
 | Messages inbox | `MessagesRoute`, `MessagesScreen` | `InboxViewModel`/`InboxUiState`, feature-owned domain models, `InboxRepository`, and refresh signals | `feature/messages/inbox` |
@@ -157,6 +157,50 @@ and rejects feed repository ownership from `HomeScreen`/`PostCommentsScreen`.
 `core/network/PostModelCompatibility.kt` is a temporary deprecated bridge only
 for downstream features whose Phase 4 slice has not run yet; it does not restore
 core ownership and is removed as those consumers migrate.
+
+## Phase 4 People/Profile/Social-graph dependency boundary
+
+`feature/people/domain/model/PeopleModels.kt` owns `NovaPerson`, `NovaPersonPage`,
+and `NovaProfilePostPage`. `feature/people/data/PeopleRepository.kt` owns the
+stable direct-person/follow/safety contract and the followers/following/profile
+paging contract. `NovaSocialRepository` and `NovaSocialPagingRepository` remain
+the production transport/auth/parser adapters, while `AppContainer` exposes the
+stable interfaces.
+
+`PeopleStateOwner` owns discovery query state, the existing 280 ms debounce,
+paging/cursor state, stale-request suppression, privacy metadata, existing-ID
+page deduplication, optimistic follow/request state, and session/profile/feed
+effects. It intentionally preserves the old split-owner quirks: duplicates that
+occur only inside an incoming page remain duplicated; normal-follow optimistic
+UI can happen before the global in-flight follow guard rejects a second request;
+a request-cancel 401 remains a local error; and a normal follow error remains
+visible across the no-spinner paging refresh that follows it.
+
+`PersonStateOwner` owns route-local person loading, profile-post loading, normal
+follow transport/state, terminal-session effects, and current-user/feed refresh
+effects. `NovaApp` now bridges those effects to navigation/session/feed behavior
+instead of launching those requests directly.
+
+`SocialConnectionsStateOwner` owns followers/following mode normalization, the
+existing 240 ms search debounce, paging/privacy state, stale-request suppression,
+self-follow protection, privacy-aware follow/request cancellation, and terminal
+401 effects. `SocialGraphActivity` hosts that owner and retains the special
+Activity clear-task behavior on session expiry. `PeopleScreen` and
+`SocialConnectionsScreen` render state and emit callbacks; neither constructs a
+social repository or launches network coroutines.
+
+`PersonScreen` is deliberately not claimed as fully stateless. It still owns
+privacy-state loading, private-request cancellation, block/report flows, profile
+sharing, and message-opening UI/platform orchestration. Those responsibilities
+cross the later Privacy/Sharing/Messages boundaries and remain explicit residuals
+rather than being forced into the People owner during this slice.
+
+`scripts/check_people_architecture.py` enforces stable People model/repository
+ownership, production adapter conformance, `AppContainer` construction, the three
+state-owner seams, render-only People/social-connections screens, and removal of
+the former `NovaApp` People orchestration. Temporary core person/social-page
+aliases remain only until a focused residual audit proves all remaining consumers
+have migrated.
 
 ## Phase 2 Messages dependency boundary
 
@@ -367,7 +411,11 @@ Messages no longer relies on that route-owned network orchestration pattern for
 its inbox, direct-message opening, conversation core, details, appearance, or
 group workflows. Calls likewise has stable domain/data/signaling/WebRTC
 boundaries and one live `CallStateOwner`. Feed/posts/comments now has stable
-model/data/state ownership and its UI no longer constructs the feed repository;
+model/data/state ownership and its UI no longer constructs the feed repository.
+People discovery, Person route loading/following, and followers/following now
+have stable feature-owned data/state boundaries; `NovaApp` and
+`SocialGraphActivity` are effect/navigation hosts for those flows. `PersonScreen`
+still has explicit cross-feature privacy/safety/message orchestration residuals.
 Android/transport-specific implementations remain focused core adapters.
 `AppViewModel` owns global session restore/current-user state, terminal session
 logout, and durable primary-overlay state. Feature state owners still report

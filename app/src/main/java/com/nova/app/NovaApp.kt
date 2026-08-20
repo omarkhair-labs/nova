@@ -26,7 +26,6 @@ import androidx.navigation3.ui.NavDisplay
 import com.nova.app.app.AppContainer
 import com.nova.app.app.AppViewModel
 import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaPerson
 import com.nova.app.feature.auth.CreateAccountScreen
 import com.nova.app.feature.auth.LoginScreen
 import com.nova.app.feature.feed.FeedStateOwner
@@ -35,7 +34,9 @@ import com.nova.app.feature.legal.PrivacyScreen
 import com.nova.app.feature.legal.TermsScreen
 import com.nova.app.feature.onboarding.ProfileSetupScreen
 import com.nova.app.feature.people.PeopleScreen
+import com.nova.app.feature.people.PeopleStateOwner
 import com.nova.app.feature.people.PersonScreen
+import com.nova.app.feature.people.PersonStateOwner
 import com.nova.app.feature.post.CreatePostScreen
 import com.nova.app.feature.post.PostCommentsScreen
 import com.nova.app.feature.post.PostDetailScreen
@@ -57,7 +58,8 @@ fun NovaApp(
     appViewModel: AppViewModel,
 ) {
     val authRepository = appContainer.authRepository
-    val socialRepository = appContainer.socialRepository
+    val peopleRepository = appContainer.peopleRepository
+    val peoplePagingRepository = appContainer.peoplePagingRepository
     val feedRepository = appContainer.feedDataRepository
     val postRepository = appContainer.postDataRepository
     val appState = appViewModel.state
@@ -76,12 +78,6 @@ fun NovaApp(
     var authLoading by remember { mutableStateOf(false) }
     var authError by remember { mutableStateOf<String?>(null) }
 
-    var people by remember { mutableStateOf<List<NovaPerson>>(emptyList()) }
-    var peopleLoading by remember { mutableStateOf(false) }
-    var peopleError by remember { mutableStateOf<String?>(null) }
-    var followingUsername by remember { mutableStateOf<String?>(null) }
-    var peopleRequestVersion by remember { mutableStateOf(0) }
-
     var handledFeedSessionExpiry by remember { mutableStateOf(0) }
     var handledProfileRefresh by remember { mutableStateOf(0) }
     var handledPostCreated by remember { mutableStateOf(0) }
@@ -92,11 +88,6 @@ fun NovaApp(
     }
 
     fun resetSocialState() {
-        people = emptyList()
-        peopleLoading = false
-        peopleError = null
-        followingUsername = null
-        peopleRequestVersion += 1
         feedOwner.reset()
     }
 
@@ -144,70 +135,6 @@ fun NovaApp(
         if (feedState.postCreatedVersion > handledPostCreated) {
             handledPostCreated = feedState.postCreatedVersion
             backStack.removeLastOrNull()
-        }
-    }
-
-    fun searchPeople(query: String) {
-        peopleRequestVersion += 1
-        val requestVersion = peopleRequestVersion
-
-        scope.launch {
-            peopleLoading = true
-            peopleError = null
-
-            when (val result = socialRepository.people(query)) {
-                is ApiResult.Success -> {
-                    if (requestVersion == peopleRequestVersion) {
-                        people = result.value
-                        peopleLoading = false
-                    }
-                }
-
-                is ApiResult.Failure -> {
-                    if (requestVersion == peopleRequestVersion) {
-                        peopleLoading = false
-                        if (result.statusCode == 401) {
-                            expireSession()
-                        } else {
-                            peopleError = result.message
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    fun toggleFollowFromList(person: NovaPerson) {
-        if (followingUsername != null) return
-
-        scope.launch {
-            followingUsername = person.username
-            peopleError = null
-
-            when (
-                val result = socialRepository.setFollowing(
-                    username = person.username,
-                    follow = !person.isFollowing,
-                )
-            ) {
-                is ApiResult.Success -> {
-                    people = people.map { existing ->
-                        if (existing.id == result.value.id) result.value else existing
-                    }
-                    followingUsername = null
-                    refreshCurrentUser()
-                    feedOwner.loadFeed()
-                }
-
-                is ApiResult.Failure -> {
-                    followingUsername = null
-                    if (result.statusCode == 401) {
-                        expireSession()
-                    } else {
-                        peopleError = result.message
-                    }
-                }
-            }
         }
     }
 
@@ -525,133 +452,104 @@ fun NovaApp(
                 }
 
                 NovaRoute.People -> NavEntry(route) {
+                    val peopleScope = rememberCoroutineScope()
+                    val peopleOwner = remember(peopleRepository, peoplePagingRepository, peopleScope) {
+                        PeopleStateOwner(peopleRepository, peoplePagingRepository, peopleScope)
+                    }
+                    val peopleState = peopleOwner.state
+                    var handledSessionExpiry by remember(peopleOwner) { mutableStateOf(0) }
+                    var handledProfileRefresh by remember(peopleOwner) { mutableStateOf(0) }
+                    var handledFeedRefresh by remember(peopleOwner) { mutableStateOf(0) }
+
+                    LaunchedEffect(peopleOwner) {
+                        peopleOwner.enter()
+                    }
+                    LaunchedEffect(peopleState.sessionExpiryVersion) {
+                        if (peopleState.sessionExpiryVersion > handledSessionExpiry) {
+                            handledSessionExpiry = peopleState.sessionExpiryVersion
+                            expireSession()
+                        }
+                    }
+                    LaunchedEffect(peopleState.profileRefreshVersion) {
+                        if (peopleState.profileRefreshVersion > handledProfileRefresh) {
+                            handledProfileRefresh = peopleState.profileRefreshVersion
+                            refreshCurrentUser()
+                        }
+                    }
+                    LaunchedEffect(peopleState.feedRefreshVersion) {
+                        if (peopleState.feedRefreshVersion > handledFeedRefresh) {
+                            handledFeedRefresh = peopleState.feedRefreshVersion
+                            feedOwner.loadFeed()
+                        }
+                    }
+
                     PeopleScreen(
-                        people = people,
-                        isLoading = peopleLoading,
-                        errorMessage = peopleError,
-                        followingUsername = followingUsername,
-                        onSearch = ::searchPeople,
+                        state = peopleState,
+                        onQueryChange = peopleOwner::setQuery,
                         onPersonClick = { username ->
                             backStack.add(NovaRoute.Person(username))
                         },
-                        onFollowToggle = ::toggleFollowFromList,
+                        onFollowToggle = peopleOwner::toggleFollow,
+                        onLoadMore = peopleOwner::loadMore,
                         onHomeClick = ::openHome,
                         onProfileClick = { backStack.add(NovaRoute.Profile) },
                     )
                 }
 
                 is NovaRoute.Person -> NavEntry(route) {
-                    var person by remember(route.username) { mutableStateOf<NovaPerson?>(null) }
-                    var personLoading by remember(route.username) { mutableStateOf(true) }
-                    var personError by remember(route.username) { mutableStateOf<String?>(null) }
-                    var profilePosts by remember(route.username) { mutableStateOf<List<NovaPost>>(emptyList()) }
-                    var profilePostsLoading by remember(route.username) { mutableStateOf(true) }
-                    var profilePostsError by remember(route.username) { mutableStateOf<String?>(null) }
-
-                    fun loadPersonPosts() {
-                        scope.launch {
-                            profilePostsLoading = true
-                            profilePostsError = null
-                            when (val result = postRepository.personPosts(route.username)) {
-                                is ApiResult.Success -> {
-                                    profilePosts = result.value
-                                    profilePostsLoading = false
-                                }
-
-                                is ApiResult.Failure -> {
-                                    profilePostsLoading = false
-                                    if (result.statusCode == 401) {
-                                        expireSession()
-                                    } else {
-                                        profilePostsError = result.message
-                                    }
-                                }
-                            }
-                        }
+                    val personScope = rememberCoroutineScope()
+                    val personOwner = remember(route.username, peopleRepository, postRepository, personScope) {
+                        PersonStateOwner(
+                            username = route.username,
+                            peopleRepository = peopleRepository,
+                            postRepository = postRepository,
+                            scope = personScope,
+                        )
                     }
+                    val personState = personOwner.state
+                    var handledSessionExpiry by remember(personOwner) { mutableStateOf(0) }
+                    var handledProfileRefresh by remember(personOwner) { mutableStateOf(0) }
+                    var handledFeedRefresh by remember(personOwner) { mutableStateOf(0) }
 
                     LaunchedEffect(route.username) {
-                        personLoading = true
-                        personError = null
-                        when (val result = socialRepository.person(route.username)) {
-                            is ApiResult.Success -> person = result.value
-                            is ApiResult.Failure -> {
-                                if (result.statusCode == 401) {
-                                    expireSession()
-                                } else {
-                                    personError = result.message
-                                }
-                            }
-                        }
-                        personLoading = false
+                        personOwner.loadPerson()
                     }
-
                     LaunchedEffect(route.username, feedState.contentVersion) {
-                        profilePostsLoading = true
-                        profilePostsError = null
-                        when (val result = postRepository.personPosts(route.username)) {
-                            is ApiResult.Success -> {
-                                profilePosts = result.value
-                                profilePostsLoading = false
-                            }
-
-                            is ApiResult.Failure -> {
-                                profilePostsLoading = false
-                                if (result.statusCode == 401) {
-                                    expireSession()
-                                } else {
-                                    profilePostsError = result.message
-                                }
-                            }
+                        personOwner.loadPosts()
+                    }
+                    LaunchedEffect(personState.sessionExpiryVersion) {
+                        if (personState.sessionExpiryVersion > handledSessionExpiry) {
+                            handledSessionExpiry = personState.sessionExpiryVersion
+                            expireSession()
+                        }
+                    }
+                    LaunchedEffect(personState.profileRefreshVersion) {
+                        if (personState.profileRefreshVersion > handledProfileRefresh) {
+                            handledProfileRefresh = personState.profileRefreshVersion
+                            refreshCurrentUser()
+                        }
+                    }
+                    LaunchedEffect(personState.feedRefreshVersion) {
+                        if (personState.feedRefreshVersion > handledFeedRefresh) {
+                            handledFeedRefresh = personState.feedRefreshVersion
+                            feedOwner.loadFeed()
                         }
                     }
 
                     PersonScreen(
-                        person = person,
-                        isLoading = personLoading,
-                        errorMessage = personError,
-                        profilePosts = profilePosts,
-                        postsLoading = profilePostsLoading,
-                        postsError = profilePostsError,
-                        onRetryPosts = ::loadPersonPosts,
+                        person = personState.person,
+                        isLoading = personState.isLoading,
+                        errorMessage = personState.errorMessage,
+                        profilePosts = personState.profilePosts,
+                        postsLoading = personState.postsLoading,
+                        postsError = personState.postsError,
+                        onRetryPosts = personOwner::loadPosts,
                         onPostClick = { post ->
                             backStack.add(NovaRoute.PostDetail(post.id))
                         },
                         onBack = { backStack.removeLastOrNull() },
-                        onFollowToggle = { selectedPerson ->
-                            if (!personLoading) {
-                                scope.launch {
-                                    personLoading = true
-                                    personError = null
-                                    when (
-                                        val result = socialRepository.setFollowing(
-                                            username = selectedPerson.username,
-                                            follow = !selectedPerson.isFollowing,
-                                        )
-                                    ) {
-                                        is ApiResult.Success -> {
-                                            person = result.value
-                                            people = people.map { existing ->
-                                                if (existing.id == result.value.id) result.value else existing
-                                            }
-                                            refreshCurrentUser()
-                                            feedOwner.loadFeed()
-                                        }
-
-                                        is ApiResult.Failure -> {
-                                            if (result.statusCode == 401) {
-                                                expireSession()
-                                            } else {
-                                                personError = result.message
-                                            }
-                                        }
-                                    }
-                                    personLoading = false
-                                }
-                            }
-                        },
+                        onFollowToggle = personOwner::toggleFollow,
                         onBlocked = { blockedPerson ->
-                            people = people.filterNot { it.id == blockedPerson.id }
                             feedOwner.removePostsByAuthor(blockedPerson.id)
                             refreshCurrentUser()
                             backStack.removeLastOrNull()
