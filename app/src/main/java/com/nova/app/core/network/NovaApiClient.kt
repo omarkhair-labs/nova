@@ -1,5 +1,6 @@
 package com.nova.app.core.network
 
+import com.nova.app.feature.people.data.parseNovaPerson
 import com.nova.app.feature.posts.domain.model.NovaComment
 import com.nova.app.feature.posts.domain.model.NovaCommentMutation
 import com.nova.app.feature.posts.domain.model.NovaPost
@@ -137,7 +138,7 @@ class NovaApiClient(
                 val array = response.value.optJSONArray("results") ?: JSONArray()
                 val people = buildList {
                     for (index in 0 until array.length()) {
-                        array.optJSONObject(index)?.let { add(parsePerson(it)) }
+                        array.optJSONObject(index)?.let { add(parseNovaPerson(it, ::resolveMediaUrl)) }
                     }
                 }
                 ApiResult.Success(people)
@@ -157,7 +158,7 @@ class NovaApiClient(
                 bearerToken = accessToken,
             )
         ) {
-            is ApiResult.Success -> ApiResult.Success(parsePerson(response.value))
+            is ApiResult.Success -> ApiResult.Success(parseNovaPerson(response.value, ::resolveMediaUrl))
             is ApiResult.Failure -> response
         }
     }
@@ -190,7 +191,7 @@ class NovaApiClient(
         }
 
         return when (response) {
-            is ApiResult.Success -> ApiResult.Success(parsePerson(response.value))
+            is ApiResult.Success -> ApiResult.Success(parseNovaPerson(response.value, ::resolveMediaUrl))
             is ApiResult.Failure -> response
         }
     }
