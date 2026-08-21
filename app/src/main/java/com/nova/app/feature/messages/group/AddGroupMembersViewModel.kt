@@ -7,9 +7,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaPerson
 import com.nova.app.feature.messages.group.data.GroupMembershipRepository
 import com.nova.app.feature.messages.group.data.GroupPeopleRepository
+import com.nova.app.feature.people.domain.model.NovaPerson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
