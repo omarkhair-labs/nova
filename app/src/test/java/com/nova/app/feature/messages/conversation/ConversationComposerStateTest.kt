@@ -1,8 +1,8 @@
 package com.nova.app.feature.messages.conversation
 
 import com.nova.app.core.messaging.NovaVoiceDraft
-import com.nova.app.core.network.NovaPostAuthor
 import com.nova.app.feature.messages.domain.model.NovaMessage
+import com.nova.app.feature.posts.domain.model.NovaPostAuthor
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

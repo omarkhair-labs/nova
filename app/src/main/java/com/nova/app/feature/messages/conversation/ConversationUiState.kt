@@ -2,9 +2,9 @@ package com.nova.app.feature.messages.conversation
 
 import com.nova.app.core.messaging.NovaConversationPresence
 import com.nova.app.core.messaging.NovaRealtimeStatus
-import com.nova.app.core.network.NovaPostAuthor
 import com.nova.app.feature.messages.domain.model.NovaMessage
 import com.nova.app.feature.messages.domain.model.NovaReplyPreview
+import com.nova.app.feature.posts.domain.model.NovaPostAuthor
 
 
 enum class PendingMessageStatus { Sending, Failed }

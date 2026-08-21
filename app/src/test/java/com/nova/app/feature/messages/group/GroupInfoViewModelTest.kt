@@ -2,13 +2,13 @@ package com.nova.app.feature.messages.group
 
 import android.net.Uri
 import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaPostAuthor
 import com.nova.app.feature.messages.domain.model.NovaConversation
 import com.nova.app.feature.messages.group.data.GroupManagementRepository
 import com.nova.app.feature.messages.group.data.GroupMembershipRepository
 import com.nova.app.feature.messages.group.model.GroupDetail
 import com.nova.app.feature.messages.group.model.GroupMember
 import com.nova.app.feature.messages.group.model.ManagedGroupDetail
+import com.nova.app.feature.posts.domain.model.NovaPostAuthor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield

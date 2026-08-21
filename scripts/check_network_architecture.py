@@ -15,6 +15,7 @@ PEOPLE_REMOTE = ROOT / "app/src/main/java/com/nova/app/feature/people/data/remot
 PEOPLE_PAGING = ROOT / "app/src/main/java/com/nova/app/feature/people/data/remote/PeoplePagingRemoteRepository.kt"
 POST_MODELS = ROOT / "app/src/main/java/com/nova/app/feature/posts/domain/model/PostModels.kt"
 POST_PARSER = ROOT / "app/src/main/java/com/nova/app/feature/posts/data/PostJsonParser.kt"
+POSTS_REMOTE = ROOT / "app/src/main/java/com/nova/app/feature/posts/data/remote/PostsRemoteDataSource.kt"
 AUTH_REPOSITORY = ROOT / "app/src/main/java/com/nova/app/core/auth/NovaAuthRepository.kt"
 FEED_REPOSITORY = ROOT / "app/src/main/java/com/nova/app/core/feed/NovaFeedRepository.kt"
 SOCIAL_REPOSITORY = ROOT / "app/src/main/java/com/nova/app/core/social/NovaSocialRepository.kt"
@@ -24,7 +25,7 @@ errors: list[str] = []
 
 def read(path: Path) -> str:
     if not path.exists():
-        errors.append(f"missing required network characterization file: {path.relative_to(ROOT)}")
+        errors.append(f"missing required network exit file: {path.relative_to(ROOT)}")
         return ""
     return path.read_text(encoding="utf-8")
 
@@ -50,6 +51,7 @@ people_remote = read(PEOPLE_REMOTE)
 people_paging = read(PEOPLE_PAGING)
 post_models = read(POST_MODELS)
 post_parser = read(POST_PARSER)
+posts_remote = read(POSTS_REMOTE)
 auth_repository = read(AUTH_REPOSITORY)
 feed_repository = read(FEED_REPOSITORY)
 social_repository = read(SOCIAL_REPOSITORY)
@@ -59,16 +61,12 @@ if PERSON_COMPAT.exists():
 if CORE_PEOPLE_PAGING.exists():
     errors.append("NovaSocialPagingRepository.kt must stay deleted after feature People paging ownership")
 
-# Shared client keeps only shared DTO/transport/auth primitives plus Posts until #170.
-require_all(client, "NovaApiClient shared boundary", (
-    'data class NovaPostAuthor(',
+# Phase 5 exit: core.network owns only shared transfer/result/HTTP/media/error plus refresh auth primitive.
+require_all(client, "NovaApiClient final shared boundary", (
     'data class UploadFile(',
     'sealed interface ApiResult<out T>',
     'class NovaApiClient(',
     'private val baseUrl: String = "http://127.0.0.1:8000/api/v1/"',
-    'import com.nova.app.feature.posts.data.parseNovaComment',
-    'import com.nova.app.feature.posts.data.parseNovaPost',
-    'import com.nova.app.feature.posts.data.parseNovaPostPage',
     'suspend fun refresh(refreshToken: String): ApiResult<String>',
     'JSONObject().put("refresh", refreshToken)',
     'requestJson("auth/refresh/", "POST", body)',
@@ -77,6 +75,7 @@ require_all(client, "NovaApiClient shared boundary", (
 forbid_all(client, "feature-owned core network seam", (
     'data class NovaUser(',
     'data class AuthSession(',
+    'data class NovaPostAuthor(',
     'suspend fun register(',
     'suspend fun login(',
     'suspend fun me(',
@@ -87,17 +86,33 @@ forbid_all(client, "feature-owned core network seam", (
     'suspend fun setFollowing(',
     'suspend fun setBlocked(',
     'suspend fun reportPerson(',
-    'import com.nova.app.feature.people.data.parseNovaPerson',
-    'import com.nova.app.feature.posts.data.parseNovaPosts',
+    'suspend fun feed(',
+    'suspend fun post(',
+    'suspend fun createPost(',
+    'suspend fun deletePost(',
+    'suspend fun setLiked(',
+    'suspend fun comments(',
+    'suspend fun addComment(',
+    'suspend fun deleteComment(',
+    'suspend fun deleteCommentReply(',
+    'deleteCommentResource(',
+    'import com.nova.app.feature.auth.data.',
+    'import com.nova.app.feature.people.data.',
+    'import com.nova.app.feature.posts.data.',
+    'import com.nova.app.feature.posts.domain.model.',
     'private fun parsePerson(',
     'private fun parsePostAuthor(',
     'private fun parsePosts(',
     'private fun parsePostPage(',
     'private fun parsePost(',
     'private fun parseComment(',
+    '"feed/"',
+    'path = "posts/',
+    'path = "comments/',
+    'path = "comment-replies/',
 ))
 
-# Auth models/parser/remote remain authoritative. Core refresh is intentionally an auth primitive.
+# Auth models/parser/remote remain authoritative. Core refresh is intentionally a shared auth primitive.
 require_all(auth_models, "feature Auth models", (
     'package com.nova.app.feature.auth.domain.model',
     'data class NovaUser(',
@@ -133,7 +148,7 @@ require_all(auth_repository, "NovaAuthRepository feature remote ownership", (
     'remote.refresh(',
 ))
 
-# People model parsing and all direct People endpoints are feature-owned.
+# People model parsing and all direct/paging People endpoints are feature-owned.
 require_all(people_parser, "feature People parser", (
     'internal fun parseNovaPerson(',
     'id = json.optLong("id")',
@@ -181,7 +196,6 @@ forbid_all(social_repository, "NovaSocialRepository superseded People client sea
     'api.reportPerson(',
 ))
 
-# Paging stays byte-for-byte compatible in transport semantics while living in feature People.
 require_all(people_paging, "feature People paging transport", (
     'class PeoplePagingRemoteRepository(',
     ') : PeoplePagingRepository',
@@ -208,14 +222,19 @@ require_all(people_paging, "feature People paging transport", (
     'canViewContent = json.optBoolean("can_view_content", true)',
     'authRemote.refresh(stored.refreshToken)',
 ))
-forbid_all(people_paging, "feature People paging duplicate parsers", (
+forbid_all(people_paging, "feature People paging duplicate/core model seams", (
     'private fun parsePerson(',
     'private fun parsePost(',
     'import com.nova.app.core.network.NovaPostAuthor',
 ))
 
-# Posts ownership remains frozen for #170.
+# Posts models/parser/transport own all post/comment DTO and wire behavior at Phase 5 exit.
 require_all(post_models, "feature Posts models", (
+    'data class NovaPostAuthor(',
+    'val id: Long',
+    'val username: String',
+    'val name: String',
+    'val avatarUrl: String',
     'data class NovaPost(',
     'val author: NovaPostAuthor',
     'data class NovaPostPage(',
@@ -223,6 +242,7 @@ require_all(post_models, "feature Posts models", (
     'data class NovaCommentMutation(',
 ))
 require_all(post_parser, "feature Posts parser", (
+    'import com.nova.app.feature.posts.domain.model.NovaPostAuthor',
     'internal fun parseNovaPostAuthor(',
     'internal fun parseNovaPosts(',
     'internal fun parseNovaPostPage(',
@@ -232,7 +252,9 @@ require_all(post_parser, "feature Posts parser", (
     '.takeIf { it.isNotBlank() && it != "null" }',
     'repliesCount = json.optInt("replies_count", replies.size)',
 ))
-require_all(client, "feed/posts/comments network contract", (
+require_all(posts_remote, "feature Posts transport", (
+    'class PostsRemoteDataSource(',
+    'private val api: NovaApiClient',
     '"feed/"',
     '"feed/?cursor=${encode(cursor)}"',
     'path = "posts/$postId/"',
@@ -246,18 +268,46 @@ require_all(client, "feed/posts/comments network contract", (
     'deleteCommentResource(accessToken, "comments/$commentId/")',
     'deleteCommentResource(accessToken, "comment-replies/$replyId/")',
     'ApiResult.Failure("Nova returned an invalid comment response.")',
-    'parseNovaPostPage(response.value, ::resolveMediaUrl)',
-    'parseNovaPost(response.value, ::resolveMediaUrl)',
-    'add(parseNovaComment(it, ::resolveMediaUrl))',
+    'parseNovaPostPage(response.value, api::resolveMediaUrl)',
+    'parseNovaPost(response.value, api::resolveMediaUrl)',
+    'add(parseNovaComment(it, api::resolveMediaUrl))',
+    'comment = parseNovaComment(comment, api::resolveMediaUrl)',
+    'post = parseNovaPost(post, api::resolveMediaUrl)',
+    'ApiResult.Success(parseNovaPost(post, api::resolveMediaUrl))',
+    'URLEncoder.encode(value, Charsets.UTF_8.name())',
+))
+require_all(feed_repository, "NovaFeedRepository Posts remote ownership", (
+    'private val postsRemote = PostsRemoteDataSource(api)',
+    'postsRemote.feed(accessToken, cursor)',
+    'postsRemote.post(accessToken, postId)',
+    'postsRemote.createPost(',
+    'postsRemote.deletePost(accessToken, postId)',
+    'postsRemote.setLiked(accessToken, postId, liked)',
+    'postsRemote.comments(accessToken, postId)',
+    'postsRemote.addComment(accessToken, postId, body.trim(), parentId)',
+    'postsRemote.deleteComment(accessToken, commentId)',
+    'postsRemote.deleteCommentReply(accessToken, replyId)',
+    'peopleRemote.personPosts(accessToken, username)',
+    'authRemote.refresh(stored.refreshToken)',
+))
+forbid_all(feed_repository, "NovaFeedRepository superseded Posts client seam", (
+    'api.feed(',
+    'api.post(',
+    'api.createPost(',
+    'api.deletePost(',
+    'api.setLiked(',
+    'api.comments(',
+    'api.addComment(',
+    'api.deleteComment(',
+    'api.deleteCommentReply(',
 ))
 
-# Shared HTTP/media/error behavior remains protected.
+# Shared HTTP/media/error behavior remains protected exactly.
 require_all(client, "network URL/media behavior", (
     'internal fun resolveMediaUrl(raw: String): String',
     'if (raw.isBlank() || raw == "null") return ""',
     'if (raw.startsWith("http://") || raw.startsWith("https://")) return raw',
     'URL("${apiUrl.protocol}://${apiUrl.authority}$raw").toString()',
-    'URLEncoder.encode(value, Charsets.UTF_8.name())',
 ))
 require_all(client, "JSON transport", (
     'internal suspend fun requestJson(',
@@ -297,6 +347,14 @@ require_all(client, "network response/error behavior", (
     'else -> "Something went wrong. Please try again."',
 ))
 
+# No removed shared post-author import may return anywhere in Android production/tests.
+for kotlin_file in (ROOT / "app/src").rglob("*.kt"):
+    text = kotlin_file.read_text(encoding="utf-8")
+    if "import com.nova.app.core.network.NovaPostAuthor" in text:
+        errors.append(
+            f"Phase 5 exit restored core NovaPostAuthor import: {kotlin_file.relative_to(ROOT)}"
+        )
+
 production_ctor = 'NovaApiClient("https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/")'
 for text, name in (
     (auth_repository, "NovaAuthRepository.kt"),
@@ -306,9 +364,9 @@ for text, name in (
     require_all(text, f"{name} production API base URL", (production_ctor,))
 
 if errors:
-    print("Network architecture characterization failed:")
+    print("Network architecture exit check failed:")
     for error in errors:
         print(f"- {error}")
     sys.exit(1)
 
-print("Network architecture characterization passed.")
+print("Network architecture Phase 5 exit check passed.")

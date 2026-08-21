@@ -1,10 +1,10 @@
 package com.nova.app.feature.messages.data
 
 import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaPostAuthor
 import com.nova.app.feature.messages.domain.model.NovaConversationList
 import com.nova.app.feature.messages.domain.model.NovaConversationPage
 import com.nova.app.feature.messages.domain.model.NovaMessage
+import com.nova.app.feature.posts.domain.model.NovaPostAuthor
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame

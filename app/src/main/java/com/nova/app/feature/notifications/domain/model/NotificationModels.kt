@@ -1,6 +1,6 @@
 package com.nova.app.feature.notifications.domain.model
 
-import com.nova.app.core.network.NovaPostAuthor
+import com.nova.app.feature.posts.domain.model.NovaPostAuthor
 
 
 data class NovaNotification(

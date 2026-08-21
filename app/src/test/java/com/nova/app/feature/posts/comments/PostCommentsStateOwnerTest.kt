@@ -1,7 +1,7 @@
 package com.nova.app.feature.posts.comments
 
-import com.nova.app.core.network.NovaPostAuthor
 import com.nova.app.feature.posts.domain.model.NovaComment
+import com.nova.app.feature.posts.domain.model.NovaPostAuthor
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

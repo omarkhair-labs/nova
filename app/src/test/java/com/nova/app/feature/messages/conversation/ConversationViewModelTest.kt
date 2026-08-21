@@ -7,12 +7,12 @@ import com.nova.app.core.messaging.NovaMessageUpdatedEvent
 import com.nova.app.core.messaging.NovaRealtimeEvent
 import com.nova.app.core.messaging.NovaRealtimeStatus
 import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaPostAuthor
 import com.nova.app.feature.messages.data.FakeMessagesRepository
 import com.nova.app.feature.messages.domain.model.NovaMessage
 import com.nova.app.feature.messages.domain.model.NovaMessagePage
 import com.nova.app.feature.messages.domain.model.NovaMessageReaction
 import com.nova.app.feature.messages.domain.model.NovaReplyPreview
+import com.nova.app.feature.posts.domain.model.NovaPostAuthor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
