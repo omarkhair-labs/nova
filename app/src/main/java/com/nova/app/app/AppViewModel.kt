@@ -6,7 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaUser
+import com.nova.app.feature.auth.domain.model.NovaUser
 import com.nova.app.navigation.AppDestination
 import com.nova.app.navigation.AppNavigator
 import com.nova.app.navigation.NovaRootNavigationSignal
