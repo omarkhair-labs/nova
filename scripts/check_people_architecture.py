@@ -7,9 +7,12 @@ ROOT = Path(__file__).resolve().parents[1]
 MODEL = ROOT / "app/src/main/java/com/nova/app/feature/people/domain/model/PeopleModels.kt"
 CONTRACT = ROOT / "app/src/main/java/com/nova/app/feature/people/data/PeopleRepository.kt"
 PEOPLE_JSON_PARSER = ROOT / "app/src/main/java/com/nova/app/feature/people/data/PeopleJsonParser.kt"
+DIRECT_REMOTE = ROOT / "app/src/main/java/com/nova/app/feature/people/data/remote/PeopleRemoteDataSource.kt"
+PAGING = ROOT / "app/src/main/java/com/nova/app/feature/people/data/remote/PeoplePagingRemoteRepository.kt"
+PERSON_COMPAT = ROOT / "app/src/main/java/com/nova/app/core/network/PersonModelCompatibility.kt"
+CORE_PAGING = ROOT / "app/src/main/java/com/nova/app/core/social/NovaSocialPagingRepository.kt"
 API = ROOT / "app/src/main/java/com/nova/app/core/network/NovaApiClient.kt"
 SOCIAL = ROOT / "app/src/main/java/com/nova/app/core/social/NovaSocialRepository.kt"
-PAGING = ROOT / "app/src/main/java/com/nova/app/core/social/NovaSocialPagingRepository.kt"
 CONTAINER = ROOT / "app/src/main/java/com/nova/app/app/AppContainer.kt"
 APP = ROOT / "app/src/main/java/com/nova/app/NovaApp.kt"
 PEOPLE_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/people/PeopleStateOwner.kt"
@@ -41,9 +44,10 @@ def read(path: Path) -> str:
 model = read(MODEL)
 contract = read(CONTRACT)
 people_json_parser = read(PEOPLE_JSON_PARSER)
+direct_remote = read(DIRECT_REMOTE)
+paging = read(PAGING)
 api = read(API)
 social = read(SOCIAL)
-paging = read(PAGING)
 container = read(CONTAINER)
 app = read(APP)
 people_owner = read(PEOPLE_OWNER)
@@ -63,11 +67,24 @@ for declaration in ("data class NovaPerson(", "data class NovaPersonPage(", "dat
     if declaration not in model:
         errors.append(f"stable people model owner is missing {declaration}")
 
-if "data class NovaPerson(" in api:
-    errors.append("NovaApiClient must not own NovaPerson")
+if PERSON_COMPAT.exists():
+    errors.append("PersonModelCompatibility.kt must stay deleted")
+if CORE_PAGING.exists():
+    errors.append("core NovaSocialPagingRepository.kt must stay deleted")
 
-if "private fun parsePerson(" in api:
-    errors.append("NovaApiClient must not retain the superseded core People parser")
+for forbidden in (
+    "data class NovaPerson(",
+    "suspend fun people(",
+    "suspend fun person(",
+    "suspend fun personPosts(",
+    "suspend fun setFollowing(",
+    "suspend fun setBlocked(",
+    "suspend fun reportPerson(",
+    "import com.nova.app.feature.people.data.parseNovaPerson",
+    "private fun parsePerson(",
+):
+    if forbidden in api:
+        errors.append(f"NovaApiClient must not retain People feature ownership: {forbidden}")
 
 for required in (
     "internal fun parseNovaPerson(",
@@ -85,23 +102,20 @@ for required in (
     if required not in people_json_parser:
         errors.append(f"feature-owned People JSON parser lost characterized behavior: {required}")
 
-if "import com.nova.app.feature.people.data.parseNovaPerson" not in api:
-    errors.append("NovaApiClient must import the feature-owned People JSON parser")
-
 for required in (
-    "add(parseNovaPerson(it, ::resolveMediaUrl))",
-    "ApiResult.Success(parseNovaPerson(response.value, ::resolveMediaUrl))",
+    "class PeopleRemoteDataSource(",
+    '"people/"',
+    '"people/?q=${encode(cleanQuery)}"',
+    'path = "people/${encode(username.trim().lowercase())}/"',
+    'path = "people/${encode(username.trim().lowercase())}/posts/"',
+    'val path = "people/${encode(username.trim().lowercase())}/follow/"',
+    'val path = "people/${encode(username.trim().lowercase())}/block/"',
+    'path = "people/${encode(username.trim().lowercase())}/report/"',
+    'add(parseNovaPerson(it, api::resolveMediaUrl))',
+    'parseNovaPosts(response.value, api::resolveMediaUrl)',
 ):
-    if required not in api:
-        errors.append(f"NovaApiClient live People decode path must use feature parser: {required}")
-
-for forbidden in ("add(parsePerson(it))", "ApiResult.Success(parsePerson(response.value))"):
-    if forbidden in api:
-        errors.append(f"NovaApiClient must not route live People responses through the core parser: {forbidden}")
-
-for declaration in ("data class NovaPersonPage(", "data class NovaProfilePostPage("):
-    if declaration in paging:
-        errors.append(f"NovaSocialPagingRepository must not own {declaration}")
+    if required not in direct_remote:
+        errors.append(f"feature People direct remote lost protected behavior: {required}")
 
 for interface_name in ("interface PeopleRepository", "interface PeoplePagingRepository"):
     if interface_name not in contract:
@@ -109,24 +123,46 @@ for interface_name in ("interface PeopleRepository", "interface PeoplePagingRepo
 
 if ") : PeopleRepository" not in social:
     errors.append("NovaSocialRepository must implement PeopleRepository")
+for required in (
+    "private val peopleRemote = PeopleRemoteDataSource(api)",
+    "peopleRemote.people(accessToken, query)",
+    "peopleRemote.person(accessToken, username)",
+    "peopleRemote.setFollowing(accessToken, username, follow)",
+    "peopleRemote.setBlocked(accessToken, username, blocked)",
+    "peopleRemote.reportPerson(accessToken, username, reason, details)",
+):
+    if required not in social:
+        errors.append(f"NovaSocialRepository must route through feature People remote: {required}")
 
 if ") : PeoplePagingRepository" not in paging:
-    errors.append("NovaSocialPagingRepository must implement PeoplePagingRepository")
-
-required_stable_imports = (
+    errors.append("PeoplePagingRemoteRepository must implement PeoplePagingRepository")
+for stable_import in (
     "com.nova.app.feature.people.domain.model.NovaPerson",
     "com.nova.app.feature.people.domain.model.NovaPersonPage",
     "com.nova.app.feature.people.domain.model.NovaProfilePostPage",
-)
-for stable_import in required_stable_imports:
+):
     if stable_import not in paging:
-        errors.append(f"NovaSocialPagingRepository must import {stable_import}")
+        errors.append(f"PeoplePagingRemoteRepository must import {stable_import}")
+for required in (
+    'connectTimeout = 12_000',
+    'readTimeout = 15_000',
+    '403 -> "Follow this private account to see this content."',
+    '404 -> "Nova couldn\'t find that profile."',
+    'val person = parseNovaPerson(item, ::resolveMediaUrl)',
+    'add(parseNovaPost(it, ::resolveMediaUrl))',
+):
+    if required not in paging:
+        errors.append(f"People paging protected transport/parser seam changed: {required}")
+for forbidden in ("private fun parsePerson(", "private fun parsePost(", "NovaPostAuthor"):
+    if forbidden in paging:
+        errors.append(f"People paging must not retain duplicate model parsing: {forbidden}")
 
 if "val peopleRepository: PeopleRepository = socialRepository" not in container:
     errors.append("AppContainer must expose the stable PeopleRepository")
-
-if "val peoplePagingRepository: PeoplePagingRepository = NovaSocialPagingRepository(appContext)" not in container:
-    errors.append("AppContainer must expose the stable PeoplePagingRepository")
+if "val peoplePagingRepository: PeoplePagingRepository = PeoplePagingRemoteRepository(appContext)" not in container:
+    errors.append("AppContainer must expose feature-owned stable PeoplePagingRepository")
+if "import com.nova.app.core.social.NovaSocialPagingRepository" in container:
+    errors.append("AppContainer must not import the deleted core People paging implementation")
 
 for owner_text, owner_name in (
     (people_owner, "PeopleStateOwner"),
@@ -137,11 +173,12 @@ for owner_text, owner_name in (
     if f"class {owner_name}(" not in owner_text:
         errors.append(f"missing stable People/Profile state owner {owner_name}")
 
-for forbidden in ("NovaSocialPagingRepository", "NovaSocialRepository", "rememberCoroutineScope", "ApiResult"):
+for forbidden in ("PeoplePagingRemoteRepository", "NovaSocialPagingRepository", "NovaSocialRepository", "rememberCoroutineScope", "ApiResult"):
     if forbidden in people_screen:
         errors.append(f"PeopleScreen must render state/callbacks and not own {forbidden}")
 
 for forbidden in (
+    "PeoplePagingRemoteRepository",
     "NovaSocialPagingRepository",
     "NovaSocialRepository",
     "NovaSessionStore",
@@ -179,32 +216,31 @@ if "SocialConnectionsStateOwner(" not in social_graph_activity:
 
 if PROFILE_TABS_V4.exists():
     errors.append("NovaProfileContentTabsV4.kt must stay deleted after stable profile consolidation")
-
 if PRIVATE_PROFILE_BADGE_V4.exists():
     errors.append("PrivateProfileBadgeV4.kt must stay deleted after stable profile cleanup")
-
 if PRIVATE_PROFILE_BADGE_V4_TEST.exists():
     errors.append("PrivateProfileBadgeV4Test.kt must stay deleted after stable profile cleanup")
 
 if "internal fun shouldShowPrivateProfileBadge(state: NovaPersonPrivacyState): Boolean" not in private_profile_badge:
     errors.append("stable private-profile badge helper seam is missing")
-
 if "shouldShowPrivateProfileBadge(privacyState)" not in person_screen:
     errors.append("PersonScreen must use the stable private-profile badge helper")
+if "com.nova.app.core.network.NovaPerson" in person_screen:
+    errors.append("PersonScreen must import the stable People model directly")
 
 for path in (ROOT / "app/src").rglob("*.kt"):
-    if "shouldShowPrivateProfileBadgeV4" in path.read_text(encoding="utf-8"):
-        errors.append(
-            f"{path.relative_to(ROOT)} must not reintroduce shouldShowPrivateProfileBadgeV4"
-        )
+    text = path.read_text(encoding="utf-8")
+    if "shouldShowPrivateProfileBadgeV4" in text:
+        errors.append(f"{path.relative_to(ROOT)} must not reintroduce shouldShowPrivateProfileBadgeV4")
+    if "com.nova.app.core.network.NovaPerson" in text:
+        errors.append(f"{path.relative_to(ROOT)} must not import the deleted NovaPerson compatibility alias")
 
-for forbidden in ("NovaSocialPagingRepository", "rememberCoroutineScope", "ApiResult", "NovaProfileContentTabsV4"):
+for forbidden in ("PeoplePagingRemoteRepository", "NovaSocialPagingRepository", "rememberCoroutineScope", "ApiResult", "NovaProfileContentTabsV4"):
     if forbidden in profile_tabs:
         errors.append(f"NovaProfileContentTabs must render stable state/callbacks and not own {forbidden}")
 
 if "NovaSocialPagingRepository" in profile_grid:
-    errors.append("NovaPagedProfilePostsGrid must use AppContainer stable contracts, not construct NovaSocialPagingRepository")
-
+    errors.append("NovaPagedProfilePostsGrid must use AppContainer stable contracts, not core People paging")
 if "com.nova.app.core.network.NovaPost" in profile_screen:
     errors.append("ProfileScreen must import the stable post model directly")
 
