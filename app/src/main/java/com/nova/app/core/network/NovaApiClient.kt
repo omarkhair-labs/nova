@@ -1,7 +1,5 @@
 package com.nova.app.core.network
 
-import com.nova.app.feature.auth.data.parseAuthSession
-import com.nova.app.feature.auth.data.parseNovaUser
 import com.nova.app.feature.people.data.parseNovaPerson
 import com.nova.app.feature.posts.data.parseNovaComment
 import com.nova.app.feature.posts.data.parseNovaPost
@@ -22,30 +20,11 @@ import java.net.URLEncoder
 import java.util.UUID
 
 
-data class NovaUser(
-    val id: Long,
-    val email: String,
-    val username: String,
-    val name: String,
-    val avatarUrl: String,
-    val followersCount: Int = 0,
-    val followingCount: Int = 0,
-    val postsCount: Int = 0,
-)
-
-
 data class NovaPostAuthor(
     val id: Long,
     val username: String,
     val name: String,
     val avatarUrl: String,
-)
-
-
-data class AuthSession(
-    val accessToken: String,
-    val refreshToken: String,
-    val user: NovaUser,
 )
 
 
@@ -68,66 +47,6 @@ sealed interface ApiResult<out T> {
 class NovaApiClient(
     private val baseUrl: String = "http://127.0.0.1:8000/api/v1/",
 ) {
-    suspend fun register(
-        email: String,
-        password: String,
-        username: String,
-        name: String,
-    ): ApiResult<AuthSession> {
-        val body = JSONObject()
-            .put("email", email)
-            .put("password", password)
-            .put("username", username)
-            .put("name", name)
-
-        return when (val response = requestJson("auth/register/", "POST", body)) {
-            is ApiResult.Success -> parseAuthSession(response.value, ::resolveMediaUrl)
-            is ApiResult.Failure -> response
-        }
-    }
-
-    suspend fun login(email: String, password: String): ApiResult<AuthSession> {
-        val body = JSONObject()
-            .put("email", email)
-            .put("password", password)
-
-        return when (val response = requestJson("auth/login/", "POST", body)) {
-            is ApiResult.Success -> parseAuthSession(response.value, ::resolveMediaUrl)
-            is ApiResult.Failure -> response
-        }
-    }
-
-    suspend fun me(accessToken: String): ApiResult<NovaUser> {
-        return when (val response = requestJson("me/", bearerToken = accessToken)) {
-            is ApiResult.Success -> ApiResult.Success(parseNovaUser(response.value, ::resolveMediaUrl))
-            is ApiResult.Failure -> response
-        }
-    }
-
-    suspend fun updateProfile(
-        accessToken: String,
-        name: String,
-        username: String,
-        avatar: UploadFile? = null,
-    ): ApiResult<NovaUser> {
-        return when (
-            val response = requestMultipart(
-                path = "me/",
-                method = "PUT",
-                fields = mapOf(
-                    "name" to name,
-                    "username" to username,
-                ),
-                fileField = "avatar",
-                file = avatar,
-                bearerToken = accessToken,
-            )
-        ) {
-            is ApiResult.Success -> ApiResult.Success(parseNovaUser(response.value, ::resolveMediaUrl))
-            is ApiResult.Failure -> response
-        }
-    }
-
     suspend fun people(
         accessToken: String,
         query: String = "",
@@ -433,24 +352,7 @@ class NovaApiClient(
         }
     }
 
-    suspend fun refresh(refreshToken: String): ApiResult<String> {
-        val body = JSONObject().put("refresh", refreshToken)
-
-        return when (val response = requestJson("auth/refresh/", "POST", body)) {
-            is ApiResult.Success -> {
-                val access = response.value.optString("access")
-                if (access.isBlank()) {
-                    ApiResult.Failure("Nova returned an invalid session response.")
-                } else {
-                    ApiResult.Success(access)
-                }
-            }
-
-            is ApiResult.Failure -> response
-        }
-    }
-
-    private fun resolveMediaUrl(raw: String): String {
+    internal fun resolveMediaUrl(raw: String): String {
         if (raw.isBlank() || raw == "null") return ""
         if (raw.startsWith("http://") || raw.startsWith("https://")) return raw
 
@@ -464,7 +366,7 @@ class NovaApiClient(
         return URLEncoder.encode(value, Charsets.UTF_8.name())
     }
 
-    private suspend fun requestJson(
+    internal suspend fun requestJson(
         path: String,
         method: String = "GET",
         body: JSONObject? = null,
@@ -499,7 +401,7 @@ class NovaApiClient(
         }
     }
 
-    private suspend fun requestMultipart(
+    internal suspend fun requestMultipart(
         path: String,
         method: String,
         fields: Map<String, String>,
