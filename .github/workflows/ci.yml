@@ -82,7 +82,7 @@ jobs:
         run: python manage.py makemigrations --check
 
       - name: Validate Google Play release script
-        run: pythom -m py_compile ../scripts/publish_google_play.py
+        run: python -m py_compile ../scripts/publish_google_play.py
 
       - name: Run backend tests
         run: python manage.py test
