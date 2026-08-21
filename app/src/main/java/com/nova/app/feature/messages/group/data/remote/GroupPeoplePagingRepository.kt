@@ -2,15 +2,16 @@ package com.nova.app.feature.messages.group.data.remote
 
 import android.content.Context
 import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaPerson
-import com.nova.app.core.social.NovaSocialPagingRepository
 import com.nova.app.feature.messages.group.data.GroupPeopleRepository
+import com.nova.app.feature.people.data.PeoplePagingRepository
+import com.nova.app.feature.people.data.remote.PeoplePagingRemoteRepository
+import com.nova.app.feature.people.domain.model.NovaPerson
 
 
 /** Preserves the existing first-page `/people/` paging transport for group pickers. */
 class GroupPeoplePagingRepository(
     context: Context,
-    private val pagingRepository: NovaSocialPagingRepository = NovaSocialPagingRepository(context.applicationContext),
+    private val pagingRepository: PeoplePagingRepository = PeoplePagingRemoteRepository(context.applicationContext),
 ) : GroupPeopleRepository {
     override suspend fun people(query: String): ApiResult<List<NovaPerson>> {
         return when (val result = pagingRepository.people(query = query)) {
