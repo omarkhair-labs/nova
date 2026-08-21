@@ -23,7 +23,6 @@ import com.nova.app.core.reels.NovaReelWatchRepository
 import com.nova.app.core.reels.NovaReelsRepository
 import com.nova.app.core.sharing.NovaSharingRepository
 import com.nova.app.core.social.NovaBlockedAccountsRepository
-import com.nova.app.core.social.NovaSocialPagingRepository
 import com.nova.app.core.social.NovaSocialRepository
 import com.nova.app.core.stories.NovaStoriesRepository
 import com.nova.app.feature.auth.data.remote.AuthRemoteDataSource
@@ -51,6 +50,7 @@ import com.nova.app.feature.messages.group.data.remote.GroupPeoplePagingReposito
 import com.nova.app.feature.notifications.data.NotificationsRepository
 import com.nova.app.feature.people.data.PeoplePagingRepository
 import com.nova.app.feature.people.data.PeopleRepository
+import com.nova.app.feature.people.data.remote.PeoplePagingRemoteRepository
 import com.nova.app.feature.posts.data.PostRepository
 import com.nova.app.feature.privacy.data.FollowRequestRepository
 import com.nova.app.feature.privacy.data.PrivacyRepository
@@ -87,7 +87,7 @@ class AppContainer(context: Context) {
     val callRepository: CallRepository = NovaCallRepository(appContext)
     val socialRepository = NovaSocialRepository(appContext, api)
     val peopleRepository: PeopleRepository = socialRepository
-    val peoplePagingRepository: PeoplePagingRepository = NovaSocialPagingRepository(appContext)
+    val peoplePagingRepository: PeoplePagingRepository = PeoplePagingRemoteRepository(appContext)
     val storiesRepository: StoriesRepository = NovaStoriesRepository(appContext)
     val reelsRepository: ReelsRepository = NovaReelsRepository(appContext)
     val profileReelsRepository: ProfileReelsRepository = NovaProfileReelsRepository(appContext)
