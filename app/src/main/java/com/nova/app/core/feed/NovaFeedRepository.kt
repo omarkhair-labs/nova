@@ -11,6 +11,7 @@ import com.nova.app.feature.auth.data.remote.AuthRemoteDataSource
 import com.nova.app.feature.feed.data.FeedRepository
 import com.nova.app.feature.people.data.remote.PeopleRemoteDataSource
 import com.nova.app.feature.posts.data.PostRepository
+import com.nova.app.feature.posts.data.remote.PostsRemoteDataSource
 import com.nova.app.feature.posts.domain.model.NovaComment
 import com.nova.app.feature.posts.domain.model.NovaCommentMutation
 import com.nova.app.feature.posts.domain.model.NovaPost
@@ -28,11 +29,12 @@ class NovaFeedRepository(
     private val feedCache = NovaFeedCache(appContext)
     private val authRemote = AuthRemoteDataSource(api)
     private val peopleRemote = PeopleRemoteDataSource(api)
+    private val postsRemote = PostsRemoteDataSource(api)
 
     override suspend fun feed(cursor: String?): ApiResult<NovaPostPage> {
         val cachedUserId = sessionStore.load()?.cachedUser?.id?.takeIf { it > 0L }
         val result = authenticatedCall { accessToken ->
-            api.feed(accessToken, cursor)
+            postsRemote.feed(accessToken, cursor)
         }
 
         if (cursor.isNullOrBlank()) {
@@ -65,7 +67,7 @@ class NovaFeedRepository(
 
     override suspend fun post(postId: Long): ApiResult<NovaPost> {
         return authenticatedCall { accessToken ->
-            api.post(accessToken, postId)
+            postsRemote.post(accessToken, postId)
         }
     }
 
@@ -79,7 +81,7 @@ class NovaFeedRepository(
         }
 
         return authenticatedCall { accessToken ->
-            api.createPost(
+            postsRemote.createPost(
                 accessToken = accessToken,
                 caption = caption.trim(),
                 image = image,
@@ -89,7 +91,7 @@ class NovaFeedRepository(
 
     override suspend fun deletePost(postId: Long): ApiResult<Unit> {
         return authenticatedCall { accessToken ->
-            api.deletePost(accessToken, postId)
+            postsRemote.deletePost(accessToken, postId)
         }
     }
 
@@ -98,13 +100,13 @@ class NovaFeedRepository(
         liked: Boolean,
     ): ApiResult<NovaPost> {
         return authenticatedCall { accessToken ->
-            api.setLiked(accessToken, postId, liked)
+            postsRemote.setLiked(accessToken, postId, liked)
         }
     }
 
     override suspend fun comments(postId: Long): ApiResult<List<NovaComment>> {
         return authenticatedCall { accessToken ->
-            api.comments(accessToken, postId)
+            postsRemote.comments(accessToken, postId)
         }
     }
 
@@ -114,19 +116,19 @@ class NovaFeedRepository(
         parentId: Long?,
     ): ApiResult<NovaCommentMutation> {
         return authenticatedCall { accessToken ->
-            api.addComment(accessToken, postId, body.trim(), parentId)
+            postsRemote.addComment(accessToken, postId, body.trim(), parentId)
         }
     }
 
     override suspend fun deleteComment(commentId: Long): ApiResult<NovaPost> {
         return authenticatedCall { accessToken ->
-            api.deleteComment(accessToken, commentId)
+            postsRemote.deleteComment(accessToken, commentId)
         }
     }
 
     override suspend fun deleteCommentReply(replyId: Long): ApiResult<NovaPost> {
         return authenticatedCall { accessToken ->
-            api.deleteCommentReply(accessToken, replyId)
+            postsRemote.deleteCommentReply(accessToken, replyId)
         }
     }
 
