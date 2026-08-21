@@ -9,6 +9,7 @@ required = [
     MAIN / "feature/posts/domain/model/PostModels.kt",
     MAIN / "feature/posts/data/PostRepository.kt",
     MAIN / "feature/posts/data/PostJsonParser.kt",
+    MAIN / "feature/posts/data/remote/PostsRemoteDataSource.kt",
     MAIN / "feature/feed/data/FeedRepository.kt",
     MAIN / "feature/feed/FeedStateOwner.kt",
     MAIN / "feature/posts/detail/PostDetailStateOwner.kt",
@@ -25,6 +26,7 @@ legacy_imports = (
     "import com.nova.app.core.network.NovaPostPage\n",
     "import com.nova.app.core.network.NovaComment\n",
     "import com.nova.app.core.network.NovaCommentMutation\n",
+    "import com.nova.app.core.network.NovaPostAuthor\n",
 )
 
 consolidated_paths = [
@@ -47,22 +49,40 @@ for entry in consolidated_paths:
 
 api = MAIN / "core/network/NovaApiClient.kt"
 api_text = api.read_text(encoding="utf-8")
+post_models = MAIN / "feature/posts/domain/model/PostModels.kt"
+post_models_text = post_models.read_text(encoding="utf-8")
 post_json_parser = MAIN / "feature/posts/data/PostJsonParser.kt"
 post_json_parser_text = post_json_parser.read_text(encoding="utf-8")
+posts_remote = MAIN / "feature/posts/data/remote/PostsRemoteDataSource.kt"
+posts_remote_text = posts_remote.read_text(encoding="utf-8")
 people_remote = MAIN / "feature/people/data/remote/PeopleRemoteDataSource.kt"
 people_remote_text = people_remote.read_text(encoding="utf-8") if people_remote.exists() else ""
+feed_repository = MAIN / "core/feed/NovaFeedRepository.kt"
+feed_repository_text = feed_repository.read_text(encoding="utf-8")
 
 for declaration in (
+    "data class NovaPostAuthor(",
     "data class NovaPost(",
     "data class NovaPostPage(",
     "data class NovaComment(",
     "data class NovaCommentMutation(",
 ):
     if declaration in api_text:
-        errors.append(f"NovaApiClient still owns post model declaration: {declaration}")
+        errors.append(f"NovaApiClient still owns Posts declaration: {declaration}")
 
 for required_text in (
-    "import com.nova.app.core.network.NovaPostAuthor",
+    "data class NovaPostAuthor(",
+    "val author: NovaPostAuthor",
+    "data class NovaPost(",
+    "data class NovaPostPage(",
+    "data class NovaComment(",
+    "data class NovaCommentMutation(",
+):
+    if required_text not in post_models_text:
+        errors.append(f"feature-owned Posts models lost seam: {required_text}")
+
+for required_text in (
+    "import com.nova.app.feature.posts.domain.model.NovaPostAuthor",
     "internal fun parseNovaPostAuthor(",
     "internal fun parseNovaPosts(",
     "internal fun parseNovaPostPage(",
@@ -83,29 +103,80 @@ for required_text in (
     if required_text not in post_json_parser_text:
         errors.append(f"feature-owned Posts JSON parser lost characterized behavior: {required_text}")
 
-# Shared client only needs the parsers used by feed/post/comment endpoints.
-for required_import in (
+for required_text in (
+    "class PostsRemoteDataSource(",
+    "private val api: NovaApiClient",
+    '"feed/"',
+    '"feed/?cursor=${encode(cursor)}"',
+    'path = "posts/$postId/"',
+    'path = "posts/"',
+    'fields = mapOf("caption" to caption)',
+    'fileField = "image"',
+    'path = "posts/$postId/like/"',
+    'path = "posts/$postId/comments/"',
+    'JSONObject().put("body", body)',
+    'payload.put("parent_id", it)',
+    'deleteCommentResource(accessToken, "comments/$commentId/")',
+    'deleteCommentResource(accessToken, "comment-replies/$replyId/")',
+    'ApiResult.Failure("Nova returned an invalid comment response.")',
+    'parseNovaPostPage(response.value, api::resolveMediaUrl)',
+    'parseNovaPost(response.value, api::resolveMediaUrl)',
+    'add(parseNovaComment(it, api::resolveMediaUrl))',
+    'comment = parseNovaComment(comment, api::resolveMediaUrl)',
+    'post = parseNovaPost(post, api::resolveMediaUrl)',
+    'ApiResult.Success(parseNovaPost(post, api::resolveMediaUrl))',
+):
+    if required_text not in posts_remote_text:
+        errors.append(f"feature-owned Posts transport lost characterized behavior: {required_text}")
+
+for forbidden in (
     "import com.nova.app.feature.posts.data.parseNovaComment",
     "import com.nova.app.feature.posts.data.parseNovaPost",
     "import com.nova.app.feature.posts.data.parseNovaPostPage",
+    "import com.nova.app.feature.posts.data.parseNovaPosts",
+    "suspend fun feed(",
+    "suspend fun post(",
+    "suspend fun createPost(",
+    "suspend fun deletePost(",
+    "suspend fun setLiked(",
+    "suspend fun comments(",
+    "suspend fun addComment(",
+    "suspend fun deleteComment(",
+    "suspend fun deleteCommentReply(",
 ):
-    if required_import not in api_text:
-        errors.append(f"NovaApiClient must import feature-owned Posts parser: {required_import}")
-if "import com.nova.app.feature.posts.data.parseNovaPosts" in api_text:
-    errors.append("NovaApiClient must not retain parseNovaPosts after People profile-post transport moved out")
+    if forbidden in api_text:
+        errors.append(f"NovaApiClient must stay free of Posts feature seam: {forbidden}")
 
-for required_call in (
-    "parseNovaPostPage(response.value, ::resolveMediaUrl)",
-    "parseNovaPost(response.value, ::resolveMediaUrl)",
-    "add(parseNovaComment(it, ::resolveMediaUrl))",
-    "comment = parseNovaComment(comment, ::resolveMediaUrl)",
-    "post = parseNovaPost(post, ::resolveMediaUrl)",
-    "ApiResult.Success(parseNovaPost(post, ::resolveMediaUrl))",
+for required_text in (
+    "import com.nova.app.feature.posts.data.remote.PostsRemoteDataSource",
+    "private val postsRemote = PostsRemoteDataSource(api)",
+    "postsRemote.feed(accessToken, cursor)",
+    "postsRemote.post(accessToken, postId)",
+    "postsRemote.createPost(",
+    "postsRemote.deletePost(accessToken, postId)",
+    "postsRemote.setLiked(accessToken, postId, liked)",
+    "postsRemote.comments(accessToken, postId)",
+    "postsRemote.addComment(accessToken, postId, body.trim(), parentId)",
+    "postsRemote.deleteComment(accessToken, commentId)",
+    "postsRemote.deleteCommentReply(accessToken, replyId)",
 ):
-    if required_call not in api_text:
-        errors.append(f"NovaApiClient live Posts decode path must use feature parser: {required_call}")
+    if required_text not in feed_repository_text:
+        errors.append(f"NovaFeedRepository must route Posts through feature transport: {required_text}")
+for forbidden in (
+    "api.feed(",
+    "api.post(",
+    "api.createPost(",
+    "api.deletePost(",
+    "api.setLiked(",
+    "api.comments(",
+    "api.addComment(",
+    "api.deleteComment(",
+    "api.deleteCommentReply(",
+):
+    if forbidden in feed_repository_text:
+        errors.append(f"NovaFeedRepository restored shared-client Posts endpoint: {forbidden}")
 
-# Profile-post list decoding now lives in the People feature but still reuses the authoritative Posts parser.
+# Profile-post list decoding lives in People but reuses the authoritative Posts parser.
 for required_text in (
     "import com.nova.app.feature.posts.data.parseNovaPosts",
     "parseNovaPosts(response.value, api::resolveMediaUrl)",
@@ -113,31 +184,14 @@ for required_text in (
     if required_text not in people_remote_text:
         errors.append(f"People profile-post transport must reuse Posts parser: {required_text}")
 
-for forbidden_call in (
-    "ApiResult.Success(parsePosts(response.value))",
-    "ApiResult.Success(parsePostPage(response.value))",
-    "ApiResult.Success(parsePost(response.value))",
-    "comment = parseComment(comment)",
-    "post = parsePost(post)",
-    "ApiResult.Success(parsePost(post))",
-):
-    if forbidden_call in api_text:
-        errors.append(f"NovaApiClient must not route live Posts responses through core parser: {forbidden_call}")
-
-comments_start = api_text.find("    suspend fun comments(")
-comments_end = api_text.find("    suspend fun addComment(", comments_start)
+comments_start = posts_remote_text.find("    suspend fun comments(")
+comments_end = posts_remote_text.find("    suspend fun addComment(", comments_start)
 if comments_start == -1 or comments_end == -1:
-    errors.append("NovaApiClient comments endpoint boundary is missing")
+    errors.append("PostsRemoteDataSource comments endpoint boundary is missing")
 else:
-    live_comments_body = api_text[comments_start:comments_end]
-    if "add(parseComment(it))" in live_comments_body:
-        errors.append(
-            "NovaApiClient live comments endpoint must not route responses through core parseComment"
-        )
-    if "add(parseNovaComment(it, ::resolveMediaUrl))" not in live_comments_body:
-        errors.append(
-            "NovaApiClient live comments endpoint must use feature-owned parseNovaComment"
-        )
+    live_comments_body = posts_remote_text[comments_start:comments_end]
+    if "add(parseNovaComment(it, api::resolveMediaUrl))" not in live_comments_body:
+        errors.append("PostsRemoteDataSource comments endpoint must use feature-owned parseNovaComment")
 
 comments_screen = MAIN / "feature/post/PostCommentsScreen.kt"
 comments_text = comments_screen.read_text(encoding="utf-8")
@@ -164,10 +218,16 @@ for required_text in (
     if required_text not in app_text:
         errors.append(f"NovaApp missing stable feed/posts wiring: {required_text}")
 
+# Phase 5 exit: no core post-author alias/import may return anywhere in Android sources.
+for kotlin_file in (ROOT / "app/src").rglob("*.kt"):
+    text = kotlin_file.read_text(encoding="utf-8")
+    if "import com.nova.app.core.network.NovaPostAuthor" in text:
+        errors.append(f"core NovaPostAuthor import returned: {kotlin_file.relative_to(ROOT)}")
+
 if errors:
     print("Feed/posts architecture check failed:")
     for error in errors:
         print(f"- {error}")
     sys.exit(1)
 
-print("Feed/posts architecture check passed.")
+print("Feed/posts architecture Phase 5 exit check passed.")
