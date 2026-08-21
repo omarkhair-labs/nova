@@ -27,8 +27,6 @@ legacy_imports = (
     "import com.nova.app.core.network.NovaCommentMutation\n",
 )
 
-# These paths are the completed feed/posts/comments slice. Other social features
-# may use the explicit compatibility aliases until their own Phase 4 slice moves.
 consolidated_paths = [
     MAIN / "NovaApp.kt",
     MAIN / "feature/feed",
@@ -51,6 +49,8 @@ api = MAIN / "core/network/NovaApiClient.kt"
 api_text = api.read_text(encoding="utf-8")
 post_json_parser = MAIN / "feature/posts/data/PostJsonParser.kt"
 post_json_parser_text = post_json_parser.read_text(encoding="utf-8")
+people_remote = MAIN / "feature/people/data/remote/PeopleRemoteDataSource.kt"
+people_remote_text = people_remote.read_text(encoding="utf-8") if people_remote.exists() else ""
 
 for declaration in (
     "data class NovaPost(",
@@ -83,17 +83,18 @@ for required_text in (
     if required_text not in post_json_parser_text:
         errors.append(f"feature-owned Posts JSON parser lost characterized behavior: {required_text}")
 
+# Shared client only needs the parsers used by feed/post/comment endpoints.
 for required_import in (
     "import com.nova.app.feature.posts.data.parseNovaComment",
     "import com.nova.app.feature.posts.data.parseNovaPost",
     "import com.nova.app.feature.posts.data.parseNovaPostPage",
-    "import com.nova.app.feature.posts.data.parseNovaPosts",
 ):
     if required_import not in api_text:
         errors.append(f"NovaApiClient must import feature-owned Posts parser: {required_import}")
+if "import com.nova.app.feature.posts.data.parseNovaPosts" in api_text:
+    errors.append("NovaApiClient must not retain parseNovaPosts after People profile-post transport moved out")
 
 for required_call in (
-    "parseNovaPosts(response.value, ::resolveMediaUrl)",
     "parseNovaPostPage(response.value, ::resolveMediaUrl)",
     "parseNovaPost(response.value, ::resolveMediaUrl)",
     "add(parseNovaComment(it, ::resolveMediaUrl))",
@@ -103,6 +104,14 @@ for required_call in (
 ):
     if required_call not in api_text:
         errors.append(f"NovaApiClient live Posts decode path must use feature parser: {required_call}")
+
+# Profile-post list decoding now lives in the People feature but still reuses the authoritative Posts parser.
+for required_text in (
+    "import com.nova.app.feature.posts.data.parseNovaPosts",
+    "parseNovaPosts(response.value, api::resolveMediaUrl)",
+):
+    if required_text not in people_remote_text:
+        errors.append(f"People profile-post transport must reuse Posts parser: {required_text}")
 
 for forbidden_call in (
     "ApiResult.Success(parsePosts(response.value))",
@@ -115,10 +124,6 @@ for forbidden_call in (
     if forbidden_call in api_text:
         errors.append(f"NovaApiClient must not route live Posts responses through core parser: {forbidden_call}")
 
-# The superseded private parseComment helper intentionally remains until the
-# follow-up cleanup PR, and its recursive body also contains add(parseComment(it)).
-# Scope the legacy-call prohibition to the live comments() endpoint body so the
-# gate rejects a live rollback without mistaking the retained helper for usage.
 comments_start = api_text.find("    suspend fun comments(")
 comments_end = api_text.find("    suspend fun addComment(", comments_start)
 if comments_start == -1 or comments_end == -1:
