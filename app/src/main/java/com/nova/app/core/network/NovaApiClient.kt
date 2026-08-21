@@ -475,19 +475,6 @@ class NovaApiClient(
         )
     }
 
-    private fun parsePerson(json: JSONObject): NovaPerson {
-        return NovaPerson(
-            id = json.optLong("id"),
-            username = json.optString("username"),
-            name = json.optString("name"),
-            avatarUrl = resolveMediaUrl(json.optString("avatar_url")),
-            followersCount = json.optInt("followers_count", 0),
-            followingCount = json.optInt("following_count", 0),
-            postsCount = json.optInt("posts_count", 0),
-            isFollowing = json.optBoolean("is_following", false),
-        )
-    }
-
     private fun parsePostAuthor(json: JSONObject): NovaPostAuthor {
         return NovaPostAuthor(
             id = json.optLong("id"),
