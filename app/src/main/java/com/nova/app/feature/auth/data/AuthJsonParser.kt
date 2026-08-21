@@ -1,8 +1,8 @@
 package com.nova.app.feature.auth.data
 
 import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.AuthSession
-import com.nova.app.core.network.NovaUser
+import com.nova.app.feature.auth.domain.model.AuthSession
+import com.nova.app.feature.auth.domain.model.NovaUser
 import org.json.JSONObject
 
 
