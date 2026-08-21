@@ -15,7 +15,6 @@ import com.nova.app.core.messaging.NovaInboxPagingRepository
 import com.nova.app.core.messaging.NovaMessagingApiClient
 import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.NovaApiClient
-import com.nova.app.core.network.NovaPostAuthor
 import com.nova.app.core.notifications.NovaNotificationRepository
 import com.nova.app.core.privacy.NovaPrivacyRepository
 import com.nova.app.core.reels.NovaProfileReelsRepository
@@ -52,6 +51,7 @@ import com.nova.app.feature.people.data.PeoplePagingRepository
 import com.nova.app.feature.people.data.PeopleRepository
 import com.nova.app.feature.people.data.remote.PeoplePagingRemoteRepository
 import com.nova.app.feature.posts.data.PostRepository
+import com.nova.app.feature.posts.domain.model.NovaPostAuthor
 import com.nova.app.feature.privacy.data.FollowRequestRepository
 import com.nova.app.feature.privacy.data.PrivacyRepository
 import com.nova.app.feature.reels.data.ProfileReelsRepository

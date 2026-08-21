@@ -2,7 +2,6 @@ package com.nova.app.feature.sharing
 
 import android.net.Uri
 import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaPostAuthor
 import com.nova.app.feature.messages.data.MessagesRepository
 import com.nova.app.feature.messages.domain.model.NovaConversation
 import com.nova.app.feature.messages.domain.model.NovaConversationList
@@ -11,6 +10,7 @@ import com.nova.app.feature.messages.domain.model.NovaMessagePage
 import com.nova.app.feature.messages.domain.model.NovaMessageReaction
 import com.nova.app.feature.people.data.PeopleRepository
 import com.nova.app.feature.people.domain.model.NovaPerson
+import com.nova.app.feature.posts.domain.model.NovaPostAuthor
 import com.nova.app.feature.sharing.data.SharingRepository
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope

@@ -5,11 +5,11 @@ import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
-import com.nova.app.core.network.NovaPostAuthor
 import com.nova.app.feature.messages.details.data.ConversationToolsRepository
 import com.nova.app.feature.messages.details.model.ConversationMediaPage
 import com.nova.app.feature.messages.details.model.ConversationMessageContext
 import com.nova.app.feature.messages.details.model.ConversationToolMessage
+import com.nova.app.feature.posts.domain.model.NovaPostAuthor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray

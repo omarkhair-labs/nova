@@ -4,10 +4,10 @@ import android.content.Context
 import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
-import com.nova.app.core.network.NovaPostAuthor
 import com.nova.app.feature.notifications.data.NotificationsRepository
 import com.nova.app.feature.notifications.domain.model.NovaNotification
 import com.nova.app.feature.notifications.domain.model.NovaNotificationPage
+import com.nova.app.feature.posts.domain.model.NovaPostAuthor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray

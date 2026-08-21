@@ -1,12 +1,12 @@
 package com.nova.app.feature.messages.group
 
 import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaPostAuthor
 import com.nova.app.feature.messages.domain.model.NovaConversation
 import com.nova.app.feature.messages.group.data.GroupMembershipRepository
 import com.nova.app.feature.messages.group.data.GroupPeopleRepository
 import com.nova.app.feature.messages.group.model.GroupDetail
 import com.nova.app.feature.people.domain.model.NovaPerson
+import com.nova.app.feature.posts.domain.model.NovaPostAuthor
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals

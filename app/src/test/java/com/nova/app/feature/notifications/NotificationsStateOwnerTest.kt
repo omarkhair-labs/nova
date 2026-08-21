@@ -2,7 +2,6 @@ package com.nova.app.feature.notifications
 
 import android.net.Uri
 import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaPostAuthor
 import com.nova.app.feature.notifications.data.NotificationsRepository
 import com.nova.app.feature.notifications.domain.model.NovaNotification
 import com.nova.app.feature.notifications.domain.model.NovaNotificationPage
@@ -11,6 +10,7 @@ import com.nova.app.feature.posts.data.PostRepository
 import com.nova.app.feature.posts.domain.model.NovaComment
 import com.nova.app.feature.posts.domain.model.NovaCommentMutation
 import com.nova.app.feature.posts.domain.model.NovaPost
+import com.nova.app.feature.posts.domain.model.NovaPostAuthor
 import com.nova.app.feature.privacy.data.FollowRequestRepository
 import com.nova.app.feature.privacy.domain.model.NovaFollowRequest
 import kotlinx.coroutines.CompletableDeferred

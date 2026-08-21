@@ -1,8 +1,8 @@
 package com.nova.app.core.feed
 
 import android.content.Context
-import com.nova.app.core.network.NovaPostAuthor
 import com.nova.app.feature.posts.domain.model.NovaPost
+import com.nova.app.feature.posts.domain.model.NovaPostAuthor
 import com.nova.app.feature.posts.domain.model.NovaPostPage
 import org.json.JSONArray
 import org.json.JSONObject

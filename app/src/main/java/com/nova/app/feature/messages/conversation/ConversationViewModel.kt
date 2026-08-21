@@ -15,11 +15,11 @@ import com.nova.app.core.messaging.NovaMessageUpdatedEvent
 import com.nova.app.core.messaging.NovaRealtimeEvent
 import com.nova.app.core.messaging.NovaRealtimeStatus
 import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaPostAuthor
 import com.nova.app.feature.messages.data.MessagesRepository
 import com.nova.app.feature.messages.domain.model.NovaMessage
 import com.nova.app.feature.messages.domain.model.NovaMessageReaction
 import com.nova.app.feature.messages.domain.model.NovaReplyPreview
+import com.nova.app.feature.posts.domain.model.NovaPostAuthor
 import java.io.File
 import java.time.Instant
 import java.util.UUID
