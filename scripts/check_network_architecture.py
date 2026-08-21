@@ -52,8 +52,9 @@ feed_repository = read(FEED_REPOSITORY)
 social_repository = read(SOCIAL_REPOSITORY)
 social_paging_repository = read(SOCIAL_PAGING_REPOSITORY)
 
-# Shared client: Auth feature ownership is gone; People/Posts endpoints remain
-# characterized until their dedicated Phase 5 slices.
+# Shared client: Auth models and primary Auth/profile endpoints are feature-owned.
+# The refresh member remains temporarily as a cross-cutting compatibility seam;
+# the next Phase 5 slice removes it only after all refresh consumers are unified.
 require_all(client, "NovaApiClient shared boundary", (
     'data class NovaPostAuthor(',
     'data class UploadFile(',
@@ -65,6 +66,10 @@ require_all(client, "NovaApiClient shared boundary", (
     'import com.nova.app.feature.posts.data.parseNovaPost',
     'import com.nova.app.feature.posts.data.parseNovaPostPage',
     'import com.nova.app.feature.posts.data.parseNovaPosts',
+    'suspend fun refresh(refreshToken: String): ApiResult<String>',
+    'JSONObject().put("refresh", refreshToken)',
+    'requestJson("auth/refresh/", "POST", body)',
+    'ApiResult.Failure("Nova returned an invalid session response.")',
 ))
 forbid_all(client, "feature-owned core network seam", (
     'data class NovaUser(',
@@ -77,7 +82,6 @@ forbid_all(client, "feature-owned core network seam", (
     'suspend fun login(',
     'suspend fun me(',
     'suspend fun updateProfile(',
-    'suspend fun refresh(',
     'import com.nova.app.feature.auth.data.parseAuthSession',
     'import com.nova.app.feature.auth.data.parseNovaUser',
     'private fun parsePerson(',
@@ -92,7 +96,7 @@ require_all(person_compat, "temporary NovaPerson compatibility alias", (
     'typealias NovaPerson = com.nova.app.feature.people.domain.model.NovaPerson',
 ))
 
-# Auth models/parser/remote are authoritative.
+# Auth models/parser/remote are authoritative for Auth/profile feature ownership.
 require_all(auth_models, "feature Auth models", (
     'package com.nova.app.feature.auth.domain.model',
     'data class NovaUser(',
@@ -166,8 +170,8 @@ forbid_all(auth_repository, "NovaAuthRepository superseded core Auth seam", (
     'import com.nova.app.core.network.AuthSession',
 ))
 
-# Existing refresh orchestration remains above the HTTP engine but all direct
-# refresh endpoint ownership now routes through the feature Auth remote.
+# Feed/Social slices already use the feature remote. Other legacy repositories
+# still use the characterized core refresh compatibility member until #169.
 for text, label, ctor in (
     (feed_repository, "NovaFeedRepository Auth refresh seam", 'private val authRemote = AuthRemoteDataSource(api)'),
     (social_repository, "NovaSocialRepository Auth refresh seam", 'private val authRemote = AuthRemoteDataSource(api)'),
@@ -183,7 +187,7 @@ for text, label, ctor in (
         'authApi.refresh(stored.refreshToken)',
     ))
 
-# People parser + endpoint behavior is frozen for #169.
+# People parser + endpoint behavior is frozen for the dedicated People slice.
 require_all(people_parser, "feature People parser", (
     'internal fun parseNovaPerson(',
     'id = json.optLong("id")',
@@ -210,7 +214,7 @@ require_all(client, "People/social network contract", (
     'ApiResult.Success(parseNovaPerson(response.value, ::resolveMediaUrl))',
 ))
 
-# Posts models/parser + endpoint behavior is frozen for #170.
+# Posts models/parser + endpoint behavior is frozen for the dedicated Posts slice.
 require_all(post_models, "feature Posts models", (
     'data class NovaPost(',
     'val author: NovaPostAuthor',

@@ -352,6 +352,23 @@ class NovaApiClient(
         }
     }
 
+    suspend fun refresh(refreshToken: String): ApiResult<String> {
+        val body = JSONObject().put("refresh", refreshToken)
+
+        return when (val response = requestJson("auth/refresh/", "POST", body)) {
+            is ApiResult.Success -> {
+                val access = response.value.optString("access")
+                if (access.isBlank()) {
+                    ApiResult.Failure("Nova returned an invalid session response.")
+                } else {
+                    ApiResult.Success(access)
+                }
+            }
+
+            is ApiResult.Failure -> response
+        }
+    }
+
     internal fun resolveMediaUrl(raw: String): String {
         if (raw.isBlank() || raw == "null") return ""
         if (raw.startsWith("http://") || raw.startsWith("https://")) return raw

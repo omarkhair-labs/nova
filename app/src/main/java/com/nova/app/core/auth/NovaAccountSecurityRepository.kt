@@ -2,10 +2,10 @@ package com.nova.app.core.auth
 
 import android.content.Context
 import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.AuthSession
 import com.nova.app.core.network.NovaApiClient
-import com.nova.app.core.network.NovaUser
 import com.nova.app.core.push.NovaPushRegistration
+import com.nova.app.feature.auth.domain.model.AuthSession
+import com.nova.app.feature.auth.domain.model.NovaUser
 import com.nova.app.feature.security.data.SecurityRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
