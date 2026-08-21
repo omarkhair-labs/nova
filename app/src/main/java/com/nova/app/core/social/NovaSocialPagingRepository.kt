@@ -5,6 +5,7 @@ import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.NovaPostAuthor
+import com.nova.app.feature.auth.data.remote.AuthRemoteDataSource
 import com.nova.app.feature.people.data.PeoplePagingRepository
 import com.nova.app.feature.people.domain.model.NovaPerson
 import com.nova.app.feature.people.domain.model.NovaPersonPage as StableNovaPersonPage
@@ -25,7 +26,7 @@ class NovaSocialPagingRepository(
     private val baseUrl: String = PRODUCTION_API_URL,
 ) : PeoplePagingRepository {
     private val sessionStore = NovaSessionStore(context.applicationContext)
-    private val authApi = NovaApiClient(baseUrl)
+    private val authRemote = AuthRemoteDataSource(NovaApiClient(baseUrl))
 
     override suspend fun people(
         query: String,
@@ -173,7 +174,7 @@ class NovaSocialPagingRepository(
             is ApiResult.Failure -> if (first.statusCode != 401) return first
         }
 
-        return when (val refreshed = authApi.refresh(stored.refreshToken)) {
+        return when (val refreshed = authRemote.refresh(stored.refreshToken)) {
             is ApiResult.Success -> {
                 sessionStore.updateAccessToken(refreshed.value)
                 when (val retried = call(refreshed.value)) {
