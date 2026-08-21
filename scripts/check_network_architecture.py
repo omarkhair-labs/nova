@@ -175,7 +175,7 @@ for required in (
     'is Number -> rawParentId.toLong().takeIf { it > 0L }',
     'rawParentId.toString().toLongOrNull()?.takeIf { it > 0L }',
     'val replyRows = json.optJSONArray("replies") ?: JSONArray()',
-    'array.optJSONObject(index)?.let { add(parseComment(it)) }',
+    'array.optJSONObject(index)?.let { add(parseNovaComment(it, ::resolveMediaUrl)) }',
     'repliesCount = json.optInt("replies_count", replies.size)',
 ):
     if required not in client:
