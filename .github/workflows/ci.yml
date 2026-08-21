@@ -82,7 +82,7 @@ jobs:
         run: python manage.py makemigrations --check
 
       - name: Validate Google Play release script
-        run: python -m py_compile ../scripts/publish_google_play.py
+        run: pythom -m py_compile ../scripts/publish_google_play.py
 
       - name: Run backend tests
         run: python manage.py test
@@ -141,6 +141,9 @@ jobs:
 
       - name: Check Security architecture
         run: python3 scripts/check_security_architecture.py
+
+      - name: Check network architecture
+        run: python3 scripts/check_network_architecture.py
 
       - name: Check shared UI architecture
         run: python3 scripts/check_shared_ui_architecture.py
