@@ -66,6 +66,9 @@ for declaration in ("data class NovaPerson(", "data class NovaPersonPage(", "dat
 if "data class NovaPerson(" in api:
     errors.append("NovaApiClient must not own NovaPerson")
 
+if "private fun parsePerson(" in api:
+    errors.append("NovaApiClient must not retain the superseded core People parser")
+
 for required in (
     "internal fun parseNovaPerson(",
     "json: JSONObject",
