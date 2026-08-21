@@ -6,6 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 CLIENT = ROOT / "app/src/main/java/com/nova/app/core/network/NovaApiClient.kt"
 PERSON_COMPAT = ROOT / "app/src/main/java/com/nova/app/core/network/PersonModelCompatibility.kt"
+AUTH_PARSER = ROOT / "app/src/main/java/com/nova/app/feature/auth/data/AuthJsonParser.kt"
 PEOPLE_PARSER = ROOT / "app/src/main/java/com/nova/app/feature/people/data/PeopleJsonParser.kt"
 POST_MODELS = ROOT / "app/src/main/java/com/nova/app/feature/posts/domain/model/PostModels.kt"
 POST_PARSER = ROOT / "app/src/main/java/com/nova/app/feature/posts/data/PostJsonParser.kt"
@@ -25,6 +26,7 @@ def read(path: Path) -> str:
 
 client = read(CLIENT)
 person_compat = read(PERSON_COMPAT)
+auth_parser = read(AUTH_PARSER)
 people_parser = read(PEOPLE_PARSER)
 post_models = read(POST_MODELS)
 post_parser = read(POST_PARSER)
@@ -43,6 +45,8 @@ for required in (
     'sealed interface ApiResult<out T>',
     'class NovaApiClient(',
     'private val baseUrl: String = "http://127.0.0.1:8000/api/v1/"',
+    'import com.nova.app.feature.auth.data.parseAuthSession',
+    'import com.nova.app.feature.auth.data.parseNovaUser',
     'import com.nova.app.feature.people.data.parseNovaPerson',
     'import com.nova.app.feature.posts.data.parseNovaComment',
     'import com.nova.app.feature.posts.data.parseNovaPost',
@@ -153,6 +157,45 @@ for required in (
     if required not in client:
         errors.append(f"NovaApiClient live Posts decoding changed: {required}")
 
+# Auth/user/session parser ownership. DTO placement stays shared for this narrow
+# live-switch slice; only JSON decoding moves to feature-owned auth data code.
+for required in (
+    'internal fun parseAuthSession(',
+    'internal fun parseNovaUser(',
+    'val access = json.optString("access")',
+    'val refresh = json.optString("refresh")',
+    'val userJson = json.optJSONObject("user")',
+    'if (access.isBlank() || refresh.isBlank() || userJson == null)',
+    'ApiResult.Failure("Nova returned an invalid authentication response.")',
+    'accessToken = access',
+    'refreshToken = refresh',
+    'user = parseNovaUser(userJson, resolveMediaUrl)',
+    'id = json.optLong("id")',
+    'email = json.optString("email")',
+    'username = json.optString("username")',
+    'name = json.optString("name")',
+    'avatarUrl = resolveMediaUrl(json.optString("avatar_url"))',
+    'followersCount = json.optInt("followers_count", 0)',
+    'followingCount = json.optInt("following_count", 0)',
+    'postsCount = json.optInt("posts_count", 0)',
+):
+    if required not in auth_parser:
+        errors.append(f"feature Auth parser characterization changed: {required}")
+
+for required in (
+    'parseAuthSession(response.value, ::resolveMediaUrl)',
+    'ApiResult.Success(parseNovaUser(response.value, ::resolveMediaUrl))',
+):
+    if required not in client:
+        errors.append(f"NovaApiClient live Auth/profile decoding changed: {required}")
+
+for forbidden_call in (
+    'is ApiResult.Success -> parseSession(response.value)',
+    'is ApiResult.Success -> ApiResult.Success(parseUser(response.value))',
+):
+    if forbidden_call in client:
+        errors.append(f"NovaApiClient must not route live Auth/profile responses through core parser: {forbidden_call}")
+
 # Auth/profile wire contract.
 for required in (
     'requestJson("auth/register/", "POST", body)',
@@ -206,7 +249,8 @@ for required in (
     if required not in client:
         errors.append(f"feed/posts/comments network contract changed: {required}")
 
-# Auth/user parser semantics intentionally remain shared until the auth slice.
+# The superseded core auth helpers remain characterized only until the next
+# cleanup PR removes them after this live switch is proven green.
 for required in (
     'id = json.optLong("id")',
     'email = json.optString("email")',
@@ -218,7 +262,7 @@ for required in (
     'postsCount = json.optInt("posts_count", 0)',
 ):
     if required not in client:
-        errors.append(f"shared auth/user parser characterization changed: {required}")
+        errors.append(f"temporary core auth/user parser characterization changed: {required}")
 
 # Media URL and query encoding behavior.
 for required in (
