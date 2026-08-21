@@ -9,6 +9,7 @@ import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.UploadFile
 import com.nova.app.feature.auth.data.remote.AuthRemoteDataSource
 import com.nova.app.feature.feed.data.FeedRepository
+import com.nova.app.feature.people.data.remote.PeopleRemoteDataSource
 import com.nova.app.feature.posts.data.PostRepository
 import com.nova.app.feature.posts.domain.model.NovaComment
 import com.nova.app.feature.posts.domain.model.NovaCommentMutation
@@ -26,6 +27,7 @@ class NovaFeedRepository(
     private val sessionStore = NovaSessionStore(appContext)
     private val feedCache = NovaFeedCache(appContext)
     private val authRemote = AuthRemoteDataSource(api)
+    private val peopleRemote = PeopleRemoteDataSource(api)
 
     override suspend fun feed(cursor: String?): ApiResult<NovaPostPage> {
         val cachedUserId = sessionStore.load()?.cachedUser?.id?.takeIf { it > 0L }
@@ -57,7 +59,7 @@ class NovaFeedRepository(
 
     override suspend fun personPosts(username: String): ApiResult<List<NovaPost>> {
         return authenticatedCall { accessToken ->
-            api.personPosts(accessToken, username)
+            peopleRemote.personPosts(accessToken, username)
         }
     }
 

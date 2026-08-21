@@ -19,7 +19,7 @@ PRIVATE_BADGE_TEST = ROOT / "app/src/test/java/com/nova/app/feature/people/Priva
 PEOPLE_MODELS = ROOT / "app/src/main/java/com/nova/app/feature/people/domain/model/PeopleModels.kt"
 PEOPLE_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/people/PeopleStateOwner.kt"
 CONNECTIONS_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/people/SocialConnectionsStateOwner.kt"
-PEOPLE_PAGING = ROOT / "app/src/main/java/com/nova/app/core/social/NovaSocialPagingRepository.kt"
+PEOPLE_PAGING = ROOT / "app/src/main/java/com/nova/app/feature/people/data/remote/PeoplePagingRemoteRepository.kt"
 PEOPLE_OWNER_TEST = ROOT / "app/src/test/java/com/nova/app/feature/people/PeopleStateOwnersTest.kt"
 PRIVACY_ADAPTER = ROOT / "app/src/main/java/com/nova/app/feature/privacy/data/remote/CorePrivacyRepositoryAdapter.kt"
 FOLLOW_ADAPTER = ROOT / "app/src/main/java/com/nova/app/feature/privacy/data/remote/CoreFollowRequestRepositoryAdapter.kt"
@@ -175,7 +175,7 @@ for text, name in (
     (people_models, "PeopleModels.kt"),
     (people_owner, "PeopleStateOwner.kt"),
     (connections_owner, "SocialConnectionsStateOwner.kt"),
-    (people_paging, "NovaSocialPagingRepository.kt"),
+    (people_paging, "PeoplePagingRemoteRepository.kt"),
     (people_owner_test, "PeopleStateOwnersTest.kt"),
     (person_screen, "PersonScreen.kt"),
     (private_badge, "PrivateProfileBadge.kt"),
@@ -187,7 +187,7 @@ for text, name in (
     (people_models, "PeopleModels.kt"),
     (people_owner, "PeopleStateOwner.kt"),
     (connections_owner, "SocialConnectionsStateOwner.kt"),
-    (people_paging, "NovaSocialPagingRepository.kt"),
+    (people_paging, "PeoplePagingRemoteRepository.kt"),
     (people_owner_test, "PeopleStateOwnersTest.kt"),
     (person_screen, "PersonScreen.kt"),
     (private_badge, "PrivateProfileBadge.kt"),

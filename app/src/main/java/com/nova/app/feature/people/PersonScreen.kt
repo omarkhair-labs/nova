@@ -43,8 +43,8 @@ import com.nova.app.app.appContainer
 import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaPerson
 import com.nova.app.core.social.NovaSocialRepository
+import com.nova.app.feature.people.domain.model.NovaPerson
 import com.nova.app.feature.posts.domain.model.NovaPost
 import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState
 import com.nova.app.feature.sharing.NovaShareDialog

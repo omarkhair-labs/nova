@@ -6,25 +6,27 @@ import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.feature.auth.data.remote.AuthRemoteDataSource
 import com.nova.app.feature.people.data.PeopleRepository
+import com.nova.app.feature.people.data.remote.PeopleRemoteDataSource
 import com.nova.app.feature.people.domain.model.NovaPerson
 
 
 class NovaSocialRepository(
     context: Context,
-    private val api: NovaApiClient = NovaApiClient("https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/"),
+    api: NovaApiClient = NovaApiClient("https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/"),
 ) : PeopleRepository {
     private val sessionStore = NovaSessionStore(context.applicationContext)
+    private val peopleRemote = PeopleRemoteDataSource(api)
     private val authRemote = AuthRemoteDataSource(api)
 
     override suspend fun people(query: String): ApiResult<List<NovaPerson>> {
         return authenticatedCall { accessToken ->
-            api.people(accessToken, query)
+            peopleRemote.people(accessToken, query)
         }
     }
 
     override suspend fun person(username: String): ApiResult<NovaPerson> {
         return authenticatedCall { accessToken ->
-            api.person(accessToken, username)
+            peopleRemote.person(accessToken, username)
         }
     }
 
@@ -33,7 +35,7 @@ class NovaSocialRepository(
         follow: Boolean,
     ): ApiResult<NovaPerson> {
         return authenticatedCall { accessToken ->
-            api.setFollowing(accessToken, username, follow)
+            peopleRemote.setFollowing(accessToken, username, follow)
         }
     }
 
@@ -42,7 +44,7 @@ class NovaSocialRepository(
         blocked: Boolean,
     ): ApiResult<Unit> {
         return authenticatedCall { accessToken ->
-            api.setBlocked(accessToken, username, blocked)
+            peopleRemote.setBlocked(accessToken, username, blocked)
         }
     }
 
@@ -52,7 +54,7 @@ class NovaSocialRepository(
         details: String,
     ): ApiResult<String> {
         return authenticatedCall { accessToken ->
-            api.reportPerson(accessToken, username, reason, details)
+            peopleRemote.reportPerson(accessToken, username, reason, details)
         }
     }
 

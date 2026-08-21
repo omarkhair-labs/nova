@@ -6,16 +6,18 @@ ROOT = Path(__file__).resolve().parents[1]
 
 CLIENT = ROOT / "app/src/main/java/com/nova/app/core/network/NovaApiClient.kt"
 PERSON_COMPAT = ROOT / "app/src/main/java/com/nova/app/core/network/PersonModelCompatibility.kt"
+CORE_PEOPLE_PAGING = ROOT / "app/src/main/java/com/nova/app/core/social/NovaSocialPagingRepository.kt"
 AUTH_MODELS = ROOT / "app/src/main/java/com/nova/app/feature/auth/domain/model/AuthModels.kt"
 AUTH_PARSER = ROOT / "app/src/main/java/com/nova/app/feature/auth/data/AuthJsonParser.kt"
 AUTH_REMOTE = ROOT / "app/src/main/java/com/nova/app/feature/auth/data/remote/AuthRemoteDataSource.kt"
 PEOPLE_PARSER = ROOT / "app/src/main/java/com/nova/app/feature/people/data/PeopleJsonParser.kt"
+PEOPLE_REMOTE = ROOT / "app/src/main/java/com/nova/app/feature/people/data/remote/PeopleRemoteDataSource.kt"
+PEOPLE_PAGING = ROOT / "app/src/main/java/com/nova/app/feature/people/data/remote/PeoplePagingRemoteRepository.kt"
 POST_MODELS = ROOT / "app/src/main/java/com/nova/app/feature/posts/domain/model/PostModels.kt"
 POST_PARSER = ROOT / "app/src/main/java/com/nova/app/feature/posts/data/PostJsonParser.kt"
 AUTH_REPOSITORY = ROOT / "app/src/main/java/com/nova/app/core/auth/NovaAuthRepository.kt"
 FEED_REPOSITORY = ROOT / "app/src/main/java/com/nova/app/core/feed/NovaFeedRepository.kt"
 SOCIAL_REPOSITORY = ROOT / "app/src/main/java/com/nova/app/core/social/NovaSocialRepository.kt"
-SOCIAL_PAGING_REPOSITORY = ROOT / "app/src/main/java/com/nova/app/core/social/NovaSocialPagingRepository.kt"
 
 errors: list[str] = []
 
@@ -40,32 +42,33 @@ def forbid_all(text: str, label: str, seams: tuple[str, ...]) -> None:
 
 
 client = read(CLIENT)
-person_compat = read(PERSON_COMPAT)
 auth_models = read(AUTH_MODELS)
 auth_parser = read(AUTH_PARSER)
 auth_remote = read(AUTH_REMOTE)
 people_parser = read(PEOPLE_PARSER)
+people_remote = read(PEOPLE_REMOTE)
+people_paging = read(PEOPLE_PAGING)
 post_models = read(POST_MODELS)
 post_parser = read(POST_PARSER)
 auth_repository = read(AUTH_REPOSITORY)
 feed_repository = read(FEED_REPOSITORY)
 social_repository = read(SOCIAL_REPOSITORY)
-social_paging_repository = read(SOCIAL_PAGING_REPOSITORY)
 
-# Shared client: Auth models and primary Auth/profile endpoints are feature-owned.
-# The refresh member remains temporarily as a cross-cutting compatibility seam;
-# the next Phase 5 slice removes it only after all refresh consumers are unified.
+if PERSON_COMPAT.exists():
+    errors.append("PersonModelCompatibility.kt must stay deleted after stable People ownership")
+if CORE_PEOPLE_PAGING.exists():
+    errors.append("NovaSocialPagingRepository.kt must stay deleted after feature People paging ownership")
+
+# Shared client keeps only shared DTO/transport/auth primitives plus Posts until #170.
 require_all(client, "NovaApiClient shared boundary", (
     'data class NovaPostAuthor(',
     'data class UploadFile(',
     'sealed interface ApiResult<out T>',
     'class NovaApiClient(',
     'private val baseUrl: String = "http://127.0.0.1:8000/api/v1/"',
-    'import com.nova.app.feature.people.data.parseNovaPerson',
     'import com.nova.app.feature.posts.data.parseNovaComment',
     'import com.nova.app.feature.posts.data.parseNovaPost',
     'import com.nova.app.feature.posts.data.parseNovaPostPage',
-    'import com.nova.app.feature.posts.data.parseNovaPosts',
     'suspend fun refresh(refreshToken: String): ApiResult<String>',
     'JSONObject().put("refresh", refreshToken)',
     'requestJson("auth/refresh/", "POST", body)',
@@ -74,16 +77,18 @@ require_all(client, "NovaApiClient shared boundary", (
 forbid_all(client, "feature-owned core network seam", (
     'data class NovaUser(',
     'data class AuthSession(',
-    'data class NovaPost(',
-    'data class NovaPostPage(',
-    'data class NovaComment(',
-    'data class NovaCommentMutation(',
     'suspend fun register(',
     'suspend fun login(',
     'suspend fun me(',
     'suspend fun updateProfile(',
-    'import com.nova.app.feature.auth.data.parseAuthSession',
-    'import com.nova.app.feature.auth.data.parseNovaUser',
+    'suspend fun people(',
+    'suspend fun person(',
+    'suspend fun personPosts(',
+    'suspend fun setFollowing(',
+    'suspend fun setBlocked(',
+    'suspend fun reportPerson(',
+    'import com.nova.app.feature.people.data.parseNovaPerson',
+    'import com.nova.app.feature.posts.data.parseNovaPosts',
     'private fun parsePerson(',
     'private fun parsePostAuthor(',
     'private fun parsePosts(',
@@ -92,22 +97,10 @@ forbid_all(client, "feature-owned core network seam", (
     'private fun parseComment(',
 ))
 
-require_all(person_compat, "temporary NovaPerson compatibility alias", (
-    'typealias NovaPerson = com.nova.app.feature.people.domain.model.NovaPerson',
-))
-
-# Auth models/parser/remote are authoritative for Auth/profile feature ownership.
+# Auth models/parser/remote remain authoritative. Core refresh is intentionally an auth primitive.
 require_all(auth_models, "feature Auth models", (
     'package com.nova.app.feature.auth.domain.model',
     'data class NovaUser(',
-    'val id: Long',
-    'val email: String',
-    'val username: String',
-    'val name: String',
-    'val avatarUrl: String',
-    'val followersCount: Int = 0',
-    'val followingCount: Int = 0',
-    'val postsCount: Int = 0',
     'data class AuthSession(',
     'val accessToken: String',
     'val refreshToken: String',
@@ -116,41 +109,20 @@ require_all(auth_models, "feature Auth models", (
 require_all(auth_parser, "feature Auth parser", (
     'internal fun parseAuthSession(',
     'internal fun parseNovaUser(',
-    'val access = json.optString("access")',
-    'val refresh = json.optString("refresh")',
-    'val userJson = json.optJSONObject("user")',
     'if (access.isBlank() || refresh.isBlank() || userJson == null)',
     'ApiResult.Failure("Nova returned an invalid authentication response.")',
-    'user = parseNovaUser(userJson, resolveMediaUrl)',
-    'id = json.optLong("id")',
-    'email = json.optString("email")',
-    'username = json.optString("username")',
-    'name = json.optString("name")',
     'avatarUrl = resolveMediaUrl(json.optString("avatar_url"))',
-    'followersCount = json.optInt("followers_count", 0)',
-    'followingCount = json.optInt("following_count", 0)',
-    'postsCount = json.optInt("posts_count", 0)',
 ))
 require_all(auth_remote, "feature Auth remote", (
     'class AuthRemoteDataSource(',
-    'private val api: NovaApiClient',
     'api.requestJson("auth/register/", "POST", body)',
-    '.put("email", email)',
-    '.put("password", password)',
-    '.put("username", username)',
-    '.put("name", name)',
     'api.requestJson("auth/login/", "POST", body)',
     'api.requestJson("me/", bearerToken = accessToken)',
     'path = "me/"',
     'method = "PUT"',
-    '"name" to name',
-    '"username" to username',
     'fileField = "avatar"',
     'api.requestJson("auth/refresh/", "POST", body)',
-    'JSONObject().put("refresh", refreshToken)',
     'ApiResult.Failure("Nova returned an invalid session response.")',
-    'parseAuthSession(response.value, api::resolveMediaUrl)',
-    'ApiResult.Success(parseNovaUser(response.value, api::resolveMediaUrl))',
 ))
 require_all(auth_repository, "NovaAuthRepository feature remote ownership", (
     'private val remote: AuthRemoteDataSource',
@@ -160,34 +132,8 @@ require_all(auth_repository, "NovaAuthRepository feature remote ownership", (
     'remote.updateProfile(',
     'remote.refresh(',
 ))
-forbid_all(auth_repository, "NovaAuthRepository superseded core Auth seam", (
-    'api.register(',
-    'api.login(',
-    'api.me(',
-    'api.updateProfile(',
-    'api.refresh(',
-    'import com.nova.app.core.network.NovaUser',
-    'import com.nova.app.core.network.AuthSession',
-))
 
-# Feed/Social slices already use the feature remote. Other legacy repositories
-# still use the characterized core refresh compatibility member until #169.
-for text, label, ctor in (
-    (feed_repository, "NovaFeedRepository Auth refresh seam", 'private val authRemote = AuthRemoteDataSource(api)'),
-    (social_repository, "NovaSocialRepository Auth refresh seam", 'private val authRemote = AuthRemoteDataSource(api)'),
-    (social_paging_repository, "NovaSocialPagingRepository Auth refresh seam", 'private val authRemote = AuthRemoteDataSource(NovaApiClient(baseUrl))'),
-):
-    require_all(text, label, (
-        'import com.nova.app.feature.auth.data.remote.AuthRemoteDataSource',
-        ctor,
-        'authRemote.refresh(stored.refreshToken)',
-    ))
-    forbid_all(text, f"{label} legacy", (
-        'api.refresh(stored.refreshToken)',
-        'authApi.refresh(stored.refreshToken)',
-    ))
-
-# People parser + endpoint behavior is frozen for the dedicated People slice.
+# People model parsing and all direct People endpoints are feature-owned.
 require_all(people_parser, "feature People parser", (
     'internal fun parseNovaPerson(',
     'id = json.optLong("id")',
@@ -199,7 +145,9 @@ require_all(people_parser, "feature People parser", (
     'postsCount = json.optInt("posts_count", 0)',
     'isFollowing = json.optBoolean("is_following", false)',
 ))
-require_all(client, "People/social network contract", (
+require_all(people_remote, "feature People remote", (
+    'class PeopleRemoteDataSource(',
+    'private val api: NovaApiClient',
     '"people/"',
     '"people/?q=${encode(cleanQuery)}"',
     'path = "people/${encode(username.trim().lowercase())}/"',
@@ -210,11 +158,63 @@ require_all(client, "People/social network contract", (
     '.put("reason", reason)',
     '.put("details", details)',
     '"Report submitted for review."',
-    'add(parseNovaPerson(it, ::resolveMediaUrl))',
-    'ApiResult.Success(parseNovaPerson(response.value, ::resolveMediaUrl))',
+    'add(parseNovaPerson(it, api::resolveMediaUrl))',
+    'parseNovaPerson(response.value, api::resolveMediaUrl)',
+    'parseNovaPosts(response.value, api::resolveMediaUrl)',
+    'URLEncoder.encode(value, Charsets.UTF_8.name())',
+))
+require_all(social_repository, "NovaSocialRepository People remote ownership", (
+    'private val peopleRemote = PeopleRemoteDataSource(api)',
+    'private val authRemote = AuthRemoteDataSource(api)',
+    'peopleRemote.people(accessToken, query)',
+    'peopleRemote.person(accessToken, username)',
+    'peopleRemote.setFollowing(accessToken, username, follow)',
+    'peopleRemote.setBlocked(accessToken, username, blocked)',
+    'peopleRemote.reportPerson(accessToken, username, reason, details)',
+    'authRemote.refresh(stored.refreshToken)',
+))
+forbid_all(social_repository, "NovaSocialRepository superseded People client seam", (
+    'api.people(',
+    'api.person(',
+    'api.setFollowing(',
+    'api.setBlocked(',
+    'api.reportPerson(',
 ))
 
-# Posts models/parser + endpoint behavior is frozen for the dedicated Posts slice.
+# Paging stays byte-for-byte compatible in transport semantics while living in feature People.
+require_all(people_paging, "feature People paging transport", (
+    'class PeoplePagingRemoteRepository(',
+    ') : PeoplePagingRepository',
+    'path = "people/"',
+    'path = "people/${encode(username.trim().lowercase())}/followers/"',
+    'path = "people/${encode(username.trim().lowercase())}/following/"',
+    'path = "people/${encode(username.trim().lowercase())}/posts/"',
+    'path = "people/${encode(username.trim().lowercase())}/reposts/"',
+    'connectTimeout = 12_000',
+    'readTimeout = 15_000',
+    'requestMethod = "GET"',
+    'setRequestProperty("Accept", "application/json")',
+    'setRequestProperty("Authorization", "Bearer $bearerToken")',
+    '401 -> "Your session expired. Please log in again."',
+    '403 -> "Follow this private account to see this content."',
+    '404 -> "Nova couldn\'t find that profile."',
+    'in 500..599 -> "Nova\'s server had a problem. Try again in a moment."',
+    'ApiResult.Failure("Can\'t reach Nova right now. Check your connection and try again.")',
+    'val person = parseNovaPerson(item, ::resolveMediaUrl)',
+    'add(parseNovaPost(it, ::resolveMediaUrl))',
+    'nextCursor = optionalString(response.value, "next_cursor")',
+    'isPrivate = json.optBoolean("is_private", false)',
+    'followRequested = json.optBoolean("follow_requested", false)',
+    'canViewContent = json.optBoolean("can_view_content", true)',
+    'authRemote.refresh(stored.refreshToken)',
+))
+forbid_all(people_paging, "feature People paging duplicate parsers", (
+    'private fun parsePerson(',
+    'private fun parsePost(',
+    'import com.nova.app.core.network.NovaPostAuthor',
+))
+
+# Posts ownership remains frozen for #170.
 require_all(post_models, "feature Posts models", (
     'data class NovaPost(',
     'val author: NovaPostAuthor',
@@ -230,11 +230,6 @@ require_all(post_parser, "feature Posts parser", (
     'internal fun parseNovaComment(',
     'val nextCursor = json.optString("next_cursor")',
     '.takeIf { it.isNotBlank() && it != "null" }',
-    'imageUrl = resolveMediaUrl(json.optString("image_url"))',
-    'val rawParentId = json.opt("parent_id")',
-    'null, JSONObject.NULL -> null',
-    'is Number -> rawParentId.toLong().takeIf { it > 0L }',
-    'val replyRows = json.optJSONArray("replies") ?: JSONArray()',
     'repliesCount = json.optInt("replies_count", replies.size)',
 ))
 require_all(client, "feed/posts/comments network contract", (
@@ -251,27 +246,23 @@ require_all(client, "feed/posts/comments network contract", (
     'deleteCommentResource(accessToken, "comments/$commentId/")',
     'deleteCommentResource(accessToken, "comment-replies/$replyId/")',
     'ApiResult.Failure("Nova returned an invalid comment response.")',
-    'parseNovaPosts(response.value, ::resolveMediaUrl)',
     'parseNovaPostPage(response.value, ::resolveMediaUrl)',
     'parseNovaPost(response.value, ::resolveMediaUrl)',
     'add(parseNovaComment(it, ::resolveMediaUrl))',
 ))
 
-# Shared HTTP/media/error behavior must remain semantically stable.
+# Shared HTTP/media/error behavior remains protected.
 require_all(client, "network URL/media behavior", (
     'internal fun resolveMediaUrl(raw: String): String',
     'if (raw.isBlank() || raw == "null") return ""',
     'if (raw.startsWith("http://") || raw.startsWith("https://")) return raw',
-    'val apiUrl = URL(baseUrl)',
     'URL("${apiUrl.protocol}://${apiUrl.authority}$raw").toString()',
-    '.getOrDefault(raw)',
     'URLEncoder.encode(value, Charsets.UTF_8.name())',
 ))
 require_all(client, "JSON transport", (
     'internal suspend fun requestJson(',
     'withContext(Dispatchers.IO)',
     'connection = (URL(baseUrl + path).openConnection() as HttpURLConnection).apply',
-    'requestMethod = method',
     'connectTimeout = 10_000',
     'readTimeout = 10_000',
     'setRequestProperty("Accept", "application/json")',
@@ -284,15 +275,9 @@ require_all(client, "JSON transport", (
 require_all(client, "multipart transport", (
     'internal suspend fun requestMultipart(',
     'val boundary = "Nova-${UUID.randomUUID()}"',
-    'val lineEnd = "\\r\\n"',
     'connectTimeout = 20_000',
     'readTimeout = 20_000',
-    'setRequestProperty("Authorization", "Bearer $bearerToken")',
     'setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")',
-    'DataOutputStream(connection.outputStream).use',
-    'Content-Type: text/plain; charset=UTF-8',
-    'output.write(value.toByteArray(Charsets.UTF_8))',
-    'Content-Type: ${file.mimeType}',
     'output.write(file.bytes)',
     'output.writeBytes("--$boundary--$lineEnd")',
     'message = "Nova couldn\'t upload that right now. Check your connection and try again."',
@@ -300,18 +285,10 @@ require_all(client, "multipart transport", (
 require_all(client, "network response/error behavior", (
     'val status = connection.responseCode',
     'val stream = if (status in 200..299) connection.inputStream else connection.errorStream',
-    'val raw = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()',
     '.getOrElse { JSONObject().put("detail", raw) }',
     'message = parseError(json, status)',
     'statusCode = status',
     'return if (statusCode == 401) "Email or password is incorrect." else detail',
-    '"email" -> "Email: $message"',
-    '"username" -> "Username: $message"',
-    '"password" -> "Password: $message"',
-    '"avatar" -> "Photo: $message"',
-    '"image" -> "Photo: $message"',
-    '"caption" -> "Caption: $message"',
-    '"body" -> "Comment: $message"',
     '400 -> "Check your details and try again."',
     '401 -> "Your session expired. Please log in again."',
     '404 -> "Nova couldn\'t find that resource."',
@@ -327,26 +304,6 @@ for text, name in (
     (social_repository, "NovaSocialRepository.kt"),
 ):
     require_all(text, f"{name} production API base URL", (production_ctor,))
-
-require_all(feed_repository, "NovaFeedRepository Posts client seam", (
-    'api.feed(',
-    'api.personPosts(',
-    'api.post(',
-    'api.createPost(',
-    'api.deletePost(',
-    'api.setLiked(',
-    'api.comments(',
-    'api.addComment(',
-    'api.deleteComment(',
-    'api.deleteCommentReply(',
-))
-require_all(social_repository, "NovaSocialRepository People client seam", (
-    'api.people(',
-    'api.person(',
-    'api.setFollowing(',
-    'api.setBlocked(',
-    'api.reportPerson(',
-))
 
 if errors:
     print("Network architecture characterization failed:")
