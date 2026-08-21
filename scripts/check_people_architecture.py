@@ -6,6 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 MODEL = ROOT / "app/src/main/java/com/nova/app/feature/people/domain/model/PeopleModels.kt"
 CONTRACT = ROOT / "app/src/main/java/com/nova/app/feature/people/data/PeopleRepository.kt"
+PEOPLE_JSON_PARSER = ROOT / "app/src/main/java/com/nova/app/feature/people/data/PeopleJsonParser.kt"
 API = ROOT / "app/src/main/java/com/nova/app/core/network/NovaApiClient.kt"
 SOCIAL = ROOT / "app/src/main/java/com/nova/app/core/social/NovaSocialRepository.kt"
 PAGING = ROOT / "app/src/main/java/com/nova/app/core/social/NovaSocialPagingRepository.kt"
@@ -39,6 +40,7 @@ def read(path: Path) -> str:
 
 model = read(MODEL)
 contract = read(CONTRACT)
+people_json_parser = read(PEOPLE_JSON_PARSER)
 api = read(API)
 social = read(SOCIAL)
 paging = read(PAGING)
@@ -63,6 +65,36 @@ for declaration in ("data class NovaPerson(", "data class NovaPersonPage(", "dat
 
 if "data class NovaPerson(" in api:
     errors.append("NovaApiClient must not own NovaPerson")
+
+for required in (
+    "internal fun parseNovaPerson(",
+    "json: JSONObject",
+    "resolveMediaUrl: (String) -> String",
+    'id = json.optLong("id")',
+    'username = json.optString("username")',
+    'name = json.optString("name")',
+    'avatarUrl = resolveMediaUrl(json.optString("avatar_url"))',
+    'followersCount = json.optInt("followers_count", 0)',
+    'followingCount = json.optInt("following_count", 0)',
+    'postsCount = json.optInt("posts_count", 0)',
+    'isFollowing = json.optBoolean("is_following", false)',
+):
+    if required not in people_json_parser:
+        errors.append(f"feature-owned People JSON parser lost characterized behavior: {required}")
+
+if "import com.nova.app.feature.people.data.parseNovaPerson" not in api:
+    errors.append("NovaApiClient must import the feature-owned People JSON parser")
+
+for required in (
+    "add(parseNovaPerson(it, ::resolveMediaUrl))",
+    "ApiResult.Success(parseNovaPerson(response.value, ::resolveMediaUrl))",
+):
+    if required not in api:
+        errors.append(f"NovaApiClient live People decode path must use feature parser: {required}")
+
+for forbidden in ("add(parsePerson(it))", "ApiResult.Success(parsePerson(response.value))"):
+    if forbidden in api:
+        errors.append(f"NovaApiClient must not route live People responses through the core parser: {forbidden}")
 
 for declaration in ("data class NovaPersonPage(", "data class NovaProfilePostPage("):
     if declaration in paging:
