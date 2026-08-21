@@ -157,8 +157,8 @@ for required in (
     if required not in client:
         errors.append(f"NovaApiClient live Posts decoding changed: {required}")
 
-# Auth/user/session parser ownership. DTO placement stays shared for this narrow
-# live-switch slice; only JSON decoding moves to feature-owned auth data code.
+# Auth/user/session parsing is feature-owned. DTO placement stays shared until
+# the separate shared-model ownership decision.
 for required in (
     'internal fun parseAuthSession(',
     'internal fun parseNovaUser(',
@@ -189,6 +189,13 @@ for required in (
     if required not in client:
         errors.append(f"NovaApiClient live Auth/profile decoding changed: {required}")
 
+for forbidden_helper in (
+    'private fun parseSession(',
+    'private fun parseUser(',
+):
+    if forbidden_helper in client:
+        errors.append(f"NovaApiClient retained superseded Auth parser helper: {forbidden_helper}")
+
 for forbidden_call in (
     'is ApiResult.Success -> parseSession(response.value)',
     'is ApiResult.Success -> ApiResult.Success(parseUser(response.value))',
@@ -208,7 +215,6 @@ for required in (
     'fileField = "avatar"',
     'requestJson("auth/refresh/", "POST", body)',
     'JSONObject().put("refresh", refreshToken)',
-    'ApiResult.Failure("Nova returned an invalid authentication response.")',
     'ApiResult.Failure("Nova returned an invalid session response.")',
 ):
     if required not in client:
@@ -248,21 +254,6 @@ for required in (
 ):
     if required not in client:
         errors.append(f"feed/posts/comments network contract changed: {required}")
-
-# The superseded core auth helpers remain characterized only until the next
-# cleanup PR removes them after this live switch is proven green.
-for required in (
-    'id = json.optLong("id")',
-    'email = json.optString("email")',
-    'username = json.optString("username")',
-    'name = json.optString("name")',
-    'avatarUrl = resolveMediaUrl(json.optString("avatar_url"))',
-    'followersCount = json.optInt("followers_count", 0)',
-    'followingCount = json.optInt("following_count", 0)',
-    'postsCount = json.optInt("posts_count", 0)',
-):
-    if required not in client:
-        errors.append(f"temporary core auth/user parser characterization changed: {required}")
 
 # Media URL and query encoding behavior.
 for required in (

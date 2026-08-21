@@ -450,37 +450,6 @@ class NovaApiClient(
         }
     }
 
-    private fun parseSession(json: JSONObject): ApiResult<AuthSession> {
-        val access = json.optString("access")
-        val refresh = json.optString("refresh")
-        val userJson = json.optJSONObject("user")
-
-        if (access.isBlank() || refresh.isBlank() || userJson == null) {
-            return ApiResult.Failure("Nova returned an invalid authentication response.")
-        }
-
-        return ApiResult.Success(
-            AuthSession(
-                accessToken = access,
-                refreshToken = refresh,
-                user = parseUser(userJson),
-            ),
-        )
-    }
-
-    private fun parseUser(json: JSONObject): NovaUser {
-        return NovaUser(
-            id = json.optLong("id"),
-            email = json.optString("email"),
-            username = json.optString("username"),
-            name = json.optString("name"),
-            avatarUrl = resolveMediaUrl(json.optString("avatar_url")),
-            followersCount = json.optInt("followers_count", 0),
-            followingCount = json.optInt("following_count", 0),
-            postsCount = json.optInt("posts_count", 0),
-        )
-    }
-
     private fun resolveMediaUrl(raw: String): String {
         if (raw.isBlank() || raw == "null") return ""
         if (raw.startsWith("http://") || raw.startsWith("https://")) return raw
