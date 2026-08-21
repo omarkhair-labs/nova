@@ -8,6 +8,7 @@ MAIN = ROOT / "app/src/main/java/com/nova/app"
 required = [
     MAIN / "feature/posts/domain/model/PostModels.kt",
     MAIN / "feature/posts/data/PostRepository.kt",
+    MAIN / "feature/posts/data/PostJsonParser.kt",
     MAIN / "feature/feed/data/FeedRepository.kt",
     MAIN / "feature/feed/FeedStateOwner.kt",
     MAIN / "feature/posts/detail/PostDetailStateOwner.kt",
@@ -48,6 +49,9 @@ for entry in consolidated_paths:
 
 api = MAIN / "core/network/NovaApiClient.kt"
 api_text = api.read_text(encoding="utf-8")
+post_json_parser = MAIN / "feature/posts/data/PostJsonParser.kt"
+post_json_parser_text = post_json_parser.read_text(encoding="utf-8")
+
 for declaration in (
     "data class NovaPost(",
     "data class NovaPostPage(",
@@ -56,6 +60,61 @@ for declaration in (
 ):
     if declaration in api_text:
         errors.append(f"NovaApiClient still owns post model declaration: {declaration}")
+
+for required_text in (
+    "import com.nova.app.core.network.NovaPostAuthor",
+    "internal fun parseNovaPostAuthor(",
+    "internal fun parseNovaPosts(",
+    "internal fun parseNovaPostPage(",
+    "internal fun parseNovaPost(",
+    "internal fun parseNovaComment(",
+    'avatarUrl = resolveMediaUrl(json.optString("avatar_url"))',
+    'val nextCursor = json.optString("next_cursor")',
+    '.takeIf { it.isNotBlank() && it != "null" }',
+    'imageUrl = resolveMediaUrl(json.optString("image_url"))',
+    'val rawParentId = json.opt("parent_id")',
+    'null, JSONObject.NULL -> null',
+    'is Number -> rawParentId.toLong().takeIf { it > 0L }',
+    'rawParentId.toString().toLongOrNull()?.takeIf { it > 0L }',
+    'val replyRows = json.optJSONArray("replies") ?: JSONArray()',
+    'replyRows.optJSONObject(index)?.let { add(parseNovaComment(it, resolveMediaUrl)) }',
+    'repliesCount = json.optInt("replies_count", replies.size)',
+):
+    if required_text not in post_json_parser_text:
+        errors.append(f"feature-owned Posts JSON parser lost characterized behavior: {required_text}")
+
+for required_import in (
+    "import com.nova.app.feature.posts.data.parseNovaComment",
+    "import com.nova.app.feature.posts.data.parseNovaPost",
+    "import com.nova.app.feature.posts.data.parseNovaPostPage",
+    "import com.nova.app.feature.posts.data.parseNovaPosts",
+):
+    if required_import not in api_text:
+        errors.append(f"NovaApiClient must import feature-owned Posts parser: {required_import}")
+
+for required_call in (
+    "parseNovaPosts(response.value, ::resolveMediaUrl)",
+    "parseNovaPostPage(response.value, ::resolveMediaUrl)",
+    "parseNovaPost(response.value, ::resolveMediaUrl)",
+    "add(parseNovaComment(it, ::resolveMediaUrl))",
+    "comment = parseNovaComment(comment, ::resolveMediaUrl)",
+    "post = parseNovaPost(post, ::resolveMediaUrl)",
+    "ApiResult.Success(parseNovaPost(post, ::resolveMediaUrl))",
+):
+    if required_call not in api_text:
+        errors.append(f"NovaApiClient live Posts decode path must use feature parser: {required_call}")
+
+for forbidden_call in (
+    "ApiResult.Success(parsePosts(response.value))",
+    "ApiResult.Success(parsePostPage(response.value))",
+    "ApiResult.Success(parsePost(response.value))",
+    "add(parseComment(it))",
+    "comment = parseComment(comment)",
+    "post = parsePost(post)",
+    "ApiResult.Success(parsePost(post))",
+):
+    if forbidden_call in api_text:
+        errors.append(f"NovaApiClient must not route live Posts responses through core parser: {forbidden_call}")
 
 comments_screen = MAIN / "feature/post/PostCommentsScreen.kt"
 comments_text = comments_screen.read_text(encoding="utf-8")
