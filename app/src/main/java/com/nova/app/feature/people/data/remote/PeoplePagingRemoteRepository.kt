@@ -139,7 +139,7 @@ class PeoplePagingRemoteRepository(
             if (cleanQuery.isNotBlank()) add("q=${encode(cleanQuery)}")
             if (!cursor.isNullOrBlank()) add("cursor=${encode(cursor)}")
         }
-        val resolvedPath = if (parameters.isEmpty()) path else "$path?${parameters.joinToString("&")}" 
+        val resolvedPath = if (parameters.isEmpty()) path else "$path?${parameters.joinToString("&")}"
 
         return when (val response = requestJson(resolvedPath, bearerToken = bearerToken)) {
             is ApiResult.Success -> {
