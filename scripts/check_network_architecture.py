@@ -15,6 +15,7 @@ POST_PARSER = ROOT / "app/src/main/java/com/nova/app/feature/posts/data/PostJson
 AUTH_REPOSITORY = ROOT / "app/src/main/java/com/nova/app/core/auth/NovaAuthRepository.kt"
 FEED_REPOSITORY = ROOT / "app/src/main/java/com/nova/app/core/feed/NovaFeedRepository.kt"
 SOCIAL_REPOSITORY = ROOT / "app/src/main/java/com/nova/app/core/social/NovaSocialRepository.kt"
+SOCIAL_PAGING_REPOSITORY = ROOT / "app/src/main/java/com/nova/app/core/social/NovaSocialPagingRepository.kt"
 
 errors: list[str] = []
 
@@ -49,6 +50,7 @@ post_parser = read(POST_PARSER)
 auth_repository = read(AUTH_REPOSITORY)
 feed_repository = read(FEED_REPOSITORY)
 social_repository = read(SOCIAL_REPOSITORY)
+social_paging_repository = read(SOCIAL_PAGING_REPOSITORY)
 
 # Shared client: Auth feature ownership is gone; People/Posts endpoints remain
 # characterized until their dedicated Phase 5 slices.
@@ -164,18 +166,22 @@ forbid_all(auth_repository, "NovaAuthRepository superseded core Auth seam", (
     'import com.nova.app.core.network.AuthSession',
 ))
 
-# Existing session-refresh orchestration in Feed/Social remains above the HTTP
-# engine but now consumes the feature-owned Auth refresh endpoint.
-for text, label in (
-    (feed_repository, "NovaFeedRepository Auth refresh seam"),
-    (social_repository, "NovaSocialRepository Auth refresh seam"),
+# Existing refresh orchestration remains above the HTTP engine but all direct
+# refresh endpoint ownership now routes through the feature Auth remote.
+for text, label, ctor in (
+    (feed_repository, "NovaFeedRepository Auth refresh seam", 'private val authRemote = AuthRemoteDataSource(api)'),
+    (social_repository, "NovaSocialRepository Auth refresh seam", 'private val authRemote = AuthRemoteDataSource(api)'),
+    (social_paging_repository, "NovaSocialPagingRepository Auth refresh seam", 'private val authRemote = AuthRemoteDataSource(NovaApiClient(baseUrl))'),
 ):
     require_all(text, label, (
         'import com.nova.app.feature.auth.data.remote.AuthRemoteDataSource',
-        'private val authRemote = AuthRemoteDataSource(api)',
+        ctor,
         'authRemote.refresh(stored.refreshToken)',
     ))
-    forbid_all(text, f"{label} legacy", ('api.refresh(stored.refreshToken)',))
+    forbid_all(text, f"{label} legacy", (
+        'api.refresh(stored.refreshToken)',
+        'authApi.refresh(stored.refreshToken)',
+    ))
 
 # People parser + endpoint behavior is frozen for #169.
 require_all(people_parser, "feature People parser", (
@@ -247,7 +253,7 @@ require_all(client, "feed/posts/comments network contract", (
     'add(parseNovaComment(it, ::resolveMediaUrl))',
 ))
 
-# Shared HTTP/media/error behavior must remain byte-for-byte semantically stable.
+# Shared HTTP/media/error behavior must remain semantically stable.
 require_all(client, "network URL/media behavior", (
     'internal fun resolveMediaUrl(raw: String): String',
     'if (raw.isBlank() || raw == "null") return ""',
