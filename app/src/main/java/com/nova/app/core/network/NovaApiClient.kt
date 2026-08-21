@@ -1,5 +1,7 @@
 package com.nova.app.core.network
 
+import com.nova.app.feature.auth.data.parseAuthSession
+import com.nova.app.feature.auth.data.parseNovaUser
 import com.nova.app.feature.people.data.parseNovaPerson
 import com.nova.app.feature.posts.data.parseNovaComment
 import com.nova.app.feature.posts.data.parseNovaPost
@@ -79,7 +81,7 @@ class NovaApiClient(
             .put("name", name)
 
         return when (val response = requestJson("auth/register/", "POST", body)) {
-            is ApiResult.Success -> parseSession(response.value)
+            is ApiResult.Success -> parseAuthSession(response.value, ::resolveMediaUrl)
             is ApiResult.Failure -> response
         }
     }
@@ -90,14 +92,14 @@ class NovaApiClient(
             .put("password", password)
 
         return when (val response = requestJson("auth/login/", "POST", body)) {
-            is ApiResult.Success -> parseSession(response.value)
+            is ApiResult.Success -> parseAuthSession(response.value, ::resolveMediaUrl)
             is ApiResult.Failure -> response
         }
     }
 
     suspend fun me(accessToken: String): ApiResult<NovaUser> {
         return when (val response = requestJson("me/", bearerToken = accessToken)) {
-            is ApiResult.Success -> ApiResult.Success(parseUser(response.value))
+            is ApiResult.Success -> ApiResult.Success(parseNovaUser(response.value, ::resolveMediaUrl))
             is ApiResult.Failure -> response
         }
     }
@@ -121,7 +123,7 @@ class NovaApiClient(
                 bearerToken = accessToken,
             )
         ) {
-            is ApiResult.Success -> ApiResult.Success(parseUser(response.value))
+            is ApiResult.Success -> ApiResult.Success(parseNovaUser(response.value, ::resolveMediaUrl))
             is ApiResult.Failure -> response
         }
     }
