@@ -4,6 +4,7 @@ import android.content.Context
 import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
+import com.nova.app.feature.auth.data.remote.AuthRemoteDataSource
 import com.nova.app.feature.people.data.PeopleRepository
 import com.nova.app.feature.people.domain.model.NovaPerson
 
@@ -13,6 +14,7 @@ class NovaSocialRepository(
     private val api: NovaApiClient = NovaApiClient("https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/"),
 ) : PeopleRepository {
     private val sessionStore = NovaSessionStore(context.applicationContext)
+    private val authRemote = AuthRemoteDataSource(api)
 
     override suspend fun people(query: String): ApiResult<List<NovaPerson>> {
         return authenticatedCall { accessToken ->
@@ -67,7 +69,7 @@ class NovaSocialRepository(
             }
         }
 
-        return when (val refreshed = api.refresh(stored.refreshToken)) {
+        return when (val refreshed = authRemote.refresh(stored.refreshToken)) {
             is ApiResult.Success -> {
                 sessionStore.updateAccessToken(refreshed.value)
                 when (val retried = call(refreshed.value)) {
