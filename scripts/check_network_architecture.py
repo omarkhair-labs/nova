@@ -6,6 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 CLIENT = ROOT / "app/src/main/java/com/nova/app/core/network/NovaApiClient.kt"
 PERSON_COMPAT = ROOT / "app/src/main/java/com/nova/app/core/network/PersonModelCompatibility.kt"
+PEOPLE_PARSER = ROOT / "app/src/main/java/com/nova/app/feature/people/data/PeopleJsonParser.kt"
 POST_MODELS = ROOT / "app/src/main/java/com/nova/app/feature/posts/domain/model/PostModels.kt"
 AUTH_REPOSITORY = ROOT / "app/src/main/java/com/nova/app/core/auth/NovaAuthRepository.kt"
 FEED_REPOSITORY = ROOT / "app/src/main/java/com/nova/app/core/feed/NovaFeedRepository.kt"
@@ -23,6 +24,7 @@ def read(path: Path) -> str:
 
 client = read(CLIENT)
 person_compat = read(PERSON_COMPAT)
+people_parser = read(PEOPLE_PARSER)
 post_models = read(POST_MODELS)
 auth_repository = read(AUTH_REPOSITORY)
 feed_repository = read(FEED_REPOSITORY)
@@ -39,6 +41,7 @@ for required in (
     'sealed interface ApiResult<out T>',
     'class NovaApiClient(',
     'private val baseUrl: String = "http://127.0.0.1:8000/api/v1/"',
+    'import com.nova.app.feature.people.data.parseNovaPerson',
     'import com.nova.app.feature.posts.domain.model.NovaComment',
     'import com.nova.app.feature.posts.domain.model.NovaCommentMutation',
     'import com.nova.app.feature.posts.domain.model.NovaPost',
@@ -57,7 +60,34 @@ for forbidden in (
         errors.append(f"NovaApiClient must not reclaim feature-owned post model: {forbidden}")
 
 if 'typealias NovaPerson = com.nova.app.feature.people.domain.model.NovaPerson' not in person_compat:
-    errors.append("temporary NovaPerson compatibility alias changed before the People network slice")
+    errors.append("temporary NovaPerson compatibility alias changed before compatibility cleanup")
+
+for required in (
+    'internal fun parseNovaPerson(',
+    'json: JSONObject',
+    'resolveMediaUrl: (String) -> String',
+    'id = json.optLong("id")',
+    'username = json.optString("username")',
+    'name = json.optString("name")',
+    'avatarUrl = resolveMediaUrl(json.optString("avatar_url"))',
+    'followersCount = json.optInt("followers_count", 0)',
+    'followingCount = json.optInt("following_count", 0)',
+    'postsCount = json.optInt("posts_count", 0)',
+    'isFollowing = json.optBoolean("is_following", false)',
+):
+    if required not in people_parser:
+        errors.append(f"feature People parser characterization changed: {required}")
+
+for required in (
+    'add(parseNovaPerson(it, ::resolveMediaUrl))',
+    'ApiResult.Success(parseNovaPerson(response.value, ::resolveMediaUrl))',
+):
+    if required not in client:
+        errors.append(f"NovaApiClient live People decoding changed: {required}")
+
+if 'private fun parsePerson(' in client:
+    errors.append("NovaApiClient must not retain the superseded core People parser")
+
 for required in (
     'data class NovaPost(',
     'val author: NovaPostAuthor',
@@ -121,7 +151,7 @@ for required in (
     if required not in client:
         errors.append(f"feed/posts/comments network contract changed: {required}")
 
-# Parser semantics that are easy to change accidentally during extraction.
+# Core parser semantics that remain in NovaApiClient after the People extraction.
 for required in (
     'id = json.optLong("id")',
     'email = json.optString("email")',
@@ -131,7 +161,6 @@ for required in (
     'followersCount = json.optInt("followers_count", 0)',
     'followingCount = json.optInt("following_count", 0)',
     'postsCount = json.optInt("posts_count", 0)',
-    'isFollowing = json.optBoolean("is_following", false)',
     'val nextCursor = json.optString("next_cursor")',
     '.takeIf { it.isNotBlank() && it != "null" }',
     'imageUrl = resolveMediaUrl(json.optString("image_url"))',
