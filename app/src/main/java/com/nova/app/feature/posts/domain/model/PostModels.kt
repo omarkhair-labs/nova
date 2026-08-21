@@ -1,6 +1,12 @@
 package com.nova.app.feature.posts.domain.model
 
-import com.nova.app.core.network.NovaPostAuthor
+
+data class NovaPostAuthor(
+    val id: Long,
+    val username: String,
+    val name: String,
+    val avatarUrl: String,
+)
 
 
 data class NovaPost(
