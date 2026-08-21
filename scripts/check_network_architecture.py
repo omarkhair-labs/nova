@@ -8,6 +8,7 @@ CLIENT = ROOT / "app/src/main/java/com/nova/app/core/network/NovaApiClient.kt"
 PERSON_COMPAT = ROOT / "app/src/main/java/com/nova/app/core/network/PersonModelCompatibility.kt"
 PEOPLE_PARSER = ROOT / "app/src/main/java/com/nova/app/feature/people/data/PeopleJsonParser.kt"
 POST_MODELS = ROOT / "app/src/main/java/com/nova/app/feature/posts/domain/model/PostModels.kt"
+POST_PARSER = ROOT / "app/src/main/java/com/nova/app/feature/posts/data/PostJsonParser.kt"
 AUTH_REPOSITORY = ROOT / "app/src/main/java/com/nova/app/core/auth/NovaAuthRepository.kt"
 FEED_REPOSITORY = ROOT / "app/src/main/java/com/nova/app/core/feed/NovaFeedRepository.kt"
 SOCIAL_REPOSITORY = ROOT / "app/src/main/java/com/nova/app/core/social/NovaSocialRepository.kt"
@@ -26,13 +27,14 @@ client = read(CLIENT)
 person_compat = read(PERSON_COMPAT)
 people_parser = read(PEOPLE_PARSER)
 post_models = read(POST_MODELS)
+post_parser = read(POST_PARSER)
 auth_repository = read(AUTH_REPOSITORY)
 feed_repository = read(FEED_REPOSITORY)
 social_repository = read(SOCIAL_REPOSITORY)
 
-# This gate freezes the current shared boundary before Phase 5 starts moving
-# feature DTO/parser ownership. Deliberate later extractions must update this
-# characterization in the same PR; accidental wire/error drift must fail CI.
+# This gate freezes the current shared boundary while Phase 5 moves feature
+# DTO/parser ownership. Deliberate extractions update this characterization in
+# the same PR; accidental wire/error drift must fail CI.
 for required in (
     'data class NovaUser(',
     'data class NovaPostAuthor(',
@@ -42,6 +44,10 @@ for required in (
     'class NovaApiClient(',
     'private val baseUrl: String = "http://127.0.0.1:8000/api/v1/"',
     'import com.nova.app.feature.people.data.parseNovaPerson',
+    'import com.nova.app.feature.posts.data.parseNovaComment',
+    'import com.nova.app.feature.posts.data.parseNovaPost',
+    'import com.nova.app.feature.posts.data.parseNovaPostPage',
+    'import com.nova.app.feature.posts.data.parseNovaPosts',
     'import com.nova.app.feature.posts.domain.model.NovaComment',
     'import com.nova.app.feature.posts.domain.model.NovaCommentMutation',
     'import com.nova.app.feature.posts.domain.model.NovaPost',
@@ -98,6 +104,55 @@ for required in (
     if required not in post_models:
         errors.append(f"feature-owned post model seam changed: {required}")
 
+for required in (
+    'internal fun parseNovaPostAuthor(',
+    'internal fun parseNovaPosts(',
+    'internal fun parseNovaPostPage(',
+    'internal fun parseNovaPost(',
+    'internal fun parseNovaComment(',
+    'avatarUrl = resolveMediaUrl(json.optString("avatar_url"))',
+    'val nextCursor = json.optString("next_cursor")',
+    '.takeIf { it.isNotBlank() && it != "null" }',
+    'imageUrl = resolveMediaUrl(json.optString("image_url"))',
+    'caption = json.optString("caption")',
+    'createdAt = json.optString("created_at")',
+    'isMine = json.optBoolean("is_mine", false)',
+    'likesCount = json.optInt("likes_count", 0)',
+    'commentsCount = json.optInt("comments_count", 0)',
+    'isLiked = json.optBoolean("is_liked", false)',
+    'val rawParentId = json.opt("parent_id")',
+    'null, JSONObject.NULL -> null',
+    'is Number -> rawParentId.toLong().takeIf { it > 0L }',
+    'rawParentId.toString().toLongOrNull()?.takeIf { it > 0L }',
+    'val replyRows = json.optJSONArray("replies") ?: JSONArray()',
+    'replyRows.optJSONObject(index)?.let { add(parseNovaComment(it, resolveMediaUrl)) }',
+    'repliesCount = json.optInt("replies_count", replies.size)',
+):
+    if required not in post_parser:
+        errors.append(f"feature Posts parser characterization changed: {required}")
+
+for forbidden_helper in (
+    'private fun parsePostAuthor(',
+    'private fun parsePosts(',
+    'private fun parsePostPage(',
+    'private fun parsePost(',
+    'private fun parseComment(',
+):
+    if forbidden_helper in client:
+        errors.append(f"NovaApiClient retained superseded Posts parser helper: {forbidden_helper}")
+
+for required in (
+    'parseNovaPosts(response.value, ::resolveMediaUrl)',
+    'parseNovaPostPage(response.value, ::resolveMediaUrl)',
+    'parseNovaPost(response.value, ::resolveMediaUrl)',
+    'add(parseNovaComment(it, ::resolveMediaUrl))',
+    'comment = parseNovaComment(comment, ::resolveMediaUrl)',
+    'post = parseNovaPost(post, ::resolveMediaUrl)',
+    'ApiResult.Success(parseNovaPost(post, ::resolveMediaUrl))',
+):
+    if required not in client:
+        errors.append(f"NovaApiClient live Posts decoding changed: {required}")
+
 # Auth/profile wire contract.
 for required in (
     'requestJson("auth/register/", "POST", body)',
@@ -151,7 +206,7 @@ for required in (
     if required not in client:
         errors.append(f"feed/posts/comments network contract changed: {required}")
 
-# Core parser semantics that remain in NovaApiClient after the People extraction.
+# Auth/user parser semantics intentionally remain shared until the auth slice.
 for required in (
     'id = json.optLong("id")',
     'email = json.optString("email")',
@@ -161,25 +216,9 @@ for required in (
     'followersCount = json.optInt("followers_count", 0)',
     'followingCount = json.optInt("following_count", 0)',
     'postsCount = json.optInt("posts_count", 0)',
-    'val nextCursor = json.optString("next_cursor")',
-    '.takeIf { it.isNotBlank() && it != "null" }',
-    'imageUrl = resolveMediaUrl(json.optString("image_url"))',
-    'caption = json.optString("caption")',
-    'createdAt = json.optString("created_at")',
-    'isMine = json.optBoolean("is_mine", false)',
-    'likesCount = json.optInt("likes_count", 0)',
-    'commentsCount = json.optInt("comments_count", 0)',
-    'isLiked = json.optBoolean("is_liked", false)',
-    'val rawParentId = json.opt("parent_id")',
-    'null, JSONObject.NULL -> null',
-    'is Number -> rawParentId.toLong().takeIf { it > 0L }',
-    'rawParentId.toString().toLongOrNull()?.takeIf { it > 0L }',
-    'val replyRows = json.optJSONArray("replies") ?: JSONArray()',
-    'array.optJSONObject(index)?.let { add(parseNovaComment(it, ::resolveMediaUrl)) }',
-    'repliesCount = json.optInt("replies_count", replies.size)',
 ):
     if required not in client:
-        errors.append(f"network parser characterization changed: {required}")
+        errors.append(f"shared auth/user parser characterization changed: {required}")
 
 # Media URL and query encoding behavior.
 for required in (
