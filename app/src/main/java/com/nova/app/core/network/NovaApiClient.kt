@@ -1,6 +1,10 @@
 package com.nova.app.core.network
 
 import com.nova.app.feature.people.data.parseNovaPerson
+import com.nova.app.feature.posts.data.parseNovaComment
+import com.nova.app.feature.posts.data.parseNovaPost
+import com.nova.app.feature.posts.data.parseNovaPostPage
+import com.nova.app.feature.posts.data.parseNovaPosts
 import com.nova.app.feature.posts.domain.model.NovaComment
 import com.nova.app.feature.posts.domain.model.NovaCommentMutation
 import com.nova.app.feature.posts.domain.model.NovaPost
@@ -173,7 +177,7 @@ class NovaApiClient(
                 bearerToken = accessToken,
             )
         ) {
-            is ApiResult.Success -> ApiResult.Success(parsePosts(response.value))
+            is ApiResult.Success -> ApiResult.Success(parseNovaPosts(response.value, ::resolveMediaUrl))
             is ApiResult.Failure -> response
         }
     }
@@ -248,7 +252,7 @@ class NovaApiClient(
         }
 
         return when (val response = requestJson(path, bearerToken = accessToken)) {
-            is ApiResult.Success -> ApiResult.Success(parsePostPage(response.value))
+            is ApiResult.Success -> ApiResult.Success(parseNovaPostPage(response.value, ::resolveMediaUrl))
             is ApiResult.Failure -> response
         }
     }
@@ -263,7 +267,7 @@ class NovaApiClient(
                 bearerToken = accessToken,
             )
         ) {
-            is ApiResult.Success -> ApiResult.Success(parsePost(response.value))
+            is ApiResult.Success -> ApiResult.Success(parseNovaPost(response.value, ::resolveMediaUrl))
             is ApiResult.Failure -> response
         }
     }
@@ -283,7 +287,7 @@ class NovaApiClient(
                 bearerToken = accessToken,
             )
         ) {
-            is ApiResult.Success -> ApiResult.Success(parsePost(response.value))
+            is ApiResult.Success -> ApiResult.Success(parseNovaPost(response.value, ::resolveMediaUrl))
             is ApiResult.Failure -> response
         }
     }
@@ -325,7 +329,7 @@ class NovaApiClient(
         }
 
         return when (response) {
-            is ApiResult.Success -> ApiResult.Success(parsePost(response.value))
+            is ApiResult.Success -> ApiResult.Success(parseNovaPost(response.value, ::resolveMediaUrl))
             is ApiResult.Failure -> response
         }
     }
@@ -344,7 +348,7 @@ class NovaApiClient(
                 val array = response.value.optJSONArray("results") ?: JSONArray()
                 val comments = buildList {
                     for (index in 0 until array.length()) {
-                        array.optJSONObject(index)?.let { add(parseComment(it)) }
+                        array.optJSONObject(index)?.let { add(parseNovaComment(it, ::resolveMediaUrl)) }
                     }
                 }
                 ApiResult.Success(comments)
@@ -378,8 +382,8 @@ class NovaApiClient(
                 } else {
                     ApiResult.Success(
                         NovaCommentMutation(
-                            comment = parseComment(comment),
-                            post = parsePost(post),
+                            comment = parseNovaComment(comment, ::resolveMediaUrl),
+                            post = parseNovaPost(post, ::resolveMediaUrl),
                         ),
                     )
                 }
@@ -419,7 +423,7 @@ class NovaApiClient(
                 if (post == null) {
                     ApiResult.Failure("Nova returned an invalid comment response.")
                 } else {
-                    ApiResult.Success(parsePost(post))
+                    ApiResult.Success(parseNovaPost(post, ::resolveMediaUrl))
                 }
             }
 
