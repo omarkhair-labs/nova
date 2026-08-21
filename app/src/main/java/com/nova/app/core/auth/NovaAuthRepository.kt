@@ -4,18 +4,21 @@ import android.content.Context
 import android.net.Uri
 import android.webkit.MimeTypeMap
 import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.AuthSession
 import com.nova.app.core.network.NovaApiClient
-import com.nova.app.core.network.NovaUser
 import com.nova.app.core.network.UploadFile
 import com.nova.app.core.push.NovaPushRegistration
+import com.nova.app.feature.auth.data.remote.AuthRemoteDataSource
+import com.nova.app.feature.auth.domain.model.AuthSession
+import com.nova.app.feature.auth.domain.model.NovaUser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 
 class NovaAuthRepository(
     context: Context,
-    private val api: NovaApiClient = NovaApiClient("https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/"),
+    private val remote: AuthRemoteDataSource = AuthRemoteDataSource(
+        NovaApiClient("https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/"),
+    ),
 ) {
     private val appContext = context.applicationContext
     private val sessionStore = NovaSessionStore(appContext)
@@ -27,7 +30,7 @@ class NovaAuthRepository(
         name: String,
     ): ApiResult<NovaUser> {
         return when (
-            val result = api.register(
+            val result = remote.register(
                 email = email.trim().lowercase(),
                 password = password,
                 username = username.trim().lowercase(),
@@ -45,7 +48,7 @@ class NovaAuthRepository(
                     val prepared = prepareAvatar(pendingAvatarUri)
                     if (prepared is ApiResult.Success && prepared.value != null) {
                         when (
-                            val updated = api.updateProfile(
+                            val updated = remote.updateProfile(
                                 accessToken = result.value.accessToken,
                                 name = name.trim(),
                                 username = username.trim().lowercase(),
@@ -77,7 +80,7 @@ class NovaAuthRepository(
 
     suspend fun login(email: String, password: String): ApiResult<NovaUser> {
         NovaPendingRegistrationPhoto.clear()
-        return when (val result = api.login(email.trim().lowercase(), password)) {
+        return when (val result = remote.login(email.trim().lowercase(), password)) {
             is ApiResult.Success -> {
                 sessionStore.save(result.value)
                 NovaPushRegistration.activate(appContext)
@@ -91,7 +94,7 @@ class NovaAuthRepository(
     suspend fun restoreSession(): ApiResult<NovaUser?> {
         val stored = sessionStore.load() ?: return ApiResult.Success(null)
 
-        return when (val me = api.me(stored.accessToken)) {
+        return when (val me = remote.me(stored.accessToken)) {
             is ApiResult.Success -> {
                 sessionStore.updateUser(me.value)
                 NovaPushRegistration.activate(appContext)
@@ -146,7 +149,7 @@ class NovaAuthRepository(
         avatar: UploadFile?,
     ): ApiResult<NovaUser> {
         when (
-            val first = api.updateProfile(
+            val first = remote.updateProfile(
                 accessToken = stored.accessToken,
                 name = name,
                 username = username,
@@ -163,11 +166,11 @@ class NovaAuthRepository(
             }
         }
 
-        return when (val refreshed = api.refresh(stored.refreshToken)) {
+        return when (val refreshed = remote.refresh(stored.refreshToken)) {
             is ApiResult.Success -> {
                 sessionStore.updateAccessToken(refreshed.value)
                 when (
-                    val retried = api.updateProfile(
+                    val retried = remote.updateProfile(
                         accessToken = refreshed.value,
                         name = name,
                         username = username,
@@ -230,11 +233,11 @@ class NovaAuthRepository(
     private suspend fun restoreWithRefresh(
         stored: NovaSessionStore.StoredSession,
     ): ApiResult<NovaUser?> {
-        return when (val refreshed = api.refresh(stored.refreshToken)) {
+        return when (val refreshed = remote.refresh(stored.refreshToken)) {
             is ApiResult.Success -> {
                 sessionStore.updateAccessToken(refreshed.value)
 
-                when (val me = api.me(refreshed.value)) {
+                when (val me = remote.me(refreshed.value)) {
                     is ApiResult.Success -> {
                         sessionStore.save(
                             AuthSession(
