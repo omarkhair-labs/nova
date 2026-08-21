@@ -1,10 +1,8 @@
 package com.nova.app.core.network
 
-import com.nova.app.feature.people.data.parseNovaPerson
 import com.nova.app.feature.posts.data.parseNovaComment
 import com.nova.app.feature.posts.data.parseNovaPost
 import com.nova.app.feature.posts.data.parseNovaPostPage
-import com.nova.app.feature.posts.data.parseNovaPosts
 import com.nova.app.feature.posts.domain.model.NovaComment
 import com.nova.app.feature.posts.domain.model.NovaCommentMutation
 import com.nova.app.feature.posts.domain.model.NovaPost
@@ -47,121 +45,6 @@ sealed interface ApiResult<out T> {
 class NovaApiClient(
     private val baseUrl: String = "http://127.0.0.1:8000/api/v1/",
 ) {
-    suspend fun people(
-        accessToken: String,
-        query: String = "",
-    ): ApiResult<List<NovaPerson>> {
-        val cleanQuery = query.trim()
-        val path = if (cleanQuery.isBlank()) {
-            "people/"
-        } else {
-            "people/?q=${encode(cleanQuery)}"
-        }
-
-        return when (val response = requestJson(path, bearerToken = accessToken)) {
-            is ApiResult.Success -> {
-                val array = response.value.optJSONArray("results") ?: JSONArray()
-                val people = buildList {
-                    for (index in 0 until array.length()) {
-                        array.optJSONObject(index)?.let { add(parseNovaPerson(it, ::resolveMediaUrl)) }
-                    }
-                }
-                ApiResult.Success(people)
-            }
-
-            is ApiResult.Failure -> response
-        }
-    }
-
-    suspend fun person(
-        accessToken: String,
-        username: String,
-    ): ApiResult<NovaPerson> {
-        return when (
-            val response = requestJson(
-                path = "people/${encode(username.trim().lowercase())}/",
-                bearerToken = accessToken,
-            )
-        ) {
-            is ApiResult.Success -> ApiResult.Success(parseNovaPerson(response.value, ::resolveMediaUrl))
-            is ApiResult.Failure -> response
-        }
-    }
-
-    suspend fun personPosts(
-        accessToken: String,
-        username: String,
-    ): ApiResult<List<NovaPost>> {
-        return when (
-            val response = requestJson(
-                path = "people/${encode(username.trim().lowercase())}/posts/",
-                bearerToken = accessToken,
-            )
-        ) {
-            is ApiResult.Success -> ApiResult.Success(parseNovaPosts(response.value, ::resolveMediaUrl))
-            is ApiResult.Failure -> response
-        }
-    }
-
-    suspend fun setFollowing(
-        accessToken: String,
-        username: String,
-        follow: Boolean,
-    ): ApiResult<NovaPerson> {
-        val path = "people/${encode(username.trim().lowercase())}/follow/"
-        val response = if (follow) {
-            requestJson(path, method = "POST", body = JSONObject(), bearerToken = accessToken)
-        } else {
-            requestJson(path, method = "DELETE", bearerToken = accessToken)
-        }
-
-        return when (response) {
-            is ApiResult.Success -> ApiResult.Success(parseNovaPerson(response.value, ::resolveMediaUrl))
-            is ApiResult.Failure -> response
-        }
-    }
-
-    suspend fun setBlocked(
-        accessToken: String,
-        username: String,
-        blocked: Boolean,
-    ): ApiResult<Unit> {
-        val path = "people/${encode(username.trim().lowercase())}/block/"
-        val response = if (blocked) {
-            requestJson(path, method = "POST", body = JSONObject(), bearerToken = accessToken)
-        } else {
-            requestJson(path, method = "DELETE", bearerToken = accessToken)
-        }
-        return when (response) {
-            is ApiResult.Success -> ApiResult.Success(Unit)
-            is ApiResult.Failure -> response
-        }
-    }
-
-    suspend fun reportPerson(
-        accessToken: String,
-        username: String,
-        reason: String,
-        details: String = "",
-    ): ApiResult<String> {
-        val body = JSONObject()
-            .put("reason", reason)
-            .put("details", details)
-        return when (
-            val response = requestJson(
-                path = "people/${encode(username.trim().lowercase())}/report/",
-                method = "POST",
-                body = body,
-                bearerToken = accessToken,
-            )
-        ) {
-            is ApiResult.Success -> ApiResult.Success(
-                response.value.optString("detail").ifBlank { "Report submitted for review." },
-            )
-            is ApiResult.Failure -> response
-        }
-    }
-
     suspend fun feed(
         accessToken: String,
         cursor: String? = null,
