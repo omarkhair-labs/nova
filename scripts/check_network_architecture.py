@@ -6,7 +6,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 CLIENT = ROOT / "app/src/main/java/com/nova/app/core/network/NovaApiClient.kt"
 PERSON_COMPAT = ROOT / "app/src/main/java/com/nova/app/core/network/PersonModelCompatibility.kt"
+AUTH_MODELS = ROOT / "app/src/main/java/com/nova/app/feature/auth/domain/model/AuthModels.kt"
 AUTH_PARSER = ROOT / "app/src/main/java/com/nova/app/feature/auth/data/AuthJsonParser.kt"
+AUTH_REMOTE = ROOT / "app/src/main/java/com/nova/app/feature/auth/data/remote/AuthRemoteDataSource.kt"
 PEOPLE_PARSER = ROOT / "app/src/main/java/com/nova/app/feature/people/data/PeopleJsonParser.kt"
 POST_MODELS = ROOT / "app/src/main/java/com/nova/app/feature/posts/domain/model/PostModels.kt"
 POST_PARSER = ROOT / "app/src/main/java/com/nova/app/feature/posts/data/PostJsonParser.kt"
@@ -26,7 +28,9 @@ def read(path: Path) -> str:
 
 client = read(CLIENT)
 person_compat = read(PERSON_COMPAT)
+auth_models = read(AUTH_MODELS)
 auth_parser = read(AUTH_PARSER)
+auth_remote = read(AUTH_REMOTE)
 people_parser = read(PEOPLE_PARSER)
 post_models = read(POST_MODELS)
 post_parser = read(POST_PARSER)
@@ -34,19 +38,14 @@ auth_repository = read(AUTH_REPOSITORY)
 feed_repository = read(FEED_REPOSITORY)
 social_repository = read(SOCIAL_REPOSITORY)
 
-# This gate freezes the current shared boundary while Phase 5 moves feature
-# DTO/parser ownership. Deliberate extractions update this characterization in
-# the same PR; accidental wire/error drift must fail CI.
+# Phase 5 progressively reduces the shared client to transport/error primitives.
+# Feature-owned DTOs, parsers, and endpoint methods must not drift back into core.
 for required in (
-    'data class NovaUser(',
     'data class NovaPostAuthor(',
-    'data class AuthSession(',
     'data class UploadFile(',
     'sealed interface ApiResult<out T>',
     'class NovaApiClient(',
     'private val baseUrl: String = "http://127.0.0.1:8000/api/v1/"',
-    'import com.nova.app.feature.auth.data.parseAuthSession',
-    'import com.nova.app.feature.auth.data.parseNovaUser',
     'import com.nova.app.feature.people.data.parseNovaPerson',
     'import com.nova.app.feature.posts.data.parseNovaComment',
     'import com.nova.app.feature.posts.data.parseNovaPost',
@@ -61,17 +60,114 @@ for required in (
         errors.append(f"NovaApiClient shared boundary lost seam: {required}")
 
 for forbidden in (
+    'data class NovaUser(',
+    'data class AuthSession(',
     'data class NovaPost(',
     'data class NovaPostPage(',
     'data class NovaComment(',
     'data class NovaCommentMutation(',
+    'suspend fun register(',
+    'suspend fun login(',
+    'suspend fun me(',
+    'suspend fun updateProfile(',
+    'suspend fun refresh(',
+    'import com.nova.app.feature.auth.data.parseAuthSession',
+    'import com.nova.app.feature.auth.data.parseNovaUser',
 ):
     if forbidden in client:
-        errors.append(f"NovaApiClient must not reclaim feature-owned post model: {forbidden}")
+        errors.append(f"NovaApiClient must not reclaim feature-owned Auth/Post seam: {forbidden}")
 
 if 'typealias NovaPerson = com.nova.app.feature.people.domain.model.NovaPerson' not in person_compat:
     errors.append("temporary NovaPerson compatibility alias changed before compatibility cleanup")
 
+# Auth models are feature-owned while ApiResult and transport remain shared.
+for required in (
+    'package com.nova.app.feature.auth.domain.model',
+    'data class NovaUser(',
+    'val id: Long',
+    'val email: String',
+    'val username: String',
+    'val name: String',
+    'val avatarUrl: String',
+    'val followersCount: Int = 0',
+    'val followingCount: Int = 0',
+    'val postsCount: Int = 0',
+    'data class AuthSession(',
+    'val accessToken: String',
+    'val refreshToken: String',
+    'val user: NovaUser',
+):
+    if required not in auth_models:
+        errors.append(f"feature Auth model characterization changed: {required}")
+
+for required in (
+    'internal fun parseAuthSession(',
+    'internal fun parseNovaUser(',
+    'val access = json.optString("access")',
+    'val refresh = json.optString("refresh")',
+    'val userJson = json.optJSONObject("user")',
+    'if (access.isBlank() || refresh.isBlank() || userJson == null)',
+    'ApiResult.Failure("Nova returned an invalid authentication response.")',
+    'accessToken = access',
+    'refreshToken = refresh',
+    'user = parseNovaUser(userJson, resolveMediaUrl)',
+    'id = json.optLong("id")',
+    'email = json.optString("email")',
+    'username = json.optString("username")',
+    'name = json.optString("name")',
+    'avatarUrl = resolveMediaUrl(json.optString("avatar_url"))',
+    'followersCount = json.optInt("followers_count", 0)',
+    'followingCount = json.optInt("following_count", 0)',
+    'postsCount = json.optInt("posts_count", 0)',
+):
+    if required not in auth_parser:
+        errors.append(f"feature Auth parser characterization changed: {required}")
+
+# Auth/profile wire contract now belongs to feature Auth remote code.
+for required in (
+    'class AuthRemoteDataSource(',
+    'private val api: NovaApiClient',
+    'api.requestJson("auth/register/", "POST", body)',
+    'api.requestJson("auth/login/", "POST", body)',
+    'api.requestJson("me/", bearerToken = accessToken)',
+    'path = "me/"',
+    'method = "PUT"',
+    '"name" to name',
+    '"username" to username',
+    'fileField = "avatar"',
+    'api.requestJson("auth/refresh/", "POST", body)',
+    'JSONObject().put("refresh", refreshToken)',
+    'ApiResult.Failure("Nova returned an invalid session response.")',
+    'parseAuthSession(response.value, api::resolveMediaUrl)',
+    'ApiResult.Success(parseNovaUser(response.value, api::resolveMediaUrl))',
+):
+    if required not in auth_remote:
+        errors.append(f"feature Auth remote contract changed: {required}")
+
+for required in (
+    'private val remote: AuthRemoteDataSource',
+    'remote.register(',
+    'remote.login(',
+    'remote.me(',
+    'remote.updateProfile(',
+    'remote.refresh(',
+):
+    if required not in auth_repository:
+        errors.append(f"NovaAuthRepository lost feature Auth remote seam: {required}")
+
+for forbidden in (
+    'api.register(',
+    'api.login(',
+    'api.me(',
+    'api.updateProfile(',
+    'api.refresh(',
+    'import com.nova.app.core.network.NovaUser',
+    'import com.nova.app.core.network.AuthSession',
+):
+    if forbidden in auth_repository:
+        errors.append(f"NovaAuthRepository must not use superseded core Auth seam: {forbidden}")
+
+# People parsing remains feature-owned while People endpoint extraction waits for #169.
 for required in (
     'internal fun parseNovaPerson(',
     'json: JSONObject',
@@ -98,6 +194,7 @@ for required in (
 if 'private fun parsePerson(' in client:
     errors.append("NovaApiClient must not retain the superseded core People parser")
 
+# Posts models/parsers remain feature-owned while endpoint extraction waits for #170.
 for required in (
     'data class NovaPost(',
     'val author: NovaPostAuthor',
@@ -157,69 +254,6 @@ for required in (
     if required not in client:
         errors.append(f"NovaApiClient live Posts decoding changed: {required}")
 
-# Auth/user/session parsing is feature-owned. DTO placement stays shared until
-# the separate shared-model ownership decision.
-for required in (
-    'internal fun parseAuthSession(',
-    'internal fun parseNovaUser(',
-    'val access = json.optString("access")',
-    'val refresh = json.optString("refresh")',
-    'val userJson = json.optJSONObject("user")',
-    'if (access.isBlank() || refresh.isBlank() || userJson == null)',
-    'ApiResult.Failure("Nova returned an invalid authentication response.")',
-    'accessToken = access',
-    'refreshToken = refresh',
-    'user = parseNovaUser(userJson, resolveMediaUrl)',
-    'id = json.optLong("id")',
-    'email = json.optString("email")',
-    'username = json.optString("username")',
-    'name = json.optString("name")',
-    'avatarUrl = resolveMediaUrl(json.optString("avatar_url"))',
-    'followersCount = json.optInt("followers_count", 0)',
-    'followingCount = json.optInt("following_count", 0)',
-    'postsCount = json.optInt("posts_count", 0)',
-):
-    if required not in auth_parser:
-        errors.append(f"feature Auth parser characterization changed: {required}")
-
-for required in (
-    'parseAuthSession(response.value, ::resolveMediaUrl)',
-    'ApiResult.Success(parseNovaUser(response.value, ::resolveMediaUrl))',
-):
-    if required not in client:
-        errors.append(f"NovaApiClient live Auth/profile decoding changed: {required}")
-
-for forbidden_helper in (
-    'private fun parseSession(',
-    'private fun parseUser(',
-):
-    if forbidden_helper in client:
-        errors.append(f"NovaApiClient retained superseded Auth parser helper: {forbidden_helper}")
-
-for forbidden_call in (
-    'is ApiResult.Success -> parseSession(response.value)',
-    'is ApiResult.Success -> ApiResult.Success(parseUser(response.value))',
-):
-    if forbidden_call in client:
-        errors.append(f"NovaApiClient must not route live Auth/profile responses through core parser: {forbidden_call}")
-
-# Auth/profile wire contract.
-for required in (
-    'requestJson("auth/register/", "POST", body)',
-    'requestJson("auth/login/", "POST", body)',
-    'requestJson("me/", bearerToken = accessToken)',
-    'path = "me/"',
-    'method = "PUT"',
-    '"name" to name',
-    '"username" to username',
-    'fileField = "avatar"',
-    'requestJson("auth/refresh/", "POST", body)',
-    'JSONObject().put("refresh", refreshToken)',
-    'ApiResult.Failure("Nova returned an invalid session response.")',
-):
-    if required not in client:
-        errors.append(f"auth/profile network contract changed: {required}")
-
 # People/social wire contract.
 for required in (
     '"people/"',
@@ -257,6 +291,7 @@ for required in (
 
 # Media URL and query encoding behavior.
 for required in (
+    'internal fun resolveMediaUrl(raw: String): String',
     'if (raw.isBlank() || raw == "null") return ""',
     'if (raw.startsWith("http://") || raw.startsWith("https://")) return raw',
     'val apiUrl = URL(baseUrl)',
@@ -267,9 +302,10 @@ for required in (
     if required not in client:
         errors.append(f"network URL/encoding behavior changed: {required}")
 
-# JSON transport contract.
+# JSON transport contract. Internal visibility is intentional so feature remotes
+# can share one characterized HTTP engine without inheriting feature endpoints.
 for required in (
-    'private suspend fun requestJson(',
+    'internal suspend fun requestJson(',
     'withContext(Dispatchers.IO)',
     'connection = (URL(baseUrl + path).openConnection() as HttpURLConnection).apply',
     'requestMethod = method',
@@ -289,7 +325,7 @@ for required in (
 
 # Multipart transport contract.
 for required in (
-    'private suspend fun requestMultipart(',
+    'internal suspend fun requestMultipart(',
     'val boundary = "Nova-${UUID.randomUUID()}"',
     'val lineEnd = "\\r\\n"',
     'connectTimeout = 20_000',
@@ -337,9 +373,6 @@ for required in (
     if required not in client:
         errors.append(f"network response/error characterization changed: {required}")
 
-# Current direct consumers all point at the same production API and keep refresh
-# orchestration above NovaApiClient. Future extraction may move these calls only
-# together with an intentional gate update.
 production_ctor = (
     'NovaApiClient("https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/")'
 )
@@ -351,9 +384,6 @@ for text, name in (
     if production_ctor not in text:
         errors.append(f"{name} changed the characterized production Nova API base URL")
 
-for required in ("api.register(", "api.login(", "api.me(", "api.updateProfile(", "api.refresh("):
-    if required not in auth_repository:
-        errors.append(f"NovaAuthRepository lost characterized NovaApiClient call: {required}")
 for required in (
     "api.feed(",
     "api.personPosts(",
