@@ -108,13 +108,31 @@ for forbidden_call in (
     "ApiResult.Success(parsePosts(response.value))",
     "ApiResult.Success(parsePostPage(response.value))",
     "ApiResult.Success(parsePost(response.value))",
-    "add(parseComment(it))",
     "comment = parseComment(comment)",
     "post = parsePost(post)",
     "ApiResult.Success(parsePost(post))",
 ):
     if forbidden_call in api_text:
         errors.append(f"NovaApiClient must not route live Posts responses through core parser: {forbidden_call}")
+
+# The superseded private parseComment helper intentionally remains until the
+# follow-up cleanup PR, and its recursive body also contains add(parseComment(it)).
+# Scope the legacy-call prohibition to the live comments() endpoint body so the
+# gate rejects a live rollback without mistaking the retained helper for usage.
+comments_start = api_text.find("    suspend fun comments(")
+comments_end = api_text.find("    suspend fun addComment(", comments_start)
+if comments_start == -1 or comments_end == -1:
+    errors.append("NovaApiClient comments endpoint boundary is missing")
+else:
+    live_comments_body = api_text[comments_start:comments_end]
+    if "add(parseComment(it))" in live_comments_body:
+        errors.append(
+            "NovaApiClient live comments endpoint must not route responses through core parseComment"
+        )
+    if "add(parseNovaComment(it, ::resolveMediaUrl))" not in live_comments_body:
+        errors.append(
+            "NovaApiClient live comments endpoint must use feature-owned parseNovaComment"
+        )
 
 comments_screen = MAIN / "feature/post/PostCommentsScreen.kt"
 comments_text = comments_screen.read_text(encoding="utf-8")
