@@ -1,7 +1,7 @@
 package com.nova.app.feature.security
 
 import com.nova.app.core.network.ApiResult
-import com.nova.app.core.network.NovaUser
+import com.nova.app.feature.auth.domain.model.NovaUser
 import com.nova.app.feature.people.domain.model.NovaPerson
 import com.nova.app.feature.security.data.BlockedAccountsRepository
 import com.nova.app.feature.security.data.SecurityRepository

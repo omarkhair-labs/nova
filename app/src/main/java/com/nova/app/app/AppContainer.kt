@@ -26,6 +26,7 @@ import com.nova.app.core.social.NovaBlockedAccountsRepository
 import com.nova.app.core.social.NovaSocialPagingRepository
 import com.nova.app.core.social.NovaSocialRepository
 import com.nova.app.core.stories.NovaStoriesRepository
+import com.nova.app.feature.auth.data.remote.AuthRemoteDataSource
 import com.nova.app.feature.calls.data.CallRepository
 import com.nova.app.feature.calls.domain.model.NovaCallKind
 import com.nova.app.feature.calls.domain.model.NovaIceConfig
@@ -70,7 +71,7 @@ class AppContainer(context: Context) {
     private val messagingApi = NovaMessagingApiClient(NovaMessagingRepository.PRODUCTION_API_URL)
     private val sessionStore = NovaSessionStore(appContext)
 
-    val authRepository = NovaAuthRepository(appContext, api)
+    val authRepository = NovaAuthRepository(appContext, AuthRemoteDataSource(api))
     val securityRepository: SecurityRepository = NovaAccountSecurityRepository(appContext)
     val blockedAccountsRepository: BlockedAccountsRepository = NovaBlockedAccountsRepository(appContext)
     val feedRepository = NovaFeedRepository(appContext, api)

@@ -64,9 +64,11 @@ for required in (
     if required not in settings:
         errors.append(f"Settings protected navigation/UI seam changed or disappeared: {required}")
 
-# AppContainer keeps the already-established cached-username seam and shared auth repository.
+# AppContainer keeps the already-established cached-username seam and shared auth repository,
+# now wired through the feature-owned Auth remote boundary.
 for required in (
-    "val authRepository = NovaAuthRepository(appContext, api)",
+    "import com.nova.app.feature.auth.data.remote.AuthRemoteDataSource",
+    "val authRepository = NovaAuthRepository(appContext, AuthRemoteDataSource(api))",
     "fun currentCachedUsername(): String = sessionStore.load()?.cachedUser?.username.orEmpty()",
 ):
     if required not in container:

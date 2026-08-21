@@ -7,6 +7,7 @@ import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.UploadFile
+import com.nova.app.feature.auth.data.remote.AuthRemoteDataSource
 import com.nova.app.feature.feed.data.FeedRepository
 import com.nova.app.feature.posts.data.PostRepository
 import com.nova.app.feature.posts.domain.model.NovaComment
@@ -24,6 +25,7 @@ class NovaFeedRepository(
     private val appContext = context.applicationContext
     private val sessionStore = NovaSessionStore(appContext)
     private val feedCache = NovaFeedCache(appContext)
+    private val authRemote = AuthRemoteDataSource(api)
 
     override suspend fun feed(cursor: String?): ApiResult<NovaPostPage> {
         val cachedUserId = sessionStore.load()?.cachedUser?.id?.takeIf { it > 0L }
@@ -169,7 +171,7 @@ class NovaFeedRepository(
             }
         }
 
-        return when (val refreshed = api.refresh(stored.refreshToken)) {
+        return when (val refreshed = authRemote.refresh(stored.refreshToken)) {
             is ApiResult.Success -> {
                 sessionStore.updateAccessToken(refreshed.value)
                 when (val retried = call(refreshed.value)) {

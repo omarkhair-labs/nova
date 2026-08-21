@@ -4,9 +4,9 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
-import com.nova.app.core.network.AuthSession
-import com.nova.app.core.network.NovaUser
 import com.nova.app.core.presence.NovaAppPresence
+import com.nova.app.feature.auth.domain.model.AuthSession
+import com.nova.app.feature.auth.domain.model.NovaUser
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
