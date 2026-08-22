@@ -1,6 +1,8 @@
+"""Temporary URL adapter until stories.py moves into its domain package in #174."""
+
 from django.urls import path
 
-from ..stories import (
+from .stories import (
     StoryDetailView,
     StoryFeedView,
     StoryReactionView,

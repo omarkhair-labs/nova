@@ -1,6 +1,8 @@
+"""Temporary WebSocket adapter until call realtime moves into accounts.calls in #176."""
+
 from django.urls import re_path
 
-from ..call_reliability_realtime import ReliableCallConsumer
+from .call_reliability_realtime import ReliableCallConsumer
 
 
 websocket_urlpatterns = [

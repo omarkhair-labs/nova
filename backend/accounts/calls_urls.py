@@ -1,7 +1,9 @@
+"""Temporary URL adapter until calls.py moves into its domain package in #176."""
+
 from django.urls import path
 
-from ..call_reliability_view import ReliableCallSessionCreateView
-from ..calls import CallIceConfigView, CallSessionActionView, CallSessionDetailView
+from .call_reliability_view import ReliableCallSessionCreateView
+from .calls import CallIceConfigView, CallSessionActionView, CallSessionDetailView
 
 
 urlpatterns = [
