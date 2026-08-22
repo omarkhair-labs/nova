@@ -14,6 +14,7 @@ from .serializers import PulseSerializer
 MAX_PULSE_IMAGE_BYTES = 15 * 1024 * 1024
 MAX_PULSE_VIDEO_BYTES = 60 * 1024 * 1024
 MAX_PULSES_IN_FEED = 100
+MAX_PULSES_IN_CHAIN = 100
 
 
 def visible_pulses_for(user):
@@ -21,15 +22,16 @@ def visible_pulses_for(user):
     author_ids = [user.pk, *followed_ids]
     blocked_ids = blocked_user_ids(user)
     return (
-        Pulse.objects.select_related("author")
+        Pulse.objects.select_related("author", "reply_to", "chain_root")
         .filter(
+            Q(author_id__in=author_ids) | Q(reply_to__author=user),
             expires_at__gt=timezone.now(),
             author__is_active=True,
-            author_id__in=author_ids,
         )
         .exclude(author_id__in=blocked_ids)
         .filter(
             Q(author=user)
+            | Q(reply_to__author=user)
             | Q(audience=Pulse.Audience.FOLLOWERS)
             | Q(
                 audience=Pulse.Audience.CLOSE_FRIENDS,
@@ -42,6 +44,93 @@ def visible_pulses_for(user):
 
 def visible_pulse_for_request(request, pulse_id):
     return get_object_or_404(visible_pulses_for(request.user), pk=pulse_id)
+
+
+def pulse_create_values(request):
+    media = request.FILES.get("media")
+    note = str(request.data.get("note") or "").strip()
+    audience = str(
+        request.data.get("audience") or Pulse.Audience.FOLLOWERS
+    ).strip().lower()
+    requested_media_type = str(request.data.get("media_type") or "").strip().lower()
+
+    if audience not in Pulse.Audience.values:
+        return None, Response(
+            {"detail": "Choose a valid Pulse audience."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if len(note) > 180:
+        return None, Response(
+            {"detail": "Pulse note must be 180 characters or fewer."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if media is None:
+        if requested_media_type not in ("", Pulse.MediaType.TEXT):
+            return None, Response(
+                {"detail": "Photo and video Pulses require a media file."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not note:
+            return None, Response(
+                {"detail": "Add a photo, video, or note to your Pulse."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        media_type = Pulse.MediaType.TEXT
+    else:
+        if requested_media_type == Pulse.MediaType.TEXT:
+            return None, Response(
+                {"detail": "Text Pulses can't include a media file."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        content_type = str(getattr(media, "content_type", "") or "").lower()
+        if content_type.startswith("image/"):
+            media_type = Pulse.MediaType.IMAGE
+            max_bytes = MAX_PULSE_IMAGE_BYTES
+            size_message = "Pulse photo must be 15 MB or smaller."
+        elif content_type.startswith("video/"):
+            media_type = Pulse.MediaType.VIDEO
+            max_bytes = MAX_PULSE_VIDEO_BYTES
+            size_message = "Pulse video must be 60 MB or smaller."
+        else:
+            return None, Response(
+                {"detail": "Pulses support photos and videos only."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if requested_media_type and requested_media_type != media_type:
+            return None, Response(
+                {"detail": "Pulse media type doesn't match the uploaded file."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if media.size > max_bytes:
+            return None, Response(
+                {"detail": size_message},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    return {
+        "media": media or "",
+        "media_type": media_type,
+        "audience": audience,
+        "note": note,
+        "expires_at": None,
+    }, None
+
+
+def create_pulse_response(request, reply_to=None):
+    values, error_response = pulse_create_values(request)
+    if error_response is not None:
+        return error_response
+
+    pulse = Pulse.objects.create(
+        author=request.user,
+        reply_to=reply_to,
+        **values,
+    )
+    return Response(
+        PulseSerializer(pulse, context={"request": request}).data,
+        status=status.HTTP_201_CREATED,
+    )
 
 
 class PulseFeedView(APIView):
@@ -62,79 +151,7 @@ class PulseFeedView(APIView):
         )
 
     def post(self, request):
-        media = request.FILES.get("media")
-        note = str(request.data.get("note") or "").strip()
-        audience = str(
-            request.data.get("audience") or Pulse.Audience.FOLLOWERS
-        ).strip().lower()
-        requested_media_type = str(request.data.get("media_type") or "").strip().lower()
-
-        if audience not in Pulse.Audience.values:
-            return Response(
-                {"detail": "Choose a valid Pulse audience."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if len(note) > 180:
-            return Response(
-                {"detail": "Pulse note must be 180 characters or fewer."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        if media is None:
-            if requested_media_type not in ("", Pulse.MediaType.TEXT):
-                return Response(
-                    {"detail": "Photo and video Pulses require a media file."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            if not note:
-                return Response(
-                    {"detail": "Add a photo, video, or note to your Pulse."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            media_type = Pulse.MediaType.TEXT
-        else:
-            if requested_media_type == Pulse.MediaType.TEXT:
-                return Response(
-                    {"detail": "Text Pulses can't include a media file."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            content_type = str(getattr(media, "content_type", "") or "").lower()
-            if content_type.startswith("image/"):
-                media_type = Pulse.MediaType.IMAGE
-                max_bytes = MAX_PULSE_IMAGE_BYTES
-                size_message = "Pulse photo must be 15 MB or smaller."
-            elif content_type.startswith("video/"):
-                media_type = Pulse.MediaType.VIDEO
-                max_bytes = MAX_PULSE_VIDEO_BYTES
-                size_message = "Pulse video must be 60 MB or smaller."
-            else:
-                return Response(
-                    {"detail": "Pulses support photos and videos only."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            if requested_media_type and requested_media_type != media_type:
-                return Response(
-                    {"detail": "Pulse media type doesn't match the uploaded file."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            if media.size > max_bytes:
-                return Response(
-                    {"detail": size_message},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-        pulse = Pulse.objects.create(
-            author=request.user,
-            media=media or "",
-            media_type=media_type,
-            audience=audience,
-            note=note,
-            expires_at=None,
-        )
-        return Response(
-            PulseSerializer(pulse, context={"request": request}).data,
-            status=status.HTTP_201_CREATED,
-        )
+        return create_pulse_response(request)
 
 
 class PulseDetailView(APIView):
@@ -148,3 +165,34 @@ class PulseDetailView(APIView):
         pulse = get_object_or_404(Pulse, pk=pulse_id, author=request.user)
         pulse.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PulseReplyView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pulse_id):
+        parent = visible_pulse_for_request(request, pulse_id)
+        return create_pulse_response(request, reply_to=parent)
+
+
+class PulseChainView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pulse_id):
+        pulse = visible_pulse_for_request(request, pulse_id)
+        root = pulse.chain_root or pulse.reply_to or pulse
+        members = (
+            visible_pulses_for(request.user)
+            .filter(Q(pk=root.pk) | Q(chain_root=root))
+            .order_by("created_at", "id")[:MAX_PULSES_IN_CHAIN]
+        )
+        return Response(
+            {
+                "root_id": root.pk,
+                "results": PulseSerializer(
+                    members,
+                    many=True,
+                    context={"request": request},
+                ).data,
+            }
+        )
