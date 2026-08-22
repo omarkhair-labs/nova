@@ -81,21 +81,21 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name="pulse",
             constraint=models.CheckConstraint(
-                condition=models.Q(("media_type", "text"), ("media", ""), _connector="OR", _negated=True),
+                condition=models.Q(media_type="text") | ~models.Q(media=""),
                 name="pulse_media_kind_has_file",
             ),
         ),
         migrations.AddConstraint(
             model_name="pulse",
             constraint=models.CheckConstraint(
-                condition=models.Q(("media_type", "text"), ("note", ""), _negated=True),
+                condition=~models.Q(media_type="text") | ~models.Q(note=""),
                 name="pulse_text_has_note",
             ),
         ),
         migrations.AddConstraint(
             model_name="pulse",
             constraint=models.CheckConstraint(
-                condition=models.Q(models.Q(("media_type", "text"), _negated=True), ("media", ""), _connector="OR"),
+                condition=~models.Q(media_type="text") | models.Q(media=""),
                 name="pulse_text_has_no_file",
             ),
         ),
