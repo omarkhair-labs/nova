@@ -6,7 +6,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,7 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -28,9 +26,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.nova.app.app.appContainer
 import com.nova.app.ui.components.NovaBackButton
+import com.nova.app.ui.components.NovaCard
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
@@ -38,8 +36,10 @@ import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
+import com.nova.app.ui.theme.NovaSpacing
 import com.nova.app.ui.theme.NovaSurface
 import com.nova.app.ui.theme.NovaTheme
+import com.nova.app.ui.theme.NovaType
 
 
 private const val PRIVACY_POLICY_URL = "https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/privacy/"
@@ -118,46 +118,34 @@ private fun SettingsScreen(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .statusBarsPadding()
-            .padding(horizontal = 18.dp, vertical = 12.dp),
+            .padding(horizontal = 18.dp, vertical = NovaSpacing.md),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             NovaBackButton(onClick = onBack)
-            Spacer(modifier = Modifier.size(12.dp))
+            Spacer(modifier = Modifier.size(NovaSpacing.md))
             Column {
                 Text(
                     text = "Settings",
                     color = NovaInk,
-                    fontSize = 25.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = NovaType.screenTitle,
                 )
                 if (username.isNotBlank()) {
                     Text(
                         text = "@$username",
                         color = NovaMuted,
-                        fontSize = 12.sp,
+                        style = NovaType.meta,
                     )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.size(26.dp))
-        Text(
-            text = "Account",
-            color = NovaMuted,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
-        )
+        Spacer(modifier = Modifier.size(NovaSpacing.xxl))
+        SettingsSectionLabel("Account")
 
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(22.dp),
-            color = NovaSurface,
-            border = BorderStroke(1.dp, NovaBorder),
-        ) {
+        NovaCard(modifier = Modifier.fillMaxWidth()) {
             Column {
                 SettingsRow(
                     icon = NovaIconAsset.Privacy,
@@ -182,20 +170,10 @@ private fun SettingsScreen(
             }
         }
 
-        Spacer(modifier = Modifier.size(22.dp))
-        Text(
-            text = "Legal & support",
-            color = NovaMuted,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
-        )
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(22.dp),
-            color = NovaSurface,
-            border = BorderStroke(1.dp, NovaBorder),
-        ) {
+        Spacer(modifier = Modifier.size(NovaSpacing.xxl))
+        SettingsSectionLabel("Legal & support")
+
+        NovaCard(modifier = Modifier.fillMaxWidth()) {
             Column {
                 SettingsRow(
                     icon = NovaIconAsset.Policy,
@@ -213,25 +191,17 @@ private fun SettingsScreen(
             }
         }
 
-        Spacer(modifier = Modifier.size(22.dp))
-        Text(
-            text = "Session",
-            color = NovaMuted,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
-        )
-        Surface(
+        Spacer(modifier = Modifier.size(NovaSpacing.xxl))
+        SettingsSectionLabel("Session")
+
+        NovaCard(
             onClick = onLogout,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            color = NovaSurface,
-            border = BorderStroke(1.dp, NovaBorder),
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+                modifier = Modifier.padding(NovaSpacing.lg),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(NovaSpacing.md),
             ) {
                 Surface(
                     shape = CircleShape,
@@ -252,12 +222,22 @@ private fun SettingsScreen(
                 Text(
                     text = "Log out",
                     color = NovaInk,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    style = NovaType.bodyCompact.copy(fontWeight = FontWeight.SemiBold),
                 )
             }
         }
     }
+}
+
+
+@Composable
+private fun SettingsSectionLabel(text: String) {
+    Text(
+        text = text,
+        color = NovaMuted,
+        style = NovaType.meta.copy(fontWeight = FontWeight.SemiBold),
+        modifier = Modifier.padding(start = NovaSpacing.xs, bottom = NovaSpacing.sm),
+    )
 }
 
 
@@ -274,9 +254,9 @@ private fun SettingsRow(
         color = NovaSurface,
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 15.dp, vertical = 14.dp),
+            modifier = Modifier.padding(horizontal = NovaSpacing.lg, vertical = NovaSpacing.md),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(NovaSpacing.md),
         ) {
             Surface(
                 shape = CircleShape,
@@ -298,14 +278,12 @@ private fun SettingsRow(
                 Text(
                     text = title,
                     color = NovaInk,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    style = NovaType.bodyCompact.copy(fontWeight = FontWeight.SemiBold),
                 )
                 Text(
                     text = subtitle,
                     color = NovaMuted,
-                    fontSize = 11.sp,
-                    lineHeight = 16.sp,
+                    style = NovaType.meta,
                 )
             }
         }
