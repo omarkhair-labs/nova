@@ -34,7 +34,6 @@ urlpatterns = [
         name="child-safety",
     ),
     path("api/v1/health/", HealthView.as_view(), name="health"),
-    path("api/v1/", include("accounts.reels_urls")),
     path("api/v1/", include("accounts.urls")),
 ]
 
