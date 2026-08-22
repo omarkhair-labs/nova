@@ -47,6 +47,8 @@ import com.nova.app.feature.messages.group.data.remote.GroupManagementRemoteRepo
 import com.nova.app.feature.messages.group.data.remote.GroupMembershipRemoteRepository
 import com.nova.app.feature.messages.group.data.remote.GroupPeoplePagingRepository
 import com.nova.app.feature.notifications.data.NotificationsRepository
+import com.nova.app.feature.orbit.data.OrbitRepository
+import com.nova.app.feature.orbit.data.remote.OrbitRemoteRepository
 import com.nova.app.feature.people.data.PeoplePagingRepository
 import com.nova.app.feature.people.data.PeopleRepository
 import com.nova.app.feature.people.data.remote.PeoplePagingRemoteRepository
@@ -91,6 +93,7 @@ class AppContainer(context: Context) {
     val peopleRepository: PeopleRepository = socialRepository
     val peoplePagingRepository: PeoplePagingRepository = PeoplePagingRemoteRepository(appContext)
     val pulseRepository: PulseRepository = PulseRemoteRepository(appContext, api)
+    val orbitRepository: OrbitRepository = OrbitRemoteRepository(appContext, api)
     val storiesRepository: StoriesRepository = NovaStoriesRepository(appContext)
     val reelsRepository: ReelsRepository = NovaReelsRepository(appContext)
     val profileReelsRepository: ProfileReelsRepository = NovaProfileReelsRepository(appContext)
