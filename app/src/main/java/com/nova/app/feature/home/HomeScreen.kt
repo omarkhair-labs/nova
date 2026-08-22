@@ -44,6 +44,7 @@ import com.nova.app.feature.orbit.OrbitRail
 import com.nova.app.feature.posts.domain.model.NovaPost
 import com.nova.app.feature.pulse.PulseRail
 import com.nova.app.feature.stories.StoriesRail
+import com.nova.app.feature.tonight.TonightSurface
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
 import com.nova.app.ui.components.NovaSecondaryButton
@@ -302,6 +303,13 @@ fun HomeScreen(
                             }
                         }
                     }
+                }
+
+                item {
+                    TonightSurface(
+                        onPersonClick = onPersonClick,
+                        onSessionExpired = {},
+                    )
                 }
 
                 item {
