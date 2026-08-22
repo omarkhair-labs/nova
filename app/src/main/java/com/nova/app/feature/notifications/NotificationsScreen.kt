@@ -44,6 +44,7 @@ import com.nova.app.ui.components.NovaErrorState
 import com.nova.app.ui.components.NovaInlineLoading
 import com.nova.app.ui.components.NovaInlineRetry
 import com.nova.app.ui.components.NovaLoadingState
+import com.nova.app.ui.components.NovaUnreadDot
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
@@ -421,16 +422,7 @@ private fun NotificationRow(
                     strokeWidth = 2.dp,
                 )
             } else if (!notification.isRead) {
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = NovaAccent,
-                ) {
-                    Spacer(
-                        modifier = Modifier
-                            .width(8.dp)
-                            .height(8.dp),
-                    )
-                }
+                NovaUnreadDot()
             }
         }
     }
