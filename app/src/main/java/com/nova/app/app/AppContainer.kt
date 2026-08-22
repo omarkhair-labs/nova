@@ -65,6 +65,8 @@ import com.nova.app.feature.security.data.BlockedAccountsRepository
 import com.nova.app.feature.security.data.SecurityRepository
 import com.nova.app.feature.sharing.data.SharingRepository
 import com.nova.app.feature.stories.data.StoriesRepository
+import com.nova.app.feature.tonight.data.TonightRepository
+import com.nova.app.feature.tonight.data.remote.TonightRemoteRepository
 import com.nova.app.navigation.AppNavigationBridge
 
 
@@ -94,6 +96,7 @@ class AppContainer(context: Context) {
     val peoplePagingRepository: PeoplePagingRepository = PeoplePagingRemoteRepository(appContext)
     val pulseRepository: PulseRepository = PulseRemoteRepository(appContext, api)
     val orbitRepository: OrbitRepository = OrbitRemoteRepository(appContext, api)
+    val tonightRepository: TonightRepository = TonightRemoteRepository(appContext, api)
     val storiesRepository: StoriesRepository = NovaStoriesRepository(appContext)
     val reelsRepository: ReelsRepository = NovaReelsRepository(appContext)
     val profileReelsRepository: ProfileReelsRepository = NovaProfileReelsRepository(appContext)
