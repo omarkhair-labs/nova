@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from django.test import SimpleTestCase
@@ -60,7 +61,12 @@ class Phase7FinalArchitectureTests(SimpleTestCase):
                         f"{full}.",
                         f'"{full}"',
                         f"'{full}'",
+                        f"from accounts import {name}",
                     ]
+                    relative_root_import = re.search(
+                        rf"from \.{{2,}}{re.escape(name)}(?:\s+import|\s)",
+                        line,
+                    )
                     if is_accounts_root_module:
                         patterns.extend(
                             (
@@ -69,7 +75,7 @@ class Phase7FinalArchitectureTests(SimpleTestCase):
                                 f"from . import {name}",
                             )
                         )
-                    if any(pattern in line for pattern in patterns):
+                    if relative_root_import or any(pattern in line for pattern in patterns):
                         references.append(
                             f"{path.relative_to(backend_dir)}:{line_number}: {line.strip()}"
                         )
