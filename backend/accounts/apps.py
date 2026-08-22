@@ -22,3 +22,5 @@ class AccountsConfig(AppConfig):
         from . import reels_models  # noqa: F401
         # Comment replies remain modular so legacy comments stay migration-safe.
         from . import comment_reply_models  # noqa: F401
+        # Pulse is the live social layer; its durable model remains in accounts.
+        from . import pulse_models  # noqa: F401
