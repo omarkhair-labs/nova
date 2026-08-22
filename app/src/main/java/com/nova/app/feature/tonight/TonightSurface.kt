@@ -60,6 +60,7 @@ private val TonightMuted = Color(0xFFB1B7C5)
 fun TonightSurface(
     onPersonClick: (String) -> Unit,
     onSessionExpired: () -> Unit,
+    liveRoomsContent: (@Composable () -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val repository = context.appContainer.tonightRepository
@@ -87,6 +88,7 @@ fun TonightSurface(
             error = state.error,
             onRetry = { owner.load(currentUtcOffsetMinutes(), showSpinner = false) },
             onPersonClick = onPersonClick,
+            liveRoomsContent = liveRoomsContent,
         )
         else -> TonightSleepingCard(
             error = state.error,
@@ -185,6 +187,7 @@ private fun TonightLiveCard(
     error: String?,
     onRetry: () -> Unit,
     onPersonClick: (String) -> Unit,
+    liveRoomsContent: (@Composable () -> Unit)?,
 ) {
     val value = snapshot ?: return
     Surface(
@@ -294,6 +297,17 @@ private fun TonightLiveCard(
                     color = TonightMuted,
                     fontSize = 9.sp,
                 )
+            }
+
+            liveRoomsContent?.let { content ->
+                Column(modifier = Modifier.padding(horizontal = 18.dp)) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().height(1.dp),
+                        color = Color.White.copy(alpha = 0.07f),
+                    ) {}
+                    Spacer(modifier = Modifier.height(12.dp))
+                    content()
+                }
             }
         }
     }
