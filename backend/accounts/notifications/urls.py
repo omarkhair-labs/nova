@@ -1,6 +1,6 @@
 from django.urls import path
 
-from ..views import DevicePushTokenView, NotificationsReadView, NotificationsView
+from .views import DevicePushTokenView, NotificationsReadView, NotificationsView
 
 
 urlpatterns = [
