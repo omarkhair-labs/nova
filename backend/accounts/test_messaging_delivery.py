@@ -38,8 +38,8 @@ class MessagingDeliveryTests(APITestCase):
             kwargs={"conversation_id": self.conversation_id},
         )
 
-    @patch("accounts.messaging_views.send_message_push")
-    @patch("accounts.messaging_views.broadcast_message_created")
+    @patch("accounts.messaging.messaging_views.send_message_push")
+    @patch("accounts.messaging.messaging_views.broadcast_message_created")
     def test_new_message_broadcasts_and_pushes_once(self, broadcast, push):
         payload = {"body": "Realtime hello", "client_id": "delivery-1"}
 
@@ -55,7 +55,7 @@ class MessagingDeliveryTests(APITestCase):
         broadcast.assert_called_once()
         push.assert_called_once()
 
-    @patch("accounts.messaging_views.broadcast_messages_delivered")
+    @patch("accounts.messaging.messaging_views.broadcast_messages_delivered")
     def test_loading_received_history_marks_message_delivered(self, broadcast_delivered):
         sent = self.client.post(
             self.messages_url,
@@ -83,8 +83,8 @@ class MessagingDeliveryTests(APITestCase):
         self.client.get(self.messages_url)
         broadcast_delivered.assert_called_once()
 
-    @patch("accounts.messaging_views.broadcast_messages_delivered")
-    @patch("accounts.messaging_views.broadcast_conversation_read")
+    @patch("accounts.messaging.messaging_views.broadcast_messages_delivered")
+    @patch("accounts.messaging.messaging_views.broadcast_conversation_read")
     def test_mark_read_guarantees_delivery_and_broadcasts_exact_ids(
         self,
         broadcast_read,
