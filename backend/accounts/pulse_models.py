@@ -27,14 +27,14 @@ class Pulse(models.Model):
     )
     reply_to = models.ForeignKey(
         "self",
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="moment_replies",
         null=True,
         blank=True,
     )
     chain_root = models.ForeignKey(
         "self",
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="chain_members",
         null=True,
         blank=True,
