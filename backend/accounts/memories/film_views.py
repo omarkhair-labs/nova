@@ -4,11 +4,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .film import build_memory_film_plan
 from .service import build_weekly_memory
 from .window import parse_utc_offset, parse_weeks_ago
 
 
-class WeeklyMemoryView(APIView):
+class MemoryFilmPlanView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -17,7 +18,7 @@ class WeeklyMemoryView(APIView):
         )
         if utc_offset_minutes is None:
             return Response(
-                {"detail": "Invalid UTC offset for Memories."},
+                {"detail": "Invalid UTC offset for Memory Film."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -28,11 +29,10 @@ class WeeklyMemoryView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        return Response(
-            build_weekly_memory(
-                request=request,
-                utc_offset_minutes=utc_offset_minutes,
-                weeks_ago=weeks_ago,
-                now=timezone.now(),
-            )
+        weekly_memory = build_weekly_memory(
+            request=request,
+            utc_offset_minutes=utc_offset_minutes,
+            weeks_ago=weeks_ago,
+            now=timezone.now(),
         )
+        return Response(build_memory_film_plan(weekly_memory))
