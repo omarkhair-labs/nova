@@ -2,7 +2,7 @@ from asgiref.sync import async_to_sync
 from django.contrib.auth import get_user_model
 from django.test import TransactionTestCase
 
-from .account_security import issue_session
+from .auth.security import issue_session
 from .realtime_auth import SecureJwtAuthMiddleware
 
 
