@@ -99,6 +99,16 @@ object NovaType {
         fontSize = 10.sp,
         lineHeight = 14.sp,
     )
+
+    val navigationLabel = micro
+    val navigationLabelSelected = micro.copy(fontWeight = FontWeight.SemiBold)
+
+    val badge = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Bold,
+        fontSize = 8.sp,
+        lineHeight = 10.sp,
+    )
 }
 
 val Typography = Typography(
