@@ -182,6 +182,7 @@ class DeleteAccountView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        from ..pulse_models import Pulse
         from .group_messaging import remove_user_from_all_groups
         from .sharing_models import Repost
         from .story_models import Story
@@ -206,6 +207,11 @@ class DeleteAccountView(APIView):
             for story in Story.objects.filter(author=user)
             if story.media and story.media.name
         ]
+        pulse_files = [
+            (pulse.media.storage, pulse.media.name)
+            for pulse in Pulse.objects.filter(author=user)
+            if pulse.media and pulse.media.name
+        ]
 
         with transaction.atomic():
             remove_user_from_all_groups(user)
@@ -218,6 +224,7 @@ class DeleteAccountView(APIView):
             Repost.objects.filter(user=user).delete()
             Post.objects.filter(author=user).delete()
             Story.objects.filter(author=user).delete()
+            Pulse.objects.filter(author=user).delete()
 
             user.email = f"deleted+{uuid.uuid4().hex}@deleted.nova.invalid"
             user.username = f"deleted_{uuid.uuid4().hex[:16]}"
@@ -245,6 +252,8 @@ class DeleteAccountView(APIView):
             for storage, name in post_files:
                 transaction.on_commit(lambda storage=storage, name=name: storage.delete(name))
             for storage, name in story_files:
+                transaction.on_commit(lambda storage=storage, name=name: storage.delete(name))
+            for storage, name in pulse_files:
                 transaction.on_commit(lambda storage=storage, name=name: storage.delete(name))
             if avatar_name and avatar_storage is not None:
                 transaction.on_commit(lambda: avatar_storage.delete(avatar_name))
