@@ -30,6 +30,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.app.appContainer
+import com.nova.app.ui.components.NovaBackButton
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBorder
@@ -121,22 +124,7 @@ private fun SettingsScreen(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Surface(
-                onClick = onBack,
-                modifier = Modifier.size(42.dp),
-                shape = CircleShape,
-                color = NovaSurface,
-                border = BorderStroke(1.dp, NovaBorder),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "‹",
-                        color = NovaInk,
-                        fontSize = 29.sp,
-                        fontWeight = FontWeight.Medium,
-                    )
-                }
-            }
+            NovaBackButton(onClick = onBack)
             Spacer(modifier = Modifier.size(12.dp))
             Column {
                 Text(
@@ -172,21 +160,21 @@ private fun SettingsScreen(
         ) {
             Column {
                 SettingsRow(
-                    icon = "◉",
+                    icon = NovaIconAsset.Privacy,
                     title = "Privacy",
                     subtitle = "Private account, requests and Close Friends",
                     onClick = onPrivacy,
                 )
                 SettingsDivider()
                 SettingsRow(
-                    icon = "⌁",
+                    icon = NovaIconAsset.Security,
                     title = "Security",
                     subtitle = "Password and account protection",
                     onClick = onSecurity,
                 )
                 SettingsDivider()
                 SettingsRow(
-                    icon = "⊘",
+                    icon = NovaIconAsset.Blocked,
                     title = "Blocked accounts",
                     subtitle = "Review people you've blocked",
                     onClick = onBlockedAccounts,
@@ -210,14 +198,14 @@ private fun SettingsScreen(
         ) {
             Column {
                 SettingsRow(
-                    icon = "i",
+                    icon = NovaIconAsset.Policy,
                     title = "Privacy policy",
                     subtitle = "How Nova handles and protects your information",
                     onClick = onPrivacyPolicy,
                 )
                 SettingsDivider()
                 SettingsRow(
-                    icon = "×",
+                    icon = NovaIconAsset.AccountDeletion,
                     title = "Account deletion",
                     subtitle = "Delete in-app or request deletion on the web",
                     onClick = onAccountDeletion,
@@ -249,12 +237,17 @@ private fun SettingsScreen(
                     shape = CircleShape,
                     color = NovaAccentSoft,
                 ) {
-                    Text(
-                        text = "↪",
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                        color = NovaAccent,
-                        fontSize = 17.sp,
-                    )
+                    Box(
+                        modifier = Modifier.size(38.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        NovaIcon(
+                            asset = NovaIconAsset.Logout,
+                            contentDescription = null,
+                            tint = NovaAccent,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
                 }
                 Text(
                     text = "Log out",
@@ -270,7 +263,7 @@ private fun SettingsScreen(
 
 @Composable
 private fun SettingsRow(
-    icon: String,
+    icon: NovaIconAsset,
     title: String,
     subtitle: String,
     onClick: () -> Unit,
@@ -293,11 +286,11 @@ private fun SettingsRow(
                     modifier = Modifier.size(38.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        text = icon,
-                        color = NovaAccent,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
+                    NovaIcon(
+                        asset = icon,
+                        contentDescription = null,
+                        tint = NovaAccent,
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             }
@@ -315,11 +308,6 @@ private fun SettingsRow(
                     lineHeight = 16.sp,
                 )
             }
-            Text(
-                text = "›",
-                color = NovaMuted,
-                fontSize = 22.sp,
-            )
         }
     }
 }

@@ -13,13 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,7 +22,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.nova.app.core.messaging.NovaMessagesSignal
@@ -38,6 +30,8 @@ import com.nova.app.core.reels.NovaReelsNavigator
 import com.nova.app.navigation.NovaRootNavigationSignal
 import com.nova.app.navigation.NovaRootTab
 import com.nova.app.navigation.rootNavigationPlan
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaElevation
 import com.nova.app.ui.theme.NovaMuted
@@ -109,19 +103,19 @@ fun NovaBottomBar(
         ) {
             NovaTabItem(
                 label = "Home",
-                icon = Icons.Filled.Home,
+                icon = NovaIconAsset.Home,
                 selected = selected == NovaTab.Home,
                 onClick = { dispatchRoot(NovaRootTab.Home) },
             )
             NovaTabItem(
                 label = "People",
-                icon = Icons.Filled.Search,
+                icon = NovaIconAsset.People,
                 selected = selected == NovaTab.People,
                 onClick = { dispatchRoot(NovaRootTab.People) },
             )
             NovaTabItem(
                 label = "Reels",
-                icon = Icons.Filled.PlayArrow,
+                icon = NovaIconAsset.Reels,
                 selected = selected == NovaTab.Reels,
                 onClick = {
                     if (onReelsClick != null) {
@@ -136,7 +130,7 @@ fun NovaBottomBar(
             )
             NovaTabItem(
                 label = "Messages",
-                icon = Icons.Filled.Email,
+                icon = NovaIconAsset.Messages,
                 selected = selected == NovaTab.Messages,
                 badgeCount = resolvedUnreadCount,
                 onClick = {
@@ -152,7 +146,7 @@ fun NovaBottomBar(
             )
             NovaTabItem(
                 label = "You",
-                icon = Icons.Filled.Person,
+                icon = NovaIconAsset.Profile,
                 selected = selected == NovaTab.Profile,
                 onClick = { dispatchRoot(NovaRootTab.Profile) },
             )
@@ -164,7 +158,7 @@ fun NovaBottomBar(
 @Composable
 private fun NovaTabItem(
     label: String,
-    icon: ImageVector,
+    icon: NovaIconAsset,
     selected: Boolean,
     onClick: () -> Unit,
     badgeCount: Int = 0,
@@ -195,8 +189,8 @@ private fun NovaTabItem(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(3.dp),
             ) {
-                Icon(
-                    imageVector = icon,
+                NovaIcon(
+                    asset = icon,
                     contentDescription = label,
                     tint = contentColor,
                     modifier = Modifier
