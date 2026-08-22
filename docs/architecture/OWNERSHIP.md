@@ -1,7 +1,7 @@
 # Current ownership and entry paths
 
-Snapshot: Phase 6 exit cleanup (#177), based on fresh master
-`d917a63a16c0d335beb619989ee1f84c5695313b` after #176 / Nova CI #540 full green.
+Snapshot: Phase 7 final architecture state (#178), based on fresh master
+`1d52e6e7225eee0d458418828e660611a4f0fa62` after #177 / Nova CI #542 full green.
 
 This file records **current ownership**, not the historical sequence used to get
 here. The PR-by-PR migration history and rollback points live in `PROGRESS.md`;
@@ -93,17 +93,17 @@ feature/posts  -> Post/comment parser + PostsRemoteDataSource
 aliases and duplicate parsers are deleted. Architecture gates prevent feature
 DTO/endpoint ownership from returning to `NovaApiClient`.
 
-## Backend composition — Phase 6 exit
+## Backend composition — Phase 7 final state
 
-All backend domains remain inside the **existing `accounts` Django app**. Phase 6
-changes Python implementation ownership only; it does **not** change Django app
-labels, model/table identity, migration history, public REST paths/names/status
-semantics, WebSocket paths/events/payloads, environment variables, or deployment
-entry points.
+All backend domains remain inside the **existing `accounts` Django app**. The
+consolidation changes Python implementation ownership only; it does **not** change
+Django app labels, model/table identity, migration history, public REST
+paths/names/status semantics, WebSocket paths/events/payloads, environment
+variables, or deployment entry points.
 
 ```text
 nova_backend/
-|- settings.py
+|- settings.py                     # DRF auth points directly to accounts.auth.jwt_auth
 |- urls.py
 `- asgi.py
 
@@ -131,19 +131,20 @@ accounts/
 |- comment_reply_models.py         # accounts-app sidecar model registration
 |- migrations/                     # unchanged accounts migration identity
 |- test_core_api.py                # historical core API behavior suite
-`- tests/                          # Phase 6 architecture/exit organization
+`- tests/                          # architecture/exit/final enforcement
 ```
 
 `accounts/api/urls.py` includes domain packages directly. `accounts/routing.py`
 composes Messaging and Calls WebSocket pattern lists directly. The temporary root
-`stories_urls.py`, `reels_urls.py`, `calls_urls.py`, and `calls_routing.py`
-adapters are removed in #177.
+Stories/Reels/Calls URL/routing adapters were removed in #177.
 
 `AccountsConfig.ready()` imports call-history registration from
-`accounts.calls.call_history` directly. Root runtime aliases that remain only to
-support historical Python import/patch paths are **not ownership boundaries** and
-must not be used by live composition; #178 owns final proof and safe deletion of
-those remaining shims.
+`accounts.calls.call_history` directly. Phase 7 removes the remaining 21 root
+runtime compatibility modules after migrating historical test/config references
+to their canonical owners. `realtime_auth.py` and DRF authentication settings now
+point directly to `accounts.auth.jwt_auth`. The permanent Phase 7 scanner rejects
+restoration of those root files or any `accounts.<legacy>` reference anywhere
+under `backend/` while allowing legitimate same-domain relative imports.
 
 ## Backend model/migration identity
 
@@ -151,7 +152,7 @@ The authoritative Django app remains `accounts`. Domain packages may contain
 import-only `models.py` facades for local relative imports, but they must not
 define replacement Django models. Existing sidecar model modules and
 `accounts/migrations/` retain their identities. `makemigrations --check` and the
-backend regression suite are mandatory on every Phase 6/7 PR.
+backend regression suite remain mandatory merge gates.
 
 ## Protected backend route/realtime inventory
 
@@ -165,25 +166,36 @@ Executable characterization fixes the public surface at:
   - `^ws/calls/(?P<call_id>[0-9a-fA-F-]+)/$`
 
 Domain-ownership tests additionally assert that REST views and Messaging/Calls
-consumers resolve to the new package owners rather than compatibility modules.
+consumers resolve to the canonical package owners rather than compatibility
+modules.
 
-## Phase 6 test ownership
+## Backend test ownership
 
 The old `backend/accounts/tests.py` name blocked creation of an `accounts.tests`
-package. #177 renames that behavior suite to `test_core_api.py` without changing
-its contents and creates `accounts/tests/` for architecture/exit organization.
+package. #177 renamed that behavior suite to `test_core_api.py` without changing
+its contents and created `accounts/tests/` for architecture/exit organization.
 The Phase 6 exit gate prevents restoration of the old module collision and the
-superseded root route adapters.
+superseded root route adapters. Phase 7 adds permanent root-shim/reference
+absence enforcement across the complete backend tree.
 
-## CI and physical-smoke boundary
+## CI, release, and physical-smoke boundary
 
-Hosted Nova CI remains the automated merge gate: Django configuration,
-migrations, release-script validation, backend regression tests, Android
-architecture gates, whitespace, JVM tests, lint, debug APK, instrumentation APK,
-release APK and AAB must all pass.
+Hosted Nova CI is the automated merge gate: Django configuration, migrations,
+release-script validation, backend regression tests, Android architecture gates,
+whitespace, JVM tests, lint, debug APK, instrumentation APK, release APK and AAB
+must all pass on the exact #178 head before merge.
 
-The physical Samsung checklist is still separately blocked by the differently
+The Google Play workflow remains unchanged. #178 does not modify
+`app/build.gradle.kts`, does not bump version `2.1.4` / versionCode `20104`, and
+does not authorize or dispatch a Play publish.
+
+The physical Samsung checklist remains separately blocked by the differently
 signed package already installed on the authorized SM-A266B. No uninstall is
-authorized. That unresolved physical check is recorded rather than bypassed, and
-#178 performs the final release/smoke/Definition-of-Done audit without publishing
-to Google Play or changing the app version unless separately authorized.
+authorized. That unresolved physical check is recorded rather than bypassed.
+
+## Completion marker
+
+#178 is the final consolidation PR. It may merge only after the complete hosted
+gate above is green on this final architecture/documentation state. Once that
+merge lands on `master`, the governed consolidation status is **REFACTOR DONE**;
+there is no additional architecture-consolidation PR in the fixed budget.
