@@ -80,7 +80,7 @@ class TrustSafetyV13Tests(APITestCase):
         )
         self.assertEqual(send_message.status_code, status.HTTP_403_FORBIDDEN)
 
-        with patch("accounts.call_reliability_view.send_call_push", return_value=1):
+        with patch("accounts.calls.call_reliability_view.send_call_push", return_value=1):
             call = self.client.post(
                 reverse("call-create"),
                 {"conversation_id": self.conversation.pk, "kind": "audio"},
