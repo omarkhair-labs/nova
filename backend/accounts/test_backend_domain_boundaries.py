@@ -144,7 +144,7 @@ class BackendRouteContractTests(SimpleTestCase):
 
 
 class BackendDomainBoundaryTests(SimpleTestCase):
-    def test_collision_safe_domain_boundaries_exist(self):
+    def test_domain_boundaries_exist(self):
         accounts_dir = Path(__file__).resolve().parent
         required = (
             "api/urls.py",
@@ -159,8 +159,8 @@ class BackendDomainBoundaryTests(SimpleTestCase):
             "trust_safety/urls.py",
             "stories/urls.py",
             "reels/urls.py",
-            "calls_urls.py",
-            "calls_routing.py",
+            "calls/urls.py",
+            "calls/routing.py",
         )
         missing = [relative for relative in required if not (accounts_dir / relative).is_file()]
         self.assertEqual(missing, [])
@@ -173,20 +173,15 @@ class BackendDomainBoundaryTests(SimpleTestCase):
         self.assertEqual(urls_source.strip(), "from .api.urls import urlpatterns")
         self.assertNotIn("Consumer", routing_source)
         self.assertIn(".messaging.routing", routing_source)
-        self.assertIn(".calls_routing", routing_source)
+        self.assertIn(".calls.routing", routing_source)
 
-    def test_owned_collisions_advance_to_packages(self):
+    def test_all_collision_domains_are_packages(self):
         accounts_dir = Path(__file__).resolve().parent
-        for module in ("privacy", "trust_safety", "stories", "reels"):
+        for module in ("privacy", "trust_safety", "stories", "reels", "calls"):
             with self.subTest(module=module):
                 self.assertFalse((accounts_dir / f"{module}.py").exists())
                 self.assertTrue((accounts_dir / module / "__init__.py").is_file())
                 self.assertTrue((accounts_dir / module / "urls.py").is_file())
-
-    def test_remaining_flat_collisions_are_deferred_to_their_owning_prs(self):
-        accounts_dir = Path(__file__).resolve().parent
-        self.assertTrue((accounts_dir / "calls.py").is_file())
-        self.assertFalse((accounts_dir / "calls").exists())
 
     def test_model_and_migration_identity_stay_in_existing_accounts_app(self):
         accounts_dir = Path(__file__).resolve().parent
@@ -194,7 +189,7 @@ class BackendDomainBoundaryTests(SimpleTestCase):
         self.assertTrue((accounts_dir / "migrations").is_dir())
         self.assertFalse((accounts_dir / "posts" / "models.py").exists())
 
-        for domain in ("auth", "stories", "reels", "messaging"):
+        for domain in ("auth", "stories", "reels", "messaging", "calls"):
             adapter = (accounts_dir / domain / "models.py").read_text(encoding="utf-8")
             self.assertIn("from ..models import *", adapter)
             self.assertNotIn("class ", adapter)

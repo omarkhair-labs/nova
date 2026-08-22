@@ -3,6 +3,7 @@ import importlib
 from django.test import SimpleTestCase
 from django.urls import resolve
 
+from .calls.routing import websocket_urlpatterns as call_websocket_urlpatterns
 from .messaging.routing import websocket_urlpatterns as messaging_websocket_urlpatterns
 
 
@@ -106,6 +107,19 @@ class BackendDomainOwnershipTests(SimpleTestCase):
                 match = resolve(path)
                 self.assertEqual(match.func.view_class.__module__, module_name)
 
+    def test_calls_routes_use_domain_owners(self):
+        call_id = "123e4567-e89b-12d3-a456-426614174000"
+        expected = {
+            "/api/v1/calls/": "accounts.calls.call_reliability_view",
+            "/api/v1/calls/ice/": "accounts.calls",
+            f"/api/v1/calls/{call_id}/": "accounts.calls",
+            f"/api/v1/calls/{call_id}/action/": "accounts.calls",
+        }
+        for path, module_name in expected.items():
+            with self.subTest(path=path):
+                match = resolve(path)
+                self.assertEqual(match.func.view_class.__module__, module_name)
+
     def test_messaging_websocket_consumers_use_domain_owner(self):
         self.assertEqual(len(messaging_websocket_urlpatterns), 2)
         owners = tuple(
@@ -116,6 +130,11 @@ class BackendDomainOwnershipTests(SimpleTestCase):
             owners,
             ("accounts.messaging.realtime", "accounts.messaging.realtime"),
         )
+
+    def test_calls_websocket_consumer_uses_domain_owner(self):
+        self.assertEqual(len(call_websocket_urlpatterns), 1)
+        owner = call_websocket_urlpatterns[0].callback.consumer_class.__module__
+        self.assertEqual(owner, "accounts.calls.call_reliability_realtime")
 
     def test_legacy_module_paths_alias_new_owners(self):
         aliases = (
@@ -136,6 +155,10 @@ class BackendDomainOwnershipTests(SimpleTestCase):
             ("accounts.messaging_views", "accounts.messaging.messaging_views"),
             ("accounts.presence_store", "accounts.messaging.presence_store"),
             ("accounts.realtime", "accounts.messaging.realtime"),
+            ("accounts.call_history", "accounts.calls.call_history"),
+            ("accounts.call_realtime", "accounts.calls.call_realtime"),
+            ("accounts.call_reliability_realtime", "accounts.calls.call_reliability_realtime"),
+            ("accounts.call_reliability_view", "accounts.calls.call_reliability_view"),
         )
         for legacy_name, owner_name in aliases:
             with self.subTest(legacy=legacy_name):
@@ -149,6 +172,7 @@ class BackendDomainOwnershipTests(SimpleTestCase):
             "accounts.trust_safety",
             "accounts.stories",
             "accounts.reels",
+            "accounts.calls",
         ):
             with self.subTest(module=module_name):
                 module = importlib.import_module(module_name)
