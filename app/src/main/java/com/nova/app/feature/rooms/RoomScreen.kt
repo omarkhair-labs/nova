@@ -357,7 +357,7 @@ private fun DescriptionCard(
     onEdit: () -> Unit,
 ) {
     Surface(
-        onClick = if (canEdit) onEdit else {},
+        onClick = { if (canEdit) onEdit() },
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
         color = NovaSurface,
