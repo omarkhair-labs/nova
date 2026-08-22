@@ -1,5 +1,7 @@
 package com.nova.app.feature.memories.data
 
+import com.nova.app.feature.memories.domain.model.MemoryFilmPlan
+import com.nova.app.feature.memories.domain.model.MemoryFilmScene
 import com.nova.app.feature.memories.domain.model.MemoryHighlight
 import com.nova.app.feature.memories.domain.model.MemoryPerson
 import com.nova.app.feature.memories.domain.model.MemoryPersonRow
@@ -34,6 +36,48 @@ internal fun parseWeeklyMemory(
         highlights = parseHighlights(json.optJSONArray("highlights"), resolveMediaUrl),
         people = parsePeople(json.optJSONArray("people"), resolveMediaUrl),
         rooms = parseRooms(json.optJSONArray("rooms"), resolveMediaUrl),
+    )
+}
+
+
+internal fun parseMemoryFilmPlan(
+    json: JSONObject,
+    resolveMediaUrl: (String) -> String,
+): MemoryFilmPlan {
+    val rows = json.optJSONArray("scenes") ?: JSONArray()
+    val scenes = buildList {
+        for (index in 0 until rows.length()) {
+            val row = rows.optJSONObject(index) ?: continue
+            add(
+                MemoryFilmScene(
+                    index = row.optInt("index", index),
+                    source = row.optString("source"),
+                    sourceId = row.optLong("source_id"),
+                    mediaType = row.optString("media_type"),
+                    mediaUrl = resolveMediaUrl(row.optString("media_url")),
+                    occurredAt = row.optString("occurred_at"),
+                    durationMs = row.optLong("duration_ms", 0L).coerceAtLeast(0L),
+                    trimStartMs = row.optLong("trim_start_ms", 0L).coerceAtLeast(0L),
+                    caption = row.optString("caption"),
+                    person = row.optJSONObject("person")?.let { parsePerson(it, resolveMediaUrl) },
+                    room = row.optJSONObject("room")?.let { parseRoom(it, resolveMediaUrl) },
+                )
+            )
+        }
+    }
+    return MemoryFilmPlan(
+        renderVersion = json.optInt("render_version", 1),
+        selectionVersion = json.optString("selection_version"),
+        startsAt = json.optString("starts_at"),
+        endsAt = json.optString("ends_at"),
+        utcOffsetMinutes = json.optInt("utc_offset_minutes", 0),
+        weeksAgo = json.optInt("weeks_ago", 0),
+        filmReady = json.optBoolean("film_ready", false),
+        mood = json.optString("mood"),
+        targetDurationMs = json.optLong("target_duration_ms", 0L),
+        totalDurationMs = json.optLong("total_duration_ms", 0L),
+        coverMediaUrl = resolveMediaUrl(json.optString("cover_media_url")),
+        scenes = scenes,
     )
 }
 

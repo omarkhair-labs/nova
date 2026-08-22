@@ -2,6 +2,7 @@ package com.nova.app.feature.memories
 
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.memories.data.MemoryRepository
+import com.nova.app.feature.memories.domain.model.MemoryFilmPlan
 import com.nova.app.feature.memories.domain.model.MemoryStats
 import com.nova.app.feature.memories.domain.model.WeeklyMemory
 import kotlinx.coroutines.CoroutineScope
@@ -86,6 +87,11 @@ private class FakeMemoryRepository(
         requests += utcOffsetMinutes to weeksAgo
         return results.removeFirst()
     }
+
+    override suspend fun filmPlan(
+        utcOffsetMinutes: Int,
+        weeksAgo: Int,
+    ): ApiResult<MemoryFilmPlan> = ApiResult.Failure("unused", 500)
 }
 
 

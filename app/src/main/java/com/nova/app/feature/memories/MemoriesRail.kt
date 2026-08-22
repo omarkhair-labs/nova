@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -50,6 +51,7 @@ fun MemoriesRail(
     val owner = remember(repository, scope) { MemoryStateOwner(repository, scope) }
     val state = owner.state
     var showMemory by remember { mutableStateOf(false) }
+    var showFilm by remember { mutableStateOf(false) }
 
     LaunchedEffect(owner) {
         owner.load(
@@ -128,6 +130,42 @@ fun MemoriesRail(
         }
     }
 
+    val hasFilmMedia = state.memory?.highlights?.any {
+        it.mediaType in setOf("image", "video") && it.mediaUrl.isNotBlank()
+    } == true
+    if (hasFilmMedia) {
+        Spacer(modifier = Modifier.height(8.dp))
+        Surface(
+            onClick = { showFilm = true },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(19.dp),
+            color = NovaAccentSoft,
+            border = BorderStroke(1.dp, NovaAccent.copy(alpha = 0.22f)),
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("▶", color = NovaAccent, fontSize = 14.sp)
+                Spacer(modifier = Modifier.width(9.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Make your Memory Film",
+                        color = NovaInk,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = "Nova picks the scenes · you get the MP4",
+                        color = NovaMuted,
+                        fontSize = 8.sp,
+                    )
+                }
+                Text("Film ›", color = NovaAccent, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+
     if (state.error != null && state.memory == null) {
         Spacer(modifier = Modifier.width(1.dp))
     }
@@ -148,6 +186,25 @@ fun MemoriesRail(
                 },
                 onSessionExpired = {
                     showMemory = false
+                    onSessionExpired()
+                },
+            )
+        }
+    }
+
+    if (showFilm) {
+        Dialog(
+            onDismissRequest = { showFilm = false },
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false,
+            ),
+        ) {
+            MemoryFilmScreen(
+                initialWeeksAgo = 0,
+                onBack = { showFilm = false },
+                onSessionExpired = {
+                    showFilm = false
                     onSessionExpired()
                 },
             )

@@ -5,7 +5,9 @@ import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.feature.memories.data.MemoryRepository
+import com.nova.app.feature.memories.data.parseMemoryFilmPlan
 import com.nova.app.feature.memories.data.parseWeeklyMemory
+import com.nova.app.feature.memories.domain.model.MemoryFilmPlan
 import com.nova.app.feature.memories.domain.model.WeeklyMemory
 
 
@@ -27,6 +29,23 @@ class MemoryRemoteRepository(
         ) {
             is ApiResult.Success -> ApiResult.Success(
                 parseWeeklyMemory(response.value, api::resolveMediaUrl),
+            )
+            is ApiResult.Failure -> response
+        }
+    }
+
+    override suspend fun filmPlan(
+        utcOffsetMinutes: Int,
+        weeksAgo: Int,
+    ): ApiResult<MemoryFilmPlan> = authenticatedCall { token ->
+        when (
+            val response = api.requestJson(
+                path = "memories/film-plan/?utc_offset_minutes=$utcOffsetMinutes&weeks_ago=$weeksAgo",
+                bearerToken = token,
+            )
+        ) {
+            is ApiResult.Success -> ApiResult.Success(
+                parseMemoryFilmPlan(response.value, api::resolveMediaUrl),
             )
             is ApiResult.Failure -> response
         }
