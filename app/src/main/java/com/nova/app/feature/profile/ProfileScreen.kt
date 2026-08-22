@@ -1,7 +1,6 @@
 package com.nova.app.feature.profile
 
 import android.content.Intent
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,10 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -25,7 +22,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.nova.app.SettingsActivity
 import com.nova.app.SocialGraphActivity
 import com.nova.app.feature.people.MODE_FOLLOWERS
@@ -33,16 +29,17 @@ import com.nova.app.feature.people.MODE_FOLLOWING
 import com.nova.app.feature.posts.domain.model.NovaPost
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
+import com.nova.app.ui.components.NovaCard
 import com.nova.app.ui.components.NovaIconButton
 import com.nova.app.ui.components.NovaPagedProfilePostsGrid
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.components.NovaTab
 import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaBackground
-import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
-import com.nova.app.ui.theme.NovaSurface
+import com.nova.app.ui.theme.NovaSpacing
+import com.nova.app.ui.theme.NovaType
 
 @Suppress("UNUSED_PARAMETER")
 @Composable
@@ -89,7 +86,7 @@ fun ProfileScreen(
                 .padding(innerPadding)
                 .statusBarsPadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+                .padding(horizontal = NovaSpacing.xl, vertical = NovaSpacing.lg),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -97,20 +94,9 @@ fun ProfileScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column {
-                    Text(
-                        text = "You",
-                        color = NovaInk,
-                        fontSize = 30.sp,
-                        lineHeight = 36.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = "Your profile on Nova",
-                        color = NovaMuted,
-                        fontSize = 13.sp,
-                    )
+                    Text(text = "You", color = NovaInk, style = NovaType.pageTitle)
+                    Text(text = "Your profile on Nova", color = NovaMuted, style = NovaType.meta)
                 }
-
                 NovaIconButton(
                     asset = NovaIconAsset.Settings,
                     contentDescription = "Settings",
@@ -119,8 +105,7 @@ fun ProfileScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
+            Spacer(modifier = Modifier.height(NovaSpacing.xxl))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -131,76 +116,54 @@ fun ProfileScreen(
                     fallbackText = displayName.ifBlank { username },
                     size = 92.dp,
                 )
-
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = displayName.ifBlank { username },
                         color = NovaInk,
-                        fontSize = 23.sp,
-                        lineHeight = 28.sp,
-                        fontWeight = FontWeight.Bold,
+                        style = NovaType.sectionTitle,
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(NovaSpacing.xs))
                     Text(
                         text = "@$username",
                         color = NovaMuted,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
+                        style = NovaType.bodyCompact.copy(fontWeight = FontWeight.Medium),
                     )
                     if (email.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = email,
-                            color = NovaMuted,
-                            fontSize = 11.sp,
-                            maxLines = 1,
-                        )
+                        Spacer(modifier = Modifier.height(NovaSpacing.xs))
+                        Text(text = email, color = NovaMuted, style = NovaType.meta, maxLines = 1)
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(22.dp))
-
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(22.dp),
-                color = NovaSurface,
-                border = BorderStroke(1.dp, NovaBorder),
-            ) {
+            Spacer(modifier = Modifier.height(NovaSpacing.xxl))
+            NovaCard(modifier = Modifier.fillMaxWidth()) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 17.dp),
+                    modifier = Modifier.padding(horizontal = NovaSpacing.sm, vertical = NovaSpacing.lg),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                 ) {
+                    ProfileStat(postsCount.toString(), "Posts", Modifier.weight(1f))
                     ProfileStat(
-                        value = postsCount.toString(),
-                        label = "Posts",
-                        modifier = Modifier.weight(1f),
-                    )
-                    ProfileStat(
-                        value = followersCount.toString(),
-                        label = "Followers",
-                        modifier = Modifier.weight(1f),
+                        followersCount.toString(),
+                        "Followers",
+                        Modifier.weight(1f),
                         onClick = { openSocialGraph(MODE_FOLLOWERS) },
                     )
                     ProfileStat(
-                        value = followingCount.toString(),
-                        label = "Following",
-                        modifier = Modifier.weight(1f),
+                        followingCount.toString(),
+                        "Following",
+                        Modifier.weight(1f),
                         onClick = { openSocialGraph(MODE_FOLLOWING) },
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
-
+            Spacer(modifier = Modifier.height(NovaSpacing.md))
             NovaSecondaryButton(
                 text = "Edit profile",
                 onClick = onEditProfile,
                 modifier = Modifier.fillMaxWidth(),
             )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
+            Spacer(modifier = Modifier.height(NovaSpacing.xxl))
             NovaPagedProfilePostsGrid(
                 username = username,
                 owner = profileContentOwner,
@@ -208,8 +171,7 @@ fun ProfileScreen(
                 emptyTitle = "Share your first moment",
                 emptyMessage = "Your posts will build a visual history here.",
             )
-
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(NovaSpacing.xl))
         }
     }
 }
@@ -224,20 +186,15 @@ private fun ProfileStat(
     Column(
         modifier = modifier
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(vertical = 4.dp),
+            .padding(vertical = NovaSpacing.xs),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
             text = value,
             color = NovaInk,
-            fontSize = 19.sp,
-            fontWeight = FontWeight.Bold,
+            style = NovaType.title.copy(fontWeight = FontWeight.Bold),
         )
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = label,
-            color = NovaMuted,
-            fontSize = 11.sp,
-        )
+        Spacer(modifier = Modifier.height(NovaSpacing.xxs))
+        Text(text = label, color = NovaMuted, style = NovaType.micro)
     }
 }
