@@ -58,6 +58,29 @@ class BackendDomainOwnershipTests(SimpleTestCase):
                 match = resolve(path)
                 self.assertEqual(match.func.view_class.__module__, module_name)
 
+    def test_stories_and_reels_routes_use_domain_owners(self):
+        expected = {
+            "/api/v1/stories/": "accounts.stories",
+            "/api/v1/stories/1/": "accounts.stories",
+            "/api/v1/stories/1/view/": "accounts.stories",
+            "/api/v1/stories/1/viewers/": "accounts.stories",
+            "/api/v1/stories/1/reaction/": "accounts.stories",
+            "/api/v1/stories/1/reply/": "accounts.stories",
+            "/api/v1/reels/": "accounts.reels",
+            "/api/v1/reels/profile/alice/": "accounts.reels.profile",
+            "/api/v1/reels/1/": "accounts.reels",
+            "/api/v1/reels/1/watch/": "accounts.reels",
+            "/api/v1/reels/1/like/": "accounts.reels",
+            "/api/v1/reels/1/repost/": "accounts.reels",
+            "/api/v1/reels/1/comments/": "accounts.reels.comments",
+            "/api/v1/reel-comments/1/": "accounts.reels.comments",
+            "/api/v1/reel-comment-replies/1/": "accounts.reels.comments",
+        }
+        for path, module_name in expected.items():
+            with self.subTest(path=path):
+                match = resolve(path)
+                self.assertEqual(match.func.view_class.__module__, module_name)
+
     def test_legacy_module_paths_alias_new_owners(self):
         aliases = (
             ("accounts.account_security", "accounts.auth.security"),
@@ -65,6 +88,8 @@ class BackendDomainOwnershipTests(SimpleTestCase):
             ("accounts.social_paging", "accounts.social.paging"),
             ("accounts.privacy_views", "accounts.privacy.views"),
             ("accounts.sharing_views", "accounts.sharing.views"),
+            ("accounts.profile_reels", "accounts.reels.profile"),
+            ("accounts.reels_ranking", "accounts.reels.ranking"),
         )
         for legacy_name, owner_name in aliases:
             with self.subTest(legacy=legacy_name):
@@ -73,7 +98,12 @@ class BackendDomainOwnershipTests(SimpleTestCase):
                 self.assertIs(legacy, owner)
 
     def test_collision_modules_are_now_real_domain_packages(self):
-        privacy = importlib.import_module("accounts.privacy")
-        trust_safety = importlib.import_module("accounts.trust_safety")
-        self.assertTrue(hasattr(privacy, "__path__"))
-        self.assertTrue(hasattr(trust_safety, "__path__"))
+        for module_name in (
+            "accounts.privacy",
+            "accounts.trust_safety",
+            "accounts.stories",
+            "accounts.reels",
+        ):
+            with self.subTest(module=module_name):
+                module = importlib.import_module(module_name)
+                self.assertTrue(hasattr(module, "__path__"))
