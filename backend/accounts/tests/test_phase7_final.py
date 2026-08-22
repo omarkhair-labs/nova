@@ -31,6 +31,7 @@ LEGACY_ROOT_MODULES = (
 class Phase7FinalArchitectureTests(SimpleTestCase):
     def test_no_legacy_backend_shims_or_references(self):
         accounts_dir = Path(__file__).resolve().parents[1]
+        backend_dir = accounts_dir.parent
         this_file = Path(__file__).resolve()
 
         remaining_files = [
@@ -44,12 +45,12 @@ class Phase7FinalArchitectureTests(SimpleTestCase):
             (accounts_dir / f"{name}.py").resolve()
             for name in LEGACY_ROOT_MODULES
         }
-        for path in sorted(accounts_dir.rglob("*.py")):
+        for path in sorted(backend_dir.rglob("*.py")):
             resolved = path.resolve()
             if resolved == this_file or resolved in legacy_paths or "migrations" in path.parts:
                 continue
             source = path.read_text(encoding="utf-8")
-            is_root_module = path.parent.resolve() == accounts_dir.resolve()
+            is_accounts_root_module = path.parent.resolve() == accounts_dir.resolve()
             for line_number, line in enumerate(source.splitlines(), start=1):
                 for name in LEGACY_ROOT_MODULES:
                     full = f"accounts.{name}"
@@ -60,7 +61,7 @@ class Phase7FinalArchitectureTests(SimpleTestCase):
                         f'"{full}"',
                         f"'{full}'",
                     ]
-                    if is_root_module:
+                    if is_accounts_root_module:
                         patterns.extend(
                             (
                                 f"from .{name} import",
@@ -70,7 +71,7 @@ class Phase7FinalArchitectureTests(SimpleTestCase):
                         )
                     if any(pattern in line for pattern in patterns):
                         references.append(
-                            f"{path.relative_to(accounts_dir)}:{line_number}: {line.strip()}"
+                            f"{path.relative_to(backend_dir)}:{line_number}: {line.strip()}"
                         )
                         break
 
