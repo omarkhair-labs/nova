@@ -14,6 +14,7 @@ urlpatterns = [
     path("", include("accounts.pulse.urls")),
     path("", include("accounts.orbit.urls")),
     path("", include("accounts.tonight.urls")),
+    path("", include("accounts.rooms.urls")),
     path("", include("accounts.calls.urls")),
     path("", include("accounts.messaging.urls")),
 ]
