@@ -44,7 +44,10 @@ import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
+import java.time.Duration
+import java.time.ZonedDateTime
 import java.util.TimeZone
+import kotlinx.coroutines.delay
 
 
 private val TonightBackground = Color(0xFF090B12)
@@ -63,12 +66,15 @@ fun TonightSurface(
     val scope = rememberCoroutineScope()
     val owner = remember(repository, scope) { TonightStateOwner(repository, scope) }
     val state = owner.state
-    val utcOffsetMinutes = remember {
-        TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 60_000
-    }
 
-    LaunchedEffect(utcOffsetMinutes) {
-        owner.load(utcOffsetMinutes = utcOffsetMinutes, showSpinner = true)
+    LaunchedEffect(Unit) {
+        while (true) {
+            owner.load(
+                utcOffsetMinutes = currentUtcOffsetMinutes(),
+                showSpinner = owner.state.snapshot == null,
+            )
+            delay(millisUntilTonightBoundary())
+        }
     }
     LaunchedEffect(state.sessionExpiryVersion) {
         if (state.sessionExpiryVersion > 0) onSessionExpired()
@@ -79,13 +85,17 @@ fun TonightSurface(
         state.snapshot?.isTonight == true -> TonightLiveCard(
             snapshot = state.snapshot,
             error = state.error,
-            onRetry = { owner.load(utcOffsetMinutes, showSpinner = false) },
+            onRetry = { owner.load(currentUtcOffsetMinutes(), showSpinner = false) },
             onPersonClick = onPersonClick,
         )
         else -> TonightSleepingCard(
-            snapshot = state.snapshot,
             error = state.error,
-            onRetry = { owner.load(utcOffsetMinutes, showSpinner = state.snapshot == null) },
+            onRetry = {
+                owner.load(
+                    currentUtcOffsetMinutes(),
+                    showSpinner = state.snapshot == null,
+                )
+            },
         )
     }
 }
@@ -112,7 +122,6 @@ private fun TonightLoadingCard() {
 
 @Composable
 private fun TonightSleepingCard(
-    snapshot: TonightSnapshot?,
     error: String?,
     onRetry: () -> Unit,
 ) {
@@ -160,8 +169,8 @@ private fun TonightSleepingCard(
                 )
             }
             Text(
-                text = snapshot?.localHour?.let { "${it.toString().padStart(2, '0')}:00" } ?: "6 PM",
-                color = NovaMuted,
+                text = if (error != null) "retry" else "6 PM",
+                color = if (error != null) NovaAccent else NovaMuted,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -383,6 +392,21 @@ private fun TonightPulseBackdrop(pulse: TonightPulse) {
             )
         }
     }
+}
+
+
+private fun currentUtcOffsetMinutes(): Int =
+    TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 60_000
+
+
+private fun millisUntilTonightBoundary(): Long {
+    val now = ZonedDateTime.now()
+    val nextBoundary = when {
+        now.hour < 6 -> now.withHour(6).withMinute(0).withSecond(0).withNano(0)
+        now.hour < 18 -> now.withHour(18).withMinute(0).withSecond(0).withNano(0)
+        else -> now.plusDays(1).withHour(6).withMinute(0).withSecond(0).withNano(0)
+    }
+    return (Duration.between(now, nextBoundary).toMillis() + 1_000L).coerceAtLeast(1_000L)
 }
 
 
