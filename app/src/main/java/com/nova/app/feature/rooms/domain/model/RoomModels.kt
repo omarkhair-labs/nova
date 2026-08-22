@@ -72,3 +72,23 @@ data class RoomItemPage(
     val items: List<RoomItem>,
     val nextBefore: Long?,
 )
+
+
+data class RoomTonightRow(
+    val room: RoomSummary,
+    val momentsCount: Int,
+    val myMomentsCount: Int,
+    val latestItem: RoomItem,
+)
+
+
+data class RoomTonightSnapshot(
+    val isTonight: Boolean,
+    val localHour: Int,
+    val utcOffsetMinutes: Int,
+    val startsAt: String,
+    val endsAt: String,
+    val roomsCount: Int,
+    val momentsCount: Int,
+    val rooms: List<RoomTonightRow>,
+)
