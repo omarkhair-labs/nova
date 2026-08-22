@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction
 from django.db.models.signals import post_delete, pre_save
 from django.dispatch import receiver
 
@@ -83,10 +83,13 @@ def delete_replaced_room_item_media(sender, instance, **kwargs):
     old_name = previous.media.name
     new_name = instance.media.name if instance.media else ""
     if old_name and old_name != new_name:
-        previous.media.storage.delete(old_name)
+        storage = previous.media.storage
+        transaction.on_commit(lambda storage=storage, name=old_name: storage.delete(name))
 
 
 @receiver(post_delete, sender=RoomItem)
 def delete_removed_room_item_media(sender, instance, **kwargs):
     if instance.media and instance.media.name:
-        instance.media.storage.delete(instance.media.name)
+        storage = instance.media.storage
+        name = instance.media.name
+        transaction.on_commit(lambda storage=storage, name=name: storage.delete(name))
