@@ -157,8 +157,8 @@ class BackendDomainBoundaryTests(SimpleTestCase):
             "messaging/routing.py",
             "privacy/urls.py",
             "trust_safety/urls.py",
-            "stories_urls.py",
-            "reels_urls.py",
+            "stories/urls.py",
+            "reels/urls.py",
             "calls_urls.py",
             "calls_routing.py",
         )
@@ -177,7 +177,7 @@ class BackendDomainBoundaryTests(SimpleTestCase):
 
     def test_owned_collisions_advance_to_packages(self):
         accounts_dir = Path(__file__).resolve().parent
-        for module in ("privacy", "trust_safety"):
+        for module in ("privacy", "trust_safety", "stories", "reels"):
             with self.subTest(module=module):
                 self.assertFalse((accounts_dir / f"{module}.py").exists())
                 self.assertTrue((accounts_dir / module / "__init__.py").is_file())
@@ -185,10 +185,8 @@ class BackendDomainBoundaryTests(SimpleTestCase):
 
     def test_remaining_flat_collisions_are_deferred_to_their_owning_prs(self):
         accounts_dir = Path(__file__).resolve().parent
-        for module in ("stories", "reels", "calls"):
-            with self.subTest(module=module):
-                self.assertTrue((accounts_dir / f"{module}.py").is_file())
-                self.assertFalse((accounts_dir / module).exists())
+        self.assertTrue((accounts_dir / "calls.py").is_file())
+        self.assertFalse((accounts_dir / "calls").exists())
 
     def test_model_and_migration_identity_stay_in_existing_accounts_app(self):
         accounts_dir = Path(__file__).resolve().parent
@@ -197,6 +195,7 @@ class BackendDomainBoundaryTests(SimpleTestCase):
         self.assertFalse((accounts_dir / "posts" / "models.py").exists())
         self.assertFalse((accounts_dir / "messaging" / "models.py").exists())
 
-        auth_model_adapter = (accounts_dir / "auth" / "models.py").read_text(encoding="utf-8")
-        self.assertIn("from ..models import *", auth_model_adapter)
-        self.assertNotIn("class ", auth_model_adapter)
+        for domain in ("auth", "stories", "reels"):
+            adapter = (accounts_dir / domain / "models.py").read_text(encoding="utf-8")
+            self.assertIn("from ..models import *", adapter)
+            self.assertNotIn("class ", adapter)
