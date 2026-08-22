@@ -5,7 +5,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import AccessToken
 
-from . import account_security
+from .auth import security as account_security
 
 
 User = get_user_model()
@@ -35,8 +35,8 @@ class AccountSecurityV10Tests(APITestCase):
     def authorize(self, access):
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
 
-    @patch("accounts.account_security._redis_client", return_value=None)
-    @patch("accounts.account_security.recovery_email_configured", return_value=True)
+    @patch("accounts.auth.security._redis_client", return_value=None)
+    @patch("accounts.auth.security.recovery_email_configured", return_value=True)
     def test_reset_request_is_generic_for_known_and_unknown_email(
         self,
         _configured,
@@ -48,7 +48,7 @@ class AccountSecurityV10Tests(APITestCase):
             sent.append((user.email, code))
             return True
 
-        with patch("accounts.account_security.send_password_reset_code", side_effect=capture):
+        with patch("accounts.auth.security.send_password_reset_code", side_effect=capture):
             known = self.client.post(
                 "/api/v1/auth/password/reset/request/",
                 {"email": self.user.email},
@@ -68,8 +68,8 @@ class AccountSecurityV10Tests(APITestCase):
         self.assertEqual(len(sent[0][1]), 6)
         self.assertTrue(sent[0][1].isdigit())
 
-    @patch("accounts.account_security._redis_client", return_value=None)
-    @patch("accounts.account_security.recovery_email_configured", return_value=True)
+    @patch("accounts.auth.security._redis_client", return_value=None)
+    @patch("accounts.auth.security.recovery_email_configured", return_value=True)
     def test_reset_code_changes_password_and_invalidates_v10_tokens(
         self,
         _configured,
@@ -82,7 +82,7 @@ class AccountSecurityV10Tests(APITestCase):
             code_holder["code"] = code
             return True
 
-        with patch("accounts.account_security.send_password_reset_code", side_effect=capture):
+        with patch("accounts.auth.security.send_password_reset_code", side_effect=capture):
             requested = self.client.post(
                 "/api/v1/auth/password/reset/request/",
                 {"email": self.user.email},
@@ -120,8 +120,8 @@ class AccountSecurityV10Tests(APITestCase):
         )
         self.assertEqual(new_login.status_code, status.HTTP_200_OK)
 
-    @patch("accounts.account_security._redis_client", return_value=None)
-    @patch("accounts.account_security.recovery_email_configured", return_value=True)
+    @patch("accounts.auth.security._redis_client", return_value=None)
+    @patch("accounts.auth.security.recovery_email_configured", return_value=True)
     def test_wrong_reset_code_is_limited(self, _configured, _redis):
         code_holder = {}
 
@@ -129,7 +129,7 @@ class AccountSecurityV10Tests(APITestCase):
             code_holder["code"] = code
             return True
 
-        with patch("accounts.account_security.send_password_reset_code", side_effect=capture):
+        with patch("accounts.auth.security.send_password_reset_code", side_effect=capture):
             self.client.post(
                 "/api/v1/auth/password/reset/request/",
                 {"email": self.user.email},
