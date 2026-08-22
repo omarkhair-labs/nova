@@ -1,6 +1,6 @@
 from django.urls import path
 
-from ..sharing_views import MessageShareView, PostRepostView, SharingFeedView
+from .views import MessageShareView, PostRepostView, SharingFeedView
 
 
 urlpatterns = [
