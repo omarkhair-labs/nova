@@ -40,6 +40,7 @@ import com.nova.app.core.network.ApiResult
 import com.nova.app.core.notifications.NovaNotificationRepository
 import com.nova.app.core.push.NovaPushOpenSignal
 import com.nova.app.feature.notifications.NotificationsScreen
+import com.nova.app.feature.orbit.OrbitRail
 import com.nova.app.feature.posts.domain.model.NovaPost
 import com.nova.app.feature.pulse.PulseRail
 import com.nova.app.feature.stories.StoriesRail
@@ -317,6 +318,13 @@ fun HomeScreen(
                         displayName = displayName,
                         username = username,
                         avatarUrl = avatarUrl,
+                        onSessionExpired = {},
+                    )
+                }
+
+                item {
+                    OrbitRail(
+                        onPersonClick = onPersonClick,
                         onSessionExpired = {},
                     )
                 }
