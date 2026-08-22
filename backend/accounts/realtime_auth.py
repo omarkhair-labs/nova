@@ -3,7 +3,7 @@ from django.contrib.auth.models import AnonymousUser
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
-from .jwt_auth import NovaJWTAuthentication
+from .auth.jwt_auth import NovaJWTAuthentication
 
 
 class SecureJwtAuthMiddleware:
