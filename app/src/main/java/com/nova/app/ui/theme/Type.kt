@@ -72,6 +72,13 @@ object NovaType {
         lineHeight = 22.sp,
     )
 
+    val button = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 16.sp,
+        lineHeight = 20.sp,
+    )
+
     val label = TextStyle(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.SemiBold,
@@ -105,7 +112,7 @@ val Typography = Typography(
     bodyLarge = NovaType.body,
     bodyMedium = NovaType.bodyCompact,
     bodySmall = NovaType.meta,
-    labelLarge = NovaType.label,
+    labelLarge = NovaType.button,
     labelMedium = NovaType.meta,
     labelSmall = NovaType.micro,
 )
