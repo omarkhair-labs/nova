@@ -1,3 +1,5 @@
+from django.db.models import Count, Max, OuterRef, Q, Subquery
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -9,6 +11,7 @@ from ..messaging.messaging_models import GroupMembership, group_avatar_url
 from ..messaging.messaging_serializers import ConversationSerializer
 from ..models import Conversation
 from ..room_models import RoomItem, RoomProfile
+from ..tonight.window import parse_utc_offset, tonight_window
 from ..trust_safety import blocked_user_ids
 from .serializers import RoomItemCreateSerializer, RoomItemSerializer
 
@@ -16,6 +19,7 @@ from .serializers import RoomItemCreateSerializer, RoomItemSerializer
 ROOM_LIST_LIMIT = 100
 ROOM_ITEM_DEFAULT_LIMIT = 30
 ROOM_ITEM_MAX_LIMIT = 50
+ROOM_TONIGHT_MAX_ROWS = 50
 
 
 def _room_profile_for(conversation):
@@ -103,6 +107,120 @@ class RoomListView(APIView):
             .order_by("-updated_at", "-id")[:ROOM_LIST_LIMIT]
         )
         return Response({"rooms": [_room_summary(request, room) for room in rooms]})
+
+
+class RoomTonightView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        utc_offset_minutes = parse_utc_offset(
+            request.query_params.get("utc_offset_minutes", "0")
+        )
+        if utc_offset_minutes is None:
+            return Response(
+                {"detail": "Invalid UTC offset for Room Tonight."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        window = tonight_window(timezone.now(), utc_offset_minutes)
+        base_payload = {
+            "is_tonight": window["is_tonight"],
+            "local_hour": window["local_hour"],
+            "utc_offset_minutes": utc_offset_minutes,
+            "starts_at": window["starts_at"].isoformat(),
+            "ends_at": window["ends_at"].isoformat(),
+        }
+        if not window["is_tonight"]:
+            return Response(
+                {
+                    **base_payload,
+                    "rooms_count": 0,
+                    "moments_count": 0,
+                    "rooms": [],
+                }
+            )
+
+        hidden_ids = blocked_user_ids(request.user)
+        visible_items = RoomItem.objects.filter(
+            conversation__kind=Conversation.Kind.GROUP,
+            conversation__group_memberships__user=request.user,
+            created_at__gte=window["starts_at"],
+            created_at__lt=window["ends_at"],
+        ).order_by()
+        if hidden_ids:
+            visible_items = visible_items.exclude(created_by_id__in=hidden_ids)
+
+        totals = visible_items.aggregate(
+            rooms_count=Count("conversation_id", distinct=True),
+            moments_count=Count("id", distinct=True),
+        )
+        latest_item_id = Subquery(
+            visible_items.filter(
+                conversation_id=OuterRef("conversation_id")
+            )
+            .order_by("-created_at", "-id")
+            .values("id")[:1]
+        )
+        activity_rows = list(
+            visible_items.values("conversation_id")
+            .annotate(
+                moments_count=Count("id", distinct=True),
+                my_moments_count=Count(
+                    "id",
+                    filter=Q(created_by_id=request.user.pk),
+                    distinct=True,
+                ),
+                latest_at=Max("created_at"),
+                latest_item_id=latest_item_id,
+            )
+            .order_by("-latest_at", "-conversation_id")[:ROOM_TONIGHT_MAX_ROWS]
+        )
+
+        conversation_ids = [row["conversation_id"] for row in activity_rows]
+        latest_item_ids = [
+            row["latest_item_id"]
+            for row in activity_rows
+            if row["latest_item_id"] is not None
+        ]
+        conversations = {
+            conversation.pk: conversation
+            for conversation in Conversation.objects.filter(pk__in=conversation_ids)
+            .select_related("group_profile", "room_profile")
+        }
+        latest_items = {
+            item.pk: item
+            for item in RoomItem.objects.filter(pk__in=latest_item_ids).select_related(
+                "created_by"
+            )
+        }
+
+        context = {"request": request}
+        rooms = []
+        for row in activity_rows:
+            conversation = conversations.get(row["conversation_id"])
+            latest_item = latest_items.get(row["latest_item_id"])
+            if conversation is None or latest_item is None:
+                continue
+            rooms.append(
+                {
+                    **_room_summary(request, conversation),
+                    "moments_count": row["moments_count"],
+                    "my_moments_count": row["my_moments_count"],
+                    "latest_item": RoomItemSerializer(
+                        latest_item,
+                        context=context,
+                    ).data,
+                }
+            )
+
+        return Response(
+            {
+                **base_payload,
+                "rooms_count": totals["rooms_count"] or 0,
+                "moments_count": totals["moments_count"] or 0,
+                "rooms": rooms,
+            }
+        )
 
 
 class RoomDetailView(APIView):

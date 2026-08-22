@@ -1,5 +1,3 @@
-from datetime import timedelta
-
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -8,66 +6,11 @@ from rest_framework.views import APIView
 
 from ..pulse.serializers import PulseAuthorSerializer, PulseSerializer
 from ..pulse.views import visible_pulses_for
-
-
-MIN_UTC_OFFSET_MINUTES = -12 * 60
-MAX_UTC_OFFSET_MINUTES = 14 * 60
-TONIGHT_START_HOUR = 18
-TONIGHT_END_HOUR = 6
-
-
-def tonight_window(now, utc_offset_minutes):
-    offset = timedelta(minutes=utc_offset_minutes)
-    local_now = now + offset
-
-    if local_now.hour >= TONIGHT_START_HOUR:
-        start_local = local_now.replace(
-            hour=TONIGHT_START_HOUR,
-            minute=0,
-            second=0,
-            microsecond=0,
-        )
-        is_tonight = True
-    elif local_now.hour < TONIGHT_END_HOUR:
-        start_local = (local_now - timedelta(days=1)).replace(
-            hour=TONIGHT_START_HOUR,
-            minute=0,
-            second=0,
-            microsecond=0,
-        )
-        is_tonight = True
-    else:
-        start_local = local_now.replace(
-            hour=TONIGHT_START_HOUR,
-            minute=0,
-            second=0,
-            microsecond=0,
-        )
-        is_tonight = False
-
-    end_local = (start_local + timedelta(days=1)).replace(
-        hour=TONIGHT_END_HOUR,
-        minute=0,
-        second=0,
-        microsecond=0,
-    )
-    return {
-        "is_tonight": is_tonight,
-        "local_hour": local_now.hour,
-        "starts_at": start_local - offset,
-        "ends_at": end_local - offset,
-    }
+from .window import parse_utc_offset, tonight_window
 
 
 def _parse_offset(request):
-    raw = request.query_params.get("utc_offset_minutes", "0").strip()
-    try:
-        value = int(raw)
-    except ValueError:
-        return None
-    if value < MIN_UTC_OFFSET_MINUTES or value > MAX_UTC_OFFSET_MINUTES:
-        return None
-    return value
+    return parse_utc_offset(request.query_params.get("utc_offset_minutes", "0"))
 
 
 class TonightView(APIView):
