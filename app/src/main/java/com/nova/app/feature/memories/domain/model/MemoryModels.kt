@@ -64,3 +64,34 @@ data class WeeklyMemory(
     val people: List<MemoryPersonRow>,
     val rooms: List<MemoryRoomRow>,
 )
+
+
+data class MemoryFilmScene(
+    val index: Int,
+    val source: String,
+    val sourceId: Long,
+    val mediaType: String,
+    val mediaUrl: String,
+    val occurredAt: String,
+    val durationMs: Long,
+    val trimStartMs: Long,
+    val caption: String,
+    val person: MemoryPerson?,
+    val room: MemoryRoom?,
+)
+
+
+data class MemoryFilmPlan(
+    val renderVersion: Int,
+    val selectionVersion: String,
+    val startsAt: String,
+    val endsAt: String,
+    val utcOffsetMinutes: Int,
+    val weeksAgo: Int,
+    val filmReady: Boolean,
+    val mood: String,
+    val targetDurationMs: Long,
+    val totalDurationMs: Long,
+    val coverMediaUrl: String,
+    val scenes: List<MemoryFilmScene>,
+)
