@@ -10,6 +10,8 @@ CALL_ACTIVITY = MAIN / "com/nova/app/CallActivity.kt"
 SETTINGS_ACTIVITY = MAIN / "com/nova/app/SettingsActivity.kt"
 PROFILE_SCREEN = MAIN / "com/nova/app/feature/profile/ProfileScreen.kt"
 NOTIFICATIONS_SCREEN = MAIN / "com/nova/app/feature/notifications/NotificationsScreen.kt"
+HOME_SCREEN = MAIN / "com/nova/app/feature/home/HomeScreen.kt"
+PEOPLE_SCREEN = MAIN / "com/nova/app/feature/people/PeopleScreen.kt"
 ICON_ALIASES = MAIN / "com/nova/app/ui/icons/NovaMaterialIconAliases.kt"
 SHARED_UI = MAIN / "com/nova/app/ui"
 SHARED_COMPONENTS = SHARED_UI / "components"
@@ -32,6 +34,7 @@ NARROW_COMPONENT_SEAMS = {
         "fun NovaLoadingState(",
         "fun NovaInlineLoading(",
         "fun NovaEmptyState(",
+        "actionLabel: String? = null",
         "fun NovaErrorState(",
         "fun NovaInlineRetry(",
     ),
@@ -201,6 +204,33 @@ profile_text = PROFILE_SCREEN.read_text(encoding="utf-8")
 for seam in ("NovaCard(", "NovaType.pageTitle", "NovaType.sectionTitle", "NovaSpacing.xxl"):
     if seam not in profile_text:
         errors.append(f"Profile bypassed Nova container/type/spacing seam: {seam}")
+
+home_text = HOME_SCREEN.read_text(encoding="utf-8")
+for seam in (
+    "NovaCard(",
+    "NovaLoadingState(",
+    "NovaErrorState(",
+    "NovaEmptyState(",
+    "NovaInlineLoading(",
+    "NovaInlineRetry(",
+    "NovaType.pageTitle",
+    "NovaSpacing.xl",
+):
+    if seam not in home_text:
+        errors.append(f"Home bypassed Nova DS-3 seam: {seam}")
+
+people_text = PEOPLE_SCREEN.read_text(encoding="utf-8")
+for seam in (
+    "NovaCard(",
+    "NovaLoadingState(",
+    "NovaEmptyState(",
+    "NovaType.pageTitle",
+    "NovaSpacing.xl",
+):
+    if seam not in people_text:
+        errors.append(f"People bypassed Nova DS-3 seam: {seam}")
+if "EmptyPeopleCard(" in people_text:
+    errors.append("People restored its feature-local empty card after DS-3 migration")
 
 if not ICON_ALIASES.is_file():
     errors.append("missing app-owned communication icon aliases")
