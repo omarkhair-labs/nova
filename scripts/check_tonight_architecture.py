@@ -83,6 +83,8 @@ for required in (
     "context.appContainer.tonightRepository",
     "TonightStateOwner(repository, scope)",
     "TimeZone.getDefault()",
+    "millisUntilTonightBoundary()",
+    "delay(millisUntilTonightBoundary())",
     "TonightLiveCard(",
     "TonightSleepingCard(",
     "TonightPersonCard(",
