@@ -183,6 +183,7 @@ class DeleteAccountView(APIView):
 
     def post(self, request):
         from ..pulse_models import Pulse
+        from ..room_models import RoomItem
         from .group_messaging import remove_user_from_all_groups
         from .sharing_models import Repost
         from .story_models import Story
@@ -225,6 +226,7 @@ class DeleteAccountView(APIView):
             Post.objects.filter(author=user).delete()
             Story.objects.filter(author=user).delete()
             Pulse.objects.filter(author=user).delete()
+            RoomItem.objects.filter(created_by=user).delete()
 
             user.email = f"deleted+{uuid.uuid4().hex}@deleted.nova.invalid"
             user.username = f"deleted_{uuid.uuid4().hex[:16]}"
