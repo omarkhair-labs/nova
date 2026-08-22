@@ -11,6 +11,8 @@ import com.nova.app.core.network.UploadFile
 import com.nova.app.feature.pulse.data.PulseRepository
 import com.nova.app.feature.pulse.data.parseNovaPulse
 import com.nova.app.feature.pulse.domain.model.NovaPulse
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -79,7 +81,9 @@ class PulseRemoteRepository(
         val cleanNote = note.trim()
         if (cleanNote.length > 180) return ApiResult.Failure("Pulse note must be 180 characters or fewer.")
         val cleanAudience = validateAudience(audience) ?: return invalidAudience()
-        val media = when (val prepared = prepareMedia(mediaUri)) {
+        val media = when (
+            val prepared = withContext(Dispatchers.IO) { prepareMedia(mediaUri) }
+        ) {
             is ApiResult.Success -> prepared.value
             is ApiResult.Failure -> return prepared
         }
