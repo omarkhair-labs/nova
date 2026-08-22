@@ -38,14 +38,21 @@ import com.nova.app.feature.notifications.domain.model.NovaNotification
 import com.nova.app.feature.posts.domain.model.NovaPost
 import com.nova.app.feature.privacy.domain.model.NovaFollowRequest
 import com.nova.app.ui.components.NovaAvatar
-import com.nova.app.ui.components.NovaSecondaryButton
+import com.nova.app.ui.components.NovaBackButton
+import com.nova.app.ui.components.NovaEmptyState
+import com.nova.app.ui.components.NovaErrorState
+import com.nova.app.ui.components.NovaInlineLoading
+import com.nova.app.ui.components.NovaInlineRetry
+import com.nova.app.ui.components.NovaLoadingState
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
+import com.nova.app.ui.theme.NovaSpacing
 import com.nova.app.ui.theme.NovaSurface
+import com.nova.app.ui.theme.NovaType
 import kotlinx.coroutines.flow.distinctUntilChanged
 import java.time.Duration
 import java.time.Instant
@@ -117,44 +124,30 @@ fun NotificationsScreen(
                 .fillMaxSize()
                 .background(NovaBackground),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                start = 20.dp,
-                end = 20.dp,
-                top = 18.dp,
-                bottom = 30.dp,
+                start = NovaSpacing.xl,
+                end = NovaSpacing.xl,
+                top = NovaSpacing.lg,
+                bottom = NovaSpacing.xxxl,
             ),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(NovaSpacing.md),
         ) {
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Surface(
-                        onClick = onBack,
-                        shape = RoundedCornerShape(18.dp),
-                        color = NovaSurface,
-                        border = BorderStroke(1.dp, NovaBorder),
-                    ) {
-                        Text(
-                            text = "Back",
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
-                            color = NovaInk,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(14.dp))
+                    NovaBackButton(onClick = onBack)
+                    Spacer(modifier = Modifier.width(NovaSpacing.md))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Activity",
                             color = NovaInk,
-                            fontSize = 26.sp,
-                            fontWeight = FontWeight.Bold,
+                            style = NovaType.screenTitle,
                         )
                         Text(
                             text = "Follow requests, likes, comments, replies, reposts and new people around you.",
                             color = NovaMuted,
-                            fontSize = 12.sp,
+                            style = NovaType.meta,
                         )
                     }
                 }
@@ -169,15 +162,13 @@ fun NotificationsScreen(
                         Text(
                             text = "Follow requests",
                             color = NovaInk,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
+                            style = NovaType.title,
                             modifier = Modifier.weight(1f),
                         )
                         Text(
                             text = state.followRequests.size.toString(),
                             color = NovaAccent,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
+                            style = NovaType.meta.copy(fontWeight = FontWeight.Bold),
                         )
                     }
                 }
@@ -196,132 +187,53 @@ fun NotificationsScreen(
                 }
                 if (!state.requestError.isNullOrBlank()) {
                     item(key = "follow-request-error") {
-                        Text(state.requestError.orEmpty(), color = NovaMuted, fontSize = 11.sp)
+                        NovaInlineRetry(
+                            message = state.requestError.orEmpty(),
+                            onRetry = owner::loadFollowRequests,
+                        )
                     }
                 }
             } else if (state.requestsLoading) {
                 item(key = "follow-requests-loading") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(9.dp),
-                    ) {
-                        CircularProgressIndicator(modifier = Modifier.width(15.dp).height(15.dp), color = NovaAccent, strokeWidth = 2.dp)
-                        Text("Checking follow requests…", color = NovaMuted, fontSize = 11.sp)
-                    }
+                    NovaInlineLoading(message = "Checking follow requests…")
                 }
             } else if (!state.requestError.isNullOrBlank()) {
                 item(key = "follow-requests-error") {
-                    Surface(
-                        onClick = owner::loadFollowRequests,
-                        shape = RoundedCornerShape(15.dp),
-                        color = NovaSurface,
-                        border = BorderStroke(1.dp, NovaBorder),
-                    ) {
-                        Text(
-                            text = "${state.requestError.orEmpty()} · Try again",
-                            modifier = Modifier.padding(12.dp),
-                            color = NovaMuted,
-                            fontSize = 11.sp,
-                        )
-                    }
+                    NovaInlineRetry(
+                        message = state.requestError.orEmpty(),
+                        onRetry = owner::loadFollowRequests,
+                    )
                 }
             }
 
             if (state.isLoading && state.notifications.isEmpty() && state.followRequests.isEmpty() && state.requestsLoading) {
                 item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(220.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                    ) {
-                        CircularProgressIndicator(color = NovaAccent)
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "Loading activity…",
-                            color = NovaMuted,
-                            fontSize = 13.sp,
-                        )
-                    }
+                    NovaLoadingState(
+                        message = "Loading activity…",
+                        modifier = Modifier.height(220.dp),
+                    )
                 }
             } else if (state.errorMessage != null && state.notifications.isEmpty() && state.followRequests.isEmpty()) {
                 item {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(24.dp),
-                        color = NovaSurface,
-                        border = BorderStroke(1.dp, NovaBorder),
-                    ) {
-                        Column(modifier = Modifier.padding(20.dp)) {
-                            Text(
-                                text = "Couldn't load Activity",
-                                color = NovaInk,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            Spacer(modifier = Modifier.height(7.dp))
-                            Text(
-                                text = state.errorMessage.orEmpty(),
-                                color = NovaMuted,
-                                fontSize = 13.sp,
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            NovaSecondaryButton(
-                                text = "Try again",
-                                onClick = { owner.loadActivity(reset = true) },
-                            )
-                        }
-                    }
+                    NovaErrorState(
+                        title = "Couldn't load Activity",
+                        message = state.errorMessage.orEmpty(),
+                        onRetry = { owner.loadActivity(reset = true) },
+                    )
                 }
             } else if (state.notifications.isEmpty() && state.followRequests.isEmpty() && !state.requestsLoading) {
                 item {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(26.dp),
-                        color = NovaSurface,
-                        border = BorderStroke(1.dp, NovaBorder),
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 38.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            Surface(
-                                shape = RoundedCornerShape(20.dp),
-                                color = NovaAccentSoft,
-                            ) {
-                                Text(
-                                    text = "✦",
-                                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
-                                    color = NovaAccent,
-                                    fontSize = 25.sp,
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = "Quiet for now.",
-                                color = NovaInk,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            Spacer(modifier = Modifier.height(7.dp))
-                            Text(
-                                text = "Follow requests, follows, likes, comments, replies and Reel reposts will show up here.",
-                                color = NovaMuted,
-                                fontSize = 13.sp,
-                                lineHeight = 19.sp,
-                            )
-                        }
-                    }
+                    NovaEmptyState(
+                        title = "Quiet for now.",
+                        message = "Follow requests, follows, likes, comments, replies and Reel reposts will show up here.",
+                    )
                 }
             } else if (state.notifications.isNotEmpty()) {
                 item {
                     Text(
                         text = "Recent",
                         color = NovaInk,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
+                        style = NovaType.title,
                     )
                 }
 
@@ -349,45 +261,22 @@ fun NotificationsScreen(
 
                 if (state.isLoadingMore) {
                     item {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(78.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                        ) {
-                            CircularProgressIndicator(color = NovaAccent)
-                        }
+                        NovaInlineLoading(message = "Loading more activity…")
                     }
                 }
 
                 if (state.errorMessage != null) {
                     item {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(18.dp),
-                            color = NovaSurface,
-                            border = BorderStroke(1.dp, NovaBorder),
-                        ) {
-                            Column(modifier = Modifier.padding(14.dp)) {
-                                Text(
-                                    text = state.errorMessage.orEmpty(),
-                                    color = NovaMuted,
-                                    fontSize = 12.sp,
-                                )
-                                Spacer(modifier = Modifier.height(10.dp))
-                                NovaSecondaryButton(
-                                    text = "Try again",
-                                    onClick = {
-                                        if (state.nextCursor != null) {
-                                            owner.loadActivity(reset = false)
-                                        } else {
-                                            owner.loadActivity(reset = true)
-                                        }
-                                    },
-                                )
-                            }
-                        }
+                        NovaInlineRetry(
+                            message = state.errorMessage.orEmpty(),
+                            onRetry = {
+                                if (state.nextCursor != null) {
+                                    owner.loadActivity(reset = false)
+                                } else {
+                                    owner.loadActivity(reset = true)
+                                }
+                            },
+                        )
                     }
                 }
             }
@@ -465,7 +354,11 @@ private fun FollowRequestRow(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         if (busy) {
-                            CircularProgressIndicator(modifier = Modifier.width(13.dp).height(13.dp), color = NovaBackground, strokeWidth = 2.dp)
+                            CircularProgressIndicator(
+                                modifier = Modifier.width(13.dp).height(13.dp),
+                                color = NovaBackground,
+                                strokeWidth = 2.dp,
+                            )
                             Spacer(modifier = Modifier.width(6.dp))
                         }
                         Text(
