@@ -269,7 +269,9 @@ private fun orbitActionText(event: OrbitEvent): String = when (event.kind) {
     "like" -> "liked a post"
     "comment" -> "joined a conversation"
     "repost" -> "moved a post forward"
-    "follow" -> "followed ${event.person?.name?.ifBlank { event.person.username } ?: "someone"}"
+    "follow" -> event.person?.let { person ->
+        "followed ${person.name.ifBlank { "@${person.username}" }}"
+    } ?: "followed someone"
     "pulse_reply" -> "replied with a live moment"
     else -> "did something in your orbit"
 }
