@@ -61,6 +61,8 @@ import com.nova.app.feature.pulse.data.remote.PulseRemoteRepository
 import com.nova.app.feature.reels.data.ProfileReelsRepository
 import com.nova.app.feature.reels.data.ReelWatchRepository
 import com.nova.app.feature.reels.data.ReelsRepository
+import com.nova.app.feature.rooms.data.RoomRepository
+import com.nova.app.feature.rooms.data.remote.RoomRemoteRepository
 import com.nova.app.feature.security.data.BlockedAccountsRepository
 import com.nova.app.feature.security.data.SecurityRepository
 import com.nova.app.feature.sharing.data.SharingRepository
@@ -97,6 +99,7 @@ class AppContainer(context: Context) {
     val pulseRepository: PulseRepository = PulseRemoteRepository(appContext, api)
     val orbitRepository: OrbitRepository = OrbitRemoteRepository(appContext, api)
     val tonightRepository: TonightRepository = TonightRemoteRepository(appContext, api)
+    val roomRepository: RoomRepository = RoomRemoteRepository(appContext, api)
     val storiesRepository: StoriesRepository = NovaStoriesRepository(appContext)
     val reelsRepository: ReelsRepository = NovaReelsRepository(appContext)
     val profileReelsRepository: ProfileReelsRepository = NovaProfileReelsRepository(appContext)

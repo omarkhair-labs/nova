@@ -1,0 +1,155 @@
+#!/usr/bin/env python3
+from pathlib import Path
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+
+MODELS = ROOT / "app/src/main/java/com/nova/app/feature/rooms/domain/model/RoomModels.kt"
+CONTRACT = ROOT / "app/src/main/java/com/nova/app/feature/rooms/data/RoomRepository.kt"
+PARSER = ROOT / "app/src/main/java/com/nova/app/feature/rooms/data/RoomParser.kt"
+REMOTE = ROOT / "app/src/main/java/com/nova/app/feature/rooms/data/remote/RoomRemoteRepository.kt"
+LIST_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/rooms/RoomsStateOwner.kt"
+ROOM_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/rooms/RoomStateOwner.kt"
+RAIL = ROOT / "app/src/main/java/com/nova/app/feature/rooms/RoomsRail.kt"
+LIST_SCREEN = ROOT / "app/src/main/java/com/nova/app/feature/rooms/RoomsScreen.kt"
+ROOM_SCREEN = ROOT / "app/src/main/java/com/nova/app/feature/rooms/RoomScreen.kt"
+CONTAINER = ROOT / "app/src/main/java/com/nova/app/app/AppContainer.kt"
+HOME = ROOT / "app/src/main/java/com/nova/app/feature/home/HomeScreen.kt"
+NETWORK = ROOT / "app/src/main/java/com/nova/app/core/network/NovaApiClient.kt"
+
+errors: list[str] = []
+
+
+def read(path: Path) -> str:
+    if not path.exists():
+        errors.append(f"missing required Rooms architecture file: {path.relative_to(ROOT)}")
+        return ""
+    return path.read_text(encoding="utf-8")
+
+
+models = read(MODELS)
+contract = read(CONTRACT)
+parser = read(PARSER)
+remote = read(REMOTE)
+list_owner = read(LIST_OWNER)
+room_owner = read(ROOM_OWNER)
+rail = read(RAIL)
+list_screen = read(LIST_SCREEN)
+room_screen = read(ROOM_SCREEN)
+container = read(CONTAINER)
+home = read(HOME)
+network = read(NETWORK)
+
+for declaration in (
+    "data class RoomPerson(",
+    "data class RoomConversation(",
+    "data class RoomSummary(",
+    "data class RoomDetail(",
+    "data class RoomItem(",
+    "data class RoomItemPage(",
+):
+    if declaration not in models:
+        errors.append(f"Rooms domain owner is missing {declaration}")
+    if declaration in network:
+        errors.append(f"shared network core must not own Rooms model: {declaration}")
+
+if "interface RoomRepository" not in contract:
+    errors.append("stable RoomRepository contract is missing")
+for required in (
+    "suspend fun rooms()",
+    "suspend fun room(conversationId: Long)",
+    "suspend fun items(",
+    "suspend fun updateDescription(",
+):
+    if required not in contract:
+        errors.append(f"RoomRepository is missing protected operation: {required}")
+
+for required in (
+    "internal fun parseRooms(",
+    "internal fun parseRoomDetail(",
+    "internal fun parseRoomItemPage(",
+):
+    if required not in parser:
+        errors.append(f"Rooms wire parsing must remain feature-owned: {required}")
+
+if ") : RoomRepository" not in remote:
+    errors.append("RoomRemoteRepository must implement RoomRepository directly")
+for required in (
+    'api.requestJson("rooms/"',
+    'path = "rooms/$conversationId/"',
+    'path = "rooms/$conversationId/items/?$params"',
+    "NovaSessionStore",
+):
+    if required not in remote:
+        errors.append(f"Rooms remote implementation is missing protected seam: {required}")
+
+for forbidden in ("rooms/", "RoomSummary", "RoomRepository"):
+    if forbidden in network:
+        errors.append(f"NovaApiClient must remain generic and must not own Rooms concern: {forbidden}")
+
+for owner, declaration in (
+    (list_owner, "class RoomsStateOwner("),
+    (room_owner, "class RoomStateOwner("),
+):
+    if declaration not in owner:
+        errors.append(f"Rooms async state owner is missing: {declaration}")
+    if "RoomRepository" not in owner:
+        errors.append(f"{declaration} must depend on RoomRepository")
+    if "sessionExpiryVersion" not in owner:
+        errors.append(f"{declaration} must surface terminal session expiry")
+
+for required in (
+    "context.appContainer.roomRepository",
+    "RoomsStateOwner(repository, scope)",
+    "RoomsScreen(",
+    "RoomScreen(",
+):
+    if required not in rail:
+        errors.append(f"Rooms Home rail is missing stable wiring: {required}")
+
+if "NewGroupDialog(" not in list_screen:
+    errors.append("Rooms creation must reuse Messaging-owned NewGroupDialog")
+for forbidden in (
+    "groups/create",
+    "GroupMembershipRemoteRepository",
+    "NovaMessagingApiClient",
+):
+    if forbidden in list_screen:
+        errors.append(f"Rooms list must not duplicate Messaging group creation: {forbidden}")
+
+for required in (
+    "RoomStateOwner(conversationId, repository, scope)",
+    "MessagesRouteFactory.conversationIntent(",
+    'kind = "group"',
+    "RoomSectionRail(",
+    "MembersRail(",
+):
+    if required not in room_screen:
+        errors.append(f"Room experience is missing stable seam: {required}")
+for forbidden in (
+    "NovaMessagingApiClient",
+    "ConversationRealtime",
+    "sendMessage(",
+):
+    if forbidden in room_screen:
+        errors.append(f"Room UI must reuse Messaging rather than own chat transport: {forbidden}")
+
+if "val roomRepository: RoomRepository = RoomRemoteRepository(appContext, api)" not in container:
+    errors.append("AppContainer must construct RoomRemoteRepository behind RoomRepository")
+
+if "import com.nova.app.feature.rooms.RoomsRail" not in home:
+    errors.append("Home must import Rooms surface")
+if "RoomsRail(" not in home:
+    errors.append("Home must render Rooms")
+if home.find("RoomsRail(") < home.find("OrbitRail("):
+    errors.append("Home hierarchy must keep Orbit before Rooms")
+if home.find("RoomsRail(") > home.find("onClick = onCreatePost"):
+    errors.append("Home hierarchy must keep Rooms before permanent post creation")
+
+if errors:
+    print("Rooms architecture check failed:")
+    for error in errors:
+        print(f"- {error}")
+    sys.exit(1)
+
+print("Rooms architecture check passed.")

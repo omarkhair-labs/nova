@@ -43,6 +43,7 @@ import com.nova.app.feature.notifications.NotificationsScreen
 import com.nova.app.feature.orbit.OrbitRail
 import com.nova.app.feature.posts.domain.model.NovaPost
 import com.nova.app.feature.pulse.PulseRail
+import com.nova.app.feature.rooms.RoomsRail
 import com.nova.app.feature.stories.StoriesRail
 import com.nova.app.feature.tonight.TonightSurface
 import com.nova.app.ui.components.NovaAvatar
@@ -332,6 +333,13 @@ fun HomeScreen(
 
                 item {
                     OrbitRail(
+                        onPersonClick = onPersonClick,
+                        onSessionExpired = {},
+                    )
+                }
+
+                item {
+                    RoomsRail(
                         onPersonClick = onPersonClick,
                         onSessionExpired = {},
                     )
