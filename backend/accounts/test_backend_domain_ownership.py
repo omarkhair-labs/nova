@@ -3,6 +3,8 @@ import importlib
 from django.test import SimpleTestCase
 from django.urls import resolve
 
+from .messaging.routing import websocket_urlpatterns as messaging_websocket_urlpatterns
+
 
 class BackendDomainOwnershipTests(SimpleTestCase):
     def test_auth_social_privacy_and_trust_routes_use_domain_owners(self):
@@ -81,6 +83,40 @@ class BackendDomainOwnershipTests(SimpleTestCase):
                 match = resolve(path)
                 self.assertEqual(match.func.view_class.__module__, module_name)
 
+    def test_messaging_routes_use_domain_owners(self):
+        expected = {
+            "/api/v1/conversations/": "accounts.messaging.paging",
+            "/api/v1/conversations/groups/": "accounts.messaging.group_messaging",
+            "/api/v1/conversations/1/group/": "accounts.messaging.group_messaging",
+            "/api/v1/conversations/1/group/manage/": "accounts.messaging.group_management",
+            "/api/v1/conversations/1/group/members/": "accounts.messaging.group_messaging",
+            "/api/v1/conversations/1/group/members/alice/": "accounts.messaging.group_messaging",
+            "/api/v1/conversations/1/group/members/alice/role/": "accounts.messaging.group_management",
+            "/api/v1/conversations/1/messages/": "accounts.messaging.messaging_views",
+            "/api/v1/conversations/1/messages/search/": "accounts.messaging.tools",
+            "/api/v1/conversations/1/messages/context/": "accounts.messaging.tools",
+            "/api/v1/conversations/1/media/": "accounts.messaging.tools",
+            "/api/v1/conversations/1/preferences/": "accounts.messaging.tools",
+            "/api/v1/conversations/1/read/": "accounts.messaging.messaging_views",
+            "/api/v1/messages/1/": "accounts.messaging.mutation",
+            "/api/v1/messages/1/reaction/": "accounts.messaging.messaging_views",
+        }
+        for path, module_name in expected.items():
+            with self.subTest(path=path):
+                match = resolve(path)
+                self.assertEqual(match.func.view_class.__module__, module_name)
+
+    def test_messaging_websocket_consumers_use_domain_owner(self):
+        self.assertEqual(len(messaging_websocket_urlpatterns), 2)
+        owners = tuple(
+            pattern.callback.consumer_class.__module__
+            for pattern in messaging_websocket_urlpatterns
+        )
+        self.assertEqual(
+            owners,
+            ("accounts.messaging.realtime", "accounts.messaging.realtime"),
+        )
+
     def test_legacy_module_paths_alias_new_owners(self):
         aliases = (
             ("accounts.account_security", "accounts.auth.security"),
@@ -90,6 +126,16 @@ class BackendDomainOwnershipTests(SimpleTestCase):
             ("accounts.sharing_views", "accounts.sharing.views"),
             ("accounts.profile_reels", "accounts.reels.profile"),
             ("accounts.reels_ranking", "accounts.reels.ranking"),
+            ("accounts.group_management", "accounts.messaging.group_management"),
+            ("accounts.group_messaging", "accounts.messaging.group_messaging"),
+            ("accounts.messaging_mutation_view", "accounts.messaging.mutation"),
+            ("accounts.messaging_paging", "accounts.messaging.paging"),
+            ("accounts.messaging_realtime", "accounts.messaging.messaging_realtime"),
+            ("accounts.messaging_serializers", "accounts.messaging.messaging_serializers"),
+            ("accounts.messaging_v9_views", "accounts.messaging.tools"),
+            ("accounts.messaging_views", "accounts.messaging.messaging_views"),
+            ("accounts.presence_store", "accounts.messaging.presence_store"),
+            ("accounts.realtime", "accounts.messaging.realtime"),
         )
         for legacy_name, owner_name in aliases:
             with self.subTest(legacy=legacy_name):
