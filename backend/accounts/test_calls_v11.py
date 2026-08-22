@@ -48,7 +48,7 @@ class CallsV11Tests(TransactionTestCase):
     def auth(self, user):
         return {"HTTP_AUTHORIZATION": f"Bearer {AccessToken.for_user(user)}"}
 
-    @patch("accounts.call_reliability_view.send_call_push", return_value=1)
+    @patch("accounts.calls.call_reliability_view.send_call_push", return_value=1)
     def test_create_call_persists_ringing_session_and_prevents_busy_overlap(self, push):
         response = self.client.post(
             "/api/v1/calls/",
