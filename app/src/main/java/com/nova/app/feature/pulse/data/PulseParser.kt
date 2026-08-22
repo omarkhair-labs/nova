@@ -25,5 +25,17 @@ internal fun parseNovaPulse(
         createdAt = json.optString("created_at"),
         expiresAt = json.optString("expires_at"),
         isMine = json.optBoolean("is_mine", false),
+        replyToId = json.optNullableLong("reply_to_id"),
+        chainRootId = json.optNullableLong("chain_root_id"),
     )
+}
+
+
+private fun JSONObject.optNullableLong(name: String): Long? {
+    val value = opt(name)
+    return when (value) {
+        null, JSONObject.NULL -> null
+        is Number -> value.toLong()
+        else -> value.toString().toLongOrNull()
+    }
 }

@@ -19,5 +19,20 @@ interface PulseRepository {
         audience: String = "followers",
     ): ApiResult<NovaPulse>
 
+    suspend fun pulseChain(pulseId: Long): ApiResult<List<NovaPulse>>
+
+    suspend fun replyTextPulse(
+        pulseId: Long,
+        note: String,
+        audience: String = "followers",
+    ): ApiResult<NovaPulse>
+
+    suspend fun replyMediaPulse(
+        pulseId: Long,
+        mediaUri: Uri,
+        note: String = "",
+        audience: String = "followers",
+    ): ApiResult<NovaPulse>
+
     suspend fun deletePulse(pulseId: Long): ApiResult<Unit>
 }

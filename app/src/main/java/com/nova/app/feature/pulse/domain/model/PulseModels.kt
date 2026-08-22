@@ -19,4 +19,6 @@ data class NovaPulse(
     val createdAt: String,
     val expiresAt: String,
     val isMine: Boolean,
+    val replyToId: Long? = null,
+    val chainRootId: Long? = null,
 )

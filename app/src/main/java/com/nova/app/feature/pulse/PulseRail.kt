@@ -20,15 +20,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,18 +33,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import androidx.media3.common.MediaItem
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
+import androidx.compose.ui.platform.LocalContext
 import com.nova.app.app.appContainer
 import com.nova.app.feature.pulse.domain.model.NovaPulse
 import com.nova.app.ui.components.NovaAvatar
@@ -63,9 +52,8 @@ import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
 
 
-private val PulseViewerBackground = Color(0xFF07090D)
-private val PulseViewerInk = Color(0xFFF8F9FB)
-private val PulseViewerMuted = Color(0xFFB7BDC8)
+private val PulseCardVideoBackground = Color(0xFF07090D)
+private val PulseCardVideoInk = Color(0xFFF8F9FB)
 
 
 @Composable
@@ -183,9 +171,14 @@ fun PulseRail(
 
     if (composerVisible) {
         PulseComposerDialog(
+            title = "New Pulse",
+            subtitle = "Here now. Gone in 12 hours.",
             pendingMedia = pendingMedia,
             uploading = state.uploading,
             error = state.error,
+            initialAudience = "followers",
+            confirmLabel = "Post Pulse",
+            onPickMedia = { picker.launch(arrayOf("image/*", "video/*")) },
             onDismiss = {
                 if (!state.uploading) {
                     composerVisible = false
@@ -205,13 +198,36 @@ fun PulseRail(
     }
 
     selectedPulse?.let { pulse ->
+        val viewerOwner = remember(pulse.id, repository, scope) {
+            PulseViewerStateOwner(pulse, repository, scope)
+        }
+        val viewerState = viewerOwner.state
+
+        LaunchedEffect(pulse.id) {
+            viewerOwner.loadChain(pulse.id)
+        }
+        LaunchedEffect(viewerState.sessionExpiryVersion) {
+            if (viewerState.sessionExpiryVersion > 0) onSessionExpired()
+        }
+        LaunchedEffect(viewerState.replyCreatedVersion) {
+            if (viewerState.replyCreatedVersion > 0) owner.load()
+        }
+
         PulseViewerDialog(
-            pulse = pulse,
-            deleting = state.deletingPulseId == pulse.id,
+            initialPulse = pulse,
+            state = viewerState,
+            deletingPulseId = state.deletingPulseId,
             onDismiss = { selectedPulse = null },
-            onDelete = {
-                owner.delete(pulse.id)
+            onClearError = viewerOwner::clearError,
+            onDelete = { target ->
+                owner.delete(target.id)
                 selectedPulse = null
+            },
+            onReplyText = { parent, note, audience ->
+                viewerOwner.replyText(parent.id, note, audience)
+            },
+            onReplyMedia = { parent, media, note, audience ->
+                viewerOwner.replyMedia(parent.id, media, note, audience)
             },
         )
     }
@@ -275,7 +291,7 @@ private fun PulseCreateCard(
                             color = NovaInk,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            textAlign = TextAlign.Center,
                         )
                     }
                     Surface(
@@ -290,7 +306,7 @@ private fun PulseCreateCard(
                             color = NovaBackground,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            textAlign = TextAlign.Center,
                         )
                     }
                 }
@@ -320,12 +336,12 @@ private fun PulseCard(
                     contentDescription = "${pulse.author.username} Pulse",
                 )
                 "video" -> Box(
-                    modifier = Modifier.fillMaxSize().background(PulseViewerBackground),
+                    modifier = Modifier.fillMaxSize().background(PulseCardVideoBackground),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = "▶",
-                        color = PulseViewerInk,
+                        color = PulseCardVideoInk,
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
                     )
@@ -350,7 +366,7 @@ private fun PulseCard(
             Surface(
                 modifier = Modifier.align(Alignment.TopStart).padding(9.dp),
                 shape = RoundedCornerShape(16.dp),
-                color = PulseViewerBackground.copy(alpha = if (pulse.mediaType == "text") 0.74f else 0.72f),
+                color = PulseCardVideoBackground.copy(alpha = 0.74f),
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
@@ -364,7 +380,7 @@ private fun PulseCard(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = if (pulse.isMine) "You" else pulse.author.name.ifBlank { pulse.author.username },
-                        color = PulseViewerInk,
+                        color = PulseCardVideoInk,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -373,16 +389,32 @@ private fun PulseCard(
                 }
             }
 
+            if (pulse.replyToId != null) {
+                Surface(
+                    modifier = Modifier.align(Alignment.TopEnd).padding(9.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = PulseCardVideoBackground.copy(alpha = 0.76f),
+                ) {
+                    Text(
+                        text = "↳ reply",
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp),
+                        color = PulseCardVideoInk,
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+
             if (pulse.mediaType != "text" && pulse.note.isNotBlank()) {
                 Surface(
                     modifier = Modifier.align(Alignment.BottomStart).padding(9.dp),
                     shape = RoundedCornerShape(13.dp),
-                    color = PulseViewerBackground.copy(alpha = 0.76f),
+                    color = PulseCardVideoBackground.copy(alpha = 0.76f),
                 ) {
                     Text(
                         text = pulse.note,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                        color = PulseViewerInk,
+                        color = PulseCardVideoInk,
                         fontSize = 9.sp,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
@@ -391,270 +423,4 @@ private fun PulseCard(
             }
         }
     }
-}
-
-
-@Composable
-private fun PulseComposerDialog(
-    pendingMedia: Uri?,
-    uploading: Boolean,
-    error: String?,
-    onDismiss: () -> Unit,
-    onSubmit: (String, String) -> Unit,
-) {
-    val context = LocalContext.current
-    var note by remember(pendingMedia) { mutableStateOf("") }
-    var audience by remember(pendingMedia) { mutableStateOf("followers") }
-    val mime = remember(pendingMedia) {
-        pendingMedia?.let { context.contentResolver.getType(it).orEmpty().lowercase() }.orEmpty()
-    }
-    val canSubmit = !uploading && (pendingMedia != null || note.trim().isNotEmpty()) && note.length <= 180
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Column {
-                Text("New Pulse", color = NovaInk, fontWeight = FontWeight.Bold)
-                Text("Here now. Gone in 12 hours.", color = NovaMuted, fontSize = 11.sp)
-            }
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (pendingMedia != null) {
-                    if (mime.startsWith("image/")) {
-                        NovaMediaImage(
-                            source = pendingMedia.toString(),
-                            modifier = Modifier.fillMaxWidth().height(150.dp),
-                            contentDescription = "Selected Pulse photo",
-                        )
-                    } else {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth().height(86.dp),
-                            shape = RoundedCornerShape(18.dp),
-                            color = NovaAccentSoft,
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text("▶ Video selected", color = NovaInk, fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-                    }
-                }
-
-                OutlinedTextField(
-                    value = note,
-                    onValueChange = { if (it.length <= 180) note = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !uploading,
-                    label = { Text(if (pendingMedia == null) "What are you doing?" else "Add a note") },
-                    supportingText = { Text("${note.length}/180") },
-                    minLines = 2,
-                    maxLines = 4,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = NovaAccent,
-                        focusedLabelColor = NovaAccent,
-                        cursorColor = NovaAccent,
-                    ),
-                )
-
-                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                    Text("Audience", color = NovaMuted, fontSize = 10.sp)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        PulseAudienceChoice(
-                            label = "Followers",
-                            selected = audience == "followers",
-                            enabled = !uploading,
-                            onClick = { audience = "followers" },
-                        )
-                        PulseAudienceChoice(
-                            label = "Close Friends",
-                            selected = audience == "close_friends",
-                            enabled = !uploading,
-                            onClick = { audience = "close_friends" },
-                        )
-                    }
-                }
-
-                error?.let {
-                    Text(text = it, color = NovaMuted, fontSize = 11.sp)
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onSubmit(note.trim(), audience) },
-                enabled = canSubmit,
-            ) {
-                if (uploading) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = NovaAccent, strokeWidth = 2.dp)
-                } else {
-                    Text("Post Pulse", color = NovaAccent, fontWeight = FontWeight.Bold)
-                }
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !uploading) {
-                Text("Cancel", color = NovaMuted)
-            }
-        },
-        containerColor = NovaSurface,
-    )
-}
-
-
-@Composable
-private fun PulseAudienceChoice(
-    label: String,
-    selected: Boolean,
-    enabled: Boolean,
-    onClick: () -> Unit,
-) {
-    Surface(
-        onClick = onClick,
-        enabled = enabled,
-        shape = RoundedCornerShape(15.dp),
-        color = if (selected) NovaAccentSoft else NovaSurface,
-        border = BorderStroke(1.dp, if (selected) NovaAccent else NovaBorder),
-    ) {
-        Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
-            color = if (selected) NovaAccent else NovaInk,
-            fontSize = 10.sp,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-        )
-    }
-}
-
-
-@Composable
-private fun PulseViewerDialog(
-    pulse: NovaPulse,
-    deleting: Boolean,
-    onDismiss: () -> Unit,
-    onDelete: () -> Unit,
-) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize().background(PulseViewerBackground),
-        ) {
-            when (pulse.mediaType) {
-                "image" -> NovaMediaImage(
-                    source = pulse.mediaUrl,
-                    modifier = Modifier.fillMaxSize(),
-                    contentDescription = "${pulse.author.username} Pulse",
-                )
-                "video" -> PulseVideoPlayer(source = pulse.mediaUrl)
-                else -> Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = pulse.note,
-                        modifier = Modifier.padding(horizontal = 34.dp),
-                        color = PulseViewerInk,
-                        fontSize = 28.sp,
-                        lineHeight = 36.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier.align(Alignment.TopStart).fillMaxWidth().padding(22.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                NovaAvatar(
-                    source = pulse.author.avatarUrl,
-                    fallbackText = pulse.author.name.ifBlank { pulse.author.username },
-                    size = 38.dp,
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = if (pulse.isMine) "Your Pulse" else pulse.author.name.ifBlank { pulse.author.username },
-                        color = PulseViewerInk,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = "@${pulse.author.username} • live for 12h",
-                        color = PulseViewerMuted,
-                        fontSize = 10.sp,
-                    )
-                }
-                Text(
-                    text = "✕",
-                    color = PulseViewerInk,
-                    fontSize = 20.sp,
-                    modifier = Modifier.clickable(onClick = onDismiss).padding(8.dp),
-                )
-            }
-
-            if (pulse.mediaType != "text" && pulse.note.isNotBlank()) {
-                Surface(
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 20.dp, vertical = 74.dp),
-                    shape = RoundedCornerShape(18.dp),
-                    color = PulseViewerBackground.copy(alpha = 0.78f),
-                ) {
-                    Text(
-                        text = pulse.note,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                        color = PulseViewerInk,
-                        fontSize = 14.sp,
-                    )
-                }
-            }
-
-            if (pulse.isMine) {
-                TextButton(
-                    onClick = onDelete,
-                    enabled = !deleting,
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(18.dp),
-                ) {
-                    if (deleting) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            color = PulseViewerInk,
-                            strokeWidth = 2.dp,
-                        )
-                    } else {
-                        Text("Delete", color = PulseViewerInk)
-                    }
-                }
-            }
-        }
-    }
-}
-
-
-@Composable
-private fun PulseVideoPlayer(source: String) {
-    val context = LocalContext.current
-    val player = remember(source) {
-        ExoPlayer.Builder(context).build().apply {
-            repeatMode = ExoPlayer.REPEAT_MODE_ONE
-            volume = 1f
-            setMediaItem(MediaItem.fromUri(source))
-            prepare()
-            playWhenReady = true
-        }
-    }
-
-    DisposableEffect(player) {
-        onDispose { player.release() }
-    }
-
-    AndroidView(
-        factory = { viewContext ->
-            PlayerView(viewContext).apply {
-                useController = false
-                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                this.player = player
-            }
-        },
-        modifier = Modifier.fillMaxSize(),
-    )
 }

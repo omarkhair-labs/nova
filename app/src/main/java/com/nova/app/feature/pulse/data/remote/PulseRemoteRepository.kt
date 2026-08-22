@@ -26,24 +26,80 @@ class PulseRemoteRepository(
 
     override suspend fun pulses(): ApiResult<List<NovaPulse>> = authenticatedCall { token ->
         when (val response = api.requestJson("pulses/", bearerToken = token)) {
-            is ApiResult.Success -> {
-                val rows = response.value.optJSONArray("results") ?: JSONArray()
-                ApiResult.Success(
-                    buildList {
-                        for (index in 0 until rows.length()) {
-                            rows.optJSONObject(index)?.let {
-                                add(parseNovaPulse(it, api::resolveMediaUrl))
-                            }
-                        }
-                    },
-                )
-            }
-
+            is ApiResult.Success -> ApiResult.Success(parsePulseList(response.value))
             is ApiResult.Failure -> response
         }
     }
 
     override suspend fun createTextPulse(
+        note: String,
+        audience: String,
+    ): ApiResult<NovaPulse> = createTextAt(
+        path = "pulses/",
+        note = note,
+        audience = audience,
+    )
+
+    override suspend fun createMediaPulse(
+        mediaUri: Uri,
+        note: String,
+        audience: String,
+    ): ApiResult<NovaPulse> = createMediaAt(
+        path = "pulses/",
+        mediaUri = mediaUri,
+        note = note,
+        audience = audience,
+    )
+
+    override suspend fun pulseChain(pulseId: Long): ApiResult<List<NovaPulse>> = authenticatedCall { token ->
+        when (
+            val response = api.requestJson(
+                path = "pulses/$pulseId/chain/",
+                bearerToken = token,
+            )
+        ) {
+            is ApiResult.Success -> ApiResult.Success(parsePulseList(response.value))
+            is ApiResult.Failure -> response
+        }
+    }
+
+    override suspend fun replyTextPulse(
+        pulseId: Long,
+        note: String,
+        audience: String,
+    ): ApiResult<NovaPulse> = createTextAt(
+        path = "pulses/$pulseId/reply/",
+        note = note,
+        audience = audience,
+    )
+
+    override suspend fun replyMediaPulse(
+        pulseId: Long,
+        mediaUri: Uri,
+        note: String,
+        audience: String,
+    ): ApiResult<NovaPulse> = createMediaAt(
+        path = "pulses/$pulseId/reply/",
+        mediaUri = mediaUri,
+        note = note,
+        audience = audience,
+    )
+
+    override suspend fun deletePulse(pulseId: Long): ApiResult<Unit> = authenticatedCall { token ->
+        when (
+            val response = api.requestJson(
+                path = "pulses/$pulseId/",
+                method = "DELETE",
+                bearerToken = token,
+            )
+        ) {
+            is ApiResult.Success -> ApiResult.Success(Unit)
+            is ApiResult.Failure -> response
+        }
+    }
+
+    private suspend fun createTextAt(
+        path: String,
         note: String,
         audience: String,
     ): ApiResult<NovaPulse> {
@@ -55,7 +111,7 @@ class PulseRemoteRepository(
         return authenticatedCall { token ->
             when (
                 val response = api.requestJson(
-                    path = "pulses/",
+                    path = path,
                     method = "POST",
                     body = JSONObject()
                         .put("media_type", "text")
@@ -67,13 +123,13 @@ class PulseRemoteRepository(
                 is ApiResult.Success -> ApiResult.Success(
                     parseNovaPulse(response.value, api::resolveMediaUrl),
                 )
-
                 is ApiResult.Failure -> response
             }
         }
     }
 
-    override suspend fun createMediaPulse(
+    private suspend fun createMediaAt(
+        path: String,
         mediaUri: Uri,
         note: String,
         audience: String,
@@ -91,7 +147,7 @@ class PulseRemoteRepository(
         return authenticatedCall { token ->
             when (
                 val response = api.requestMultipart(
-                    path = "pulses/",
+                    path = path,
                     method = "POST",
                     fields = mapOf(
                         "note" to cleanNote,
@@ -105,22 +161,19 @@ class PulseRemoteRepository(
                 is ApiResult.Success -> ApiResult.Success(
                     parseNovaPulse(response.value, api::resolveMediaUrl),
                 )
-
                 is ApiResult.Failure -> response
             }
         }
     }
 
-    override suspend fun deletePulse(pulseId: Long): ApiResult<Unit> = authenticatedCall { token ->
-        when (
-            val response = api.requestJson(
-                path = "pulses/$pulseId/",
-                method = "DELETE",
-                bearerToken = token,
-            )
-        ) {
-            is ApiResult.Success -> ApiResult.Success(Unit)
-            is ApiResult.Failure -> response
+    private fun parsePulseList(json: JSONObject): List<NovaPulse> {
+        val rows = json.optJSONArray("results") ?: JSONArray()
+        return buildList {
+            for (index in 0 until rows.length()) {
+                rows.optJSONObject(index)?.let {
+                    add(parseNovaPulse(it, api::resolveMediaUrl))
+                }
+            }
         }
     }
 
