@@ -71,7 +71,10 @@ def _post_highlight(request, post):
 
 
 def _room_item_highlight(request, item):
-    media_type = item.kind if item.kind in {RoomItem.Kind.PHOTO, RoomItem.Kind.VIDEO} else "none"
+    media_type = {
+        RoomItem.Kind.PHOTO: "image",
+        RoomItem.Kind.VIDEO: "video",
+    }.get(item.kind, "none")
     return {
         "source": "room_item",
         "id": item.id,
