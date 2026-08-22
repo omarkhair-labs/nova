@@ -14,10 +14,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
-import com.nova.app.ui.theme.NovaBorder
+import com.nova.app.ui.theme.NovaSpacing
 import com.nova.app.ui.theme.NovaSurface
+import com.nova.app.ui.theme.NovaType
 
 
 @Composable
@@ -49,18 +51,15 @@ fun NovaHeader(
         Text(
             text = title,
             color = NovaInk,
-            fontSize = 30.sp,
-            lineHeight = 36.sp,
-            fontWeight = FontWeight.Bold,
+            style = NovaType.pageTitle,
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(NovaSpacing.sm))
 
         Text(
             text = subtitle,
             color = NovaMuted,
-            fontSize = 15.sp,
-            lineHeight = 22.sp,
+            style = NovaType.subtitle,
         )
     }
 }
