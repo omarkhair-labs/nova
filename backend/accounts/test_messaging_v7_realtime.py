@@ -8,7 +8,7 @@ from rest_framework_simplejwt.tokens import AccessToken
 
 from nova_backend.asgi import application
 
-from .messaging_realtime import broadcast_message_deleted, broadcast_message_updated
+from .messaging.messaging_realtime import broadcast_message_deleted, broadcast_message_updated
 from .models import Conversation, Message
 
 
