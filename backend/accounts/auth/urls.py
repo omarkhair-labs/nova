@@ -1,6 +1,6 @@
 from django.urls import path
 
-from ..account_security import (
+from .security import (
     ChangePasswordView,
     PasswordResetConfirmView,
     PasswordResetRequestView,
@@ -9,7 +9,7 @@ from ..account_security import (
     SecureTokenObtainPairView,
     SecureTokenRefreshView,
 )
-from ..views import MeView
+from .views import MeView
 
 
 urlpatterns = [
