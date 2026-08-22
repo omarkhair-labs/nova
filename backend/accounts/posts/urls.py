@@ -1,11 +1,11 @@
 from django.urls import path
 
-from ..comment_threads import (
+from .comments import (
     PostCommentReplyDetailView,
     ThreadCommentDetailView,
     ThreadPostCommentsView,
 )
-from ..views import PostDetailView, PostLikeView, PostsView
+from .views import PostDetailView, PostLikeView, PostsView
 
 
 urlpatterns = [
