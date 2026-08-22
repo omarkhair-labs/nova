@@ -73,6 +73,7 @@ fun RoomScreen(
     }
     val state = owner.state
     var editDescription by remember { mutableStateOf(false) }
+    var showComposer by remember { mutableStateOf(false) }
 
     BackHandler(onBack = onBack)
     LaunchedEffect(owner) {
@@ -80,6 +81,9 @@ fun RoomScreen(
     }
     LaunchedEffect(state.sessionExpiryVersion) {
         if (state.sessionExpiryVersion > 0) onSessionExpired()
+    }
+    LaunchedEffect(state.itemCreatedVersion) {
+        if (state.itemCreatedVersion > 0) showComposer = false
     }
 
     Surface(
@@ -149,6 +153,13 @@ fun RoomScreen(
                             description = detail.description,
                             canEdit = canEdit,
                             onEdit = { editDescription = true },
+                        )
+                    }
+
+                    item {
+                        AddToRoomCard(
+                            creating = state.creatingItem,
+                            onClick = { if (!state.creatingItem) showComposer = true },
                         )
                     }
 
@@ -250,7 +261,7 @@ fun RoomScreen(
                         }
                     }
 
-                    if (!state.error.isNullOrBlank()) {
+                    if (!state.error.isNullOrBlank() && !showComposer) {
                         item {
                             Surface(
                                 onClick = { owner.load(showSpinner = false) },
@@ -277,6 +288,23 @@ fun RoomScreen(
                         onSave = { value ->
                             owner.updateDescription(value)
                             editDescription = false
+                        },
+                    )
+                }
+
+                if (showComposer) {
+                    RoomItemComposer(
+                        submitting = state.creatingItem,
+                        error = state.error,
+                        onDismiss = { if (!state.creatingItem) showComposer = false },
+                        onSubmit = { kind, title, body, url, mediaUri ->
+                            owner.createItem(
+                                kind = kind,
+                                title = title,
+                                body = body,
+                                url = url,
+                                mediaUri = mediaUri,
+                            )
                         },
                     )
                 }
@@ -378,6 +406,53 @@ private fun DescriptionCard(
             if (canEdit) {
                 Spacer(modifier = Modifier.width(10.dp))
                 Text("Edit", color = NovaAccent, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun AddToRoomCard(
+    creating: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        color = NovaAccentSoft,
+        border = BorderStroke(1.dp, NovaAccent.copy(alpha = 0.24f)),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 15.dp, vertical = 13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                shape = RoundedCornerShape(15.dp),
+                color = NovaAccent,
+            ) {
+                Text(
+                    text = "+",
+                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 5.dp),
+                    color = NovaBackground,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            Spacer(modifier = Modifier.width(11.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = if (creating) "Adding to Room…" else "Add to Room",
+                    color = NovaInk,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = "Note · Photo · Video · Music · Plan · Saved",
+                    color = NovaMuted,
+                    fontSize = 9.sp,
+                )
             }
         }
     }
