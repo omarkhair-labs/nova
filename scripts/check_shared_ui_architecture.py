@@ -9,6 +9,7 @@ SHADOW_ANDROIDX = MAIN / "androidx"
 CALL_ACTIVITY = MAIN / "com/nova/app/CallActivity.kt"
 SETTINGS_ACTIVITY = MAIN / "com/nova/app/SettingsActivity.kt"
 PROFILE_SCREEN = MAIN / "com/nova/app/feature/profile/ProfileScreen.kt"
+NOTIFICATIONS_SCREEN = MAIN / "com/nova/app/feature/notifications/NotificationsScreen.kt"
 ICON_ALIASES = MAIN / "com/nova/app/ui/icons/NovaMaterialIconAliases.kt"
 SHARED_UI = MAIN / "com/nova/app/ui"
 SHARED_COMPONENTS = SHARED_UI / "components"
@@ -16,6 +17,7 @@ SHARED_ICONS = SHARED_UI / "icons"
 THEME = SHARED_UI / "theme"
 ICON_CATALOG = SHARED_ICONS / "NovaIcons.kt"
 ICON_BUTTON = SHARED_COMPONENTS / "NovaIconButton.kt"
+FEEDBACK = SHARED_COMPONENTS / "NovaFeedback.kt"
 LEGACY_COMPONENTS = SHARED_COMPONENTS / "NovaComponents.kt"
 COMMUNICATION_ICON_ALIASES = ("CallEnd", "Mic", "Videocam", "VolumeUp")
 NARROW_COMPONENT_SEAMS = {
@@ -24,6 +26,13 @@ NARROW_COMPONENT_SEAMS = {
     "NovaHeader.kt": ("fun NovaHeader(",),
     "NovaBottomBar.kt": ("fun NovaBottomBar(", "enum class NovaTab"),
     "NovaIconButton.kt": ("fun NovaIconButton(", "fun NovaBackButton("),
+    "NovaFeedback.kt": (
+        "fun NovaLoadingState(",
+        "fun NovaInlineLoading(",
+        "fun NovaEmptyState(",
+        "fun NovaErrorState(",
+        "fun NovaInlineRetry(",
+    ),
 }
 DESIGN_FOUNDATION_SEAMS = {
     "Color.kt": ("NovaBaseBackground", "NovaBaseAccent", "NovaColorOverride"),
@@ -39,6 +48,7 @@ MIGRATED_COMPONENT_SEAMS = {
     "NovaTextField.kt": ("MaterialTheme.shapes.medium",),
     "NovaHeader.kt": ("NovaType.pageTitle", "NovaType.subtitle", "NovaSpacing.sm", "NovaBackButton"),
     "NovaBottomBar.kt": ("NovaElevation.floating", "NovaType.navigationLabel", "NovaType.badge", "NovaIconAsset.Home"),
+    "NovaFeedback.kt": ("MaterialTheme.shapes.extraLarge", "NovaType.bodyCompact", "NovaSpacing.xxxl"),
 }
 MATERIAL_SYMBOL_DRAWABLES = (
     "ic_nova_home.xml",
@@ -149,6 +159,27 @@ for consumer in MIGRATED_ICON_CONSUMERS:
 for forbidden_glyph in ('text = "‹"', 'icon = "◉"', 'icon = "⌁"', 'icon = "⊘"', 'icon = "×"', 'text = "↪"'):
     if forbidden_glyph in SETTINGS_ACTIVITY.read_text(encoding="utf-8") or forbidden_glyph in (SHARED_COMPONENTS / "NovaHeader.kt").read_text(encoding="utf-8"):
         errors.append(f"action glyph survived DS-2 migration: {forbidden_glyph}")
+
+if not FEEDBACK.is_file():
+    errors.append("missing shared Nova feedback component owner")
+
+if not NOTIFICATIONS_SCREEN.is_file():
+    errors.append("missing Notifications screen")
+else:
+    notifications_text = NOTIFICATIONS_SCREEN.read_text(encoding="utf-8")
+    for seam in (
+        "NovaBackButton(onClick = onBack)",
+        "NovaLoadingState(",
+        "NovaEmptyState(",
+        "NovaErrorState(",
+        "NovaInlineLoading(",
+        "NovaInlineRetry(",
+        "NovaType.screenTitle",
+    ):
+        if seam not in notifications_text:
+            errors.append(f"Notifications bypassed migrated Nova feedback/chrome seam: {seam}")
+    if 'text = "Back"' in notifications_text:
+        errors.append("Notifications restored a local text Back control after design-system migration")
 
 if not ICON_ALIASES.is_file():
     errors.append("missing app-owned communication icon aliases")

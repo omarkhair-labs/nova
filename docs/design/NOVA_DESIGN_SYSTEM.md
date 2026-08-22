@@ -1,6 +1,6 @@
 # Nova Design System
 
-Status: foundation rollout in progress
+Status: DS-1 and DS-2 merged; DS-3 feedback rollout in progress
 
 Nova's product identity is **the social app that remembers your life with your people**. The design system exists to make every surface feel like the same product while allowing deliberate feature moods such as Tonight, media viewers, and chat themes.
 
@@ -108,32 +108,32 @@ Existing stable seams include:
 - `NovaTextField`
 - `NovaHeader`
 - `NovaBottomBar`
+- `NovaIconButton` / `NovaBackButton`
+- `NovaLoadingState` / `NovaInlineLoading`
+- `NovaEmptyState`
+- `NovaErrorState` / `NovaInlineRetry`
 - `NovaAvatar`
 - `NovaActiveCallPill`
 - shared media/profile primitives
 
-The next consolidation wave will add or normalize the following only where repeated usage proves the seam:
+The remaining consolidation waves add or normalize shared seams only where repeated usage proves the need:
 
-- page header/back chrome;
-- icon button and app-owned icon catalog;
 - badge/status presentation;
-- loading, empty, error, success, and retry messaging;
 - confirmation dialogs and bottom sheets;
-- shared card/container roles.
+- shared card/container roles;
+- explicit feature palettes for deliberate presentation modes.
 
 ## Iconography policy
 
-Nova currently has an app-owned communication icon seam plus Material icon usage and some text/Unicode action glyphs. This is transitional.
+Ordinary Nova chrome now uses an app-owned icon catalog backed by bundled Material Symbols Rounded vectors. Calls keep their existing app-owned communication icon seam while they migrate independently.
 
-Target rules:
+Rules:
 
-1. interactive icons are referenced through `ui/icons`;
-2. one stroke/fill language is chosen per icon family;
+1. reusable interactive icons are referenced through `ui/icons`;
+2. ordinary chrome uses one rounded symbol language;
 3. Unicode/text glyphs are not used as action icons once an app-owned vector exists;
 4. feature code does not become the owner of reusable icons;
 5. content descriptions are mandatory for meaningful icon actions.
-
-The icon migration is intentionally a separate PR so this foundations PR does not visually replace navigation or action icons during closed testing.
 
 ## Navigation and page chrome policy
 
@@ -146,11 +146,21 @@ Target consistency:
 - explicit exceptions only for immersive media, calls, and other full-screen experiences;
 - unread badges and selected states use shared tokens/components.
 
+DS-2 established the app-owned bottom-navigation icons plus shared `NovaIconButton` and `NovaBackButton`. Activity/Notifications is the first large legacy surface being migrated onto that ordinary-screen chrome.
+
 ## Feedback and system messaging policy
 
-Loading, retry, empty, success, warning, and error states should communicate with a small consistent set of patterns. A feature may own its message copy and state machine, but it should render repeated feedback through shared presentation primitives.
+Loading, retry, empty, success, warning, and error states communicate through a small consistent set of patterns. A feature owns its message copy and state machine; the design system owns repeated presentation.
 
-This includes Notifications/Activity. Notifications remain feature-owned data/state; their visual rows, unread state, loading/retry/empty presentation should consume shared Nova roles as migration proceeds.
+Current shared feedback primitives:
+
+- `NovaLoadingState` — full-page/section loading;
+- `NovaInlineLoading` — secondary or pagination loading;
+- `NovaEmptyState` — ordinary empty state;
+- `NovaErrorState` — recoverable full-section error with retry;
+- `NovaInlineRetry` — compact subsection/pagination failure.
+
+Notifications/Activity is the first migrated consumer because it exercises loading, follow-request loading/error, full-page error, empty, pagination loading/error, and ordinary page chrome in one real feature.
 
 ## Feature moods
 
@@ -170,25 +180,28 @@ Pulse/media dark surfaces may remain visually distinct, but dark media roles sho
 
 ## Rollout plan
 
-### DS-1 — Foundations
+### DS-1 — Foundations — merged
 
-- establish spacing, shape, elevation, motion, and semantic typography roles;
-- wire shape and typography into `NovaTheme`;
-- migrate the stable shared Header, Button, TextField, and BottomBar seams without intentional visual redesign;
-- add architecture enforcement for the foundation owners.
+- established spacing, shape, elevation, motion, and semantic typography roles;
+- wired shape and typography into `NovaTheme`;
+- migrated the stable Header, Button, TextField, and BottomBar seams;
+- added architecture enforcement for foundation owners.
 
-### DS-2 — Icons and page chrome
+### DS-2 — Icons and page chrome — merged / convergence continuing
 
-- establish `NovaIcons` app-owned catalog and aliases;
-- migrate bottom navigation, settings, headers/back actions, notifications, calls, and common actions;
-- remove action-oriented Unicode glyphs as replacements become available;
-- normalize ordinary-screen page chrome.
+- established the app-owned `NovaIconAsset` catalog;
+- migrated bottom navigation, Settings, Profile settings action, and shared header/back chrome;
+- removed action-oriented Unicode glyphs from migrated surfaces;
+- established shared `NovaIconButton` and `NovaBackButton`.
 
-### DS-3 — Feedback and containers
+Ordinary legacy screens continue converging as they are touched; Activity/Notifications is included in DS-3 because it is also the first comprehensive feedback migration.
 
-- create shared loading/empty/error/retry/status primitives;
-- establish repeated card/container roles;
-- migrate Notifications, Settings, People/Profile, Home support states, and dialogs/sheets.
+### DS-3 — Feedback and containers — in progress
+
+- establish shared loading/empty/error/retry primitives;
+- migrate Notifications/Activity as the first complete consumer;
+- establish repeated card/container/status roles;
+- migrate Settings, People/Profile, Home support states, and dialogs/sheets in bounded follow-up PRs.
 
 ### DS-4 — Alive feature convergence
 
@@ -198,7 +211,7 @@ Pulse/media dark surfaces may remain visually distinct, but dark media roles sho
 
 ## Enforcement strategy
 
-CI enforcement becomes stricter in the same order as migration. Foundations are enforced immediately. Rules that would fail large amounts of intentional legacy code are not turned on until the corresponding migration wave establishes a clean baseline.
+CI enforcement becomes stricter in the same order as migration. Foundations and migrated chrome are enforced now. Feedback primitives and Activity/Notifications are enforced as soon as their migration lands. Rules that would fail large amounts of intentional legacy code are not turned on until the corresponding migration wave establishes a clean baseline.
 
 The end state should prevent regressions such as:
 
