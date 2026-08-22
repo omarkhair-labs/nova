@@ -1,7 +1,9 @@
 package com.nova.app.ui.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -12,15 +14,9 @@ import com.nova.app.ui.theme.NovaAccent
 fun NovaUnreadDot(
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        modifier = modifier,
-        shape = CircleShape,
-        color = NovaAccent,
-    ) {
-        androidx.compose.foundation.layout.Spacer(
-            modifier = Modifier
-                .then(modifier)
-                .size(8.dp),
-        )
-    }
+    Box(
+        modifier = modifier
+            .size(8.dp)
+            .background(NovaAccent, CircleShape),
+    )
 }
