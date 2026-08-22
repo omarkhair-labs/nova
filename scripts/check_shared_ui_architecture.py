@@ -4,12 +4,18 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 MAIN = ROOT / "app/src/main/java"
+DRAWABLE = ROOT / "app/src/main/res/drawable"
 SHADOW_ANDROIDX = MAIN / "androidx"
 CALL_ACTIVITY = MAIN / "com/nova/app/CallActivity.kt"
+SETTINGS_ACTIVITY = MAIN / "com/nova/app/SettingsActivity.kt"
+PROFILE_SCREEN = MAIN / "com/nova/app/feature/profile/ProfileScreen.kt"
 ICON_ALIASES = MAIN / "com/nova/app/ui/icons/NovaMaterialIconAliases.kt"
 SHARED_UI = MAIN / "com/nova/app/ui"
 SHARED_COMPONENTS = SHARED_UI / "components"
+SHARED_ICONS = SHARED_UI / "icons"
 THEME = SHARED_UI / "theme"
+ICON_CATALOG = SHARED_ICONS / "NovaIcons.kt"
+ICON_BUTTON = SHARED_COMPONENTS / "NovaIconButton.kt"
 LEGACY_COMPONENTS = SHARED_COMPONENTS / "NovaComponents.kt"
 COMMUNICATION_ICON_ALIASES = ("CallEnd", "Mic", "Videocam", "VolumeUp")
 NARROW_COMPONENT_SEAMS = {
@@ -17,6 +23,7 @@ NARROW_COMPONENT_SEAMS = {
     "NovaTextField.kt": ("fun NovaTextField(",),
     "NovaHeader.kt": ("fun NovaHeader(",),
     "NovaBottomBar.kt": ("fun NovaBottomBar(", "enum class NovaTab"),
+    "NovaIconButton.kt": ("fun NovaIconButton(", "fun NovaBackButton("),
 }
 DESIGN_FOUNDATION_SEAMS = {
     "Color.kt": ("NovaBaseBackground", "NovaBaseAccent", "NovaColorOverride"),
@@ -30,9 +37,30 @@ DESIGN_FOUNDATION_SEAMS = {
 MIGRATED_COMPONENT_SEAMS = {
     "NovaButtons.kt": ("MaterialTheme.shapes.medium", "NovaType.button", "NovaElevation.flat"),
     "NovaTextField.kt": ("MaterialTheme.shapes.medium",),
-    "NovaHeader.kt": ("NovaType.pageTitle", "NovaType.subtitle", "NovaSpacing.sm"),
-    "NovaBottomBar.kt": ("NovaElevation.floating", "NovaType.navigationLabel", "NovaType.badge"),
+    "NovaHeader.kt": ("NovaType.pageTitle", "NovaType.subtitle", "NovaSpacing.sm", "NovaBackButton"),
+    "NovaBottomBar.kt": ("NovaElevation.floating", "NovaType.navigationLabel", "NovaType.badge", "NovaIconAsset.Home"),
 }
+MATERIAL_SYMBOL_DRAWABLES = (
+    "ic_nova_home.xml",
+    "ic_nova_search.xml",
+    "ic_nova_play.xml",
+    "ic_nova_mail.xml",
+    "ic_nova_person.xml",
+    "ic_nova_settings.xml",
+    "ic_nova_back.xml",
+    "ic_nova_privacy.xml",
+    "ic_nova_security.xml",
+    "ic_nova_blocked.xml",
+    "ic_nova_policy.xml",
+    "ic_nova_account_deletion.xml",
+    "ic_nova_logout.xml",
+)
+MIGRATED_ICON_CONSUMERS = (
+    SHARED_COMPONENTS / "NovaBottomBar.kt",
+    SHARED_COMPONENTS / "NovaHeader.kt",
+    PROFILE_SCREEN,
+    SETTINGS_ACTIVITY,
+)
 
 errors: list[str] = []
 
@@ -87,6 +115,40 @@ for file_name, seams in MIGRATED_COMPONENT_SEAMS.items():
     for seam in seams:
         if seam not in component_text:
             errors.append(f"shared component bypassed Nova design-system foundation: {file_name} -> {seam}")
+
+if not ICON_CATALOG.is_file():
+    errors.append("missing app-owned Nova icon catalog")
+else:
+    icon_catalog_text = ICON_CATALOG.read_text(encoding="utf-8")
+    for seam in (
+        "enum class NovaIconAsset",
+        "fun NovaIcon(",
+        "Home(R.drawable.ic_nova_home)",
+        "Back(R.drawable.ic_nova_back)",
+        "Settings(R.drawable.ic_nova_settings)",
+    ):
+        if seam not in icon_catalog_text:
+            errors.append(f"Nova icon catalog seam changed: {seam}")
+
+for drawable_name in MATERIAL_SYMBOL_DRAWABLES:
+    drawable = DRAWABLE / drawable_name
+    if not drawable.is_file():
+        errors.append(f"missing Nova Material Symbol drawable: {drawable.relative_to(ROOT)}")
+
+for consumer in MIGRATED_ICON_CONSUMERS:
+    if not consumer.is_file():
+        errors.append(f"missing migrated icon consumer: {consumer.relative_to(ROOT)}")
+        continue
+    text = consumer.read_text(encoding="utf-8")
+    if "import androidx.compose.material.icons." in text:
+        errors.append(
+            "migrated Nova chrome must use app-owned icon catalog, not legacy Compose icons: "
+            f"{consumer.relative_to(ROOT)}"
+        )
+
+for forbidden_glyph in ('text = "‹"', 'icon = "◉"', 'icon = "⌁"', 'icon = "⊘"', 'icon = "×"', 'text = "↪"'):
+    if forbidden_glyph in SETTINGS_ACTIVITY.read_text(encoding="utf-8") or forbidden_glyph in (SHARED_COMPONENTS / "NovaHeader.kt").read_text(encoding="utf-8"):
+        errors.append(f"action glyph survived DS-2 migration: {forbidden_glyph}")
 
 if not ICON_ALIASES.is_file():
     errors.append("missing app-owned communication icon aliases")
