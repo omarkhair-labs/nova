@@ -3,7 +3,6 @@ package com.nova.app.feature.people
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,20 +18,20 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.nova.app.feature.people.domain.model.NovaPerson
 import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
+import com.nova.app.ui.components.NovaCard
+import com.nova.app.ui.components.NovaEmptyState
+import com.nova.app.ui.components.NovaLoadingState
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.components.NovaTab
 import com.nova.app.ui.components.NovaTextField
@@ -41,7 +40,8 @@ import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
-import com.nova.app.ui.theme.NovaSurface
+import com.nova.app.ui.theme.NovaSpacing
+import com.nova.app.ui.theme.NovaType
 
 
 @Composable
@@ -71,34 +71,29 @@ fun PeopleScreen(
                 .background(NovaBackground)
                 .padding(innerPadding)
                 .statusBarsPadding()
-                .padding(horizontal = 20.dp),
+                .padding(horizontal = NovaSpacing.xl),
         ) {
             Text(
                 text = "People",
                 color = NovaInk,
-                fontSize = 30.sp,
-                lineHeight = 36.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(top = 16.dp),
+                style = NovaType.pageTitle,
+                modifier = Modifier.padding(top = NovaSpacing.lg),
             )
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(NovaSpacing.sm))
             Text(
                 text = "Find someone worth following, then let the connection grow from there.",
                 color = NovaMuted,
-                fontSize = 14.sp,
-                lineHeight = 20.sp,
+                style = NovaType.bodyCompact,
             )
 
-            Spacer(modifier = Modifier.height(18.dp))
-
+            Spacer(modifier = Modifier.height(NovaSpacing.xl))
             NovaTextField(
                 value = state.query,
                 onValueChange = onQueryChange,
                 label = "Search",
                 placeholder = "Name or @username",
             )
-
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(NovaSpacing.lg))
 
             if (state.people.isNotEmpty()) {
                 Row(
@@ -109,12 +104,11 @@ fun PeopleScreen(
                     Text(
                         text = if (state.query.isBlank()) "Discover" else "Results",
                         color = NovaInk,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        style = NovaType.label,
                     )
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
                     ) {
                         if (state.firstPageLoading && state.people.isNotEmpty()) {
                             CircularProgressIndicator(
@@ -126,46 +120,34 @@ fun PeopleScreen(
                         Text(
                             text = "${state.people.size} loaded",
                             color = NovaMuted,
-                            fontSize = 11.sp,
+                            style = NovaType.micro,
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(NovaSpacing.md))
             }
 
             val visibleError = state.pagingError ?: state.followError
             when {
                 state.firstPageLoading && state.people.isEmpty() -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator(color = NovaAccent)
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = "Finding people…",
-                                color = NovaMuted,
-                                fontSize = 12.sp,
-                            )
-                        }
-                    }
+                    NovaLoadingState(
+                        message = "Finding people…",
+                        modifier = Modifier.weight(1f),
+                    )
                 }
 
                 visibleError != null && state.people.isEmpty() -> {
-                    EmptyPeopleCard(
+                    NovaEmptyState(
                         title = "Couldn't load people",
-                        subtitle = visibleError,
+                        message = visibleError,
                         modifier = Modifier.weight(1f),
                     )
                 }
 
                 state.people.isEmpty() -> {
-                    EmptyPeopleCard(
+                    NovaEmptyState(
                         title = if (state.query.isBlank()) "No one to show yet" else "No matches",
-                        subtitle = if (state.query.isBlank()) {
+                        message = if (state.query.isBlank()) {
                             "Your discovery space will grow as more people join Nova."
                         } else {
                             "Try a different name or username."
@@ -177,7 +159,7 @@ fun PeopleScreen(
                 else -> {
                     LazyColumn(
                         modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(NovaSpacing.md),
                     ) {
                         items(state.people, key = { it.id }) { person ->
                             val privacy = state.privacyByUserId[person.id]
@@ -197,8 +179,8 @@ fun PeopleScreen(
                                 Text(
                                     text = visibleError,
                                     color = NovaMuted,
-                                    fontSize = 12.sp,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                                    style = NovaType.meta,
+                                    modifier = Modifier.padding(horizontal = NovaSpacing.sm, vertical = NovaSpacing.xs),
                                 )
                             }
                         }
@@ -211,7 +193,7 @@ fun PeopleScreen(
                                 )
                             }
                         }
-                        item { Spacer(modifier = Modifier.height(14.dp)) }
+                        item { Spacer(modifier = Modifier.height(NovaSpacing.lg)) }
                     }
                 }
             }
@@ -228,17 +210,14 @@ private fun PersonRow(
     onClick: () -> Unit,
     onFollowToggle: () -> Unit,
 ) {
-    Surface(
+    NovaCard(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        color = NovaSurface,
-        shape = RoundedCornerShape(20.dp),
-        border = BorderStroke(1.dp, NovaBorder),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 13.dp),
+            modifier = Modifier.padding(horizontal = NovaSpacing.lg, vertical = NovaSpacing.md),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(NovaSpacing.md),
         ) {
             NovaAvatar(
                 source = person.avatarUrl,
@@ -250,24 +229,23 @@ private fun PersonRow(
                 Text(
                     text = person.name.ifBlank { person.username },
                     color = NovaInk,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    style = NovaType.label,
                     maxLines = 1,
                 )
                 Text(
                     text = "@${person.username}",
                     color = NovaMuted,
-                    fontSize = 12.sp,
+                    style = NovaType.meta,
                     maxLines = 1,
                 )
-                Spacer(modifier = Modifier.height(3.dp))
+                Spacer(modifier = Modifier.height(NovaSpacing.xs))
                 Text(
                     text = buildString {
-                        if (privacy.isPrivate) append("🔒 Private · ")
+                        if (privacy.isPrivate) append("Private · ")
                         append("${person.followersCount} ${if (person.followersCount == 1) "follower" else "followers"}")
                     },
                     color = NovaMuted,
-                    fontSize = 11.sp,
+                    style = NovaType.micro,
                 )
             }
 
@@ -286,8 +264,7 @@ private fun PersonRow(
                         Text(
                             text = if (isUpdating) "…" else "Following",
                             color = NovaInk,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
                         )
                     }
                 }
@@ -306,8 +283,7 @@ private fun PersonRow(
                         Text(
                             text = if (isUpdating) "…" else "Requested",
                             color = NovaMuted,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
                         )
                     }
                 }
@@ -328,59 +304,10 @@ private fun PersonRow(
                     ) {
                         Text(
                             text = if (isUpdating) "…" else "Follow",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
                         )
                     }
                 }
-            }
-        }
-    }
-}
-
-
-@Composable
-private fun EmptyPeopleCard(
-    title: String,
-    subtitle: String,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier.fillMaxWidth(),
-        contentAlignment = Alignment.Center,
-    ) {
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = NovaSurface,
-            shape = RoundedCornerShape(24.dp),
-            border = BorderStroke(1.dp, NovaBorder),
-        ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 26.dp, vertical = 30.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    text = "◎",
-                    color = NovaAccent,
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = title,
-                    color = NovaInk,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = subtitle,
-                    color = NovaMuted,
-                    fontSize = 13.sp,
-                    lineHeight = 19.sp,
-                    textAlign = TextAlign.Center,
-                )
             }
         }
     }
