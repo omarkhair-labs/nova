@@ -25,6 +25,20 @@ class Pulse(models.Model):
         on_delete=models.CASCADE,
         related_name="pulses",
     )
+    reply_to = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        related_name="moment_replies",
+        null=True,
+        blank=True,
+    )
+    chain_root = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        related_name="chain_members",
+        null=True,
+        blank=True,
+    )
     media = models.FileField(upload_to="pulses/%Y/%m/", blank=True)
     media_type = models.CharField(max_length=8, choices=MediaType.choices)
     audience = models.CharField(
@@ -43,6 +57,7 @@ class Pulse(models.Model):
             models.Index(fields=("author", "-created_at"), name="pulse_author_created_idx"),
             models.Index(fields=("expires_at", "-created_at"), name="pulse_expiry_created_idx"),
             models.Index(fields=("author", "audience", "-created_at"), name="pulse_author_audience_idx"),
+            models.Index(fields=("chain_root", "created_at"), name="pulse_chain_created_idx"),
         ]
         constraints = [
             models.CheckConstraint(
@@ -62,6 +77,8 @@ class Pulse(models.Model):
     def save(self, *args, **kwargs):
         if self.expires_at is None:
             self.expires_at = timezone.now() + PULSE_DURATION
+        if self.reply_to_id and self.chain_root_id is None:
+            self.chain_root_id = self.reply_to.chain_root_id or self.reply_to_id
         super().save(*args, **kwargs)
 
     @property

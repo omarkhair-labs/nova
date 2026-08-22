@@ -22,6 +22,8 @@ class PulseSerializer(serializers.ModelSerializer):
     author = PulseAuthorSerializer(read_only=True)
     media_url = serializers.SerializerMethodField()
     is_mine = serializers.SerializerMethodField()
+    reply_to_id = serializers.IntegerField(read_only=True)
+    chain_root_id = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Pulse
@@ -35,6 +37,8 @@ class PulseSerializer(serializers.ModelSerializer):
             "created_at",
             "expires_at",
             "is_mine",
+            "reply_to_id",
+            "chain_root_id",
         )
 
     def get_media_url(self, pulse):
