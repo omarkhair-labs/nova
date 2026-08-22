@@ -38,12 +38,33 @@ class BackendDomainOwnershipTests(SimpleTestCase):
                 match = resolve(path)
                 self.assertEqual(match.func.view_class.__module__, module_name)
 
+    def test_posts_notifications_and_sharing_routes_use_domain_owners(self):
+        expected = {
+            "/api/v1/posts/": "accounts.posts.views",
+            "/api/v1/posts/1/": "accounts.posts.views",
+            "/api/v1/posts/1/like/": "accounts.posts.views",
+            "/api/v1/posts/1/comments/": "accounts.posts.comments",
+            "/api/v1/comments/1/": "accounts.posts.comments",
+            "/api/v1/comment-replies/1/": "accounts.posts.comments",
+            "/api/v1/posts/1/repost/": "accounts.sharing.views",
+            "/api/v1/feed/": "accounts.sharing.views",
+            "/api/v1/shares/messages/": "accounts.sharing.views",
+            "/api/v1/notifications/": "accounts.notifications.views",
+            "/api/v1/notifications/read/": "accounts.notifications.views",
+            "/api/v1/push/devices/": "accounts.notifications.views",
+        }
+        for path, module_name in expected.items():
+            with self.subTest(path=path):
+                match = resolve(path)
+                self.assertEqual(match.func.view_class.__module__, module_name)
+
     def test_legacy_module_paths_alias_new_owners(self):
         aliases = (
             ("accounts.account_security", "accounts.auth.security"),
             ("accounts.jwt_auth", "accounts.auth.jwt_auth"),
             ("accounts.social_paging", "accounts.social.paging"),
             ("accounts.privacy_views", "accounts.privacy.views"),
+            ("accounts.sharing_views", "accounts.sharing.views"),
         )
         for legacy_name, owner_name in aliases:
             with self.subTest(legacy=legacy_name):
