@@ -1,6 +1,6 @@
 from django.urls import re_path
 
-from ..realtime import ConversationConsumer, PresenceConsumer
+from .realtime import ConversationConsumer, PresenceConsumer
 
 
 websocket_urlpatterns = [

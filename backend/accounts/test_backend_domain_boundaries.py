@@ -193,9 +193,14 @@ class BackendDomainBoundaryTests(SimpleTestCase):
         self.assertTrue((accounts_dir / "models.py").is_file())
         self.assertTrue((accounts_dir / "migrations").is_dir())
         self.assertFalse((accounts_dir / "posts" / "models.py").exists())
-        self.assertFalse((accounts_dir / "messaging" / "models.py").exists())
 
-        for domain in ("auth", "stories", "reels"):
+        for domain in ("auth", "stories", "reels", "messaging"):
             adapter = (accounts_dir / domain / "models.py").read_text(encoding="utf-8")
             self.assertIn("from ..models import *", adapter)
             self.assertNotIn("class ", adapter)
+
+        messaging_model_adapter = (
+            accounts_dir / "messaging" / "messaging_models.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("from ..messaging_models import *", messaging_model_adapter)
+        self.assertNotIn("class ", messaging_model_adapter)

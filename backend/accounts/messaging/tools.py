@@ -1,0 +1,226 @@
+from django.db.models import Q
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from .messaging_models import ConversationPreference
+from .messaging_serializers import MessageSerializer
+from .messaging_views import conversation_for_request
+from .models import Conversation
+from .trust_safety import blocked_user_ids
+
+
+SEARCH_LIMIT = 50
+MEDIA_PAGE_SIZE = 30
+CONTEXT_SIDE_SIZE = 20
+CONVERSATION_THEME_KEYS = {
+    "nova",
+    "midnight",
+    "aurora",
+    "ocean",
+    "rose",
+    "ember",
+}
+
+
+def _message_queryset(conversation, request=None):
+    queryset = conversation.messages.select_related(
+        "sender",
+        "recipient",
+        "reply_to",
+        "reply_to__sender",
+    ).prefetch_related("reactions")
+    if (
+        request is not None
+        and conversation.kind == Conversation.Kind.GROUP
+    ):
+        queryset = queryset.exclude(sender_id__in=blocked_user_ids(request.user))
+    return queryset
+
+
+class ConversationMessageSearchView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, conversation_id):
+        conversation = conversation_for_request(request, conversation_id)
+        query = request.query_params.get("q", "").strip()
+        if not query:
+            return Response({"results": [], "query": ""})
+        if len(query) > 200:
+            return Response(
+                {"detail": "Search query must be 200 characters or fewer."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        messages = (
+            _message_queryset(conversation, request)
+            .filter(deleted_at__isnull=True, body__icontains=query)
+            .order_by("-id")[:SEARCH_LIMIT]
+        )
+        return Response(
+            {
+                "results": MessageSerializer(
+                    messages,
+                    many=True,
+                    context={"request": request},
+                ).data,
+                "query": query,
+            }
+        )
+
+
+class ConversationMessageContextView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, conversation_id):
+        conversation = conversation_for_request(request, conversation_id)
+        raw_message_id = request.query_params.get("message_id", "").strip()
+        try:
+            message_id = int(raw_message_id)
+        except (TypeError, ValueError):
+            return Response(
+                {"detail": "A valid message_id is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        base = _message_queryset(conversation, request)
+        target = base.filter(pk=message_id).first()
+        if target is None:
+            return Response(
+                {"detail": "That message is no longer available in this conversation."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        earlier_desc = list(base.filter(id__lt=message_id).order_by("-id")[:CONTEXT_SIDE_SIZE])
+        later = list(base.filter(id__gt=message_id).order_by("id")[:CONTEXT_SIDE_SIZE])
+        items = list(reversed(earlier_desc)) + [target] + later
+
+        return Response(
+            {
+                "results": MessageSerializer(
+                    items,
+                    many=True,
+                    context={"request": request},
+                ).data,
+                "target_message_id": target.pk,
+                "has_earlier": base.filter(id__lt=items[0].pk).exists() if items else False,
+                "has_later": base.filter(id__gt=items[-1].pk).exists() if items else False,
+            }
+        )
+
+
+class ConversationMediaView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, conversation_id):
+        conversation = conversation_for_request(request, conversation_id)
+        media_type = request.query_params.get("type", "all").strip().lower()
+        if media_type not in {"all", "image", "audio"}:
+            return Response(
+                {"detail": "Media type must be all, image, or audio."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        messages = _message_queryset(conversation, request).filter(deleted_at__isnull=True)
+        if media_type == "image":
+            messages = messages.exclude(image="")
+        elif media_type == "audio":
+            messages = messages.exclude(audio="")
+        else:
+            messages = messages.filter(~Q(image="") | ~Q(audio=""))
+
+        cursor = request.query_params.get("cursor", "").strip()
+        if cursor:
+            try:
+                cursor_id = int(cursor)
+            except ValueError:
+                return Response(
+                    {"detail": "Invalid media cursor."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            messages = messages.filter(id__lt=cursor_id)
+
+        page_with_extra = list(messages.order_by("-id")[: MEDIA_PAGE_SIZE + 1])
+        has_more = len(page_with_extra) > MEDIA_PAGE_SIZE
+        page = page_with_extra[:MEDIA_PAGE_SIZE]
+        next_cursor = str(page[-1].pk) if has_more and page else None
+
+        return Response(
+            {
+                "results": MessageSerializer(
+                    page,
+                    many=True,
+                    context={"request": request},
+                ).data,
+                "next_cursor": next_cursor,
+                "type": media_type,
+            }
+        )
+
+
+class ConversationPreferenceView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _preference(self, request, conversation_id):
+        conversation = conversation_for_request(request, conversation_id)
+        preference, _ = ConversationPreference.objects.get_or_create(
+            conversation=conversation,
+            user=request.user,
+        )
+        return conversation, preference
+
+    def _payload(self, conversation, preference):
+        return {
+            "conversation_id": conversation.pk,
+            "muted": preference.muted,
+            "theme_key": preference.theme_key,
+        }
+
+    def get(self, request, conversation_id):
+        conversation, preference = self._preference(request, conversation_id)
+        return Response(self._payload(conversation, preference))
+
+    def post(self, request, conversation_id):
+        conversation, preference = self._preference(request, conversation_id)
+        supplied_muted = "muted" in request.data
+        supplied_theme = "theme_key" in request.data
+        if not supplied_muted and not supplied_theme:
+            return Response(
+                {"detail": "Provide muted or theme_key."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        changed_fields = []
+        if supplied_muted:
+            muted = request.data.get("muted")
+            if not isinstance(muted, bool):
+                return Response(
+                    {"detail": "muted must be true or false."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if preference.muted != muted:
+                preference.muted = muted
+                changed_fields.append("muted")
+
+        if supplied_theme:
+            theme_key = request.data.get("theme_key")
+            if not isinstance(theme_key, str):
+                return Response(
+                    {"detail": "theme_key must be a string."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            clean_theme = theme_key.strip().lower()
+            if clean_theme not in CONVERSATION_THEME_KEYS:
+                return Response(
+                    {"detail": "That conversation theme is not supported."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if preference.theme_key != clean_theme:
+                preference.theme_key = clean_theme
+                changed_fields.append("theme_key")
+
+        if changed_fields:
+            preference.save(update_fields=(*changed_fields, "updated_at"))
+
+        return Response(self._payload(conversation, preference))
