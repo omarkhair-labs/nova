@@ -49,19 +49,25 @@ class Phase7FinalArchitectureTests(SimpleTestCase):
             if resolved == this_file or resolved in legacy_paths or "migrations" in path.parts:
                 continue
             source = path.read_text(encoding="utf-8")
+            is_root_module = path.parent.resolve() == accounts_dir.resolve()
             for line_number, line in enumerate(source.splitlines(), start=1):
                 for name in LEGACY_ROOT_MODULES:
                     full = f"accounts.{name}"
-                    patterns = (
-                        f"from .{name} import",
-                        f"from .{name} ",
-                        f"from . import {name}",
+                    patterns = [
                         f"from {full} import",
                         f"import {full}",
                         f"{full}.",
                         f'"{full}"',
                         f"'{full}'",
-                    )
+                    ]
+                    if is_root_module:
+                        patterns.extend(
+                            (
+                                f"from .{name} import",
+                                f"from .{name} ",
+                                f"from . import {name}",
+                            )
+                        )
                     if any(pattern in line for pattern in patterns):
                         references.append(
                             f"{path.relative_to(accounts_dir)}:{line_number}: {line.strip()}"
