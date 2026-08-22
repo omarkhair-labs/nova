@@ -31,7 +31,7 @@ class TonightStateOwnerTest {
 
     @Test
     fun `daytime snapshot remains a valid non error state`() = runBlocking {
-        val expected = snapshot(isTonight = false)
+        val expected = snapshot(isTonight = false, utcOffsetMinutes = -300)
         val owner = TonightStateOwner(
             FakeTonightRepository(
                 results = mutableListOf(ApiResult.Success(expected)),
@@ -97,10 +97,11 @@ private fun snapshot(
     isTonight: Boolean,
     peopleCount: Int = 0,
     momentsCount: Int = 0,
+    utcOffsetMinutes: Int = 180,
 ) = TonightSnapshot(
     isTonight = isTonight,
     localHour = if (isTonight) 22 else 12,
-    utcOffsetMinutes = 180,
+    utcOffsetMinutes = utcOffsetMinutes,
     startsAt = "2026-08-22T15:00:00Z",
     endsAt = "2026-08-23T03:00:00Z",
     peopleCount = peopleCount,
