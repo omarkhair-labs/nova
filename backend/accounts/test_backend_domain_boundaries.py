@@ -155,8 +155,8 @@ class BackendDomainBoundaryTests(SimpleTestCase):
             "sharing/urls.py",
             "messaging/urls.py",
             "messaging/routing.py",
-            "privacy_urls.py",
-            "trust_safety_urls.py",
+            "privacy/urls.py",
+            "trust_safety/urls.py",
             "stories_urls.py",
             "reels_urls.py",
             "calls_urls.py",
@@ -175,9 +175,17 @@ class BackendDomainBoundaryTests(SimpleTestCase):
         self.assertIn(".messaging.routing", routing_source)
         self.assertIn(".calls_routing", routing_source)
 
-    def test_flat_module_collisions_are_deferred_to_owning_prs(self):
+    def test_owned_collisions_advance_to_packages(self):
         accounts_dir = Path(__file__).resolve().parent
-        for module in ("privacy", "trust_safety", "stories", "reels", "calls"):
+        for module in ("privacy", "trust_safety"):
+            with self.subTest(module=module):
+                self.assertFalse((accounts_dir / f"{module}.py").exists())
+                self.assertTrue((accounts_dir / module / "__init__.py").is_file())
+                self.assertTrue((accounts_dir / module / "urls.py").is_file())
+
+    def test_remaining_flat_collisions_are_deferred_to_their_owning_prs(self):
+        accounts_dir = Path(__file__).resolve().parent
+        for module in ("stories", "reels", "calls"):
             with self.subTest(module=module):
                 self.assertTrue((accounts_dir / f"{module}.py").is_file())
                 self.assertFalse((accounts_dir / module).exists())
@@ -186,6 +194,9 @@ class BackendDomainBoundaryTests(SimpleTestCase):
         accounts_dir = Path(__file__).resolve().parent
         self.assertTrue((accounts_dir / "models.py").is_file())
         self.assertTrue((accounts_dir / "migrations").is_dir())
-        self.assertFalse((accounts_dir / "auth" / "models.py").exists())
         self.assertFalse((accounts_dir / "posts" / "models.py").exists())
         self.assertFalse((accounts_dir / "messaging" / "models.py").exists())
+
+        auth_model_adapter = (accounts_dir / "auth" / "models.py").read_text(encoding="utf-8")
+        self.assertIn("from ..models import *", auth_model_adapter)
+        self.assertNotIn("class ", auth_model_adapter)

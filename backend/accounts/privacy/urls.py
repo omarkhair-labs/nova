@@ -1,8 +1,6 @@
-"""Temporary URL adapter until the flat privacy module moves in #172."""
-
 from django.urls import path
 
-from .privacy_views import (
+from .views import (
     AccountPrivacyView,
     CloseFriendDetailView,
     CloseFriendsView,

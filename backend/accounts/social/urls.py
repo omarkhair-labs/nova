@@ -1,13 +1,13 @@
 from django.urls import path
 
-from ..social_paging import (
+from .paging import (
     FollowersView,
     FollowingView,
     PaginatedPeopleView,
     PaginatedPersonPostsView,
     PaginatedPersonRepostsView,
 )
-from ..views import FollowView, PersonView
+from .views import FollowView, PersonView
 
 
 urlpatterns = [

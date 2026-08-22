@@ -1,8 +1,6 @@
-"""Temporary URL adapter until trust_safety.py moves into its domain package in #172."""
-
 from django.urls import path
 
-from .trust_safety import BlockedUsersView, DeleteAccountView, UserBlockView, UserReportView
+from . import BlockedUsersView, DeleteAccountView, UserBlockView, UserReportView
 
 
 urlpatterns = [
