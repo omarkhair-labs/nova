@@ -34,6 +34,8 @@ import com.nova.app.feature.calls.webrtc.CallWebRtcListener
 import com.nova.app.feature.feed.data.FeedRepository
 import com.nova.app.feature.memories.data.MemoryRepository
 import com.nova.app.feature.memories.data.remote.MemoryRemoteRepository
+import com.nova.app.feature.memories.film.Media3MemoryFilmExporter
+import com.nova.app.feature.memories.film.MemoryFilmExporter
 import com.nova.app.feature.messages.appearance.data.ConversationAppearanceRepository
 import com.nova.app.feature.messages.appearance.data.remote.ConversationAppearanceRemoteRepository
 import com.nova.app.feature.messages.conversation.ConversationDraftStore
@@ -103,6 +105,7 @@ class AppContainer(context: Context) {
     val tonightRepository: TonightRepository = TonightRemoteRepository(appContext, api)
     val roomRepository: RoomRepository = RoomRemoteRepository(appContext, api)
     val memoryRepository: MemoryRepository = MemoryRemoteRepository(appContext, api)
+    val memoryFilmExporter: MemoryFilmExporter = Media3MemoryFilmExporter(appContext)
     val storiesRepository: StoriesRepository = NovaStoriesRepository(appContext)
     val reelsRepository: ReelsRepository = NovaReelsRepository(appContext)
     val profileReelsRepository: ProfileReelsRepository = NovaProfileReelsRepository(appContext)
