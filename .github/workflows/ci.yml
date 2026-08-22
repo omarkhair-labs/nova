@@ -124,6 +124,9 @@ jobs:
       - name: Check Stories architecture
         run: python3 scripts/check_stories_architecture.py
 
+      - name: Check Pulse architecture
+        run: python3 scripts/check_pulse_architecture.py
+
       - name: Check Reels architecture
         run: python3 scripts/check_reels_architecture.py
 
