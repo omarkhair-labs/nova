@@ -1,17 +1,8 @@
-from django.urls import re_path
-
-from .call_reliability_realtime import ReliableCallConsumer
-from .realtime import ConversationConsumer, PresenceConsumer
+from .calls_routing import websocket_urlpatterns as call_websocket_urlpatterns
+from .messaging.routing import websocket_urlpatterns as messaging_websocket_urlpatterns
 
 
 websocket_urlpatterns = [
-    re_path(r"^ws/presence/$", PresenceConsumer.as_asgi()),
-    re_path(
-        r"^ws/conversations/(?P<conversation_id>\d+)/$",
-        ConversationConsumer.as_asgi(),
-    ),
-    re_path(
-        r"^ws/calls/(?P<call_id>[0-9a-fA-F-]+)/$",
-        ReliableCallConsumer.as_asgi(),
-    ),
+    *messaging_websocket_urlpatterns,
+    *call_websocket_urlpatterns,
 ]
