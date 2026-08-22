@@ -24,3 +24,5 @@ class AccountsConfig(AppConfig):
         from . import comment_reply_models  # noqa: F401
         # Pulse is the live social layer; its durable model remains in accounts.
         from . import pulse_models  # noqa: F401
+        # Rooms layer place/timeline metadata on top of existing group conversations.
+        from . import room_models  # noqa: F401
