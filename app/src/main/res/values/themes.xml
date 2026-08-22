@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.Nova" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.Nova" parent="android:Theme.Material.Light.NoActionBar">
+        <!--
+            Bundled Material Symbols reference the conventional colorControlNormal
+            attribute. Map Nova's app-owned compatibility attribute to the platform
+            theme value; Compose still owns the visible icon tint at render time.
+        -->
+        <item name="colorControlNormal">?android:attr/colorControlNormal</item>
+    </style>
 </resources>
