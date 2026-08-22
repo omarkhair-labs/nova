@@ -11,6 +11,7 @@ urlpatterns = [
     path("", include("accounts.sharing.urls")),
     path("", include("accounts.notifications.urls")),
     path("", include("accounts.reels.urls")),
+    path("", include("accounts.pulse.urls")),
     path("", include("accounts.calls.urls")),
     path("", include("accounts.messaging.urls")),
 ]
