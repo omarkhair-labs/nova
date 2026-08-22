@@ -97,6 +97,22 @@ private class FakePulseRepository(
         audience: String,
     ): ApiResult<NovaPulse> = mediaResults.removeFirst()
 
+    override suspend fun pulseChain(pulseId: Long): ApiResult<List<NovaPulse>> =
+        ApiResult.Success(emptyList())
+
+    override suspend fun replyTextPulse(
+        pulseId: Long,
+        note: String,
+        audience: String,
+    ): ApiResult<NovaPulse> = ApiResult.Failure("unused")
+
+    override suspend fun replyMediaPulse(
+        pulseId: Long,
+        mediaUri: Uri,
+        note: String,
+        audience: String,
+    ): ApiResult<NovaPulse> = ApiResult.Failure("unused")
+
     override suspend fun deletePulse(pulseId: Long): ApiResult<Unit> {
         deleteCalls += 1
         return deleteResults.removeFirst()
