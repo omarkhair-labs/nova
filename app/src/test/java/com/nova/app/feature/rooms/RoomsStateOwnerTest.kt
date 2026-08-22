@@ -1,5 +1,6 @@
 package com.nova.app.feature.rooms
 
+import android.net.Uri
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.rooms.data.RoomRepository
 import com.nova.app.feature.rooms.domain.model.RoomConversation
@@ -8,6 +9,7 @@ import com.nova.app.feature.rooms.domain.model.RoomItem
 import com.nova.app.feature.rooms.domain.model.RoomItemPage
 import com.nova.app.feature.rooms.domain.model.RoomSections
 import com.nova.app.feature.rooms.domain.model.RoomSummary
+import com.nova.app.feature.rooms.domain.model.RoomTonightSnapshot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -120,6 +122,49 @@ class RoomsStateOwnerTest {
         assertFalse(owner.state.savingDescription)
         assertEquals(listOf("New"), repository.descriptions)
     }
+
+    @Test
+    fun `Room item creation refreshes the visible Room and closes submission state`() = runBlocking {
+        val created = item(77, kind = "note")
+        val repository = FakeRoomRepository(
+            createResult = ApiResult.Success(created),
+            itemResults = mutableListOf(
+                ApiResult.Success(RoomItemPage(emptyList(), listOf(created), null)),
+            ),
+        )
+        val owner = RoomStateOwner(7, repository, CoroutineScope(Dispatchers.Unconfined))
+
+        owner.createItemNow(kind = "note", body = "Tonight was good")
+
+        assertEquals(1, owner.state.itemCreatedVersion)
+        assertFalse(owner.state.creatingItem)
+        assertEquals(listOf(77L), owner.state.items.map { it.id })
+        assertEquals(listOf("note"), repository.createdKinds)
+        assertEquals(listOf("Tonight was good"), repository.createdBodies)
+    }
+
+    @Test
+    fun `Rooms Tonight state stores live Room snapshot`() = runBlocking {
+        val snapshot = RoomTonightSnapshot(
+            isTonight = true,
+            localHour = 22,
+            utcOffsetMinutes = 180,
+            startsAt = "2026-08-22T15:00:00Z",
+            endsAt = "2026-08-23T03:00:00Z",
+            roomsCount = 2,
+            momentsCount = 4,
+            rooms = emptyList(),
+        )
+        val repository = FakeRoomRepository(roomTonightResult = ApiResult.Success(snapshot))
+        val owner = RoomTonightStateOwner(repository, CoroutineScope(Dispatchers.Unconfined))
+
+        owner.loadNow(utcOffsetMinutes = 180, showSpinner = true)
+
+        assertEquals(snapshot, owner.state.snapshot)
+        assertEquals(listOf(180), repository.tonightOffsets)
+        assertFalse(owner.state.loading)
+        assertNull(owner.state.error)
+    }
 }
 
 
@@ -129,11 +174,18 @@ private class FakeRoomRepository(
     private val itemResults: MutableList<ApiResult<RoomItemPage>> = mutableListOf(
         ApiResult.Success(RoomItemPage(emptyList(), emptyList(), null)),
     ),
+    private val createResult: ApiResult<RoomItem> = ApiResult.Success(item(100)),
+    private val roomTonightResult: ApiResult<RoomTonightSnapshot> = ApiResult.Success(
+        RoomTonightSnapshot(false, 12, 0, "", "", 0, 0, emptyList()),
+    ),
     private val updateResult: ApiResult<RoomDetail> = detailResult,
 ) : RoomRepository {
     val itemKinds = mutableListOf<String?>()
     val itemBefore = mutableListOf<Long?>()
     val descriptions = mutableListOf<String>()
+    val createdKinds = mutableListOf<String>()
+    val createdBodies = mutableListOf<String>()
+    val tonightOffsets = mutableListOf<Int>()
 
     override suspend fun rooms(): ApiResult<List<RoomSummary>> = roomsResult
 
@@ -148,6 +200,25 @@ private class FakeRoomRepository(
         itemKinds += kind
         itemBefore += before
         return itemResults.removeFirst()
+    }
+
+    override suspend fun createItem(
+        conversationId: Long,
+        kind: String,
+        title: String,
+        body: String,
+        url: String,
+        scheduledFor: String?,
+        mediaUri: Uri?,
+    ): ApiResult<RoomItem> {
+        createdKinds += kind
+        createdBodies += body
+        return createResult
+    }
+
+    override suspend fun roomTonight(utcOffsetMinutes: Int): ApiResult<RoomTonightSnapshot> {
+        tonightOffsets += utcOffsetMinutes
+        return roomTonightResult
     }
 
     override suspend fun updateDescription(

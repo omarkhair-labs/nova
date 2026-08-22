@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.app.appContainer
+import com.nova.app.feature.rooms.RoomTonightSection
 import com.nova.app.feature.tonight.domain.model.TonightPersonRow
 import com.nova.app.feature.tonight.domain.model.TonightPulse
 import com.nova.app.feature.tonight.domain.model.TonightSnapshot
@@ -60,12 +61,19 @@ private val TonightMuted = Color(0xFFB1B7C5)
 fun TonightSurface(
     onPersonClick: (String) -> Unit,
     onSessionExpired: () -> Unit,
+    liveRoomsContent: (@Composable () -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val repository = context.appContainer.tonightRepository
     val scope = rememberCoroutineScope()
     val owner = remember(repository, scope) { TonightStateOwner(repository, scope) }
     val state = owner.state
+    val roomsContent: @Composable () -> Unit = liveRoomsContent ?: {
+        RoomTonightSection(
+            onPersonClick = onPersonClick,
+            onSessionExpired = onSessionExpired,
+        )
+    }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -87,6 +95,7 @@ fun TonightSurface(
             error = state.error,
             onRetry = { owner.load(currentUtcOffsetMinutes(), showSpinner = false) },
             onPersonClick = onPersonClick,
+            liveRoomsContent = roomsContent,
         )
         else -> TonightSleepingCard(
             error = state.error,
@@ -185,6 +194,7 @@ private fun TonightLiveCard(
     error: String?,
     onRetry: () -> Unit,
     onPersonClick: (String) -> Unit,
+    liveRoomsContent: @Composable () -> Unit,
 ) {
     val value = snapshot ?: return
     Surface(
@@ -294,6 +304,15 @@ private fun TonightLiveCard(
                     color = TonightMuted,
                     fontSize = 9.sp,
                 )
+            }
+
+            Column(modifier = Modifier.padding(horizontal = 18.dp)) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().height(1.dp),
+                    color = Color.White.copy(alpha = 0.07f),
+                ) {}
+                Spacer(modifier = Modifier.height(12.dp))
+                liveRoomsContent()
             }
         }
     }

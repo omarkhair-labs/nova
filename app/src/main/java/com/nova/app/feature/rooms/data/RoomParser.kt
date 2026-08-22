@@ -8,6 +8,8 @@ import com.nova.app.feature.rooms.domain.model.RoomMember
 import com.nova.app.feature.rooms.domain.model.RoomPerson
 import com.nova.app.feature.rooms.domain.model.RoomSections
 import com.nova.app.feature.rooms.domain.model.RoomSummary
+import com.nova.app.feature.rooms.domain.model.RoomTonightRow
+import com.nova.app.feature.rooms.domain.model.RoomTonightSnapshot
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -66,6 +68,40 @@ internal fun parseRoomItemPage(
 )
 
 
+internal fun parseRoomTonightSnapshot(
+    json: JSONObject,
+    resolveMediaUrl: (String) -> String,
+): RoomTonightSnapshot {
+    val rows = json.optJSONArray("rooms") ?: JSONArray()
+    return RoomTonightSnapshot(
+        isTonight = json.optBoolean("is_tonight", false),
+        localHour = json.optInt("local_hour", 0),
+        utcOffsetMinutes = json.optInt("utc_offset_minutes", 0),
+        startsAt = json.optString("starts_at"),
+        endsAt = json.optString("ends_at"),
+        roomsCount = json.optInt("rooms_count", 0),
+        momentsCount = json.optInt("moments_count", 0),
+        rooms = buildList {
+            for (index in 0 until rows.length()) {
+                rows.optJSONObject(index)?.let { row ->
+                    add(
+                        RoomTonightRow(
+                            room = parseRoomSummary(row, resolveMediaUrl),
+                            momentsCount = row.optInt("moments_count", 0),
+                            myMomentsCount = row.optInt("my_moments_count", 0),
+                            latestItem = parseRoomItem(
+                                row.optJSONObject("latest_item") ?: JSONObject(),
+                                resolveMediaUrl,
+                            ),
+                        )
+                    )
+                }
+            }
+        },
+    )
+}
+
+
 private fun parseRoomSummary(
     json: JSONObject,
     resolveMediaUrl: (String) -> String,
@@ -114,7 +150,7 @@ private fun parseItems(
 }
 
 
-private fun parseRoomItem(
+internal fun parseRoomItem(
     json: JSONObject,
     resolveMediaUrl: (String) -> String,
 ): RoomItem {

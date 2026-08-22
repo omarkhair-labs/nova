@@ -10,9 +10,13 @@ PARSER = ROOT / "app/src/main/java/com/nova/app/feature/rooms/data/RoomParser.kt
 REMOTE = ROOT / "app/src/main/java/com/nova/app/feature/rooms/data/remote/RoomRemoteRepository.kt"
 LIST_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/rooms/RoomsStateOwner.kt"
 ROOM_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/rooms/RoomStateOwner.kt"
+TONIGHT_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/rooms/RoomTonightStateOwner.kt"
+COMPOSER = ROOT / "app/src/main/java/com/nova/app/feature/rooms/RoomItemComposer.kt"
+TONIGHT_SECTION = ROOT / "app/src/main/java/com/nova/app/feature/rooms/RoomTonightSection.kt"
 RAIL = ROOT / "app/src/main/java/com/nova/app/feature/rooms/RoomsRail.kt"
 LIST_SCREEN = ROOT / "app/src/main/java/com/nova/app/feature/rooms/RoomsScreen.kt"
 ROOM_SCREEN = ROOT / "app/src/main/java/com/nova/app/feature/rooms/RoomScreen.kt"
+TONIGHT_SURFACE = ROOT / "app/src/main/java/com/nova/app/feature/tonight/TonightSurface.kt"
 CONTAINER = ROOT / "app/src/main/java/com/nova/app/app/AppContainer.kt"
 HOME = ROOT / "app/src/main/java/com/nova/app/feature/home/HomeScreen.kt"
 NETWORK = ROOT / "app/src/main/java/com/nova/app/core/network/NovaApiClient.kt"
@@ -33,9 +37,13 @@ parser = read(PARSER)
 remote = read(REMOTE)
 list_owner = read(LIST_OWNER)
 room_owner = read(ROOM_OWNER)
+tonight_owner = read(TONIGHT_OWNER)
+composer = read(COMPOSER)
+tonight_section = read(TONIGHT_SECTION)
 rail = read(RAIL)
 list_screen = read(LIST_SCREEN)
 room_screen = read(ROOM_SCREEN)
+tonight_surface = read(TONIGHT_SURFACE)
 container = read(CONTAINER)
 home = read(HOME)
 network = read(NETWORK)
@@ -47,6 +55,8 @@ for declaration in (
     "data class RoomDetail(",
     "data class RoomItem(",
     "data class RoomItemPage(",
+    "data class RoomTonightRow(",
+    "data class RoomTonightSnapshot(",
 ):
     if declaration not in models:
         errors.append(f"Rooms domain owner is missing {declaration}")
@@ -59,6 +69,8 @@ for required in (
     "suspend fun rooms()",
     "suspend fun room(conversationId: Long)",
     "suspend fun items(",
+    "suspend fun createItem(",
+    "suspend fun roomTonight(utcOffsetMinutes: Int)",
     "suspend fun updateDescription(",
 ):
     if required not in contract:
@@ -68,6 +80,8 @@ for required in (
     "internal fun parseRooms(",
     "internal fun parseRoomDetail(",
     "internal fun parseRoomItemPage(",
+    "internal fun parseRoomItem(",
+    "internal fun parseRoomTonightSnapshot(",
 ):
     if required not in parser:
         errors.append(f"Rooms wire parsing must remain feature-owned: {required}")
@@ -78,6 +92,9 @@ for required in (
     'api.requestJson("rooms/"',
     'path = "rooms/$conversationId/"',
     'path = "rooms/$conversationId/items/?$params"',
+    'path = "rooms/tonight/?utc_offset_minutes=$utcOffsetMinutes"',
+    "api.requestMultipart(",
+    "withContext(Dispatchers.IO)",
     "NovaSessionStore",
 ):
     if required not in remote:
@@ -90,6 +107,7 @@ for forbidden in ("rooms/", "RoomSummary", "RoomRepository"):
 for owner, declaration in (
     (list_owner, "class RoomsStateOwner("),
     (room_owner, "class RoomStateOwner("),
+    (tonight_owner, "class RoomTonightStateOwner("),
 ):
     if declaration not in owner:
         errors.append(f"Rooms async state owner is missing: {declaration}")
@@ -97,6 +115,40 @@ for owner, declaration in (
         errors.append(f"{declaration} must depend on RoomRepository")
     if "sessionExpiryVersion" not in owner:
         errors.append(f"{declaration} must surface terminal session expiry")
+
+for required in (
+    "creatingItem",
+    "itemCreatedVersion",
+    "repository.createItem(",
+):
+    if required not in room_owner:
+        errors.append(f"RoomStateOwner must own publishing state: {required}")
+
+for required in (
+    "rememberLauncherForActivityResult",
+    "ActivityResultContracts.GetContent()",
+    'RoomComposerKind("note", "Note")',
+    'RoomComposerKind("photo", "Photo")',
+    'RoomComposerKind("video", "Video")',
+    'RoomComposerKind("music", "Music")',
+    'RoomComposerKind("plan", "Plan")',
+    'RoomComposerKind("saved", "Saved")',
+):
+    if required not in composer:
+        errors.append(f"Room composer is missing live publishing seam: {required}")
+
+for required in (
+    "context.appContainer.roomRepository",
+    "RoomTonightStateOwner(repository, scope)",
+    "roomUtcOffsetMinutes()",
+    "delay(90_000L)",
+    "RoomScreen(",
+):
+    if required not in tonight_section:
+        errors.append(f"Room Tonight section is missing stable wiring: {required}")
+for forbidden in ("NovaApiClient", "presence_store", "is_online("):
+    if forbidden in tonight_section:
+        errors.append(f"Room Tonight UI must not own transport or raw presence: {forbidden}")
 
 for required in (
     "context.appContainer.roomRepository",
@@ -109,11 +161,7 @@ for required in (
 
 if "NewGroupDialog(" not in list_screen:
     errors.append("Rooms creation must reuse Messaging-owned NewGroupDialog")
-for forbidden in (
-    "groups/create",
-    "GroupMembershipRemoteRepository",
-    "NovaMessagingApiClient",
-):
+for forbidden in ("groups/create", "GroupMembershipRemoteRepository", "NovaMessagingApiClient"):
     if forbidden in list_screen:
         errors.append(f"Rooms list must not duplicate Messaging group creation: {forbidden}")
 
@@ -121,18 +169,24 @@ for required in (
     "RoomStateOwner(conversationId, repository, scope)",
     "MessagesRouteFactory.conversationIntent(",
     'kind = "group"',
+    "RoomItemComposer(",
+    "AddToRoomCard(",
     "RoomSectionRail(",
     "MembersRail(",
 ):
     if required not in room_screen:
         errors.append(f"Room experience is missing stable seam: {required}")
-for forbidden in (
-    "NovaMessagingApiClient",
-    "ConversationRealtime",
-    "sendMessage(",
-):
+for forbidden in ("NovaMessagingApiClient", "ConversationRealtime", "sendMessage("):
     if forbidden in room_screen:
         errors.append(f"Room UI must reuse Messaging rather than own chat transport: {forbidden}")
+
+if "import com.nova.app.feature.rooms.RoomTonightSection" not in tonight_surface:
+    errors.append("Tonight must compose the feature-owned RoomTonightSection")
+if "RoomTonightSection(" not in tonight_surface:
+    errors.append("Tonight live surface must expose live Rooms")
+for forbidden in ("RoomTonightSnapshot", "roomRepository", "rooms/tonight/"):
+    if forbidden in tonight_surface:
+        errors.append(f"Tonight must compose Rooms UI without owning Rooms data: {forbidden}")
 
 if "val roomRepository: RoomRepository = RoomRemoteRepository(appContext, api)" not in container:
     errors.append("AppContainer must construct RoomRemoteRepository behind RoomRepository")
