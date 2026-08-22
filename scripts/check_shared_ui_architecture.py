@@ -18,6 +18,8 @@ THEME = SHARED_UI / "theme"
 ICON_CATALOG = SHARED_ICONS / "NovaIcons.kt"
 ICON_BUTTON = SHARED_COMPONENTS / "NovaIconButton.kt"
 FEEDBACK = SHARED_COMPONENTS / "NovaFeedback.kt"
+CARD = SHARED_COMPONENTS / "NovaCard.kt"
+STATUS = SHARED_COMPONENTS / "NovaStatus.kt"
 LEGACY_COMPONENTS = SHARED_COMPONENTS / "NovaComponents.kt"
 COMMUNICATION_ICON_ALIASES = ("CallEnd", "Mic", "Videocam", "VolumeUp")
 NARROW_COMPONENT_SEAMS = {
@@ -33,6 +35,8 @@ NARROW_COMPONENT_SEAMS = {
         "fun NovaErrorState(",
         "fun NovaInlineRetry(",
     ),
+    "NovaCard.kt": ("fun NovaCard(", "MaterialTheme.shapes.large", "BorderStroke(1.dp"),
+    "NovaStatus.kt": ("fun NovaUnreadDot(", ".size(8.dp)"),
 }
 DESIGN_FOUNDATION_SEAMS = {
     "Color.kt": ("NovaBaseBackground", "NovaBaseAccent", "NovaColorOverride"),
@@ -49,6 +53,8 @@ MIGRATED_COMPONENT_SEAMS = {
     "NovaHeader.kt": ("NovaType.pageTitle", "NovaType.subtitle", "NovaSpacing.sm", "NovaBackButton"),
     "NovaBottomBar.kt": ("NovaElevation.floating", "NovaType.navigationLabel", "NovaType.badge", "NovaIconAsset.Home"),
     "NovaFeedback.kt": ("MaterialTheme.shapes.extraLarge", "NovaType.bodyCompact", "NovaSpacing.xxxl"),
+    "NovaCard.kt": ("MaterialTheme.shapes.large", "NovaSurface", "NovaBorder"),
+    "NovaStatus.kt": ("NovaAccent", "CircleShape"),
 }
 MATERIAL_SYMBOL_DRAWABLES = (
     "ic_nova_home.xml",
@@ -162,6 +168,10 @@ for forbidden_glyph in ('text = "‹"', 'icon = "◉"', 'icon = "⌁"', 'icon = 
 
 if not FEEDBACK.is_file():
     errors.append("missing shared Nova feedback component owner")
+if not CARD.is_file():
+    errors.append("missing shared Nova card owner")
+if not STATUS.is_file():
+    errors.append("missing shared Nova status owner")
 
 if not NOTIFICATIONS_SCREEN.is_file():
     errors.append("missing Notifications screen")
@@ -174,12 +184,23 @@ else:
         "NovaErrorState(",
         "NovaInlineLoading(",
         "NovaInlineRetry(",
+        "NovaUnreadDot()",
         "NovaType.screenTitle",
     ):
         if seam not in notifications_text:
-            errors.append(f"Notifications bypassed migrated Nova feedback/chrome seam: {seam}")
+            errors.append(f"Notifications bypassed migrated Nova feedback/chrome/status seam: {seam}")
     if 'text = "Back"' in notifications_text:
         errors.append("Notifications restored a local text Back control after design-system migration")
+
+settings_text = SETTINGS_ACTIVITY.read_text(encoding="utf-8")
+for seam in ("NovaCard(", "NovaType.screenTitle", "NovaSpacing.xxl", "SettingsSectionLabel"):
+    if seam not in settings_text:
+        errors.append(f"Settings bypassed Nova container/type/spacing seam: {seam}")
+
+profile_text = PROFILE_SCREEN.read_text(encoding="utf-8")
+for seam in ("NovaCard(", "NovaType.pageTitle", "NovaType.sectionTitle", "NovaSpacing.xxl"):
+    if seam not in profile_text:
+        errors.append(f"Profile bypassed Nova container/type/spacing seam: {seam}")
 
 if not ICON_ALIASES.is_file():
     errors.append("missing app-owned communication icon aliases")
