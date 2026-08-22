@@ -14,7 +14,7 @@ import com.nova.app.R
  * These assets are bundled Material Symbols Rounded vector drawables so feature
  * code does not depend directly on the legacy Compose Material Icons library.
  */
-enum class NovaIconAsset(@DrawableRes val drawableRes: Int) {
+enum class NovaIconAsset(@param:DrawableRes val drawableRes: Int) {
     Home(R.drawable.ic_nova_home),
     People(R.drawable.ic_nova_search),
     Reels(R.drawable.ic_nova_play),
