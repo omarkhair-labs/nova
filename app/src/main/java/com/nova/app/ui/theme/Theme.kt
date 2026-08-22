@@ -26,6 +26,7 @@ fun NovaTheme(
     MaterialTheme(
         colorScheme = NovaLightColorScheme,
         typography = Typography,
+        shapes = NovaShapes,
         content = content,
     )
 }

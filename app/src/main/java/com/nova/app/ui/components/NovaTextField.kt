@@ -1,15 +1,14 @@
 package com.nova.app.ui.components
 
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.unit.dp
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaMuted
@@ -39,7 +38,7 @@ fun NovaTextField(
         singleLine = true,
         keyboardOptions = keyboardOptions,
         visualTransformation = visualTransformation,
-        shape = RoundedCornerShape(18.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = NovaAccent,
             unfocusedBorderColor = NovaBorder,

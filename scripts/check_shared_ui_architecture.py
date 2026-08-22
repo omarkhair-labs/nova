@@ -7,7 +7,9 @@ MAIN = ROOT / "app/src/main/java"
 SHADOW_ANDROIDX = MAIN / "androidx"
 CALL_ACTIVITY = MAIN / "com/nova/app/CallActivity.kt"
 ICON_ALIASES = MAIN / "com/nova/app/ui/icons/NovaMaterialIconAliases.kt"
-SHARED_COMPONENTS = MAIN / "com/nova/app/ui/components"
+SHARED_UI = MAIN / "com/nova/app/ui"
+SHARED_COMPONENTS = SHARED_UI / "components"
+THEME = SHARED_UI / "theme"
 LEGACY_COMPONENTS = SHARED_COMPONENTS / "NovaComponents.kt"
 COMMUNICATION_ICON_ALIASES = ("CallEnd", "Mic", "Videocam", "VolumeUp")
 NARROW_COMPONENT_SEAMS = {
@@ -15,6 +17,21 @@ NARROW_COMPONENT_SEAMS = {
     "NovaTextField.kt": ("fun NovaTextField(",),
     "NovaHeader.kt": ("fun NovaHeader(",),
     "NovaBottomBar.kt": ("fun NovaBottomBar(", "enum class NovaTab"),
+}
+DESIGN_FOUNDATION_SEAMS = {
+    "Color.kt": ("NovaBaseBackground", "NovaBaseAccent", "NovaColorOverride"),
+    "Type.kt": ("object NovaType", "val Typography = Typography(", "val pageTitle", "val button"),
+    "Shape.kt": ("val NovaShapes = Shapes(", "extraSmall", "extraLarge"),
+    "Space.kt": ("object NovaSpacing", "val sm = 8.dp", "val xxxl = 32.dp"),
+    "Elevation.kt": ("object NovaElevation", "val flat = 0.dp", "val floating = 6.dp"),
+    "Motion.kt": ("object NovaMotion", "const val fast = 120", "const val emphasized = 320"),
+    "Theme.kt": ("fun NovaTheme(", "typography = Typography", "shapes = NovaShapes"),
+}
+MIGRATED_COMPONENT_SEAMS = {
+    "NovaButtons.kt": ("MaterialTheme.shapes.medium", "NovaType.button", "NovaElevation.flat"),
+    "NovaTextField.kt": ("MaterialTheme.shapes.medium",),
+    "NovaHeader.kt": ("NovaType.pageTitle", "NovaType.subtitle", "NovaSpacing.sm"),
+    "NovaBottomBar.kt": ("NovaElevation.floating", "NovaType.navigationLabel", "NovaType.badge"),
 }
 
 errors: list[str] = []
@@ -51,6 +68,25 @@ for file_name, seams in NARROW_COMPONENT_SEAMS.items():
     for seam in seams:
         if seam not in component_text:
             errors.append(f"shared UI public seam moved unexpectedly: {file_name} -> {seam}")
+
+for file_name, seams in DESIGN_FOUNDATION_SEAMS.items():
+    foundation_file = THEME / file_name
+    if not foundation_file.is_file():
+        errors.append(f"missing Nova design-system foundation: {foundation_file.relative_to(ROOT)}")
+        continue
+    foundation_text = foundation_file.read_text(encoding="utf-8")
+    for seam in seams:
+        if seam not in foundation_text:
+            errors.append(f"Nova design-system foundation seam changed: {file_name} -> {seam}")
+
+for file_name, seams in MIGRATED_COMPONENT_SEAMS.items():
+    component_file = SHARED_COMPONENTS / file_name
+    if not component_file.is_file():
+        continue
+    component_text = component_file.read_text(encoding="utf-8")
+    for seam in seams:
+        if seam not in component_text:
+            errors.append(f"shared component bypassed Nova design-system foundation: {file_name} -> {seam}")
 
 if not ICON_ALIASES.is_file():
     errors.append("missing app-owned communication icon aliases")

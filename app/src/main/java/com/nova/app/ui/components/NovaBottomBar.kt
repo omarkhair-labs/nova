@@ -31,9 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.core.reels.NovaReelsNavigator
@@ -41,8 +39,11 @@ import com.nova.app.navigation.NovaRootNavigationSignal
 import com.nova.app.navigation.NovaRootTab
 import com.nova.app.navigation.rootNavigationPlan
 import com.nova.app.ui.theme.NovaAccent
+import com.nova.app.ui.theme.NovaElevation
 import com.nova.app.ui.theme.NovaMuted
+import com.nova.app.ui.theme.NovaSpacing
 import com.nova.app.ui.theme.NovaSurface
+import com.nova.app.ui.theme.NovaType
 
 
 @Composable
@@ -95,14 +96,14 @@ fun NovaBottomBar(
 
     Surface(
         color = NovaSurface,
-        shadowElevation = 6.dp,
-        tonalElevation = 0.dp,
+        shadowElevation = NovaElevation.floating,
+        tonalElevation = NovaElevation.flat,
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 5.dp, vertical = 8.dp),
+                .padding(horizontal = 5.dp, vertical = NovaSpacing.sm),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -187,7 +188,7 @@ private fun NovaTabItem(
         shape = RoundedCornerShape(16.dp),
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
+            modifier = Modifier.padding(horizontal = NovaSpacing.sm, vertical = 7.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(
@@ -212,20 +213,18 @@ private fun NovaTabItem(
                     ) {
                         Text(
                             text = if (badgeCount > 99) "99+" else badgeCount.toString(),
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                            modifier = Modifier.padding(horizontal = NovaSpacing.xs, vertical = 1.dp),
                             color = Color.White,
-                            fontSize = 8.sp,
-                            fontWeight = FontWeight.Bold,
+                            style = NovaType.badge,
                         )
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(NovaSpacing.xxs))
             Text(
                 text = label,
                 color = contentColor,
-                fontSize = 10.sp,
-                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                style = if (selected) NovaType.navigationLabelSelected else NovaType.navigationLabel,
             )
         }
     }
