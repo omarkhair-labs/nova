@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -9,6 +10,7 @@ from ..messaging.messaging_models import GroupMembership, group_avatar_url
 from ..messaging.messaging_serializers import ConversationSerializer
 from ..models import Conversation
 from ..room_models import RoomItem, RoomProfile
+from ..tonight.window import parse_utc_offset, tonight_window
 from ..trust_safety import blocked_user_ids
 from .serializers import RoomItemCreateSerializer, RoomItemSerializer
 
@@ -103,6 +105,90 @@ class RoomListView(APIView):
             .order_by("-updated_at", "-id")[:ROOM_LIST_LIMIT]
         )
         return Response({"rooms": [_room_summary(request, room) for room in rooms]})
+
+
+class RoomTonightView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        utc_offset_minutes = parse_utc_offset(
+            request.query_params.get("utc_offset_minutes", "0")
+        )
+        if utc_offset_minutes is None:
+            return Response(
+                {"detail": "Invalid UTC offset for Room Tonight."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        window = tonight_window(timezone.now(), utc_offset_minutes)
+        base_payload = {
+            "is_tonight": window["is_tonight"],
+            "local_hour": window["local_hour"],
+            "utc_offset_minutes": utc_offset_minutes,
+            "starts_at": window["starts_at"].isoformat(),
+            "ends_at": window["ends_at"].isoformat(),
+        }
+        if not window["is_tonight"]:
+            return Response(
+                {
+                    **base_payload,
+                    "rooms_count": 0,
+                    "moments_count": 0,
+                    "rooms": [],
+                }
+            )
+
+        hidden_ids = blocked_user_ids(request.user)
+        items = RoomItem.objects.filter(
+            conversation__kind=Conversation.Kind.GROUP,
+            conversation__group_memberships__user=request.user,
+            created_at__gte=window["starts_at"],
+            created_at__lt=window["ends_at"],
+        ).select_related(
+            "conversation",
+            "conversation__group_profile",
+            "conversation__room_profile",
+            "created_by",
+        )
+        if hidden_ids:
+            items = items.exclude(created_by_id__in=hidden_ids)
+        items = list(items.order_by("-created_at", "-id"))
+
+        rooms = {}
+        total_moments = 0
+        context = {"request": request}
+        for item in items:
+            total_moments += 1
+            row = rooms.get(item.conversation_id)
+            if row is None:
+                rooms[item.conversation_id] = {
+                    **_room_summary(request, item.conversation),
+                    "moments_count": 1,
+                    "my_moments_count": 1 if item.created_by_id == request.user.pk else 0,
+                    "latest_item": RoomItemSerializer(item, context=context).data,
+                    "_latest_at": item.created_at,
+                }
+            else:
+                row["moments_count"] += 1
+                if item.created_by_id == request.user.pk:
+                    row["my_moments_count"] += 1
+
+        ordered_rooms = sorted(
+            rooms.values(),
+            key=lambda row: row["_latest_at"],
+            reverse=True,
+        )
+        for row in ordered_rooms:
+            row.pop("_latest_at", None)
+
+        return Response(
+            {
+                **base_payload,
+                "rooms_count": len(ordered_rooms),
+                "moments_count": total_moments,
+                "rooms": ordered_rooms,
+            }
+        )
 
 
 class RoomDetailView(APIView):
