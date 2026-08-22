@@ -8,6 +8,7 @@ import com.nova.app.feature.memories.data.MemoryRepository
 import com.nova.app.feature.memories.domain.model.MemoryFilmPlan
 import com.nova.app.feature.memories.film.MemoryFilmExporter
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 
@@ -30,6 +31,8 @@ class MemoryFilmStateOwner(
 ) {
     var state by mutableStateOf(MemoryFilmUiState())
         private set
+
+    private var exportJob: Job? = null
 
     fun loadPlan(
         utcOffsetMinutes: Int,
@@ -77,7 +80,13 @@ class MemoryFilmStateOwner(
     fun export() {
         val plan = state.plan ?: return
         if (!plan.filmReady || state.exporting) return
-        scope.launch { exportNow(plan) }
+        exportJob = scope.launch {
+            try {
+                exportNow(plan)
+            } finally {
+                exportJob = null
+            }
+        }
     }
 
     internal suspend fun exportNow(plan: MemoryFilmPlan) {
@@ -111,6 +120,8 @@ class MemoryFilmStateOwner(
     }
 
     fun cancelExport() {
+        exportJob?.cancel()
+        exportJob = null
         exporter.cancel()
         state = state.copy(exporting = false, progress = 0)
     }
