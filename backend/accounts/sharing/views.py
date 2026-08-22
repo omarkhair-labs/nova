@@ -21,9 +21,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from ..messaging_realtime import broadcast_message_created
-from ..messaging_serializers import ConversationSerializer, MessageSerializer
-from ..messaging_views import conversations_for
+from ..messaging.messaging_realtime import broadcast_message_created
+from ..messaging.messaging_serializers import ConversationSerializer, MessageSerializer
+from ..messaging.messaging_views import conversations_for
 from ..models import Conversation, Follow, Message
 from ..posts.views import public_post_queryset
 from ..privacy import can_view_user_content

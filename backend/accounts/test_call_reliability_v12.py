@@ -37,9 +37,9 @@ class CallReliabilityV12Tests(TestCase):
     def create_url(self):
         return "/api/v1/calls/"
 
-    @patch("accounts.call_reliability_view.call_is_live", return_value=False)
-    @patch("accounts.call_reliability_view.send_call_state_push")
-    @patch("accounts.call_reliability_view.send_call_push", return_value=1)
+    @patch("accounts.calls.call_reliability_view.call_is_live", return_value=False)
+    @patch("accounts.calls.call_reliability_view.send_call_state_push")
+    @patch("accounts.calls.call_reliability_view.send_call_push", return_value=1)
     def test_retry_supersedes_orphan_ringing_call_without_false_busy(
         self,
         push,
@@ -77,8 +77,8 @@ class CallReliabilityV12Tests(TestCase):
         self.assertIsNotNone(history.delivered_at)
         self.assertIsNotNone(history.read_at)
 
-    @patch("accounts.call_reliability_view.call_is_live", return_value=True)
-    @patch("accounts.call_reliability_view.send_call_push", return_value=1)
+    @patch("accounts.calls.call_reliability_view.call_is_live", return_value=True)
+    @patch("accounts.calls.call_reliability_view.send_call_push", return_value=1)
     def test_retry_does_not_replace_a_still_live_ringing_call(self, push, call_is_live):
         previous = CallSession.objects.create(
             conversation=self.conversation,
@@ -100,8 +100,8 @@ class CallReliabilityV12Tests(TestCase):
         call_is_live.assert_called_once_with(previous.pk)
         push.assert_not_called()
 
-    @patch("accounts.call_reliability_view.send_call_state_push")
-    @patch("accounts.call_reliability_view.send_call_push", return_value=0)
+    @patch("accounts.calls.call_reliability_view.send_call_state_push")
+    @patch("accounts.calls.call_reliability_view.send_call_push", return_value=0)
     def test_missing_push_destination_fails_fast_and_releases_busy_lock(self, push, state_push):
         failed = self.client.post(
             self.create_url(),

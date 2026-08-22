@@ -136,35 +136,33 @@ class BackendDomainOwnershipTests(SimpleTestCase):
         owner = call_websocket_urlpatterns[0].callback.consumer_class.__module__
         self.assertEqual(owner, "accounts.calls.call_reliability_realtime")
 
-    def test_legacy_module_paths_alias_new_owners(self):
-        aliases = (
-            ("accounts.account_security", "accounts.auth.security"),
-            ("accounts.jwt_auth", "accounts.auth.jwt_auth"),
-            ("accounts.social_paging", "accounts.social.paging"),
-            ("accounts.privacy_views", "accounts.privacy.views"),
-            ("accounts.sharing_views", "accounts.sharing.views"),
-            ("accounts.profile_reels", "accounts.reels.profile"),
-            ("accounts.reels_ranking", "accounts.reels.ranking"),
-            ("accounts.group_management", "accounts.messaging.group_management"),
-            ("accounts.group_messaging", "accounts.messaging.group_messaging"),
-            ("accounts.messaging_mutation_view", "accounts.messaging.mutation"),
-            ("accounts.messaging_paging", "accounts.messaging.paging"),
-            ("accounts.messaging_realtime", "accounts.messaging.messaging_realtime"),
-            ("accounts.messaging_serializers", "accounts.messaging.messaging_serializers"),
-            ("accounts.messaging_v9_views", "accounts.messaging.tools"),
-            ("accounts.messaging_views", "accounts.messaging.messaging_views"),
-            ("accounts.presence_store", "accounts.messaging.presence_store"),
-            ("accounts.realtime", "accounts.messaging.realtime"),
-            ("accounts.call_history", "accounts.calls.call_history"),
-            ("accounts.call_realtime", "accounts.calls.call_realtime"),
-            ("accounts.call_reliability_realtime", "accounts.calls.call_reliability_realtime"),
-            ("accounts.call_reliability_view", "accounts.calls.call_reliability_view"),
+    def test_domain_owner_modules_are_importable(self):
+        owners = (
+            "accounts.auth.security",
+            "accounts.auth.jwt_auth",
+            "accounts.social.paging",
+            "accounts.privacy.views",
+            "accounts.sharing.views",
+            "accounts.reels.profile",
+            "accounts.reels.ranking",
+            "accounts.messaging.group_management",
+            "accounts.messaging.group_messaging",
+            "accounts.messaging.mutation",
+            "accounts.messaging.paging",
+            "accounts.messaging.messaging_realtime",
+            "accounts.messaging.messaging_serializers",
+            "accounts.messaging.tools",
+            "accounts.messaging.messaging_views",
+            "accounts.messaging.presence_store",
+            "accounts.messaging.realtime",
+            "accounts.calls.call_history",
+            "accounts.calls.call_realtime",
+            "accounts.calls.call_reliability_realtime",
+            "accounts.calls.call_reliability_view",
         )
-        for legacy_name, owner_name in aliases:
-            with self.subTest(legacy=legacy_name):
-                legacy = importlib.import_module(legacy_name)
-                owner = importlib.import_module(owner_name)
-                self.assertIs(legacy, owner)
+        for owner_name in owners:
+            with self.subTest(owner=owner_name):
+                self.assertIsNotNone(importlib.import_module(owner_name))
 
     def test_collision_modules_are_now_real_domain_packages(self):
         for module_name in (
