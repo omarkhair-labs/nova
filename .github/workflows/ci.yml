@@ -127,6 +127,9 @@ jobs:
       - name: Check Pulse architecture
         run: python3 scripts/check_pulse_architecture.py
 
+      - name: Check Orbit architecture
+        run: python3 scripts/check_orbit_architecture.py
+
       - name: Check Reels architecture
         run: python3 scripts/check_reels_architecture.py
 
