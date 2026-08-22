@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.notifications.NovaNotificationRepository
 import com.nova.app.core.push.NovaPushOpenSignal
+import com.nova.app.feature.memories.MemoriesRail
 import com.nova.app.feature.notifications.NotificationsScreen
 import com.nova.app.feature.orbit.OrbitRail
 import com.nova.app.feature.posts.domain.model.NovaPost
@@ -340,6 +341,13 @@ fun HomeScreen(
 
                 item {
                     RoomsRail(
+                        onPersonClick = onPersonClick,
+                        onSessionExpired = {},
+                    )
+                }
+
+                item {
+                    MemoriesRail(
                         onPersonClick = onPersonClick,
                         onSessionExpired = {},
                     )
