@@ -54,6 +54,8 @@ import com.nova.app.feature.posts.data.PostRepository
 import com.nova.app.feature.posts.domain.model.NovaPostAuthor
 import com.nova.app.feature.privacy.data.FollowRequestRepository
 import com.nova.app.feature.privacy.data.PrivacyRepository
+import com.nova.app.feature.pulse.data.PulseRepository
+import com.nova.app.feature.pulse.data.remote.PulseRemoteRepository
 import com.nova.app.feature.reels.data.ProfileReelsRepository
 import com.nova.app.feature.reels.data.ReelWatchRepository
 import com.nova.app.feature.reels.data.ReelsRepository
@@ -88,6 +90,7 @@ class AppContainer(context: Context) {
     val socialRepository = NovaSocialRepository(appContext, api)
     val peopleRepository: PeopleRepository = socialRepository
     val peoplePagingRepository: PeoplePagingRepository = PeoplePagingRemoteRepository(appContext)
+    val pulseRepository: PulseRepository = PulseRemoteRepository(appContext, api)
     val storiesRepository: StoriesRepository = NovaStoriesRepository(appContext)
     val reelsRepository: ReelsRepository = NovaReelsRepository(appContext)
     val profileReelsRepository: ProfileReelsRepository = NovaProfileReelsRepository(appContext)
