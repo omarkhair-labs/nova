@@ -1,7 +1,9 @@
 import base64
+import binascii
 import json
 
 from django.db.models import Q
+from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -102,10 +104,22 @@ def _decode_cursor(raw):
         created_at = parse_datetime(str(data["at"]))
         rank = int(data["rank"])
         source_id = int(data["id"])
-        if created_at is None or rank not in ORBIT_KIND_RANK.values() or source_id <= 0:
+        if (
+            created_at is None
+            or timezone.is_naive(created_at)
+            or rank not in ORBIT_KIND_RANK.values()
+            or source_id <= 0
+        ):
             return None
         return created_at, rank, source_id
-    except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+    except (
+        KeyError,
+        TypeError,
+        ValueError,
+        UnicodeDecodeError,
+        binascii.Error,
+        json.JSONDecodeError,
+    ):
         return None
 
 
