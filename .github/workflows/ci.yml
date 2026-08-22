@@ -136,6 +136,9 @@ jobs:
       - name: Check Rooms architecture
         run: python3 scripts/check_rooms_architecture.py
 
+      - name: Check Memories architecture
+        run: python3 scripts/check_memories_architecture.py
+
       - name: Check Reels architecture
         run: python3 scripts/check_reels_architecture.py
 
