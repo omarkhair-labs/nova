@@ -199,121 +199,12 @@ private fun TonightLiveCard(
     liveRoomsContent: @Composable () -> Unit,
 ) {
     val value = snapshot ?: return
-    val palette = TonightTheme.live
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
-        color = palette.background,
-        border = BorderStroke(1.dp, palette.cardBorder),
-    ) {
-        Column(
-            modifier = Modifier.padding(vertical = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "Tonight",
-                            color = palette.ink,
-                            style = NovaType.sectionTitle.copy(fontWeight = FontWeight.Bold),
-                        )
-                        Spacer(modifier = Modifier.width(NovaSpacing.sm))
-                        Surface(
-                            shape = MaterialTheme.shapes.small,
-                            color = NovaAccent.copy(alpha = 0.18f),
-                        ) {
-                            Text(
-                                text = "LIVE",
-                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-                                color = NovaAccent,
-                                style = NovaType.badge,
-                            )
-                        }
-                    }
-                    Text(
-                        text = tonightSummary(value),
-                        color = palette.muted,
-                        style = NovaType.micro,
-                    )
-                }
-                Text(
-                    text = if (error != null) "Retry" else "until 6 AM",
-                    color = if (error != null) NovaAccent else palette.muted,
-                    style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
-                    modifier = if (error != null) Modifier.clickable(onClick = onRetry) else Modifier,
-                )
-            }
-
-            if (value.people.isEmpty()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(NovaSpacing.md),
-                ) {
-                    Surface(
-                        modifier = Modifier.size(46.dp),
-                        shape = MaterialTheme.shapes.medium,
-                        color = palette.surface,
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text("✦", color = NovaAccent, fontSize = 18.sp)
-                        }
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = if (value.myMomentsCount > 0) "Your night has started" else "The night is still quiet",
-                            color = palette.ink,
-                            style = NovaType.meta.copy(fontWeight = FontWeight.Bold),
-                        )
-                        Text(
-                            text = if (value.myMomentsCount > 0) {
-                                "Your Pulse is live. People you follow will appear here as their night starts."
-                            } else {
-                                "Post a Pulse or check back as people you follow start sharing."
-                            },
-                            color = palette.muted,
-                            style = NovaType.micro,
-                        )
-                    }
-                }
-            } else {
-                LazyRow(
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    items(value.people, key = { it.person.id }) { row ->
-                        TonightPersonCard(
-                            row = row,
-                            onClick = { onPersonClick(row.person.username) },
-                        )
-                    }
-                }
-            }
-
-            if (value.myMomentsCount > 0) {
-                Text(
-                    text = "You have ${value.myMomentsCount} live ${if (value.myMomentsCount == 1) "moment" else "moments"} tonight.",
-                    modifier = Modifier.padding(horizontal = 18.dp),
-                    color = palette.muted,
-                    style = NovaType.micro,
-                )
-            }
-
-            Column(modifier = Modifier.padding(horizontal = 18.dp)) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth().height(1.dp),
-                    color = palette.divider,
-                ) {}
-                Spacer(modifier = Modifier.height(NovaSpacing.md))
-                liveRoomsContent()
-            }
-        }
-    }
+    TonightIdentityHero(
+        snapshot = value,
+        error = error,
+        onRetry = onRetry,
+        onPersonClick = onPersonClick,
+    )
 }
 
 

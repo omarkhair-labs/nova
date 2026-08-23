@@ -16,9 +16,11 @@ import com.nova.app.R
  */
 enum class NovaIconAsset(@param:DrawableRes val drawableRes: Int) {
     Home(R.drawable.ic_nova_home),
+    Search(R.drawable.ic_nova_search),
     People(R.drawable.ic_nova_search),
     Reels(R.drawable.ic_nova_play),
     Messages(R.drawable.ic_nova_mail),
+    Notifications(R.drawable.ic_nova_notifications),
     Profile(R.drawable.ic_nova_person),
     Settings(R.drawable.ic_nova_settings),
     Back(R.drawable.ic_nova_back),

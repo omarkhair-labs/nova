@@ -11,6 +11,7 @@ SETTINGS_ACTIVITY = MAIN / "com/nova/app/SettingsActivity.kt"
 PROFILE_SCREEN = MAIN / "com/nova/app/feature/profile/ProfileScreen.kt"
 NOTIFICATIONS_SCREEN = MAIN / "com/nova/app/feature/notifications/NotificationsScreen.kt"
 HOME_SCREEN = MAIN / "com/nova/app/feature/home/HomeScreen.kt"
+HOME_IDENTITY_HEADER = MAIN / "com/nova/app/feature/home/HomeIdentityHeader.kt"
 PEOPLE_SCREEN = MAIN / "com/nova/app/feature/people/PeopleScreen.kt"
 ICON_ALIASES = MAIN / "com/nova/app/ui/icons/NovaMaterialIconAliases.kt"
 SHARED_UI = MAIN / "com/nova/app/ui"
@@ -40,9 +41,10 @@ NARROW_COMPONENT_SEAMS = {
     ),
     "NovaCard.kt": ("fun NovaCard(", "MaterialTheme.shapes.large", "BorderStroke(1.dp"),
     "NovaStatus.kt": ("fun NovaUnreadDot(", ".size(8.dp)"),
+    "NovaOrbitRing.kt": ("fun NovaOrbitRing(", "Canvas(", "NovaBaseLive"),
 }
 DESIGN_FOUNDATION_SEAMS = {
-    "Color.kt": ("NovaBaseBackground", "NovaBaseAccent", "NovaColorOverride"),
+    "Color.kt": ("NovaBaseBackground", "NovaBaseAccent", "NovaBaseLive", "NovaColorOverride"),
     "Type.kt": ("object NovaType", "val Typography = Typography(", "val pageTitle", "val button"),
     "Shape.kt": ("val NovaShapes = Shapes(", "extraSmall", "extraLarge"),
     "Space.kt": ("object NovaSpacing", "val sm = 8.dp", "val xxxl = 32.dp"),
@@ -64,6 +66,7 @@ MATERIAL_SYMBOL_DRAWABLES = (
     "ic_nova_search.xml",
     "ic_nova_play.xml",
     "ic_nova_mail.xml",
+    "ic_nova_notifications.xml",
     "ic_nova_person.xml",
     "ic_nova_settings.xml",
     "ic_nova_back.xml",
@@ -77,6 +80,7 @@ MATERIAL_SYMBOL_DRAWABLES = (
 MIGRATED_ICON_CONSUMERS = (
     SHARED_COMPONENTS / "NovaBottomBar.kt",
     SHARED_COMPONENTS / "NovaHeader.kt",
+    HOME_IDENTITY_HEADER,
     PROFILE_SCREEN,
     SETTINGS_ACTIVITY,
 )
@@ -143,6 +147,8 @@ else:
         "enum class NovaIconAsset",
         "fun NovaIcon(",
         "Home(R.drawable.ic_nova_home)",
+        "Search(R.drawable.ic_nova_search)",
+        "Notifications(R.drawable.ic_nova_notifications)",
         "Back(R.drawable.ic_nova_back)",
         "Settings(R.drawable.ic_nova_settings)",
     ):
@@ -207,17 +213,34 @@ for seam in ("NovaCard(", "NovaType.pageTitle", "NovaType.sectionTitle", "NovaSp
 
 home_text = HOME_SCREEN.read_text(encoding="utf-8")
 for seam in (
+    "HomeIdentityHeader(",
     "NovaCard(",
     "NovaLoadingState(",
     "NovaErrorState(",
     "NovaEmptyState(",
     "NovaInlineLoading(",
     "NovaInlineRetry(",
-    "NovaType.pageTitle",
     "NovaSpacing.xl",
 ):
     if seam not in home_text:
-        errors.append(f"Home bypassed Nova DS-3 seam: {seam}")
+        errors.append(f"Home bypassed Nova DS-3/identity seam: {seam}")
+
+if not HOME_IDENTITY_HEADER.is_file():
+    errors.append("missing Home identity header owner")
+else:
+    home_identity_text = HOME_IDENTITY_HEADER.read_text(encoding="utf-8")
+    for seam in (
+        "NovaType.display",
+        "NovaType.screenTitle",
+        "NovaType.subtitle",
+        "NovaIconAsset.Search",
+        "NovaIconAsset.Notifications",
+        "NovaOrbitRing(",
+        "NovaUnreadDot(",
+        "NovaSpacing.",
+    ):
+        if seam not in home_identity_text:
+            errors.append(f"Home identity header bypassed approved visual-identity seam: {seam}")
 
 people_text = PEOPLE_SCREEN.read_text(encoding="utf-8")
 for seam in (
@@ -228,7 +251,7 @@ for seam in (
     "NovaSpacing.xl",
 ):
     if seam not in people_text:
-        errors.append(f"People bypassed Nova DS-3 seam: {seam}")
+        errors.append(f"People bypassed Nova container/type/spacing seam: {seam}")
 if "EmptyPeopleCard(" in people_text:
     errors.append("People restored its feature-local empty card after DS-3 migration")
 
