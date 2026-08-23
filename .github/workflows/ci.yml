@@ -163,6 +163,9 @@ jobs:
       - name: Check shared UI architecture
         run: python3 scripts/check_shared_ui_architecture.py
 
+      - name: Check alive feature design system
+        run: python3 scripts/check_design_system_alive_features.py
+
       - name: Check whitespace errors
         run: git diff --check HEAD^1 HEAD
 
