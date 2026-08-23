@@ -1,7 +1,7 @@
 package com.nova.app.feature.tonight
 
 import androidx.compose.ui.graphics.Color
-import com.nova.app.ui.theme.NovaAccent
+import com.nova.app.ui.theme.NovaBaseAccent
 
 /**
  * Deliberate Tonight presentation palette.
@@ -28,7 +28,7 @@ object TonightTheme {
         ink = Color(0xFFF7F8FC),
         muted = Color(0xFFB1B7C5),
         divider = Color.White.copy(alpha = 0.07f),
-        cardBorder = NovaAccent.copy(alpha = 0.30f),
+        cardBorder = NovaBaseAccent.copy(alpha = 0.30f),
         mediaVideoBackground = Color(0xFF05070C),
         mediaTextBackground = Color(0xFF171B2A),
     )
