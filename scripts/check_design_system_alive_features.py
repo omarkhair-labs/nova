@@ -10,6 +10,11 @@ TONIGHT_SURFACE = MAIN / "feature/tonight/TonightSurface.kt"
 PULSE_THEME = MAIN / "feature/pulse/PulseTheme.kt"
 PULSE_RAIL = MAIN / "feature/pulse/PulseRail.kt"
 PULSE_VIEWER = MAIN / "feature/pulse/PulseViewerDialog.kt"
+ORBIT_RAIL = MAIN / "feature/orbit/OrbitRail.kt"
+ROOMS_RAIL = MAIN / "feature/rooms/RoomsRail.kt"
+ROOMS_SCREEN = MAIN / "feature/rooms/RoomsScreen.kt"
+MEMORY_THEME = MAIN / "feature/memories/MemoryTheme.kt"
+MEMORIES_RAIL = MAIN / "feature/memories/MemoriesRail.kt"
 
 errors: list[str] = []
 
@@ -26,6 +31,11 @@ tonight_surface = read(TONIGHT_SURFACE)
 pulse_theme = read(PULSE_THEME)
 pulse_rail = read(PULSE_RAIL)
 pulse_viewer = read(PULSE_VIEWER)
+orbit_rail = read(ORBIT_RAIL)
+rooms_rail = read(ROOMS_RAIL)
+rooms_screen = read(ROOMS_SCREEN)
+memory_theme = read(MEMORY_THEME)
+memories_rail = read(MEMORIES_RAIL)
 
 for seam in (
     "data class TonightPalette(",
@@ -63,15 +73,55 @@ for path, text in ((PULSE_RAIL, pulse_rail), (PULSE_VIEWER, pulse_viewer)):
         "PulseTheme.media",
         "NovaType.",
         "MaterialTheme.shapes",
+        "NovaMotion.standard",
     ):
         if seam not in text:
             errors.append(f"Pulse surface bypassed DS-4 seam in {path.relative_to(ROOT)}: {seam}")
     if "Color(0x" in text:
         errors.append(f"Pulse surface restored raw media colors outside PulseTheme: {path.relative_to(ROOT)}")
 
-for path, text in ((PULSE_RAIL, pulse_rail), (PULSE_VIEWER, pulse_viewer)):
-    if "NovaMotion.standard" not in text:
-        errors.append(f"Pulse surface must adopt Nova motion role: {path.relative_to(ROOT)}")
+for seam in (
+    "NovaCard(",
+    "NovaType.",
+    "NovaSpacing.",
+    "MaterialTheme.shapes",
+    "NovaMotion.standard",
+):
+    if seam not in orbit_rail:
+        errors.append(f"Orbit rail bypassed DS-4 seam: {seam}")
+
+for path, text in ((ROOMS_RAIL, rooms_rail), (ROOMS_SCREEN, rooms_screen)):
+    for seam in ("NovaType.", "NovaSpacing.", "MaterialTheme.shapes"):
+        if seam not in text:
+            errors.append(f"Rooms surface bypassed DS-4 seam in {path.relative_to(ROOT)}: {seam}")
+if "NovaCard(" not in rooms_rail or "NovaMotion.standard" not in rooms_rail:
+    errors.append("Rooms rail must use NovaCard and NovaMotion")
+for seam in ("NovaBackButton(", "NovaLoadingState(", "NovaEmptyState(", "NovaInlineRetry(", "NovaCard("):
+    if seam not in rooms_screen:
+        errors.append(f"Rooms screen bypassed shared ordinary-screen presentation: {seam}")
+if 'text = "‹"' in rooms_screen:
+    errors.append("Rooms screen restored legacy text back control")
+
+for seam in (
+    "data class MemoryPalette(",
+    "object MemoryTheme",
+    "val ready = MemoryPalette(",
+    "videoBackground",
+):
+    if seam not in memory_theme:
+        errors.append(f"Memory palette owner seam changed: {seam}")
+for seam in (
+    "MemoryTheme.ready",
+    "NovaCard(",
+    "NovaType.",
+    "NovaSpacing.",
+    "MaterialTheme.shapes",
+    "NovaMotion.standard",
+):
+    if seam not in memories_rail:
+        errors.append(f"Memories rail bypassed DS-4 seam: {seam}")
+if "Color(0x" in memories_rail:
+    errors.append("Memories rail restored raw reflective colors outside MemoryTheme")
 
 if errors:
     print("Alive feature design-system check failed:")
