@@ -3,6 +3,8 @@ package com.nova.app.feature.pulse
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,8 +21,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,13 +34,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
 import com.nova.app.app.appContainer
 import com.nova.app.feature.pulse.domain.model.NovaPulse
 import com.nova.app.ui.components.NovaAvatar
@@ -48,12 +49,11 @@ import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
+import com.nova.app.ui.theme.NovaMotion
 import com.nova.app.ui.theme.NovaMuted
+import com.nova.app.ui.theme.NovaSpacing
 import com.nova.app.ui.theme.NovaSurface
-
-
-private val PulseCardVideoBackground = Color(0xFF07090D)
-private val PulseCardVideoInk = Color(0xFFF8F9FB)
+import com.nova.app.ui.theme.NovaType
 
 
 @Composable
@@ -92,7 +92,12 @@ fun PulseRail(
         }
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+    Column(
+        modifier = Modifier.animateContentSize(
+            animationSpec = tween(durationMillis = NovaMotion.standard),
+        ),
+        verticalArrangement = Arrangement.spacedBy(9.dp),
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -102,20 +107,20 @@ fun PulseRail(
                 Text(
                     text = "Pulse",
                     color = NovaInk,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = NovaType.title.copy(fontWeight = FontWeight.Bold),
                 )
                 Text(
                     text = "What’s happening right now?",
                     color = NovaMuted,
-                    fontSize = 10.sp,
+                    style = NovaType.micro,
                 )
             }
             Text(
                 text = if (state.error != null) "Retry" else "12h • live",
                 color = if (state.error != null) NovaAccent else NovaMuted,
-                fontSize = 10.sp,
-                fontWeight = if (state.error != null) FontWeight.SemiBold else FontWeight.Normal,
+                style = NovaType.micro.copy(
+                    fontWeight = if (state.error != null) FontWeight.SemiBold else FontWeight.Normal,
+                ),
                 modifier = if (state.error != null) {
                     Modifier.clickable { owner.load(showSpinner = true) }
                 } else {
@@ -162,7 +167,7 @@ fun PulseRail(
             Text(
                 text = error,
                 color = NovaMuted,
-                fontSize = 11.sp,
+                style = NovaType.meta,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -245,7 +250,7 @@ private fun PulseCreateCard(
 ) {
     Surface(
         modifier = Modifier.width(176.dp).height(132.dp),
-        shape = RoundedCornerShape(24.dp),
+        shape = MaterialTheme.shapes.large,
         color = NovaAccentSoft,
         border = BorderStroke(1.dp, NovaAccent.copy(alpha = 0.34f)),
     ) {
@@ -259,15 +264,14 @@ private fun PulseCreateCard(
                     fallbackText = displayName.ifBlank { username },
                     size = 34.dp,
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(NovaSpacing.sm))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Your Pulse",
                         color = NovaInk,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
+                        style = NovaType.meta.copy(fontWeight = FontWeight.Bold),
                     )
-                    Text(text = "right now", color = NovaMuted, fontSize = 9.sp)
+                    Text(text = "right now", color = NovaMuted, style = NovaType.micro)
                 }
             }
 
@@ -282,30 +286,28 @@ private fun PulseCreateCard(
                     Surface(
                         onClick = onText,
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(13.dp),
+                        shape = MaterialTheme.shapes.small,
                         color = NovaSurface,
                     ) {
                         Text(
                             text = "Aa",
                             modifier = Modifier.padding(vertical = 7.dp),
                             color = NovaInk,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
+                            style = NovaType.meta.copy(fontWeight = FontWeight.Bold),
                             textAlign = TextAlign.Center,
                         )
                     }
                     Surface(
                         onClick = onMedia,
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(13.dp),
+                        shape = MaterialTheme.shapes.small,
                         color = NovaAccent,
                     ) {
                         Text(
                             text = "+ media",
                             modifier = Modifier.padding(vertical = 7.dp),
                             color = NovaBackground,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
+                            style = NovaType.micro.copy(fontWeight = FontWeight.Bold),
                             textAlign = TextAlign.Center,
                         )
                     }
@@ -321,10 +323,11 @@ private fun PulseCard(
     pulse: NovaPulse,
     onClick: () -> Unit,
 ) {
+    val mediaPalette = PulseTheme.media
     Surface(
         onClick = onClick,
         modifier = Modifier.width(176.dp).height(132.dp),
-        shape = RoundedCornerShape(24.dp),
+        shape = MaterialTheme.shapes.large,
         color = NovaSurface,
         border = BorderStroke(1.dp, NovaBorder),
     ) {
@@ -336,12 +339,12 @@ private fun PulseCard(
                     contentDescription = "${pulse.author.username} Pulse",
                 )
                 "video" -> Box(
-                    modifier = Modifier.fillMaxSize().background(PulseCardVideoBackground),
+                    modifier = Modifier.fillMaxSize().background(mediaPalette.background),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = "▶",
-                        color = PulseCardVideoInk,
+                        color = mediaPalette.ink,
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
                     )
@@ -352,11 +355,9 @@ private fun PulseCard(
                 ) {
                     Text(
                         text = pulse.note,
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier.padding(NovaSpacing.md),
                         color = NovaInk,
-                        fontSize = 14.sp,
-                        lineHeight = 18.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        style = NovaType.bodyCompact.copy(fontWeight = FontWeight.SemiBold),
                         maxLines = 4,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -365,8 +366,8 @@ private fun PulseCard(
 
             Surface(
                 modifier = Modifier.align(Alignment.TopStart).padding(9.dp),
-                shape = RoundedCornerShape(16.dp),
-                color = PulseCardVideoBackground.copy(alpha = 0.74f),
+                shape = MaterialTheme.shapes.medium,
+                color = mediaPalette.overlay,
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
@@ -380,9 +381,8 @@ private fun PulseCard(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = if (pulse.isMine) "You" else pulse.author.name.ifBlank { pulse.author.username },
-                        color = PulseCardVideoInk,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
+                        color = mediaPalette.ink,
+                        style = NovaType.micro.copy(fontWeight = FontWeight.Bold),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -392,15 +392,14 @@ private fun PulseCard(
             if (pulse.replyToId != null) {
                 Surface(
                     modifier = Modifier.align(Alignment.TopEnd).padding(9.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    color = PulseCardVideoBackground.copy(alpha = 0.76f),
+                    shape = MaterialTheme.shapes.small,
+                    color = mediaPalette.overlay,
                 ) {
                     Text(
                         text = "↳ reply",
                         modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp),
-                        color = PulseCardVideoInk,
-                        fontSize = 8.sp,
-                        fontWeight = FontWeight.Bold,
+                        color = mediaPalette.ink,
+                        style = NovaType.badge,
                     )
                 }
             }
@@ -408,14 +407,14 @@ private fun PulseCard(
             if (pulse.mediaType != "text" && pulse.note.isNotBlank()) {
                 Surface(
                     modifier = Modifier.align(Alignment.BottomStart).padding(9.dp),
-                    shape = RoundedCornerShape(13.dp),
-                    color = PulseCardVideoBackground.copy(alpha = 0.76f),
+                    shape = MaterialTheme.shapes.small,
+                    color = mediaPalette.overlay,
                 ) {
                     Text(
                         text = pulse.note,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                        color = PulseCardVideoInk,
-                        fontSize = 9.sp,
+                        modifier = Modifier.padding(horizontal = NovaSpacing.sm, vertical = 5.dp),
+                        color = mediaPalette.ink,
+                        style = NovaType.micro,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
