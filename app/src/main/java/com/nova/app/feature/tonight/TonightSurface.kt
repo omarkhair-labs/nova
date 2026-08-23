@@ -1,5 +1,7 @@
 package com.nova.app.feature.tonight
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,8 +18,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,7 +28,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,18 +44,15 @@ import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
+import com.nova.app.ui.theme.NovaMotion
 import com.nova.app.ui.theme.NovaMuted
+import com.nova.app.ui.theme.NovaSpacing
 import com.nova.app.ui.theme.NovaSurface
+import com.nova.app.ui.theme.NovaType
 import java.time.Duration
 import java.time.ZonedDateTime
 import java.util.TimeZone
 import kotlinx.coroutines.delay
-
-
-private val TonightBackground = Color(0xFF090B12)
-private val TonightSurfaceColor = Color(0xFF111521)
-private val TonightInk = Color(0xFFF7F8FC)
-private val TonightMuted = Color(0xFFB1B7C5)
 
 
 @Composable
@@ -88,34 +86,41 @@ fun TonightSurface(
         if (state.sessionExpiryVersion > 0) onSessionExpired()
     }
 
-    when {
-        state.loading && state.snapshot == null -> TonightLoadingCard()
-        state.snapshot?.isTonight == true -> TonightLiveCard(
-            snapshot = state.snapshot,
-            error = state.error,
-            onRetry = { owner.load(currentUtcOffsetMinutes(), showSpinner = false) },
-            onPersonClick = onPersonClick,
-            liveRoomsContent = roomsContent,
-        )
-        else -> TonightSleepingCard(
-            error = state.error,
-            onRetry = {
-                owner.load(
-                    currentUtcOffsetMinutes(),
-                    showSpinner = state.snapshot == null,
-                )
-            },
-        )
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(animationSpec = tween(durationMillis = NovaMotion.standard)),
+    ) {
+        when {
+            state.loading && state.snapshot == null -> TonightLoadingCard()
+            state.snapshot?.isTonight == true -> TonightLiveCard(
+                snapshot = state.snapshot,
+                error = state.error,
+                onRetry = { owner.load(currentUtcOffsetMinutes(), showSpinner = false) },
+                onPersonClick = onPersonClick,
+                liveRoomsContent = roomsContent,
+            )
+            else -> TonightSleepingCard(
+                error = state.error,
+                onRetry = {
+                    owner.load(
+                        currentUtcOffsetMinutes(),
+                        showSpinner = state.snapshot == null,
+                    )
+                },
+            )
+        }
     }
 }
 
 
 @Composable
 private fun TonightLoadingCard() {
+    val palette = TonightTheme.live
     Surface(
         modifier = Modifier.fillMaxWidth().height(112.dp),
-        shape = RoundedCornerShape(28.dp),
-        color = TonightBackground,
+        shape = MaterialTheme.shapes.extraLarge,
+        color = palette.background,
         border = BorderStroke(1.dp, NovaAccent.copy(alpha = 0.18f)),
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -138,17 +143,17 @@ private fun TonightSleepingCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onRetry),
-        shape = RoundedCornerShape(28.dp),
+        shape = MaterialTheme.shapes.extraLarge,
         color = NovaSurface,
         border = BorderStroke(1.dp, NovaBorder),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = NovaSpacing.md),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Surface(
-                shape = RoundedCornerShape(18.dp),
+                shape = MaterialTheme.shapes.medium,
                 color = NovaAccentSoft,
             ) {
                 Text(
@@ -163,8 +168,7 @@ private fun TonightSleepingCard(
                 Text(
                     text = "Tonight",
                     color = NovaInk,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = NovaType.title.copy(fontWeight = FontWeight.Bold),
                 )
                 Text(
                     text = if (error != null) {
@@ -173,15 +177,13 @@ private fun TonightSleepingCard(
                         "Wakes at 6 PM with the live moments around you."
                     },
                     color = NovaMuted,
-                    fontSize = 10.sp,
-                    lineHeight = 14.sp,
+                    style = NovaType.micro,
                 )
             }
             Text(
                 text = if (error != null) "retry" else "6 PM",
                 color = if (error != null) NovaAccent else NovaMuted,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.SemiBold,
+                style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
             )
         }
     }
@@ -197,11 +199,12 @@ private fun TonightLiveCard(
     liveRoomsContent: @Composable () -> Unit,
 ) {
     val value = snapshot ?: return
+    val palette = TonightTheme.live
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(30.dp),
-        color = TonightBackground,
-        border = BorderStroke(1.dp, NovaAccent.copy(alpha = 0.30f)),
+        shape = MaterialTheme.shapes.extraLarge,
+        color = palette.background,
+        border = BorderStroke(1.dp, palette.cardBorder),
     ) {
         Column(
             modifier = Modifier.padding(vertical = 18.dp),
@@ -216,35 +219,32 @@ private fun TonightLiveCard(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "Tonight",
-                            color = TonightInk,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
+                            color = palette.ink,
+                            style = NovaType.sectionTitle.copy(fontWeight = FontWeight.Bold),
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(NovaSpacing.sm))
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
+                            shape = MaterialTheme.shapes.small,
                             color = NovaAccent.copy(alpha = 0.18f),
                         ) {
                             Text(
                                 text = "LIVE",
                                 modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
                                 color = NovaAccent,
-                                fontSize = 8.sp,
-                                fontWeight = FontWeight.Bold,
+                                style = NovaType.badge,
                             )
                         }
                     }
                     Text(
                         text = tonightSummary(value),
-                        color = TonightMuted,
-                        fontSize = 10.sp,
+                        color = palette.muted,
+                        style = NovaType.micro,
                     )
                 }
                 Text(
                     text = if (error != null) "Retry" else "until 6 AM",
-                    color = if (error != null) NovaAccent else TonightMuted,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    color = if (error != null) NovaAccent else palette.muted,
+                    style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
                     modifier = if (error != null) Modifier.clickable(onClick = onRetry) else Modifier,
                 )
             }
@@ -253,12 +253,12 @@ private fun TonightLiveCard(
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(NovaSpacing.md),
                 ) {
                     Surface(
                         modifier = Modifier.size(46.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        color = TonightSurfaceColor,
+                        shape = MaterialTheme.shapes.medium,
+                        color = palette.surface,
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text("✦", color = NovaAccent, fontSize = 18.sp)
@@ -267,9 +267,8 @@ private fun TonightLiveCard(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = if (value.myMomentsCount > 0) "Your night has started" else "The night is still quiet",
-                            color = TonightInk,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
+                            color = palette.ink,
+                            style = NovaType.meta.copy(fontWeight = FontWeight.Bold),
                         )
                         Text(
                             text = if (value.myMomentsCount > 0) {
@@ -277,9 +276,8 @@ private fun TonightLiveCard(
                             } else {
                                 "Post a Pulse or check back as people you follow start sharing."
                             },
-                            color = TonightMuted,
-                            fontSize = 9.sp,
-                            lineHeight = 13.sp,
+                            color = palette.muted,
+                            style = NovaType.micro,
                         )
                     }
                 }
@@ -301,17 +299,17 @@ private fun TonightLiveCard(
                 Text(
                     text = "You have ${value.myMomentsCount} live ${if (value.myMomentsCount == 1) "moment" else "moments"} tonight.",
                     modifier = Modifier.padding(horizontal = 18.dp),
-                    color = TonightMuted,
-                    fontSize = 9.sp,
+                    color = palette.muted,
+                    style = NovaType.micro,
                 )
             }
 
             Column(modifier = Modifier.padding(horizontal = 18.dp)) {
                 Surface(
                     modifier = Modifier.fillMaxWidth().height(1.dp),
-                    color = Color.White.copy(alpha = 0.07f),
+                    color = palette.divider,
                 ) {}
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(NovaSpacing.md))
                 liveRoomsContent()
             }
         }
@@ -324,19 +322,20 @@ private fun TonightPersonCard(
     row: TonightPersonRow,
     onClick: () -> Unit,
 ) {
+    val palette = TonightTheme.live
     Surface(
         onClick = onClick,
         modifier = Modifier.width(184.dp).height(132.dp),
-        shape = RoundedCornerShape(22.dp),
-        color = TonightSurfaceColor,
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.07f)),
+        shape = MaterialTheme.shapes.large,
+        color = palette.surface,
+        border = BorderStroke(1.dp, palette.divider),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             TonightPulseBackdrop(row.latestPulse)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(TonightBackground.copy(alpha = if (row.latestPulse.mediaType == "text") 0.08f else 0.42f)),
+                    .background(palette.background.copy(alpha = if (row.latestPulse.mediaType == "text") 0.08f else 0.42f)),
             )
 
             Row(
@@ -352,16 +351,15 @@ private fun TonightPersonCard(
                 Column(modifier = Modifier.width(108.dp)) {
                     Text(
                         text = row.person.name.ifBlank { row.person.username },
-                        color = TonightInk,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
+                        color = palette.ink,
+                        style = NovaType.micro.copy(fontWeight = FontWeight.Bold),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         text = "${row.momentsCount} ${if (row.momentsCount == 1) "moment" else "moments"}",
-                        color = TonightMuted,
-                        fontSize = 8.sp,
+                        color = palette.muted,
+                        style = NovaType.badge,
                     )
                 }
             }
@@ -370,8 +368,8 @@ private fun TonightPersonCard(
                 Text(
                     text = row.latestPulse.note,
                     modifier = Modifier.align(Alignment.BottomStart).padding(11.dp),
-                    color = TonightInk,
-                    fontSize = 9.sp,
+                    color = palette.ink,
+                    style = NovaType.micro,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -383,6 +381,7 @@ private fun TonightPersonCard(
 
 @Composable
 private fun TonightPulseBackdrop(pulse: TonightPulse) {
+    val palette = TonightTheme.live
     when (pulse.mediaType) {
         "image" -> NovaMediaImage(
             source = pulse.mediaUrl,
@@ -390,22 +389,20 @@ private fun TonightPulseBackdrop(pulse: TonightPulse) {
             contentDescription = "Tonight moment",
         )
         "video" -> Box(
-            modifier = Modifier.fillMaxSize().background(Color(0xFF05070C)),
+            modifier = Modifier.fillMaxSize().background(palette.mediaVideoBackground),
             contentAlignment = Alignment.Center,
         ) {
-            Text("▶", color = TonightInk, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Text("▶", color = palette.ink, fontSize = 24.sp, fontWeight = FontWeight.Bold)
         }
         else -> Box(
-            modifier = Modifier.fillMaxSize().background(Color(0xFF171B2A)),
+            modifier = Modifier.fillMaxSize().background(palette.mediaTextBackground),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = pulse.note,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 30.dp),
-                color = TonightInk,
-                fontSize = 13.sp,
-                lineHeight = 17.sp,
-                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(horizontal = NovaSpacing.md, vertical = 30.dp),
+                color = palette.ink,
+                style = NovaType.bodyCompact.copy(fontWeight = FontWeight.SemiBold),
                 maxLines = 4,
                 overflow = TextOverflow.Ellipsis,
             )
