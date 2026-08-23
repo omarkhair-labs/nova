@@ -75,12 +75,14 @@ fun NovaInlineLoading(
     }
 }
 
-/** Standard empty-state panel. Copy belongs to the feature; presentation belongs here. */
+/** Standard empty-state panel. Copy and optional primary recovery path belong to the feature. */
 @Composable
 fun NovaEmptyState(
     title: String,
     message: String,
     modifier: Modifier = Modifier,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -113,6 +115,13 @@ fun NovaEmptyState(
                 color = NovaMuted,
                 style = NovaType.bodyCompact,
             )
+            if (actionLabel != null && onAction != null) {
+                Spacer(modifier = Modifier.height(NovaSpacing.lg))
+                NovaSecondaryButton(
+                    text = actionLabel,
+                    onClick = onAction,
+                )
+            }
         }
     }
 }
