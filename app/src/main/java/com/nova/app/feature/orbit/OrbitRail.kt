@@ -1,7 +1,8 @@
 package com.nova.app.feature.orbit
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,8 +17,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,18 +31,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.nova.app.app.appContainer
 import com.nova.app.feature.orbit.domain.model.OrbitEvent
 import com.nova.app.ui.components.NovaAvatar
+import com.nova.app.ui.components.NovaCard
 import com.nova.app.ui.components.NovaMediaImage
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
-import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
+import com.nova.app.ui.theme.NovaMotion
 import com.nova.app.ui.theme.NovaMuted
+import com.nova.app.ui.theme.NovaSpacing
 import com.nova.app.ui.theme.NovaSurface
+import com.nova.app.ui.theme.NovaType
 
 
 @Composable
@@ -60,7 +63,12 @@ fun OrbitRail(
         if (state.sessionExpiryVersion > 0) onSessionExpired()
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(
+        modifier = Modifier.animateContentSize(
+            animationSpec = tween(durationMillis = NovaMotion.standard),
+        ),
+        verticalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -70,20 +78,20 @@ fun OrbitRail(
                 Text(
                     text = "Orbit",
                     color = NovaInk,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = NovaType.title.copy(fontWeight = FontWeight.Bold),
                 )
                 Text(
                     text = "What’s moving around your people",
                     color = NovaMuted,
-                    fontSize = 10.sp,
+                    style = NovaType.micro,
                 )
             }
             Text(
                 text = if (state.error != null) "Retry" else "social motion",
                 color = if (state.error != null) NovaAccent else NovaMuted,
-                fontSize = 10.sp,
-                fontWeight = if (state.error != null) FontWeight.SemiBold else FontWeight.Normal,
+                style = NovaType.micro.copy(
+                    fontWeight = if (state.error != null) FontWeight.SemiBold else FontWeight.Normal,
+                ),
                 modifier = if (state.error != null) {
                     Modifier.clickable {
                         owner.clearError()
@@ -136,7 +144,7 @@ fun OrbitRail(
             Text(
                 text = error,
                 color = NovaMuted,
-                fontSize = 10.sp,
+                style = NovaType.micro,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -155,15 +163,12 @@ private fun OrbitEventCard(
         ?: event.pulse?.mediaUrl?.takeIf { it.isNotBlank() }
     val textPulse = event.pulse?.takeIf { it.mediaType == "text" }
 
-    Surface(
+    NovaCard(
         onClick = onClick,
         modifier = Modifier.width(224.dp).height(118.dp),
-        shape = RoundedCornerShape(22.dp),
-        color = NovaSurface,
-        border = BorderStroke(1.dp, NovaBorder),
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(NovaSpacing.md),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Column(
@@ -181,15 +186,14 @@ private fun OrbitEventCard(
                         Text(
                             text = event.actor.name.ifBlank { event.actor.username },
                             color = NovaInk,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
+                            style = NovaType.meta.copy(fontWeight = FontWeight.Bold),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             text = "@${event.actor.username}",
                             color = NovaMuted,
-                            fontSize = 8.sp,
+                            style = NovaType.badge,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -200,9 +204,7 @@ private fun OrbitEventCard(
                     Text(
                         text = orbitActionText(event),
                         color = NovaInk,
-                        fontSize = 11.sp,
-                        lineHeight = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        style = NovaType.meta.copy(fontWeight = FontWeight.SemiBold),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -211,7 +213,7 @@ private fun OrbitEventCard(
                         Text(
                             text = context,
                             color = NovaMuted,
-                            fontSize = 9.sp,
+                            style = NovaType.micro,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -227,19 +229,17 @@ private fun OrbitEventCard(
                 )
                 textPulse != null -> Surface(
                     modifier = Modifier.width(64.dp).height(94.dp),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = MaterialTheme.shapes.medium,
                     color = NovaAccentSoft,
                 ) {
                     Box(
-                        modifier = Modifier.fillMaxSize().padding(8.dp),
+                        modifier = Modifier.fillMaxSize().padding(NovaSpacing.sm),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
                             text = textPulse.note,
                             color = NovaInk,
-                            fontSize = 9.sp,
-                            lineHeight = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
                             maxLines = 5,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -247,15 +247,14 @@ private fun OrbitEventCard(
                 }
                 else -> Surface(
                     modifier = Modifier.width(42.dp).height(94.dp),
-                    shape = RoundedCornerShape(15.dp),
+                    shape = MaterialTheme.shapes.small,
                     color = NovaAccentSoft,
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
                             text = orbitSymbol(event.kind),
                             color = NovaAccent,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
+                            style = NovaType.sectionTitle.copy(fontWeight = FontWeight.Bold),
                         )
                     }
                 }
@@ -308,7 +307,7 @@ private fun OrbitMoreCard(
         onClick = onClick,
         enabled = !loading,
         modifier = Modifier.width(96.dp).height(118.dp),
-        shape = RoundedCornerShape(22.dp),
+        shape = MaterialTheme.shapes.large,
         color = NovaAccentSoft,
         border = BorderStroke(1.dp, NovaAccent.copy(alpha = 0.3f)),
     ) {
@@ -321,8 +320,8 @@ private fun OrbitMoreCard(
                 )
             } else {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("→", color = NovaAccent, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                    Text("More", color = NovaInk, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text("→", color = NovaAccent, style = NovaType.sectionTitle)
+                    Text("More", color = NovaInk, style = NovaType.micro.copy(fontWeight = FontWeight.Bold))
                 }
             }
         }
@@ -332,41 +331,36 @@ private fun OrbitMoreCard(
 
 @Composable
 private fun OrbitEmptyCard(onRetry: () -> Unit) {
-    Surface(
+    NovaCard(
         onClick = onRetry,
         modifier = Modifier.fillMaxWidth().height(92.dp),
-        shape = RoundedCornerShape(22.dp),
-        color = NovaSurface,
-        border = BorderStroke(1.dp, NovaBorder),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp),
+            modifier = Modifier.padding(horizontal = NovaSpacing.md),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(NovaSpacing.md),
         ) {
             Surface(
-                shape = RoundedCornerShape(16.dp),
+                shape = MaterialTheme.shapes.medium,
                 color = NovaAccentSoft,
             ) {
                 Text(
                     text = "✦",
                     modifier = Modifier.padding(horizontal = 13.dp, vertical = 9.dp),
                     color = NovaAccent,
-                    fontSize = 18.sp,
+                    style = NovaType.sectionTitle,
                 )
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Your orbit is quiet",
                     color = NovaInk,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = NovaType.meta.copy(fontWeight = FontWeight.Bold),
                 )
                 Text(
                     text = "Follow people and their social movement will show up here.",
                     color = NovaMuted,
-                    fontSize = 10.sp,
-                    lineHeight = 14.sp,
+                    style = NovaType.micro,
                 )
             }
         }

@@ -1,5 +1,7 @@
 package com.nova.app.feature.rooms
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -12,8 +14,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,18 +31,21 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.nova.app.app.appContainer
 import com.nova.app.feature.rooms.domain.model.RoomSummary
 import com.nova.app.ui.components.NovaAvatar
+import com.nova.app.ui.components.NovaCard
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
+import com.nova.app.ui.theme.NovaMotion
 import com.nova.app.ui.theme.NovaMuted
+import com.nova.app.ui.theme.NovaSpacing
 import com.nova.app.ui.theme.NovaSurface
+import com.nova.app.ui.theme.NovaType
 
 
 @Composable
@@ -64,7 +69,12 @@ fun RoomsRail(
         if (state.sessionExpiryVersion > 0) onSessionExpired()
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(
+        modifier = Modifier.animateContentSize(
+            animationSpec = tween(durationMillis = NovaMotion.standard),
+        ),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -74,18 +84,17 @@ fun RoomsRail(
                 Text(
                     text = "Rooms",
                     color = NovaInk,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = NovaType.title.copy(fontWeight = FontWeight.Bold),
                 )
                 Text(
                     text = "Places you share with your people.",
                     color = NovaMuted,
-                    fontSize = 10.sp,
+                    style = NovaType.micro,
                 )
             }
             Surface(
                 onClick = { showAll = true },
-                shape = RoundedCornerShape(14.dp),
+                shape = MaterialTheme.shapes.small,
                 color = NovaSurface,
                 border = BorderStroke(1.dp, NovaBorder),
             ) {
@@ -93,8 +102,7 @@ fun RoomsRail(
                     text = "All rooms",
                     modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
                     color = NovaAccent,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
                 )
             }
         }
@@ -130,7 +138,7 @@ fun RoomsRail(
             Text(
                 text = "Couldn't refresh Rooms · tap All rooms to retry",
                 color = NovaMuted,
-                fontSize = 9.sp,
+                style = NovaType.micro,
             )
         }
     }
@@ -176,15 +184,14 @@ private fun RoomRailCard(
     onClick: () -> Unit,
 ) {
     val conversation = room.conversation
-    Surface(
+    NovaCard(
         onClick = onClick,
         modifier = Modifier.width(208.dp),
-        shape = RoundedCornerShape(22.dp),
-        color = NovaSurface,
-        border = BorderStroke(
-            1.dp,
-            if (conversation.unreadCount > 0) NovaAccent.copy(alpha = 0.35f) else NovaBorder,
-        ),
+        borderColor = if (conversation.unreadCount > 0) {
+            NovaAccent.copy(alpha = 0.35f)
+        } else {
+            NovaBorder
+        },
     ) {
         Row(
             modifier = Modifier.padding(13.dp),
@@ -200,8 +207,7 @@ private fun RoomRailCard(
                 Text(
                     text = conversation.title,
                     color = NovaInk,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = NovaType.meta.copy(fontWeight = FontWeight.Bold),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -210,7 +216,7 @@ private fun RoomRailCard(
                         "${conversation.membersCount} people"
                     },
                     color = NovaMuted,
-                    fontSize = 9.sp,
+                    style = NovaType.micro,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -218,14 +224,13 @@ private fun RoomRailCard(
             if (conversation.unreadCount > 0) {
                 Spacer(modifier = Modifier.width(7.dp))
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
+                    shape = MaterialTheme.shapes.small,
                     color = NovaAccent,
                 ) {
                     Text(
                         text = if (conversation.unreadCount > 99) "99+" else conversation.unreadCount.toString(),
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        fontSize = 8.sp,
-                        fontWeight = FontWeight.Bold,
+                        style = NovaType.badge,
                     )
                 }
             }
@@ -236,30 +241,28 @@ private fun RoomRailCard(
 
 @Composable
 private fun EmptyRoomsCard(onClick: () -> Unit) {
-    Surface(
+    NovaCard(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
-        color = NovaAccentSoft,
-        border = BorderStroke(1.dp, NovaAccent.copy(alpha = 0.18f)),
+        containerColor = NovaAccentSoft,
+        borderColor = NovaAccent.copy(alpha = 0.18f),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 15.dp, vertical = 13.dp),
+            modifier = Modifier.padding(horizontal = NovaSpacing.md, vertical = 13.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("⌂", color = NovaAccent, fontSize = 20.sp)
+            Text("⌂", color = NovaAccent, style = NovaType.sectionTitle)
             Spacer(modifier = Modifier.width(11.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Make a place for your people",
                     color = NovaInk,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = NovaType.meta.copy(fontWeight = FontWeight.Bold),
                 )
                 Text(
                     text = "A Room starts from a Nova group and grows into shared memories, plans and media.",
                     color = NovaMuted,
-                    fontSize = 9.sp,
+                    style = NovaType.micro,
                 )
             }
         }
