@@ -12,6 +12,7 @@ val NovaBaseMuted = Color(0xFF77727F)
 val NovaBaseBorder = Color(0xFFE9E6EE)
 val NovaBaseAccent = Color(0xFF6554E8)
 val NovaBaseAccentSoft = Color(0xFFF0EDFF)
+val NovaBaseLive = Color(0xFF58C9D8)
 val NovaDanger = Color(0xFFBF2A3D)
 
 
