@@ -5,13 +5,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -28,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.notifications.NovaNotificationRepository
 import com.nova.app.core.push.NovaPushOpenSignal
@@ -298,7 +300,7 @@ fun HomeScreen(
                             NovaAvatar(
                                 source = avatarUrl,
                                 fallbackText = displayName.ifBlank { username },
-                                size = androidx.compose.ui.unit.dp(40f),
+                                size = 40.dp,
                             )
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
@@ -313,12 +315,12 @@ fun HomeScreen(
                                 )
                             }
                             Surface(
-                                shape = androidx.compose.foundation.shape.RoundedCornerShape(androidx.compose.ui.unit.dp(14f)),
+                                shape = RoundedCornerShape(14.dp),
                                 color = NovaAccent,
                             ) {
                                 Text(
                                     text = "+",
-                                    modifier = Modifier.padding(horizontal = androidx.compose.ui.unit.dp(13f), vertical = androidx.compose.ui.unit.dp(6f)),
+                                    modifier = Modifier.padding(horizontal = 13.dp, vertical = 6.dp),
                                     color = NovaBackground,
                                     style = NovaType.title,
                                 )
