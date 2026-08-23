@@ -3,6 +3,8 @@ package com.nova.app.feature.pulse
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,8 +20,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -32,7 +34,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -53,13 +54,11 @@ import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
+import com.nova.app.ui.theme.NovaMotion
 import com.nova.app.ui.theme.NovaMuted
+import com.nova.app.ui.theme.NovaSpacing
 import com.nova.app.ui.theme.NovaSurface
-
-
-private val PulseViewerBackground = Color(0xFF07090D)
-private val PulseViewerInk = Color(0xFFF8F9FB)
-private val PulseViewerMuted = Color(0xFFB7BDC8)
+import com.nova.app.ui.theme.NovaType
 
 
 @Composable
@@ -77,6 +76,7 @@ fun PulseViewerDialog(
     var replyComposerVisible by remember(initialPulse.id) { mutableStateOf(false) }
     var replyMedia by remember(initialPulse.id) { mutableStateOf<Uri?>(null) }
 
+    val palette = PulseTheme.media
     val chain = state.chain.ifEmpty { listOf(initialPulse) }
     val activePulse = chain.firstOrNull { it.id == activePulseId } ?: initialPulse
     val replyPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -100,7 +100,7 @@ fun PulseViewerDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Box(
-            modifier = Modifier.fillMaxSize().background(PulseViewerBackground),
+            modifier = Modifier.fillMaxSize().background(palette.background),
         ) {
             PulseViewerMedia(pulse = activePulse)
 
@@ -121,9 +121,8 @@ fun PulseViewerDialog(
                         } else {
                             activePulse.author.name.ifBlank { activePulse.author.username }
                         },
-                        color = PulseViewerInk,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
+                        color = palette.ink,
+                        style = NovaType.bodyCompact.copy(fontWeight = FontWeight.Bold),
                     )
                     Text(
                         text = if (activePulse.replyToId == null) {
@@ -131,17 +130,17 @@ fun PulseViewerDialog(
                         } else {
                             "@${activePulse.author.username} • moment reply • 12h"
                         },
-                        color = PulseViewerMuted,
-                        fontSize = 10.sp,
+                        color = palette.muted,
+                        style = NovaType.micro,
                     )
                 }
                 Text(
                     text = "✕",
-                    color = PulseViewerInk,
+                    color = palette.ink,
                     fontSize = 20.sp,
                     modifier = Modifier
                         .clickable(enabled = !state.replying, onClick = onDismiss)
-                        .padding(8.dp),
+                        .padding(NovaSpacing.sm),
                 )
             }
 
@@ -149,20 +148,21 @@ fun PulseViewerDialog(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 18.dp),
-                shape = RoundedCornerShape(24.dp),
-                color = PulseViewerBackground.copy(alpha = 0.9f),
-                border = BorderStroke(1.dp, PulseViewerMuted.copy(alpha = 0.2f)),
+                    .padding(horizontal = 14.dp, vertical = 18.dp)
+                    .animateContentSize(animationSpec = tween(durationMillis = NovaMotion.standard)),
+                shape = MaterialTheme.shapes.large,
+                color = palette.background.copy(alpha = 0.9f),
+                border = BorderStroke(1.dp, palette.panelBorder),
             ) {
                 Column(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = NovaSpacing.md),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     if (activePulse.mediaType != "text" && activePulse.note.isNotBlank()) {
                         Text(
                             text = activePulse.note,
-                            color = PulseViewerInk,
-                            fontSize = 13.sp,
+                            color = palette.ink,
+                            style = NovaType.bodyCompact,
                             maxLines = 3,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -175,9 +175,8 @@ fun PulseViewerDialog(
                     ) {
                         Text(
                             text = if (chain.size <= 1) "Start a moment chain" else "Moment chain • ${chain.size}",
-                            color = PulseViewerMuted,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            color = palette.muted,
+                            style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
                         )
                         if (state.loading) {
                             CircularProgressIndicator(
@@ -204,8 +203,8 @@ fun PulseViewerDialog(
                     state.error?.let { error ->
                         Text(
                             text = error,
-                            color = PulseViewerMuted,
-                            fontSize = 10.sp,
+                            color = palette.muted,
+                            style = NovaType.micro,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -213,7 +212,7 @@ fun PulseViewerDialog(
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Surface(
@@ -224,11 +223,11 @@ fun PulseViewerDialog(
                             },
                             enabled = !state.replying,
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(16.dp),
+                            shape = MaterialTheme.shapes.medium,
                             color = NovaAccent,
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                                modifier = Modifier.padding(horizontal = NovaSpacing.md, vertical = 9.dp),
                                 horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
@@ -242,8 +241,7 @@ fun PulseViewerDialog(
                                     Text(
                                         text = "↳ Reply with a moment",
                                         color = NovaBackground,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
+                                        style = NovaType.meta.copy(fontWeight = FontWeight.Bold),
                                     )
                                 }
                             }
@@ -257,11 +255,11 @@ fun PulseViewerDialog(
                                 if (deletingPulseId == activePulse.id) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(16.dp),
-                                        color = PulseViewerInk,
+                                        color = palette.ink,
                                         strokeWidth = 2.dp,
                                     )
                                 } else {
-                                    Text("Delete", color = PulseViewerInk, fontSize = 11.sp)
+                                    Text("Delete", color = palette.ink, style = NovaType.meta)
                                 }
                             }
                         }
@@ -309,7 +307,7 @@ private fun PulseChainChip(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(15.dp),
+        shape = MaterialTheme.shapes.small,
         color = if (selected) NovaAccentSoft else NovaSurface.copy(alpha = 0.9f),
         border = BorderStroke(
             1.dp,
@@ -317,7 +315,7 @@ private fun PulseChainChip(
         ),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = NovaSpacing.sm, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             NovaAvatar(
@@ -330,15 +328,14 @@ private fun PulseChainChip(
                 Text(
                     text = if (pulse.isMine) "You" else pulse.author.name.ifBlank { pulse.author.username },
                     color = if (selected) NovaAccent else NovaInk,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = NovaType.micro.copy(fontWeight = FontWeight.Bold),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = if (pulse.replyToId == null) "start" else "reply",
                     color = NovaMuted,
-                    fontSize = 8.sp,
+                    style = NovaType.badge,
                 )
             }
         }
@@ -348,6 +345,7 @@ private fun PulseChainChip(
 
 @Composable
 private fun PulseViewerMedia(pulse: NovaPulse) {
+    val palette = PulseTheme.media
     when (pulse.mediaType) {
         "image" -> NovaMediaImage(
             source = pulse.mediaUrl,
@@ -362,10 +360,8 @@ private fun PulseViewerMedia(pulse: NovaPulse) {
             Text(
                 text = pulse.note,
                 modifier = Modifier.padding(horizontal = 34.dp),
-                color = PulseViewerInk,
-                fontSize = 28.sp,
-                lineHeight = 36.sp,
-                fontWeight = FontWeight.Bold,
+                color = palette.ink,
+                style = NovaType.screenTitle.copy(fontWeight = FontWeight.Bold),
             )
         }
     }
