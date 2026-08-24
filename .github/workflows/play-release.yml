@@ -162,6 +162,14 @@ jobs:
           jarsigner -verify "${aab}"
           echo "PLAY_AAB_PATH=${aab}" >> "${GITHUB_ENV}"
 
+      - name: Upload signed AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nova-${{ github.sha }}-release-aab
+          path: app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
