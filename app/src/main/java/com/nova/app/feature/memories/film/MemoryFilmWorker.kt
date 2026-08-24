@@ -95,7 +95,18 @@ class MemoryFilmWorker(
         private const val CHANNEL_ID = "nova_memory_render"
         private const val NOTIFICATION_ID = 4207
 
-        fun uniqueName(plan: MemoryFilmPlan): String = "memory-film-${plan.selectionVersion}"
+        fun uniqueName(plan: MemoryFilmPlan): String = buildString {
+            append("memory-film-")
+            append(plan.selectionVersion)
+            append('-')
+            append(plan.renderVersion)
+            append('-')
+            append(plan.weeksAgo)
+            append('-')
+            append(plan.startsAt.take(10))
+            append('-')
+            append(plan.totalDurationMs)
+        }
 
         fun enqueue(context: Context, plan: MemoryFilmPlan): UUID {
             val request = OneTimeWorkRequestBuilder<MemoryFilmWorker>()
@@ -108,7 +119,7 @@ class MemoryFilmWorker(
                 .build()
             WorkManager.getInstance(context).enqueueUniqueWork(
                 uniqueName(plan),
-                ExistingWorkPolicy.KEEP,
+                ExistingWorkPolicy.REPLACE,
                 request,
             )
             return request.id
