@@ -1,5 +1,6 @@
 package com.nova.app.feature.auth.data.remote
 
+import android.os.Build
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.UploadFile
@@ -25,6 +26,8 @@ class AuthRemoteDataSource(
             .put("password", password)
             .put("username", username)
             .put("name", name)
+            .put("device_name", deviceName())
+            .put("platform", "android")
 
         return when (val response = api.requestJson("auth/register/", "POST", body)) {
             is ApiResult.Success -> parseAuthSession(response.value, api::resolveMediaUrl)
@@ -36,6 +39,8 @@ class AuthRemoteDataSource(
         val body = JSONObject()
             .put("email", email)
             .put("password", password)
+            .put("device_name", deviceName())
+            .put("platform", "android")
 
         return when (val response = api.requestJson("auth/login/", "POST", body)) {
             is ApiResult.Success -> parseAuthSession(response.value, api::resolveMediaUrl)
@@ -102,4 +107,11 @@ class AuthRemoteDataSource(
             is ApiResult.Failure -> response
         }
     }
+
+    private fun deviceName(): String = listOf(Build.MANUFACTURER, Build.MODEL)
+        .map(String::trim)
+        .filter(String::isNotBlank)
+        .distinctBy { it.lowercase() }
+        .joinToString(" ")
+        .ifBlank { "Android device" }
 }

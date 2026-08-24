@@ -57,6 +57,7 @@ import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSpacing
 import com.nova.app.ui.theme.NovaSurface
 import com.nova.app.ui.theme.NovaType
+import kotlinx.coroutines.delay
 
 
 @Composable
@@ -255,7 +256,14 @@ fun PulseScreen(
             PulseViewerStateOwner(pulse, repository, scope)
         }
         val viewerState = viewerOwner.state
-        LaunchedEffect(pulse.id) { viewerOwner.loadChain(pulse.id) }
+        LaunchedEffect(pulse.id) {
+            viewerOwner.loadChain(pulse.id)
+            viewerOwner.recordView(pulse.id)
+            while (true) {
+                delay(10_000)
+                viewerOwner.loadChain(pulse.id)
+            }
+        }
         LaunchedEffect(viewerState.sessionExpiryVersion) {
             if (viewerState.sessionExpiryVersion > 0) onSessionExpired()
         }
@@ -272,6 +280,7 @@ fun PulseScreen(
                 owner.delete(target.id)
                 selectedPulse = null
             },
+            onReaction = { target, enabled -> viewerOwner.setReaction(target.id, enabled) },
             onReplyText = { parent, note, audience ->
                 viewerOwner.replyText(parent.id, note, audience, parent.category)
             },

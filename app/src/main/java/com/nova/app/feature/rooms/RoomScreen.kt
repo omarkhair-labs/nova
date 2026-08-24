@@ -24,6 +24,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -294,10 +295,12 @@ fun RoomScreen(
                 if (editDescription) {
                     RoomDescriptionDialog(
                         initial = detail.description,
+                        initialPublic = detail.isPublic,
+                        initialTopics = detail.topics,
                         saving = state.savingDescription,
                         onDismiss = { if (!state.savingDescription) editDescription = false },
-                        onSave = { value ->
-                            owner.updateDescription(value)
+                        onSave = { value, isPublic, topics ->
+                            owner.updateProfile(value, isPublic, topics)
                             editDescription = false
                         },
                     )
@@ -713,32 +716,66 @@ private fun EmptyRoomSection(kind: String?) {
 @Composable
 private fun RoomDescriptionDialog(
     initial: String,
+    initialPublic: Boolean,
+    initialTopics: List<String>,
     saving: Boolean,
     onDismiss: () -> Unit,
-    onSave: (String) -> Unit,
+    onSave: (String, Boolean, List<String>) -> Unit,
 ) {
     var value by remember(initial) { mutableStateOf(initial) }
+    var isPublic by remember(initialPublic) { mutableStateOf(initialPublic) }
+    var topics by remember(initialTopics) { mutableStateOf(initialTopics.joinToString(", ")) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Room description") },
+        title = { Text("Room details") },
         text = {
-            OutlinedTextField(
-                value = value,
-                onValueChange = { if (it.length <= 240) value = it },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 3,
-                maxLines = 5,
-                placeholder = { Text("What is this Room about?", color = NovaMuted) },
-                shape = RoundedCornerShape(16.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = NovaAccent,
-                    unfocusedBorderColor = NovaBorder,
-                    cursorColor = NovaAccent,
-                ),
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = { if (it.length <= 240) value = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3,
+                    maxLines = 5,
+                    placeholder = { Text("What is this Room about?", color = NovaMuted) },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = NovaAccent,
+                        unfocusedBorderColor = NovaBorder,
+                        cursorColor = NovaAccent,
+                    ),
+                )
+                OutlinedTextField(
+                    value = topics,
+                    onValueChange = { if (it.length <= 200) topics = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Topics") },
+                    placeholder = { Text("Design, Music, Photography") },
+                    shape = RoundedCornerShape(16.dp),
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Public Room", color = NovaInk, fontWeight = FontWeight.SemiBold)
+                        Text("Anyone can discover, follow and join.", color = NovaMuted, fontSize = 10.sp)
+                    }
+                    Switch(checked = isPublic, onCheckedChange = { isPublic = it })
+                }
+            }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(value) }, enabled = !saving) {
+            TextButton(
+                onClick = {
+                    onSave(
+                        value,
+                        isPublic,
+                        topics.split(',').map(String::trim).filter(String::isNotBlank).distinctBy { it.lowercase() }.take(8),
+                    )
+                },
+                enabled = !saving,
+            ) {
                 Text(if (saving) "Saving…" else "Save")
             }
         },

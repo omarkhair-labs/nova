@@ -37,6 +37,24 @@ class PulseViewerStateOwner(
         scope.launch { loadChainNow(pulseId) }
     }
 
+    fun recordView(pulseId: Long) {
+        scope.launch {
+            when (val result = repository.recordView(pulseId)) {
+                is ApiResult.Success -> replacePulse(result.value)
+                is ApiResult.Failure -> recordFailure(result)
+            }
+        }
+    }
+
+    fun setReaction(pulseId: Long, enabled: Boolean) {
+        scope.launch {
+            when (val result = repository.setReaction(pulseId, enabled)) {
+                is ApiResult.Success -> replacePulse(result.value)
+                is ApiResult.Failure -> recordFailure(result)
+            }
+        }
+    }
+
     internal suspend fun loadChainNow(pulseId: Long) {
         state = state.copy(loading = true, error = null)
         when (val result = repository.pulseChain(pulseId)) {
@@ -89,6 +107,13 @@ class PulseViewerStateOwner(
         state = state.copy(
             chain = (state.chain + pulse).distinctBy { it.id },
             replyCreatedVersion = state.replyCreatedVersion + 1,
+            error = null,
+        )
+    }
+
+    private fun replacePulse(pulse: NovaPulse) {
+        state = state.copy(
+            chain = state.chain.map { if (it.id == pulse.id) pulse else it },
             error = null,
         )
     }

@@ -18,16 +18,16 @@ This matrix audits the PDF plus all eight approved raster references. “Impleme
 | 3 Discovery | Other-user profile | Real profile/follow/message/safety existed | Added approved metadata, orbit identity, audio/video call actions and preserved share/block/report | Expanded public profile payload; reuses real conversation/call APIs | Implemented to target design |
 | 3 Discovery | Edit profile | Name/avatar only | Added handle, bio, location, link, interests, show-orbit and profile-theme controls | Added persisted profile metadata and validation | Implemented to target design |
 | 1 + 6 Live/Orbit | Orbit hub | Real relationship/presence list existed | Approved orbit rings, presence states, filters, profile/message entry points and Tonight/Rooms composition retained | Existing presence WebSocket and Orbit APIs | Implemented to target design |
-| 6 Live/Orbit | Orbit detail/activity composition | Profile, messaging, calls and content exist as separate real paths | Message/audio/video entry points and profile metadata implemented | Reuses messaging/call/profile APIs | Not yet implemented — the single approved dark Orbit Activity composition with live joins is not fully assembled |
+| 6 Live/Orbit | Orbit detail/activity composition | Profile, messaging, calls and content existed as separate real paths | Added the approved dark orbit-ring activity composition with live-moment context and a real handoff to the production profile/message/audio/video actions | Reuses Orbit, messaging, call and profile APIs | Implemented to target design |
 | 1 + 6 | Pulse feed/categories | Real expiring Pulse feed existed without categories | Added All/Live/Music/Talks/Vibes filtering and category-aware creation/replies | Added persisted Pulse category and feed filter | Implemented to target design |
-| 6 Live/Orbit | Pulse immersive viewer/live reactions | Viewer and threaded Pulse replies exist | Category-aware reply chain and immersive media retained | Existing Pulse chain API | Not yet implemented — approved viewer heart/reaction stream and live viewer-count behavior are absent |
+| 6 Live/Orbit | Pulse immersive viewer/live reactions | Viewer and threaded Pulse replies existed without engagement | Added persisted heart reactions, unique viewers, watching/reaction counts and active-viewer refresh while the immersive viewer is open | Added PulseReaction/PulseView models and engagement endpoints | Implemented to target design |
 | 6 Live/Orbit | Pulse composer | Real text/photo/video Pulse composer existed | Added approved category selection while preserving audience/media validation | Category added to create API | Implemented to target design |
 | 1 + 6 | Tonight full | Real Tonight snapshot and room joins existed | Dark orbit hero, live people and Rooms composition/navigation converged | Existing Tonight/Rooms APIs | Implemented to target design |
 | 7 Rooms/Messaging | Inbox | Real inbox/search/paging/unread existed | Added approved All/Unread/Mentions controls using full server filters | Added authenticated inbox filters including current-user mentions | Implemented to target design |
 | 7 Rooms/Messaging | Direct chat | Full real-time chat existed | Target chat chrome, media/voice/replies/reactions/read state/calls retained and converged | Existing REST/WebSocket delivery and read-receipt preference | Implemented to target design |
 | 7 Rooms/Messaging | Group chat | Group chat/admin/media/calls existed | Target group identity, live entry, message/reaction/composer behavior retained | Existing group membership/realtime APIs | Implemented to target design |
 | 1 + 7 | My Rooms list | Group-backed Rooms list existed | Approved Room cards, unread state and detail navigation retained | Existing group/Room APIs | Implemented to target design |
-| 7 Rooms/Messaging | Room Discover/Following/public Join | No public-room discovery or join/follow domain | No fake public rooms or join buttons added | Requires public visibility, discovery ranking, membership policy and join/follow API work | Not yet implemented |
+| 7 Rooms/Messaging | Room Discover/Following/public Join | No public-room discovery or join/follow domain | Added My Rooms/Discover/Following tabs, admin-controlled public visibility/topics, real follow/unfollow and public join; blocked-network safety is enforced | Added Room public metadata, RoomFollow persistence and authenticated discovery/membership/follow endpoints | Implemented to target design |
 | 7 Rooms/Messaging | Room detail/private shared space | Real group-backed Room detail/items/members existed | Approved sections, members, description, notes/media/music/plans/saved, pins and live-chat entry retained/converged | Existing Room item APIs | Implemented to target design |
 | 7 Rooms/Messaging | Scheduled plans/reminders | Plans existed without date picker or reminders | Added real date/time selection, persisted reminder toggle and local 15-minute Android alarm notification | Added RoomReminder model/endpoints | Implemented to target design |
 | 7 Rooms/Messaging | Active audio/video call | Production WebRTC call flow existed | Dark call surface, orbit participants and real call controls retained | Existing call sessions/signaling/WebRTC/TURN configuration | Implemented to target design |
@@ -38,28 +38,24 @@ This matrix audits the PDF plus all eight approved raster references. “Impleme
 | 4 Account | Password/session protection | Change password and revoke-other-sessions existed | Target security grouping retained; password recovery/change/revoke/delete remain real | Existing password-bound JWT security | Implemented to target design |
 | 4 Account | App lock | Absent | Added opt-in device-credential app lock, enrollment confirmation and foreground enforcement | Local protected preference + Android Keyguard | Implemented to target design |
 | 4 Account | Two-factor authentication | Absent | Not represented as a working toggle because the approved image does not choose authenticator TOTP vs email/SMS | Requires an explicit factor/recovery policy and corresponding enrollment/login protocol | Not yet implemented — unresolved product/security decision |
-| 4 Account | Login activity/session list | Only revoke-all-other-sessions existed | Existing real revocation retained | Current JWT model does not persist per-device session records | Not yet implemented |
+| 4 Account | Login activity/session list | Only revoke-all-other-sessions existed | Added current/other signed-in-device list, last activity metadata and individual sign-out while retaining password-confirmed revoke-all | Added password-bound AuthSessionRecord persistence, sid claims, refresh/auth enforcement and revoke endpoint | Implemented to target design |
 | 4 Account | Login | Real email/password login/recovery existed | Approved wordmark/form hierarchy and recovery entry converged; no fake provider buttons | Existing secure token/session API | Implemented to target design |
 | 4 Account | Google/Apple/social login | Absent; provider configuration unavailable | No fake OAuth controls added | Requires provider client IDs/secrets, redirect configuration and account-linking policy | Not yet implemented — external configuration blocker |
 | 4 Account | Register/onboarding | Registration plus separate setup existed | Approved single real full-name/username/email/password creation flow implemented | Existing registration API, expanded profile supports later edit | Implemented to target design |
 | 8 Memories | Create hub | Separate creators/rails existed | Approved Post/Story/Pulse/Room/Memory entry composition implemented; every action opens a real creator or real content section | Existing feature repositories | Implemented to target design |
 | 8 Memories | Weekly Memories home/detail/recap | Real generated weekly recap existed | Paper-toned weekly recap, date navigation, stats, highlights, people and sharing retained/converged | Existing server-generated weekly Memory API | Implemented to target design |
-| 8 Memories | New Memory and Recent Drafts | No user-authored Memory draft domain | Existing generated recap/film paths were not mislabeled as drafts | Requires draft model, media selection/editing, autosave and draft CRUD | Not yet implemented |
+| 8 Memories | New Memory and Recent Drafts | No user-authored Memory draft domain | Added recap/film draft creation, photo/video selection, recent-draft rail, reopen/edit with debounced autosave and deletion | Added private MemoryDraft media persistence and CRUD endpoints | Implemented to target design |
 | 8 Memories | Memory film builder/storyboard | Real server plan and local Media3 exporter existed | Storyboard scenes, preview, cancellation, export and external sharing retained/converged | Existing film-plan API; local Media3 MP4 export | Implemented to target design |
-| 8 Memories | Background rendering/resume | Export tied to active UI scope | Progress and cancellation exist while active | Requires durable foreground WorkManager job/output persistence | Not yet implemented |
+| 8 Memories | Background rendering/resume | Export was tied to active UI scope | Moved film export to a unique foreground WorkManager job with notification progress, cancellation, persisted work state and result reattachment after navigation/process recreation | Uses existing film-plan API and local Media3 exporter through durable WorkManager execution | Implemented to target design |
 | 8 Memories | Preview/share/save | Real rendered-file preview and Android share existed | Approved ready state, preview and system share implemented | Local exported MP4/FileProvider | Implemented to target design |
 
 ## Completion boundary
 
 The approved visual/product implementation is **not complete yet**. The remaining intentional capabilities are explicitly limited to:
 
-- assembled Orbit Activity detail/live-join composition;
-- Pulse live reactions/viewer-count stream;
-- public/discoverable/followable Rooms and join policy;
 - two-factor authentication factor/recovery policy and implementation;
-- persisted per-device login activity;
-- OAuth provider setup and account linking;
-- user-authored Memory drafts;
-- durable background Memory film rendering.
+- OAuth provider setup and account linking.
+
+Those two boundaries are not mockable production work: two-factor authentication needs a product/security choice among authenticator TOTP, email, SMS, passkeys and recovery policy; Google/Apple login needs issued provider client IDs/secrets, redirect configuration and an account-linking policy. Everything else represented by the approved pack is mapped above to a real production implementation.
 
 No row above should be treated as complete merely because an adjacent existing feature works.

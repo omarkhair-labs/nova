@@ -106,3 +106,52 @@ class Pulse(models.Model):
 
     def __str__(self):
         return f"Pulse {self.pk} by @{self.author.username}"
+
+
+class PulseReaction(models.Model):
+    pulse = models.ForeignKey(
+        Pulse,
+        on_delete=models.CASCADE,
+        related_name="reactions",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="pulse_reactions",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = "accounts"
+        ordering = ("-created_at", "-id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("pulse", "user"),
+                name="unique_pulse_reaction",
+            ),
+        ]
+
+
+class PulseView(models.Model):
+    pulse = models.ForeignKey(
+        Pulse,
+        on_delete=models.CASCADE,
+        related_name="views",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="pulse_views",
+    )
+    first_viewed_at = models.DateTimeField(auto_now_add=True)
+    last_viewed_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = "accounts"
+        ordering = ("-last_viewed_at", "-id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("pulse", "user"),
+                name="unique_pulse_view",
+            ),
+        ]

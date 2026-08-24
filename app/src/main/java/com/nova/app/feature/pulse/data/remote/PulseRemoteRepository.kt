@@ -130,6 +130,32 @@ class PulseRemoteRepository(
         }
     }
 
+    override suspend fun recordView(pulseId: Long): ApiResult<NovaPulse> =
+        updateEngagement("pulses/$pulseId/view/", JSONObject())
+
+    override suspend fun setReaction(pulseId: Long, enabled: Boolean): ApiResult<NovaPulse> =
+        updateEngagement(
+            "pulses/$pulseId/reaction/",
+            JSONObject().put("enabled", enabled),
+        )
+
+    private suspend fun updateEngagement(path: String, body: JSONObject): ApiResult<NovaPulse> =
+        authenticatedCall { token ->
+            when (
+                val response = api.requestJson(
+                    path = path,
+                    method = "POST",
+                    body = body,
+                    bearerToken = token,
+                )
+            ) {
+                is ApiResult.Success -> ApiResult.Success(
+                    parseNovaPulse(response.value, api::resolveMediaUrl),
+                )
+                is ApiResult.Failure -> response
+            }
+        }
+
     private suspend fun createTextAt(
         path: String,
         note: String,

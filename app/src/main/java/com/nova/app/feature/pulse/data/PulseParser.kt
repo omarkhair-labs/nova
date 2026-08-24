@@ -28,6 +28,9 @@ internal fun parseNovaPulse(
         isMine = json.optBoolean("is_mine", false),
         replyToId = json.optNullableLong("reply_to_id"),
         chainRootId = json.optNullableLong("chain_root_id"),
+        reactionsCount = json.optInt("reactions_count", 0),
+        viewersCount = json.optInt("viewers_count", 0),
+        isReacted = json.optBoolean("is_reacted", false),
     )
 }
 

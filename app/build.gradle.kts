@@ -96,6 +96,7 @@ dependencies {
     implementation("androidx.navigation3:navigation3-runtime:1.1.4")
     implementation("androidx.navigation3:navigation3-ui:1.1.4")
     implementation("androidx.core:core-telecom:1.0.0")
+    implementation("androidx.work:work-runtime-ktx:2.10.1")
     implementation("io.github.webrtc-sdk:android:144.7559.08")
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))

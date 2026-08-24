@@ -116,6 +116,30 @@ fun RoomsScreen(
 
             Spacer(modifier = Modifier.padding(top = NovaSpacing.sm))
 
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = NovaSpacing.md),
+                horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
+            ) {
+                listOf("mine" to "My Rooms", "discover" to "Discover", "following" to "Following").forEach { (key, label) ->
+                    val selected = state.selectedList == key
+                    Surface(
+                        onClick = { owner.selectList(key) },
+                        modifier = Modifier.weight(1f),
+                        shape = MaterialTheme.shapes.medium,
+                        color = if (selected) NovaAccent else NovaAccentSoft,
+                        border = BorderStroke(1.dp, if (selected) NovaAccent else NovaBorder),
+                    ) {
+                        Text(
+                            text = label,
+                            modifier = Modifier.padding(vertical = 9.dp),
+                            color = if (selected) NovaBackground else NovaAccent,
+                            style = NovaType.micro.copy(fontWeight = FontWeight.Bold),
+                            maxLines = 1,
+                        )
+                    }
+                }
+            }
+
             when {
                 state.loading && state.rooms.isEmpty() -> {
                     NovaLoadingState(
@@ -126,11 +150,19 @@ fun RoomsScreen(
 
                 state.rooms.isEmpty() -> {
                     NovaEmptyState(
-                        title = "Your first Room starts here",
-                        message = "Choose your people once. Chat, plans, media and memories can live in the same place.",
+                        title = when (state.selectedList) {
+                            "discover" -> "No public Rooms to discover yet"
+                            "following" -> "You aren't following a Room yet"
+                            else -> "Your first Room starts here"
+                        },
+                        message = when (state.selectedList) {
+                            "discover" -> "Public Rooms created by people outside your blocked network will appear here."
+                            "following" -> "Follow a public Room to keep it close without joining."
+                            else -> "Choose your people once. Chat, plans, media and memories can live in the same place."
+                        },
                         modifier = Modifier.weight(1f),
-                        actionLabel = "Create a Room",
-                        onAction = { showCreate = true },
+                        actionLabel = if (state.selectedList == "mine") "Create a Room" else null,
+                        onAction = if (state.selectedList == "mine") ({ showCreate = true }) else null,
                     )
                 }
 
@@ -151,7 +183,15 @@ fun RoomsScreen(
                         }
 
                         items(state.rooms, key = { it.conversation.id }) { room ->
-                            RoomListCard(room = room, onClick = { onRoomClick(room.conversation.id) })
+                            RoomListCard(
+                                room = room,
+                                busy = state.busyRoomId == room.conversation.id,
+                                onClick = {
+                                    if (room.isMember) onRoomClick(room.conversation.id)
+                                    else owner.join(room, onRoomClick)
+                                },
+                                onFollow = { owner.toggleFollow(room) },
+                            )
                         }
                     }
                 }
@@ -179,7 +219,9 @@ fun RoomsScreen(
 @Composable
 private fun RoomListCard(
     room: RoomSummary,
+    busy: Boolean,
     onClick: () -> Unit,
+    onFollow: () -> Unit,
 ) {
     val conversation = room.conversation
     NovaCard(
@@ -227,7 +269,33 @@ private fun RoomListCard(
                     )
                 }
             } else {
-                Text("›", color = NovaMuted, style = NovaType.sectionTitle)
+                Column(horizontalAlignment = Alignment.End) {
+                    if (room.isPublic && !room.isMember) {
+                        Surface(
+                            onClick = onClick,
+                            enabled = !busy,
+                            shape = MaterialTheme.shapes.small,
+                            color = NovaAccent,
+                        ) {
+                            Text(
+                                if (busy) "Working…" else "Join",
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                color = NovaBackground,
+                                style = NovaType.micro.copy(fontWeight = FontWeight.Bold),
+                            )
+                        }
+                        Spacer(modifier = Modifier.padding(top = 3.dp))
+                        Surface(onClick = onFollow, enabled = !busy, color = NovaBackground) {
+                            Text(
+                                if (room.isFollowing) "Following" else "Follow",
+                                color = NovaAccent,
+                                style = NovaType.micro,
+                            )
+                        }
+                    } else {
+                        Text("›", color = NovaMuted, style = NovaType.sectionTitle)
+                    }
+                }
             }
         }
     }

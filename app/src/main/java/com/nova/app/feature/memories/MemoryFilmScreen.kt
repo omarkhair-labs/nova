@@ -29,8 +29,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,9 +47,12 @@ import androidx.core.content.FileProvider
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import com.nova.app.app.appContainer
 import com.nova.app.feature.memories.domain.model.MemoryFilmPlan
 import com.nova.app.feature.memories.domain.model.MemoryFilmScene
+import com.nova.app.feature.memories.film.MemoryFilmWorker
 import com.nova.app.ui.components.NovaMediaImage
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
@@ -57,6 +63,12 @@ import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
 import java.io.File
 import java.util.TimeZone
+import java.util.UUID
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
 
 
 @Composable
@@ -73,13 +85,10 @@ fun MemoryFilmScreen(
         MemoryFilmStateOwner(repository, exporter, scope)
     }
     val state = owner.state
+    val workManager = remember(context) { WorkManager.getInstance(context.applicationContext) }
+    var activeWorkId by remember { mutableStateOf<UUID?>(null) }
 
-    BackHandler {
-        if (state.exporting) owner.cancelExport() else onBack()
-    }
-    DisposableEffect(owner) {
-        onDispose { owner.cancelExport() }
-    }
+    BackHandler(onBack = onBack)
     LaunchedEffect(owner, initialWeeksAgo) {
         owner.loadPlan(
             utcOffsetMinutes = filmUtcOffsetMinutes(),
@@ -89,6 +98,44 @@ fun MemoryFilmScreen(
     }
     LaunchedEffect(state.sessionExpiryVersion) {
         if (state.sessionExpiryVersion > 0) onSessionExpired()
+    }
+    LaunchedEffect(state.plan?.selectionVersion) {
+        val plan = state.plan ?: return@LaunchedEffect
+        val existing = withContext(Dispatchers.IO) {
+            workManager.getWorkInfosForUniqueWork(MemoryFilmWorker.uniqueName(plan)).get()
+                .firstOrNull { it.state != WorkInfo.State.CANCELLED }
+        }
+        activeWorkId = existing?.id
+    }
+    LaunchedEffect(activeWorkId) {
+        val workId = activeWorkId ?: return@LaunchedEffect
+        while (currentCoroutineContext().isActive) {
+            val info = withContext(Dispatchers.IO) { workManager.getWorkInfoById(workId).get() } ?: break
+            when (info.state) {
+                WorkInfo.State.ENQUEUED, WorkInfo.State.RUNNING, WorkInfo.State.BLOCKED ->
+                    owner.acceptBackgroundWork(
+                        running = true,
+                        progress = info.progress.getInt(MemoryFilmWorker.KEY_PROGRESS, 0),
+                    )
+                WorkInfo.State.SUCCEEDED -> owner.acceptBackgroundWork(
+                    running = false,
+                    progress = 100,
+                    outputPath = info.outputData.getString(MemoryFilmWorker.KEY_OUTPUT_PATH),
+                )
+                WorkInfo.State.FAILED -> owner.acceptBackgroundWork(
+                    running = false,
+                    progress = 0,
+                    error = info.outputData.getString(MemoryFilmWorker.KEY_ERROR)
+                        ?: "Nova couldn't render this film.",
+                )
+                WorkInfo.State.CANCELLED -> owner.acceptBackgroundWork(
+                    running = false,
+                    progress = 0,
+                )
+            }
+            if (info.state.isFinished) break
+            delay(1_000)
+        }
     }
 
     Surface(modifier = Modifier.fillMaxSize(), color = NovaBackground) {
@@ -119,10 +166,18 @@ fun MemoryFilmScreen(
                 outputPath = state.outputPath,
                 error = state.error,
                 onBack = {
-                    if (state.exporting) owner.cancelExport() else onBack()
+                    onBack()
                 },
-                onRender = owner::export,
-                onCancel = owner::cancelExport,
+                onRender = {
+                    state.plan?.let { plan ->
+                        activeWorkId = MemoryFilmWorker.enqueue(context.applicationContext, plan)
+                        owner.acceptBackgroundWork(running = true, progress = 0)
+                    }
+                },
+                onCancel = {
+                    activeWorkId?.let(workManager::cancelWorkById)
+                    owner.acceptBackgroundWork(running = false, progress = 0)
+                },
                 onShare = { path -> shareFilm(context, path) },
                 onOlder = {
                     owner.loadPlan(

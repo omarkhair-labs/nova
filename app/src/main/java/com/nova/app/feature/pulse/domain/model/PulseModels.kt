@@ -22,4 +22,7 @@ data class NovaPulse(
     val isMine: Boolean,
     val replyToId: Long? = null,
     val chainRootId: Long? = null,
+    val reactionsCount: Int = 0,
+    val viewersCount: Int = 0,
+    val isReacted: Boolean = false,
 )

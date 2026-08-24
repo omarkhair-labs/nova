@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from ..trust_safety import blocked_user_ids
-from .models import Follow, Pulse
+from .models import Follow, Pulse, PulseReaction, PulseView
 from .serializers import PulseSerializer
 
 
@@ -189,6 +189,37 @@ class PulseReplyView(APIView):
     def post(self, request, pulse_id):
         parent = visible_pulse_for_request(request, pulse_id)
         return create_pulse_response(request, reply_to=parent)
+
+
+class PulseViewView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pulse_id):
+        pulse = visible_pulse_for_request(request, pulse_id)
+        PulseView.objects.update_or_create(
+            pulse=pulse,
+            user=request.user,
+            defaults={},
+        )
+        return Response(PulseSerializer(pulse, context={"request": request}).data)
+
+
+class PulseReactionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pulse_id):
+        pulse = visible_pulse_for_request(request, pulse_id)
+        enabled = request.data.get("enabled", True)
+        if not isinstance(enabled, bool):
+            return Response(
+                {"detail": "enabled must be true or false."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if enabled:
+            PulseReaction.objects.get_or_create(pulse=pulse, user=request.user)
+        else:
+            PulseReaction.objects.filter(pulse=pulse, user=request.user).delete()
+        return Response(PulseSerializer(pulse, context={"request": request}).data)
 
 
 class PulseChainView(APIView):

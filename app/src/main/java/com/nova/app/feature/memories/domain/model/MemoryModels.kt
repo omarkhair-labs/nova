@@ -95,3 +95,15 @@ data class MemoryFilmPlan(
     val coverMediaUrl: String,
     val scenes: List<MemoryFilmScene>,
 )
+
+
+data class MemoryDraft(
+    val id: Long,
+    val kind: String,
+    val title: String,
+    val note: String,
+    val mediaUrl: String,
+    val mediaType: String,
+    val createdAt: String,
+    val updatedAt: String,
+)

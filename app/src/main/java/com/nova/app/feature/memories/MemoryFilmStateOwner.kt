@@ -125,4 +125,18 @@ class MemoryFilmStateOwner(
         exporter.cancel()
         state = state.copy(exporting = false, progress = 0)
     }
+
+    fun acceptBackgroundWork(
+        running: Boolean,
+        progress: Int,
+        outputPath: String? = null,
+        error: String? = null,
+    ) {
+        state = state.copy(
+            exporting = running,
+            progress = progress.coerceIn(0, 100),
+            outputPath = outputPath ?: state.outputPath,
+            error = error,
+        )
+    }
 }

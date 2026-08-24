@@ -24,6 +24,9 @@ class PulseSerializer(serializers.ModelSerializer):
     is_mine = serializers.SerializerMethodField()
     reply_to_id = serializers.IntegerField(read_only=True)
     chain_root_id = serializers.IntegerField(read_only=True)
+    reactions_count = serializers.SerializerMethodField()
+    viewers_count = serializers.SerializerMethodField()
+    is_reacted = serializers.SerializerMethodField()
 
     class Meta:
         model = Pulse
@@ -40,6 +43,9 @@ class PulseSerializer(serializers.ModelSerializer):
             "is_mine",
             "reply_to_id",
             "chain_root_id",
+            "reactions_count",
+            "viewers_count",
+            "is_reacted",
         )
 
     def get_media_url(self, pulse):
@@ -52,3 +58,17 @@ class PulseSerializer(serializers.ModelSerializer):
     def get_is_mine(self, pulse):
         request = self.context.get("request")
         return bool(request is not None and request.user.pk == pulse.author_id)
+
+    def get_reactions_count(self, pulse):
+        return pulse.reactions.count()
+
+    def get_viewers_count(self, pulse):
+        return pulse.views.count()
+
+    def get_is_reacted(self, pulse):
+        request = self.context.get("request")
+        return bool(
+            request
+            and request.user.is_authenticated
+            and pulse.reactions.filter(user=request.user).exists()
+        )

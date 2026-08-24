@@ -10,8 +10,10 @@ from .comment_reply_models import PostCommentLike
 from .messaging_models import GroupMembership
 from .models import Comment, Conversation, Message, Post, User
 from .privacy_models import AccountPrivacy, FollowRequest, NotificationPreference
-from .pulse_models import Pulse
-from .room_models import RoomItem, RoomReminder
+from .auth_session_models import AuthSessionRecord
+from .memory_models import MemoryDraft
+from .pulse_models import Pulse, PulseReaction, PulseView
+from .room_models import RoomFollow, RoomItem, RoomProfile, RoomReminder
 
 
 class ApprovedVisualCapabilityTests(APITestCase):
@@ -95,6 +97,28 @@ class ApprovedVisualCapabilityTests(APITestCase):
         empty = self.client.get(reverse("pulse-feed"), {"category": "talks"})
         self.assertEqual(empty.data["results"], [])
 
+    def test_pulse_view_and_reaction_are_persisted_and_serialized(self):
+        pulse = Pulse.objects.create(
+            author=self.me,
+            note="Live city lights",
+            media_type=Pulse.MediaType.TEXT,
+            category=Pulse.Category.LIVE,
+            expires_at=timezone.now() + timedelta(hours=1),
+        )
+        viewed = self.client.post(reverse("pulse-view", args=[pulse.pk]), {}, format="json")
+        reacted = self.client.post(
+            reverse("pulse-reaction", args=[pulse.pk]),
+            {"enabled": True},
+            format="json",
+        )
+        self.assertEqual(viewed.status_code, status.HTTP_200_OK)
+        self.assertEqual(reacted.status_code, status.HTTP_200_OK)
+        self.assertEqual(reacted.data["viewers_count"], 1)
+        self.assertEqual(reacted.data["reactions_count"], 1)
+        self.assertTrue(reacted.data["is_reacted"])
+        self.assertTrue(PulseView.objects.filter(pulse=pulse, user=self.me).exists())
+        self.assertTrue(PulseReaction.objects.filter(pulse=pulse, user=self.me).exists())
+
     def test_comment_like_is_real_and_idempotently_toggleable(self):
         post = Post.objects.create(
             author=self.friend,
@@ -134,6 +158,85 @@ class ApprovedVisualCapabilityTests(APITestCase):
         self.assertTrue(RoomReminder.objects.filter(item=item, user=self.me).exists())
         disabled = self.client.delete(url)
         self.assertFalse(disabled.data["reminder_set"])
+
+    def test_public_room_can_be_discovered_followed_and_joined(self):
+        room = Conversation.objects.create(
+            kind=Conversation.Kind.GROUP,
+            title="Design Circle",
+            created_by=self.friend,
+        )
+        GroupMembership.objects.create(
+            conversation=room,
+            user=self.friend,
+            role=GroupMembership.Role.OWNER,
+        )
+        profile = RoomProfile.objects.create(
+            conversation=room,
+            description="A public place for design critique.",
+            is_public=True,
+            topics=["Design", "Feedback"],
+        )
+        discovered = self.client.get(reverse("rooms"), {"view": "discover"})
+        self.assertEqual(discovered.status_code, status.HTTP_200_OK)
+        self.assertEqual(discovered.data["rooms"][0]["conversation"]["id"], room.pk)
+        followed = self.client.post(reverse("room-follow", args=[room.pk]), {}, format="json")
+        self.assertTrue(followed.data["is_following"])
+        self.assertTrue(RoomFollow.objects.filter(user=self.me, room=profile).exists())
+        joined = self.client.post(reverse("room-membership", args=[room.pk]), {}, format="json")
+        self.assertTrue(joined.data["is_member"])
+        self.assertTrue(GroupMembership.objects.filter(conversation=room, user=self.me).exists())
+
+    def test_memory_draft_is_real_private_crud(self):
+        created = self.client.post(
+            reverse("memory-drafts"),
+            {
+                "kind": "film",
+                "title": "Seoul nights",
+                "note": "Keep the city-light moments.",
+                "media": SimpleUploadedFile("night.jpg", b"visual", content_type="image/jpeg"),
+            },
+            format="multipart",
+        )
+        self.assertEqual(created.status_code, status.HTTP_201_CREATED)
+        draft = MemoryDraft.objects.get(pk=created.data["id"])
+        self.assertEqual(draft.user, self.me)
+        listed = self.client.get(reverse("memory-drafts"))
+        self.assertEqual(listed.data["drafts"][0]["title"], "Seoul nights")
+        removed = self.client.delete(reverse("memory-draft-detail", args=[draft.pk]))
+        self.assertEqual(removed.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_login_activity_records_and_revokes_individual_devices(self):
+        self.client.force_authenticate(user=None)
+        first = self.client.post(
+            reverse("login"),
+            {
+                "email": self.me.email,
+                "password": "StrongNovaPass2026!",
+                "device_name": "Pixel 10",
+                "platform": "android",
+            },
+            format="json",
+        )
+        second = self.client.post(
+            reverse("login"),
+            {
+                "email": self.me.email,
+                "password": "StrongNovaPass2026!",
+                "device_name": "Galaxy S26",
+                "platform": "android",
+            },
+            format="json",
+        )
+        self.assertEqual(first.status_code, status.HTTP_200_OK)
+        self.assertEqual(second.status_code, status.HTTP_200_OK)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {second.data['access']}")
+        sessions = self.client.get(reverse("session-list"))
+        self.assertEqual(sessions.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(sessions.data["sessions"]), 2)
+        other = next(row for row in sessions.data["sessions"] if not row["is_current"])
+        revoked = self.client.delete(reverse("session-detail", args=[other["id"]]))
+        self.assertEqual(revoked.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(AuthSessionRecord.objects.get(session_key=other["id"]).is_active)
 
     def test_inbox_filters_are_server_backed(self):
         direct = Conversation.objects.create(

@@ -63,4 +63,10 @@ interface PulseRepository {
     ): ApiResult<NovaPulse> = replyMediaPulse(pulseId, mediaUri, note, audience)
 
     suspend fun deletePulse(pulseId: Long): ApiResult<Unit>
+
+    suspend fun recordView(pulseId: Long): ApiResult<NovaPulse> =
+        ApiResult.Failure("Pulse viewing is unavailable.")
+
+    suspend fun setReaction(pulseId: Long, enabled: Boolean): ApiResult<NovaPulse> =
+        ApiResult.Failure("Pulse reactions are unavailable.")
 }

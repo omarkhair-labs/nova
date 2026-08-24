@@ -7,6 +7,7 @@ import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.people.domain.model.NovaPerson
 import com.nova.app.feature.security.data.BlockedAccountsRepository
 import com.nova.app.feature.security.data.SecurityRepository
+import com.nova.app.feature.security.data.SecuritySession
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -112,6 +113,9 @@ data class AccountSecurityUiState(
     val error: String? = null,
     val info: String? = null,
     val showDeleteConfirm: Boolean = false,
+    val sessions: List<SecuritySession> = emptyList(),
+    val loadingSessions: Boolean = false,
+    val revokingSessionId: String? = null,
 )
 
 
@@ -133,6 +137,41 @@ class AccountSecurityStateOwner(
 
     fun setConfirmPassword(value: String) {
         state = state.copy(confirmPassword = value)
+    }
+
+    fun loadSessions() {
+        if (state.loadingSessions) return
+        scope.launch {
+            state = state.copy(loadingSessions = true)
+            when (val result = repository.sessions()) {
+                is ApiResult.Success -> state = state.copy(
+                    sessions = result.value,
+                    loadingSessions = false,
+                )
+                is ApiResult.Failure -> state = state.copy(
+                    loadingSessions = false,
+                    error = result.message,
+                )
+            }
+        }
+    }
+
+    fun revokeSession(session: SecuritySession) {
+        if (session.isCurrent || state.revokingSessionId != null) return
+        scope.launch {
+            state = state.copy(revokingSessionId = session.id, error = null)
+            when (val result = repository.revokeSession(session.id)) {
+                is ApiResult.Success -> state = state.copy(
+                    sessions = state.sessions.filterNot { it.id == session.id },
+                    revokingSessionId = null,
+                    info = "That device was signed out.",
+                )
+                is ApiResult.Failure -> state = state.copy(
+                    revokingSessionId = null,
+                    error = result.message,
+                )
+            }
+        }
     }
 
     fun changePassword() {

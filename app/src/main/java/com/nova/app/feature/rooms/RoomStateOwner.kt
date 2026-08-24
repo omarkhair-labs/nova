@@ -188,6 +188,31 @@ class RoomStateOwner(
         scope.launch { updateDescriptionNow(description) }
     }
 
+    fun updateProfile(description: String, isPublic: Boolean, topics: List<String>) {
+        if (state.savingDescription) return
+        scope.launch {
+            state = state.copy(savingDescription = true, error = null)
+            when (
+                val result = repository.updateProfile(
+                    conversationId,
+                    description,
+                    isPublic,
+                    topics,
+                )
+            ) {
+                is ApiResult.Success -> state = state.copy(
+                    detail = result.value,
+                    savingDescription = false,
+                    error = null,
+                )
+                is ApiResult.Failure -> {
+                    handleFailure(result, releaseMain = false)
+                    state = state.copy(savingDescription = false)
+                }
+            }
+        }
+    }
+
     fun toggleReminder(item: RoomItem) {
         if (state.reminderBusyId != null || item.scheduledFor == null || item.kind != "plan") return
         scope.launch {

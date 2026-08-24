@@ -11,7 +11,7 @@ from ..messaging.group_messaging import group_conversation_for, group_membership
 from ..messaging.messaging_models import GroupMembership, group_avatar_url
 from ..messaging.messaging_serializers import ConversationSerializer
 from ..models import Conversation
-from ..room_models import RoomItem, RoomProfile, RoomReminder
+from ..room_models import RoomFollow, RoomItem, RoomProfile, RoomReminder
 from ..tonight.window import parse_utc_offset, tonight_window
 from ..trust_safety import blocked_user_ids
 from .serializers import RoomItemCreateSerializer, RoomItemSerializer
@@ -39,6 +39,12 @@ def _room_summary(request, conversation):
     return {
         "conversation": conversation_data,
         "description": profile.description if profile else "",
+        "is_public": bool(profile and profile.is_public),
+        "topics": profile.topics if profile else [],
+        "is_member": conversation.group_memberships.filter(user=request.user).exists(),
+        "is_following": bool(
+            profile and profile.followers.filter(user=request.user).exists()
+        ),
     }
 
 
@@ -98,12 +104,31 @@ class RoomListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        rooms = list(
-            Conversation.objects.filter(
+        view = str(request.query_params.get("view") or "mine").strip().lower()
+        if view not in {"mine", "discover", "following"}:
+            return Response(
+                {"detail": "Unknown Room list."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        rooms = Conversation.objects.filter(
                 kind=Conversation.Kind.GROUP,
+            )
+        if view == "mine":
+            rooms = rooms.filter(group_memberships__user=request.user)
+        elif view == "following":
+            rooms = rooms.filter(
+                room_profile__is_public=True,
+                room_profile__followers__user=request.user,
+            )
+        else:
+            blocked_ids = blocked_user_ids(request.user)
+            rooms = rooms.filter(room_profile__is_public=True).exclude(
                 group_memberships__user=request.user,
             )
-            .select_related("group_profile", "room_profile")
+            if blocked_ids:
+                rooms = rooms.exclude(group_memberships__user_id__in=blocked_ids)
+        rooms = list(
+            rooms.select_related("group_profile", "room_profile")
             .distinct()
             .order_by("-updated_at", "-id")[:ROOM_LIST_LIMIT]
         )
@@ -236,6 +261,11 @@ class RoomDetailView(APIView):
                 **group_detail,
                 "room": {
                     "description": profile.description if profile else "",
+                    "is_public": bool(profile and profile.is_public),
+                    "topics": profile.topics if profile else [],
+                    "is_following": bool(
+                        profile and profile.followers.filter(user=request.user).exists()
+                    ),
                     "sections": _section_counts(request, conversation),
                 },
             }
@@ -253,24 +283,119 @@ class RoomDetailView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        if "description" not in request.data:
+        if not any(key in request.data for key in ("description", "is_public", "topics")):
             return Response(
                 {"detail": "Nothing to update."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         description = str(request.data.get("description") or "").strip()
-        if len(description) > 240:
+        if "description" in request.data and len(description) > 240:
             return Response(
                 {"detail": "Room description must be 240 characters or fewer."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         profile, _ = RoomProfile.objects.get_or_create(conversation=conversation)
-        if profile.description != description:
+        changed = []
+        if "description" in request.data and profile.description != description:
             profile.description = description
-            profile.save(update_fields=("description", "updated_at"))
+            changed.append("description")
+        if "is_public" in request.data:
+            is_public = _parse_boolean(request.data.get("is_public"))
+            if is_public is None:
+                return Response(
+                    {"detail": "is_public must be true or false."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if profile.is_public != is_public:
+                profile.is_public = is_public
+                changed.append("is_public")
+        if "topics" in request.data:
+            raw_topics = request.data.get("topics")
+            if not isinstance(raw_topics, list):
+                return Response(
+                    {"detail": "topics must be a list."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            topics = []
+            for raw in raw_topics:
+                topic = str(raw or "").strip()[:30]
+                if topic and topic.lower() not in {value.lower() for value in topics}:
+                    topics.append(topic)
+            if len(topics) > 8:
+                return Response(
+                    {"detail": "Choose up to eight Room topics."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if profile.topics != topics:
+                profile.topics = topics
+                changed.append("topics")
+        if changed:
+            profile.save(update_fields=(*changed, "updated_at"))
 
         return self.get(request, conversation_id)
+
+
+class PublicRoomMembershipView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _room(self, conversation_id):
+        return get_object_or_404(
+            Conversation.objects.select_related("room_profile"),
+            pk=conversation_id,
+            kind=Conversation.Kind.GROUP,
+            room_profile__is_public=True,
+        )
+
+    def post(self, request, conversation_id):
+        conversation = self._room(conversation_id)
+        if blocked_user_ids(request.user) & set(
+            conversation.group_memberships.values_list("user_id", flat=True)
+        ):
+            return Response(
+                {"detail": "This Room is unavailable."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        GroupMembership.objects.get_or_create(
+            conversation=conversation,
+            user=request.user,
+            defaults={"role": GroupMembership.Role.MEMBER},
+        )
+        conversation.save(update_fields=("updated_at",))
+        return Response(_room_summary(request, conversation))
+
+    def delete(self, request, conversation_id):
+        conversation = self._room(conversation_id)
+        membership = group_membership(conversation, request.user)
+        if membership and membership.role == GroupMembership.Role.OWNER:
+            return Response(
+                {"detail": "The Room owner cannot leave their own Room."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if membership:
+            membership.delete()
+        return Response(_room_summary(request, conversation))
+
+
+class PublicRoomFollowView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _profile(self, conversation_id):
+        return get_object_or_404(
+            RoomProfile.objects.select_related("conversation"),
+            conversation_id=conversation_id,
+            is_public=True,
+        )
+
+    def post(self, request, conversation_id):
+        profile = self._profile(conversation_id)
+        RoomFollow.objects.get_or_create(user=request.user, room=profile)
+        return Response(_room_summary(request, profile.conversation))
+
+    def delete(self, request, conversation_id):
+        profile = self._profile(conversation_id)
+        RoomFollow.objects.filter(user=request.user, room=profile).delete()
+        return Response(_room_summary(request, profile.conversation))
 
 
 class RoomItemsView(APIView):

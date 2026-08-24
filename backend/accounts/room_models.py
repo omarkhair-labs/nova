@@ -14,6 +14,8 @@ class RoomProfile(models.Model):
         related_name="room_profile",
     )
     description = models.CharField(max_length=240, blank=True)
+    is_public = models.BooleanField(default=False)
+    topics = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -22,6 +24,30 @@ class RoomProfile(models.Model):
 
     def __str__(self):
         return f"Room profile for conversation {self.conversation_id}"
+
+
+class RoomFollow(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="followed_rooms",
+    )
+    room = models.ForeignKey(
+        RoomProfile,
+        on_delete=models.CASCADE,
+        related_name="followers",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = "accounts"
+        ordering = ("-created_at", "-id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("user", "room"),
+                name="unique_room_follow",
+            ),
+        ]
 
 
 class RoomItem(models.Model):

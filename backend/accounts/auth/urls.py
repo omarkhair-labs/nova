@@ -8,6 +8,8 @@ from .security import (
     SecureRegisterView,
     SecureTokenObtainPairView,
     SecureTokenRefreshView,
+    SessionDetailView,
+    SessionListView,
 )
 from .views import MeView
 
@@ -36,5 +38,7 @@ urlpatterns = [
         RevokeOtherSessionsView.as_view(),
         name="revoke-other-sessions",
     ),
+    path("auth/sessions/", SessionListView.as_view(), name="session-list"),
+    path("auth/sessions/<str:session_key>/", SessionDetailView.as_view(), name="session-detail"),
     path("me/", MeView.as_view(), name="me"),
 ]
