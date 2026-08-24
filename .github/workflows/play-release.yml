@@ -154,27 +154,31 @@ jobs:
       - name: Allow Gradle wrapper execution
         run: chmod +x gradlew
 
-      - name: Build signed release AAB
+      - name: Build signed release APK and AAB
         env:
           NOVA_RELEASE_STORE_PASSWORD: ${{ secrets.NOVA_RELEASE_STORE_PASSWORD }}
           NOVA_RELEASE_KEY_ALIAS: ${{ secrets.NOVA_RELEASE_KEY_ALIAS }}
           NOVA_RELEASE_KEY_PASSWORD: ${{ secrets.NOVA_RELEASE_KEY_PASSWORD }}
-        run: ./gradlew --no-daemon clean bundleRelease
+        run: ./gradlew --no-daemon clean assembleRelease bundleRelease
 
       - name: Verify signed AAB
         shell: bash
         run: |
           set -euo pipefail
           aab="app/build/outputs/bundle/release/app-release.aab"
+          apk="app/build/outputs/apk/release/app-release.apk"
           test -f "${aab}"
+          test -f "${apk}"
           jarsigner -verify "${aab}"
           echo "PLAY_AAB_PATH=${aab}" >> "${GITHUB_ENV}"
 
-      - name: Upload signed AAB artifact
+      - name: Upload signed release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: nova-${{ github.sha }}-release-aab
-          path: app/build/outputs/bundle/release/app-release.aab
+          name: nova-${{ github.sha }}-release-artifacts
+          path: |
+            app/build/outputs/bundle/release/app-release.aab
+            app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 7
 
