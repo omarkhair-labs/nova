@@ -68,91 +68,97 @@ class Media3MemoryFilmExporter(context: Context) : MemoryFilmExporter {
             val sequence = EditedMediaItemSequence.withVideoFrom(editedItems)
             val composition = Composition.Builder(sequence).build()
             val progressHolder = ProgressHolder()
+            var progressRunnable: Runnable? = null
 
-            lateinit var progressRunnable: Runnable
             fun stopProgress() {
-                mainHandler.removeCallbacks(progressRunnable)
-            }
-
-            val listener = object : Transformer.Listener {
-                override fun onCompleted(
-                    composition: Composition,
-                    exportResult: ExportResult,
-                ) {
-                    stopProgress()
-                    activeTransformer = null
-                    onProgress(100)
-                    if (continuation.isActive) {
-                        continuation.resume(
-                            Result.success(
-                                MemoryFilmExport(
-                                    filePath = outputFile.absolutePath,
-                                    durationMs = plan.totalDurationMs,
-                                )
-                            )
-                        )
-                    }
-                }
-
-                override fun onError(
-                    composition: Composition,
-                    exportResult: ExportResult,
-                    exportException: ExportException,
-                ) {
-                    stopProgress()
-                    activeTransformer = null
-                    outputFile.delete()
-                    if (continuation.isActive) {
-                        continuation.resume(Result.failure(exportException))
-                    }
-                }
-            }
-
-            val transformer = Transformer.Builder(appContext)
-                .addListener(listener)
-                .build()
-            activeTransformer = transformer
-
-            progressRunnable = object : Runnable {
-                override fun run() {
-                    if (activeTransformer !== transformer || !continuation.isActive) return
-                    if (transformer.getProgress(progressHolder) == Transformer.PROGRESS_STATE_AVAILABLE) {
-                        onProgress(progressHolder.progress.coerceIn(0, 99))
-                    }
-                    mainHandler.postDelayed(this, 300L)
-                }
+                progressRunnable?.let { mainHandler.removeCallbacks(it) }
             }
 
             continuation.invokeOnCancellation {
                 mainHandler.post {
-                    if (activeTransformer === transformer) {
-                        transformer.cancel()
-                        activeTransformer = null
-                    }
+                    activeTransformer?.cancel()
+                    activeTransformer = null
                     stopProgress()
                     outputFile.delete()
                 }
             }
 
-            try {
-                onProgress(0)
-                transformer.start(composition, outputFile.absolutePath)
-                mainHandler.post(progressRunnable)
-            } catch (error: Throwable) {
-                stopProgress()
-                activeTransformer = null
-                outputFile.delete()
-                if (continuation.isActive) {
-                    continuation.resume(Result.failure(error))
+            mainHandler.post {
+                if (!continuation.isActive) {
+                    outputFile.delete()
+                    return@post
+                }
+
+                val listener = object : Transformer.Listener {
+                    override fun onCompleted(
+                        composition: Composition,
+                        exportResult: ExportResult,
+                    ) {
+                        stopProgress()
+                        activeTransformer = null
+                        onProgress(100)
+                        if (continuation.isActive) {
+                            continuation.resume(
+                                Result.success(
+                                    MemoryFilmExport(
+                                        filePath = outputFile.absolutePath,
+                                        durationMs = plan.totalDurationMs,
+                                    )
+                                )
+                            )
+                        }
+                    }
+
+                    override fun onError(
+                        composition: Composition,
+                        exportResult: ExportResult,
+                        exportException: ExportException,
+                    ) {
+                        stopProgress()
+                        activeTransformer = null
+                        outputFile.delete()
+                        if (continuation.isActive) {
+                            continuation.resume(Result.failure(exportException))
+                        }
+                    }
+                }
+
+                try {
+                    val transformer = Transformer.Builder(appContext)
+                        .addListener(listener)
+                        .build()
+                    activeTransformer = transformer
+
+                    progressRunnable = object : Runnable {
+                        override fun run() {
+                            if (activeTransformer !== transformer || !continuation.isActive) return
+                            if (transformer.getProgress(progressHolder) == Transformer.PROGRESS_STATE_AVAILABLE) {
+                                onProgress(progressHolder.progress.coerceIn(0, 99))
+                            }
+                            mainHandler.postDelayed(this, 300L)
+                        }
+                    }
+
+                    onProgress(0)
+                    transformer.start(composition, outputFile.absolutePath)
+                    progressRunnable?.let(mainHandler::post)
+                } catch (error: Throwable) {
+                    stopProgress()
+                    activeTransformer = null
+                    outputFile.delete()
+                    if (continuation.isActive) {
+                        continuation.resume(Result.failure(error))
+                    }
                 }
             }
         }
     }
 
     override fun cancel() {
-        val transformer = activeTransformer ?: return
-        transformer.cancel()
-        activeTransformer = null
+        mainHandler.post {
+            activeTransformer?.cancel()
+            activeTransformer = null
+        }
     }
 
     private fun editedItem(scene: MemoryFilmScene): EditedMediaItem? {
