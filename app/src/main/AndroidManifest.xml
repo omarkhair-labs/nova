@@ -54,6 +54,11 @@
             </intent-filter>
         </service>
 
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
+
         <receiver
             android:name=".core.rooms.NovaRoomReminderReceiver"
             android:exported="false" />
