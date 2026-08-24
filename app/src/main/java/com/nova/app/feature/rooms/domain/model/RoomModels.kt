@@ -62,6 +62,7 @@ data class RoomItem(
     val mediaUrl: String,
     val scheduledFor: String?,
     val pinned: Boolean,
+    val reminderSet: Boolean = false,
     val createdAt: String,
     val updatedAt: String,
 )

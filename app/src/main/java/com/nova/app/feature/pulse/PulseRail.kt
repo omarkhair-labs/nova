@@ -197,12 +197,12 @@ fun PulseRail(
                     owner.clearError()
                 }
             },
-            onSubmit = { note, audience ->
+            onSubmit = { note, audience, category ->
                 val media = pendingMedia
                 if (media == null) {
-                    owner.createText(note, audience)
+                    owner.createText(note, audience, category)
                 } else {
-                    owner.createMedia(media, note, audience)
+                    owner.createMedia(media, note, audience, category)
                 }
             },
         )

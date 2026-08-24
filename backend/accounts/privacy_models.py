@@ -7,12 +7,23 @@ from .models import Follow, User
 
 
 class AccountPrivacy(models.Model):
+    class StoryAudience(models.TextChoices):
+        FOLLOWERS = "followers", "Followers"
+        CLOSE_FRIENDS = "close_friends", "Close friends"
+
     user = models.OneToOneField(
         User,
         on_delete=models.CASCADE,
         related_name="account_privacy",
     )
     is_private = models.BooleanField(default=False)
+    show_activity_status = models.BooleanField(default=True)
+    send_read_receipts = models.BooleanField(default=True)
+    story_audience = models.CharField(
+        max_length=16,
+        choices=StoryAudience.choices,
+        default=StoryAudience.FOLLOWERS,
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -20,6 +31,29 @@ class AccountPrivacy(models.Model):
 
     def __str__(self):
         return f"Privacy for @{self.user.username}"
+
+
+class NotificationPreference(models.Model):
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="notification_preferences",
+    )
+    likes_comments_shares = models.BooleanField(default=True)
+    mentions_tags = models.BooleanField(default=True)
+    followers = models.BooleanField(default=True)
+    messages = models.BooleanField(default=True)
+    live_sessions = models.BooleanField(default=True)
+    reels_stories = models.BooleanField(default=True)
+    events_spaces = models.BooleanField(default=True)
+    product_updates = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = "accounts"
+
+    def __str__(self):
+        return f"Notification preferences for @{self.user.username}"
 
 
 class FollowRequest(models.Model):

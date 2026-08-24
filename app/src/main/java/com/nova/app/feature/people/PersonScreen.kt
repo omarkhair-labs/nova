@@ -40,12 +40,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.SocialGraphActivity
+import com.nova.app.CallActivity
 import com.nova.app.app.appContainer
 import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.social.NovaSocialRepository
 import com.nova.app.feature.people.domain.model.NovaPerson
+import com.nova.app.feature.calls.domain.model.NovaCallKind
+import com.nova.app.feature.calls.domain.model.NovaCallPerson
 import com.nova.app.feature.posts.domain.model.NovaPost
 import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState
 import com.nova.app.feature.sharing.NovaShareDialog
@@ -136,6 +139,36 @@ fun PersonScreen(
                     NovaMessagingNavigator.openConversation(context, result.value)
                 }
 
+                is ApiResult.Failure -> {
+                    isOpeningMessage = false
+                    messageError = result.message
+                }
+            }
+        }
+    }
+
+    fun openCall(selectedPerson: NovaPerson, kind: NovaCallKind) {
+        if (isOpeningMessage || isSafetyLoading) return
+        scope.launch {
+            isOpeningMessage = true
+            messageError = null
+            when (val result = messagingRepository.openConversation(selectedPerson.username)) {
+                is ApiResult.Success -> {
+                    isOpeningMessage = false
+                    context.startActivity(
+                        CallActivity.outgoingIntent(
+                            context = context,
+                            conversationId = result.value.id,
+                            kind = kind,
+                            peer = NovaCallPerson(
+                                id = selectedPerson.id,
+                                username = selectedPerson.username,
+                                name = selectedPerson.name,
+                                avatarUrl = selectedPerson.avatarUrl,
+                            ),
+                        )
+                    )
+                }
                 is ApiResult.Failure -> {
                     isOpeningMessage = false
                     messageError = result.message
@@ -411,7 +444,10 @@ fun PersonScreen(
                     }
                     Spacer(modifier = Modifier.height(18.dp))
                     Text(
-                        text = person.name.ifBlank { person.username },
+                        text = buildString {
+                            append(person.name.ifBlank { person.username })
+                            if (person.isVerified) append("  ✓")
+                        },
                         color = NovaInk,
                         fontSize = 25.sp,
                         fontWeight = FontWeight.Bold,
@@ -423,6 +459,34 @@ fun PersonScreen(
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
                     )
+                    if (person.bio.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = person.bio,
+                            color = NovaInk,
+                            fontSize = 13.sp,
+                            lineHeight = 19.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        )
+                    }
+                    if (person.location.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(5.dp))
+                        Text(
+                            text = "⌖ ${person.location}",
+                            color = NovaMuted,
+                            fontSize = 12.sp,
+                        )
+                    }
+                    if (person.interests.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = person.interests.joinToString("  ·  "),
+                            color = NovaAccent,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        )
+                    }
                     if (shouldShowPrivateProfileBadge(privacyState)) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Surface(shape = RoundedCornerShape(14.dp), color = NovaAccentSoft) {
@@ -520,6 +584,23 @@ fun PersonScreen(
                     NovaSecondaryButton(
                         text = "Share profile",
                         onClick = { showShareProfile = true },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    NovaSecondaryButton(
+                        text = "Audio call",
+                        onClick = { openCall(person, NovaCallKind.Audio) },
+                        modifier = Modifier.weight(1f),
+                    )
+                    NovaSecondaryButton(
+                        text = "Video call",
+                        onClick = { openCall(person, NovaCallKind.Video) },
                         modifier = Modifier.weight(1f),
                     )
                 }

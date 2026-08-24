@@ -27,6 +27,8 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -41,6 +43,7 @@ import com.nova.app.app.appContainer
 import com.nova.app.feature.messages.domain.model.NovaConversation
 import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.feature.messages.inbox.InboxViewModel
+import com.nova.app.feature.messages.inbox.InboxFilter
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
 import com.nova.app.ui.components.NovaSecondaryButton
@@ -142,6 +145,33 @@ fun MessagesScreen(
             }
 
             Spacer(modifier = Modifier.height(18.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                InboxFilter.entries.forEach { filter ->
+                    FilterChip(
+                        selected = state.filter == filter,
+                        onClick = { inboxViewModel.onFilterChanged(filter) },
+                        label = { Text(filter.label) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = NovaAccent,
+                            selectedLabelColor = NovaBackground,
+                            containerColor = NovaSurface,
+                            labelColor = NovaInk,
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = state.filter == filter,
+                            borderColor = NovaBorder,
+                            selectedBorderColor = NovaAccent,
+                        ),
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             OutlinedTextField(
                 value = query,

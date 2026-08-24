@@ -20,6 +20,12 @@ class Pulse(models.Model):
         FOLLOWERS = "followers", "Followers"
         CLOSE_FRIENDS = "close_friends", "Close friends"
 
+    class Category(models.TextChoices):
+        LIVE = "live", "Live"
+        MUSIC = "music", "Music"
+        TALKS = "talks", "Talks"
+        VIBES = "vibes", "Vibes"
+
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -45,6 +51,11 @@ class Pulse(models.Model):
         max_length=16,
         choices=Audience.choices,
         default=Audience.FOLLOWERS,
+    )
+    category = models.CharField(
+        max_length=8,
+        choices=Category.choices,
+        default=Category.VIBES,
     )
     note = models.CharField(max_length=180, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

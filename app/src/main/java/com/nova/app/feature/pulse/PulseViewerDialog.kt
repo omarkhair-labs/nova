@@ -277,6 +277,8 @@ fun PulseViewerDialog(
             uploading = state.replying,
             error = state.error,
             initialAudience = activePulse.audience,
+            initialCategory = activePulse.category,
+            showCategory = false,
             confirmLabel = "Reply",
             onPickMedia = { replyPicker.launch(arrayOf("image/*", "video/*")) },
             onDismiss = {
@@ -286,7 +288,7 @@ fun PulseViewerDialog(
                     onClearError()
                 }
             },
-            onSubmit = { note, audience ->
+            onSubmit = { note, audience, _ ->
                 val media = replyMedia
                 if (media == null) {
                     onReplyText(activePulse, note, audience)

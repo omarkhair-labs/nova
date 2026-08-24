@@ -50,6 +50,9 @@ fun ProfileScreen(
     username: String,
     email: String,
     avatarUrl: String,
+    bio: String,
+    location: String,
+    interests: List<String>,
     postsCount: Int,
     followersCount: Int,
     followingCount: Int,
@@ -134,6 +137,33 @@ fun ProfileScreen(
                 color = NovaMuted,
                 style = NovaType.bodyCompact.copy(fontWeight = FontWeight.Medium),
             )
+            if (bio.isNotBlank()) {
+                Spacer(modifier = Modifier.height(NovaSpacing.sm))
+                Text(
+                    text = bio,
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                    color = NovaInk,
+                    style = NovaType.bodyCompact,
+                )
+            }
+            if (location.isNotBlank()) {
+                Spacer(modifier = Modifier.height(NovaSpacing.xs))
+                Text(
+                    text = "⌖ $location",
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                    color = NovaMuted,
+                    style = NovaType.meta,
+                )
+            }
+            if (interests.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(NovaSpacing.sm))
+                Text(
+                    text = interests.joinToString("  ·  "),
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                    color = com.nova.app.ui.theme.NovaAccent,
+                    style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
+                )
+            }
 
             Spacer(modifier = Modifier.height(NovaSpacing.xxl))
             NovaCard(

@@ -42,6 +42,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.app.appContainer
+import com.nova.app.core.rooms.NovaRoomReminderScheduler
 import com.nova.app.feature.messages.MessagesRouteArgs
 import com.nova.app.feature.messages.MessagesRouteFactory
 import com.nova.app.feature.rooms.domain.model.RoomDetail
@@ -69,7 +70,9 @@ fun RoomScreen(
     val repository = context.appContainer.roomRepository
     val scope = rememberCoroutineScope()
     val owner = remember(conversationId, repository, scope) {
-        RoomStateOwner(conversationId, repository, scope)
+        RoomStateOwner(conversationId, repository, scope) { item ->
+            NovaRoomReminderScheduler.update(context.applicationContext, item)
+        }
     }
     val state = owner.state
     var editDescription by remember { mutableStateOf(false) }
@@ -190,7 +193,11 @@ fun RoomScreen(
                             )
                         }
                         items(state.pinned, key = { "pinned-${it.id}" }) { item ->
-                            RoomItemCard(item = item)
+                            RoomItemCard(
+                                item = item,
+                                reminderBusy = state.reminderBusyId == item.id,
+                                onReminder = { owner.toggleReminder(item) },
+                            )
                         }
                     }
 
@@ -223,7 +230,11 @@ fun RoomScreen(
                                 )
                             }
                             items(state.items, key = { it.id }) { item ->
-                                RoomItemCard(item = item)
+                                RoomItemCard(
+                                    item = item,
+                                    reminderBusy = state.reminderBusyId == item.id,
+                                    onReminder = { owner.toggleReminder(item) },
+                                )
                             }
                         }
                     }
@@ -297,12 +308,13 @@ fun RoomScreen(
                         submitting = state.creatingItem,
                         error = state.error,
                         onDismiss = { if (!state.creatingItem) showComposer = false },
-                        onSubmit = { kind, title, body, url, mediaUri ->
+                        onSubmit = { kind, title, body, url, scheduledFor, mediaUri ->
                             owner.createItem(
                                 kind = kind,
                                 title = title,
                                 body = body,
                                 url = url,
+                                scheduledFor = scheduledFor,
                                 mediaUri = mediaUri,
                             )
                         },
@@ -552,7 +564,11 @@ private fun RoomSectionRail(
 
 
 @Composable
-private fun RoomItemCard(item: RoomItem) {
+private fun RoomItemCard(
+    item: RoomItem,
+    reminderBusy: Boolean,
+    onReminder: () -> Unit,
+) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
@@ -636,11 +652,33 @@ private fun RoomItemCard(item: RoomItem) {
                     )
                 }
                 item.scheduledFor?.let { scheduled ->
-                    Text(
-                        text = "Planned · $scheduled",
-                        color = NovaMuted,
-                        fontSize = 9.sp,
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            text = "Planned · $scheduled",
+                            color = NovaMuted,
+                            fontSize = 9.sp,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Surface(
+                            onClick = onReminder,
+                            enabled = !reminderBusy,
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (item.reminderSet) NovaAccentSoft else NovaBackground,
+                            border = BorderStroke(1.dp, if (item.reminderSet) NovaAccent else NovaBorder),
+                        ) {
+                            Text(
+                                text = if (reminderBusy) "…" else if (item.reminderSet) "Reminded" else "Remind",
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                color = if (item.reminderSet) NovaAccent else NovaInk,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    }
                 }
             }
         }

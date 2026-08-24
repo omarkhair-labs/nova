@@ -186,6 +186,25 @@ class PostsRemoteDataSource(
         return deleteCommentResource(accessToken, "comment-replies/$replyId/")
     }
 
+    suspend fun setCommentLiked(
+        accessToken: String,
+        commentId: Long,
+        liked: Boolean,
+        isReply: Boolean,
+    ): ApiResult<NovaComment> {
+        val base = if (isReply) "comment-replies" else "comments"
+        val response = api.requestJson(
+            path = "$base/$commentId/like/",
+            method = if (liked) "POST" else "DELETE",
+            body = if (liked) JSONObject() else null,
+            bearerToken = accessToken,
+        )
+        return when (response) {
+            is ApiResult.Success -> ApiResult.Success(parseNovaComment(response.value, api::resolveMediaUrl))
+            is ApiResult.Failure -> response
+        }
+    }
+
     private suspend fun deleteCommentResource(
         accessToken: String,
         path: String,

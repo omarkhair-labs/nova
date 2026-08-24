@@ -80,6 +80,7 @@ fun NovaApp(
         mutableStateListOf<NovaRoute>(NovaRoute.Welcome)
     }
     val rootRequestVersion = NovaRootNavigationSignal.requestVersion
+    val tonightRequestVersion = NovaRootNavigationSignal.tonightRequestVersion
 
     var pendingEmail by remember { mutableStateOf("") }
     var pendingPassword by remember { mutableStateOf("") }
@@ -139,6 +140,17 @@ fun NovaApp(
         if (appState.currentUser == null) return@LaunchedEffect
         openRoot(requested)
         NovaRootNavigationSignal.consume(requested)
+    }
+
+    LaunchedEffect(tonightRequestVersion, appState.currentUser?.id) {
+        if (
+            NovaRootNavigationSignal.pendingTonight &&
+            appState.currentUser != null
+        ) {
+            backStack.clear()
+            backStack.add(NovaRoute.Tonight)
+            NovaRootNavigationSignal.consumeTonight()
+        }
     }
 
     LaunchedEffect(feedState.sessionExpiryVersion) {
@@ -210,12 +222,35 @@ fun NovaApp(
 
                 NovaRoute.CreateAccount -> NavEntry(route) {
                     CreateAccountScreen(
+                        isLoading = authLoading,
+                        errorMessage = authError,
                         onBack = { backStack.removeLastOrNull() },
-                        onContinue = { email, password ->
-                            pendingEmail = email.trim().lowercase()
-                            pendingPassword = password
-                            authError = null
-                            backStack.add(NovaRoute.ProfileSetup)
+                        onCreate = { email, password, handle, name ->
+                            if (!authLoading) {
+                                scope.launch {
+                                    authLoading = true
+                                    authError = null
+                                    when (
+                                        val result = authRepository.register(
+                                            email = email,
+                                            password = password,
+                                            username = handle,
+                                            name = name,
+                                        )
+                                    ) {
+                                        is ApiResult.Success -> {
+                                            appViewModel.onAuthenticated(result.value)
+                                            resetSocialState()
+                                            authLoading = false
+                                            openHome()
+                                        }
+                                        is ApiResult.Failure -> {
+                                            authError = result.message
+                                            authLoading = false
+                                        }
+                                    }
+                                }
+                            }
                         },
                     )
                 }
@@ -515,6 +550,7 @@ fun NovaApp(
                         deletingCommentId = commentsState.deletingCommentId,
                         isReplySending = commentsState.isReplySending,
                         deletingReplyId = commentsState.deletingReplyId,
+                        likingCommentId = commentsState.likingCommentId,
                         errorMessage = commentsState.errorMessage,
                         replyErrorMessage = commentsState.replyErrorMessage,
                         onBack = { backStack.removeLastOrNull() },
@@ -523,6 +559,7 @@ fun NovaApp(
                         onDelete = commentsOwner::deleteComment,
                         onSendReply = commentsOwner::sendReply,
                         onDeleteReply = commentsOwner::deleteReply,
+                        onLike = commentsOwner::toggleLike,
                         onClearReplyError = commentsOwner::clearReplyError,
                         onAuthorClick = { username ->
                             if (username == appState.currentUser?.username) {
@@ -569,6 +606,7 @@ fun NovaApp(
                     PeopleScreen(
                         state = peopleState,
                         onQueryChange = peopleOwner::setQuery,
+                        onFilterChange = peopleOwner::setFilter,
                         onPersonClick = { username ->
                             backStack.add(NovaRoute.Person(username))
                         },
@@ -677,6 +715,9 @@ fun NovaApp(
                         username = user?.username ?: "nova",
                         email = user?.email.orEmpty(),
                         avatarUrl = user?.avatarUrl.orEmpty(),
+                        bio = user?.bio.orEmpty(),
+                        location = user?.location.orEmpty(),
+                        interests = user?.interests.orEmpty(),
                         postsCount = user?.postsCount ?: 0,
                         followersCount = user?.followersCount ?: 0,
                         followingCount = user?.followingCount ?: 0,
@@ -701,6 +742,12 @@ fun NovaApp(
                         displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
                         username = user?.username ?: "nova",
                         avatarUrl = user?.avatarUrl.orEmpty(),
+                        bio = user?.bio.orEmpty(),
+                        location = user?.location.orEmpty(),
+                        link = user?.link.orEmpty(),
+                        interests = user?.interests.orEmpty(),
+                        profileTheme = user?.profileTheme ?: "violet",
+                        showOrbit = user?.showOrbit ?: true,
                         isLoading = authLoading,
                         errorMessage = authError,
                         onBack = {
@@ -709,7 +756,7 @@ fun NovaApp(
                                 backStack.removeLastOrNull()
                             }
                         },
-                        onSave = { name, handle, avatarUri ->
+                        onSave = { name, handle, avatarUri, bio, location, link, interests, theme, showOrbit ->
                             if (!authLoading) {
                                 scope.launch {
                                     authLoading = true
@@ -720,6 +767,12 @@ fun NovaApp(
                                             name = name,
                                             username = handle,
                                             avatarUri = avatarUri,
+                                            bio = bio,
+                                            location = location,
+                                            link = link,
+                                            interests = interests,
+                                            profileTheme = theme,
+                                            showOrbit = showOrbit,
                                         )
                                     ) {
                                         is ApiResult.Success -> {

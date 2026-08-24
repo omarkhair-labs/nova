@@ -7,12 +7,24 @@ from .views import (
     FollowRequestAcceptView,
     FollowRequestDeclineView,
     FollowRequestsView,
+    NotificationPreferencesView,
+    SentFollowRequestsView,
 )
 
 
 urlpatterns = [
     path("privacy/", AccountPrivacyView.as_view(), name="account-privacy"),
+    path(
+        "notification-preferences/",
+        NotificationPreferencesView.as_view(),
+        name="notification-preferences",
+    ),
     path("follow-requests/", FollowRequestsView.as_view(), name="follow-requests"),
+    path(
+        "follow-requests/sent/",
+        SentFollowRequestsView.as_view(),
+        name="sent-follow-requests",
+    ),
     path(
         "follow-requests/<int:request_id>/accept/",
         FollowRequestAcceptView.as_view(),

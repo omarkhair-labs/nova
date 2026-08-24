@@ -39,6 +39,13 @@ class NovaSessionStore(context: Context) {
             .putString(KEY_USERNAME, user.username)
             .putString(KEY_NAME, user.name)
             .putString(KEY_AVATAR_URL, user.avatarUrl)
+            .putString(KEY_BIO, user.bio)
+            .putString(KEY_LOCATION, user.location)
+            .putString(KEY_LINK, user.link)
+            .putStringSet(KEY_INTERESTS, user.interests.toSet())
+            .putString(KEY_PROFILE_THEME, user.profileTheme)
+            .putBoolean(KEY_SHOW_ORBIT, user.showOrbit)
+            .putBoolean(KEY_IS_VERIFIED, user.isVerified)
             .putInt(KEY_FOLLOWERS_COUNT, user.followersCount)
             .putInt(KEY_FOLLOWING_COUNT, user.followingCount)
             .putInt(KEY_POSTS_COUNT, user.postsCount)
@@ -135,6 +142,13 @@ class NovaSessionStore(context: Context) {
             username = username,
             name = prefs.getString(KEY_NAME, "").orEmpty(),
             avatarUrl = prefs.getString(KEY_AVATAR_URL, "").orEmpty(),
+            bio = prefs.getString(KEY_BIO, "").orEmpty(),
+            location = prefs.getString(KEY_LOCATION, "").orEmpty(),
+            link = prefs.getString(KEY_LINK, "").orEmpty(),
+            interests = prefs.getStringSet(KEY_INTERESTS, emptySet()).orEmpty().sorted(),
+            profileTheme = prefs.getString(KEY_PROFILE_THEME, "violet").orEmpty(),
+            showOrbit = prefs.getBoolean(KEY_SHOW_ORBIT, true),
+            isVerified = prefs.getBoolean(KEY_IS_VERIFIED, false),
             followersCount = prefs.getInt(KEY_FOLLOWERS_COUNT, 0),
             followingCount = prefs.getInt(KEY_FOLLOWING_COUNT, 0),
             postsCount = prefs.getInt(KEY_POSTS_COUNT, 0),
@@ -162,6 +176,13 @@ class NovaSessionStore(context: Context) {
         const val KEY_USERNAME = "username"
         const val KEY_NAME = "name"
         const val KEY_AVATAR_URL = "avatar_url"
+        const val KEY_BIO = "bio"
+        const val KEY_LOCATION = "location"
+        const val KEY_LINK = "link"
+        const val KEY_INTERESTS = "interests"
+        const val KEY_PROFILE_THEME = "profile_theme"
+        const val KEY_SHOW_ORBIT = "show_orbit"
+        const val KEY_IS_VERIFIED = "is_verified"
         const val KEY_FOLLOWERS_COUNT = "followers_count"
         const val KEY_FOLLOWING_COUNT = "following_count"
         const val KEY_POSTS_COUNT = "posts_count"

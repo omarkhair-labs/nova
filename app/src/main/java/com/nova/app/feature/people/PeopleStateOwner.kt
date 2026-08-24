@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 
 data class PeopleUiState(
     val query: String = "",
+    val filter: String = "people",
     val people: List<NovaPerson> = emptyList(),
     val privacyByUserId: Map<Long, NovaPersonPrivacyState> = emptyMap(),
     val nextCursor: String? = null,
@@ -57,6 +58,13 @@ class PeopleStateOwner(
         val query = raw.take(40)
         if (query == state.query) return
         state = state.copy(query = query)
+        scheduleQueryLoad()
+    }
+
+    fun setFilter(filter: String) {
+        val clean = filter.lowercase()
+        if (clean == state.filter || clean !in setOf("people", "nearby", "interests", "verified", "new")) return
+        state = state.copy(filter = clean)
         scheduleQueryLoad()
     }
 
@@ -102,7 +110,13 @@ class PeopleStateOwner(
             state.copy(loadingMore = true, pagingError = null)
         }
 
-        when (val result = pagingRepository.people(query = state.query, cursor = cursor)) {
+        when (
+            val result = pagingRepository.discover(
+                query = state.query,
+                cursor = cursor,
+                filter = state.filter,
+            )
+        ) {
             is ApiResult.Success -> {
                 if (version != requestVersion) return
                 state = state.copy(

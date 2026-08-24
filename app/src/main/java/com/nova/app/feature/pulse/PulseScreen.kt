@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -73,6 +75,7 @@ fun PulseScreen(
     var composerVisible by remember { mutableStateOf(false) }
     var pendingMedia by remember { mutableStateOf<Uri?>(null) }
     var selectedPulse by remember { mutableStateOf<NovaPulse?>(null) }
+    var selectedCategory by remember { mutableStateOf("all") }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -157,6 +160,32 @@ fun PulseScreen(
                 }
             }
 
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = NovaSpacing.lg, vertical = NovaSpacing.sm),
+                horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
+            ) {
+                listOf("all" to "All", "live" to "Live", "music" to "Music", "talks" to "Talks", "vibes" to "Vibes").forEach { (value, label) ->
+                    Surface(
+                        onClick = { selectedCategory = value },
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(999.dp),
+                        color = if (selectedCategory == value) NovaAccent else NovaSurface,
+                        border = BorderStroke(1.dp, if (selectedCategory == value) NovaAccent else NovaBorder),
+                    ) {
+                        Text(
+                            label,
+                            modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
+                            color = if (selectedCategory == value) NovaSurface else NovaInk,
+                            style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
+                        )
+                    }
+                }
+            }
+
+            val visiblePulses = if (selectedCategory == "all") state.pulses else state.pulses.filter { it.category == selectedCategory }
+
             when {
                 state.loading && state.pulses.isEmpty() -> NovaLoadingState(
                     message = "Finding live moments…",
@@ -170,7 +199,7 @@ fun PulseScreen(
                     modifier = Modifier.weight(1f),
                 )
 
-                state.pulses.isEmpty() -> NovaEmptyState(
+                visiblePulses.isEmpty() -> NovaEmptyState(
                     title = "Start the first Pulse",
                     message = "Share a live or short moment with your orbit.",
                     actionLabel = "Create Pulse",
@@ -189,7 +218,7 @@ fun PulseScreen(
                     horizontalArrangement = Arrangement.spacedBy(NovaSpacing.md),
                     verticalArrangement = Arrangement.spacedBy(NovaSpacing.md),
                 ) {
-                    items(state.pulses, key = { it.id }) { pulse ->
+                    items(visiblePulses, key = { it.id }) { pulse ->
                         PulseFeedCard(pulse = pulse, onClick = { selectedPulse = pulse })
                     }
                 }
@@ -214,9 +243,9 @@ fun PulseScreen(
                     owner.clearError()
                 }
             },
-            onSubmit = { note, audience ->
-                pendingMedia?.let { media -> owner.createMedia(media, note, audience) }
-                    ?: owner.createText(note, audience)
+            onSubmit = { note, audience, category ->
+                pendingMedia?.let { media -> owner.createMedia(media, note, audience, category) }
+                    ?: owner.createText(note, audience, category)
             },
         )
     }
@@ -244,10 +273,10 @@ fun PulseScreen(
                 selectedPulse = null
             },
             onReplyText = { parent, note, audience ->
-                viewerOwner.replyText(parent.id, note, audience)
+                viewerOwner.replyText(parent.id, note, audience, parent.category)
             },
             onReplyMedia = { parent, media, note, audience ->
-                viewerOwner.replyMedia(parent.id, media, note, audience)
+                viewerOwner.replyMedia(parent.id, media, note, audience, parent.category)
             },
         )
     }

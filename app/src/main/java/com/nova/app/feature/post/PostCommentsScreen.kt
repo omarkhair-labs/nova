@@ -62,6 +62,7 @@ fun PostCommentsScreen(
     deletingCommentId: Long?,
     isReplySending: Boolean,
     deletingReplyId: Long?,
+    likingCommentId: Long?,
     errorMessage: String?,
     replyErrorMessage: String?,
     onBack: () -> Unit,
@@ -70,6 +71,7 @@ fun PostCommentsScreen(
     onDelete: (NovaComment) -> Unit,
     onSendReply: (NovaComment, String) -> Unit,
     onDeleteReply: (NovaComment) -> Unit,
+    onLike: (NovaComment) -> Unit,
     onClearReplyError: () -> Unit,
     onAuthorClick: (String) -> Unit,
 ) {
@@ -209,6 +211,8 @@ fun PostCommentsScreen(
                                     onClearReplyError()
                                 },
                                 onDelete = { onDelete(comment) },
+                                isLiking = likingCommentId == comment.id,
+                                onLike = { onLike(comment) },
                             )
 
                             comment.replies.forEach { reply ->
@@ -223,6 +227,8 @@ fun PostCommentsScreen(
                                         onClearReplyError()
                                     },
                                     onDelete = { onDeleteReply(reply) },
+                                    isLiking = likingCommentId == reply.id,
+                                    onLike = { onLike(reply) },
                                 )
                             }
                         }
@@ -469,6 +475,8 @@ private fun CommentRow(
     onAuthorClick: () -> Unit,
     onReply: () -> Unit,
     onDelete: () -> Unit,
+    isLiking: Boolean,
+    onLike: () -> Unit,
     modifier: Modifier = Modifier,
     isReply: Boolean = false,
 ) {
@@ -568,6 +576,25 @@ private fun CommentRow(
                             fontWeight = FontWeight.SemiBold,
                         )
                     }
+                }
+            }
+        }
+        Surface(
+            onClick = { if (!isLiking) onLike() },
+            shape = CircleShape,
+            color = NovaBackground,
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 5.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = if (comment.isLiked) "♥" else "♡",
+                    color = if (comment.isLiked) NovaAccent else NovaMuted,
+                    fontSize = if (isReply) 17.sp else 20.sp,
+                )
+                if (comment.likesCount > 0) {
+                    Text(comment.likesCount.toString(), color = NovaMuted, fontSize = 9.sp)
                 }
             }
         }

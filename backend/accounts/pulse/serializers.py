@@ -33,6 +33,7 @@ class PulseSerializer(serializers.ModelSerializer):
             "media_url",
             "media_type",
             "audience",
+            "category",
             "note",
             "created_at",
             "expires_at",

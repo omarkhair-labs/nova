@@ -179,6 +179,9 @@ fun PasswordRecoveryScreen(
 
 @Composable
 fun AccountSecurityScreen(
+    appLockEnabled: Boolean,
+    appLockAvailable: Boolean,
+    onAppLockChange: (Boolean) -> Unit,
     onBack: () -> Unit,
     onAccountDeleted: () -> Unit,
 ) {
@@ -290,6 +293,27 @@ fun AccountSecurityScreen(
             text = if (state.loadingAction == "revoke") "Signing out devices…" else "Log out other devices",
             onClick = owner::revokeOtherSessions,
         )
+
+        Spacer(Modifier.height(30.dp))
+        Text("App lock", color = NovaInk, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(6.dp))
+        Text(
+            if (appLockAvailable) {
+                "Require your device screen lock whenever Nova returns to the foreground."
+            } else {
+                "Set a device PIN, pattern, password or biometric lock before enabling this protection."
+            },
+            color = NovaMuted,
+            fontSize = 12.sp,
+            lineHeight = 18.sp,
+        )
+        Spacer(Modifier.height(14.dp))
+        if (appLockAvailable || appLockEnabled) {
+            NovaSecondaryButton(
+                text = if (appLockEnabled) "Turn off app lock" else "Turn on app lock",
+                onClick = { onAppLockChange(!appLockEnabled) },
+            )
+        }
 
         Spacer(Modifier.height(24.dp))
         Text(

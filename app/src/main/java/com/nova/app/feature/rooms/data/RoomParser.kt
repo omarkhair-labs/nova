@@ -167,6 +167,7 @@ internal fun parseRoomItem(
             json.has("scheduled_for") && !json.isNull("scheduled_for") && it.isNotBlank()
         },
         pinned = json.optBoolean("pinned", false),
+        reminderSet = json.optBoolean("reminder_set", false),
         createdAt = json.optString("created_at"),
         updatedAt = json.optString("updated_at"),
     )

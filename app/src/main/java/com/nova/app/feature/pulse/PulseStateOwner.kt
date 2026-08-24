@@ -53,26 +53,26 @@ class PulseStateOwner(
         }
     }
 
-    fun createText(note: String, audience: String) {
-        scope.launch { createTextNow(note, audience) }
+    fun createText(note: String, audience: String, category: String = "vibes") {
+        scope.launch { createTextNow(note, audience, category) }
     }
 
-    internal suspend fun createTextNow(note: String, audience: String) {
+    internal suspend fun createTextNow(note: String, audience: String, category: String = "vibes") {
         state = state.copy(uploading = true, error = null)
-        when (val result = repository.createTextPulse(note, audience)) {
+        when (val result = repository.createTextPulse(note, audience, category)) {
             is ApiResult.Success -> acceptCreated(result.value)
             is ApiResult.Failure -> recordFailure(result)
         }
         state = state.copy(uploading = false)
     }
 
-    fun createMedia(mediaUri: Uri, note: String, audience: String) {
-        scope.launch { createMediaNow(mediaUri, note, audience) }
+    fun createMedia(mediaUri: Uri, note: String, audience: String, category: String = "vibes") {
+        scope.launch { createMediaNow(mediaUri, note, audience, category) }
     }
 
-    internal suspend fun createMediaNow(mediaUri: Uri, note: String, audience: String) {
+    internal suspend fun createMediaNow(mediaUri: Uri, note: String, audience: String, category: String = "vibes") {
         state = state.copy(uploading = true, error = null)
-        when (val result = repository.createMediaPulse(mediaUri, note, audience)) {
+        when (val result = repository.createMediaPulse(mediaUri, note, audience, category)) {
             is ApiResult.Success -> acceptCreated(result.value)
             is ApiResult.Failure -> recordFailure(result)
         }

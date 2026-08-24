@@ -92,5 +92,7 @@ internal fun parseNovaComment(
         parentId = parentId,
         repliesCount = json.optInt("replies_count", replies.size),
         replies = replies,
+        likesCount = json.optInt("likes_count", 0),
+        isLiked = json.optBoolean("is_liked", false),
     )
 }

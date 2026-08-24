@@ -723,7 +723,9 @@ class ConversationReadView(APIView):
                 )
 
         marked_read = unread.update(read_at=read_at)
-        if marked_read:
+        privacy = getattr(request.user, "account_privacy", None)
+        send_read_receipts = privacy is None or privacy.send_read_receipts
+        if marked_read and send_read_receipts:
             broadcast_conversation_read(
                 conversation_id=conversation.pk,
                 reader_id=request.user.pk,

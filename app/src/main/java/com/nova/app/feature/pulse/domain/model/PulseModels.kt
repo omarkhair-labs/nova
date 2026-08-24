@@ -15,6 +15,7 @@ data class NovaPulse(
     val mediaUrl: String,
     val mediaType: String,
     val audience: String,
+    val category: String = "vibes",
     val note: String,
     val createdAt: String,
     val expiresAt: String,

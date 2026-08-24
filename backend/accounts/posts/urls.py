@@ -2,6 +2,8 @@ from django.urls import path
 
 from .comments import (
     PostCommentReplyDetailView,
+    PostCommentLikeView,
+    PostCommentReplyLikeView,
     ThreadCommentDetailView,
     ThreadPostCommentsView,
 )
@@ -19,8 +21,18 @@ urlpatterns = [
     ),
     path("comments/<int:comment_id>/", ThreadCommentDetailView.as_view(), name="comment-detail"),
     path(
+        "comments/<int:comment_id>/like/",
+        PostCommentLikeView.as_view(),
+        name="comment-like",
+    ),
+    path(
         "comment-replies/<int:reply_id>/",
         PostCommentReplyDetailView.as_view(),
         name="comment-reply-detail",
+    ),
+    path(
+        "comment-replies/<int:reply_id>/like/",
+        PostCommentReplyLikeView.as_view(),
+        name="comment-reply-like",
     ),
 ]

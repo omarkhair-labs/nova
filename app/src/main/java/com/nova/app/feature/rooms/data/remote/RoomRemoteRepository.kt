@@ -194,6 +194,26 @@ class RoomRemoteRepository(
         }
     }
 
+    override suspend fun setReminder(
+        conversationId: Long,
+        itemId: Long,
+        enabled: Boolean,
+    ): ApiResult<RoomItem> = authenticatedCall { token ->
+        when (
+            val response = api.requestJson(
+                path = "rooms/$conversationId/items/$itemId/reminder/",
+                method = if (enabled) "POST" else "DELETE",
+                body = if (enabled) JSONObject() else null,
+                bearerToken = token,
+            )
+        ) {
+            is ApiResult.Success -> ApiResult.Success(
+                parseRoomItem(response.value, api::resolveMediaUrl),
+            )
+            is ApiResult.Failure -> response
+        }
+    }
+
     private fun prepareMedia(uri: Uri, kind: String): ApiResult<UploadFile> {
         val resolver = appContext.contentResolver
         val mimeType = resolver.getType(uri)

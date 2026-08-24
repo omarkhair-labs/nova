@@ -5,6 +5,11 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import android.app.Activity
+import android.app.KeyguardManager
+import androidx.compose.runtime.mutableStateOf
+import com.nova.app.core.security.NovaAppLock
 import com.nova.app.feature.auth.AccountSecurityScreen
 import com.nova.app.feature.auth.BlockedAccountsScreen
 import com.nova.app.feature.auth.PasswordRecoveryScreen
@@ -12,11 +17,22 @@ import com.nova.app.ui.theme.NovaTheme
 
 
 class AccountSecurityActivity : ComponentActivity() {
+    private val appLock by lazy { NovaAppLock(this) }
+    private val appLockEnabled = mutableStateOf(false)
+    private val appLockLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            appLock.setEnabled(true)
+            appLock.markUnlocked()
+            appLockEnabled.value = true
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         val mode = intent.getStringExtra(EXTRA_MODE) ?: MODE_SECURITY
+        appLockEnabled.value = appLock.enabled
         setContent {
             NovaTheme {
                 when (mode) {
@@ -33,6 +49,21 @@ class AccountSecurityActivity : ComponentActivity() {
                         },
                     )
                     else -> AccountSecurityScreen(
+                        appLockEnabled = appLockEnabled.value,
+                        appLockAvailable = appLock.deviceCanLock,
+                        onAppLockChange = { enabled ->
+                            if (!enabled) {
+                                appLock.setEnabled(false)
+                                appLockEnabled.value = false
+                            } else {
+                                val prompt = getSystemService(KeyguardManager::class.java)
+                                    .createConfirmDeviceCredentialIntent(
+                                        "Enable Nova app lock",
+                                        "Confirm your device screen lock.",
+                                    )
+                                if (prompt != null) appLockLauncher.launch(prompt)
+                            }
+                        },
                         onBack = { finish() },
                         onAccountDeleted = {
                             startActivity(

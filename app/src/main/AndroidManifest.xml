@@ -53,6 +53,10 @@
             </intent-filter>
         </service>
 
+        <receiver
+            android:name=".core.rooms.NovaRoomReminderReceiver"
+            android:exported="false" />
+
         <activity
             android:name=".CallActivity"
             android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize"
@@ -70,6 +74,11 @@
 
         <activity
             android:name=".PrivacyActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Nova" />
+
+        <activity
+            android:name=".NotificationPreferencesActivity"
             android:exported="false"
             android:theme="@style/Theme.Nova" />
 

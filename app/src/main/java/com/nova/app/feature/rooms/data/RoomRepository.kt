@@ -37,4 +37,10 @@ interface RoomRepository {
         conversationId: Long,
         description: String,
     ): ApiResult<RoomDetail>
+
+    suspend fun setReminder(
+        conversationId: Long,
+        itemId: Long,
+        enabled: Boolean,
+    ): ApiResult<RoomItem> = ApiResult.Failure("Room reminders are unavailable.")
 }

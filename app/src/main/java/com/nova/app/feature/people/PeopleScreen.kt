@@ -11,13 +11,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -45,6 +53,7 @@ import com.nova.app.ui.theme.NovaType
 fun PeopleScreen(
     state: PeopleUiState,
     onQueryChange: (String) -> Unit,
+    onFilterChange: (String) -> Unit,
     onPersonClick: (String) -> Unit,
     onFollowToggle: (NovaPerson) -> Unit,
     onLoadMore: () -> Unit,
@@ -53,6 +62,19 @@ fun PeopleScreen(
     onCreateClick: () -> Unit,
     onProfileClick: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val recentPreferences = remember(context) {
+        context.getSharedPreferences("nova_people_recent", android.content.Context.MODE_PRIVATE)
+    }
+    var recentUsernames by remember {
+        mutableStateOf(recentPreferences.getString("usernames", "").orEmpty().split('|').filter(String::isNotBlank))
+    }
+
+    fun recordAndOpen(username: String) {
+        recentUsernames = (listOf(username) + recentUsernames.filterNot { it == username }).take(6)
+        recentPreferences.edit().putString("usernames", recentUsernames.joinToString("|")).apply()
+        onPersonClick(username)
+    }
     androidx.compose.material3.Scaffold(
         containerColor = NovaBackground,
         bottomBar = {
@@ -93,6 +115,67 @@ fun PeopleScreen(
                 label = "Search",
                 placeholder = "Name or @username",
             )
+            val recentPeople = recentUsernames.mapNotNull { username ->
+                state.people.firstOrNull { it.username == username }
+            }
+            if (state.query.isBlank() && recentPeople.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(NovaSpacing.md))
+                Text("Recent searches", color = NovaInk, style = NovaType.label)
+                Spacer(modifier = Modifier.height(NovaSpacing.sm))
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(NovaSpacing.md),
+                ) {
+                    recentPeople.forEach { person ->
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Surface(
+                                onClick = { recordAndOpen(person.username) },
+                                shape = RoundedCornerShape(999.dp),
+                                color = NovaBackground,
+                            ) {
+                                NovaAvatar(
+                                    source = person.avatarUrl,
+                                    fallbackText = person.name.ifBlank { person.username },
+                                    size = 46.dp,
+                                )
+                            }
+                            Text(
+                                person.name.ifBlank { person.username },
+                                color = NovaInk,
+                                style = NovaType.micro,
+                                maxLines = 1,
+                            )
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(NovaSpacing.lg))
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
+            ) {
+                listOf(
+                    "people" to "People",
+                    "nearby" to "Nearby",
+                    "interests" to "Interests",
+                    "verified" to "Verified",
+                    "new" to "New",
+                ).forEach { (value, label) ->
+                    Surface(
+                        onClick = { onFilterChange(value) },
+                        shape = RoundedCornerShape(999.dp),
+                        color = if (state.filter == value) NovaAccent else NovaBackground,
+                        border = BorderStroke(1.dp, if (state.filter == value) NovaAccent else NovaBorder),
+                    ) {
+                        Text(
+                            text = label,
+                            color = if (state.filter == value) androidx.compose.ui.graphics.Color.White else NovaInk,
+                            style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
+                            modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
+                        )
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(NovaSpacing.lg))
 
             if (state.people.isNotEmpty()) {
@@ -169,7 +252,7 @@ fun PeopleScreen(
                                 privacy = privacy,
                                 isUpdating = state.followingUsername == person.username ||
                                     state.cancelingUsername == person.username,
-                                onClick = { onPersonClick(person.username) },
+                                onClick = { recordAndOpen(person.username) },
                                 onFollowToggle = { onFollowToggle(person) },
                             )
                         }

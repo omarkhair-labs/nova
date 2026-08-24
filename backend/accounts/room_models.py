@@ -73,6 +73,33 @@ class RoomItem(models.Model):
         return f"Room item {self.pk} ({self.kind}) in {self.conversation_id}"
 
 
+class RoomReminder(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="room_reminders",
+    )
+    item = models.ForeignKey(
+        RoomItem,
+        on_delete=models.CASCADE,
+        related_name="reminders",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = "accounts"
+        ordering = ("item__scheduled_for", "item_id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("user", "item"),
+                name="unique_room_reminder",
+            ),
+        ]
+
+    def __str__(self):
+        return f"Room reminder {self.item_id} for @{self.user.username}"
+
+
 @receiver(pre_save, sender=RoomItem)
 def delete_replaced_room_item_media(sender, instance, **kwargs):
     if not instance.pk:

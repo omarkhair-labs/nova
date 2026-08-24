@@ -39,6 +39,12 @@ class InboxViewModel internal constructor(
         scheduleSearch()
     }
 
+    fun onFilterChanged(value: InboxFilter) {
+        if (state.filter == value) return
+        state = state.copy(filter = value)
+        scheduleSearch()
+    }
+
     fun retry() {
         launchLoad(reset = true, showSpinner = true)
     }
@@ -93,7 +99,7 @@ class InboxViewModel internal constructor(
             state.copy(isLoadingMore = true, errorMessage = null)
         }
 
-        when (val result = repository.conversations(search, cursor)) {
+        when (val result = repository.conversations(search, cursor, state.filter.apiValue)) {
             is ApiResult.Success -> {
                 if (version != requestVersion) return
                 val conversations = if (reset) {

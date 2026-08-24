@@ -39,6 +39,12 @@ object NovaRootNavigationSignal {
     var pendingTab by mutableStateOf<NovaRootTab?>(null)
         private set
 
+    var tonightRequestVersion by mutableIntStateOf(0)
+        private set
+
+    var pendingTonight by mutableStateOf(false)
+        private set
+
     fun request(tab: NovaRootTab) {
         pendingTab = tab
         requestVersion += 1
@@ -46,5 +52,14 @@ object NovaRootNavigationSignal {
 
     fun consume(tab: NovaRootTab) {
         if (pendingTab == tab) pendingTab = null
+    }
+
+    fun requestTonight() {
+        pendingTonight = true
+        tonightRequestVersion += 1
+    }
+
+    fun consumeTonight() {
+        pendingTonight = false
     }
 }

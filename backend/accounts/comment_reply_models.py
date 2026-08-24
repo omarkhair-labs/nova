@@ -29,6 +29,52 @@ class PostCommentReply(models.Model):
         return f"Reply {self.pk} to comment {self.comment_id} by @{self.author.username}"
 
 
+class PostCommentLike(models.Model):
+    comment = models.ForeignKey(
+        Comment,
+        on_delete=models.CASCADE,
+        related_name="thread_likes",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="post_comment_likes",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = "accounts"
+        constraints = [
+            models.UniqueConstraint(
+                fields=("comment", "user"),
+                name="unique_post_comment_like",
+            ),
+        ]
+
+
+class PostCommentReplyLike(models.Model):
+    reply = models.ForeignKey(
+        PostCommentReply,
+        on_delete=models.CASCADE,
+        related_name="thread_likes",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="post_comment_reply_likes",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = "accounts"
+        constraints = [
+            models.UniqueConstraint(
+                fields=("reply", "user"),
+                name="unique_post_comment_reply_like",
+            ),
+        ]
+
+
 class ReelCommentReply(models.Model):
     comment = models.ForeignKey(
         ReelComment,

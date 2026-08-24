@@ -11,6 +11,7 @@ MAX_ROOM_VIDEO_BYTES = 60 * 1024 * 1024
 class RoomItemSerializer(serializers.ModelSerializer):
     created_by = PostAuthorSerializer(read_only=True)
     media_url = serializers.SerializerMethodField()
+    reminder_set = serializers.SerializerMethodField()
 
     class Meta:
         model = RoomItem
@@ -24,6 +25,7 @@ class RoomItemSerializer(serializers.ModelSerializer):
             "media_url",
             "scheduled_for",
             "pinned",
+            "reminder_set",
             "created_at",
             "updated_at",
         )
@@ -38,6 +40,14 @@ class RoomItemSerializer(serializers.ModelSerializer):
             return ""
         request = self.context.get("request")
         return request.build_absolute_uri(url) if request else url
+
+    def get_reminder_set(self, obj):
+        request = self.context.get("request")
+        return bool(
+            request
+            and request.user.is_authenticated
+            and obj.reminders.filter(user=request.user).exists()
+        )
 
 
 class RoomItemCreateSerializer(serializers.Serializer):

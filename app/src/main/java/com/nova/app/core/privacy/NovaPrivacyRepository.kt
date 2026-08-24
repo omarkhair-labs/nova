@@ -10,6 +10,7 @@ import com.nova.app.feature.privacy.data.PrivacyRepository
 import com.nova.app.feature.privacy.domain.model.NovaFollowRequest
 import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState
 import com.nova.app.feature.privacy.domain.model.NovaPrivacySummary
+import com.nova.app.feature.privacy.domain.model.NovaNotificationPreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -39,6 +40,28 @@ class NovaPrivacyRepository(
                 path = "privacy/",
                 method = "POST",
                 body = JSONObject().put("is_private", isPrivate),
+                bearerToken = token,
+            )
+        ) {
+            is ApiResult.Success -> ApiResult.Success(parseSummary(response.value))
+            is ApiResult.Failure -> response
+        }
+    }
+
+    override suspend fun updateSettings(
+        showActivityStatus: Boolean?,
+        sendReadReceipts: Boolean?,
+        storyAudience: String?,
+    ): ApiResult<NovaPrivacySummary> = authenticatedCall { token ->
+        val body = JSONObject()
+        showActivityStatus?.let { body.put("show_activity_status", it) }
+        sendReadReceipts?.let { body.put("send_read_receipts", it) }
+        storyAudience?.let { body.put("story_audience", it) }
+        when (
+            val response = requestJson(
+                path = "privacy/",
+                method = "POST",
+                body = body,
                 bearerToken = token,
             )
         ) {
@@ -86,6 +109,29 @@ class NovaPrivacyRepository(
     override suspend fun acceptFollowRequest(requestId: Long): ApiResult<Unit> =
         requestDecision(requestId, "accept")
 
+    override suspend fun sentFollowRequests(): ApiResult<List<NovaFollowRequest>> = authenticatedCall { token ->
+        when (val response = requestJson("follow-requests/sent/", bearerToken = token)) {
+            is ApiResult.Success -> {
+                val rows = response.value.optJSONArray("results") ?: JSONArray()
+                ApiResult.Success(buildList {
+                    for (index in 0 until rows.length()) {
+                        val item = rows.optJSONObject(index) ?: continue
+                        val person = item.optJSONObject("target")?.let(::parsePerson) ?: continue
+                        add(
+                            NovaFollowRequest(
+                                id = item.optLong("id"),
+                                requester = person,
+                                target = person,
+                                createdAt = item.optString("created_at"),
+                            )
+                        )
+                    }
+                })
+            }
+            is ApiResult.Failure -> response
+        }
+    }
+
     override suspend fun declineFollowRequest(requestId: Long): ApiResult<Unit> =
         requestDecision(requestId, "decline")
 
@@ -127,6 +173,41 @@ class NovaPrivacyRepository(
         }
     }
 
+    override suspend fun notificationPreferences(): ApiResult<NovaNotificationPreferences> = authenticatedCall { token ->
+        when (val response = requestJson("notification-preferences/", bearerToken = token)) {
+            is ApiResult.Success -> ApiResult.Success(parseNotificationPreferences(response.value))
+            is ApiResult.Failure -> response
+        }
+    }
+
+    override suspend fun updateNotificationPreference(
+        key: String,
+        enabled: Boolean,
+    ): ApiResult<NovaNotificationPreferences> = authenticatedCall { token ->
+        when (
+            val response = requestJson(
+                path = "notification-preferences/",
+                method = "POST",
+                body = JSONObject().put(key, enabled),
+                bearerToken = token,
+            )
+        ) {
+            is ApiResult.Success -> ApiResult.Success(parseNotificationPreferences(response.value))
+            is ApiResult.Failure -> response
+        }
+    }
+
+    private fun parseNotificationPreferences(json: JSONObject) = NovaNotificationPreferences(
+        likesCommentsShares = json.optBoolean("likes_comments_shares", true),
+        mentionsTags = json.optBoolean("mentions_tags", true),
+        followers = json.optBoolean("followers", true),
+        messages = json.optBoolean("messages", true),
+        liveSessions = json.optBoolean("live_sessions", true),
+        reelsStories = json.optBoolean("reels_stories", true),
+        eventsSpaces = json.optBoolean("events_spaces", true),
+        productUpdates = json.optBoolean("product_updates", true),
+    )
+
     private suspend fun requestDecision(requestId: Long, action: String): ApiResult<Unit> = authenticatedCall { token ->
         when (
             val response = requestJson(
@@ -144,6 +225,9 @@ class NovaPrivacyRepository(
     private fun parseSummary(json: JSONObject): NovaPrivacySummary {
         return NovaPrivacySummary(
             isPrivate = json.optBoolean("is_private", false),
+            showActivityStatus = json.optBoolean("show_activity_status", true),
+            sendReadReceipts = json.optBoolean("send_read_receipts", true),
+            storyAudience = json.optString("story_audience", "followers"),
             pendingFollowRequests = json.optInt("pending_follow_requests", 0),
             closeFriendsCount = json.optInt("close_friends_count", 0),
             acceptedPendingRequests = json.optInt("accepted_pending_requests", 0),
@@ -164,6 +248,20 @@ class NovaPrivacyRepository(
             username = json.optString("username"),
             name = json.optString("name"),
             avatarUrl = resolveMediaUrl(json.optString("avatar_url")),
+            bio = json.optString("bio"),
+            location = json.optString("location"),
+            link = json.optString("link"),
+            interests = buildList {
+                val values = json.optJSONArray("interests")
+                if (values != null) {
+                    for (index in 0 until values.length()) {
+                        values.optString(index).takeIf(String::isNotBlank)?.let(::add)
+                    }
+                }
+            },
+            profileTheme = json.optString("profile_theme", "violet"),
+            showOrbit = json.optBoolean("show_orbit", true),
+            isVerified = json.optBoolean("is_verified", false),
             followersCount = json.optInt("followers_count", 0),
             followingCount = json.optInt("following_count", 0),
             postsCount = json.optInt("posts_count", 0),

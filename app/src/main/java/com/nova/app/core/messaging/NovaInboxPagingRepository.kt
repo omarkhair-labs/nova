@@ -29,12 +29,19 @@ class NovaInboxPagingRepository(
     override suspend fun conversations(
         query: String,
         cursor: String?,
+    ): ApiResult<NovaConversationPage> = conversations(query, cursor, "all")
+
+    override suspend fun conversations(
+        query: String,
+        cursor: String?,
+        filter: String,
     ): ApiResult<NovaConversationPage> {
         return authenticatedCall { token ->
             val parameters = buildList {
                 val cleanQuery = query.trim()
                 if (cleanQuery.isNotBlank()) add("q=${encode(cleanQuery)}")
                 if (!cursor.isNullOrBlank()) add("cursor=${encode(cursor)}")
+                if (filter != "all") add("filter=${encode(filter)}")
             }
             val path = if (parameters.isEmpty()) {
                 "conversations/"

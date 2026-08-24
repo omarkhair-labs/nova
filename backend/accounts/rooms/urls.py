@@ -5,6 +5,7 @@ from .views import (
     RoomItemDetailView,
     RoomItemsView,
     RoomListView,
+    RoomReminderView,
     RoomTonightView,
 )
 
@@ -18,5 +19,10 @@ urlpatterns = [
         "rooms/<int:conversation_id>/items/<int:item_id>/",
         RoomItemDetailView.as_view(),
         name="room-item-detail",
+    ),
+    path(
+        "rooms/<int:conversation_id>/items/<int:item_id>/reminder/",
+        RoomReminderView.as_view(),
+        name="room-reminder",
     ),
 ]

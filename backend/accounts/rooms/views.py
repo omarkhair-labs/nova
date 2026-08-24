@@ -1,4 +1,5 @@
 from django.db.models import Count, Max, OuterRef, Q, Subquery
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -10,7 +11,7 @@ from ..messaging.group_messaging import group_conversation_for, group_membership
 from ..messaging.messaging_models import GroupMembership, group_avatar_url
 from ..messaging.messaging_serializers import ConversationSerializer
 from ..models import Conversation
-from ..room_models import RoomItem, RoomProfile
+from ..room_models import RoomItem, RoomProfile, RoomReminder
 from ..tonight.window import parse_utc_offset, tonight_window
 from ..trust_safety import blocked_user_ids
 from .serializers import RoomItemCreateSerializer, RoomItemSerializer
@@ -388,3 +389,27 @@ class RoomItemDetailView(APIView):
             )
         item.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class RoomReminderView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _item(self, request, conversation_id, item_id):
+        conversation = group_conversation_for(request.user, conversation_id)
+        return get_object_or_404(
+            RoomItem.objects.select_related("created_by"),
+            pk=item_id,
+            conversation=conversation,
+            kind=RoomItem.Kind.PLAN,
+            scheduled_for__isnull=False,
+        )
+
+    def post(self, request, conversation_id, item_id):
+        item = self._item(request, conversation_id, item_id)
+        RoomReminder.objects.get_or_create(user=request.user, item=item)
+        return Response(RoomItemSerializer(item, context={"request": request}).data)
+
+    def delete(self, request, conversation_id, item_id):
+        item = self._item(request, conversation_id, item_id)
+        RoomReminder.objects.filter(user=request.user, item=item).delete()
+        return Response(RoomItemSerializer(item, context={"request": request}).data)

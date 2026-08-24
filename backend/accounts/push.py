@@ -6,11 +6,23 @@ from functools import lru_cache
 
 from .messaging_models import ConversationPreference, GroupMembership
 from .models import CallSession, Conversation, DevicePushToken, Notification
+from .privacy_models import NotificationPreference
 from .trust_safety import blocked_user_ids
 
 logger = logging.getLogger(__name__)
 
 REEL_NOTIFICATION_KINDS = {"reel_like", "reel_comment", "reel_repost", "reel_reply"}
+
+
+def _notification_push_allowed(notification):
+    preferences, _ = NotificationPreference.objects.get_or_create(user=notification.recipient)
+    if notification.kind == Notification.Kind.FOLLOW:
+        return preferences.followers
+    if notification.kind in {Notification.Kind.LIKE, Notification.Kind.COMMENT, "comment_reply"}:
+        return preferences.likes_comments_shares
+    if notification.kind in REEL_NOTIFICATION_KINDS:
+        return preferences.reels_stories
+    return True
 
 
 @lru_cache(maxsize=1)
@@ -94,6 +106,8 @@ def _title_and_body(notification):
 
 
 def send_notification_push(notification):
+    if not _notification_push_allowed(notification):
+        return 0
     app = _firebase_app()
     if app is None:
         return 0
@@ -189,6 +203,11 @@ def send_message_push(message):
             .exclude(user_id__in=hidden_ids)
             .values_list("user_id", flat=True)
         )
+        disabled_ids = NotificationPreference.objects.filter(
+            user_id__in=recipient_ids,
+            messages=False,
+        ).values_list("user_id", flat=True)
+        recipient_ids = [user_id for user_id in recipient_ids if user_id not in set(disabled_ids)]
         if not recipient_ids:
             return 0
         fids = list(
@@ -202,6 +221,9 @@ def send_message_push(message):
         conversation_kind = "group"
     else:
         if message.recipient_id is None:
+            return 0
+        preferences, _ = NotificationPreference.objects.get_or_create(user=message.recipient)
+        if not preferences.messages:
             return 0
         if ConversationPreference.objects.filter(
             conversation_id=message.conversation_id,
@@ -292,6 +314,9 @@ def send_call_push(call_id):
         .first()
     )
     if call is None:
+        return 0
+    preferences, _ = NotificationPreference.objects.get_or_create(user=call.callee)
+    if not preferences.live_sessions:
         return 0
 
     fids = list(

@@ -235,7 +235,15 @@ class StoryFeedView(APIView):
         background_style = str(
             request.data.get("background_style") or Story.BackgroundStyle.MIDNIGHT
         ).strip().lower()
-        audience = str(request.data.get("audience") or Story.Audience.FOLLOWERS).strip().lower()
+        if "audience" in request.data:
+            default_audience = Story.Audience.FOLLOWERS
+        else:
+            default_audience = getattr(
+                getattr(request.user, "account_privacy", None),
+                "story_audience",
+                Story.Audience.FOLLOWERS,
+            )
+        audience = str(request.data.get("audience") or default_audience).strip().lower()
 
         if audience not in Story.Audience.values:
             return Response(

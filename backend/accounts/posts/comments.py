@@ -6,7 +6,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from ..comment_reply_models import PostCommentReply
+from ..comment_reply_models import (
+    PostCommentLike,
+    PostCommentReply,
+    PostCommentReplyLike,
+)
 from ..models import Comment, Notification
 from ..serializers import CommentSerializer, PostAuthorSerializer, PostSerializer
 from ..trust_safety import blocked_user_ids
@@ -61,6 +65,8 @@ def _post_reply_payload(request, reply):
         "parent_id": reply.comment_id,
         "replies_count": 0,
         "replies": [],
+        "likes_count": reply.thread_likes.count(),
+        "is_liked": reply.thread_likes.filter(user=request.user).exists(),
     }
 
 
@@ -70,6 +76,8 @@ def _post_comment_payload(request, comment, replies=None):
     data["parent_id"] = None
     data["replies_count"] = len(visible_replies)
     data["replies"] = [_post_reply_payload(request, reply) for reply in visible_replies]
+    data["likes_count"] = comment.thread_likes.count()
+    data["is_liked"] = comment.thread_likes.filter(user=request.user).exists()
     return data
 
 
@@ -204,3 +212,45 @@ class PostCommentReplyDetailView(APIView):
         return Response(
             {"post": PostSerializer(refreshed, context={"request": request}).data}
         )
+
+
+class PostCommentLikeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _comment(self, request, comment_id):
+        return get_object_or_404(
+            Comment.objects.select_related("post", "author"),
+            pk=comment_id,
+            post__in=public_post_queryset(request),
+        )
+
+    def post(self, request, comment_id):
+        comment = self._comment(request, comment_id)
+        PostCommentLike.objects.get_or_create(comment=comment, user=request.user)
+        return Response(_post_comment_payload(request, comment))
+
+    def delete(self, request, comment_id):
+        comment = self._comment(request, comment_id)
+        PostCommentLike.objects.filter(comment=comment, user=request.user).delete()
+        return Response(_post_comment_payload(request, comment))
+
+
+class PostCommentReplyLikeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _reply(self, request, reply_id):
+        return get_object_or_404(
+            PostCommentReply.objects.select_related("comment__post", "author"),
+            pk=reply_id,
+            comment__post__in=public_post_queryset(request),
+        )
+
+    def post(self, request, reply_id):
+        reply = self._reply(request, reply_id)
+        PostCommentReplyLike.objects.get_or_create(reply=reply, user=request.user)
+        return Response(_post_reply_payload(request, reply))
+
+    def delete(self, request, reply_id):
+        reply = self._reply(request, reply_id)
+        PostCommentReplyLike.objects.filter(reply=reply, user=request.user).delete()
+        return Response(_post_reply_payload(request, reply))

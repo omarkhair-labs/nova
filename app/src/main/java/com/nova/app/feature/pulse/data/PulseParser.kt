@@ -21,6 +21,7 @@ internal fun parseNovaPulse(
         mediaUrl = resolveMediaUrl(json.optString("media_url")),
         mediaType = json.optString("media_type"),
         audience = json.optString("audience"),
+        category = json.optString("category", "vibes"),
         note = json.optString("note"),
         createdAt = json.optString("created_at"),
         expiresAt = json.optString("expires_at"),

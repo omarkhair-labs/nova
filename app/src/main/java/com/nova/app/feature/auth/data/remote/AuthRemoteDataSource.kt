@@ -8,6 +8,7 @@ import com.nova.app.feature.auth.data.parseNovaUser
 import com.nova.app.feature.auth.domain.model.AuthSession
 import com.nova.app.feature.auth.domain.model.NovaUser
 import org.json.JSONObject
+import org.json.JSONArray
 
 
 class AuthRemoteDataSource(
@@ -54,6 +55,12 @@ class AuthRemoteDataSource(
         name: String,
         username: String,
         avatar: UploadFile? = null,
+        bio: String = "",
+        location: String = "",
+        link: String = "",
+        interests: List<String> = emptyList(),
+        profileTheme: String = "violet",
+        showOrbit: Boolean = true,
     ): ApiResult<NovaUser> {
         return when (
             val response = api.requestMultipart(
@@ -62,6 +69,12 @@ class AuthRemoteDataSource(
                 fields = mapOf(
                     "name" to name,
                     "username" to username,
+                    "bio" to bio,
+                    "location" to location,
+                    "link" to link,
+                    "interests" to JSONArray(interests).toString(),
+                    "profile_theme" to profileTheme,
+                    "show_orbit" to showOrbit.toString(),
                 ),
                 fileField = "avatar",
                 file = avatar,

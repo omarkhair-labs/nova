@@ -139,23 +139,108 @@ fun PrivacyScreen(
 
             Spacer(Modifier.height(18.dp))
 
+            PrivacyToggleRow(
+                title = "Activity status",
+                subtitle = "Show when you're active across Nova.",
+                checked = state.summary?.showActivityStatus == true,
+                enabled = !state.privacyBusy,
+                onCheckedChange = owner::setActivityStatus,
+            )
+            Spacer(Modifier.height(8.dp))
+            PrivacyToggleRow(
+                title = "Read receipts",
+                subtitle = "Let people know when you've read messages.",
+                checked = state.summary?.sendReadReceipts == true,
+                enabled = !state.privacyBusy,
+                onCheckedChange = owner::setReadReceipts,
+            )
+            Spacer(Modifier.height(8.dp))
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                color = NovaSurface,
+                border = BorderStroke(1.dp, NovaBorder),
+            ) {
+                Column(Modifier.padding(18.dp)) {
+                    Text("Story privacy", color = NovaInk, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text("Choose the default audience for new Stories.", color = NovaMuted, fontSize = 12.sp)
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("followers" to "Followers", "close_friends" to "Close Friends").forEach { (value, label) ->
+                            Surface(
+                                onClick = { if (!state.privacyBusy) owner.setStoryAudience(value) },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(14.dp),
+                                color = if (state.summary?.storyAudience == value) NovaAccent else NovaBackground,
+                                border = BorderStroke(1.dp, if (state.summary?.storyAudience == value) NovaAccent else NovaBorder),
+                            ) {
+                                Text(
+                                    text = label,
+                                    modifier = Modifier.padding(vertical = 10.dp),
+                                    color = if (state.summary?.storyAudience == value) NovaBackground else NovaInk,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    textAlign = TextAlign.Center,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(22.dp))
+
             SectionTitle(
                 title = "Follow requests",
-                count = state.summary?.pendingFollowRequests ?: state.requests.size,
-                subtitle = "People waiting for approval to follow your private account.",
+                count = if (state.followRequestTab == "received") state.requests.size else state.sentRequests.size,
+                subtitle = "Review incoming requests and the requests you have sent.",
             )
             Spacer(Modifier.height(10.dp))
 
-            if (state.requests.isEmpty()) {
-                EmptyCard("No pending requests", "New requests will appear here when your account is private.")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("received" to "Received", "sent" to "Sent").forEach { (value, label) ->
+                    Surface(
+                        onClick = { owner.setFollowRequestTab(value) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(14.dp),
+                        color = if (state.followRequestTab == value) NovaAccent else NovaSurface,
+                        border = BorderStroke(1.dp, if (state.followRequestTab == value) NovaAccent else NovaBorder),
+                    ) {
+                        Text(
+                            label,
+                            modifier = Modifier.padding(vertical = 10.dp),
+                            color = if (state.followRequestTab == value) NovaBackground else NovaInk,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+
+            val visibleRequests = if (state.followRequestTab == "received") state.requests else state.sentRequests
+            if (visibleRequests.isEmpty()) {
+                EmptyCard(
+                    if (state.followRequestTab == "received") "No pending requests" else "No sent requests",
+                    if (state.followRequestTab == "received") {
+                        "New requests will appear here when your account is private."
+                    } else {
+                        "Requests you send to private accounts will appear here."
+                    },
+                )
             } else {
-                state.requests.forEach { item ->
-                    PersonDecisionCard(
-                        person = item.requester,
-                        busy = state.requestBusyId == item.id,
-                        onPrimary = { owner.decideFollowRequest(item, true) },
-                        onSecondary = { owner.decideFollowRequest(item, false) },
-                    )
+                visibleRequests.forEach { item ->
+                    if (state.followRequestTab == "received") {
+                        PersonDecisionCard(
+                            person = item.requester,
+                            busy = state.requestBusyId == item.id,
+                            onPrimary = { owner.decideFollowRequest(item, true) },
+                            onSecondary = { owner.decideFollowRequest(item, false) },
+                        )
+                    } else {
+                        PendingRequestCard(item.target ?: item.requester)
+                    }
                     Spacer(Modifier.height(8.dp))
                 }
             }
@@ -254,6 +339,73 @@ fun PrivacyScreen(
         }
 
         Spacer(Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun PendingRequestCard(person: NovaPerson) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = NovaSurface,
+        border = BorderStroke(1.dp, NovaBorder),
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            NovaAvatar(
+                source = person.avatarUrl,
+                fallbackText = person.name.ifBlank { person.username },
+                size = 42.dp,
+            )
+            Column(Modifier.weight(1f)) {
+                Text(person.name.ifBlank { person.username }, color = NovaInk, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text("@${person.username}", color = NovaMuted, fontSize = 10.sp)
+            }
+            Surface(shape = RoundedCornerShape(12.dp), color = NovaAccentSoft) {
+                Text(
+                    "Pending",
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    color = NovaAccent,
+                    fontSize = 11.sp,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PrivacyToggleRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        color = NovaSurface,
+        border = BorderStroke(1.dp, NovaBorder),
+    ) {
+        Row(
+            modifier = Modifier.padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(title, color = NovaInk, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text(subtitle, color = NovaMuted, fontSize = 11.sp, lineHeight = 17.sp)
+            }
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                enabled = enabled,
+                colors = SwitchDefaults.colors(checkedTrackColor = NovaAccent),
+            )
+        }
     }
 }
 
