@@ -23,10 +23,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -115,6 +111,13 @@ class SettingsActivity : ComponentActivity() {
                         )
                         finish()
                     },
+                    onAbout = {
+                        android.app.AlertDialog.Builder(this)
+                            .setTitle("About Nova")
+                            .setMessage("Nova $appVersion\nQuiet Orbit. Real connections, when it matters.")
+                            .setPositiveButton("Done", null)
+                            .show()
+                    },
                     onPrivacyPolicy = { openExternalUrl(PRIVACY_POLICY_URL) },
                     onAccountDeletion = { openExternalUrl(ACCOUNT_DELETION_URL) },
                     onLogout = {
@@ -145,21 +148,11 @@ private fun SettingsScreen(
     onDataStorage: () -> Unit,
     onHelpSupport: () -> Unit,
     onTonight: () -> Unit,
+    onAbout: () -> Unit,
     onPrivacyPolicy: () -> Unit,
     onAccountDeletion: () -> Unit,
     onLogout: () -> Unit,
 ) {
-    var showAbout by remember { mutableStateOf(false) }
-    if (showAbout) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { showAbout = false },
-            title = { Text("About Nova") },
-            text = { Text("Nova $appVersion\nQuiet Orbit. Real connections, when it matters.") },
-            confirmButton = {
-                androidx.compose.material3.TextButton(onClick = { showAbout = false }) { Text("Done") }
-            },
-        )
-    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -197,6 +190,13 @@ private fun SettingsScreen(
                 SettingsRow(
                     icon = NovaIconAsset.Security,
                     title = "Account",
+                    subtitle = "Your Nova identity and account settings",
+                    onClick = null,
+                )
+                SettingsDivider()
+                SettingsRow(
+                    icon = NovaIconAsset.Security,
+                    title = "Security",
                     subtitle = "Password, sessions and account protection",
                     onClick = onSecurity,
                 )
@@ -261,7 +261,7 @@ private fun SettingsScreen(
                     icon = NovaIconAsset.Home,
                     title = "About Nova",
                     subtitle = "Version $appVersion",
-                    onClick = { showAbout = true },
+                    onClick = onAbout,
                 )
                 SettingsDivider()
                 SettingsRow(
