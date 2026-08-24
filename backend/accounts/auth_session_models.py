@@ -24,4 +24,3 @@ class AuthSessionRecord(models.Model):
         indexes = [
             models.Index(fields=("user", "is_active", "-last_seen_at"), name="auth_session_user_active_idx"),
         ]
-

@@ -94,4 +94,3 @@ class MemoryDraftDetailView(APIView):
     def delete(self, request, draft_id):
         self._draft(request, draft_id).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-

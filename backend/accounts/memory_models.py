@@ -50,4 +50,3 @@ def delete_removed_memory_draft_media(sender, instance, **kwargs):
         storage = instance.media.storage
         name = instance.media.name
         transaction.on_commit(lambda: storage.delete(name))
-
