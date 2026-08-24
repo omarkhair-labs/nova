@@ -59,6 +59,7 @@ import kotlinx.coroutines.delay
 fun TonightSurface(
     onPersonClick: (String) -> Unit,
     onSessionExpired: () -> Unit,
+    onOpenTonight: (() -> Unit)? = null,
     liveRoomsContent: (@Composable () -> Unit)? = null,
 ) {
     val context = LocalContext.current
@@ -89,6 +90,7 @@ fun TonightSurface(
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(enabled = onOpenTonight != null) { onOpenTonight?.invoke() }
             .animateContentSize(animationSpec = tween(durationMillis = NovaMotion.standard)),
     ) {
         when {

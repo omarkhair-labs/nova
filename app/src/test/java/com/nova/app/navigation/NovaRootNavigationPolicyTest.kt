@@ -12,63 +12,27 @@ class NovaRootNavigationPolicyTest {
     }
 
     @Test
-    fun homeToSecondaryRootOpensOnlyTarget() {
-        assertEquals(
-            listOf(NovaRootTab.People),
-            rootNavigationPlan(NovaRootTab.Home, NovaRootTab.People),
-        )
-        assertEquals(
-            listOf(NovaRootTab.Profile),
-            rootNavigationPlan(NovaRootTab.Home, NovaRootTab.Profile),
-        )
+    fun everyDifferentPrimaryRootResetsDirectlyToItsTarget() {
+        NovaRootTab.entries.forEach { current ->
+            NovaRootTab.entries.filterNot { it == current }.forEach { requested ->
+                assertEquals(
+                    listOf(requested),
+                    rootNavigationPlan(current, requested),
+                )
+            }
+        }
     }
 
     @Test
-    fun switchingBetweenNestedSecondaryRootsResetsThroughHome() {
+    fun approvedSocialRootsAreHomeOrbitCreateAndProfile() {
         assertEquals(
-            listOf(NovaRootTab.Home, NovaRootTab.Profile),
-            rootNavigationPlan(NovaRootTab.People, NovaRootTab.Profile),
-        )
-        assertEquals(
-            listOf(NovaRootTab.Home, NovaRootTab.People),
-            rootNavigationPlan(NovaRootTab.Profile, NovaRootTab.People),
-        )
-    }
-
-    @Test
-    fun anySecondaryRootCanReturnToHomeDirectly() {
-        assertEquals(
-            listOf(NovaRootTab.Home),
-            rootNavigationPlan(NovaRootTab.People, NovaRootTab.Home),
-        )
-        assertEquals(
-            listOf(NovaRootTab.Home),
-            rootNavigationPlan(NovaRootTab.Profile, NovaRootTab.Home),
-        )
-    }
-
-    @Test
-    fun allNineRootTransitionsRemainCharacterized() {
-        val expected = mapOf(
-            (NovaRootTab.Home to NovaRootTab.Home) to emptyList(),
-            (NovaRootTab.Home to NovaRootTab.People) to listOf(NovaRootTab.People),
-            (NovaRootTab.Home to NovaRootTab.Profile) to listOf(NovaRootTab.Profile),
-            (NovaRootTab.People to NovaRootTab.Home) to listOf(NovaRootTab.Home),
-            (NovaRootTab.People to NovaRootTab.People) to emptyList(),
-            (NovaRootTab.People to NovaRootTab.Profile) to listOf(
+            listOf(
                 NovaRootTab.Home,
+                NovaRootTab.Orbit,
+                NovaRootTab.Create,
                 NovaRootTab.Profile,
             ),
-            (NovaRootTab.Profile to NovaRootTab.Home) to listOf(NovaRootTab.Home),
-            (NovaRootTab.Profile to NovaRootTab.People) to listOf(
-                NovaRootTab.Home,
-                NovaRootTab.People,
-            ),
-            (NovaRootTab.Profile to NovaRootTab.Profile) to emptyList(),
+            NovaRootTab.entries,
         )
-
-        expected.forEach { (transition, plan) ->
-            assertEquals(plan, rootNavigationPlan(transition.first, transition.second))
-        }
     }
 }

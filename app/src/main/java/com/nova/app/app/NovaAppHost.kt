@@ -90,13 +90,14 @@ fun NovaAppHost() {
                     route = ReelsRouteArgs.Root,
                     onFinish = ::expireOverlaySession,
                     onHomeClick = { appViewModel.showSocialRoot(NovaRootTab.Home) },
-                    onPeopleClick = { appViewModel.showSocialRoot(NovaRootTab.People) },
+                    onOrbitClick = { appViewModel.showSocialRoot(NovaRootTab.Orbit) },
+                    onCreateClick = { appViewModel.showSocialRoot(NovaRootTab.Create) },
                     onProfileClick = { appViewModel.showSocialRoot(NovaRootTab.Profile) },
                     onPersonClick = ::openReelAuthor,
                 )
             }
 
-            AppDestination.Messages -> {
+            AppDestination.Inbox -> {
                 MessagesRootRoute(
                     onRootRequested = appViewModel::showSocialRoot,
                     onSessionExpired = ::expireOverlaySession,
@@ -104,7 +105,8 @@ fun NovaAppHost() {
             }
 
             AppDestination.Home,
-            AppDestination.People,
+            AppDestination.Orbit,
+            AppDestination.Create,
             AppDestination.Profile,
             null -> Unit
         }

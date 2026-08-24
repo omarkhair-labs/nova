@@ -186,7 +186,7 @@ private fun RoomRailCard(
     val conversation = room.conversation
     NovaCard(
         onClick = onClick,
-        modifier = Modifier.width(208.dp),
+        modifier = Modifier.width(152.dp),
         borderColor = if (conversation.unreadCount > 0) {
             NovaAccent.copy(alpha = 0.35f)
         } else {

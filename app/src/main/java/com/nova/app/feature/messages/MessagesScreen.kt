@@ -58,7 +58,8 @@ import com.nova.app.ui.theme.NovaSurface
 fun MessagesScreen(
     onConversationClick: (NovaConversation) -> Unit,
     onHomeClick: () -> Unit,
-    onPeopleClick: () -> Unit,
+    onOrbitClick: () -> Unit,
+    onCreateClick: () -> Unit,
     onProfileClick: () -> Unit,
     onUnreadCountChanged: (Int) -> Unit,
     onSessionExpired: () -> Unit,
@@ -100,11 +101,12 @@ fun MessagesScreen(
         containerColor = NovaBackground,
         bottomBar = {
             NovaBottomBar(
-                selected = NovaTab.Messages,
+                selected = NovaTab.Inbox,
                 messagesUnreadCount = unreadCount,
                 onHomeClick = onHomeClick,
-                onPeopleClick = onPeopleClick,
-                onMessagesClick = {},
+                onOrbitClick = onOrbitClick,
+                onCreateClick = onCreateClick,
+                onInboxClick = {},
                 onProfileClick = onProfileClick,
             )
         },
@@ -123,17 +125,16 @@ fun MessagesScreen(
                     .padding(top = 22.dp),
             ) {
                 Text(
-                    text = "Messages",
+                    text = "Inbox",
                     color = NovaInk,
-                    fontSize = 30.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = com.nova.app.ui.theme.NovaType.pageTitle,
                 )
                 Spacer(Modifier.height(3.dp))
                 Text(
                     text = when {
                         unreadCount > 0 -> "$unreadCount unread ${if (unreadCount == 1) "conversation" else "conversations"}"
                         conversations.isNotEmpty() -> "Pick up where you left off."
-                        else -> "Direct and group conversations on Nova."
+                        else -> "All your conversations, together."
                     },
                     color = NovaMuted,
                     fontSize = 13.sp,

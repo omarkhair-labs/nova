@@ -11,7 +11,8 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,8 +29,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.sharing.NovaRepostState
 import com.nova.app.core.sharing.NovaSharingRepository
@@ -44,7 +45,9 @@ import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
+import com.nova.app.ui.theme.NovaSpacing
 import com.nova.app.ui.theme.NovaSurface
+import com.nova.app.ui.theme.NovaType
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
@@ -139,53 +142,38 @@ fun NovaPostCard(
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(26.dp),
+        shape = MaterialTheme.shapes.large,
         color = NovaSurface,
         border = BorderStroke(1.dp, NovaBorder),
     ) {
         Column {
             repostState?.feedRepostedBy?.let { reposter ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, end = 16.dp, top = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(7.dp),
-                ) {
-                    Text(
-                        text = "↻",
-                        color = NovaAccent,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = "@${reposter.username} reposted",
-                        color = NovaMuted,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
+                Text(
+                    text = "↻ @${reposter.username} reposted",
+                    modifier = Modifier.padding(
+                        start = NovaSpacing.lg,
+                        end = NovaSpacing.lg,
+                        top = NovaSpacing.md,
+                    ),
+                    color = NovaMuted,
+                    style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
+                )
             }
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                    .padding(horizontal = NovaSpacing.lg, vertical = NovaSpacing.md),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(11.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Surface(
-                    onClick = onAuthorClick,
-                    shape = RoundedCornerShape(24.dp),
-                    color = NovaSurface,
-                ) {
+                Surface(onClick = onAuthorClick, shape = CircleShape, color = NovaSurface) {
                     NovaAvatar(
                         source = post.author.avatarUrl,
                         fallbackText = post.author.name.ifBlank { post.author.username },
-                        size = 42.dp,
+                        size = 38.dp,
                     )
                 }
-
                 Surface(
                     onClick = onAuthorClick,
                     modifier = Modifier.weight(1f),
@@ -193,42 +181,56 @@ fun NovaPostCard(
                 ) {
                     Column {
                         Text(
-                            text = post.author.name.ifBlank { post.author.username },
+                            post.author.name.ifBlank { post.author.username },
                             color = NovaInk,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            style = NovaType.meta.copy(fontWeight = FontWeight.SemiBold),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                         Text(
-                            text = "@${post.author.username} · ${friendlyDate(post.createdAt)}",
+                            "${friendlyDate(post.createdAt)} · @${post.author.username}",
                             color = NovaMuted,
-                            fontSize = 11.sp,
+                            style = NovaType.micro,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
-
                 if (post.isMine) {
                     Surface(
-                        onClick = {
-                            if (!isDeleting) showDeleteConfirm = true
-                        },
-                        shape = RoundedCornerShape(14.dp),
-                        color = NovaAccentSoft,
+                        onClick = { if (!isDeleting) showDeleteConfirm = true },
+                        shape = CircleShape,
+                        color = NovaSurface,
                     ) {
                         Text(
-                            text = if (isDeleting) "…" else "Delete",
-                            modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
-                            color = NovaAccent,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            if (isDeleting) "…" else "•••",
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 7.dp),
+                            color = NovaMuted,
+                            style = NovaType.label,
                         )
                     }
                 }
             }
 
+            if (post.caption.isNotBlank()) {
+                Text(
+                    text = post.caption,
+                    modifier = Modifier.padding(
+                        start = NovaSpacing.lg,
+                        end = NovaSpacing.lg,
+                        bottom = NovaSpacing.md,
+                    ),
+                    color = NovaInk,
+                    style = NovaType.bodyCompact,
+                )
+            }
+
             Box(
                 modifier = Modifier
+                    .padding(horizontal = NovaSpacing.md)
                     .fillMaxWidth()
-                    .aspectRatio(1f)
+                    .aspectRatio(16f / 9f)
+                    .clip(MaterialTheme.shapes.medium)
                     .pointerInput(post.id, post.isLiked, isLiking) {
                         detectTapGestures(
                             onDoubleTap = {
@@ -236,144 +238,96 @@ fun NovaPostCard(
                                     likeBurstTrigger += 1
                                     if (!post.isLiked) onLikeToggle()
                                 }
-                            }
+                            },
                         )
                     },
                 contentAlignment = Alignment.Center,
             ) {
                 NovaMediaImage(
                     source = post.imageUrl,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f)
-                        .clip(RoundedCornerShape(0.dp)),
+                    modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
                     contentDescription = "Post by ${post.author.username}",
                 )
                 NovaLikeBurst(
                     trigger = likeBurstTrigger,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f),
+                    modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
                 )
             }
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 14.dp, end = 14.dp, top = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    .padding(horizontal = NovaSpacing.md, vertical = NovaSpacing.sm),
+                horizontalArrangement = Arrangement.spacedBy(NovaSpacing.xs),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Surface(
+                PostAction(
+                    label = when {
+                        isLiking -> "…"
+                        post.isLiked -> "♥ ${post.likesCount}"
+                        else -> "♡ ${post.likesCount}"
+                    },
+                    active = post.isLiked,
                     onClick = { if (!isLiking) onLikeToggle() },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(16.dp),
-                    color = if (post.isLiked) NovaAccentSoft else NovaSurface,
-                    border = BorderStroke(1.dp, if (post.isLiked) NovaAccent.copy(alpha = 0.22f) else NovaBorder),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 13.dp, vertical = 9.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = if (isLiking) "…" else if (post.isLiked) "♥ ${post.likesCount}" else "♡ ${post.likesCount}",
-                            color = if (post.isLiked) NovaAccent else NovaInk,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                }
-
-                Surface(
+                )
+                PostAction(
+                    label = "◯ ${post.commentsCount}",
                     onClick = onCommentsClick,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(16.dp),
-                    color = NovaSurface,
-                    border = BorderStroke(1.dp, NovaBorder),
-                ) {
-                    Text(
-                        text = "Comment · ${post.commentsCount}",
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
-                        color = NovaMuted,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                val state = repostState
-                Surface(
+                )
+                val currentRepost = repostState
+                PostAction(
+                    label = when {
+                        repostBusy -> "↻ …"
+                        currentRepost == null -> "↻"
+                        else -> "↻ ${currentRepost.repostsCount}"
+                    },
+                    active = currentRepost?.isReposted == true,
                     onClick = ::toggleRepost,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(16.dp),
-                    color = if (state?.isReposted == true) NovaAccentSoft else NovaSurface,
-                    border = BorderStroke(
-                        1.dp,
-                        if (state?.isReposted == true) NovaAccent.copy(alpha = 0.28f) else NovaBorder,
-                    ),
-                ) {
-                    Text(
-                        text = when {
-                            repostBusy -> "↻ Updating…"
-                            state == null -> "↻ Repost"
-                            state.isReposted -> "↻ Reposted · ${state.repostsCount}"
-                            else -> "↻ Repost · ${state.repostsCount}"
-                        },
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
-                        color = if (state?.isReposted == true) NovaAccent else NovaMuted,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-
-                Surface(
-                    onClick = { showShare = true },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(16.dp),
-                    color = NovaSurface,
-                    border = BorderStroke(1.dp, NovaBorder),
-                ) {
-                    Text(
-                        text = "↗ Share",
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
-                        color = NovaMuted,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
+                )
+                PostAction(label = "↗", onClick = { showShare = true })
+                Spacer(modifier = Modifier.weight(1f))
+                Text("▱", color = NovaMuted, style = NovaType.title)
             }
 
             if (!repostError.isNullOrBlank()) {
                 Text(
                     text = repostError.orEmpty(),
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 10.dp),
+                    modifier = Modifier.padding(
+                        start = NovaSpacing.lg,
+                        end = NovaSpacing.lg,
+                        bottom = NovaSpacing.md,
+                    ),
                     color = NovaMuted,
-                    fontSize = 10.sp,
-                )
-            }
-
-            if (post.caption.isNotBlank()) {
-                Text(
-                    text = post.caption,
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 15.dp),
-                    color = NovaInk,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
+                    style = NovaType.micro,
                 )
             } else {
-                Spacer(modifier = Modifier.height(3.dp))
+                Spacer(modifier = Modifier.height(NovaSpacing.xs))
             }
         }
     }
 }
+
+
+@Composable
+private fun PostAction(
+    label: String,
+    active: Boolean = false,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.small,
+        color = if (active) NovaAccentSoft else NovaSurface,
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 7.dp),
+            color = if (active) NovaAccent else NovaMuted,
+            style = NovaType.meta.copy(fontWeight = FontWeight.SemiBold),
+        )
+    }
+}
+
 
 private fun friendlyDate(raw: String): String {
     if (raw.isBlank()) return "now"

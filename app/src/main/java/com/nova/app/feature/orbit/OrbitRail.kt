@@ -36,6 +36,7 @@ import com.nova.app.feature.orbit.domain.model.OrbitEvent
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaCard
 import com.nova.app.ui.components.NovaMediaImage
+import com.nova.app.ui.components.NovaOrbitRing
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBorder
@@ -76,12 +77,12 @@ fun OrbitRail(
         ) {
             Column {
                 Text(
-                    text = "Orbit",
+                    text = "Your Orbit",
                     color = NovaInk,
                     style = NovaType.title.copy(fontWeight = FontWeight.Bold),
                 )
                 Text(
-                    text = "What’s moving around your people",
+                    text = "Close connections, in real time",
                     color = NovaMuted,
                     style = NovaType.micro,
                 )
@@ -122,8 +123,11 @@ fun OrbitRail(
 
             else -> {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(state.events, key = { it.id }) { event ->
-                        OrbitEventCard(
+                    items(
+                        state.events.distinctBy { it.actor.id }.take(6),
+                        key = { it.actor.id },
+                    ) { event ->
+                        OrbitPersonRailItem(
                             event = event,
                             onClick = { onPersonClick(event.actor.username) },
                         )
@@ -149,6 +153,45 @@ fun OrbitRail(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+    }
+}
+
+
+@Composable
+private fun OrbitPersonRailItem(
+    event: OrbitEvent,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.width(66.dp).clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        NovaOrbitRing(
+            modifier = Modifier.size(58.dp),
+            rings = 2,
+            showLivePoint = event.pulse != null,
+        ) {
+            NovaAvatar(
+                source = event.actor.avatarUrl,
+                fallbackText = event.actor.name.ifBlank { event.actor.username },
+                size = 46.dp,
+            )
+        }
+        Spacer(modifier = Modifier.height(NovaSpacing.xs))
+        Text(
+            text = event.actor.name.ifBlank { event.actor.username }.substringBefore(' '),
+            color = NovaInk,
+            style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = orbitActionText(event),
+            color = NovaMuted,
+            style = NovaType.badge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -264,7 +307,7 @@ private fun OrbitEventCard(
 }
 
 
-private fun orbitActionText(event: OrbitEvent): String = when (event.kind) {
+internal fun orbitActionText(event: OrbitEvent): String = when (event.kind) {
     "like" -> "liked a post"
     "comment" -> "joined a conversation"
     "repost" -> "moved a post forward"
@@ -276,7 +319,7 @@ private fun orbitActionText(event: OrbitEvent): String = when (event.kind) {
 }
 
 
-private fun orbitContextText(event: OrbitEvent): String? = when (event.kind) {
+internal fun orbitContextText(event: OrbitEvent): String? = when (event.kind) {
     "comment" -> event.commentPreview.takeIf { it.isNotBlank() }?.let { "“$it”" }
     "like", "repost" -> event.post?.author?.let {
         "on ${it.name.ifBlank { "@${it.username}" }}’s post"
@@ -288,7 +331,7 @@ private fun orbitContextText(event: OrbitEvent): String? = when (event.kind) {
 }
 
 
-private fun orbitSymbol(kind: String): String = when (kind) {
+internal fun orbitSymbol(kind: String): String = when (kind) {
     "like" -> "♥"
     "comment" -> "↳"
     "repost" -> "↻"

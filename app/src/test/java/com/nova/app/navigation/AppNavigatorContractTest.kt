@@ -15,9 +15,10 @@ class AppNavigatorContractTest {
 
         val destinations = listOf(
             AppDestination.Home,
-            AppDestination.People,
+            AppDestination.Orbit,
+            AppDestination.Create,
+            AppDestination.Inbox,
             AppDestination.Reels,
-            AppDestination.Messages,
             AppDestination.Profile,
         )
 

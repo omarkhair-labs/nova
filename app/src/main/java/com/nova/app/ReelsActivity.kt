@@ -33,7 +33,8 @@ class ReelsActivity : ComponentActivity() {
                         route = route,
                         onFinish = { finish() },
                         onHomeClick = { finishToRoot(NovaRootTab.Home) },
-                        onPeopleClick = { finishToRoot(NovaRootTab.People) },
+                        onOrbitClick = { finishToRoot(NovaRootTab.Orbit) },
+                        onCreateClick = { finishToRoot(NovaRootTab.Create) },
                         onProfileClick = { finishToRoot(NovaRootTab.Profile) },
                         onPersonClick = { username -> openPerson(username) },
                     )

@@ -10,6 +10,7 @@ PARSER = ROOT / "app/src/main/java/com/nova/app/feature/orbit/data/OrbitParser.k
 REMOTE = ROOT / "app/src/main/java/com/nova/app/feature/orbit/data/remote/OrbitRemoteRepository.kt"
 OWNER = ROOT / "app/src/main/java/com/nova/app/feature/orbit/OrbitStateOwner.kt"
 RAIL = ROOT / "app/src/main/java/com/nova/app/feature/orbit/OrbitRail.kt"
+SCREEN = ROOT / "app/src/main/java/com/nova/app/feature/orbit/OrbitScreen.kt"
 CONTAINER = ROOT / "app/src/main/java/com/nova/app/app/AppContainer.kt"
 HOME = ROOT / "app/src/main/java/com/nova/app/feature/home/HomeScreen.kt"
 NETWORK = ROOT / "app/src/main/java/com/nova/app/core/network/NovaApiClient.kt"
@@ -30,6 +31,7 @@ parser = read(PARSER)
 remote = read(REMOTE)
 owner = read(OWNER)
 rail = read(RAIL)
+screen = read(SCREEN)
 container = read(CONTAINER)
 home = read(HOME)
 network = read(NETWORK)
@@ -99,6 +101,19 @@ for forbidden in (
     if forbidden in rail:
         errors.append(f"Orbit UI must not own network/repository orchestration: {forbidden}")
 
+for required in (
+    "fun OrbitScreen(",
+    "OrbitStateOwner(repository, scope)",
+    "NovaBottomBar(",
+    "NovaTab.Orbit",
+    "OrbitConstellation(",
+):
+    if required not in screen:
+        errors.append(f"full Orbit destination is missing stable visual/navigation seam: {required}")
+for forbidden in ("NovaApiClient", "ApiResult", "repository.orbit("):
+    if forbidden in screen:
+        errors.append(f"full Orbit destination must not own transport orchestration: {forbidden}")
+
 if "val orbitRepository: OrbitRepository = OrbitRemoteRepository(appContext, api)" not in container:
     errors.append("AppContainer must construct OrbitRemoteRepository behind OrbitRepository")
 
@@ -106,8 +121,8 @@ if "import com.nova.app.feature.orbit.OrbitRail" not in home:
     errors.append("Home must import the Orbit surface")
 if "OrbitRail(" not in home:
     errors.append("Home must render Orbit")
-if home.find("OrbitRail(") < home.find("StoriesRail("):
-    errors.append("Home hierarchy must keep Stories before Orbit")
+if home.find("OrbitRail(") < home.find("PulseRail("):
+    errors.append("Home hierarchy must keep Pulse before Orbit")
 if home.find("OrbitRail(") > home.find("onClick = onCreatePost"):
     errors.append("Home hierarchy must keep Orbit before permanent post creation")
 

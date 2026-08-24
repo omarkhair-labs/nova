@@ -27,12 +27,19 @@ class AppViewModelTest {
         val requestedRoots = mutableListOf<NovaRootTab>()
         val viewModel = viewModel(requestRoot = requestedRoots::add)
 
-        viewModel.navigate(AppDestination.Messages)
-        assertEquals(AppDestination.Messages, viewModel.state.primaryOverlay)
+        viewModel.navigate(AppDestination.Inbox)
+        assertEquals(AppDestination.Inbox, viewModel.state.primaryOverlay)
 
+        viewModel.navigate(AppDestination.Orbit)
+        assertNull(viewModel.state.primaryOverlay)
+
+        viewModel.navigate(AppDestination.Create)
         viewModel.navigate(AppDestination.Profile)
         assertNull(viewModel.state.primaryOverlay)
-        assertEquals(listOf(NovaRootTab.Profile), requestedRoots)
+        assertEquals(
+            listOf(NovaRootTab.Orbit, NovaRootTab.Create, NovaRootTab.Profile),
+            requestedRoots,
+        )
     }
 
     @Test

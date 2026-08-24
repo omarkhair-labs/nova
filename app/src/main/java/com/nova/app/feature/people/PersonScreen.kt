@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -50,6 +51,7 @@ import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState
 import com.nova.app.feature.sharing.NovaShareDialog
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaHeader
+import com.nova.app.ui.components.NovaOrbitRing
 import com.nova.app.ui.components.NovaPagedProfilePostsGrid
 import com.nova.app.ui.components.NovaPrimaryButton
 import com.nova.app.ui.components.NovaSecondaryButton
@@ -396,11 +398,17 @@ fun PersonScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    NovaAvatar(
-                        source = person.avatarUrl,
-                        fallbackText = person.name.ifBlank { person.username },
-                        size = 112.dp,
-                    )
+                    NovaOrbitRing(
+                        modifier = Modifier.size(126.dp),
+                        rings = 2,
+                        showLivePoint = person.isFollowing,
+                    ) {
+                        NovaAvatar(
+                            source = person.avatarUrl,
+                            fallbackText = person.name.ifBlank { person.username },
+                            size = 96.dp,
+                        )
+                    }
                     Spacer(modifier = Modifier.height(18.dp))
                     Text(
                         text = person.name.ifBlank { person.username },
@@ -434,8 +442,8 @@ fun PersonScreen(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
-                    color = NovaSurface,
-                    border = BorderStroke(1.dp, NovaBorder),
+                    color = NovaBackground,
+                    border = BorderStroke(1.dp, NovaBackground),
                 ) {
                     Row(
                         modifier = Modifier.padding(vertical = 20.dp),

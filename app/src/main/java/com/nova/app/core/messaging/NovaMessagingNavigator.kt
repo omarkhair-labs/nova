@@ -22,7 +22,7 @@ object NovaMessagingNavigator {
     const val EXTRA_CURRENT_USER_ROLE = MessagesRouteFactory.EXTRA_CURRENT_USER_ROLE
 
     fun openInbox(context: Context, replaceCurrentActivity: Boolean = false) {
-        if (appNavigator(context).navigate(AppDestination.Messages)) {
+        if (appNavigator(context).navigate(AppDestination.Inbox)) {
             return
         }
 

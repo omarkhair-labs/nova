@@ -78,10 +78,11 @@ class AppViewModel internal constructor(
     override fun navigate(destination: AppDestination): Boolean {
         when (destination) {
             AppDestination.Home -> showSocialRoot(NovaRootTab.Home)
-            AppDestination.People -> showSocialRoot(NovaRootTab.People)
+            AppDestination.Orbit -> showSocialRoot(NovaRootTab.Orbit)
+            AppDestination.Create -> showSocialRoot(NovaRootTab.Create)
             AppDestination.Profile -> showSocialRoot(NovaRootTab.Profile)
             AppDestination.Reels,
-            AppDestination.Messages -> state = state.copy(primaryOverlay = destination)
+            AppDestination.Inbox -> state = state.copy(primaryOverlay = destination)
         }
         return true
     }

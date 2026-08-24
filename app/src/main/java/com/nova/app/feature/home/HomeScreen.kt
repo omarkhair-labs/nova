@@ -39,7 +39,6 @@ import com.nova.app.feature.orbit.OrbitRail
 import com.nova.app.feature.posts.domain.model.NovaPost
 import com.nova.app.feature.pulse.PulseRail
 import com.nova.app.feature.rooms.RoomsRail
-import com.nova.app.feature.stories.StoriesRail
 import com.nova.app.feature.tonight.TonightSurface
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
@@ -81,6 +80,10 @@ fun HomeScreen(
     onResolvePost: suspend (Long) -> ApiResult<NovaPost>,
     onPersonClick: (String) -> Unit,
     onPeopleClick: () -> Unit,
+    onOrbitClick: () -> Unit,
+    onCreateClick: () -> Unit,
+    onPulseClick: () -> Unit,
+    onTonightClick: () -> Unit,
     onProfileClick: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -199,7 +202,8 @@ fun HomeScreen(
             NovaBottomBar(
                 selected = NovaTab.Home,
                 onHomeClick = {},
-                onPeopleClick = onPeopleClick,
+                onOrbitClick = onOrbitClick,
+                onCreateClick = onCreateClick,
                 onProfileClick = onProfileClick,
             )
         },
@@ -221,12 +225,12 @@ fun HomeScreen(
                     .fillMaxSize()
                     .background(NovaBackground),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                    start = NovaSpacing.xl,
-                    end = NovaSpacing.xl,
-                    top = NovaSpacing.lg,
+                    start = NovaSpacing.lg,
+                    end = NovaSpacing.lg,
+                    top = NovaSpacing.md,
                     bottom = NovaSpacing.xxl,
                 ),
-                verticalArrangement = Arrangement.spacedBy(NovaSpacing.lg),
+                verticalArrangement = Arrangement.spacedBy(NovaSpacing.md),
             ) {
                 item {
                     HomeIdentityHeader(
@@ -245,7 +249,25 @@ fun HomeScreen(
                     TonightSurface(
                         onPersonClick = onPersonClick,
                         onSessionExpired = {},
+                        onOpenTonight = onTonightClick,
                     )
+                }
+
+                if (posts.isNotEmpty()) {
+                    item(key = "home-lead-post-${posts.first().id}") {
+                        val post = posts.first()
+                        NovaPostCard(
+                            post = post,
+                            isDeleting = deletingPostId == post.id,
+                            isLiking = likingPostId == post.id,
+                            onAuthorClick = {
+                                if (post.isMine) onProfileClick() else onPersonClick(post.author.username)
+                            },
+                            onLikeToggle = { onLikeToggle(post) },
+                            onCommentsClick = { onCommentsClick(post) },
+                            onDelete = { onDeletePost(post) },
+                        )
+                    }
                 }
 
                 item {
@@ -253,15 +275,8 @@ fun HomeScreen(
                         displayName = displayName,
                         username = username,
                         avatarUrl = avatarUrl,
-                        onSessionExpired = {},
-                    )
-                }
-
-                item {
-                    StoriesRail(
-                        displayName = displayName,
-                        username = username,
-                        avatarUrl = avatarUrl,
+                        showCreateCard = false,
+                        onOpenFeed = onPulseClick,
                         onSessionExpired = {},
                     )
                 }
@@ -354,14 +369,14 @@ fun HomeScreen(
                         )
                     }
                 } else {
-                    item {
+                    if (posts.size > 1) item {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                text = "Your feed",
+                                text = "More from your orbit",
                                 color = NovaInk,
                                 style = NovaType.title,
                             )
@@ -374,7 +389,7 @@ fun HomeScreen(
                     }
 
                     items(
-                        items = posts,
+                        items = posts.drop(1),
                         key = { it.id },
                     ) { post ->
                         NovaPostCard(

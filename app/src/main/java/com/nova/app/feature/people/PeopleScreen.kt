@@ -14,15 +14,12 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nova.app.feature.people.domain.model.NovaPerson
@@ -52,15 +49,18 @@ fun PeopleScreen(
     onFollowToggle: (NovaPerson) -> Unit,
     onLoadMore: () -> Unit,
     onHomeClick: () -> Unit,
+    onOrbitClick: () -> Unit,
+    onCreateClick: () -> Unit,
     onProfileClick: () -> Unit,
 ) {
     androidx.compose.material3.Scaffold(
         containerColor = NovaBackground,
         bottomBar = {
             NovaBottomBar(
-                selected = NovaTab.People,
+                selected = null,
                 onHomeClick = onHomeClick,
-                onPeopleClick = {},
+                onOrbitClick = onOrbitClick,
+                onCreateClick = onCreateClick,
                 onProfileClick = onProfileClick,
             )
         },
@@ -213,16 +213,18 @@ private fun PersonRow(
     NovaCard(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
+        containerColor = NovaBackground,
+        borderColor = NovaBackground,
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = NovaSpacing.lg, vertical = NovaSpacing.md),
+            modifier = Modifier.padding(horizontal = NovaSpacing.xs, vertical = NovaSpacing.sm),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(NovaSpacing.md),
         ) {
             NovaAvatar(
                 source = person.avatarUrl,
                 fallbackText = person.name.ifBlank { person.username },
-                size = 52.dp,
+                size = 46.dp,
             )
 
             Column(modifier = Modifier.weight(1f)) {
@@ -289,14 +291,11 @@ private fun PersonRow(
                 }
 
                 else -> {
-                    Button(
+                    OutlinedButton(
                         onClick = onFollowToggle,
                         enabled = !isUpdating,
                         shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = NovaAccent,
-                            contentColor = Color.White,
-                        ),
+                        border = BorderStroke(1.dp, NovaAccent.copy(alpha = 0.55f)),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(
                             horizontal = 15.dp,
                             vertical = 7.dp,
@@ -304,6 +303,7 @@ private fun PersonRow(
                     ) {
                         Text(
                             text = if (isUpdating) "…" else "Follow",
+                            color = NovaAccent,
                             style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
                         )
                     }

@@ -10,6 +10,7 @@ PARSER = ROOT / "app/src/main/java/com/nova/app/feature/tonight/data/TonightPars
 REMOTE = ROOT / "app/src/main/java/com/nova/app/feature/tonight/data/remote/TonightRemoteRepository.kt"
 OWNER = ROOT / "app/src/main/java/com/nova/app/feature/tonight/TonightStateOwner.kt"
 SURFACE = ROOT / "app/src/main/java/com/nova/app/feature/tonight/TonightSurface.kt"
+SCREEN = ROOT / "app/src/main/java/com/nova/app/feature/tonight/TonightScreen.kt"
 CONTAINER = ROOT / "app/src/main/java/com/nova/app/app/AppContainer.kt"
 HOME = ROOT / "app/src/main/java/com/nova/app/feature/home/HomeScreen.kt"
 NETWORK = ROOT / "app/src/main/java/com/nova/app/core/network/NovaApiClient.kt"
@@ -30,6 +31,7 @@ parser = read(PARSER)
 remote = read(REMOTE)
 owner = read(OWNER)
 surface = read(SURFACE)
+screen = read(SCREEN)
 container = read(CONTAINER)
 home = read(HOME)
 network = read(NETWORK)
@@ -101,6 +103,15 @@ for forbidden in (
     if forbidden in surface:
         errors.append(f"Tonight UI must not own transport or raw presence concern: {forbidden}")
 
+for required in (
+    "fun TonightScreen(",
+    "TonightSurface(",
+    "RoomTonightSection(",
+    "NovaBottomBar(",
+):
+    if required not in screen:
+        errors.append(f"full Tonight destination is missing stable visual/navigation seam: {required}")
+
 if "val tonightRepository: TonightRepository = TonightRemoteRepository(appContext, api)" not in container:
     errors.append("AppContainer must construct TonightRemoteRepository behind TonightRepository")
 
@@ -110,10 +121,8 @@ if "TonightSurface(" not in home:
     errors.append("Home must render Tonight")
 if home.find("TonightSurface(") > home.find("PulseRail("):
     errors.append("Home live hierarchy must keep Tonight before Pulse")
-if home.find("PulseRail(") > home.find("StoriesRail("):
-    errors.append("Home live hierarchy must keep Pulse before Stories")
-if home.find("StoriesRail(") > home.find("OrbitRail("):
-    errors.append("Home live hierarchy must keep Stories before Orbit")
+if home.find("PulseRail(") > home.find("OrbitRail("):
+    errors.append("Home live hierarchy must keep Pulse before Orbit")
 
 if errors:
     print("Tonight architecture check failed:")
