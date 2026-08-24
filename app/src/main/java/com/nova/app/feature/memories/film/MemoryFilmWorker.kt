@@ -77,6 +77,7 @@ class MemoryFilmWorker(
             .setContentText(if (progress > 0) "$progress% complete" else "Preparing your moments…")
             .setProgress(100, progress, progress == 0)
             .setOngoing(true)
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setContentIntent(pendingIntent)
             .build()
         return ForegroundInfo(
