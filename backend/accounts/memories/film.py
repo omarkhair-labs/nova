@@ -141,7 +141,7 @@ def build_memory_film_plan(weekly_memory):
 
     stats = weekly_memory.get("stats") or {}
     return {
-        "render_version": 1,
+        "render_version": 2,
         "selection_version": "smart-v1",
         "starts_at": weekly_memory.get("starts_at"),
         "ends_at": weekly_memory.get("ends_at"),
