@@ -19,6 +19,7 @@ data class PostCommentsUiState(
     val deletingCommentId: Long? = null,
     val isReplySending: Boolean = false,
     val deletingReplyId: Long? = null,
+    val likingCommentId: Long? = null,
     val errorMessage: String? = null,
     val replyErrorMessage: String? = null,
     val sessionExpiryVersion: Int = 0,
@@ -179,6 +180,35 @@ class PostCommentsStateOwner(
     fun deleteReply(reply: NovaComment) {
         if (state.deletingReplyId != null || !reply.isMine) return
         scope.launch { deleteReplyNow(reply) }
+    }
+
+    fun toggleLike(comment: NovaComment) {
+        if (state.likingCommentId != null) return
+        scope.launch {
+            state = state.copy(likingCommentId = comment.id, replyErrorMessage = null)
+            when (
+                val result = repository.setCommentLiked(
+                    commentId = comment.id,
+                    liked = !comment.isLiked,
+                    isReply = comment.parentId != null,
+                )
+            ) {
+                is ApiResult.Success -> {
+                    val updated = result.value
+                    state = state.copy(
+                        comments = if (updated.parentId == null) {
+                            state.comments.map { if (it.id == updated.id) updated.copy(replies = it.replies) else it }
+                        } else {
+                            state.comments.map { parent ->
+                                parent.copy(replies = parent.replies.map { if (it.id == updated.id) updated else it })
+                            }
+                        },
+                    )
+                }
+                is ApiResult.Failure -> state = state.copy(replyErrorMessage = result.message)
+            }
+            state = state.copy(likingCommentId = null)
+        }
     }
 
     internal suspend fun deleteReplyNow(reply: NovaComment) {

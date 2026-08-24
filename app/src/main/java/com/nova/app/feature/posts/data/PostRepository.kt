@@ -35,4 +35,10 @@ interface PostRepository {
     suspend fun deleteComment(commentId: Long): ApiResult<NovaPost>
 
     suspend fun deleteCommentReply(replyId: Long): ApiResult<NovaPost>
+
+    suspend fun setCommentLiked(
+        commentId: Long,
+        liked: Boolean,
+        isReply: Boolean,
+    ): ApiResult<NovaComment> = ApiResult.Failure("Comment reactions are unavailable.")
 }

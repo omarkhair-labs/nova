@@ -46,10 +46,12 @@ fun PulseComposerDialog(
     uploading: Boolean,
     error: String?,
     initialAudience: String,
+    initialCategory: String = "vibes",
+    showCategory: Boolean = true,
     confirmLabel: String,
     onPickMedia: () -> Unit,
     onDismiss: () -> Unit,
-    onSubmit: (String, String) -> Unit,
+    onSubmit: (String, String, String) -> Unit,
 ) {
     val context = LocalContext.current
     var note by remember { mutableStateOf("") }
@@ -58,6 +60,9 @@ fun PulseComposerDialog(
             initialAudience.takeIf { it == "followers" || it == "close_friends" }
                 ?: "followers",
         )
+    }
+    var category by remember(initialCategory) {
+        mutableStateOf(initialCategory.takeIf { it in setOf("live", "music", "talks", "vibes") } ?: "vibes")
     }
     val mime = remember(pendingMedia) {
         pendingMedia?.let { context.contentResolver.getType(it).orEmpty().lowercase() }.orEmpty()
@@ -163,6 +168,22 @@ fun PulseComposerDialog(
                     }
                 }
 
+                if (showCategory) {
+                    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Text("Category", color = NovaMuted, fontSize = 10.sp)
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf("live" to "Live", "music" to "Music", "talks" to "Talks", "vibes" to "Vibes").forEach { (value, label) ->
+                                PulseAudienceChoice(
+                                    label = label,
+                                    selected = category == value,
+                                    enabled = !uploading,
+                                    onClick = { category = value },
+                                )
+                            }
+                        }
+                    }
+                }
+
                 error?.let {
                     Text(text = it, color = NovaMuted, fontSize = 11.sp)
                 }
@@ -170,7 +191,7 @@ fun PulseComposerDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = { onSubmit(note.trim(), audience) },
+                onClick = { onSubmit(note.trim(), audience, category) },
                 enabled = canSubmit,
             ) {
                 if (uploading) {

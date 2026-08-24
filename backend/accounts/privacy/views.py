@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 
 from .models import Follow, User
 from .privacy import privacy_payload, visible_close_friend_ids
-from .privacy_models import AccountPrivacy, CloseFriend, FollowRequest
+from .privacy_models import AccountPrivacy, CloseFriend, FollowRequest, NotificationPreference
 from .serializers import PersonSerializer
 from .trust_safety import active_person_for, blocked_user_ids, users_blocked
 
@@ -19,10 +19,27 @@ class AccountPrivacyView(APIView):
         return Response(privacy_payload(request.user))
 
     def post(self, request):
-        raw = request.data.get("is_private")
-        if not isinstance(raw, bool):
+        allowed = {
+            "is_private",
+            "show_activity_status",
+            "send_read_receipts",
+            "story_audience",
+        }
+        updates = {key: request.data[key] for key in allowed if key in request.data}
+        if not updates:
             return Response(
-                {"detail": "is_private must be true or false."},
+                {"detail": "Nothing to update."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        for key in {"is_private", "show_activity_status", "send_read_receipts"} & updates.keys():
+            if not isinstance(updates[key], bool):
+                return Response(
+                    {"detail": f"{key} must be true or false."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        if "story_audience" in updates and updates["story_audience"] not in AccountPrivacy.StoryAudience.values:
+            return Response(
+                {"detail": "Choose a valid Story audience."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -31,11 +48,12 @@ class AccountPrivacyView(APIView):
                 user=request.user,
             )
             was_private = privacy.is_private
-            privacy.is_private = raw
-            privacy.save(update_fields=("is_private", "updated_at"))
+            for key, value in updates.items():
+                setattr(privacy, key, value)
+            privacy.save(update_fields=(*updates.keys(), "updated_at"))
 
             accepted = 0
-            if was_private and not raw:
+            if was_private and updates.get("is_private") is False:
                 blocked_ids = blocked_user_ids(request.user)
                 pending = list(
                     FollowRequest.objects.select_related("requester")
@@ -57,6 +75,42 @@ class AccountPrivacyView(APIView):
         return Response(payload)
 
 
+class NotificationPreferencesView(APIView):
+    permission_classes = [IsAuthenticated]
+    fields = (
+        "likes_comments_shares",
+        "mentions_tags",
+        "followers",
+        "messages",
+        "live_sessions",
+        "reels_stories",
+        "events_spaces",
+        "product_updates",
+    )
+
+    def _payload(self, preferences):
+        return {field: getattr(preferences, field) for field in self.fields}
+
+    def get(self, request):
+        preferences, _ = NotificationPreference.objects.get_or_create(user=request.user)
+        return Response(self._payload(preferences))
+
+    def post(self, request):
+        updates = {field: request.data[field] for field in self.fields if field in request.data}
+        if not updates:
+            return Response({"detail": "Nothing to update."}, status=status.HTTP_400_BAD_REQUEST)
+        if any(not isinstance(value, bool) for value in updates.values()):
+            return Response(
+                {"detail": "Notification preferences must be true or false."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        preferences, _ = NotificationPreference.objects.get_or_create(user=request.user)
+        for field, value in updates.items():
+            setattr(preferences, field, value)
+        preferences.save(update_fields=(*updates.keys(), "updated_at"))
+        return Response(self._payload(preferences))
+
+
 class FollowRequestsView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -75,6 +129,35 @@ class FollowRequestsView(APIView):
                         "id": item.pk,
                         "requester": PersonSerializer(
                             item.requester,
+                            context={"request": request},
+                        ).data,
+                        "created_at": item.created_at.isoformat(),
+                    }
+                    for item in requests
+                ],
+                "count": len(requests),
+            }
+        )
+
+
+class SentFollowRequestsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        blocked_ids = blocked_user_ids(request.user)
+        requests = list(
+            FollowRequest.objects.select_related("target", "target__account_privacy")
+            .filter(requester=request.user, target__is_active=True)
+            .exclude(target_id__in=blocked_ids)
+            .order_by("-created_at", "-id")[:250]
+        )
+        return Response(
+            {
+                "results": [
+                    {
+                        "id": item.pk,
+                        "target": PersonSerializer(
+                            item.target,
                             context={"request": request},
                         ).data,
                         "created_at": item.created_at.isoformat(),

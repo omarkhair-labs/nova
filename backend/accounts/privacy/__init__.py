@@ -62,6 +62,9 @@ def privacy_payload(user):
     privacy, _ = AccountPrivacy.objects.get_or_create(user=user)
     return {
         "is_private": privacy.is_private,
+        "show_activity_status": privacy.show_activity_status,
+        "send_read_receipts": privacy.send_read_receipts,
+        "story_audience": privacy.story_audience,
         "pending_follow_requests": FollowRequest.objects.filter(target=user).exclude(
             requester_id__in=blocked_user_ids(user)
         ).count(),

@@ -37,6 +37,24 @@ class PulseViewerStateOwner(
         scope.launch { loadChainNow(pulseId) }
     }
 
+    fun recordView(pulseId: Long) {
+        scope.launch {
+            when (val result = repository.recordView(pulseId)) {
+                is ApiResult.Success -> replacePulse(result.value)
+                is ApiResult.Failure -> recordFailure(result)
+            }
+        }
+    }
+
+    fun setReaction(pulseId: Long, enabled: Boolean) {
+        scope.launch {
+            when (val result = repository.setReaction(pulseId, enabled)) {
+                is ApiResult.Success -> replacePulse(result.value)
+                is ApiResult.Failure -> recordFailure(result)
+            }
+        }
+    }
+
     internal suspend fun loadChainNow(pulseId: Long) {
         state = state.copy(loading = true, error = null)
         when (val result = repository.pulseChain(pulseId)) {
@@ -53,21 +71,21 @@ class PulseViewerStateOwner(
         }
     }
 
-    fun replyText(pulseId: Long, note: String, audience: String) {
-        scope.launch { replyTextNow(pulseId, note, audience) }
+    fun replyText(pulseId: Long, note: String, audience: String, category: String = "vibes") {
+        scope.launch { replyTextNow(pulseId, note, audience, category) }
     }
 
-    internal suspend fun replyTextNow(pulseId: Long, note: String, audience: String) {
+    internal suspend fun replyTextNow(pulseId: Long, note: String, audience: String, category: String = "vibes") {
         state = state.copy(replying = true, error = null)
-        when (val result = repository.replyTextPulse(pulseId, note, audience)) {
+        when (val result = repository.replyTextPulse(pulseId, note, audience, category)) {
             is ApiResult.Success -> acceptReply(result.value)
             is ApiResult.Failure -> recordFailure(result)
         }
         state = state.copy(replying = false)
     }
 
-    fun replyMedia(pulseId: Long, mediaUri: Uri, note: String, audience: String) {
-        scope.launch { replyMediaNow(pulseId, mediaUri, note, audience) }
+    fun replyMedia(pulseId: Long, mediaUri: Uri, note: String, audience: String, category: String = "vibes") {
+        scope.launch { replyMediaNow(pulseId, mediaUri, note, audience, category) }
     }
 
     internal suspend fun replyMediaNow(
@@ -75,9 +93,10 @@ class PulseViewerStateOwner(
         mediaUri: Uri,
         note: String,
         audience: String,
+        category: String = "vibes",
     ) {
         state = state.copy(replying = true, error = null)
-        when (val result = repository.replyMediaPulse(pulseId, mediaUri, note, audience)) {
+        when (val result = repository.replyMediaPulse(pulseId, mediaUri, note, audience, category)) {
             is ApiResult.Success -> acceptReply(result.value)
             is ApiResult.Failure -> recordFailure(result)
         }
@@ -88,6 +107,13 @@ class PulseViewerStateOwner(
         state = state.copy(
             chain = (state.chain + pulse).distinctBy { it.id },
             replyCreatedVersion = state.replyCreatedVersion + 1,
+            error = null,
+        )
+    }
+
+    private fun replacePulse(pulse: NovaPulse) {
+        state = state.copy(
+            chain = state.chain.map { if (it.id == pulse.id) pulse else it },
             error = null,
         )
     }

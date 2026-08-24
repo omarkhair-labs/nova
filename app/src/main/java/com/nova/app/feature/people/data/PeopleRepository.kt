@@ -35,6 +35,12 @@ interface PeoplePagingRepository {
         cursor: String? = null,
     ): ApiResult<NovaPersonPage>
 
+    suspend fun discover(
+        query: String = "",
+        cursor: String? = null,
+        filter: String = "people",
+    ): ApiResult<NovaPersonPage> = people(query, cursor)
+
     suspend fun followers(
         username: String,
         query: String = "",

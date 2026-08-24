@@ -1,4 +1,4 @@
 from ..models import Follow, User
-from ..pulse_models import Pulse
+from ..pulse_models import Pulse, PulseReaction, PulseView
 
-__all__ = ["Follow", "Pulse", "User"]
+__all__ = ["Follow", "Pulse", "PulseReaction", "PulseView", "User"]

@@ -3,6 +3,7 @@ package com.nova.app.ui.components
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,12 +12,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,10 +27,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.core.messaging.NovaMessagingNavigator
-import com.nova.app.core.reels.NovaReelsNavigator
-import com.nova.app.navigation.NovaRootNavigationSignal
-import com.nova.app.navigation.NovaRootTab
-import com.nova.app.navigation.rootNavigationPlan
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
@@ -40,56 +37,24 @@ import com.nova.app.ui.theme.NovaSurface
 import com.nova.app.ui.theme.NovaType
 
 
+/** Presentation owner for Home / Orbit / Create / Inbox / Profile. */
 @Composable
 fun NovaBottomBar(
-    selected: NovaTab,
+    selected: NovaTab?,
     onHomeClick: () -> Unit,
-    onPeopleClick: () -> Unit,
+    onOrbitClick: () -> Unit,
+    onCreateClick: () -> Unit,
     onProfileClick: () -> Unit,
-    onMessagesClick: (() -> Unit)? = null,
-    onReelsClick: (() -> Unit)? = null,
+    onInboxClick: (() -> Unit)? = null,
     messagesUnreadCount: Int? = null,
+    containerColor: Color = NovaSurface,
+    inactiveContentColor: Color = NovaMuted,
 ) {
     val context = LocalContext.current
     val resolvedUnreadCount = messagesUnreadCount ?: NovaMessagesSignal.unreadCount
-    val rootRequestVersion = NovaRootNavigationSignal.requestVersion
-
-    fun dispatchRoot(requested: NovaRootTab) {
-        if (selected == NovaTab.Messages || selected == NovaTab.Reels) {
-            when (requested) {
-                NovaRootTab.Home -> onHomeClick()
-                NovaRootTab.People -> onPeopleClick()
-                NovaRootTab.Profile -> onProfileClick()
-            }
-            return
-        }
-
-        val currentRoot = when (selected) {
-            NovaTab.Home -> NovaRootTab.Home
-            NovaTab.People -> NovaRootTab.People
-            NovaTab.Profile -> NovaRootTab.Profile
-            NovaTab.Messages, NovaTab.Reels -> return
-        }
-
-        rootNavigationPlan(currentRoot, requested).forEach { step ->
-            when (step) {
-                NovaRootTab.Home -> onHomeClick()
-                NovaRootTab.People -> onPeopleClick()
-                NovaRootTab.Profile -> onProfileClick()
-            }
-        }
-    }
-
-    LaunchedEffect(rootRequestVersion, selected) {
-        val requested = NovaRootNavigationSignal.pendingTab ?: return@LaunchedEffect
-        if (selected == NovaTab.Messages || selected == NovaTab.Reels) return@LaunchedEffect
-
-        dispatchRoot(requested)
-        NovaRootNavigationSignal.consume(requested)
-    }
 
     Surface(
-        color = NovaSurface,
+        color = containerColor,
         shadowElevation = NovaElevation.floating,
         tonalElevation = NovaElevation.flat,
     ) {
@@ -97,7 +62,7 @@ fun NovaBottomBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 5.dp, vertical = NovaSpacing.sm),
+                .padding(horizontal = NovaSpacing.sm, vertical = NovaSpacing.xs),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -105,51 +70,84 @@ fun NovaBottomBar(
                 label = "Home",
                 icon = NovaIconAsset.Home,
                 selected = selected == NovaTab.Home,
-                onClick = { dispatchRoot(NovaRootTab.Home) },
+                inactiveContentColor = inactiveContentColor,
+                onClick = onHomeClick,
             )
             NovaTabItem(
-                label = "People",
-                icon = NovaIconAsset.People,
-                selected = selected == NovaTab.People,
-                onClick = { dispatchRoot(NovaRootTab.People) },
+                label = "Orbit",
+                icon = NovaIconAsset.Orbit,
+                selected = selected == NovaTab.Orbit,
+                inactiveContentColor = inactiveContentColor,
+                onClick = onOrbitClick,
+            )
+            NovaCreateTabItem(
+                selected = selected == NovaTab.Create,
+                onClick = onCreateClick,
             )
             NovaTabItem(
-                label = "Reels",
-                icon = NovaIconAsset.Reels,
-                selected = selected == NovaTab.Reels,
-                onClick = {
-                    if (onReelsClick != null) {
-                        onReelsClick()
-                    } else if (selected != NovaTab.Reels) {
-                        NovaReelsNavigator.open(
-                            context = context,
-                            replaceCurrentActivity = selected == NovaTab.Messages,
-                        )
-                    }
-                },
-            )
-            NovaTabItem(
-                label = "Messages",
-                icon = NovaIconAsset.Messages,
-                selected = selected == NovaTab.Messages,
+                label = "Inbox",
+                icon = NovaIconAsset.Inbox,
+                selected = selected == NovaTab.Inbox,
                 badgeCount = resolvedUnreadCount,
+                inactiveContentColor = inactiveContentColor,
                 onClick = {
-                    if (onMessagesClick != null) {
-                        onMessagesClick()
-                    } else if (selected != NovaTab.Messages) {
-                        NovaMessagingNavigator.openInbox(
-                            context = context,
-                            replaceCurrentActivity = selected == NovaTab.Reels,
-                        )
+                    if (onInboxClick != null) {
+                        onInboxClick()
+                    } else if (selected != NovaTab.Inbox) {
+                        NovaMessagingNavigator.openInbox(context = context)
                     }
                 },
             )
             NovaTabItem(
-                label = "You",
+                label = "Profile",
                 icon = NovaIconAsset.Profile,
                 selected = selected == NovaTab.Profile,
-                onClick = { dispatchRoot(NovaRootTab.Profile) },
+                inactiveContentColor = inactiveContentColor,
+                onClick = onProfileClick,
             )
+        }
+    }
+}
+
+
+@Composable
+private fun NovaCreateTabItem(
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val scale by animateFloatAsState(
+        targetValue = if (selected) 1.08f else 1f,
+        label = "nova-create-tab-scale",
+    )
+    val containerColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primary else NovaAccent,
+        label = "nova-create-tab-color",
+    )
+
+    Box(
+        modifier = Modifier.widthIn(min = 58.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Surface(
+            onClick = onClick,
+            modifier = Modifier
+                .size(52.dp)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                },
+            shape = CircleShape,
+            color = containerColor,
+            shadowElevation = NovaElevation.raised,
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                NovaIcon(
+                    asset = NovaIconAsset.Create,
+                    contentDescription = "Create",
+                    tint = Color.White,
+                    modifier = Modifier.size(25.dp),
+                )
+            }
         }
     }
 }
@@ -162,13 +160,10 @@ private fun NovaTabItem(
     selected: Boolean,
     onClick: () -> Unit,
     badgeCount: Int = 0,
+    inactiveContentColor: Color = NovaMuted,
 ) {
-    val containerColor by animateColorAsState(
-        targetValue = if (selected) NovaAccent.copy(alpha = 0.10f) else Color.Transparent,
-        label = "nova-tab-container",
-    )
     val contentColor by animateColorAsState(
-        targetValue = if (selected) NovaAccent else NovaMuted,
+        targetValue = if (selected) NovaAccent else inactiveContentColor,
         label = "nova-tab-content",
     )
     val iconScale by animateFloatAsState(
@@ -178,11 +173,12 @@ private fun NovaTabItem(
 
     Surface(
         onClick = onClick,
-        color = containerColor,
-        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.widthIn(min = 58.dp),
+        color = Color.Transparent,
+        shape = MaterialTheme.shapes.medium,
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = NovaSpacing.sm, vertical = 7.dp),
+            modifier = Modifier.padding(horizontal = NovaSpacing.sm, vertical = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(
@@ -194,17 +190,14 @@ private fun NovaTabItem(
                     contentDescription = label,
                     tint = contentColor,
                     modifier = Modifier
-                        .size(20.dp)
+                        .size(21.dp)
                         .graphicsLayer {
                             scaleX = iconScale
                             scaleY = iconScale
                         },
                 )
                 if (badgeCount > 0) {
-                    Surface(
-                        shape = CircleShape,
-                        color = NovaAccent,
-                    ) {
+                    Surface(shape = CircleShape, color = NovaAccent) {
                         Text(
                             text = if (badgeCount > 99) "99+" else badgeCount.toString(),
                             modifier = Modifier.padding(horizontal = NovaSpacing.xs, vertical = 1.dp),
@@ -227,8 +220,8 @@ private fun NovaTabItem(
 
 enum class NovaTab {
     Home,
-    People,
-    Reels,
-    Messages,
+    Orbit,
+    Create,
+    Inbox,
     Profile,
 }

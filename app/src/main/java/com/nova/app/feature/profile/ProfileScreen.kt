@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -31,6 +32,7 @@ import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
 import com.nova.app.ui.components.NovaCard
 import com.nova.app.ui.components.NovaIconButton
+import com.nova.app.ui.components.NovaOrbitRing
 import com.nova.app.ui.components.NovaPagedProfilePostsGrid
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.components.NovaTab
@@ -48,13 +50,17 @@ fun ProfileScreen(
     username: String,
     email: String,
     avatarUrl: String,
+    bio: String,
+    location: String,
+    interests: List<String>,
     postsCount: Int,
     followersCount: Int,
     followingCount: Int,
     profileContentOwner: ProfileContentStateOwner,
     onPostClick: (NovaPost) -> Unit,
     onHomeClick: () -> Unit,
-    onPeopleClick: () -> Unit,
+    onOrbitClick: () -> Unit,
+    onCreateClick: () -> Unit,
     onEditProfile: () -> Unit,
     onLogout: () -> Unit,
 ) {
@@ -74,7 +80,8 @@ fun ProfileScreen(
             NovaBottomBar(
                 selected = NovaTab.Profile,
                 onHomeClick = onHomeClick,
-                onPeopleClick = onPeopleClick,
+                onOrbitClick = onOrbitClick,
+                onCreateClick = onCreateClick,
                 onProfileClick = {},
             )
         },
@@ -105,38 +112,65 @@ fun ProfileScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(NovaSpacing.xxl))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(18.dp),
+            Spacer(modifier = Modifier.height(NovaSpacing.xl))
+            NovaOrbitRing(
+                modifier = Modifier.size(116.dp).align(Alignment.CenterHorizontally),
+                rings = 2,
+                showLivePoint = true,
             ) {
                 NovaAvatar(
                     source = avatarUrl,
                     fallbackText = displayName.ifBlank { username },
-                    size = 92.dp,
+                    size = 88.dp,
                 )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = displayName.ifBlank { username },
-                        color = NovaInk,
-                        style = NovaType.sectionTitle,
-                    )
-                    Spacer(modifier = Modifier.height(NovaSpacing.xs))
-                    Text(
-                        text = "@$username",
-                        color = NovaMuted,
-                        style = NovaType.bodyCompact.copy(fontWeight = FontWeight.Medium),
-                    )
-                    if (email.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(NovaSpacing.xs))
-                        Text(text = email, color = NovaMuted, style = NovaType.meta, maxLines = 1)
-                    }
-                }
+            }
+            Spacer(modifier = Modifier.height(NovaSpacing.sm))
+            Text(
+                text = displayName.ifBlank { username },
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                color = NovaInk,
+                style = NovaType.sectionTitle,
+            )
+            Text(
+                text = "@$username",
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                color = NovaMuted,
+                style = NovaType.bodyCompact.copy(fontWeight = FontWeight.Medium),
+            )
+            if (bio.isNotBlank()) {
+                Spacer(modifier = Modifier.height(NovaSpacing.sm))
+                Text(
+                    text = bio,
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                    color = NovaInk,
+                    style = NovaType.bodyCompact,
+                )
+            }
+            if (location.isNotBlank()) {
+                Spacer(modifier = Modifier.height(NovaSpacing.xs))
+                Text(
+                    text = "⌖ $location",
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                    color = NovaMuted,
+                    style = NovaType.meta,
+                )
+            }
+            if (interests.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(NovaSpacing.sm))
+                Text(
+                    text = interests.joinToString("  ·  "),
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                    color = com.nova.app.ui.theme.NovaAccent,
+                    style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
+                )
             }
 
             Spacer(modifier = Modifier.height(NovaSpacing.xxl))
-            NovaCard(modifier = Modifier.fillMaxWidth()) {
+            NovaCard(
+                modifier = Modifier.fillMaxWidth(),
+                containerColor = NovaBackground,
+                borderColor = NovaBackground,
+            ) {
                 Row(
                     modifier = Modifier.padding(horizontal = NovaSpacing.sm, vertical = NovaSpacing.lg),
                     horizontalArrangement = Arrangement.SpaceEvenly,

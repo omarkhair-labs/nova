@@ -4,7 +4,7 @@ Status: **approved visual target for implementation**
 
 This document sits on top of the completed DS-1 through DS-4 plumbing. It is not a new design system and must not create parallel foundations.
 
-The approved visual direction is the final **Quiet Orbit hybrid** home mockup selected after the post-DS4 identity research. The implementation target is a warm, calm, content-first social surface with a stronger living-night identity in Tonight/Pulse, an orbit relationship signature, compact Rooms, and warmer Memories.
+The approved visual direction is the final **Quiet Orbit hybrid** home mockup selected after the post-DS4 identity research. The high-resolution Canonical Home reference is the geometry authority for Home and the shared spacing/component treatment; the broader visual boards supply product coverage and destination-specific composition. The implementation target is a warm, calm, content-first social surface with a stronger living-night identity in Tonight/Pulse, an orbit relationship signature, compact Rooms, and warmer Memories.
 
 ## Recognition stack
 
@@ -128,7 +128,14 @@ The approved mockup shows:
 
 This is a **behavioral navigation change**, not merely a label restyle. It must not be faked by relabeling the current `Home / People / Reels / Messages / You` routes. Navigation changes land only when route behavior and presentation change together.
 
-Until that PR, the current navigation semantics remain truthful.
+The convergence implementation owns these semantics end to end: Home, Orbit, Create and Profile are root destinations; Inbox is the existing real messaging overlay; Reels remains a real deep surface reached from Create and content entry points. Discovery/People remains a real secondary route rather than occupying a mislabeled primary tab.
+
+## Visual reference interpretation
+
+- Reference content is compositional guidance, not sample data to hardcode.
+- Existing repositories, state owners and domain models remain the source of truth for content and behavior.
+- Unsupported mockup actions are omitted or routed to the closest existing truthful destination; no decorative control may imply absent behavior.
+- The high-resolution Canonical Home reference takes precedence when a board-level Home thumbnail differs in density, spacing or component treatment.
 
 ## Motion
 

@@ -5,6 +5,7 @@ import com.nova.app.feature.messages.domain.model.NovaConversation
 
 data class InboxUiState(
     val query: String = "",
+    val filter: InboxFilter = InboxFilter.All,
     val conversations: List<NovaConversation> = emptyList(),
     val unreadCount: Int = 0,
     val nextCursor: String? = null,
@@ -14,3 +15,9 @@ data class InboxUiState(
     val unreadUpdateVersion: Int = 0,
     val sessionExpiryVersion: Int = 0,
 )
+
+enum class InboxFilter(val apiValue: String, val label: String) {
+    All("all", "All"),
+    Unread("unread", "Unread"),
+    Mentions("mentions", "Mentions"),
+}

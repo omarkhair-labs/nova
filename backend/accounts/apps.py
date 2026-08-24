@@ -26,3 +26,7 @@ class AccountsConfig(AppConfig):
         from . import pulse_models  # noqa: F401
         # Rooms layer place/timeline metadata on top of existing group conversations.
         from . import room_models  # noqa: F401
+        # Password-bound JWTs are also represented as revocable device sessions.
+        from . import auth_session_models  # noqa: F401
+        # User-authored Memory drafts are separate from generated weekly recaps.
+        from . import memory_models  # noqa: F401

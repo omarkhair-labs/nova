@@ -43,6 +43,36 @@ def _people_page(request, queryset):
             Q(username__icontains=query) | Q(name__icontains=query)
         )
 
+    discovery_filter = request.query_params.get("filter", "").strip().lower()
+    if discovery_filter == "nearby":
+        location = request.user.location.strip()
+        queryset = queryset.filter(location__iexact=location) if location else queryset.none()
+    elif discovery_filter == "interests":
+        interests = [str(value).strip() for value in request.user.interests if str(value).strip()]
+        if not interests:
+            queryset = queryset.none()
+        else:
+            interest_query = Q()
+            for interest in interests:
+                interest_query |= Q(interests__icontains=interest)
+            queryset = queryset.filter(interest_query)
+    elif discovery_filter == "verified":
+        queryset = queryset.filter(is_verified=True)
+    elif discovery_filter == "new":
+        queryset = queryset.order_by("-date_joined", "-id")
+        page = list(queryset.select_related("account_privacy")[:SOCIAL_PAGE_SIZE])
+        return Response(
+            {
+                "results": PersonSerializer(page, many=True, context={"request": request}).data,
+                "next_cursor": None,
+            }
+        )
+    elif discovery_filter not in {"", "people"}:
+        return Response(
+            {"detail": "Unknown discovery filter."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     cursor = _people_cursor(request)
     if isinstance(cursor, Response):
         return cursor

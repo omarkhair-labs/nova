@@ -43,6 +43,22 @@ class PeoplePagingRemoteRepository(
         }
     }
 
+    override suspend fun discover(
+        query: String,
+        cursor: String?,
+        filter: String,
+    ): ApiResult<NovaPersonPage> {
+        return authenticatedCall { token ->
+            requestPeoplePage(
+                path = "people/",
+                bearerToken = token,
+                query = query,
+                cursor = cursor,
+                filter = filter,
+            )
+        }
+    }
+
     override suspend fun followers(
         username: String,
         query: String,
@@ -133,11 +149,13 @@ class PeoplePagingRemoteRepository(
         bearerToken: String,
         query: String,
         cursor: String?,
+        filter: String = "people",
     ): ApiResult<NovaPersonPage> {
         val parameters = buildList {
             val cleanQuery = query.trim()
             if (cleanQuery.isNotBlank()) add("q=${encode(cleanQuery)}")
             if (!cursor.isNullOrBlank()) add("cursor=${encode(cursor)}")
+            if (filter.isNotBlank() && filter != "people") add("filter=${encode(filter)}")
         }
         val resolvedPath = if (parameters.isEmpty()) path else "$path?${parameters.joinToString("&")}"
 

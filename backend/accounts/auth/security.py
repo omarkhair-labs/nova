@@ -11,7 +11,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.mail import get_connection, send_mail
 from django.utils import timezone
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -23,6 +23,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from .jwt_auth import password_fingerprint, token_matches_current_password
 from .models import DevicePushToken
+from ..auth_session_models import AuthSessionRecord
 from .serializers import RegisterSerializer, UserSerializer
 
 logger = logging.getLogger(__name__)
@@ -39,11 +40,37 @@ def normalize_email(value):
     return User.objects.normalize_email(str(value or "").strip()).lower()
 
 
-def issue_session(user, request=None):
+def _request_ip(request):
+    if request is None:
+        return None
+    forwarded = str(request.META.get("HTTP_X_FORWARDED_FOR") or "").split(",")[0].strip()
+    return forwarded or request.META.get("REMOTE_ADDR") or None
+
+
+def _record_session(user, refresh, request=None, device_name="", platform=""):
+    session_key = str(refresh.get("sid") or refresh.get("jti") or "")
+    if not session_key:
+        return
+    AuthSessionRecord.objects.update_or_create(
+        session_key=session_key,
+        defaults={
+            "user": user,
+            "device_name": str(device_name or "").strip()[:120],
+            "platform": str(platform or "").strip()[:24],
+            "ip_address": _request_ip(request),
+            "user_agent": str(request.META.get("HTTP_USER_AGENT") or "")[:300] if request else "",
+            "is_active": True,
+        },
+    )
+
+
+def issue_session(user, request=None, device_name="", platform=""):
     refresh = RefreshToken.for_user(user)
     refresh["pwdv"] = password_fingerprint(user)
+    refresh["sid"] = str(refresh["jti"])
     access = refresh.access_token
     access["pwdv"] = password_fingerprint(user)
+    _record_session(user, refresh, request, device_name, platform)
     return {
         "access": str(access),
         "refresh": str(refresh),
@@ -52,14 +79,22 @@ def issue_session(user, request=None):
 
 
 class SecureTokenObtainPairSerializer(TokenObtainPairSerializer):
+    device_name = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    platform = serializers.CharField(required=False, allow_blank=True, write_only=True)
+
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
         token["pwdv"] = password_fingerprint(user)
+        token["sid"] = str(token["jti"])
         return token
 
     def validate(self, attrs):
+        device_name = attrs.pop("device_name", "")
+        platform = attrs.pop("platform", "")
         data = super().validate(attrs)
+        refresh = RefreshToken(data["refresh"])
+        _record_session(self.user, refresh, self.context.get("request"), device_name, platform)
         data["user"] = UserSerializer(self.user, context=self.context).data
         return data
 
@@ -87,6 +122,16 @@ class SecureTokenRefreshSerializer(TokenRefreshSerializer):
         ).first()
         if user is None or not token_matches_current_password(refresh, user):
             raise InvalidToken("Session expired. Please log in again.")
+        session_key = str(refresh.get("sid") or "")
+        session = AuthSessionRecord.objects.filter(
+            session_key=session_key,
+            user=user,
+            is_active=True,
+        ).first()
+        if session_key and session is None:
+            raise InvalidToken("Session expired. Please log in again.")
+        if session is not None:
+            session.save(update_fields=("last_seen_at",))
 
         access = refresh.access_token
         access["pwdv"] = password_fingerprint(user)
@@ -110,11 +155,18 @@ class SecureRegisterView(APIView):
     authentication_classes = []
 
     def post(self, request):
-        serializer = RegisterSerializer(data=request.data)
+        payload = request.data.copy()
+        device_name = payload.pop("device_name", "")
+        platform = payload.pop("platform", "")
+        if isinstance(device_name, list):
+            device_name = device_name[0] if device_name else ""
+        if isinstance(platform, list):
+            platform = platform[0] if platform else ""
+        serializer = RegisterSerializer(data=payload)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         return Response(
-            issue_session(user, request=request),
+            issue_session(user, request=request, device_name=device_name, platform=platform),
             status=status.HTTP_201_CREATED,
         )
 
@@ -357,6 +409,7 @@ class PasswordResetConfirmView(APIView):
         user.last_login = timezone.now()
         user.save(update_fields=("password", "last_login"))
         DevicePushToken.objects.filter(user=user, active=True).update(active=False)
+        AuthSessionRecord.objects.filter(user=user, is_active=True).update(is_active=False)
         _store_delete(_reset_key(email))
 
         return Response(
@@ -394,6 +447,7 @@ class ChangePasswordView(APIView):
         user.last_login = timezone.now()
         user.save(update_fields=("password", "last_login"))
         DevicePushToken.objects.filter(user=user, active=True).update(active=False)
+        AuthSessionRecord.objects.filter(user=user, is_active=True).update(is_active=False)
         return Response(issue_session(user, request=request))
 
 
@@ -413,4 +467,48 @@ class RevokeOtherSessionsView(APIView):
         user.last_login = timezone.now()
         user.save(update_fields=("password", "last_login"))
         DevicePushToken.objects.filter(user=user, active=True).update(active=False)
-        return Response(issue_session(user, request=request))
+        AuthSessionRecord.objects.filter(user=user, is_active=True).update(is_active=False)
+        return Response(issue_session(user, request=request, device_name="Current device", platform="android"))
+
+
+class SessionListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        current_key = str(request.auth.get("sid") or "")
+        rows = request.user.auth_sessions.filter(is_active=True)[:50]
+        return Response(
+            {
+                "sessions": [
+                    {
+                        "id": row.session_key,
+                        "device_name": row.device_name or row.user_agent[:80] or "Nova session",
+                        "platform": row.platform,
+                        "ip_address": row.ip_address or "",
+                        "created_at": row.created_at,
+                        "last_seen_at": row.last_seen_at,
+                        "is_current": row.session_key == current_key,
+                    }
+                    for row in rows
+                ]
+            }
+        )
+
+
+class SessionDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, session_key):
+        current_key = str(request.auth.get("sid") or "")
+        if session_key == current_key:
+            return Response(
+                {"detail": "Use Log out to end the current session."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        updated = request.user.auth_sessions.filter(
+            session_key=session_key,
+            is_active=True,
+        ).update(is_active=False)
+        if not updated:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)

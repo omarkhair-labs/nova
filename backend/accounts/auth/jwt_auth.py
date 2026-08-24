@@ -31,4 +31,16 @@ class NovaJWTAuthentication(JWTAuthentication):
             allow_legacy_access=True,
         ):
             raise AuthenticationFailed("Session expired. Please log in again.")
+        session_key = str(validated_token.get("sid") or "")
+        if session_key:
+            from ..auth_session_models import AuthSessionRecord
+
+            session = AuthSessionRecord.objects.filter(
+                session_key=session_key,
+                user=user,
+                is_active=True,
+            ).first()
+            if session is None:
+                raise AuthenticationFailed("Session expired. Please log in again.")
+            session.save(update_fields=("last_seen_at",))
         return user

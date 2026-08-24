@@ -2,6 +2,7 @@ package com.nova.app.feature.memories.data
 
 import com.nova.app.feature.memories.domain.model.MemoryFilmPlan
 import com.nova.app.feature.memories.domain.model.MemoryFilmScene
+import com.nova.app.feature.memories.domain.model.MemoryDraft
 import com.nova.app.feature.memories.domain.model.MemoryHighlight
 import com.nova.app.feature.memories.domain.model.MemoryPerson
 import com.nova.app.feature.memories.domain.model.MemoryPersonRow
@@ -11,6 +12,21 @@ import com.nova.app.feature.memories.domain.model.MemoryStats
 import com.nova.app.feature.memories.domain.model.WeeklyMemory
 import org.json.JSONArray
 import org.json.JSONObject
+
+
+internal fun parseMemoryDraft(
+    json: JSONObject,
+    resolveMediaUrl: (String) -> String,
+): MemoryDraft = MemoryDraft(
+    id = json.optLong("id"),
+    kind = json.optString("kind", "recap"),
+    title = json.optString("title"),
+    note = json.optString("note"),
+    mediaUrl = resolveMediaUrl(json.optString("media_url")),
+    mediaType = json.optString("media_type"),
+    createdAt = json.optString("created_at"),
+    updatedAt = json.optString("updated_at"),
+)
 
 
 internal fun parseWeeklyMemory(

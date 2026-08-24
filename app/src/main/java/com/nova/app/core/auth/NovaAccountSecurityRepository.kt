@@ -7,6 +7,7 @@ import com.nova.app.core.push.NovaPushRegistration
 import com.nova.app.feature.auth.domain.model.AuthSession
 import com.nova.app.feature.auth.domain.model.NovaUser
 import com.nova.app.feature.security.data.SecurityRepository
+import com.nova.app.feature.security.data.SecuritySession
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -83,6 +84,30 @@ class NovaAccountSecurityRepository(
             body = JSONObject().put("current_password", currentPassword),
         )
     }
+
+    override suspend fun sessions(): ApiResult<List<SecuritySession>> {
+        return authenticatedJsonCall("auth/sessions/") { json ->
+            val rows = json.optJSONArray("sessions") ?: org.json.JSONArray()
+            buildList {
+                for (index in 0 until rows.length()) {
+                    val row = rows.optJSONObject(index) ?: continue
+                    add(
+                        SecuritySession(
+                            id = row.optString("id"),
+                            deviceName = row.optString("device_name").ifBlank { "Nova session" },
+                            platform = row.optString("platform"),
+                            ipAddress = row.optString("ip_address"),
+                            lastSeenAt = row.optString("last_seen_at"),
+                            isCurrent = row.optBoolean("is_current", false),
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    override suspend fun revokeSession(sessionId: String): ApiResult<Unit> =
+        authenticatedJsonCall("auth/sessions/$sessionId/", method = "DELETE") { Unit }
 
     override suspend fun deleteAccount(currentPassword: String): ApiResult<String> {
         val stored = sessionStore.load()
@@ -181,6 +206,31 @@ class NovaAccountSecurityRepository(
                 if (response.statusCode == 401) sessionStore.clear()
                 response
             }
+        }
+    }
+
+    private suspend fun <T> authenticatedJsonCall(
+        path: String,
+        method: String = "GET",
+        transform: (JSONObject) -> T,
+    ): ApiResult<T> {
+        val stored = sessionStore.load()
+            ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
+        var accessToken = stored.accessToken
+        var response = requestJson(path, method = method, bearerToken = accessToken)
+        if (response is ApiResult.Failure && response.statusCode == 401) {
+            when (val refreshed = authApi.refresh(stored.refreshToken)) {
+                is ApiResult.Success -> {
+                    accessToken = refreshed.value
+                    sessionStore.updateAccessToken(accessToken)
+                    response = requestJson(path, method = method, bearerToken = accessToken)
+                }
+                is ApiResult.Failure -> return refreshed
+            }
+        }
+        return when (response) {
+            is ApiResult.Success -> ApiResult.Success(transform(response.value))
+            is ApiResult.Failure -> response
         }
     }
 

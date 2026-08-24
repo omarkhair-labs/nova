@@ -8,7 +8,8 @@ import androidx.compose.runtime.setValue
 
 enum class NovaRootTab {
     Home,
-    People,
+    Orbit,
+    Create,
     Profile,
 }
 
@@ -17,9 +18,9 @@ enum class NovaRootTab {
  * Returns the callback sequence needed to move between Nova's nested social roots
  * without letting People/Profile accumulate in the Nav3 back stack.
  *
- * MainActivity now owns all five primary destinations, but Home / People / You
- * still share the existing social Nav3 child stack. Until that child stack is
- * replaced by independent root state, Home remains its canonical reset point.
+ * Home, Orbit, Create and Profile share the social Nav3 owner. Inbox is the
+ * existing messaging overlay, so every transition inside this tree resets to
+ * the requested root instead of accumulating primary destinations.
  */
 internal fun rootNavigationPlan(
     current: NovaRootTab,
@@ -27,19 +28,7 @@ internal fun rootNavigationPlan(
 ): List<NovaRootTab> {
     if (current == requested) return emptyList()
 
-    return when (requested) {
-        NovaRootTab.Home -> listOf(NovaRootTab.Home)
-        NovaRootTab.People -> if (current == NovaRootTab.Home) {
-            listOf(NovaRootTab.People)
-        } else {
-            listOf(NovaRootTab.Home, NovaRootTab.People)
-        }
-        NovaRootTab.Profile -> if (current == NovaRootTab.Home) {
-            listOf(NovaRootTab.Profile)
-        } else {
-            listOf(NovaRootTab.Home, NovaRootTab.Profile)
-        }
-    }
+    return listOf(requested)
 }
 
 
@@ -50,6 +39,12 @@ object NovaRootNavigationSignal {
     var pendingTab by mutableStateOf<NovaRootTab?>(null)
         private set
 
+    var tonightRequestVersion by mutableIntStateOf(0)
+        private set
+
+    var pendingTonight by mutableStateOf(false)
+        private set
+
     fun request(tab: NovaRootTab) {
         pendingTab = tab
         requestVersion += 1
@@ -57,5 +52,14 @@ object NovaRootNavigationSignal {
 
     fun consume(tab: NovaRootTab) {
         if (pendingTab == tab) pendingTab = null
+    }
+
+    fun requestTonight() {
+        pendingTonight = true
+        tonightRequestVersion += 1
+    }
+
+    fun consumeTonight() {
+        pendingTonight = false
     }
 }

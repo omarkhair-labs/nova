@@ -226,7 +226,8 @@ internal fun MessagesRoute(
             MessagesScreen(
                 onConversationClick = ::selectConversation,
                 onHomeClick = { finishToRoot(NovaRootTab.Home) },
-                onPeopleClick = { finishToRoot(NovaRootTab.People) },
+                onOrbitClick = { finishToRoot(NovaRootTab.Orbit) },
+                onCreateClick = { finishToRoot(NovaRootTab.Create) },
                 onProfileClick = { finishToRoot(NovaRootTab.Profile) },
                 onUnreadCountChanged = NovaMessagesSignal::updateUnreadCount,
                 onSessionExpired = onSessionExpired,

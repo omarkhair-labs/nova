@@ -1,6 +1,9 @@
 package com.nova.app.feature.memories
 
 import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -21,12 +24,18 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -37,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.app.appContainer
 import com.nova.app.feature.memories.domain.model.MemoryHighlight
+import com.nova.app.feature.memories.domain.model.MemoryDraft
 import com.nova.app.feature.memories.domain.model.MemoryStats
 import com.nova.app.feature.memories.domain.model.WeeklyMemory
 import com.nova.app.ui.components.NovaAvatar
@@ -51,6 +61,7 @@ import com.nova.app.ui.theme.NovaSurface
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.util.TimeZone
+import kotlinx.coroutines.delay
 
 
 @Composable
@@ -64,6 +75,13 @@ fun MemoryScreen(
     val scope = rememberCoroutineScope()
     val owner = remember(repository, scope) { MemoryStateOwner(repository, scope) }
     val state = owner.state
+    var showDraftComposer by remember { mutableStateOf(false) }
+    var draftMedia by remember { mutableStateOf<Uri?>(null) }
+    var selectedDraft by remember { mutableStateOf<MemoryDraft?>(null) }
+    val draftMediaPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {
+        draftMedia = it
+        if (it != null) showDraftComposer = true
+    }
 
     BackHandler(onBack = onBack)
     LaunchedEffect(owner) {
@@ -122,8 +140,45 @@ fun MemoryScreen(
                 },
                 onPersonClick = onPersonClick,
                 onShare = { shareMemory(context, state.memory) },
+                drafts = state.drafts,
+                savingDraft = state.savingDraft,
+                deletingDraftId = state.deletingDraftId,
+                onNewDraft = { showDraftComposer = true },
+                onEditDraft = { draft ->
+                    selectedDraft = draft
+                    draftMedia = null
+                    showDraftComposer = true
+                },
+                onDeleteDraft = owner::deleteDraft,
             )
         }
+    }
+
+    if (showDraftComposer) {
+        MemoryDraftDialog(
+            initialDraft = selectedDraft,
+            mediaUri = draftMedia,
+            saving = state.savingDraft,
+            onPickMedia = { draftMediaPicker.launch(arrayOf("image/*", "video/*")) },
+            onDismiss = {
+                if (!state.savingDraft) {
+                    showDraftComposer = false
+                    draftMedia = null
+                    selectedDraft = null
+                }
+            },
+            onSave = { kind, title, note ->
+                val draft = selectedDraft
+                if (draft == null) owner.createDraft(kind, title, note, draftMedia)
+                else owner.updateDraft(draft.id, kind, title, note, draftMedia)
+                showDraftComposer = false
+                draftMedia = null
+                selectedDraft = null
+            },
+            onAutoSave = { kind, title, note ->
+                selectedDraft?.let { owner.updateDraft(it.id, kind, title, note, draftMedia) }
+            },
+        )
     }
 }
 
@@ -139,6 +194,12 @@ private fun MemoryContent(
     onRetry: () -> Unit,
     onPersonClick: (String) -> Unit,
     onShare: () -> Unit,
+    drafts: List<MemoryDraft>,
+    savingDraft: Boolean,
+    deletingDraftId: Long?,
+    onNewDraft: () -> Unit,
+    onEditDraft: (MemoryDraft) -> Unit,
+    onDeleteDraft: (Long) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier
@@ -163,6 +224,61 @@ private fun MemoryContent(
         }
 
         item { StatsCard(memory.stats) }
+
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    SectionTitle("Recent drafts")
+                    Spacer(modifier = Modifier.weight(1f))
+                    Surface(
+                        onClick = onNewDraft,
+                        enabled = !savingDraft,
+                        shape = RoundedCornerShape(16.dp),
+                        color = NovaAccent,
+                    ) {
+                        Text(
+                            "+ New Memory",
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            color = NovaBackground,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+                if (drafts.isEmpty()) {
+                    Text("Start a recap or film and Nova will autosave it here.", color = NovaMuted, fontSize = 10.sp)
+                } else {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        items(drafts, key = { it.id }) { draft ->
+                            Surface(
+                                onClick = { onEditDraft(draft) },
+                                modifier = Modifier.width(190.dp),
+                                shape = RoundedCornerShape(20.dp),
+                                color = NovaSurface,
+                                border = BorderStroke(1.dp, NovaBorder),
+                            ) {
+                                Column(Modifier.padding(12.dp)) {
+                                    Text(draft.title, color = NovaInk, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                                    Text(draft.kind.uppercase(), color = NovaAccent, fontSize = 8.sp)
+                                    if (draft.note.isNotBlank()) {
+                                        Text(draft.note, color = NovaMuted, fontSize = 9.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                    }
+                                    TextButton(
+                                        onClick = { onDeleteDraft(draft.id) },
+                                        enabled = deletingDraftId == null,
+                                    ) {
+                                        Text(if (deletingDraftId == draft.id) "Deleting…" else "Delete draft", fontSize = 9.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         if (memory.people.isNotEmpty()) {
             item {
@@ -600,6 +716,90 @@ private fun MemoryNavButton(
             fontWeight = FontWeight.SemiBold,
         )
     }
+}
+
+
+@Composable
+private fun MemoryDraftDialog(
+    initialDraft: MemoryDraft?,
+    mediaUri: Uri?,
+    saving: Boolean,
+    onPickMedia: () -> Unit,
+    onDismiss: () -> Unit,
+    onSave: (String, String, String) -> Unit,
+    onAutoSave: (String, String, String) -> Unit,
+) {
+    var kind by remember(initialDraft?.id) { mutableStateOf(initialDraft?.kind ?: "recap") }
+    var title by remember(initialDraft?.id) { mutableStateOf(initialDraft?.title.orEmpty()) }
+    var note by remember(initialDraft?.id) { mutableStateOf(initialDraft?.note.orEmpty()) }
+    LaunchedEffect(initialDraft?.id, kind, title, note, mediaUri) {
+        if (initialDraft != null && title.isNotBlank()) {
+            delay(750)
+            onAutoSave(kind, title, note)
+        }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (initialDraft == null) "New Memory" else "Edit Memory") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("recap" to "Recap", "film" to "Film").forEach { (value, label) ->
+                        Surface(
+                            onClick = { kind = value },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(16.dp),
+                            color = if (kind == value) NovaAccent else NovaAccentSoft,
+                        ) {
+                            Text(
+                                label,
+                                modifier = Modifier.padding(10.dp),
+                                color = if (kind == value) NovaBackground else NovaAccent,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+                }
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { if (it.length <= 120) title = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Title") },
+                    placeholder = { Text("Seoul nights") },
+                )
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = { if (it.length <= 500) note = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("What should this Memory keep?") },
+                    minLines = 3,
+                )
+                Surface(
+                    onClick = onPickMedia,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = NovaAccentSoft,
+                ) {
+                    Text(
+                        if (mediaUri == null) "Add a photo or video" else "Media selected · Change",
+                        modifier = Modifier.padding(12.dp),
+                        color = NovaAccent,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSave(kind, title, note) },
+                enabled = title.isNotBlank() && !saving,
+            ) { Text(if (saving) "Saving…" else if (initialDraft == null) "Save draft" else "Done") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !saving) { Text("Cancel") }
+        },
+    )
 }
 
 

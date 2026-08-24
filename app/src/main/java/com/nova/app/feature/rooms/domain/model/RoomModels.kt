@@ -23,6 +23,10 @@ data class RoomConversation(
 data class RoomSummary(
     val conversation: RoomConversation,
     val description: String,
+    val isPublic: Boolean = false,
+    val topics: List<String> = emptyList(),
+    val isMember: Boolean = true,
+    val isFollowing: Boolean = false,
 )
 
 
@@ -49,6 +53,9 @@ data class RoomDetail(
     val description: String,
     val sections: RoomSections,
     val members: List<RoomMember>,
+    val isPublic: Boolean = false,
+    val topics: List<String> = emptyList(),
+    val isFollowing: Boolean = false,
 )
 
 
@@ -62,6 +69,7 @@ data class RoomItem(
     val mediaUrl: String,
     val scheduledFor: String?,
     val pinned: Boolean,
+    val reminderSet: Boolean = false,
     val createdAt: String,
     val updatedAt: String,
 )

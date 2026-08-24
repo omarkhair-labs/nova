@@ -12,6 +12,7 @@ import com.nova.app.feature.rooms.data.RoomRepository
 import com.nova.app.feature.rooms.data.parseRoomDetail
 import com.nova.app.feature.rooms.data.parseRoomItem
 import com.nova.app.feature.rooms.data.parseRoomItemPage
+import com.nova.app.feature.rooms.data.parseRoomSummaryResponse
 import com.nova.app.feature.rooms.data.parseRoomTonightSnapshot
 import com.nova.app.feature.rooms.data.parseRooms
 import com.nova.app.feature.rooms.domain.model.RoomDetail
@@ -37,6 +38,20 @@ class RoomRemoteRepository(
                 parseRooms(response.value, api::resolveMediaUrl),
             )
             is ApiResult.Failure -> response
+        }
+    }
+
+    override suspend fun rooms(view: String): ApiResult<List<RoomSummary>> {
+        val normalized = view.trim().lowercase().takeIf { it in setOf("mine", "discover", "following") }
+            ?: "mine"
+        if (normalized == "mine") return rooms()
+        return authenticatedCall { token ->
+            when (val response = api.requestJson("rooms/?view=$normalized", bearerToken = token)) {
+                is ApiResult.Success -> ApiResult.Success(
+                    parseRooms(response.value, api::resolveMediaUrl),
+                )
+                is ApiResult.Failure -> response
+            }
         }
     }
 
@@ -193,6 +208,76 @@ class RoomRemoteRepository(
             is ApiResult.Failure -> response
         }
     }
+
+    override suspend fun updateProfile(
+        conversationId: Long,
+        description: String,
+        isPublic: Boolean,
+        topics: List<String>,
+    ): ApiResult<RoomDetail> = authenticatedCall { token ->
+        when (
+            val response = api.requestJson(
+                path = "rooms/$conversationId/",
+                method = "PATCH",
+                body = JSONObject()
+                    .put("description", description.trim())
+                    .put("is_public", isPublic)
+                    .put(
+                        "topics",
+                        org.json.JSONArray(topics.map(String::trim).filter(String::isNotBlank)),
+                    ),
+                bearerToken = token,
+            )
+        ) {
+            is ApiResult.Success -> ApiResult.Success(
+                parseRoomDetail(response.value, api::resolveMediaUrl),
+            )
+            is ApiResult.Failure -> response
+        }
+    }
+
+    override suspend fun setReminder(
+        conversationId: Long,
+        itemId: Long,
+        enabled: Boolean,
+    ): ApiResult<RoomItem> = authenticatedCall { token ->
+        when (
+            val response = api.requestJson(
+                path = "rooms/$conversationId/items/$itemId/reminder/",
+                method = if (enabled) "POST" else "DELETE",
+                body = if (enabled) JSONObject() else null,
+                bearerToken = token,
+            )
+        ) {
+            is ApiResult.Success -> ApiResult.Success(
+                parseRoomItem(response.value, api::resolveMediaUrl),
+            )
+            is ApiResult.Failure -> response
+        }
+    }
+
+    override suspend fun joinRoom(conversationId: Long): ApiResult<RoomSummary> =
+        updateRoomSummary("rooms/$conversationId/membership/", "POST")
+
+    override suspend fun followRoom(conversationId: Long, enabled: Boolean): ApiResult<RoomSummary> =
+        updateRoomSummary("rooms/$conversationId/follow/", if (enabled) "POST" else "DELETE")
+
+    private suspend fun updateRoomSummary(path: String, method: String): ApiResult<RoomSummary> =
+        authenticatedCall { token ->
+            when (
+                val response = api.requestJson(
+                    path = path,
+                    method = method,
+                    body = if (method == "POST") JSONObject() else null,
+                    bearerToken = token,
+                )
+            ) {
+                is ApiResult.Success -> ApiResult.Success(
+                    parseRoomSummaryResponse(response.value, api::resolveMediaUrl),
+                )
+                is ApiResult.Failure -> response
+            }
+        }
 
     private fun prepareMedia(uri: Uri, kind: String): ApiResult<UploadFile> {
         val resolver = appContext.contentResolver

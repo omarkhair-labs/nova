@@ -1,7 +1,6 @@
 package com.nova.app.feature.memories
 
 import androidx.compose.ui.graphics.Color
-import com.nova.app.ui.theme.NovaBaseAccent
 
 /** Deliberate reflective palette used when Nova has a memory ready to replay. */
 data class MemoryPalette(
@@ -14,10 +13,10 @@ data class MemoryPalette(
 
 object MemoryTheme {
     val ready = MemoryPalette(
-        background = Color(0xFF12151D),
-        ink = Color.White,
-        muted = Color(0xFFB6BCC9),
-        border = NovaBaseAccent.copy(alpha = 0.26f),
+        background = Color(0xFFFFF7EC),
+        ink = Color(0xFF6F4528),
+        muted = Color(0xFF976D4E),
+        border = Color(0xFFE8D2B7),
         videoBackground = Color(0xFF0E1118),
     )
 }

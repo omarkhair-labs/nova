@@ -34,21 +34,36 @@ class PulseRemoteRepository(
     override suspend fun createTextPulse(
         note: String,
         audience: String,
+    ): ApiResult<NovaPulse> = createTextPulse(note, audience, "vibes")
+
+    override suspend fun createTextPulse(
+        note: String,
+        audience: String,
+        category: String,
     ): ApiResult<NovaPulse> = createTextAt(
         path = "pulses/",
         note = note,
         audience = audience,
+        category = category,
     )
 
     override suspend fun createMediaPulse(
         mediaUri: Uri,
         note: String,
         audience: String,
+    ): ApiResult<NovaPulse> = createMediaPulse(mediaUri, note, audience, "vibes")
+
+    override suspend fun createMediaPulse(
+        mediaUri: Uri,
+        note: String,
+        audience: String,
+        category: String,
     ): ApiResult<NovaPulse> = createMediaAt(
         path = "pulses/",
         mediaUri = mediaUri,
         note = note,
         audience = audience,
+        category = category,
     )
 
     override suspend fun pulseChain(pulseId: Long): ApiResult<List<NovaPulse>> = authenticatedCall { token ->
@@ -67,10 +82,18 @@ class PulseRemoteRepository(
         pulseId: Long,
         note: String,
         audience: String,
+    ): ApiResult<NovaPulse> = replyTextPulse(pulseId, note, audience, "vibes")
+
+    override suspend fun replyTextPulse(
+        pulseId: Long,
+        note: String,
+        audience: String,
+        category: String,
     ): ApiResult<NovaPulse> = createTextAt(
         path = "pulses/$pulseId/reply/",
         note = note,
         audience = audience,
+        category = category,
     )
 
     override suspend fun replyMediaPulse(
@@ -78,11 +101,20 @@ class PulseRemoteRepository(
         mediaUri: Uri,
         note: String,
         audience: String,
+    ): ApiResult<NovaPulse> = replyMediaPulse(pulseId, mediaUri, note, audience, "vibes")
+
+    override suspend fun replyMediaPulse(
+        pulseId: Long,
+        mediaUri: Uri,
+        note: String,
+        audience: String,
+        category: String,
     ): ApiResult<NovaPulse> = createMediaAt(
         path = "pulses/$pulseId/reply/",
         mediaUri = mediaUri,
         note = note,
         audience = audience,
+        category = category,
     )
 
     override suspend fun deletePulse(pulseId: Long): ApiResult<Unit> = authenticatedCall { token ->
@@ -98,15 +130,43 @@ class PulseRemoteRepository(
         }
     }
 
+    override suspend fun recordView(pulseId: Long): ApiResult<NovaPulse> =
+        updateEngagement("pulses/$pulseId/view/", JSONObject())
+
+    override suspend fun setReaction(pulseId: Long, enabled: Boolean): ApiResult<NovaPulse> =
+        updateEngagement(
+            "pulses/$pulseId/reaction/",
+            JSONObject().put("enabled", enabled),
+        )
+
+    private suspend fun updateEngagement(path: String, body: JSONObject): ApiResult<NovaPulse> =
+        authenticatedCall { token ->
+            when (
+                val response = api.requestJson(
+                    path = path,
+                    method = "POST",
+                    body = body,
+                    bearerToken = token,
+                )
+            ) {
+                is ApiResult.Success -> ApiResult.Success(
+                    parseNovaPulse(response.value, api::resolveMediaUrl),
+                )
+                is ApiResult.Failure -> response
+            }
+        }
+
     private suspend fun createTextAt(
         path: String,
         note: String,
         audience: String,
+        category: String,
     ): ApiResult<NovaPulse> {
         val cleanNote = note.trim()
         if (cleanNote.isBlank()) return ApiResult.Failure("Write something for your Pulse.")
         if (cleanNote.length > 180) return ApiResult.Failure("Pulse note must be 180 characters or fewer.")
         val cleanAudience = validateAudience(audience) ?: return invalidAudience()
+        val cleanCategory = validateCategory(category) ?: return invalidCategory()
 
         return authenticatedCall { token ->
             when (
@@ -116,7 +176,8 @@ class PulseRemoteRepository(
                     body = JSONObject()
                         .put("media_type", "text")
                         .put("note", cleanNote)
-                        .put("audience", cleanAudience),
+                        .put("audience", cleanAudience)
+                        .put("category", cleanCategory),
                     bearerToken = token,
                 )
             ) {
@@ -133,10 +194,12 @@ class PulseRemoteRepository(
         mediaUri: Uri,
         note: String,
         audience: String,
+        category: String,
     ): ApiResult<NovaPulse> {
         val cleanNote = note.trim()
         if (cleanNote.length > 180) return ApiResult.Failure("Pulse note must be 180 characters or fewer.")
         val cleanAudience = validateAudience(audience) ?: return invalidAudience()
+        val cleanCategory = validateCategory(category) ?: return invalidCategory()
         val media = when (
             val prepared = withContext(Dispatchers.IO) { prepareMedia(mediaUri) }
         ) {
@@ -152,6 +215,7 @@ class PulseRemoteRepository(
                     fields = mapOf(
                         "note" to cleanNote,
                         "audience" to cleanAudience,
+                        "category" to cleanCategory,
                     ),
                     fileField = "media",
                     file = media,
@@ -260,6 +324,12 @@ class PulseRemoteRepository(
 
     private fun invalidAudience(): ApiResult.Failure =
         ApiResult.Failure("Choose a valid Pulse audience.")
+
+    private fun validateCategory(value: String): String? =
+        value.trim().lowercase().takeIf { it in setOf("live", "music", "talks", "vibes") }
+
+    private fun invalidCategory(): ApiResult.Failure =
+        ApiResult.Failure("Choose a valid Pulse category.")
 
     private suspend fun <T> authenticatedCall(
         call: suspend (String) -> ApiResult<T>,

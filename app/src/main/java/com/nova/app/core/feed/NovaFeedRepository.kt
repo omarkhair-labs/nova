@@ -132,6 +132,14 @@ class NovaFeedRepository(
         }
     }
 
+    override suspend fun setCommentLiked(
+        commentId: Long,
+        liked: Boolean,
+        isReply: Boolean,
+    ): ApiResult<NovaComment> = authenticatedCall { accessToken ->
+        postsRemote.setCommentLiked(accessToken, commentId, liked, isReply)
+    }
+
     private suspend fun prepareImage(uri: Uri): ApiResult<UploadFile> {
         return withContext(Dispatchers.IO) {
             runCatching {

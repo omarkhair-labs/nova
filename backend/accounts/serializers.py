@@ -36,6 +36,13 @@ class UserSerializer(AvatarUrlMixin, serializers.ModelSerializer):
             "email",
             "username",
             "name",
+            "bio",
+            "location",
+            "link",
+            "interests",
+            "profile_theme",
+            "show_orbit",
+            "is_verified",
             "avatar_url",
             "avatar",
             "followers_count",
@@ -52,6 +59,7 @@ class UserSerializer(AvatarUrlMixin, serializers.ModelSerializer):
             "following_count",
             "posts_count",
             "is_private",
+            "is_verified",
             "date_joined",
         )
 
@@ -75,6 +83,28 @@ class UserSerializer(AvatarUrlMixin, serializers.ModelSerializer):
             raise serializers.ValidationError("Profile photo must be 5 MB or smaller.")
         return value
 
+    def validate_interests(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Interests must be a list.")
+        cleaned = []
+        for raw in value:
+            interest = str(raw).strip()
+            if not interest or interest in cleaned:
+                continue
+            if len(interest) > 24:
+                raise serializers.ValidationError("Interests must be 24 characters or fewer.")
+            cleaned.append(interest)
+        if len(cleaned) > 8:
+            raise serializers.ValidationError("Choose up to 8 interests.")
+        return cleaned
+
+    def validate_profile_theme(self, value):
+        value = str(value).strip().lower()
+        allowed = {"violet", "cyan", "orange", "pink", "slate", "ink", "black"}
+        if value not in allowed:
+            raise serializers.ValidationError("Choose a supported profile theme.")
+        return value
+
 
 class PersonSerializer(AvatarUrlMixin, serializers.ModelSerializer):
     avatar_url = serializers.SerializerMethodField()
@@ -92,6 +122,13 @@ class PersonSerializer(AvatarUrlMixin, serializers.ModelSerializer):
             "id",
             "username",
             "name",
+            "bio",
+            "location",
+            "link",
+            "interests",
+            "profile_theme",
+            "show_orbit",
+            "is_verified",
             "avatar_url",
             "followers_count",
             "following_count",

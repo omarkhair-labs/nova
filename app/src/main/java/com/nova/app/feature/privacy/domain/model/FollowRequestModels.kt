@@ -7,4 +7,5 @@ data class NovaFollowRequest(
     val id: Long,
     val requester: NovaPerson,
     val createdAt: String,
+    val target: NovaPerson? = null,
 )

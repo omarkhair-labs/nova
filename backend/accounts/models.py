@@ -50,6 +50,13 @@ class User(AbstractUser):
     )
     name = models.CharField(max_length=80, blank=True)
     avatar = models.ImageField(upload_to="avatars/%Y/%m/", blank=True)
+    bio = models.CharField(max_length=160, blank=True)
+    location = models.CharField(max_length=80, blank=True)
+    link = models.URLField(max_length=300, blank=True)
+    interests = models.JSONField(default=list, blank=True)
+    profile_theme = models.CharField(max_length=16, default="violet")
+    show_orbit = models.BooleanField(default=True)
+    is_verified = models.BooleanField(default=False)
     last_seen_at = models.DateTimeField(null=True, blank=True)
 
     USERNAME_FIELD = "email"

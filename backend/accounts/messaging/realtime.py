@@ -32,6 +32,14 @@ def set_user_last_seen(user_id):
     return now.isoformat()
 
 
+@database_sync_to_async
+def activity_status_visible(user_id):
+    from ..privacy_models import AccountPrivacy
+
+    privacy = AccountPrivacy.objects.filter(user_id=user_id).only("show_activity_status").first()
+    return privacy is None or privacy.show_activity_status
+
+
 async def broadcast_presence(channel_layer, user, is_online_value, last_seen_at=None):
     await channel_layer.group_send(
         user_presence_group_name(user.pk),
@@ -84,7 +92,7 @@ class PresenceLeaseMixin:
         became_online, _ = await register_lease(user.pk, self.presence_lease_id)
         self.presence_registered = True
         self.presence_refresh_task = asyncio.create_task(self._presence_refresh_loop(user.pk))
-        if became_online:
+        if became_online and await activity_status_visible(user.pk):
             await broadcast_presence(self.channel_layer, user, True, None)
 
     async def stop_presence_lease(self, user):
@@ -104,7 +112,8 @@ class PresenceLeaseMixin:
         remaining = await unregister_lease(user.pk, self.presence_lease_id)
         if remaining == 0:
             last_seen_at = await set_user_last_seen(user.pk)
-            await broadcast_presence(self.channel_layer, user, False, last_seen_at)
+            if await activity_status_visible(user.pk):
+                await broadcast_presence(self.channel_layer, user, False, last_seen_at)
 
     async def _presence_refresh_loop(self, user_id):
         try:
@@ -439,6 +448,9 @@ class ConversationConsumer(PresenceLeaseMixin, AsyncJsonWebsocketConsumer):
             else conversation.participant_one
         )
         if other is None:
+            return None
+        privacy = getattr(other, "account_privacy", None)
+        if privacy is not None and not privacy.show_activity_status:
             return None
         return {
             "user_id": other.pk,

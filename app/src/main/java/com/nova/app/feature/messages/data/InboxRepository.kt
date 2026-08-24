@@ -10,4 +10,10 @@ interface InboxRepository {
         query: String = "",
         cursor: String? = null,
     ): ApiResult<NovaConversationPage>
+
+    suspend fun conversations(
+        query: String,
+        cursor: String?,
+        filter: String,
+    ): ApiResult<NovaConversationPage> = conversations(query, cursor)
 }

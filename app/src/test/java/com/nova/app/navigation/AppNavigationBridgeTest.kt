@@ -16,7 +16,7 @@ class AppNavigationBridgeTest {
         bridge.attach(handler)
         bridge.setHostActive(false)
 
-        assertFalse(bridge.navigate(AppDestination.Messages))
+        assertFalse(bridge.navigate(AppDestination.Inbox))
         assertEquals(emptyList<AppDestination>(), destinations)
     }
 
@@ -41,7 +41,7 @@ class AppNavigationBridgeTest {
         bridge.setHostActive(true)
         bridge.detach(handler)
 
-        assertFalse(bridge.navigate(AppDestination.Messages))
+        assertFalse(bridge.navigate(AppDestination.Inbox))
         assertEquals(emptyList<AppDestination>(), destinations)
     }
 

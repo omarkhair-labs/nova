@@ -3,6 +3,7 @@ package com.nova.app
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -40,10 +41,12 @@ import com.nova.app.ui.theme.NovaSpacing
 import com.nova.app.ui.theme.NovaSurface
 import com.nova.app.ui.theme.NovaTheme
 import com.nova.app.ui.theme.NovaType
+import com.nova.app.navigation.NovaRootNavigationSignal
 
 
 private const val PRIVACY_POLICY_URL = "https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/privacy/"
 private const val ACCOUNT_DELETION_URL = "https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/account-deletion/"
+private const val SUPPORT_EMAIL = "omar.khair70@gmail.com"
 
 
 class SettingsActivity : ComponentActivity() {
@@ -53,6 +56,7 @@ class SettingsActivity : ComponentActivity() {
 
         val appContainer = applicationContext.appContainer
         val username = appContainer.currentCachedUsername()
+        val appVersion = packageManager.getPackageInfo(packageName, 0).versionName ?: ""
 
         fun openExternalUrl(url: String) {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
@@ -62,9 +66,13 @@ class SettingsActivity : ComponentActivity() {
             NovaTheme {
                 SettingsScreen(
                     username = username,
+                    appVersion = appVersion,
                     onBack = { finish() },
                     onPrivacy = {
                         startActivity(Intent(this, PrivacyActivity::class.java))
+                    },
+                    onNotifications = {
+                        startActivity(Intent(this, NotificationPreferencesActivity::class.java))
                     },
                     onSecurity = {
                         startActivity(
@@ -83,6 +91,32 @@ class SettingsActivity : ComponentActivity() {
                                     AccountSecurityActivity.MODE_BLOCKED,
                                 )
                         )
+                    },
+                    onDataStorage = {
+                        startActivity(
+                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.parse("package:$packageName")
+                            }
+                        )
+                    },
+                    onHelpSupport = {
+                        startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$SUPPORT_EMAIL?subject=Nova%20support")))
+                    },
+                    onTonight = {
+                        NovaRootNavigationSignal.requestTonight()
+                        startActivity(
+                            Intent(this, MainActivity::class.java).addFlags(
+                                Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP,
+                            )
+                        )
+                        finish()
+                    },
+                    onAbout = {
+                        android.app.AlertDialog.Builder(this)
+                            .setTitle("About Nova")
+                            .setMessage("Nova $appVersion\nQuiet Orbit. Real connections, when it matters.")
+                            .setPositiveButton("Done", null)
+                            .show()
                     },
                     onPrivacyPolicy = { openExternalUrl(PRIVACY_POLICY_URL) },
                     onAccountDeletion = { openExternalUrl(ACCOUNT_DELETION_URL) },
@@ -105,10 +139,16 @@ class SettingsActivity : ComponentActivity() {
 @Composable
 private fun SettingsScreen(
     username: String,
+    appVersion: String,
     onBack: () -> Unit,
     onPrivacy: () -> Unit,
+    onNotifications: () -> Unit,
     onSecurity: () -> Unit,
     onBlockedAccounts: () -> Unit,
+    onDataStorage: () -> Unit,
+    onHelpSupport: () -> Unit,
+    onTonight: () -> Unit,
+    onAbout: () -> Unit,
     onPrivacyPolicy: () -> Unit,
     onAccountDeletion: () -> Unit,
     onLogout: () -> Unit,
@@ -148,6 +188,20 @@ private fun SettingsScreen(
         NovaCard(modifier = Modifier.fillMaxWidth()) {
             Column {
                 SettingsRow(
+                    icon = NovaIconAsset.Security,
+                    title = "Account",
+                    subtitle = "Your Nova identity and account settings",
+                    onClick = null,
+                )
+                SettingsDivider()
+                SettingsRow(
+                    icon = NovaIconAsset.Security,
+                    title = "Security",
+                    subtitle = "Password, sessions and account protection",
+                    onClick = onSecurity,
+                )
+                SettingsDivider()
+                SettingsRow(
                     icon = NovaIconAsset.Privacy,
                     title = "Privacy",
                     subtitle = "Private account, requests and Close Friends",
@@ -155,17 +209,31 @@ private fun SettingsScreen(
                 )
                 SettingsDivider()
                 SettingsRow(
-                    icon = NovaIconAsset.Security,
-                    title = "Security",
-                    subtitle = "Password and account protection",
-                    onClick = onSecurity,
+                    icon = NovaIconAsset.Notifications,
+                    title = "Notifications",
+                    subtitle = "Activity, messages and live sessions",
+                    onClick = onNotifications,
                 )
                 SettingsDivider()
                 SettingsRow(
-                    icon = NovaIconAsset.Blocked,
-                    title = "Blocked accounts",
-                    subtitle = "Review people you've blocked",
-                    onClick = onBlockedAccounts,
+                    icon = NovaIconAsset.Home,
+                    title = "Appearance",
+                    subtitle = "Warm off-white · Light",
+                    onClick = null,
+                )
+                SettingsDivider()
+                SettingsRow(
+                    icon = NovaIconAsset.AccountDeletion,
+                    title = "Data & storage",
+                    subtitle = "Permissions, cache and app storage",
+                    onClick = onDataStorage,
+                )
+                SettingsDivider()
+                SettingsRow(
+                    icon = NovaIconAsset.Policy,
+                    title = "Language",
+                    subtitle = "English",
+                    onClick = null,
                 )
             }
         }
@@ -175,6 +243,34 @@ private fun SettingsScreen(
 
         NovaCard(modifier = Modifier.fillMaxWidth()) {
             Column {
+                SettingsRow(
+                    icon = NovaIconAsset.Inbox,
+                    title = "Help & support",
+                    subtitle = SUPPORT_EMAIL,
+                    onClick = onHelpSupport,
+                )
+                SettingsDivider()
+                SettingsRow(
+                    icon = NovaIconAsset.Orbit,
+                    title = "Tonight (Full)",
+                    subtitle = "Open Nova's live night experience",
+                    onClick = onTonight,
+                )
+                SettingsDivider()
+                SettingsRow(
+                    icon = NovaIconAsset.Home,
+                    title = "About Nova",
+                    subtitle = "Version $appVersion",
+                    onClick = onAbout,
+                )
+                SettingsDivider()
+                SettingsRow(
+                    icon = NovaIconAsset.Blocked,
+                    title = "Blocked accounts",
+                    subtitle = "Review people you've blocked",
+                    onClick = onBlockedAccounts,
+                )
+                SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.Policy,
                     title = "Privacy policy",
@@ -246,13 +342,9 @@ private fun SettingsRow(
     icon: NovaIconAsset,
     title: String,
     subtitle: String,
-    onClick: () -> Unit,
+    onClick: (() -> Unit)?,
 ) {
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        color = NovaSurface,
-    ) {
+    val content: @Composable () -> Unit = {
         Row(
             modifier = Modifier.padding(horizontal = NovaSpacing.lg, vertical = NovaSpacing.md),
             verticalAlignment = Alignment.CenterVertically,
@@ -287,6 +379,11 @@ private fun SettingsRow(
                 )
             }
         }
+    }
+    if (onClick != null) {
+        Surface(onClick = onClick, modifier = Modifier.fillMaxWidth(), color = NovaSurface) { content() }
+    } else {
+        Surface(modifier = Modifier.fillMaxWidth(), color = NovaSurface) { content() }
     }
 }
 

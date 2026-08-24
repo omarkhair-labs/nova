@@ -5,10 +5,13 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.app.KeyguardManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.ActivityResult
+import android.app.Activity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.mutableStateOf
@@ -23,6 +26,7 @@ import com.nova.app.core.push.NovaPushOpenSignal
 import com.nova.app.core.push.NovaPushRegistration
 import com.nova.app.core.reels.NovaReelsNavigator
 import com.nova.app.core.update.NovaInAppUpdateController
+import com.nova.app.core.security.NovaAppLock
 import com.nova.app.navigation.DeepLinkRouter
 import com.nova.app.navigation.NovaDeepLinkDecision
 import com.nova.app.ui.components.NovaActiveCallPill
@@ -37,6 +41,16 @@ class MainActivity : ComponentActivity() {
     private val activityScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val updateReadyToInstall = mutableStateOf(false)
     private lateinit var inAppUpdateController: NovaInAppUpdateController
+    private val appLock by lazy { NovaAppLock(this) }
+    private var appLockPromptOpen = false
+    private val appLockLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result: ActivityResult ->
+        appLockPromptOpen = false
+        if (result.resultCode == Activity.RESULT_OK) {
+            appLock.markUnlocked()
+        } else {
+            moveTaskToBack(true)
+        }
+    }
 
     private val inAppUpdateLauncher = registerForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
@@ -83,11 +97,27 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        requestAppUnlockIfNeeded()
         appContainer.appNavigator.setHostActive(true)
         syncMessageUnreadCount()
         if (::inAppUpdateController.isInitialized) {
             inAppUpdateController.onResume()
         }
+    }
+
+    private fun requestAppUnlockIfNeeded() {
+        if (!appLock.requiresUnlock() || appLockPromptOpen) return
+        val keyguard = getSystemService(KeyguardManager::class.java)
+        val prompt = keyguard.createConfirmDeviceCredentialIntent(
+            "Unlock Nova",
+            "Confirm your device screen lock to continue.",
+        )
+        if (prompt == null) {
+            appLock.setEnabled(false)
+            return
+        }
+        appLockPromptOpen = true
+        appLockLauncher.launch(prompt)
     }
 
     override fun onPause() {

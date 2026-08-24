@@ -69,6 +69,7 @@ fun PulseViewerDialog(
     onDismiss: () -> Unit,
     onClearError: () -> Unit,
     onDelete: (NovaPulse) -> Unit,
+    onReaction: (NovaPulse, Boolean) -> Unit,
     onReplyText: (NovaPulse, String, String) -> Unit,
     onReplyMedia: (NovaPulse, Uri, String, String) -> Unit,
 ) {
@@ -208,6 +209,29 @@ fun PulseViewerDialog(
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "${activePulse.viewersCount} watching",
+                                color = palette.muted,
+                                style = NovaType.micro,
+                            )
+                            Surface(
+                                onClick = { onReaction(activePulse, !activePulse.isReacted) },
+                                shape = MaterialTheme.shapes.small,
+                                color = if (activePulse.isReacted) NovaAccent else palette.background,
+                                border = BorderStroke(1.dp, NovaAccent.copy(alpha = 0.55f)),
+                            ) {
+                                Text(
+                                    text = "${if (activePulse.isReacted) "♥" else "♡"} ${activePulse.reactionsCount}",
+                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                                    color = if (activePulse.isReacted) NovaBackground else palette.ink,
+                                    style = NovaType.micro.copy(fontWeight = FontWeight.Bold),
+                                )
+                            }
+                        }
                     }
 
                     Row(
@@ -277,6 +301,8 @@ fun PulseViewerDialog(
             uploading = state.replying,
             error = state.error,
             initialAudience = activePulse.audience,
+            initialCategory = activePulse.category,
+            showCategory = false,
             confirmLabel = "Reply",
             onPickMedia = { replyPicker.launch(arrayOf("image/*", "video/*")) },
             onDismiss = {
@@ -286,7 +312,7 @@ fun PulseViewerDialog(
                     onClearError()
                 }
             },
-            onSubmit = { note, audience ->
+            onSubmit = { note, audience, _ ->
                 val media = replyMedia
                 if (media == null) {
                     onReplyText(activePulse, note, audience)

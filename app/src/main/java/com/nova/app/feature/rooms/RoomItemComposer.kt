@@ -1,6 +1,8 @@
 package com.nova.app.feature.rooms
 
 import android.net.Uri
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -25,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -35,6 +38,9 @@ import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 
 private data class RoomComposerKind(
@@ -63,6 +69,7 @@ fun RoomItemComposer(
         title: String,
         body: String,
         url: String,
+        scheduledFor: String?,
         mediaUri: Uri?,
     ) -> Unit,
 ) {
@@ -71,6 +78,27 @@ fun RoomItemComposer(
     var body by remember { mutableStateOf("") }
     var url by remember { mutableStateOf("") }
     var mediaUri by remember { mutableStateOf<Uri?>(null) }
+    var scheduledAt by remember { mutableStateOf<LocalDateTime?>(null) }
+    val context = LocalContext.current
+
+    fun pickSchedule() {
+        val initial = scheduledAt ?: LocalDateTime.now().plusHours(1)
+        DatePickerDialog(
+            context,
+            { _, year, month, day ->
+                TimePickerDialog(
+                    context,
+                    { _, hour, minute -> scheduledAt = LocalDateTime.of(year, month + 1, day, hour, minute) },
+                    initial.hour,
+                    initial.minute,
+                    false,
+                ).show()
+            },
+            initial.year,
+            initial.monthValue - 1,
+            initial.dayOfMonth,
+        ).show()
+    }
 
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) mediaUri = uri
@@ -97,6 +125,7 @@ fun RoomItemComposer(
                                 if (!submitting) {
                                     kind = option.value
                                     mediaUri = null
+                                    if (kind != "plan") scheduledAt = null
                                 }
                             },
                             shape = RoundedCornerShape(14.dp),
@@ -205,6 +234,27 @@ fun RoomItemComposer(
                     }
                 }
 
+                if (kind == "plan") {
+                    Surface(
+                        onClick = { if (!submitting) pickSchedule() },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = NovaAccentSoft,
+                        border = BorderStroke(1.dp, NovaAccent.copy(alpha = 0.22f)),
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = scheduledAt?.format(DateTimeFormatter.ofPattern("EEE, MMM d · h:mm a"))
+                                    ?: "Choose date and time",
+                                color = NovaAccent,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text("Plans can be added to Room reminders.", color = NovaMuted, fontSize = 8.sp)
+                        }
+                    }
+                }
+
                 if (!error.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
@@ -217,8 +267,14 @@ fun RoomItemComposer(
         },
         confirmButton = {
             TextButton(
-                onClick = { onSubmit(kind, title, body, url, mediaUri) },
-                enabled = !submitting,
+                onClick = {
+                    val scheduledFor = scheduledAt
+                        ?.atZone(ZoneId.systemDefault())
+                        ?.toInstant()
+                        ?.toString()
+                    onSubmit(kind, title, body, url, scheduledFor, mediaUri)
+                },
+                enabled = !submitting && (kind != "plan" || scheduledAt != null),
             ) {
                 Text(if (submitting) "Adding…" else "Add")
             }

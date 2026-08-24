@@ -20,6 +20,12 @@ class Pulse(models.Model):
         FOLLOWERS = "followers", "Followers"
         CLOSE_FRIENDS = "close_friends", "Close friends"
 
+    class Category(models.TextChoices):
+        LIVE = "live", "Live"
+        MUSIC = "music", "Music"
+        TALKS = "talks", "Talks"
+        VIBES = "vibes", "Vibes"
+
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -45,6 +51,11 @@ class Pulse(models.Model):
         max_length=16,
         choices=Audience.choices,
         default=Audience.FOLLOWERS,
+    )
+    category = models.CharField(
+        max_length=8,
+        choices=Category.choices,
+        default=Category.VIBES,
     )
     note = models.CharField(max_length=180, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -95,3 +106,52 @@ class Pulse(models.Model):
 
     def __str__(self):
         return f"Pulse {self.pk} by @{self.author.username}"
+
+
+class PulseReaction(models.Model):
+    pulse = models.ForeignKey(
+        Pulse,
+        on_delete=models.CASCADE,
+        related_name="reactions",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="pulse_reactions",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = "accounts"
+        ordering = ("-created_at", "-id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("pulse", "user"),
+                name="unique_pulse_reaction",
+            ),
+        ]
+
+
+class PulseView(models.Model):
+    pulse = models.ForeignKey(
+        Pulse,
+        on_delete=models.CASCADE,
+        related_name="views",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="pulse_views",
+    )
+    first_viewed_at = models.DateTimeField(auto_now_add=True)
+    last_viewed_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = "accounts"
+        ordering = ("-last_viewed_at", "-id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("pulse", "user"),
+                name="unique_pulse_view",
+            ),
+        ]

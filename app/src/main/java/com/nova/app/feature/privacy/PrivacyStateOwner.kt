@@ -19,6 +19,8 @@ import kotlinx.coroutines.launch
 data class PrivacyUiState(
     val summary: NovaPrivacySummary? = null,
     val requests: List<NovaFollowRequest> = emptyList(),
+    val sentRequests: List<NovaFollowRequest> = emptyList(),
+    val followRequestTab: String = "received",
     val closeFriends: List<NovaPerson> = emptyList(),
     val followers: List<NovaPerson> = emptyList(),
     val followerCursor: String? = null,
@@ -71,6 +73,10 @@ class PrivacyStateOwner(
             is ApiResult.Success -> state = state.copy(requests = result.value)
             is ApiResult.Failure -> handleFailure(result)
         }
+        when (val result = followRequestRepository.sentFollowRequests()) {
+            is ApiResult.Success -> state = state.copy(sentRequests = result.value)
+            is ApiResult.Failure -> handleFailure(result)
+        }
         when (val result = privacyRepository.closeFriends()) {
             is ApiResult.Success -> state = state.copy(closeFriends = result.value)
             is ApiResult.Failure -> handleFailure(result)
@@ -84,6 +90,10 @@ class PrivacyStateOwner(
         if (query == state.followerQuery) return
         state = state.copy(followerQuery = query)
         scheduleFollowerQueryLoad()
+    }
+
+    fun setFollowRequestTab(tab: String) {
+        if (tab in setOf("received", "sent")) state = state.copy(followRequestTab = tab)
     }
 
     private fun scheduleFollowerQueryLoad() {
@@ -144,6 +154,48 @@ class PrivacyStateOwner(
 
     fun togglePrivate(enabled: Boolean) {
         scope.launch { togglePrivateNow(enabled) }
+    }
+
+    fun setActivityStatus(enabled: Boolean) = updatePrivacySetting(
+        showActivityStatus = enabled,
+        feedback = if (enabled) "Activity status is visible." else "Activity status is hidden.",
+    )
+
+    fun setReadReceipts(enabled: Boolean) = updatePrivacySetting(
+        sendReadReceipts = enabled,
+        feedback = if (enabled) "Read receipts are on." else "Read receipts are off.",
+    )
+
+    fun setStoryAudience(audience: String) = updatePrivacySetting(
+        storyAudience = audience,
+        feedback = if (audience == "close_friends") {
+            "New Stories default to Close Friends."
+        } else {
+            "New Stories default to followers."
+        },
+    )
+
+    private fun updatePrivacySetting(
+        showActivityStatus: Boolean? = null,
+        sendReadReceipts: Boolean? = null,
+        storyAudience: String? = null,
+        feedback: String,
+    ) {
+        if (state.privacyBusy) return
+        scope.launch {
+            state = state.copy(privacyBusy = true, error = null, feedback = null)
+            when (
+                val result = privacyRepository.updateSettings(
+                    showActivityStatus = showActivityStatus,
+                    sendReadReceipts = sendReadReceipts,
+                    storyAudience = storyAudience,
+                )
+            ) {
+                is ApiResult.Success -> state = state.copy(summary = result.value, feedback = feedback)
+                is ApiResult.Failure -> handleFailure(result)
+            }
+            state = state.copy(privacyBusy = false)
+        }
     }
 
     internal suspend fun togglePrivateNow(enabled: Boolean) {

@@ -11,6 +11,7 @@ REMOTE = ROOT / "app/src/main/java/com/nova/app/feature/pulse/data/remote/PulseR
 OWNER = ROOT / "app/src/main/java/com/nova/app/feature/pulse/PulseStateOwner.kt"
 VIEWER_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/pulse/PulseViewerStateOwner.kt"
 RAIL = ROOT / "app/src/main/java/com/nova/app/feature/pulse/PulseRail.kt"
+SCREEN = ROOT / "app/src/main/java/com/nova/app/feature/pulse/PulseScreen.kt"
 COMPOSER = ROOT / "app/src/main/java/com/nova/app/feature/pulse/PulseComposerDialog.kt"
 VIEWER = ROOT / "app/src/main/java/com/nova/app/feature/pulse/PulseViewerDialog.kt"
 CONTAINER = ROOT / "app/src/main/java/com/nova/app/app/AppContainer.kt"
@@ -34,6 +35,7 @@ remote = read(REMOTE)
 owner = read(OWNER)
 viewer_owner = read(VIEWER_OWNER)
 rail = read(RAIL)
+screen = read(SCREEN)
 composer = read(COMPOSER)
 viewer = read(VIEWER)
 container = read(CONTAINER)
@@ -156,6 +158,19 @@ for ui_path, text in ((RAIL, rail), (COMPOSER, composer), (VIEWER, viewer)):
                 f"Pulse UI must not own network/repository orchestration in {ui_path.relative_to(ROOT)}: {forbidden}"
             )
 
+for required in (
+    "fun PulseScreen(",
+    "PulseStateOwner(repository, scope)",
+    "PulseComposerDialog(",
+    "PulseViewerDialog(",
+    "NovaBottomBar(",
+):
+    if required not in screen:
+        errors.append(f"full Pulse destination is missing stable visual/navigation seam: {required}")
+for forbidden in ("NovaApiClient", "ApiResult", "repository.pulses("):
+    if forbidden in screen:
+        errors.append(f"full Pulse destination must not own transport orchestration: {forbidden}")
+
 if "val pulseRepository: PulseRepository = PulseRemoteRepository(appContext, api)" not in container:
     errors.append("AppContainer must construct PulseRemoteRepository behind PulseRepository")
 
@@ -163,8 +178,10 @@ if "import com.nova.app.feature.pulse.PulseRail" not in home:
     errors.append("Home must import the Pulse surface")
 if "PulseRail(" not in home:
     errors.append("Home must render Pulse")
-if home.find("PulseRail(") > home.find("StoriesRail("):
-    errors.append("Home live hierarchy must keep Pulse before Stories")
+if home.find("PulseRail(") < home.find("home-lead-post"):
+    errors.append("Home hierarchy must keep the lead feed moment before Pulse")
+if home.find("PulseRail(") > home.find("OrbitRail("):
+    errors.append("Home hierarchy must keep Pulse before Orbit")
 
 if errors:
     print("Pulse architecture check failed:")

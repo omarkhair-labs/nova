@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from ..trust_safety import blocked_user_ids
-from .models import Follow, Pulse
+from .models import Follow, Pulse, PulseReaction, PulseView
 from .serializers import PulseSerializer
 
 
@@ -53,10 +53,16 @@ def pulse_create_values(request):
         request.data.get("audience") or Pulse.Audience.FOLLOWERS
     ).strip().lower()
     requested_media_type = str(request.data.get("media_type") or "").strip().lower()
+    category = str(request.data.get("category") or Pulse.Category.VIBES).strip().lower()
 
     if audience not in Pulse.Audience.values:
         return None, Response(
             {"detail": "Choose a valid Pulse audience."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if category not in Pulse.Category.values:
+        return None, Response(
+            {"detail": "Choose a valid Pulse category."},
             status=status.HTTP_400_BAD_REQUEST,
         )
     if len(note) > 180:
@@ -112,6 +118,7 @@ def pulse_create_values(request):
         "media": media or "",
         "media_type": media_type,
         "audience": audience,
+        "category": category,
         "note": note,
         "expires_at": None,
     }, None
@@ -137,7 +144,16 @@ class PulseFeedView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        pulses = visible_pulses_for(request.user).order_by("-created_at", "-id")[
+        pulses = visible_pulses_for(request.user)
+        category = str(request.query_params.get("category") or "").strip().lower()
+        if category:
+            if category not in Pulse.Category.values:
+                return Response(
+                    {"detail": "Choose a valid Pulse category."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            pulses = pulses.filter(category=category)
+        pulses = pulses.order_by("-created_at", "-id")[
             :MAX_PULSES_IN_FEED
         ]
         return Response(
@@ -173,6 +189,37 @@ class PulseReplyView(APIView):
     def post(self, request, pulse_id):
         parent = visible_pulse_for_request(request, pulse_id)
         return create_pulse_response(request, reply_to=parent)
+
+
+class PulseViewView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pulse_id):
+        pulse = visible_pulse_for_request(request, pulse_id)
+        PulseView.objects.update_or_create(
+            pulse=pulse,
+            user=request.user,
+            defaults={},
+        )
+        return Response(PulseSerializer(pulse, context={"request": request}).data)
+
+
+class PulseReactionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pulse_id):
+        pulse = visible_pulse_for_request(request, pulse_id)
+        enabled = request.data.get("enabled", True)
+        if not isinstance(enabled, bool):
+            return Response(
+                {"detail": "enabled must be true or false."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if enabled:
+            PulseReaction.objects.get_or_create(pulse=pulse, user=request.user)
+        else:
+            PulseReaction.objects.filter(pulse=pulse, user=request.user).delete()
+        return Response(PulseSerializer(pulse, context={"request": request}).data)
 
 
 class PulseChainView(APIView):

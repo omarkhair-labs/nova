@@ -115,6 +115,12 @@ class NovaAuthRepository(
         name: String,
         username: String,
         avatarUri: Uri?,
+        bio: String,
+        location: String,
+        link: String,
+        interests: List<String>,
+        profileTheme: String,
+        showOrbit: Boolean,
     ): ApiResult<NovaUser> {
         val stored = sessionStore.load()
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
@@ -129,6 +135,12 @@ class NovaAuthRepository(
             name = name.trim(),
             username = username.trim().lowercase(),
             avatar = avatar,
+            bio = bio.trim(),
+            location = location.trim(),
+            link = link.trim(),
+            interests = interests.map(String::trim).filter(String::isNotBlank).distinct().take(8),
+            profileTheme = profileTheme,
+            showOrbit = showOrbit,
         )
     }
 
@@ -147,6 +159,12 @@ class NovaAuthRepository(
         name: String,
         username: String,
         avatar: UploadFile?,
+        bio: String,
+        location: String,
+        link: String,
+        interests: List<String>,
+        profileTheme: String,
+        showOrbit: Boolean,
     ): ApiResult<NovaUser> {
         when (
             val first = remote.updateProfile(
@@ -154,6 +172,12 @@ class NovaAuthRepository(
                 name = name,
                 username = username,
                 avatar = avatar,
+                bio = bio,
+                location = location,
+                link = link,
+                interests = interests,
+                profileTheme = profileTheme,
+                showOrbit = showOrbit,
             )
         ) {
             is ApiResult.Success -> {
@@ -175,6 +199,12 @@ class NovaAuthRepository(
                         name = name,
                         username = username,
                         avatar = avatar,
+                        bio = bio,
+                        location = location,
+                        link = link,
+                        interests = interests,
+                        profileTheme = profileTheme,
+                        showOrbit = showOrbit,
                     )
                 ) {
                     is ApiResult.Success -> {

@@ -30,26 +30,50 @@ import com.nova.app.ui.theme.NovaMuted
 
 @Composable
 fun CreateAccountScreen(
+    isLoading: Boolean,
+    errorMessage: String?,
     onBack: () -> Unit,
-    onContinue: (String, String) -> Unit,
+    onCreate: (String, String, String, String) -> Unit,
 ) {
+    var name by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
     AuthPage(
         title = "Create your account",
-        subtitle = "Start with the basics. You can shape everything else later.",
+        subtitle = "Join the orbit.",
         email = email,
         onEmailChange = { email = it.trim() },
         password = password,
         onPasswordChange = { password = it },
-        buttonText = "Continue",
-        buttonEnabled = email.contains('@') && password.length >= 8,
-        isLoading = false,
-        errorMessage = null,
+        buttonText = if (isLoading) "Creating account…" else "Create account",
+        buttonEnabled = name.trim().length >= 2 && username.trim().length >= 3 && email.contains('@') && password.length >= 8,
+        isLoading = isLoading,
+        errorMessage = errorMessage,
         onBack = onBack,
-        onSubmit = { onContinue(email, password) },
+        onSubmit = { onCreate(email, password, username, name) },
         helperText = "Use at least 8 characters for your password.",
+        identityFields = {
+            NovaTextField(
+                value = name,
+                onValueChange = { name = it.take(80) },
+                label = "Full name",
+                placeholder = "Maya",
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+            NovaTextField(
+                value = username,
+                onValueChange = { raw ->
+                    username = raw.lowercase().filter { it.isLetterOrDigit() || it == '_' || it == '.' }.take(30)
+                },
+                label = "Username",
+                placeholder = "maya.orbit",
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii, imeAction = ImeAction.Next),
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+        },
     )
 }
 
@@ -108,6 +132,7 @@ private fun AuthPage(
     helperText: String,
     secondaryActionText: String? = null,
     onSecondaryAction: (() -> Unit)? = null,
+    identityFields: (@Composable () -> Unit)? = null,
 ) {
     NovaKeyboardAwareFormPage(
         title = title,
@@ -121,7 +146,15 @@ private fun AuthPage(
             )
         },
     ) {
-        Spacer(modifier = Modifier.height(36.dp))
+        Text(
+            text = "nova˙",
+            color = NovaAccent,
+            fontSize = 34.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(modifier = Modifier.height(26.dp))
+
+        identityFields?.invoke()
 
         NovaTextField(
             value = email,

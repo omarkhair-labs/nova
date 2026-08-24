@@ -54,6 +54,7 @@ import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSpacing
 import com.nova.app.ui.theme.NovaSurface
 import com.nova.app.ui.theme.NovaType
+import kotlinx.coroutines.delay
 
 
 @Composable
@@ -61,6 +62,8 @@ fun PulseRail(
     displayName: String,
     username: String,
     avatarUrl: String,
+    showCreateCard: Boolean = true,
+    onOpenFeed: (() -> Unit)? = null,
     onSessionExpired: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -110,19 +113,21 @@ fun PulseRail(
                     style = NovaType.title.copy(fontWeight = FontWeight.Bold),
                 )
                 Text(
-                    text = "What’s happening right now?",
+                    text = "What’s happening in your orbit",
                     color = NovaMuted,
                     style = NovaType.micro,
                 )
             }
             Text(
-                text = if (state.error != null) "Retry" else "12h • live",
-                color = if (state.error != null) NovaAccent else NovaMuted,
+                text = if (state.error != null) "Retry" else if (onOpenFeed != null) "View all" else "LIVE",
+                color = if (state.error != null) NovaAccent else com.nova.app.ui.theme.NovaBaseLive,
                 style = NovaType.micro.copy(
                     fontWeight = if (state.error != null) FontWeight.SemiBold else FontWeight.Normal,
                 ),
                 modifier = if (state.error != null) {
                     Modifier.clickable { owner.load(showSpinner = true) }
+                } else if (onOpenFeed != null) {
+                    Modifier.clickable(onClick = onOpenFeed)
                 } else {
                     Modifier
                 },
@@ -143,19 +148,21 @@ fun PulseRail(
             }
         } else {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                item(key = "pulse-create") {
-                    PulseCreateCard(
-                        displayName = displayName,
-                        username = username,
-                        avatarUrl = avatarUrl,
-                        uploading = state.uploading,
-                        onText = {
-                            pendingMedia = null
-                            composerVisible = true
-                            owner.clearError()
-                        },
-                        onMedia = { picker.launch(arrayOf("image/*", "video/*")) },
-                    )
+                if (showCreateCard) {
+                    item(key = "pulse-create") {
+                        PulseCreateCard(
+                            displayName = displayName,
+                            username = username,
+                            avatarUrl = avatarUrl,
+                            uploading = state.uploading,
+                            onText = {
+                                pendingMedia = null
+                                composerVisible = true
+                                owner.clearError()
+                            },
+                            onMedia = { picker.launch(arrayOf("image/*", "video/*")) },
+                        )
+                    }
                 }
                 items(state.pulses, key = { it.id }) { pulse ->
                     PulseCard(pulse = pulse, onClick = { selectedPulse = pulse })
@@ -191,12 +198,12 @@ fun PulseRail(
                     owner.clearError()
                 }
             },
-            onSubmit = { note, audience ->
+            onSubmit = { note, audience, category ->
                 val media = pendingMedia
                 if (media == null) {
-                    owner.createText(note, audience)
+                    owner.createText(note, audience, category)
                 } else {
-                    owner.createMedia(media, note, audience)
+                    owner.createMedia(media, note, audience, category)
                 }
             },
         )
@@ -210,6 +217,11 @@ fun PulseRail(
 
         LaunchedEffect(pulse.id) {
             viewerOwner.loadChain(pulse.id)
+            viewerOwner.recordView(pulse.id)
+            while (true) {
+                delay(10_000)
+                viewerOwner.loadChain(pulse.id)
+            }
         }
         LaunchedEffect(viewerState.sessionExpiryVersion) {
             if (viewerState.sessionExpiryVersion > 0) onSessionExpired()
@@ -228,6 +240,7 @@ fun PulseRail(
                 owner.delete(target.id)
                 selectedPulse = null
             },
+            onReaction = { target, enabled -> viewerOwner.setReaction(target.id, enabled) },
             onReplyText = { parent, note, audience ->
                 viewerOwner.replyText(parent.id, note, audience)
             },
@@ -249,7 +262,7 @@ private fun PulseCreateCard(
     onMedia: () -> Unit,
 ) {
     Surface(
-        modifier = Modifier.width(176.dp).height(132.dp),
+        modifier = Modifier.width(148.dp).height(112.dp),
         shape = MaterialTheme.shapes.large,
         color = NovaAccentSoft,
         border = BorderStroke(1.dp, NovaAccent.copy(alpha = 0.34f)),
@@ -326,7 +339,7 @@ private fun PulseCard(
     val mediaPalette = PulseTheme.media
     Surface(
         onClick = onClick,
-        modifier = Modifier.width(176.dp).height(132.dp),
+        modifier = Modifier.width(124.dp).height(104.dp),
         shape = MaterialTheme.shapes.large,
         color = NovaSurface,
         border = BorderStroke(1.dp, NovaBorder),

@@ -5,7 +5,12 @@ from rest_framework.response import Response
 
 from .messaging_models import group_avatar_url
 from .messaging_serializers import ConversationSerializer
-from .messaging_views import ConversationsView, conversations_for, total_unread_for
+from .messaging_views import (
+    ConversationsView,
+    conversation_unread_count,
+    conversations_for,
+    total_unread_for,
+)
 from .models import Conversation
 
 CONVERSATION_PAGE_SIZE = 30
@@ -14,7 +19,25 @@ CONVERSATION_PAGE_SIZE = 30
 class PaginatedConversationsView(ConversationsView):
     def get(self, request):
         query = request.query_params.get("q", "").strip()
+        inbox_filter = request.query_params.get("filter", "all").strip().lower()
+        if inbox_filter not in {"all", "unread", "mentions"}:
+            return Response(
+                {"detail": "Invalid inbox filter."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         conversations = conversations_for(request.user)
+
+        if inbox_filter == "mentions":
+            conversations = conversations.filter(
+                messages__body__icontains=f"@{request.user.username}"
+            ).distinct()
+        elif inbox_filter == "unread":
+            unread_ids = [
+                conversation.id
+                for conversation in conversations
+                if conversation_unread_count(conversation, request.user) > 0
+            ]
+            conversations = conversations.filter(id__in=unread_ids)
 
         if query:
             conversations = conversations.filter(

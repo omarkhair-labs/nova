@@ -37,6 +37,8 @@ data class NovaComment(
     val parentId: Long? = null,
     val repliesCount: Int = 0,
     val replies: List<NovaComment> = emptyList(),
+    val likesCount: Int = 0,
+    val isLiked: Boolean = false,
 )
 
 

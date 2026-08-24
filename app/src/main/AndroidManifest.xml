@@ -13,6 +13,7 @@
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <application
         android:name=".NovaApplication"
@@ -53,6 +54,15 @@
             </intent-filter>
         </service>
 
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
+
+        <receiver
+            android:name=".core.rooms.NovaRoomReminderReceiver"
+            android:exported="false" />
+
         <activity
             android:name=".CallActivity"
             android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize"
@@ -70,6 +80,11 @@
 
         <activity
             android:name=".PrivacyActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Nova" />
+
+        <activity
+            android:name=".NotificationPreferencesActivity"
             android:exported="false"
             android:theme="@style/Theme.Nova" />
 

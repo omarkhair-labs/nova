@@ -12,6 +12,9 @@ PROFILE_SCREEN = MAIN / "com/nova/app/feature/profile/ProfileScreen.kt"
 NOTIFICATIONS_SCREEN = MAIN / "com/nova/app/feature/notifications/NotificationsScreen.kt"
 HOME_SCREEN = MAIN / "com/nova/app/feature/home/HomeScreen.kt"
 HOME_IDENTITY_HEADER = MAIN / "com/nova/app/feature/home/HomeIdentityHeader.kt"
+CREATE_HUB = MAIN / "com/nova/app/feature/create/CreateHubScreen.kt"
+APP_HOST = MAIN / "com/nova/app/NovaApp.kt"
+APP_DESTINATION = MAIN / "com/nova/app/navigation/AppDestination.kt"
 PEOPLE_SCREEN = MAIN / "com/nova/app/feature/people/PeopleScreen.kt"
 ICON_ALIASES = MAIN / "com/nova/app/ui/icons/NovaMaterialIconAliases.kt"
 SHARED_UI = MAIN / "com/nova/app/ui"
@@ -56,13 +59,24 @@ MIGRATED_COMPONENT_SEAMS = {
     "NovaButtons.kt": ("MaterialTheme.shapes.medium", "NovaType.button", "NovaElevation.flat"),
     "NovaTextField.kt": ("MaterialTheme.shapes.medium",),
     "NovaHeader.kt": ("NovaType.pageTitle", "NovaType.subtitle", "NovaSpacing.sm", "NovaBackButton"),
-    "NovaBottomBar.kt": ("NovaElevation.floating", "NovaType.navigationLabel", "NovaType.badge", "NovaIconAsset.Home"),
+    "NovaBottomBar.kt": (
+        "NovaElevation.floating",
+        "NovaType.navigationLabel",
+        "NovaType.badge",
+        "NovaIconAsset.Home",
+        "NovaIconAsset.Orbit",
+        "NovaIconAsset.Create",
+        "NovaIconAsset.Inbox",
+        'label = "Profile"',
+    ),
     "NovaFeedback.kt": ("MaterialTheme.shapes.extraLarge", "NovaType.bodyCompact", "NovaSpacing.xxxl"),
     "NovaCard.kt": ("MaterialTheme.shapes.large", "NovaSurface", "NovaBorder"),
     "NovaStatus.kt": ("NovaAccent", "CircleShape"),
 }
 MATERIAL_SYMBOL_DRAWABLES = (
     "ic_nova_home.xml",
+    "ic_nova_orbit.xml",
+    "ic_nova_add.xml",
     "ic_nova_search.xml",
     "ic_nova_play.xml",
     "ic_nova_mail.xml",
@@ -147,6 +161,8 @@ else:
         "enum class NovaIconAsset",
         "fun NovaIcon(",
         "Home(R.drawable.ic_nova_home)",
+        "Orbit(R.drawable.ic_nova_orbit)",
+        "Create(R.drawable.ic_nova_add)",
         "Search(R.drawable.ic_nova_search)",
         "Notifications(R.drawable.ic_nova_notifications)",
         "Back(R.drawable.ic_nova_back)",
@@ -220,7 +236,7 @@ for seam in (
     "NovaEmptyState(",
     "NovaInlineLoading(",
     "NovaInlineRetry(",
-    "NovaSpacing.xl",
+    "NovaSpacing.lg",
 ):
     if seam not in home_text:
         errors.append(f"Home bypassed Nova DS-3/identity seam: {seam}")
@@ -241,6 +257,47 @@ else:
     ):
         if seam not in home_identity_text:
             errors.append(f"Home identity header bypassed approved visual-identity seam: {seam}")
+
+if not CREATE_HUB.is_file():
+    errors.append("missing truthful central Create destination")
+else:
+    create_text = CREATE_HUB.read_text(encoding="utf-8")
+    for seam in (
+        "fun CreateHubScreen(",
+        "NovaTab.Create",
+        "StoriesRail(",
+        "PulseRail(",
+        "RoomsRail(",
+        "MemoriesRail(",
+        "onCreatePost",
+        "onOpenReels",
+    ):
+        if seam not in create_text:
+            errors.append(f"Create destination lost truthful existing-flow seam: {seam}")
+
+app_host_text = APP_HOST.read_text(encoding="utf-8")
+for seam in (
+    "NovaRoute.Orbit ->",
+    "NovaRoute.Create ->",
+    "NovaRoute.Pulse ->",
+    "NovaRoute.Tonight ->",
+):
+    if seam not in app_host_text:
+        errors.append(f"application host is missing approved visual destination: {seam}")
+
+app_destination_text = APP_DESTINATION.read_text(encoding="utf-8")
+for seam in (
+    "data object Home",
+    "data object Orbit",
+    "data object Create",
+    "data object Inbox",
+    "data object Profile",
+):
+    if seam not in app_destination_text:
+        errors.append(f"typed navigation contract is missing primary destination: {seam}")
+for stale_destination in ("data object People", "data object Messages"):
+    if stale_destination in app_destination_text:
+        errors.append(f"typed navigation contract restored stale primary destination: {stale_destination}")
 
 people_text = PEOPLE_SCREEN.read_text(encoding="utf-8")
 for seam in (

@@ -28,11 +28,13 @@ import com.nova.app.app.AppViewModel
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.auth.CreateAccountScreen
 import com.nova.app.feature.auth.LoginScreen
+import com.nova.app.feature.create.CreateHubScreen
 import com.nova.app.feature.feed.FeedStateOwner
 import com.nova.app.feature.home.HomeScreen
 import com.nova.app.feature.legal.PrivacyScreen
 import com.nova.app.feature.legal.TermsScreen
 import com.nova.app.feature.onboarding.ProfileSetupScreen
+import com.nova.app.feature.orbit.OrbitScreen
 import com.nova.app.feature.people.PeopleScreen
 import com.nova.app.feature.people.PeopleStateOwner
 import com.nova.app.feature.people.PersonScreen
@@ -45,7 +47,12 @@ import com.nova.app.feature.posts.detail.PostDetailStateOwner
 import com.nova.app.feature.profile.EditProfileScreen
 import com.nova.app.feature.profile.ProfileContentStateOwner
 import com.nova.app.feature.profile.ProfileScreen
+import com.nova.app.feature.pulse.PulseScreen
+import com.nova.app.feature.tonight.TonightScreen
 import com.nova.app.feature.welcome.WelcomeScreen
+import com.nova.app.navigation.AppDestination
+import com.nova.app.navigation.NovaRootNavigationSignal
+import com.nova.app.navigation.NovaRootTab
 import com.nova.app.navigation.NovaRoute
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBackground
@@ -72,6 +79,8 @@ fun NovaApp(
     val backStack = remember {
         mutableStateListOf<NovaRoute>(NovaRoute.Welcome)
     }
+    val rootRequestVersion = NovaRootNavigationSignal.requestVersion
+    val tonightRequestVersion = NovaRootNavigationSignal.tonightRequestVersion
 
     var pendingEmail by remember { mutableStateOf("") }
     var pendingPassword by remember { mutableStateOf("") }
@@ -82,10 +91,19 @@ fun NovaApp(
     var handledProfileRefresh by remember { mutableStateOf(0) }
     var handledPostCreated by remember { mutableStateOf(0) }
 
-    fun openHome() {
+    fun openRoot(tab: NovaRootTab) {
         backStack.clear()
-        backStack.add(NovaRoute.Home)
+        backStack.add(
+            when (tab) {
+                NovaRootTab.Home -> NovaRoute.Home
+                NovaRootTab.Orbit -> NovaRoute.Orbit
+                NovaRootTab.Create -> NovaRoute.Create
+                NovaRootTab.Profile -> NovaRoute.Profile
+            }
+        )
     }
+
+    fun openHome() = openRoot(NovaRootTab.Home)
 
     fun resetSocialState() {
         feedOwner.reset()
@@ -114,6 +132,24 @@ fun NovaApp(
             if (!appViewModel.refreshSession()) {
                 clearSessionUi()
             }
+        }
+    }
+
+    LaunchedEffect(rootRequestVersion, appState.currentUser?.id) {
+        val requested = NovaRootNavigationSignal.pendingTab ?: return@LaunchedEffect
+        if (appState.currentUser == null) return@LaunchedEffect
+        openRoot(requested)
+        NovaRootNavigationSignal.consume(requested)
+    }
+
+    LaunchedEffect(tonightRequestVersion, appState.currentUser?.id) {
+        if (
+            NovaRootNavigationSignal.pendingTonight &&
+            appState.currentUser != null
+        ) {
+            backStack.clear()
+            backStack.add(NovaRoute.Tonight)
+            NovaRootNavigationSignal.consumeTonight()
         }
     }
 
@@ -186,12 +222,35 @@ fun NovaApp(
 
                 NovaRoute.CreateAccount -> NavEntry(route) {
                     CreateAccountScreen(
+                        isLoading = authLoading,
+                        errorMessage = authError,
                         onBack = { backStack.removeLastOrNull() },
-                        onContinue = { email, password ->
-                            pendingEmail = email.trim().lowercase()
-                            pendingPassword = password
-                            authError = null
-                            backStack.add(NovaRoute.ProfileSetup)
+                        onCreate = { email, password, handle, name ->
+                            if (!authLoading) {
+                                scope.launch {
+                                    authLoading = true
+                                    authError = null
+                                    when (
+                                        val result = authRepository.register(
+                                            email = email,
+                                            password = password,
+                                            username = handle,
+                                            name = name,
+                                        )
+                                    ) {
+                                        is ApiResult.Success -> {
+                                            appViewModel.onAuthenticated(result.value)
+                                            resetSocialState()
+                                            authLoading = false
+                                            openHome()
+                                        }
+                                        is ApiResult.Failure -> {
+                                            authError = result.message
+                                            authLoading = false
+                                        }
+                                    }
+                                }
+                            }
                         },
                     )
                 }
@@ -311,7 +370,66 @@ fun NovaApp(
                             backStack.add(NovaRoute.Person(username))
                         },
                         onPeopleClick = { backStack.add(NovaRoute.People) },
+                        onOrbitClick = { openRoot(NovaRootTab.Orbit) },
+                        onCreateClick = { openRoot(NovaRootTab.Create) },
+                        onPulseClick = { backStack.add(NovaRoute.Pulse) },
+                        onTonightClick = { backStack.add(NovaRoute.Tonight) },
                         onProfileClick = { backStack.add(NovaRoute.Profile) },
+                    )
+                }
+
+                NovaRoute.Orbit -> NavEntry(route) {
+                    val user = appState.currentUser
+                    OrbitScreen(
+                        displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
+                        username = user?.username ?: "nova",
+                        avatarUrl = user?.avatarUrl.orEmpty(),
+                        onPersonClick = { username -> backStack.add(NovaRoute.Person(username)) },
+                        onDiscoveryClick = { backStack.add(NovaRoute.People) },
+                        onHomeClick = { openRoot(NovaRootTab.Home) },
+                        onCreateClick = { openRoot(NovaRootTab.Create) },
+                        onProfileClick = { openRoot(NovaRootTab.Profile) },
+                        onSessionExpired = ::expireSession,
+                    )
+                }
+
+                NovaRoute.Create -> NavEntry(route) {
+                    val user = appState.currentUser
+                    CreateHubScreen(
+                        displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
+                        username = user?.username ?: "nova",
+                        avatarUrl = user?.avatarUrl.orEmpty(),
+                        onCreatePost = {
+                            feedOwner.clearPostError()
+                            backStack.add(NovaRoute.CreatePost)
+                        },
+                        onOpenReels = { appViewModel.navigate(AppDestination.Reels) },
+                        onPersonClick = { username -> backStack.add(NovaRoute.Person(username)) },
+                        onHomeClick = { openRoot(NovaRootTab.Home) },
+                        onOrbitClick = { openRoot(NovaRootTab.Orbit) },
+                        onProfileClick = { openRoot(NovaRootTab.Profile) },
+                        onSessionExpired = ::expireSession,
+                    )
+                }
+
+                NovaRoute.Pulse -> NavEntry(route) {
+                    PulseScreen(
+                        onHomeClick = { openRoot(NovaRootTab.Home) },
+                        onOrbitClick = { openRoot(NovaRootTab.Orbit) },
+                        onCreateClick = { openRoot(NovaRootTab.Create) },
+                        onProfileClick = { openRoot(NovaRootTab.Profile) },
+                        onSessionExpired = ::expireSession,
+                    )
+                }
+
+                NovaRoute.Tonight -> NavEntry(route) {
+                    TonightScreen(
+                        onPersonClick = { username -> backStack.add(NovaRoute.Person(username)) },
+                        onHomeClick = { openRoot(NovaRootTab.Home) },
+                        onOrbitClick = { openRoot(NovaRootTab.Orbit) },
+                        onCreateClick = { openRoot(NovaRootTab.Create) },
+                        onProfileClick = { openRoot(NovaRootTab.Profile) },
+                        onSessionExpired = ::expireSession,
                     )
                 }
 
@@ -432,6 +550,7 @@ fun NovaApp(
                         deletingCommentId = commentsState.deletingCommentId,
                         isReplySending = commentsState.isReplySending,
                         deletingReplyId = commentsState.deletingReplyId,
+                        likingCommentId = commentsState.likingCommentId,
                         errorMessage = commentsState.errorMessage,
                         replyErrorMessage = commentsState.replyErrorMessage,
                         onBack = { backStack.removeLastOrNull() },
@@ -440,6 +559,7 @@ fun NovaApp(
                         onDelete = commentsOwner::deleteComment,
                         onSendReply = commentsOwner::sendReply,
                         onDeleteReply = commentsOwner::deleteReply,
+                        onLike = commentsOwner::toggleLike,
                         onClearReplyError = commentsOwner::clearReplyError,
                         onAuthorClick = { username ->
                             if (username == appState.currentUser?.username) {
@@ -486,12 +606,15 @@ fun NovaApp(
                     PeopleScreen(
                         state = peopleState,
                         onQueryChange = peopleOwner::setQuery,
+                        onFilterChange = peopleOwner::setFilter,
                         onPersonClick = { username ->
                             backStack.add(NovaRoute.Person(username))
                         },
                         onFollowToggle = peopleOwner::toggleFollow,
                         onLoadMore = peopleOwner::loadMore,
                         onHomeClick = ::openHome,
+                        onOrbitClick = { openRoot(NovaRootTab.Orbit) },
+                        onCreateClick = { openRoot(NovaRootTab.Create) },
                         onProfileClick = { backStack.add(NovaRoute.Profile) },
                     )
                 }
@@ -592,6 +715,9 @@ fun NovaApp(
                         username = user?.username ?: "nova",
                         email = user?.email.orEmpty(),
                         avatarUrl = user?.avatarUrl.orEmpty(),
+                        bio = user?.bio.orEmpty(),
+                        location = user?.location.orEmpty(),
+                        interests = user?.interests.orEmpty(),
                         postsCount = user?.postsCount ?: 0,
                         followersCount = user?.followersCount ?: 0,
                         followingCount = user?.followingCount ?: 0,
@@ -600,7 +726,8 @@ fun NovaApp(
                             backStack.add(NovaRoute.PostDetail(post.id))
                         },
                         onHomeClick = ::openHome,
-                        onPeopleClick = { backStack.add(NovaRoute.People) },
+                        onOrbitClick = { openRoot(NovaRootTab.Orbit) },
+                        onCreateClick = { openRoot(NovaRootTab.Create) },
                         onEditProfile = {
                             authError = null
                             backStack.add(NovaRoute.EditProfile)
@@ -615,6 +742,12 @@ fun NovaApp(
                         displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
                         username = user?.username ?: "nova",
                         avatarUrl = user?.avatarUrl.orEmpty(),
+                        bio = user?.bio.orEmpty(),
+                        location = user?.location.orEmpty(),
+                        link = user?.link.orEmpty(),
+                        interests = user?.interests.orEmpty(),
+                        profileTheme = user?.profileTheme ?: "violet",
+                        showOrbit = user?.showOrbit ?: true,
                         isLoading = authLoading,
                         errorMessage = authError,
                         onBack = {
@@ -623,7 +756,7 @@ fun NovaApp(
                                 backStack.removeLastOrNull()
                             }
                         },
-                        onSave = { name, handle, avatarUri ->
+                        onSave = { name, handle, avatarUri, bio, location, link, interests, theme, showOrbit ->
                             if (!authLoading) {
                                 scope.launch {
                                     authLoading = true
@@ -634,6 +767,12 @@ fun NovaApp(
                                             name = name,
                                             username = handle,
                                             avatarUri = avatarUri,
+                                            bio = bio,
+                                            location = location,
+                                            link = link,
+                                            interests = interests,
+                                            profileTheme = theme,
+                                            showOrbit = showOrbit,
                                         )
                                     ) {
                                         is ApiResult.Success -> {

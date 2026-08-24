@@ -12,6 +12,14 @@ import com.nova.app.feature.rooms.domain.model.RoomTonightSnapshot
 interface RoomRepository {
     suspend fun rooms(): ApiResult<List<RoomSummary>>
 
+    suspend fun rooms(view: String): ApiResult<List<RoomSummary>> = rooms()
+
+    suspend fun joinRoom(conversationId: Long): ApiResult<RoomSummary> =
+        ApiResult.Failure("Room joining is unavailable.")
+
+    suspend fun followRoom(conversationId: Long, enabled: Boolean): ApiResult<RoomSummary> =
+        ApiResult.Failure("Room following is unavailable.")
+
     suspend fun room(conversationId: Long): ApiResult<RoomDetail>
 
     suspend fun items(
@@ -37,4 +45,17 @@ interface RoomRepository {
         conversationId: Long,
         description: String,
     ): ApiResult<RoomDetail>
+
+    suspend fun updateProfile(
+        conversationId: Long,
+        description: String,
+        isPublic: Boolean,
+        topics: List<String>,
+    ): ApiResult<RoomDetail> = updateDescription(conversationId, description)
+
+    suspend fun setReminder(
+        conversationId: Long,
+        itemId: Long,
+        enabled: Boolean,
+    ): ApiResult<RoomItem> = ApiResult.Failure("Room reminders are unavailable.")
 }

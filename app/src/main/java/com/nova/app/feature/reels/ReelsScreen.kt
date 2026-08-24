@@ -78,7 +78,8 @@ private val ReelMuted = Color(0xFFC3C5CA)
 fun ReelsScreen(
     onFinish: () -> Unit,
     onHomeClick: () -> Unit,
-    onPeopleClick: () -> Unit,
+    onOrbitClick: () -> Unit,
+    onCreateClick: () -> Unit,
     onProfileClick: () -> Unit,
     onPersonClick: (String) -> Unit,
 ) {
@@ -174,11 +175,13 @@ fun ReelsScreen(
         containerColor = ReelBackground,
         bottomBar = {
             NovaBottomBar(
-                selected = NovaTab.Reels,
+                selected = null,
                 onHomeClick = onHomeClick,
-                onPeopleClick = onPeopleClick,
+                onOrbitClick = onOrbitClick,
+                onCreateClick = onCreateClick,
                 onProfileClick = onProfileClick,
-                onReelsClick = {},
+                containerColor = ReelBackground,
+                inactiveContentColor = ReelMuted,
             )
         },
     ) { innerPadding ->

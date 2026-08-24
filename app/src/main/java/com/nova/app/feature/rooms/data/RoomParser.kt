@@ -21,7 +21,7 @@ internal fun parseRooms(
     val rows = json.optJSONArray("rooms") ?: JSONArray()
     return buildList {
         for (index in 0 until rows.length()) {
-            rows.optJSONObject(index)?.let { add(parseRoomSummary(it, resolveMediaUrl)) }
+            rows.optJSONObject(index)?.let { add(parseRoomSummaryResponse(it, resolveMediaUrl)) }
         }
     }
 }
@@ -39,6 +39,9 @@ internal fun parseRoomDetail(
             resolveMediaUrl,
         ),
         description = room.optString("description"),
+        isPublic = room.optBoolean("is_public", false),
+        topics = room.optStringList("topics"),
+        isFollowing = room.optBoolean("is_following", false),
         sections = parseSections(room.optJSONObject("sections") ?: JSONObject()),
         members = buildList {
             for (index in 0 until members.length()) {
@@ -86,7 +89,7 @@ internal fun parseRoomTonightSnapshot(
                 rows.optJSONObject(index)?.let { row ->
                     add(
                         RoomTonightRow(
-                            room = parseRoomSummary(row, resolveMediaUrl),
+                            room = parseRoomSummaryResponse(row, resolveMediaUrl),
                             momentsCount = row.optInt("moments_count", 0),
                             myMomentsCount = row.optInt("my_moments_count", 0),
                             latestItem = parseRoomItem(
@@ -102,7 +105,7 @@ internal fun parseRoomTonightSnapshot(
 }
 
 
-private fun parseRoomSummary(
+internal fun parseRoomSummaryResponse(
     json: JSONObject,
     resolveMediaUrl: (String) -> String,
 ): RoomSummary = RoomSummary(
@@ -111,7 +114,21 @@ private fun parseRoomSummary(
         resolveMediaUrl,
     ),
     description = json.optString("description"),
+    isPublic = json.optBoolean("is_public", false),
+    topics = json.optStringList("topics"),
+    isMember = json.optBoolean("is_member", true),
+    isFollowing = json.optBoolean("is_following", false),
 )
+
+
+private fun JSONObject.optStringList(name: String): List<String> {
+    val values = optJSONArray(name) ?: return emptyList()
+    return buildList {
+        for (index in 0 until values.length()) {
+            values.optString(index).trim().takeIf { it.isNotBlank() }?.let(::add)
+        }
+    }
+}
 
 
 private fun parseRoomConversation(
@@ -167,6 +184,7 @@ internal fun parseRoomItem(
             json.has("scheduled_for") && !json.isNull("scheduled_for") && it.isNotBlank()
         },
         pinned = json.optBoolean("pinned", false),
+        reminderSet = json.optBoolean("reminder_set", false),
         createdAt = json.optString("created_at"),
         updatedAt = json.optString("updated_at"),
     )

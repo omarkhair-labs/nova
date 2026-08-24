@@ -3,6 +3,7 @@ package com.nova.app.feature.auth
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,11 +21,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -179,6 +182,9 @@ fun PasswordRecoveryScreen(
 
 @Composable
 fun AccountSecurityScreen(
+    appLockEnabled: Boolean,
+    appLockAvailable: Boolean,
+    onAppLockChange: (Boolean) -> Unit,
     onBack: () -> Unit,
     onAccountDeleted: () -> Unit,
 ) {
@@ -194,6 +200,8 @@ fun AccountSecurityScreen(
         )
     }
     val state = owner.state
+
+    LaunchedEffect(owner) { owner.loadSessions() }
 
     if (state.showDeleteConfirm) {
         AlertDialog(
@@ -286,10 +294,70 @@ fun AccountSecurityScreen(
             lineHeight = 18.sp,
         )
         Spacer(Modifier.height(14.dp))
+        if (state.loadingSessions && state.sessions.isEmpty()) {
+            Text("Loading signed-in devices…", color = NovaMuted, fontSize = 12.sp)
+            Spacer(Modifier.height(10.dp))
+        }
+        state.sessions.forEach { session ->
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = NovaAccentSoft,
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            if (session.isCurrent) "${session.deviceName} · This device" else session.deviceName,
+                            color = NovaInk,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            listOf(session.platform, session.ipAddress).filter(String::isNotBlank).joinToString(" · "),
+                            color = NovaMuted,
+                            fontSize = 10.sp,
+                        )
+                    }
+                    if (!session.isCurrent) {
+                        TextButton(
+                            onClick = { owner.revokeSession(session) },
+                            enabled = state.revokingSessionId == null,
+                        ) {
+                            Text(if (state.revokingSessionId == session.id) "Signing out…" else "Sign out")
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+        }
         NovaSecondaryButton(
             text = if (state.loadingAction == "revoke") "Signing out devices…" else "Log out other devices",
             onClick = owner::revokeOtherSessions,
         )
+
+        Spacer(Modifier.height(30.dp))
+        Text("App lock", color = NovaInk, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(6.dp))
+        Text(
+            if (appLockAvailable) {
+                "Require your device screen lock whenever Nova returns to the foreground."
+            } else {
+                "Set a device PIN, pattern, password or biometric lock before enabling this protection."
+            },
+            color = NovaMuted,
+            fontSize = 12.sp,
+            lineHeight = 18.sp,
+        )
+        Spacer(Modifier.height(14.dp))
+        if (appLockAvailable || appLockEnabled) {
+            NovaSecondaryButton(
+                text = if (appLockEnabled) "Turn off app lock" else "Turn on app lock",
+                onClick = { onAppLockChange(!appLockEnabled) },
+            )
+        }
 
         Spacer(Modifier.height(24.dp))
         Text(
