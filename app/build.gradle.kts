@@ -27,8 +27,8 @@ android {
         applicationId = "com.omarkhair70.nova"
         minSdk = 26
         targetSdk = 36
-        versionCode = 20107
-        versionName = "2.1.7"
+        versionCode = 20108
+        versionName = "2.1.8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
