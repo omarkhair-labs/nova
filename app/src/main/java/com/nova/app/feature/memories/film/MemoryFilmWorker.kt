@@ -82,7 +82,7 @@ class MemoryFilmWorker(
         return ForegroundInfo(
             NOTIFICATION_ID,
             notification,
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING,
         )
     }
 
