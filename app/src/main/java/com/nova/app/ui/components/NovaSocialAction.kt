@@ -6,6 +6,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.CircularProgressIndicator
@@ -20,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
@@ -60,8 +63,10 @@ fun NovaSocialAction(
         contentColor = tint,
     ) {
         Row(
-            modifier = Modifier.size(width = if (count == null) 48.dp else 56.dp, height = 48.dp),
-            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier
+                .height(48.dp)
+                .padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
@@ -87,6 +92,9 @@ fun NovaSocialAction(
                     text = compactSocialCount(it),
                     color = tint,
                     style = NovaType.meta,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Visible,
                 )
             }
         }

@@ -34,22 +34,47 @@ class PostDetailStateOwner(
     var state by mutableStateOf(PostDetailUiState())
         private set
 
+    private var loadGeneration = 0
+    private var likeRevision = 0
+    private var repostRevision = 0
+
     fun load() {
         scope.launch { loadNow() }
     }
 
     internal suspend fun loadNow() {
+        loadGeneration += 1
+        val requestGeneration = loadGeneration
+        val requestLikeRevision = likeRevision
+        val requestRepostRevision = repostRevision
         state = state.copy(isLoading = true, errorMessage = null)
         when (val result = repository.post(postId)) {
             is ApiResult.Success -> {
+                if (requestGeneration != loadGeneration) return
+                val localPost = state.post
+                var loadedPost = result.value
+                if (localPost != null && (state.isLiking || likeRevision > requestLikeRevision)) {
+                    loadedPost = loadedPost.copy(
+                        isLiked = localPost.isLiked,
+                        likesCount = localPost.likesCount,
+                    )
+                }
+                if (localPost != null && (state.isReposting || repostRevision > requestRepostRevision)) {
+                    loadedPost = loadedPost.copy(
+                        isReposted = localPost.isReposted,
+                        repostsCount = localPost.repostsCount,
+                        repostedBy = localPost.repostedBy,
+                    )
+                }
                 state = state.copy(
-                    post = result.value,
+                    post = loadedPost,
                     isLoading = false,
                     errorMessage = null,
                 )
             }
 
             is ApiResult.Failure -> {
+                if (requestGeneration != loadGeneration) return
                 state = if (result.statusCode == 401) {
                     state.copy(
                         isLoading = false,
@@ -69,34 +94,50 @@ class PostDetailStateOwner(
 
     internal suspend fun toggleLikeNow(post: NovaPost) {
         if (state.isLiking) return
-        val optimistic = post.copy(
-            isLiked = !post.isLiked,
-            likesCount = (post.likesCount + if (post.isLiked) -1 else 1).coerceAtLeast(0),
+        val current = state.post?.takeIf { it.id == post.id } ?: return
+        val previousIsLiked = current.isLiked
+        val previousLikesCount = current.likesCount
+        val optimisticIsLiked = !current.isLiked
+        val optimistic = current.copy(
+            isLiked = optimisticIsLiked,
+            likesCount = (
+                current.likesCount + if (current.isLiked) -1 else 1
+            ).coerceAtLeast(0),
         )
         state = state.copy(post = optimistic, isLiking = true, errorMessage = null)
+        likeRevision += 1
         when (
             val result = repository.setLiked(
                 postId = post.id,
-                liked = optimistic.isLiked,
+                liked = optimisticIsLiked,
             )
         ) {
             is ApiResult.Success -> {
+                likeRevision += 1
                 state = state.copy(
-                    post = result.value,
+                    post = state.post?.copy(
+                        isLiked = result.value.isLiked,
+                        likesCount = result.value.likesCount,
+                    ),
                     isLiking = false,
                     contentMutationVersion = state.contentMutationVersion + 1,
                 )
             }
 
             is ApiResult.Failure -> {
+                likeRevision += 1
+                val rolledBack = state.post?.copy(
+                    isLiked = previousIsLiked,
+                    likesCount = previousLikesCount,
+                )
                 state = if (result.statusCode == 401) {
                     state.copy(
-                        post = post,
+                        post = rolledBack,
                         isLiking = false,
                         sessionExpiryVersion = state.sessionExpiryVersion + 1,
                     )
                 } else {
-                    state.copy(post = post, isLiking = false, errorMessage = result.message)
+                    state.copy(post = rolledBack, isLiking = false, errorMessage = result.message)
                 }
             }
         }
@@ -109,30 +150,47 @@ class PostDetailStateOwner(
 
     internal suspend fun toggleRepostNow(post: NovaPost) {
         if (state.isReposting) return
-        val optimistic = post.copy(
-            isReposted = !post.isReposted,
-            repostsCount = (post.repostsCount + if (post.isReposted) -1 else 1).coerceAtLeast(0),
+        val current = state.post?.takeIf { it.id == post.id } ?: return
+        val previousIsReposted = current.isReposted
+        val previousRepostsCount = current.repostsCount
+        val previousRepostedBy = current.repostedBy
+        val optimisticIsReposted = !current.isReposted
+        val optimistic = current.copy(
+            isReposted = optimisticIsReposted,
+            repostsCount = (
+                current.repostsCount + if (current.isReposted) -1 else 1
+            ).coerceAtLeast(0),
         )
         state = state.copy(post = optimistic, isReposting = true, errorMessage = null)
-        when (val result = repostRepository.setPostReposted(post.id, optimistic.isReposted)) {
-            is ApiResult.Success -> state = state.copy(
-                post = optimistic.copy(
-                    repostsCount = result.value.repostsCount,
-                    isReposted = result.value.isReposted,
-                    repostedBy = result.value.repostedBy,
-                ),
-                isReposting = false,
-                contentMutationVersion = state.contentMutationVersion + 1,
-            )
+        repostRevision += 1
+        when (val result = repostRepository.setPostReposted(post.id, optimisticIsReposted)) {
+            is ApiResult.Success -> {
+                repostRevision += 1
+                state = state.copy(
+                    post = state.post?.copy(
+                        repostsCount = result.value.repostsCount,
+                        isReposted = result.value.isReposted,
+                        repostedBy = result.value.repostedBy,
+                    ),
+                    isReposting = false,
+                    contentMutationVersion = state.contentMutationVersion + 1,
+                )
+            }
             is ApiResult.Failure -> {
+                repostRevision += 1
+                val rolledBack = state.post?.copy(
+                    isReposted = previousIsReposted,
+                    repostsCount = previousRepostsCount,
+                    repostedBy = previousRepostedBy,
+                )
                 state = if (result.statusCode == 401) {
                     state.copy(
-                        post = post,
+                        post = rolledBack,
                         isReposting = false,
                         sessionExpiryVersion = state.sessionExpiryVersion + 1,
                     )
                 } else {
-                    state.copy(post = post, isReposting = false, errorMessage = result.message)
+                    state.copy(post = rolledBack, isReposting = false, errorMessage = result.message)
                 }
             }
         }

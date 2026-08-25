@@ -339,25 +339,25 @@ fun NovaApp(
                 NovaRoute.Home -> NavEntry(route) {
                     val user = appState.currentUser
                     LaunchedEffect(user?.id) {
-                        if (user != null && feedState.posts.isEmpty() && !feedState.isLoading) {
-                            feedOwner.loadFeed()
-                        }
+                        if (user == null) feedOwner.reset() else feedOwner.enter(user.id)
                     }
+
+                    val feedBelongsToUser = user != null && feedState.userId == user.id
 
                     HomeScreen(
                         displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
                         username = user?.username ?: "nova",
                         avatarUrl = user?.avatarUrl.orEmpty(),
-                        posts = feedState.posts,
-                        isLoading = feedState.isLoading,
-                        isLoadingMore = feedState.isLoadingMore,
-                        hasMore = feedState.hasMore,
-                        errorMessage = feedState.errorMessage,
-                        deletingPostId = feedState.deletingPostId,
-                        likingPostIds = feedState.likingPostIds,
-                        repostingPostIds = feedState.repostingPostIds,
-                        actionErrorPostId = feedState.actionErrorPostId,
-                        actionErrorMessage = feedState.actionErrorMessage,
+                        posts = feedState.posts.takeIf { feedBelongsToUser }.orEmpty(),
+                        isLoading = !feedBelongsToUser || feedState.isLoading,
+                        isLoadingMore = feedBelongsToUser && feedState.isLoadingMore,
+                        hasMore = feedBelongsToUser && feedState.hasMore,
+                        errorMessage = feedState.errorMessage.takeIf { feedBelongsToUser },
+                        deletingPostId = feedState.deletingPostId.takeIf { feedBelongsToUser },
+                        likingPostIds = feedState.likingPostIds.takeIf { feedBelongsToUser }.orEmpty(),
+                        repostingPostIds = feedState.repostingPostIds.takeIf { feedBelongsToUser }.orEmpty(),
+                        actionErrorPostId = feedState.actionErrorPostId.takeIf { feedBelongsToUser },
+                        actionErrorMessage = feedState.actionErrorMessage.takeIf { feedBelongsToUser },
                         onCreatePost = {
                             feedOwner.clearPostError()
                             backStack.add(NovaRoute.CreatePost)

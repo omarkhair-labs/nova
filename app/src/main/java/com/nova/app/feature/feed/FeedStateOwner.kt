@@ -10,10 +10,12 @@ import com.nova.app.feature.posts.data.PostRepository
 import com.nova.app.feature.posts.data.PostRepostRepository
 import com.nova.app.feature.posts.domain.model.NovaPost
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 
 data class FeedUiState(
+    val userId: Long? = null,
     val posts: List<NovaPost> = emptyList(),
     val isLoading: Boolean = false,
     val isLoadingMore: Boolean = false,
@@ -46,7 +48,18 @@ class FeedStateOwner(
     var state by mutableStateOf(FeedUiState())
         private set
 
+    private var accountGeneration = 0
+    private var actionRevision = 0
+    private val likeRevisions = mutableMapOf<Long, Int>()
+    private val repostRevisions = mutableMapOf<Long, Int>()
+    private val repostRemovalRevisions = mutableMapOf<Long, Int>()
+    private var firstPageJob: Job? = null
+
     fun reset() {
+        firstPageJob?.cancel()
+        firstPageJob = null
+        accountGeneration += 1
+        clearActionTracking()
         state = FeedUiState(
             contentVersion = state.contentVersion + 1,
             sessionExpiryVersion = state.sessionExpiryVersion,
@@ -55,33 +68,74 @@ class FeedStateOwner(
         )
     }
 
+    fun enter(userId: Long) {
+        if (userId <= 0L) {
+            reset()
+            return
+        }
+        if (state.userId == userId) return
+
+        firstPageJob?.cancel()
+        accountGeneration += 1
+        clearActionTracking()
+        val generation = accountGeneration
+        val refreshActionRevision = actionRevision
+        val cached = feedRepository.cachedFeed(userId)
+        state = FeedUiState(
+            userId = userId,
+            posts = cached?.posts.orEmpty(),
+            nextCursor = cached?.nextCursor,
+            isLoading = true,
+            contentVersion = state.contentVersion + 1,
+            sessionExpiryVersion = state.sessionExpiryVersion,
+            profileRefreshVersion = state.profileRefreshVersion,
+            postCreatedVersion = state.postCreatedVersion,
+        )
+        firstPageJob = scope.launch {
+            refreshFirstPage(userId, generation, refreshActionRevision)
+        }
+    }
+
     fun clearPostError() {
         state = state.copy(postErrorMessage = null)
     }
 
     fun loadFeed() {
         if (state.isLoading || state.isLoadingMore) return
-        scope.launch { loadFeedNow() }
+        firstPageJob = scope.launch { loadFeedNow() }
     }
 
     internal suspend fun loadFeedNow() {
         if (state.isLoading || state.isLoadingMore) return
+        val expectedUserId = state.userId
+        val generation = accountGeneration
+        val refreshActionRevision = actionRevision
         state = state.copy(
             isLoading = true,
             errorMessage = null,
             actionErrorPostId = null,
             actionErrorMessage = null,
         )
+        refreshFirstPage(expectedUserId, generation, refreshActionRevision)
+    }
+
+    private suspend fun refreshFirstPage(
+        expectedUserId: Long?,
+        generation: Int,
+        refreshActionRevision: Int = actionRevision,
+    ) {
         when (val result = feedRepository.feed()) {
             is ApiResult.Success -> {
+                if (!isCurrentAccount(expectedUserId, generation)) return
                 state = state.copy(
-                    posts = result.value.posts,
+                    posts = reconcileRefreshPosts(result.value.posts, refreshActionRevision),
                     nextCursor = result.value.nextCursor,
                     isLoading = false,
                 )
             }
 
             is ApiResult.Failure -> {
+                if (!isCurrentAccount(expectedUserId, generation)) return
                 state = if (result.statusCode == 401) {
                     state.copy(
                         isLoading = false,
@@ -102,9 +156,12 @@ class FeedStateOwner(
 
     internal suspend fun loadMoreNow(cursor: String) {
         if (state.isLoading || state.isLoadingMore) return
+        val expectedUserId = state.userId
+        val generation = accountGeneration
         state = state.copy(isLoadingMore = true, errorMessage = null)
         when (val result = feedRepository.feed(cursor)) {
             is ApiResult.Success -> {
+                if (!isCurrentAccount(expectedUserId, generation)) return
                 state = state.copy(
                     posts = mergeFeedPage(state.posts, result.value.posts),
                     nextCursor = result.value.nextCursor,
@@ -113,6 +170,7 @@ class FeedStateOwner(
             }
 
             is ApiResult.Failure -> {
+                if (!isCurrentAccount(expectedUserId, generation)) return
                 state = if (result.statusCode == 401) {
                     state.copy(
                         isLoadingMore = false,
@@ -132,9 +190,12 @@ class FeedStateOwner(
 
     internal suspend fun deletePostNow(post: NovaPost) {
         if (state.deletingPostId != null || !post.isMine) return
+        val expectedUserId = state.userId
+        val generation = accountGeneration
         state = state.copy(deletingPostId = post.id, errorMessage = null)
         when (val result = postRepository.deletePost(post.id)) {
             is ApiResult.Success -> {
+                if (!isCurrentAccount(expectedUserId, generation)) return
                 state = state.copy(
                     posts = state.posts.filterNot { it.id == post.id },
                     deletingPostId = null,
@@ -144,6 +205,7 @@ class FeedStateOwner(
             }
 
             is ApiResult.Failure -> {
+                if (!isCurrentAccount(expectedUserId, generation)) return
                 state = if (result.statusCode == 401) {
                     state.copy(
                         deletingPostId = null,
@@ -163,9 +225,18 @@ class FeedStateOwner(
 
     internal suspend fun toggleLikeNow(post: NovaPost) {
         if (post.id in state.likingPostIds) return
-        val optimistic = post.copy(
-            isLiked = !post.isLiked,
-            likesCount = (post.likesCount + if (post.isLiked) -1 else 1).coerceAtLeast(0),
+        val expectedUserId = state.userId
+        val generation = accountGeneration
+        val current = state.posts.firstOrNull { it.id == post.id } ?: return
+        val previousIsLiked = current.isLiked
+        val previousLikesCount = current.likesCount
+        val optimisticIsLiked = !current.isLiked
+        val optimisticLikesCount = (
+            current.likesCount + if (current.isLiked) -1 else 1
+        ).coerceAtLeast(0)
+        val optimistic = current.copy(
+            isLiked = optimisticIsLiked,
+            likesCount = optimisticLikesCount,
         )
         state = state.copy(
             posts = replacePost(state.posts, optimistic),
@@ -174,22 +245,37 @@ class FeedStateOwner(
             actionErrorPostId = null,
             actionErrorMessage = null,
         )
+        markLikeChanged(post.id)
         when (
             val result = postRepository.setLiked(
                 postId = post.id,
-                liked = optimistic.isLiked,
+                liked = optimisticIsLiked,
             )
         ) {
             is ApiResult.Success -> {
+                if (!isCurrentAccount(expectedUserId, generation)) return
+                markLikeChanged(post.id)
                 state = state.copy(
-                    posts = replacePost(state.posts, result.value),
+                    posts = updatePost(state.posts, post.id) { latest ->
+                        latest.copy(
+                            isLiked = result.value.isLiked,
+                            likesCount = result.value.likesCount,
+                        )
+                    },
                     likingPostIds = state.likingPostIds - post.id,
                     contentVersion = state.contentVersion + 1,
                 )
             }
 
             is ApiResult.Failure -> {
-                val rolledBack = replacePost(state.posts, post)
+                if (!isCurrentAccount(expectedUserId, generation)) return
+                markLikeChanged(post.id)
+                val rolledBack = updatePost(state.posts, post.id) { latest ->
+                    latest.copy(
+                        isLiked = previousIsLiked,
+                        likesCount = previousLikesCount,
+                    )
+                }
                 state = if (result.statusCode == 401) {
                     state.copy(
                         posts = rolledBack,
@@ -215,9 +301,19 @@ class FeedStateOwner(
 
     internal suspend fun toggleRepostNow(post: NovaPost) {
         if (post.id in state.repostingPostIds) return
-        val optimistic = post.copy(
-            isReposted = !post.isReposted,
-            repostsCount = (post.repostsCount + if (post.isReposted) -1 else 1).coerceAtLeast(0),
+        val expectedUserId = state.userId
+        val generation = accountGeneration
+        val current = state.posts.firstOrNull { it.id == post.id } ?: return
+        val previousIsReposted = current.isReposted
+        val previousRepostsCount = current.repostsCount
+        val previousRepostedBy = current.repostedBy
+        val optimisticIsReposted = !current.isReposted
+        val optimisticRepostsCount = (
+            current.repostsCount + if (current.isReposted) -1 else 1
+        ).coerceAtLeast(0)
+        val optimistic = current.copy(
+            isReposted = optimisticIsReposted,
+            repostsCount = optimisticRepostsCount,
         )
         state = state.copy(
             posts = replacePost(state.posts, optimistic),
@@ -226,16 +322,25 @@ class FeedStateOwner(
             actionErrorPostId = null,
             actionErrorMessage = null,
         )
-        when (val result = repostRepository.setPostReposted(post.id, optimistic.isReposted)) {
+        markRepostChanged(post.id)
+        when (val result = repostRepository.setPostReposted(post.id, optimisticIsReposted)) {
             is ApiResult.Success -> {
-                val updated = optimistic.copy(
-                    repostsCount = result.value.repostsCount,
-                    isReposted = result.value.isReposted,
-                    repostedBy = result.value.repostedBy,
-                )
+                if (!isCurrentAccount(expectedUserId, generation)) return
+                val revision = markRepostChanged(post.id)
+                if (result.value.stillInFeed) {
+                    repostRemovalRevisions.remove(post.id)
+                } else {
+                    repostRemovalRevisions[post.id] = revision
+                }
                 state = state.copy(
                     posts = if (result.value.stillInFeed) {
-                        replacePost(state.posts, updated)
+                        updatePost(state.posts, post.id) { latest ->
+                            latest.copy(
+                                repostsCount = result.value.repostsCount,
+                                isReposted = result.value.isReposted,
+                                repostedBy = result.value.repostedBy,
+                            )
+                        }
                     } else {
                         state.posts.filterNot { it.id == post.id }
                     },
@@ -245,15 +350,24 @@ class FeedStateOwner(
                 )
             }
             is ApiResult.Failure -> {
+                if (!isCurrentAccount(expectedUserId, generation)) return
+                markRepostChanged(post.id)
+                val rolledBack = updatePost(state.posts, post.id) { latest ->
+                    latest.copy(
+                        isReposted = previousIsReposted,
+                        repostsCount = previousRepostsCount,
+                        repostedBy = previousRepostedBy,
+                    )
+                }
                 state = if (result.statusCode == 401) {
                     state.copy(
-                        posts = replacePost(state.posts, post),
+                        posts = rolledBack,
                         repostingPostIds = state.repostingPostIds - post.id,
                         sessionExpiryVersion = state.sessionExpiryVersion + 1,
                     )
                 } else {
                     state.copy(
-                        posts = replacePost(state.posts, post),
+                        posts = rolledBack,
                         repostingPostIds = state.repostingPostIds - post.id,
                         actionErrorPostId = post.id,
                         actionErrorMessage = "Repost wasn't saved. ${result.message}",
@@ -270,9 +384,12 @@ class FeedStateOwner(
 
     internal suspend fun createPostNow(caption: String, imageUri: Uri) {
         if (state.isUploadingPost) return
+        val expectedUserId = state.userId
+        val generation = accountGeneration
         state = state.copy(isUploadingPost = true, postErrorMessage = null)
         when (val result = postRepository.createPost(caption, imageUri)) {
             is ApiResult.Success -> {
+                if (!isCurrentAccount(expectedUserId, generation)) return
                 state = state.copy(
                     posts = listOf(result.value) + state.posts.filterNot { it.id == result.value.id },
                     isUploadingPost = false,
@@ -283,6 +400,7 @@ class FeedStateOwner(
             }
 
             is ApiResult.Failure -> {
+                if (!isCurrentAccount(expectedUserId, generation)) return
                 state = if (result.statusCode == 401) {
                     state.copy(
                         isUploadingPost = false,
@@ -316,8 +434,66 @@ class FeedStateOwner(
     fun markContentChanged() {
         state = state.copy(contentVersion = state.contentVersion + 1)
     }
+
+    private fun isCurrentAccount(expectedUserId: Long?, generation: Int): Boolean =
+        generation == accountGeneration && expectedUserId == state.userId
+
+    private fun clearActionTracking() {
+        likeRevisions.clear()
+        repostRevisions.clear()
+        repostRemovalRevisions.clear()
+    }
+
+    private fun markLikeChanged(postId: Long) {
+        actionRevision += 1
+        likeRevisions[postId] = actionRevision
+    }
+
+    private fun markRepostChanged(postId: Long): Int {
+        actionRevision += 1
+        repostRevisions[postId] = actionRevision
+        return actionRevision
+    }
+
+    private fun reconcileRefreshPosts(
+        serverPosts: List<NovaPost>,
+        refreshActionRevision: Int,
+    ): List<NovaPost> {
+        val localById = state.posts.associateBy(NovaPost::id)
+        return serverPosts.mapNotNull { serverPost ->
+            if ((repostRemovalRevisions[serverPost.id] ?: 0) > refreshActionRevision) {
+                return@mapNotNull null
+            }
+
+            val localPost = localById[serverPost.id] ?: return@mapNotNull serverPost
+            var reconciled = serverPost
+            if ((likeRevisions[serverPost.id] ?: 0) > refreshActionRevision) {
+                reconciled = reconciled.copy(
+                    isLiked = localPost.isLiked,
+                    likesCount = localPost.likesCount,
+                )
+            }
+            if ((repostRevisions[serverPost.id] ?: 0) > refreshActionRevision) {
+                reconciled = reconciled.copy(
+                    isReposted = localPost.isReposted,
+                    repostsCount = localPost.repostsCount,
+                    repostedBy = localPost.repostedBy,
+                )
+            }
+            reconciled
+        }
+    }
 }
 
 
 internal fun replacePost(posts: List<NovaPost>, updated: NovaPost): List<NovaPost> =
     posts.map { existing -> if (existing.id == updated.id) updated else existing }
+
+
+private inline fun updatePost(
+    posts: List<NovaPost>,
+    postId: Long,
+    update: (NovaPost) -> NovaPost,
+): List<NovaPost> = posts.map { existing ->
+    if (existing.id == postId) update(existing) else existing
+}

@@ -165,7 +165,7 @@ Quality gates decide completion, not elapsed time.
 
 ### Flow 1 — Social core
 
-Status: `PR READY` — implementation complete locally; Samsung device review is still required
+Status: `PR READY` — implementation and correctness follow-up are complete on PR #206; Samsung device review is still required
 
 **Home/Feed → Post presentation → Like/social actions → Repost/Share → Post Detail → Comments/Replies/Composer**
 
@@ -178,6 +178,8 @@ Primary goals:
 - remove weak generic Post chrome and excessive cardification;
 - verify loading/empty/error/optimistic states;
 - run an adjacent seam scan before closing.
+
+PR #206 now includes cache-first, per-account feed startup with a background authoritative refresh; field-scoped Like/Repost reconciliation across Feed and Post Detail; and adaptive, single-line social-count actions. Focused regression coverage includes interleaved Like/Repost outcomes, cached-feed hydration, account switching, duplicate startup prevention and compact-count formatting. Real-device judgment remains open for startup transitions, action-row density and interaction feel on Samsung hardware.
 
 Do not redesign the full application in this PR.
 
