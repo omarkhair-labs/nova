@@ -39,12 +39,14 @@ fun PostDetailScreen(
     post: NovaPost?,
     isLoading: Boolean,
     isLiking: Boolean,
+    isReposting: Boolean,
     isDeleting: Boolean,
     errorMessage: String?,
     onBack: () -> Unit,
     onRetry: () -> Unit,
     onAuthorClick: (String) -> Unit,
     onLikeToggle: (NovaPost) -> Unit,
+    onRepostToggle: (NovaPost) -> Unit,
     onCommentsClick: (NovaPost) -> Unit,
     onDelete: (NovaPost) -> Unit,
 ) {
@@ -118,20 +120,16 @@ fun PostDetailScreen(
                     post = post,
                     isDeleting = isDeleting,
                     isLiking = isLiking,
+                    isReposting = isReposting,
+                    actionErrorMessage = errorMessage,
                     onAuthorClick = { onAuthorClick(post.author.username) },
+                    onReposterClick = onAuthorClick,
+                    onOpenPost = {},
                     onLikeToggle = { onLikeToggle(post) },
                     onCommentsClick = { onCommentsClick(post) },
+                    onRepostToggle = { onRepostToggle(post) },
                     onDelete = { onDelete(post) },
                 )
-
-                if (errorMessage != null) {
-                    Text(
-                        text = errorMessage,
-                        color = NovaMuted,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(top = 12.dp),
-                    )
-                }
             }
         }
 

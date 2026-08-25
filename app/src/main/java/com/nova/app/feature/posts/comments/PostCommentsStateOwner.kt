@@ -7,6 +7,7 @@ import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.posts.data.PostRepository
 import com.nova.app.feature.posts.domain.model.NovaComment
 import com.nova.app.feature.posts.domain.model.NovaPost
+import com.nova.app.feature.posts.domain.model.NovaPostAuthor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -19,7 +20,7 @@ data class PostCommentsUiState(
     val deletingCommentId: Long? = null,
     val isReplySending: Boolean = false,
     val deletingReplyId: Long? = null,
-    val likingCommentId: Long? = null,
+    val likingCommentIds: Set<Long> = emptySet(),
     val errorMessage: String? = null,
     val replyErrorMessage: String? = null,
     val sessionExpiryVersion: Int = 0,
@@ -31,11 +32,13 @@ data class PostCommentsUiState(
 class PostCommentsStateOwner(
     private val postId: Long,
     initialPost: NovaPost?,
+    private val currentUser: NovaPostAuthor,
     private val repository: PostRepository,
     private val scope: CoroutineScope,
 ) {
     var state by mutableStateOf(PostCommentsUiState(post = initialPost))
         private set
+    private var nextOptimisticId = -1L
 
     fun load() {
         scope.launch { loadNow() }
@@ -90,11 +93,25 @@ class PostCommentsStateOwner(
 
     internal suspend fun sendCommentNow(body: String) {
         if (state.isSending) return
-        state = state.copy(isSending = true, errorMessage = null)
-        when (val result = repository.addComment(postId = postId, body = body)) {
+        val cleanBody = body.trim()
+        if (cleanBody.isBlank()) return
+        val originalPost = state.post
+        val optimistic = optimisticComment(cleanBody)
+        val optimisticPost = state.post?.let {
+            it.copy(commentsCount = it.commentsCount + 1)
+        }
+        state = state.copy(
+            comments = state.comments + optimistic,
+            post = optimisticPost,
+            isSending = true,
+            errorMessage = null,
+        )
+        when (val result = repository.addComment(postId = postId, body = cleanBody)) {
             is ApiResult.Success -> {
                 state = state.copy(
-                    comments = state.comments + result.value.comment,
+                    comments = state.comments.map {
+                        if (it.id == optimistic.id) result.value.comment else it
+                    },
                     post = result.value.post,
                     isSending = false,
                     contentMutationVersion = state.contentMutationVersion + 1,
@@ -102,13 +119,21 @@ class PostCommentsStateOwner(
             }
 
             is ApiResult.Failure -> {
+                val rolledBack = state.comments.filterNot { it.id == optimistic.id }
                 state = if (result.statusCode == 401) {
                     state.copy(
+                        comments = rolledBack,
+                        post = originalPost,
                         isSending = false,
                         sessionExpiryVersion = state.sessionExpiryVersion + 1,
                     )
                 } else {
-                    state.copy(isSending = false, errorMessage = result.message)
+                    state.copy(
+                        comments = rolledBack,
+                        post = originalPost,
+                        isSending = false,
+                        errorMessage = result.message,
+                    )
                 }
             }
         }
@@ -152,17 +177,24 @@ class PostCommentsStateOwner(
 
     internal suspend fun sendReplyNow(parent: NovaComment, body: String) {
         if (state.isReplySending) return
-        state = state.copy(isReplySending = true, replyErrorMessage = null)
+        val cleanBody = body.trim()
+        if (cleanBody.isBlank()) return
+        val optimistic = optimisticComment(cleanBody, parent.id)
+        state = state.copy(
+            comments = appendReply(state.comments, optimistic),
+            isReplySending = true,
+            replyErrorMessage = null,
+        )
         when (
             val result = repository.addComment(
                 postId = postId,
-                body = body,
+                body = cleanBody,
                 parentId = parent.id,
             )
         ) {
             is ApiResult.Success -> {
                 state = state.copy(
-                    comments = appendReply(state.comments, result.value.comment),
+                    comments = replaceReply(state.comments, optimistic.id, result.value.comment),
                     isReplySending = false,
                 )
             }
@@ -170,6 +202,7 @@ class PostCommentsStateOwner(
             is ApiResult.Failure -> {
                 // Preserve legacy reply behavior: surface the error locally instead of expiring the session.
                 state = state.copy(
+                    comments = removeReply(state.comments, optimistic),
                     isReplySending = false,
                     replyErrorMessage = result.message,
                 )
@@ -183,33 +216,45 @@ class PostCommentsStateOwner(
     }
 
     fun toggleLike(comment: NovaComment) {
-        if (state.likingCommentId != null) return
+        if (comment.id in state.likingCommentIds || comment.id < 0L) return
         scope.launch {
-            state = state.copy(likingCommentId = comment.id, replyErrorMessage = null)
+            val optimistic = comment.copy(
+                isLiked = !comment.isLiked,
+                likesCount = (comment.likesCount + if (comment.isLiked) -1 else 1).coerceAtLeast(0),
+            )
+            state = state.copy(
+                comments = replaceComment(state.comments, optimistic),
+                likingCommentIds = state.likingCommentIds + comment.id,
+                replyErrorMessage = null,
+            )
             when (
                 val result = repository.setCommentLiked(
                     commentId = comment.id,
-                    liked = !comment.isLiked,
+                    liked = optimistic.isLiked,
                     isReply = comment.parentId != null,
                 )
             ) {
                 is ApiResult.Success -> {
                     val updated = result.value
-                    state = state.copy(
-                        comments = if (updated.parentId == null) {
-                            state.comments.map { if (it.id == updated.id) updated.copy(replies = it.replies) else it }
-                        } else {
-                            state.comments.map { parent ->
-                                parent.copy(replies = parent.replies.map { if (it.id == updated.id) updated else it })
-                            }
-                        },
-                    )
+                    state = state.copy(comments = replaceComment(state.comments, updated))
                 }
-                is ApiResult.Failure -> state = state.copy(replyErrorMessage = result.message)
+                is ApiResult.Failure -> state = state.copy(
+                    comments = replaceComment(state.comments, comment),
+                    replyErrorMessage = "Reaction wasn't saved. ${result.message}",
+                )
             }
-            state = state.copy(likingCommentId = null)
+            state = state.copy(likingCommentIds = state.likingCommentIds - comment.id)
         }
     }
+
+    private fun optimisticComment(body: String, parentId: Long? = null) = NovaComment(
+        id = nextOptimisticId--,
+        author = currentUser,
+        body = body,
+        createdAt = "",
+        isMine = true,
+        parentId = parentId,
+    )
 
     internal suspend fun deleteReplyNow(reply: NovaComment) {
         if (state.deletingReplyId != null || !reply.isMine) return
@@ -231,6 +276,27 @@ class PostCommentsStateOwner(
             }
         }
     }
+}
+
+
+internal fun replaceComment(comments: List<NovaComment>, updated: NovaComment): List<NovaComment> =
+    if (updated.parentId == null) {
+        comments.map { if (it.id == updated.id) updated.copy(replies = it.replies) else it }
+    } else {
+        comments.map { parent ->
+            parent.copy(replies = parent.replies.map { if (it.id == updated.id) updated else it })
+        }
+    }
+
+
+internal fun replaceReply(
+    comments: List<NovaComment>,
+    optimisticId: Long,
+    persisted: NovaComment,
+): List<NovaComment> = comments.map { parent ->
+    parent.copy(
+        replies = parent.replies.map { if (it.id == optimisticId) persisted else it },
+    )
 }
 
 

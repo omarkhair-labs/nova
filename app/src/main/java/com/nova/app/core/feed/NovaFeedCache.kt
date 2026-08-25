@@ -75,10 +75,23 @@ class NovaFeedCache(context: Context) {
             .put("likes_count", post.likesCount)
             .put("comments_count", post.commentsCount)
             .put("is_liked", post.isLiked)
+            .put("reposts_count", post.repostsCount)
+            .put("is_reposted", post.isReposted)
+            .put(
+                "reposted_by",
+                post.repostedBy?.let {
+                    JSONObject()
+                        .put("id", it.id)
+                        .put("username", it.username)
+                        .put("name", it.name)
+                        .put("avatar_url", it.avatarUrl)
+                } ?: JSONObject.NULL,
+            )
     }
 
     private fun jsonToPost(json: JSONObject): NovaPost {
         val author = json.optJSONObject("author") ?: JSONObject()
+        val reposter = json.optJSONObject("reposted_by")
         return NovaPost(
             id = json.optLong("id"),
             author = NovaPostAuthor(
@@ -94,6 +107,16 @@ class NovaFeedCache(context: Context) {
             likesCount = json.optInt("likes_count", 0),
             commentsCount = json.optInt("comments_count", 0),
             isLiked = json.optBoolean("is_liked", false),
+            repostsCount = json.optInt("reposts_count", 0),
+            isReposted = json.optBoolean("is_reposted", false),
+            repostedBy = reposter?.let {
+                NovaPostAuthor(
+                    id = it.optLong("id"),
+                    username = it.optString("username"),
+                    name = it.optString("name"),
+                    avatarUrl = it.optString("avatar_url"),
+                )
+            },
         )
     }
 

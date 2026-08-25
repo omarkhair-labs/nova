@@ -52,6 +52,9 @@ internal fun parseNovaPost(
     resolveMediaUrl: (String) -> String,
 ): NovaPost {
     val author = json.optJSONObject("author") ?: JSONObject()
+    val repostedBy = json.optJSONObject("reposted_by")?.let {
+        parseNovaPostAuthor(it, resolveMediaUrl)
+    }
     return NovaPost(
         id = json.optLong("id"),
         author = parseNovaPostAuthor(author, resolveMediaUrl),
@@ -62,6 +65,9 @@ internal fun parseNovaPost(
         likesCount = json.optInt("likes_count", 0),
         commentsCount = json.optInt("comments_count", 0),
         isLiked = json.optBoolean("is_liked", false),
+        repostsCount = json.optInt("reposts_count", 0),
+        isReposted = json.optBoolean("is_reposted", false),
+        repostedBy = repostedBy,
     )
 }
 

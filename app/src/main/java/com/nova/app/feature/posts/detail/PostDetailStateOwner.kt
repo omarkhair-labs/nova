@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.posts.data.PostRepository
+import com.nova.app.feature.posts.data.PostRepostRepository
 import com.nova.app.feature.posts.domain.model.NovaPost
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -14,6 +15,7 @@ data class PostDetailUiState(
     val post: NovaPost? = null,
     val isLoading: Boolean = true,
     val isLiking: Boolean = false,
+    val isReposting: Boolean = false,
     val isDeleting: Boolean = false,
     val errorMessage: String? = null,
     val sessionExpiryVersion: Int = 0,
@@ -26,6 +28,7 @@ data class PostDetailUiState(
 class PostDetailStateOwner(
     private val postId: Long,
     private val repository: PostRepository,
+    private val repostRepository: PostRepostRepository,
     private val scope: CoroutineScope,
 ) {
     var state by mutableStateOf(PostDetailUiState())
@@ -66,11 +69,15 @@ class PostDetailStateOwner(
 
     internal suspend fun toggleLikeNow(post: NovaPost) {
         if (state.isLiking) return
-        state = state.copy(isLiking = true, errorMessage = null)
+        val optimistic = post.copy(
+            isLiked = !post.isLiked,
+            likesCount = (post.likesCount + if (post.isLiked) -1 else 1).coerceAtLeast(0),
+        )
+        state = state.copy(post = optimistic, isLiking = true, errorMessage = null)
         when (
             val result = repository.setLiked(
                 postId = post.id,
-                liked = !post.isLiked,
+                liked = optimistic.isLiked,
             )
         ) {
             is ApiResult.Success -> {
@@ -84,11 +91,48 @@ class PostDetailStateOwner(
             is ApiResult.Failure -> {
                 state = if (result.statusCode == 401) {
                     state.copy(
+                        post = post,
                         isLiking = false,
                         sessionExpiryVersion = state.sessionExpiryVersion + 1,
                     )
                 } else {
-                    state.copy(isLiking = false, errorMessage = result.message)
+                    state.copy(post = post, isLiking = false, errorMessage = result.message)
+                }
+            }
+        }
+    }
+
+    fun toggleRepost(post: NovaPost) {
+        if (state.isReposting) return
+        scope.launch { toggleRepostNow(post) }
+    }
+
+    internal suspend fun toggleRepostNow(post: NovaPost) {
+        if (state.isReposting) return
+        val optimistic = post.copy(
+            isReposted = !post.isReposted,
+            repostsCount = (post.repostsCount + if (post.isReposted) -1 else 1).coerceAtLeast(0),
+        )
+        state = state.copy(post = optimistic, isReposting = true, errorMessage = null)
+        when (val result = repostRepository.setPostReposted(post.id, optimistic.isReposted)) {
+            is ApiResult.Success -> state = state.copy(
+                post = optimistic.copy(
+                    repostsCount = result.value.repostsCount,
+                    isReposted = result.value.isReposted,
+                    repostedBy = result.value.repostedBy,
+                ),
+                isReposting = false,
+                contentMutationVersion = state.contentMutationVersion + 1,
+            )
+            is ApiResult.Failure -> {
+                state = if (result.statusCode == 401) {
+                    state.copy(
+                        post = post,
+                        isReposting = false,
+                        sessionExpiryVersion = state.sessionExpiryVersion + 1,
+                    )
+                } else {
+                    state.copy(post = post, isReposting = false, errorMessage = result.message)
                 }
             }
         }

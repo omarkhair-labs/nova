@@ -4,6 +4,8 @@ import android.net.Uri
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.feed.data.FeedRepository
 import com.nova.app.feature.posts.data.PostRepository
+import com.nova.app.feature.posts.data.PostRepostRepository
+import com.nova.app.feature.posts.data.PostRepostResult
 import com.nova.app.feature.posts.domain.model.NovaComment
 import com.nova.app.feature.posts.domain.model.NovaCommentMutation
 import com.nova.app.feature.posts.domain.model.NovaPost
@@ -15,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 
@@ -25,7 +28,12 @@ class FeedStateOwnerTest {
             ApiResult.Success(NovaPostPage(listOf(post(1)), "next")),
             ApiResult.Success(NovaPostPage(listOf(post(1), post(2), post(2), post(3)), null)),
         )
-        val owner = FeedStateOwner(feed, NoOpPostRepository(), CoroutineScope(Dispatchers.Unconfined))
+        val owner = FeedStateOwner(
+            feed,
+            NoOpPostRepository(),
+            NoOpPostRepostRepository(),
+            CoroutineScope(Dispatchers.Unconfined),
+        )
 
         owner.loadFeedNow()
         owner.loadMoreNow("next")
@@ -40,6 +48,7 @@ class FeedStateOwnerTest {
         val owner = FeedStateOwner(
             QueueFeedRepository(ApiResult.Failure("expired", 401)),
             NoOpPostRepository(),
+            NoOpPostRepostRepository(),
             CoroutineScope(Dispatchers.Unconfined),
         )
 
@@ -50,6 +59,45 @@ class FeedStateOwnerTest {
         assertFalse(owner.state.isLoading)
     }
 
+    @Test
+    fun `like failure rolls optimistic state back and keeps the error beside the post`() = runBlocking {
+        val original = post(5).copy(likesCount = 8, isLiked = false)
+        val owner = FeedStateOwner(
+            QueueFeedRepository(ApiResult.Success(NovaPostPage(listOf(original), null))),
+            LikePostRepository(ApiResult.Failure("offline")),
+            NoOpPostRepostRepository(),
+            CoroutineScope(Dispatchers.Unconfined),
+        )
+        owner.loadFeedNow()
+
+        owner.toggleLikeNow(original)
+
+        assertEquals(original, owner.state.posts.single())
+        assertEquals(5L, owner.state.actionErrorPostId)
+        assertTrue(owner.state.actionErrorMessage.orEmpty().contains("offline"))
+        assertTrue(owner.state.likingPostIds.isEmpty())
+    }
+
+    @Test
+    fun `repost success commits server counts and removes a feed-only repost when requested`() = runBlocking {
+        val original = post(9).copy(repostsCount = 2, isReposted = true)
+        val owner = FeedStateOwner(
+            QueueFeedRepository(ApiResult.Success(NovaPostPage(listOf(original), null))),
+            NoOpPostRepository(),
+            QueuePostRepostRepository(
+                ApiResult.Success(PostRepostResult(9, 1, false, false, null))
+            ),
+            CoroutineScope(Dispatchers.Unconfined),
+        )
+        owner.loadFeedNow()
+
+        owner.toggleRepostNow(original)
+
+        assertTrue(owner.state.posts.isEmpty())
+        assertTrue(owner.state.repostingPostIds.isEmpty())
+        assertEquals(1, owner.state.profileRefreshVersion)
+    }
+
     private fun post(id: Long) = NovaPost(
         id = id,
         author = NovaPostAuthor(7L, "author", "Author", ""),
@@ -58,6 +106,28 @@ class FeedStateOwnerTest {
         createdAt = "",
         isMine = false,
     )
+}
+
+
+private class NoOpPostRepostRepository : PostRepostRepository {
+    override suspend fun setPostReposted(
+        postId: Long,
+        reposted: Boolean,
+    ): ApiResult<PostRepostResult> = error("not used")
+}
+
+
+private class QueuePostRepostRepository(
+    private val result: ApiResult<PostRepostResult>,
+) : PostRepostRepository {
+    override suspend fun setPostReposted(postId: Long, reposted: Boolean) = result
+}
+
+
+private class LikePostRepository(
+    private val result: ApiResult<NovaPost>,
+) : NoOpPostRepository() {
+    override suspend fun setLiked(postId: Long, liked: Boolean): ApiResult<NovaPost> = result
 }
 
 
@@ -72,16 +142,16 @@ private class QueueFeedRepository(
 }
 
 
-private class NoOpPostRepository : PostRepository {
+private open class NoOpPostRepository : PostRepository {
     override suspend fun personPosts(username: String): ApiResult<List<NovaPost>> = unsupported()
     override suspend fun post(postId: Long): ApiResult<NovaPost> = unsupported()
     override suspend fun createPost(caption: String, imageUri: Uri): ApiResult<NovaPost> = unsupported()
     override suspend fun deletePost(postId: Long): ApiResult<Unit> = unsupported()
-    override suspend fun setLiked(postId: Long, liked: Boolean): ApiResult<NovaPost> = unsupported()
+    open override suspend fun setLiked(postId: Long, liked: Boolean): ApiResult<NovaPost> = unsupported()
     override suspend fun comments(postId: Long): ApiResult<List<NovaComment>> = unsupported()
     override suspend fun addComment(postId: Long, body: String, parentId: Long?): ApiResult<NovaCommentMutation> = unsupported()
     override suspend fun deleteComment(commentId: Long): ApiResult<NovaPost> = unsupported()
     override suspend fun deleteCommentReply(replyId: Long): ApiResult<NovaPost> = unsupported()
 
-    private fun <T> unsupported(): T = error("not used")
+    protected fun <T> unsupported(): T = error("not used")
 }

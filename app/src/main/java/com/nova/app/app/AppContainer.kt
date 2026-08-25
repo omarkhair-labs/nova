@@ -57,6 +57,8 @@ import com.nova.app.feature.people.data.PeoplePagingRepository
 import com.nova.app.feature.people.data.PeopleRepository
 import com.nova.app.feature.people.data.remote.PeoplePagingRemoteRepository
 import com.nova.app.feature.posts.data.PostRepository
+import com.nova.app.feature.posts.data.PostRepostRepository
+import com.nova.app.feature.posts.data.remote.PostRepostRemoteRepository
 import com.nova.app.feature.posts.domain.model.NovaPostAuthor
 import com.nova.app.feature.privacy.data.FollowRequestRepository
 import com.nova.app.feature.privacy.data.PrivacyRepository
@@ -89,6 +91,9 @@ class AppContainer(context: Context) {
     val feedRepository = NovaFeedRepository(appContext, api)
     val feedDataRepository: FeedRepository = feedRepository
     val postDataRepository: PostRepository = feedRepository
+    val postRepostRepository: PostRepostRepository = PostRepostRemoteRepository(
+        NovaSharingRepository(appContext),
+    )
     val messagingRepository: MessagesRepository = NovaMessagingRepository(appContext, messagingApi, api)
     val inboxRepository: InboxRepository = NovaInboxPagingRepository(appContext)
     val conversationToolsRepository: ConversationToolsRepository = ConversationToolsRemoteRepository(appContext)

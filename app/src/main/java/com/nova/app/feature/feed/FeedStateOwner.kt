@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.feed.data.FeedRepository
 import com.nova.app.feature.posts.data.PostRepository
+import com.nova.app.feature.posts.data.PostRepostRepository
 import com.nova.app.feature.posts.domain.model.NovaPost
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -19,9 +20,12 @@ data class FeedUiState(
     val nextCursor: String? = null,
     val errorMessage: String? = null,
     val deletingPostId: Long? = null,
-    val likingPostId: Long? = null,
+    val likingPostIds: Set<Long> = emptySet(),
+    val repostingPostIds: Set<Long> = emptySet(),
     val isUploadingPost: Boolean = false,
     val postErrorMessage: String? = null,
+    val actionErrorPostId: Long? = null,
+    val actionErrorMessage: String? = null,
     val contentVersion: Int = 0,
     val sessionExpiryVersion: Int = 0,
     val profileRefreshVersion: Int = 0,
@@ -36,6 +40,7 @@ data class FeedUiState(
 class FeedStateOwner(
     private val feedRepository: FeedRepository,
     private val postRepository: PostRepository,
+    private val repostRepository: PostRepostRepository,
     private val scope: CoroutineScope,
 ) {
     var state by mutableStateOf(FeedUiState())
@@ -61,7 +66,12 @@ class FeedStateOwner(
 
     internal suspend fun loadFeedNow() {
         if (state.isLoading || state.isLoadingMore) return
-        state = state.copy(isLoading = true, errorMessage = null)
+        state = state.copy(
+            isLoading = true,
+            errorMessage = null,
+            actionErrorPostId = null,
+            actionErrorMessage = null,
+        )
         when (val result = feedRepository.feed()) {
             is ApiResult.Success -> {
                 state = state.copy(
@@ -147,35 +157,107 @@ class FeedStateOwner(
     }
 
     fun toggleLike(post: NovaPost) {
-        if (state.likingPostId != null) return
+        if (post.id in state.likingPostIds) return
         scope.launch { toggleLikeNow(post) }
     }
 
     internal suspend fun toggleLikeNow(post: NovaPost) {
-        if (state.likingPostId != null) return
-        state = state.copy(likingPostId = post.id, errorMessage = null)
+        if (post.id in state.likingPostIds) return
+        val optimistic = post.copy(
+            isLiked = !post.isLiked,
+            likesCount = (post.likesCount + if (post.isLiked) -1 else 1).coerceAtLeast(0),
+        )
+        state = state.copy(
+            posts = replacePost(state.posts, optimistic),
+            likingPostIds = state.likingPostIds + post.id,
+            errorMessage = null,
+            actionErrorPostId = null,
+            actionErrorMessage = null,
+        )
         when (
             val result = postRepository.setLiked(
                 postId = post.id,
-                liked = !post.isLiked,
+                liked = optimistic.isLiked,
             )
         ) {
             is ApiResult.Success -> {
                 state = state.copy(
                     posts = replacePost(state.posts, result.value),
-                    likingPostId = null,
+                    likingPostIds = state.likingPostIds - post.id,
                     contentVersion = state.contentVersion + 1,
                 )
             }
 
             is ApiResult.Failure -> {
+                val rolledBack = replacePost(state.posts, post)
                 state = if (result.statusCode == 401) {
                     state.copy(
-                        likingPostId = null,
+                        posts = rolledBack,
+                        likingPostIds = state.likingPostIds - post.id,
                         sessionExpiryVersion = state.sessionExpiryVersion + 1,
                     )
                 } else {
-                    state.copy(likingPostId = null, errorMessage = result.message)
+                    state.copy(
+                        posts = rolledBack,
+                        likingPostIds = state.likingPostIds - post.id,
+                        actionErrorPostId = post.id,
+                        actionErrorMessage = "Like wasn't saved. ${result.message}",
+                    )
+                }
+            }
+        }
+    }
+
+    fun toggleRepost(post: NovaPost) {
+        if (post.id in state.repostingPostIds) return
+        scope.launch { toggleRepostNow(post) }
+    }
+
+    internal suspend fun toggleRepostNow(post: NovaPost) {
+        if (post.id in state.repostingPostIds) return
+        val optimistic = post.copy(
+            isReposted = !post.isReposted,
+            repostsCount = (post.repostsCount + if (post.isReposted) -1 else 1).coerceAtLeast(0),
+        )
+        state = state.copy(
+            posts = replacePost(state.posts, optimistic),
+            repostingPostIds = state.repostingPostIds + post.id,
+            errorMessage = null,
+            actionErrorPostId = null,
+            actionErrorMessage = null,
+        )
+        when (val result = repostRepository.setPostReposted(post.id, optimistic.isReposted)) {
+            is ApiResult.Success -> {
+                val updated = optimistic.copy(
+                    repostsCount = result.value.repostsCount,
+                    isReposted = result.value.isReposted,
+                    repostedBy = result.value.repostedBy,
+                )
+                state = state.copy(
+                    posts = if (result.value.stillInFeed) {
+                        replacePost(state.posts, updated)
+                    } else {
+                        state.posts.filterNot { it.id == post.id }
+                    },
+                    repostingPostIds = state.repostingPostIds - post.id,
+                    contentVersion = state.contentVersion + 1,
+                    profileRefreshVersion = state.profileRefreshVersion + 1,
+                )
+            }
+            is ApiResult.Failure -> {
+                state = if (result.statusCode == 401) {
+                    state.copy(
+                        posts = replacePost(state.posts, post),
+                        repostingPostIds = state.repostingPostIds - post.id,
+                        sessionExpiryVersion = state.sessionExpiryVersion + 1,
+                    )
+                } else {
+                    state.copy(
+                        posts = replacePost(state.posts, post),
+                        repostingPostIds = state.repostingPostIds - post.id,
+                        actionErrorPostId = post.id,
+                        actionErrorMessage = "Repost wasn't saved. ${result.message}",
+                    )
                 }
             }
         }

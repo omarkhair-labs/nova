@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -36,6 +37,8 @@ import com.nova.app.feature.reels.data.ReelsRepository
 import com.nova.app.feature.reels.domain.model.NovaReel
 import com.nova.app.feature.reels.domain.model.NovaReelComment
 import com.nova.app.ui.components.NovaAvatar
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
@@ -83,6 +86,7 @@ internal fun ThreadedReelCommentsSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
+                .imePadding()
                 .padding(horizontal = 18.dp),
         ) {
             Text(
@@ -180,9 +184,18 @@ internal fun ThreadedReelCommentsSheet(
                     )
                     Surface(
                         onClick = owner::cancelReply,
+                        modifier = Modifier.size(44.dp),
+                        shape = CircleShape,
                         color = Color.Transparent,
                     ) {
-                        Text("×", color = NovaMuted, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Box(contentAlignment = Alignment.Center) {
+                            NovaIcon(
+                                asset = NovaIconAsset.Close,
+                                contentDescription = "Cancel reply",
+                                modifier = Modifier.size(18.dp),
+                                tint = NovaMuted,
+                            )
+                        }
                     }
                 }
             }
@@ -228,7 +241,12 @@ internal fun ThreadedReelCommentsSheet(
                                 strokeWidth = 2.dp,
                             )
                         } else {
-                            Text("↑", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                            NovaIcon(
+                                asset = NovaIconAsset.Send,
+                                contentDescription = "Send Reel comment",
+                                modifier = Modifier.size(22.dp),
+                                tint = Color.White,
+                            )
                         }
                     }
                 }

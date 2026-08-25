@@ -165,7 +165,7 @@ Quality gates decide completion, not elapsed time.
 
 ### Flow 1 — Social core
 
-Status: `PLANNED`
+Status: `PR READY` — implementation complete locally; Samsung device review is still required
 
 **Home/Feed → Post presentation → Like/social actions → Repost/Share → Post Detail → Comments/Replies/Composer**
 

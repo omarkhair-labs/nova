@@ -111,6 +111,7 @@ class SharingStateOwnerTest {
             sharing.calls,
         )
         assertEquals("Sent to Crew", owner.state.message)
+        assertEquals(setOf(10L, 11L), owner.state.sentConversationIds)
         assertNull(owner.state.error)
     }
 

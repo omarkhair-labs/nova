@@ -31,6 +31,8 @@ data class SharingUiState(
     val busyUsername: String? = null,
     val busyConversationId: Long? = null,
     val addingToStory: Boolean = false,
+    val sentUsernames: Set<String> = emptySet(),
+    val sentConversationIds: Set<Long> = emptySet(),
     val message: String? = null,
     val error: String? = null,
 ) {
@@ -126,7 +128,10 @@ class SharingStateOwner(
             message = null,
         )
         when (val result = shareToPerson(person.username)) {
-            is ApiResult.Success -> state = state.copy(message = "Sent to @${person.username}")
+            is ApiResult.Success -> state = state.copy(
+                message = "Sent to @${person.username}",
+                sentUsernames = state.sentUsernames + person.username.lowercase(),
+            )
             is ApiResult.Failure -> state = state.copy(error = result.message)
         }
         state = state.copy(busyUsername = null)
@@ -149,7 +154,10 @@ class SharingStateOwner(
             shareToPerson(conversation.otherUser.username)
         }
         when (result) {
-            is ApiResult.Success -> state = state.copy(message = "Sent to ${conversation.displayName}")
+            is ApiResult.Success -> state = state.copy(
+                message = "Sent to ${conversation.displayName}",
+                sentConversationIds = state.sentConversationIds + conversation.id,
+            )
             is ApiResult.Failure -> state = state.copy(error = result.message)
         }
         state = state.copy(busyConversationId = null)

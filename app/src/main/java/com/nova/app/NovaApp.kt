@@ -44,6 +44,7 @@ import com.nova.app.feature.post.PostCommentsScreen
 import com.nova.app.feature.post.PostDetailScreen
 import com.nova.app.feature.posts.comments.PostCommentsStateOwner
 import com.nova.app.feature.posts.detail.PostDetailStateOwner
+import com.nova.app.feature.posts.domain.model.NovaPostAuthor
 import com.nova.app.feature.profile.EditProfileScreen
 import com.nova.app.feature.profile.ProfileContentStateOwner
 import com.nova.app.feature.profile.ProfileScreen
@@ -69,10 +70,11 @@ fun NovaApp(
     val peoplePagingRepository = appContainer.peoplePagingRepository
     val feedRepository = appContainer.feedDataRepository
     val postRepository = appContainer.postDataRepository
+    val postRepostRepository = appContainer.postRepostRepository
     val appState = appViewModel.state
     val scope = rememberCoroutineScope()
-    val feedOwner = remember(feedRepository, postRepository, scope) {
-        FeedStateOwner(feedRepository, postRepository, scope)
+    val feedOwner = remember(feedRepository, postRepository, postRepostRepository, scope) {
+        FeedStateOwner(feedRepository, postRepository, postRepostRepository, scope)
     }
     val feedState = feedOwner.state
 
@@ -352,7 +354,10 @@ fun NovaApp(
                         hasMore = feedState.hasMore,
                         errorMessage = feedState.errorMessage,
                         deletingPostId = feedState.deletingPostId,
-                        likingPostId = feedState.likingPostId,
+                        likingPostIds = feedState.likingPostIds,
+                        repostingPostIds = feedState.repostingPostIds,
+                        actionErrorPostId = feedState.actionErrorPostId,
+                        actionErrorMessage = feedState.actionErrorMessage,
                         onCreatePost = {
                             feedOwner.clearPostError()
                             backStack.add(NovaRoute.CreatePost)
@@ -362,6 +367,8 @@ fun NovaApp(
                         onRetry = feedOwner::loadFeed,
                         onDeletePost = feedOwner::deletePost,
                         onLikeToggle = feedOwner::toggleLike,
+                        onRepostToggle = feedOwner::toggleRepost,
+                        onPostClick = { post -> backStack.add(NovaRoute.PostDetail(post.id)) },
                         onCommentsClick = { post ->
                             backStack.add(NovaRoute.PostComments(post.id))
                         },
@@ -451,8 +458,8 @@ fun NovaApp(
 
                 is NovaRoute.PostDetail -> NavEntry(route) {
                     val detailScope = rememberCoroutineScope()
-                    val detailOwner = remember(route.postId, postRepository, detailScope) {
-                        PostDetailStateOwner(route.postId, postRepository, detailScope)
+                    val detailOwner = remember(route.postId, postRepository, postRepostRepository, detailScope) {
+                        PostDetailStateOwner(route.postId, postRepository, postRepostRepository, detailScope)
                     }
                     val detailState = detailOwner.state
                     var handledSessionExpiry by remember(detailOwner) { mutableStateOf(0) }
@@ -490,6 +497,7 @@ fun NovaApp(
                         post = detailState.post,
                         isLoading = detailState.isLoading,
                         isLiking = detailState.isLiking,
+                        isReposting = detailState.isReposting,
                         isDeleting = detailState.isDeleting,
                         errorMessage = detailState.errorMessage,
                         onBack = { backStack.removeLastOrNull() },
@@ -502,6 +510,7 @@ fun NovaApp(
                             }
                         },
                         onLikeToggle = detailOwner::toggleLike,
+                        onRepostToggle = detailOwner::toggleRepost,
                         onCommentsClick = { selectedPost ->
                             backStack.add(NovaRoute.PostComments(selectedPost.id))
                         },
@@ -515,6 +524,9 @@ fun NovaApp(
                         PostCommentsStateOwner(
                             postId = route.postId,
                             initialPost = feedState.posts.firstOrNull { it.id == route.postId },
+                            currentUser = appState.currentUser?.let {
+                                NovaPostAuthor(it.id, it.username, it.name, it.avatarUrl)
+                            } ?: NovaPostAuthor(0L, "nova", "Nova user", ""),
                             repository = postRepository,
                             scope = commentsScope,
                         )
@@ -550,7 +562,7 @@ fun NovaApp(
                         deletingCommentId = commentsState.deletingCommentId,
                         isReplySending = commentsState.isReplySending,
                         deletingReplyId = commentsState.deletingReplyId,
-                        likingCommentId = commentsState.likingCommentId,
+                        likingCommentIds = commentsState.likingCommentIds,
                         errorMessage = commentsState.errorMessage,
                         replyErrorMessage = commentsState.replyErrorMessage,
                         onBack = { backStack.removeLastOrNull() },

@@ -33,6 +33,14 @@ enum class NovaIconAsset(@param:DrawableRes val drawableRes: Int) {
     Policy(R.drawable.ic_nova_policy),
     AccountDeletion(R.drawable.ic_nova_account_deletion),
     Logout(R.drawable.ic_nova_logout),
+    Like(R.drawable.ic_nova_like),
+    LikeFilled(R.drawable.ic_nova_like_filled),
+    Comment(R.drawable.ic_nova_comment),
+    Repost(R.drawable.ic_nova_repost),
+    Share(R.drawable.ic_nova_share),
+    More(R.drawable.ic_nova_more),
+    Send(R.drawable.ic_nova_send),
+    Close(R.drawable.ic_nova_close),
 }
 
 @Composable
