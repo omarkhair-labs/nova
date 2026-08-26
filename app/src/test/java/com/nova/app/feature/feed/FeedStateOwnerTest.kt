@@ -280,6 +280,133 @@ class FeedStateOwnerTest {
         assertFalse(owner.state.isLoading)
     }
 
+    @Test
+    fun `refresh starting during an in-flight like preserves the optimistic fields`() = runBlocking {
+        val original = post(52).copy(likesCount = 8, isLiked = false)
+        val refresh = CompletableDeferred<ApiResult<NovaPostPage>>()
+        val likeResult = CompletableDeferred<ApiResult<NovaPost>>()
+        val feed = CachedDeferredFeedRepository(
+            caches = emptyMap(),
+            responses = listOf(completedPage(original), refresh),
+        )
+        val owner = FeedStateOwner(
+            feed,
+            DeferredLikePostRepository(likeResult),
+            NoOpPostRepostRepository(),
+            CoroutineScope(Dispatchers.Unconfined),
+        )
+        owner.loadFeedNow()
+
+        val likeJob = launch(start = CoroutineStart.UNDISPATCHED) {
+            owner.toggleLikeNow(original)
+        }
+        val refreshJob = launch(start = CoroutineStart.UNDISPATCHED) {
+            owner.loadFeedNow()
+        }
+        refresh.complete(ApiResult.Success(NovaPostPage(listOf(original), null)))
+        refreshJob.join()
+
+        assertTrue(owner.state.posts.single().isLiked)
+        assertEquals(9, owner.state.posts.single().likesCount)
+        assertTrue(original.id in owner.state.likingPostIds)
+
+        likeResult.complete(ApiResult.Success(original.copy(isLiked = true, likesCount = 9)))
+        likeJob.join()
+        assertTrue(owner.state.likingPostIds.isEmpty())
+    }
+
+    @Test
+    fun `refresh starting during an in-flight repost preserves the optimistic fields`() = runBlocking {
+        val original = post(53).copy(repostsCount = 2, isReposted = false)
+        val refresh = CompletableDeferred<ApiResult<NovaPostPage>>()
+        val repostResult = CompletableDeferred<ApiResult<PostRepostResult>>()
+        val feed = CachedDeferredFeedRepository(
+            caches = emptyMap(),
+            responses = listOf(completedPage(original), refresh),
+        )
+        val owner = FeedStateOwner(
+            feed,
+            NoOpPostRepository(),
+            DeferredPostRepostRepository(repostResult),
+            CoroutineScope(Dispatchers.Unconfined),
+        )
+        owner.loadFeedNow()
+
+        val repostJob = launch(start = CoroutineStart.UNDISPATCHED) {
+            owner.toggleRepostNow(original)
+        }
+        val refreshJob = launch(start = CoroutineStart.UNDISPATCHED) {
+            owner.loadFeedNow()
+        }
+        refresh.complete(ApiResult.Success(NovaPostPage(listOf(original), null)))
+        refreshJob.join()
+
+        assertTrue(owner.state.posts.single().isReposted)
+        assertEquals(3, owner.state.posts.single().repostsCount)
+        assertTrue(original.id in owner.state.repostingPostIds)
+
+        repostResult.complete(
+            ApiResult.Success(PostRepostResult(original.id, 3, true, true, null)),
+        )
+        repostJob.join()
+        assertTrue(owner.state.repostingPostIds.isEmpty())
+    }
+
+    @Test
+    fun `post created after refresh began remains ahead of the stale server page`() = runBlocking {
+        val original = post(61)
+        val created = post(62).copy(isMine = true, caption = "New post")
+        val refresh = CompletableDeferred<ApiResult<NovaPostPage>>()
+        val feed = CachedDeferredFeedRepository(
+            caches = emptyMap(),
+            responses = listOf(completedPage(original), refresh),
+        )
+        val owner = FeedStateOwner(
+            feed,
+            NoOpPostRepository(),
+            NoOpPostRepostRepository(),
+            CoroutineScope(Dispatchers.Unconfined),
+        )
+        owner.loadFeedNow()
+
+        val refreshJob = launch(start = CoroutineStart.UNDISPATCHED) {
+            owner.loadFeedNow()
+        }
+        owner.applyCreatedPost(created)
+        refresh.complete(ApiResult.Success(NovaPostPage(listOf(original), null)))
+        refreshJob.join()
+
+        assertEquals(listOf(created.id, original.id), owner.state.posts.map { it.id })
+        assertFalse(owner.state.isUploadingPost)
+    }
+
+    @Test
+    fun `post deleted after refresh began is not resurrected by the stale server page`() = runBlocking {
+        val original = post(63).copy(isMine = true)
+        val refresh = CompletableDeferred<ApiResult<NovaPostPage>>()
+        val feed = CachedDeferredFeedRepository(
+            caches = emptyMap(),
+            responses = listOf(completedPage(original), refresh),
+        )
+        val owner = FeedStateOwner(
+            feed,
+            DeletePostRepository(ApiResult.Success(Unit)),
+            NoOpPostRepostRepository(),
+            CoroutineScope(Dispatchers.Unconfined),
+        )
+        owner.loadFeedNow()
+
+        val refreshJob = launch(start = CoroutineStart.UNDISPATCHED) {
+            owner.loadFeedNow()
+        }
+        owner.deletePostNow(original)
+        refresh.complete(ApiResult.Success(NovaPostPage(listOf(original), null)))
+        refreshJob.join()
+
+        assertTrue(owner.state.posts.isEmpty())
+        assertNull(owner.state.deletingPostId)
+    }
+
     private fun post(id: Long) = NovaPost(
         id = id,
         author = NovaPostAuthor(7L, "author", "Author", ""),
@@ -288,6 +415,11 @@ class FeedStateOwnerTest {
         createdAt = "",
         isMine = false,
     )
+
+    private fun completedPage(post: NovaPost) =
+        CompletableDeferred<ApiResult<NovaPostPage>>().apply {
+            complete(ApiResult.Success(NovaPostPage(listOf(post), null)))
+        }
 }
 
 
@@ -327,6 +459,13 @@ private class DeferredLikePostRepository(
 }
 
 
+private class DeletePostRepository(
+    private val result: ApiResult<Unit>,
+) : NoOpPostRepository() {
+    override suspend fun deletePost(postId: Long): ApiResult<Unit> = result
+}
+
+
 private class QueueFeedRepository(
     vararg results: ApiResult<NovaPostPage>,
 ) : FeedRepository {
@@ -342,7 +481,7 @@ private open class NoOpPostRepository : PostRepository {
     override suspend fun personPosts(username: String): ApiResult<List<NovaPost>> = unsupported()
     override suspend fun post(postId: Long): ApiResult<NovaPost> = unsupported()
     override suspend fun createPost(caption: String, imageUri: Uri): ApiResult<NovaPost> = unsupported()
-    override suspend fun deletePost(postId: Long): ApiResult<Unit> = unsupported()
+    open override suspend fun deletePost(postId: Long): ApiResult<Unit> = unsupported()
     open override suspend fun setLiked(postId: Long, liked: Boolean): ApiResult<NovaPost> = unsupported()
     override suspend fun comments(postId: Long): ApiResult<List<NovaComment>> = unsupported()
     override suspend fun addComment(postId: Long, body: String, parentId: Long?): ApiResult<NovaCommentMutation> = unsupported()
