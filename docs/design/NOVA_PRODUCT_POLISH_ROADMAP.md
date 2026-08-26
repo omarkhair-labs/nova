@@ -165,7 +165,7 @@ Quality gates decide completion, not elapsed time.
 
 ### Flow 1 — Social core
 
-Status: `PR READY` — implementation and correctness follow-up are complete on PR #206; Samsung device review is still required
+Status: `DEVICE REVIEW` — PR #206 was reopened after the 2026-08-26 Samsung findings; bounded fixes are implemented, but the corrected paths require another physical-device pass
 
 **Home/Feed → Post presentation → Like/social actions → Repost/Share → Post Detail → Comments/Replies/Composer**
 
@@ -180,6 +180,8 @@ Primary goals:
 - run an adjacent seam scan before closing.
 
 PR #206 now includes cache-first, per-account feed startup with a background authoritative refresh; field-scoped Like/Repost reconciliation across Feed and Post Detail; and adaptive, single-line social-count actions. Focused regression coverage includes interleaved Like/Repost outcomes, cached-feed hydration, account switching, duplicate startup prevention and compact-count formatting. Real-device judgment remains open for startup transitions, action-row density and interaction feel on Samsung hardware.
+
+The 2026-08-26 device pass reopened Flow 1 because returning-session bootstrap waited for remote session validation before Home could consume the per-user cache, foregrounding the retained app had no feed reconciliation trigger, and Add-to-Story success was only transient sheet copy. PR #206 now hydrates the locally persisted session user before authoritative validation, reconciles Feed on app foreground with cache-preserving request deduplication, and keeps successful Story audiences visibly marked `Added ✓` while the share sheet remains open. A larger cross-surface Story refresh belongs to Flow 3. The observed lead-post split — one Post below Tonight with remaining Posts after Pulse/Orbit/Rooms/Memories — remains a recorded Home/Create composition seam; changing it is deliberately deferred rather than guessed inside this bounded fix.
 
 Do not redesign the full application in this PR.
 
@@ -197,6 +199,10 @@ Primary goals:
 - make validation/errors understandable;
 - harden Post/Reel media lifecycle;
 - ensure media reliability is not hidden behind visual polish.
+
+The 2026-08-26 Samsung review confirmed a Pulse video path with a black surface and audio-only playback plus an apparent short restart loop despite a longer source. It also confirmed that Pulse lacks a real selected-video preview and rail thumbnail, normal Posts need an image-or-video contract, media publishing needs durable pending/progress/failure/retry state, and opened media needs a mature full-screen handoff. Flow 2 must trace the picker/upload/storage/HTTP/player path to actual root causes before changing behavior.
+
+Product boundaries recorded with that review: Stories remain a 24-hour personal/narrative format and are not being moved to Home; Pulse remains a distinct approximately 12-hour “right now” text/photo/video format whose accepted videos play their full duration before looping; Reels remain a distinct immersive format; normal video Posts remain persistent feed content; and Create remains a rich Nova hub. Broad Home/Create composition cleanup is deferred until stronger product evidence exists.
 
 ### Flow 3 — Reels + Stories + immersive media
 

@@ -88,6 +88,8 @@ fun NovaShareDialog(
     val state = owner.state
     val busy = state.busy
     val canAddToStory = owner.canAddToStory
+    val addedToFollowersStory = "followers" in state.addedStoryAudiences
+    val addedToCloseFriendsStory = "close_friends" in state.addedStoryAudiences
 
     ModalBottomSheet(
         onDismissRequest = { if (!busy) onDismiss() },
@@ -128,11 +130,15 @@ fun NovaShareDialog(
             ) {
                 if (canAddToStory) {
                     StoryAudienceAction(
-                        title = if (state.addingToStory) "Adding…" else "Your Story",
-                        subtitle = "Followers",
+                        title = when {
+                            state.addingToStoryAudience == "followers" -> "Adding…"
+                            addedToFollowersStory -> "Added ✓"
+                            else -> "Your Story"
+                        },
+                        subtitle = if (addedToFollowersStory) "Story updated" else "Followers",
                         icon = NovaIconAsset.Create,
                         modifier = Modifier.weight(1f),
-                        enabled = !busy,
+                        enabled = !busy && !addedToFollowersStory,
                         onClick = { owner.addToStory("followers") },
                     )
                 }
@@ -170,10 +176,11 @@ fun NovaShareDialog(
 
             if (canAddToStory) {
                 Surface(
-                    onClick = { if (!busy) owner.addToStory("close_friends") },
+                    onClick = { owner.addToStory("close_friends") },
+                    enabled = !busy && !addedToCloseFriendsStory,
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.small,
-                    color = MaterialTheme.colorScheme.background,
+                    color = if (addedToCloseFriendsStory) NovaAccentSoft else MaterialTheme.colorScheme.background,
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = NovaSpacing.md, vertical = NovaSpacing.sm),
@@ -186,7 +193,22 @@ fun NovaShareDialog(
                             modifier = Modifier.size(18.dp),
                             tint = NovaAccent,
                         )
-                        Text("Add to Close Friends Story", color = NovaInk, style = NovaType.meta)
+                        Column {
+                            Text(
+                                if (state.addingToStoryAudience == "close_friends") {
+                                    "Adding to Close Friends Story…"
+                                } else if (addedToCloseFriendsStory) {
+                                    "Added to Close Friends Story ✓"
+                                } else {
+                                    "Add to Close Friends Story"
+                                },
+                                color = NovaInk,
+                                style = NovaType.meta,
+                            )
+                            if (addedToCloseFriendsStory) {
+                                Text("Story updated", color = NovaMuted, style = NovaType.micro)
+                            }
+                        }
                     }
                 }
             }
@@ -408,7 +430,8 @@ private fun StoryAudienceAction(
     onClick: () -> Unit,
 ) {
     Surface(
-        onClick = { if (enabled) onClick() },
+        onClick = onClick,
+        enabled = enabled,
         modifier = modifier,
         shape = MaterialTheme.shapes.medium,
         color = NovaAccentSoft,

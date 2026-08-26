@@ -4,6 +4,9 @@ import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.auth.domain.model.NovaUser
 import com.nova.app.navigation.AppDestination
 import com.nova.app.navigation.NovaRootTab
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -20,6 +23,61 @@ class AppViewModelTest {
 
         assertFalse(viewModel.state.isBootstrapping)
         assertEquals(user, viewModel.state.currentUser)
+    }
+
+    @Test
+    fun cachedSessionHydratesBeforeRemoteValidationAndRemoteResultRemainsAuthoritative() = runBlocking {
+        val cached = user("cached")
+        val refreshed = user("refreshed")
+        val viewModel = viewModel(
+            cachedUser = { cached },
+            restore = { ApiResult.Success(refreshed) },
+        )
+
+        assertEquals(true, viewModel.hydrateCachedSession())
+        assertFalse(viewModel.state.isBootstrapping)
+        assertEquals(cached, viewModel.state.currentUser)
+
+        viewModel.bootstrapSession()
+
+        assertEquals(refreshed, viewModel.state.currentUser)
+    }
+
+    @Test
+    fun invalidRemoteSessionClearsAnImmediatelyHydratedCachedUser() = runBlocking {
+        val cached = user("cached")
+        val viewModel = viewModel(
+            cachedUser = { cached },
+            restore = { ApiResult.Success(null) },
+        )
+
+        assertEquals(true, viewModel.hydrateCachedSession())
+        assertEquals(cached, viewModel.state.currentUser)
+
+        viewModel.bootstrapSession()
+
+        assertNull(viewModel.state.currentUser)
+        assertFalse(viewModel.state.isBootstrapping)
+    }
+
+    @Test
+    fun logoutWhileCachedSessionValidationIsInFlightCannotRestoreTheOldAccount() = runBlocking {
+        val cached = user("cached")
+        val validation = CompletableDeferred<ApiResult<NovaUser?>>()
+        val viewModel = viewModel(
+            cachedUser = { cached },
+            restore = { validation.await() },
+        )
+        viewModel.hydrateCachedSession()
+
+        val bootstrap = launch(start = CoroutineStart.UNDISPATCHED) {
+            viewModel.bootstrapSession()
+        }
+        viewModel.expireSession()
+        validation.complete(ApiResult.Success(cached))
+        bootstrap.join()
+
+        assertNull(viewModel.state.currentUser)
     }
 
     @Test
@@ -73,10 +131,12 @@ class AppViewModelTest {
     }
 
     private fun viewModel(
+        cachedUser: () -> NovaUser? = { null },
         restore: suspend () -> ApiResult<NovaUser?> = { ApiResult.Success(null) },
         logout: () -> Unit = {},
         requestRoot: (NovaRootTab) -> Unit = {},
     ) = AppViewModel(
+        restoreCachedUser = cachedUser,
         restoreSession = restore,
         logout = logout,
         requestSocialRoot = requestRoot,

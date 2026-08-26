@@ -256,6 +256,77 @@ class FeedStateOwnerTest {
     }
 
     @Test
+    fun `foreground rehydrates matching cache while the startup refresh remains slow`() = runBlocking {
+        val refresh = CompletableDeferred<ApiResult<NovaPostPage>>()
+        val caches = mutableMapOf<Long, NovaPostPage>()
+        val feed = CachedDeferredFeedRepository(
+            caches = caches,
+            responses = listOf(refresh),
+        )
+        val owner = FeedStateOwner(
+            feed,
+            NoOpPostRepository(),
+            NoOpPostRepostRepository(),
+            CoroutineScope(Dispatchers.Unconfined),
+            nowMillis = { 1_000L },
+        )
+
+        owner.enter(304L)
+        assertTrue(owner.state.posts.isEmpty())
+        assertTrue(owner.state.isLoading)
+
+        caches[304L] = NovaPostPage(listOf(post(44)), "cached-next")
+        owner.onForeground(304L)
+
+        assertEquals(listOf(44L), owner.state.posts.map { it.id })
+        assertEquals("cached-next", owner.state.nextCursor)
+        assertTrue(owner.state.isLoading)
+        assertEquals(1, feed.feedCalls)
+
+        refresh.complete(ApiResult.Success(NovaPostPage(listOf(post(45)), null)))
+        yield()
+        assertEquals(listOf(45L), owner.state.posts.map { it.id })
+    }
+
+    @Test
+    fun `foreground refresh keeps visible posts and suppresses rapid duplicate requests`() = runBlocking {
+        var now = 2_000L
+        val initial = completedPage(post(46))
+        val resumed = CompletableDeferred<ApiResult<NovaPostPage>>()
+        val feed = CachedDeferredFeedRepository(
+            caches = mapOf(305L to NovaPostPage(listOf(post(43)), null)),
+            responses = listOf(initial, resumed),
+        )
+        val owner = FeedStateOwner(
+            feed,
+            NoOpPostRepository(),
+            NoOpPostRepostRepository(),
+            CoroutineScope(Dispatchers.Unconfined),
+            nowMillis = { now },
+        )
+
+        owner.enter(305L)
+        yield()
+        assertEquals(listOf(46L), owner.state.posts.map { it.id })
+
+        owner.onForeground(305L)
+        assertEquals(1, feed.feedCalls)
+
+        now += FeedStateOwner.FOREGROUND_REFRESH_MIN_INTERVAL_MS + 1L
+        owner.onForeground(305L)
+        owner.onForeground(305L)
+
+        assertEquals(2, feed.feedCalls)
+        assertEquals(listOf(46L), owner.state.posts.map { it.id })
+        assertTrue(owner.state.isLoading)
+
+        resumed.complete(ApiResult.Success(NovaPostPage(listOf(post(47)), null)))
+        yield()
+        assertEquals(listOf(47L), owner.state.posts.map { it.id })
+        assertFalse(owner.state.isLoading)
+    }
+
+    @Test
     fun `startup refresh does not overwrite a like completed after the request began`() = runBlocking {
         val original = post(51).copy(likesCount = 8, isLiked = false)
         val refresh = CompletableDeferred<ApiResult<NovaPostPage>>()

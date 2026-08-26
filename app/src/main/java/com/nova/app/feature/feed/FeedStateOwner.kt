@@ -44,6 +44,7 @@ class FeedStateOwner(
     private val postRepository: PostRepository,
     private val repostRepository: PostRepostRepository,
     private val scope: CoroutineScope,
+    private val nowMillis: () -> Long = System::currentTimeMillis,
 ) {
     var state by mutableStateOf(FeedUiState())
         private set
@@ -58,12 +59,16 @@ class FeedStateOwner(
     private val removedPostRevisions = mutableMapOf<Long, Int>()
     private val removedAuthorRevisions = mutableMapOf<Long, Int>()
     private var firstPageJob: Job? = null
+    private var lastFirstPageRefreshUserId: Long? = null
+    private var lastFirstPageRefreshAtMs: Long? = null
 
     fun reset() {
         firstPageJob?.cancel()
         firstPageJob = null
         accountGeneration += 1
         clearMutationTracking()
+        lastFirstPageRefreshUserId = null
+        lastFirstPageRefreshAtMs = null
         state = FeedUiState(
             contentVersion = state.contentVersion + 1,
             sessionExpiryVersion = state.sessionExpiryVersion,
@@ -96,6 +101,7 @@ class FeedStateOwner(
             profileRefreshVersion = state.profileRefreshVersion,
             postCreatedVersion = state.postCreatedVersion,
         )
+        recordFirstPageRefreshStarted(userId)
         firstPageJob = scope.launch {
             refreshFirstPage(
                 expectedUserId = userId,
@@ -106,33 +112,80 @@ class FeedStateOwner(
         }
     }
 
+    /**
+     * Reconciles the retained feed when the authenticated app returns to the
+     * foreground. Cache hydration is allowed while a slow request is already
+     * running; network refreshes are deduplicated and rate-limited.
+     */
+    fun onForeground(userId: Long) {
+        if (userId <= 0L) {
+            reset()
+            return
+        }
+        if (state.userId != userId) {
+            enter(userId)
+            return
+        }
+
+        hydrateCachedFeedIfEmpty(userId)
+        if (state.isLoading || state.isLoadingMore) return
+
+        val now = nowMillis()
+        val lastRefreshAt = lastFirstPageRefreshAtMs
+        if (
+            lastFirstPageRefreshUserId == userId &&
+            lastRefreshAt != null &&
+            now >= lastRefreshAt &&
+            now - lastRefreshAt < FOREGROUND_REFRESH_MIN_INTERVAL_MS
+        ) {
+            return
+        }
+        loadFeed()
+    }
+
     fun clearPostError() {
         state = state.copy(postErrorMessage = null)
     }
 
     fun loadFeed() {
         if (state.isLoading || state.isLoadingMore) return
-        firstPageJob = scope.launch { loadFeedNow() }
+        val request = beginFirstPageRefresh() ?: return
+        firstPageJob = scope.launch {
+            refreshFirstPage(
+                expectedUserId = request.expectedUserId,
+                generation = request.generation,
+                refreshActionRevision = request.actionRevision,
+                refreshFeedMutationRevision = request.feedMutationRevision,
+            )
+        }
     }
 
     internal suspend fun loadFeedNow() {
-        if (state.isLoading || state.isLoadingMore) return
-        val expectedUserId = state.userId
-        val generation = accountGeneration
-        val refreshActionRevision = actionRevision
-        val refreshFeedMutationRevision = feedMutationRevision
+        val request = beginFirstPageRefresh() ?: return
+        refreshFirstPage(
+            expectedUserId = request.expectedUserId,
+            generation = request.generation,
+            refreshActionRevision = request.actionRevision,
+            refreshFeedMutationRevision = request.feedMutationRevision,
+        )
+    }
+
+    private fun beginFirstPageRefresh(): FirstPageRefreshRequest? {
+        if (state.isLoading || state.isLoadingMore) return null
+        val request = FirstPageRefreshRequest(
+            expectedUserId = state.userId,
+            generation = accountGeneration,
+            actionRevision = actionRevision,
+            feedMutationRevision = feedMutationRevision,
+        )
         state = state.copy(
             isLoading = true,
             errorMessage = null,
             actionErrorPostId = null,
             actionErrorMessage = null,
         )
-        refreshFirstPage(
-            expectedUserId = expectedUserId,
-            generation = generation,
-            refreshActionRevision = refreshActionRevision,
-            refreshFeedMutationRevision = refreshFeedMutationRevision,
-        )
+        recordFirstPageRefreshStarted(request.expectedUserId)
+        return request
     }
 
     private suspend fun refreshFirstPage(
@@ -478,6 +531,20 @@ class FeedStateOwner(
     private fun isCurrentAccount(expectedUserId: Long?, generation: Int): Boolean =
         generation == accountGeneration && expectedUserId == state.userId
 
+    private fun hydrateCachedFeedIfEmpty(userId: Long) {
+        if (state.userId != userId || state.posts.isNotEmpty()) return
+        val cached = feedRepository.cachedFeed(userId) ?: return
+        state = state.copy(
+            posts = cached.posts,
+            nextCursor = cached.nextCursor,
+        )
+    }
+
+    private fun recordFirstPageRefreshStarted(userId: Long?) {
+        lastFirstPageRefreshUserId = userId
+        lastFirstPageRefreshAtMs = nowMillis()
+    }
+
     private fun clearMutationTracking() {
         likeRevisions.clear()
         repostRevisions.clear()
@@ -572,6 +639,17 @@ class FeedStateOwner(
                 localPost.id !in reconciledIds
         }
         return locallyCreatedPosts + reconciledServerPosts
+    }
+
+    private data class FirstPageRefreshRequest(
+        val expectedUserId: Long?,
+        val generation: Int,
+        val actionRevision: Int,
+        val feedMutationRevision: Int,
+    )
+
+    companion object {
+        internal const val FOREGROUND_REFRESH_MIN_INTERVAL_MS = 15_000L
     }
 }
 

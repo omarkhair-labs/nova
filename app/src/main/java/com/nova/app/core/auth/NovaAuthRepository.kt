@@ -23,6 +23,12 @@ class NovaAuthRepository(
     private val appContext = context.applicationContext
     private val sessionStore = NovaSessionStore(appContext)
 
+    /**
+     * Returns only the user attached to the locally persisted token session.
+     * Remote session validation remains owned by [restoreSession].
+     */
+    fun cachedUser(): NovaUser? = sessionStore.load()?.cachedUser
+
     suspend fun register(
         email: String,
         password: String,

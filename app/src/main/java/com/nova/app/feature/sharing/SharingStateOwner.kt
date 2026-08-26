@@ -30,14 +30,18 @@ data class SharingUiState(
     val loadingConversations: Boolean = true,
     val busyUsername: String? = null,
     val busyConversationId: Long? = null,
-    val addingToStory: Boolean = false,
+    val addingToStoryAudience: String? = null,
+    val addedStoryAudiences: Set<String> = emptySet(),
     val sentUsernames: Set<String> = emptySet(),
     val sentConversationIds: Set<Long> = emptySet(),
     val message: String? = null,
     val error: String? = null,
 ) {
+    val addingToStory: Boolean
+        get() = addingToStoryAudience != null
+
     val busy: Boolean
-        get() = busyUsername != null || busyConversationId != null || addingToStory
+        get() = busyUsername != null || busyConversationId != null || addingToStoryAudience != null
 }
 
 
@@ -168,20 +172,29 @@ class SharingStateOwner(
     }
 
     internal suspend fun addToStoryNow(audience: String) {
+        val normalizedAudience = audience.trim().lowercase()
         if (!canAddToStory || state.busy) return
+        if (normalizedAudience in state.addedStoryAudiences) return
         state = state.copy(
-            addingToStory = true,
+            addingToStoryAudience = normalizedAudience,
             error = null,
             message = null,
         )
         val result = when (val currentTarget = target) {
-            is SharingTarget.Post -> sharingRepository.addPostToStory(currentTarget.id, audience = audience)
-            is SharingTarget.Reel -> sharingRepository.addReelToStory(currentTarget.id, audience = audience)
+            is SharingTarget.Post -> sharingRepository.addPostToStory(
+                currentTarget.id,
+                audience = normalizedAudience,
+            )
+            is SharingTarget.Reel -> sharingRepository.addReelToStory(
+                currentTarget.id,
+                audience = normalizedAudience,
+            )
             is SharingTarget.Profile -> ApiResult.Failure("That content can't be added to a Story.")
         }
         when (result) {
             is ApiResult.Success -> state = state.copy(
-                message = if (audience == "close_friends") {
+                addedStoryAudiences = state.addedStoryAudiences + normalizedAudience,
+                message = if (normalizedAudience == "close_friends") {
                     "Added to your Close Friends Story"
                 } else {
                     "Added to your Story"
@@ -190,7 +203,7 @@ class SharingStateOwner(
 
             is ApiResult.Failure -> state = state.copy(error = result.message)
         }
-        state = state.copy(addingToStory = false)
+        state = state.copy(addingToStoryAudience = null)
     }
 
     private suspend fun shareToPerson(username: String): ApiResult<Unit> = when (val currentTarget = target) {
