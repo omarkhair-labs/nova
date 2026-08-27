@@ -31,6 +31,7 @@ enum class NovaIconAsset(@param:DrawableRes val drawableRes: Int) {
     Inbox(R.drawable.ic_nova_mail),
     Group(R.drawable.ic_nova_group),
     CallAudio(R.drawable.ic_nova_call_audio),
+    CallEnd(R.drawable.ic_nova_call_end),
     CallVideo(R.drawable.ic_nova_call_video),
     Info(R.drawable.ic_nova_info),
     Refresh(R.drawable.ic_nova_refresh),
