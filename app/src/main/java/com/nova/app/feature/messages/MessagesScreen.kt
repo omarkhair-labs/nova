@@ -13,27 +13,27 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -46,8 +46,14 @@ import com.nova.app.feature.messages.inbox.InboxViewModel
 import com.nova.app.feature.messages.inbox.InboxFilter
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
-import com.nova.app.ui.components.NovaSecondaryButton
+import com.nova.app.ui.components.NovaEmptyState
+import com.nova.app.ui.components.NovaErrorState
+import com.nova.app.ui.components.NovaInlineLoading
+import com.nova.app.ui.components.NovaInlineRetry
+import com.nova.app.ui.components.NovaLoadingState
 import com.nova.app.ui.components.NovaTab
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
@@ -55,6 +61,7 @@ import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 
 @Composable
@@ -81,6 +88,7 @@ fun MessagesScreen(
     val errorMessage = state.errorMessage
     val inboxRefreshVersion = NovaMessagesSignal.inboxRefreshVersion
     val initialInboxRefreshVersion = remember { inboxRefreshVersion }
+    val listState = rememberLazyListState()
 
     LaunchedEffect(inboxRefreshVersion) {
         if (inboxRefreshVersion != initialInboxRefreshVersion) {
@@ -98,6 +106,26 @@ fun MessagesScreen(
         if (state.sessionExpiryVersion > 0) {
             onSessionExpired()
         }
+    }
+
+    LaunchedEffect(listState, nextCursor, isLoading, isLoadingMore, conversations.size) {
+        snapshotFlow {
+            val layout = listState.layoutInfo
+            (layout.visibleItemsInfo.lastOrNull()?.index ?: -1) to layout.totalItemsCount
+        }
+            .distinctUntilChanged()
+            .collect { (lastVisible, totalItems) ->
+                if (
+                    nextCursor != null &&
+                    conversations.isNotEmpty() &&
+                    !isLoading &&
+                    !isLoadingMore &&
+                    totalItems > 0 &&
+                    lastVisible >= totalItems - 4
+                ) {
+                    inboxViewModel.loadMore()
+                }
+            }
     }
 
     Scaffold(
@@ -151,161 +179,64 @@ fun MessagesScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 InboxFilter.entries.forEach { filter ->
-                    FilterChip(
+                    InboxFilterTab(
+                        filter = filter,
                         selected = state.filter == filter,
                         onClick = { inboxViewModel.onFilterChanged(filter) },
-                        label = { Text(filter.label) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = NovaAccent,
-                            selectedLabelColor = NovaBackground,
-                            containerColor = NovaSurface,
-                            labelColor = NovaInk,
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = state.filter == filter,
-                            borderColor = NovaBorder,
-                            selectedBorderColor = NovaAccent,
-                        ),
+                        modifier = Modifier.weight(1f),
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            OutlinedTextField(
+            InboxSearchField(
                 value = query,
                 onValueChange = inboxViewModel::onQueryChanged,
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                placeholder = { Text("Search conversations or groups", color = NovaMuted) },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Filled.Search,
-                        contentDescription = null,
-                        tint = NovaMuted,
-                        modifier = Modifier.size(20.dp),
-                    )
-                },
-                trailingIcon = if (query.isNotBlank()) {
-                    {
-                        Surface(
-                            onClick = { inboxViewModel.onQueryChanged("") },
-                            shape = CircleShape,
-                            color = NovaAccentSoft,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Close,
-                                contentDescription = "Clear search",
-                                tint = NovaAccent,
-                                modifier = Modifier.padding(7.dp).size(16.dp),
-                            )
-                        }
-                    }
-                } else null,
-                shape = RoundedCornerShape(20.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = NovaAccent,
-                    unfocusedBorderColor = NovaBorder,
-                    cursorColor = NovaAccent,
-                    focusedContainerColor = NovaSurface,
-                    unfocusedContainerColor = NovaSurface,
-                ),
+                onClear = { inboxViewModel.onQueryChanged("") },
             )
 
             Spacer(modifier = Modifier.height(18.dp))
 
             when {
                 isLoading && conversations.isEmpty() -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator(color = NovaAccent)
-                    }
+                    NovaLoadingState(
+                        message = "Loading conversations…",
+                        modifier = Modifier.weight(1f),
+                    )
                 }
 
                 errorMessage != null && conversations.isEmpty() -> {
-                    Box(
+                    NovaErrorState(
+                        title = "Couldn't load messages",
+                        message = errorMessage.orEmpty(),
+                        onRetry = inboxViewModel::retry,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(24.dp),
-                            color = NovaSurface,
-                            border = BorderStroke(1.dp, NovaBorder),
-                        ) {
-                            Column(modifier = Modifier.padding(22.dp)) {
-                                Text(
-                                    text = "Couldn't load messages",
-                                    color = NovaInk,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                                Spacer(modifier = Modifier.height(7.dp))
-                                Text(
-                                    text = errorMessage.orEmpty(),
-                                    color = NovaMuted,
-                                    fontSize = 13.sp,
-                                    lineHeight = 19.sp,
-                                )
-                                Spacer(modifier = Modifier.height(14.dp))
-                                NovaSecondaryButton(
-                                    text = "Try again",
-                                    onClick = inboxViewModel::retry,
-                                )
-                            }
-                        }
-                    }
+                            .weight(1f)
+                            .padding(top = 48.dp),
+                    )
                 }
 
                 conversations.isEmpty() -> {
-                    Box(
+                    NovaEmptyState(
+                        title = when {
+                            query.isNotBlank() -> "No matches"
+                            state.filter == InboxFilter.Unread -> "You're caught up"
+                            state.filter == InboxFilter.Mentions -> "No mentions yet"
+                            else -> "No conversations yet"
+                        },
+                        message = when {
+                            query.isNotBlank() -> "Try another name, username, or group name."
+                            state.filter == InboxFilter.Unread -> "New unread conversations will appear here."
+                            state.filter == InboxFilter.Mentions -> "Conversations that mention your username will appear here."
+                            else -> "Start a private message or create a group when you want to connect."
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(horizontal = 24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = NovaAccentSoft,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Search,
-                                    contentDescription = null,
-                                    tint = NovaAccent,
-                                    modifier = Modifier.padding(16.dp).size(24.dp),
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(15.dp))
-                            Text(
-                                text = if (query.isBlank()) "No conversations yet" else "No matches",
-                                color = NovaInk,
-                                fontSize = 19.sp,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            Spacer(modifier = Modifier.height(7.dp))
-                            Text(
-                                text = if (query.isBlank()) {
-                                    "Start a private message or create a group when you want to connect."
-                                } else {
-                                    "Try another name, username, or group name."
-                                },
-                                color = NovaMuted,
-                                fontSize = 13.sp,
-                                lineHeight = 19.sp,
-                            )
-                        }
-                    }
+                            .weight(1f)
+                            .padding(top = 48.dp),
+                    )
                 }
 
                 else -> {
@@ -328,8 +259,9 @@ fun MessagesScreen(
                     }
 
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(0.dp),
                     ) {
                         items(conversations, key = { it.id }) { conversation ->
                             ConversationRow(
@@ -339,27 +271,117 @@ fun MessagesScreen(
                         }
                         if (errorMessage != null) {
                             item {
-                                Text(
-                                    text = errorMessage.orEmpty(),
-                                    color = NovaMuted,
-                                    fontSize = 12.sp,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                                NovaInlineRetry(
+                                    message = errorMessage.orEmpty(),
+                                    onRetry = {
+                                        if (nextCursor != null) inboxViewModel.loadMore() else inboxViewModel.retry()
+                                    },
+                                    modifier = Modifier.padding(vertical = 8.dp),
                                 )
                             }
                         }
-                        if (nextCursor != null) {
+                        if (isLoadingMore) {
                             item {
-                                NovaSecondaryButton(
-                                    text = if (isLoadingMore) "Loading more…" else "Load more conversations",
-                                    onClick = {
-                                        if (!isLoadingMore) {
-                                            inboxViewModel.loadMore()
-                                        }
-                                    },
-                                )
+                                NovaInlineLoading(message = "Loading older conversations…")
                             }
                         }
                         item { Spacer(modifier = Modifier.height(12.dp)) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun InboxFilterTab(
+    filter: InboxFilter,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.heightIn(min = 48.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = if (selected) NovaAccent else NovaSurface,
+        border = BorderStroke(1.dp, if (selected) NovaAccent else NovaBorder),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = filter.label,
+                color = if (selected) NovaBackground else NovaInk,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+    }
+}
+
+
+@Composable
+private fun InboxSearchField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onClear: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 52.dp),
+        shape = RoundedCornerShape(18.dp),
+        color = NovaSurface,
+        border = BorderStroke(1.dp, NovaBorder),
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 14.dp, end = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            NovaIcon(
+                asset = NovaIconAsset.Search,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = NovaMuted,
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                textStyle = androidx.compose.ui.text.TextStyle(
+                    color = NovaInk,
+                    fontSize = 14.sp,
+                ),
+                cursorBrush = SolidColor(NovaAccent),
+                decorationBox = { innerField ->
+                    Box(contentAlignment = Alignment.CenterStart) {
+                        if (value.isBlank()) {
+                            Text(
+                                text = "Search conversations or groups",
+                                color = NovaMuted,
+                                fontSize = 13.sp,
+                            )
+                        }
+                        innerField()
+                    }
+                },
+            )
+            if (value.isNotBlank()) {
+                Surface(
+                    onClick = onClear,
+                    modifier = Modifier.size(48.dp),
+                    shape = CircleShape,
+                    color = androidx.compose.ui.graphics.Color.Transparent,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        NovaIcon(
+                            asset = NovaIconAsset.Close,
+                            contentDescription = "Clear search",
+                            modifier = Modifier.size(18.dp),
+                            tint = NovaAccent,
+                        )
                     }
                 }
             }
@@ -403,82 +425,93 @@ private fun ConversationRow(
 
     Surface(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(19.dp),
-        color = if (hasUnread) NovaAccentSoft else NovaSurface,
-        border = BorderStroke(
-            1.dp,
-            if (hasUnread) NovaAccent.copy(alpha = 0.34f) else NovaBorder,
-        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics {
+                stateDescription = if (hasUnread) {
+                    "${conversation.unreadCount} unread"
+                } else {
+                    "Read"
+                }
+            },
+        shape = RoundedCornerShape(0.dp),
+        color = if (hasUnread) NovaAccentSoft.copy(alpha = 0.56f) else NovaBackground,
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 13.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(13.dp),
-        ) {
-            Box {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 72.dp)
+                    .padding(horizontal = 8.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 NovaAvatar(
                     source = avatarSource,
                     fallbackText = conversation.displayName,
-                    size = 54.dp,
+                    size = 50.dp,
                 )
-                if (hasUnread) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .size(12.dp)
-                            .background(NovaAccent, CircleShape),
-                    )
-                }
-            }
 
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = conversation.displayName,
-                        color = NovaInk,
-                        fontSize = 15.sp,
-                        fontWeight = if (hasUnread) FontWeight.Bold else FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Spacer(Modifier.size(6.dp))
-                    Text(
-                        text = conversation.displaySubtitle,
-                        color = NovaMuted,
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (hasUnread) {
-                        Surface(
-                            shape = RoundedCornerShape(11.dp),
-                            color = NovaAccent,
-                        ) {
-                            Text(
-                                text = if (conversation.unreadCount > 99) "99+" else conversation.unreadCount.toString(),
-                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
-                                color = NovaBackground,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = conversation.displayName,
+                            color = NovaInk,
+                            fontSize = 15.sp,
+                            fontWeight = if (hasUnread) FontWeight.Bold else FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (conversation.isGroup) {
+                            NovaIcon(
+                                asset = NovaIconAsset.Group,
+                                contentDescription = "Group conversation",
+                                modifier = Modifier.size(16.dp),
+                                tint = NovaMuted,
                             )
+                            Spacer(Modifier.width(5.dp))
+                        }
+                        if (hasUnread) {
+                            Surface(
+                                shape = RoundedCornerShape(11.dp),
+                                color = NovaAccent,
+                            ) {
+                                Text(
+                                    text = if (conversation.unreadCount > 99) "99+" else conversation.unreadCount.toString(),
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                                    color = NovaBackground,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
                         }
                     }
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = preview,
+                        color = if (hasUnread) NovaInk else NovaMuted,
+                        fontSize = 13.sp,
+                        fontWeight = if (hasUnread) FontWeight.Medium else FontWeight.Normal,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (conversation.displaySubtitle.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = conversation.displaySubtitle,
+                            color = NovaMuted,
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.height(5.dp))
-                Text(
-                    text = preview,
-                    color = if (hasUnread) NovaInk else NovaMuted,
-                    fontSize = 13.sp,
-                    fontWeight = if (hasUnread) FontWeight.Medium else FontWeight.Normal,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
             }
+            HorizontalDivider(color = NovaBorder.copy(alpha = 0.72f))
         }
     }
 }

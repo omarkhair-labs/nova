@@ -29,6 +29,7 @@ enum class NovaIconAsset(@param:DrawableRes val drawableRes: Int) {
     Moon(R.drawable.ic_nova_moon),
     Messages(R.drawable.ic_nova_mail),
     Inbox(R.drawable.ic_nova_mail),
+    Group(R.drawable.ic_nova_group),
     Notifications(R.drawable.ic_nova_notifications),
     Profile(R.drawable.ic_nova_person),
     Location(R.drawable.ic_nova_location),

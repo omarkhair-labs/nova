@@ -49,6 +49,8 @@ import com.nova.app.feature.messages.messagesBackAction
 import com.nova.app.navigation.NovaRootNavigationSignal
 import com.nova.app.navigation.NovaRootTab
 import com.nova.app.ui.components.NovaActiveCallPill
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaInk
@@ -247,11 +249,11 @@ internal fun MessagesRoute(
                     shadowElevation = 7.dp,
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = if (showCreateMenu) "×" else "+",
-                            color = NovaBackground,
-                            fontSize = if (showCreateMenu) 25.sp else 28.sp,
-                            fontWeight = FontWeight.Medium,
+                        NovaIcon(
+                            asset = if (showCreateMenu) NovaIconAsset.Close else NovaIconAsset.Create,
+                            contentDescription = if (showCreateMenu) "Close new conversation menu" else "Start a conversation",
+                            modifier = Modifier.size(24.dp),
+                            tint = NovaBackground,
                         )
                     }
                 }
@@ -274,7 +276,12 @@ internal fun MessagesRoute(
                             )
                         },
                         leadingIcon = {
-                            Text("✉", color = NovaAccent, fontSize = 16.sp)
+                            NovaIcon(
+                                asset = NovaIconAsset.Messages,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = NovaAccent,
+                            )
                         },
                         onClick = {
                             showCreateMenu = false
@@ -291,7 +298,12 @@ internal fun MessagesRoute(
                             )
                         },
                         leadingIcon = {
-                            Text("＋", color = NovaAccent, fontSize = 17.sp)
+                            NovaIcon(
+                                asset = NovaIconAsset.Group,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = NovaAccent,
+                            )
                         },
                         onClick = {
                             showCreateMenu = false

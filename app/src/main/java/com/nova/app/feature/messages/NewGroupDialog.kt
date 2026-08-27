@@ -36,6 +36,8 @@ import com.nova.app.app.appContainer
 import com.nova.app.feature.messages.domain.model.NovaConversation
 import com.nova.app.feature.messages.group.NewGroupViewModel
 import com.nova.app.ui.components.NovaAvatar
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBorder
@@ -80,6 +82,13 @@ fun NewGroupDialog(
 
     AlertDialog(
         onDismissRequest = { if (!state.creating) onDismiss() },
+        icon = {
+            NovaIcon(
+                asset = NovaIconAsset.Group,
+                contentDescription = null,
+                tint = NovaAccent,
+            )
+        },
         title = { Text("New group") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -95,6 +104,13 @@ fun NewGroupDialog(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     placeholder = { Text("Group name", color = NovaMuted) },
+                    leadingIcon = {
+                        NovaIcon(
+                            asset = NovaIconAsset.Group,
+                            contentDescription = null,
+                            tint = NovaMuted,
+                        )
+                    },
                     shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = NovaAccent,
@@ -120,6 +136,13 @@ fun NewGroupDialog(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     placeholder = { Text("Search people", color = NovaMuted) },
+                    leadingIcon = {
+                        NovaIcon(
+                            asset = NovaIconAsset.Search,
+                            contentDescription = null,
+                            tint = NovaMuted,
+                        )
+                    },
                     shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = NovaAccent,

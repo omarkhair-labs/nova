@@ -35,6 +35,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nova.app.app.appContainer
 import com.nova.app.feature.messages.domain.model.NovaConversation
 import com.nova.app.ui.components.NovaAvatar
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBorder
@@ -79,6 +81,13 @@ fun NewMessageDialog(
 
     AlertDialog(
         onDismissRequest = { if (state.openingUsername == null) onDismiss() },
+        icon = {
+            NovaIcon(
+                asset = NovaIconAsset.Messages,
+                contentDescription = null,
+                tint = NovaAccent,
+            )
+        },
         title = { Text("New message") },
         text = {
             Column {
@@ -96,6 +105,13 @@ fun NewMessageDialog(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     placeholder = { Text("Name or @username", color = NovaMuted) },
+                    leadingIcon = {
+                        NovaIcon(
+                            asset = NovaIconAsset.Search,
+                            contentDescription = null,
+                            tint = NovaMuted,
+                        )
+                    },
                     shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = NovaAccent,
