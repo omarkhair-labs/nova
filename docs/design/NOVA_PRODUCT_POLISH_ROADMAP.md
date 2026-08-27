@@ -210,7 +210,7 @@ Product boundaries recorded with that review: Stories remain a 24-hour personal/
 
 ### Flow 3 — Reels + Stories + immersive media
 
-Status: `PLANNED`
+Status: `IN PROGRESS`
 
 Primary goals:
 
