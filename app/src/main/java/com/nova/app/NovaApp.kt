@@ -449,6 +449,7 @@ fun NovaApp(
                         username = user?.username ?: "nova",
                         avatarUrl = user?.avatarUrl.orEmpty(),
                         onPersonClick = { username -> backStack.add(NovaRoute.Person(username)) },
+                        onPostClick = { postId -> backStack.add(NovaRoute.PostDetail(postId)) },
                         onDiscoveryClick = { backStack.add(NovaRoute.People) },
                         onHomeClick = { openRoot(NovaRootTab.Home) },
                         onCreateClick = { openRoot(NovaRootTab.Create) },

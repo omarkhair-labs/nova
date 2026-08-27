@@ -19,7 +19,11 @@ data class TonightPulse(
     val createdAt: String,
     val expiresAt: String,
     val isMine: Boolean,
-)
+    val thumbnailUrl: String = "",
+) {
+    val previewUrl: String
+        get() = thumbnailUrl.ifBlank { mediaUrl }
+}
 
 
 data class TonightPersonRow(

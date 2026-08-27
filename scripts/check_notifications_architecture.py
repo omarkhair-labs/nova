@@ -174,7 +174,9 @@ for required in (
     "private val followRequestRepository: FollowRequestRepository",
     "private val postRepository: PostRepository",
     "val existingIds = state.notifications.mapTo(mutableSetOf()) { it.id }",
-    "state.notifications + page.notifications.filterNot { it.id in existingIds }",
+    "page.notifications",
+    ".distinctBy { it.id }",
+    ".filterNot { it.id in existingIds }",
     "notificationsRepository.markAllRead()",
     "if (readResult.statusCode == 401) onSessionExpired()",
     "if (state.requestBusyId != null) return",
@@ -199,7 +201,10 @@ for forbidden in (
 
 for test_name in (
     "reset loads follow requests then activity and marks unread notifications read",
-    "load more filters preexisting ids only and preserves duplicates inside incoming page",
+    "load more deduplicates existing and repeated incoming notifications",
+    "load more cannot replace the global unread count with a cursor page count",
+    "successful mark all read reconciles visible unread rows immediately",
+    "resolved follow request is not resurrected by a stale request refresh",
     "activity failures keep non401 inline and report 401 as terminal",
     "mark all read ignores non401 failure but reports 401 terminal",
     "follow request failures preserve inline versus terminal 401 semantics",
