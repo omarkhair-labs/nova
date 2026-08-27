@@ -52,18 +52,41 @@ private fun parsePerson(
 )
 
 
+internal data class TonightPulseMediaUrls(
+    val mediaUrl: String,
+    val thumbnailUrl: String,
+)
+
+
+internal fun resolveTonightPulseMediaUrls(
+    rawMediaUrl: String,
+    rawThumbnailUrl: String,
+    resolveMediaUrl: (String) -> String,
+): TonightPulseMediaUrls = TonightPulseMediaUrls(
+    mediaUrl = resolveMediaUrl(rawMediaUrl),
+    thumbnailUrl = resolveMediaUrl(rawThumbnailUrl),
+)
+
+
 private fun parsePulse(
     json: JSONObject,
     resolveMediaUrl: (String) -> String,
-): TonightPulse = TonightPulse(
-    id = json.optLong("id"),
-    author = parsePerson(json.optJSONObject("author") ?: JSONObject(), resolveMediaUrl),
-    mediaUrl = resolveMediaUrl(json.optString("media_url")),
-    thumbnailUrl = resolveMediaUrl(json.optString("thumbnail_url")),
-    mediaType = json.optString("media_type"),
-    audience = json.optString("audience"),
-    note = json.optString("note"),
-    createdAt = json.optString("created_at"),
-    expiresAt = json.optString("expires_at"),
-    isMine = json.optBoolean("is_mine", false),
-)
+): TonightPulse {
+    val media = resolveTonightPulseMediaUrls(
+        rawMediaUrl = json.optString("media_url"),
+        rawThumbnailUrl = json.optString("thumbnail_url"),
+        resolveMediaUrl = resolveMediaUrl,
+    )
+    return TonightPulse(
+        id = json.optLong("id"),
+        author = parsePerson(json.optJSONObject("author") ?: JSONObject(), resolveMediaUrl),
+        mediaUrl = media.mediaUrl,
+        thumbnailUrl = media.thumbnailUrl,
+        mediaType = json.optString("media_type"),
+        audience = json.optString("audience"),
+        note = json.optString("note"),
+        createdAt = json.optString("created_at"),
+        expiresAt = json.optString("expires_at"),
+        isMine = json.optBoolean("is_mine", false),
+    )
+}
