@@ -43,6 +43,7 @@ data class NovaStory(
     val backgroundStyle: String = "midnight",
     val sharedPost: NovaStorySharedPost? = null,
     val sharedReel: NovaStorySharedReel? = null,
+    val thumbnailUrl: String = "",
 )
 
 

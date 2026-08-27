@@ -21,8 +21,10 @@ class MediaPublishWorkerTest {
         val post = MediaPublishWorker.uniqueName(MediaPublishTarget.POST, 12L, "same-client")
         val anotherAccount = MediaPublishWorker.uniqueName(MediaPublishTarget.POST, 13L, "same-client")
         val reel = MediaPublishWorker.uniqueName(MediaPublishTarget.REEL, 12L, "same-client")
+        val story = MediaPublishWorker.uniqueName(MediaPublishTarget.STORY, 12L, "same-client")
         assertNotEquals(post, anotherAccount)
         assertNotEquals(post, reel)
+        assertNotEquals(reel, story)
     }
 
     @Test

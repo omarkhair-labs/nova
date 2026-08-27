@@ -119,6 +119,7 @@ def _story_payload(request, story, viewed_story_ids=None, reaction_by_story=None
     shared_post = story.shared_post
     shared_reel = story.shared_reel
     media_url = ""
+    thumbnail_url = ""
     if shared_post is not None:
         post_media = (
             shared_post.video
@@ -126,15 +127,22 @@ def _story_payload(request, story, viewed_story_ids=None, reaction_by_story=None
             else shared_post.image
         )
         media_url = _absolute_media_url(request, post_media)
+        thumbnail_url = _absolute_media_url(
+            request,
+            shared_post.thumbnail or shared_post.image,
+        )
     elif shared_reel is not None:
         media_url = _absolute_media_url(request, shared_reel.video)
+        thumbnail_url = _absolute_media_url(request, shared_reel.thumbnail)
     elif story.media:
         media_url = _absolute_media_url(request, story.media)
+        thumbnail_url = _absolute_media_url(request, story.thumbnail)
 
     return {
         "id": story.pk,
         "author": _author_payload(request, story.author),
         "media_url": media_url,
+        "thumbnail_url": thumbnail_url,
         "media_type": story.media_type,
         "audience": story.audience,
         "background_style": story.background_style,
@@ -233,7 +241,25 @@ class StoryFeedView(APIView):
 
     def post(self, request):
         media = request.FILES.get("media")
+        thumbnail = request.FILES.get("thumbnail")
         caption = str(request.data.get("caption") or "").strip()
+        raw_publish_id = str(request.data.get("client_publish_id") or "").strip()
+        if raw_publish_id:
+            try:
+                publish_id = uuid.UUID(raw_publish_id)
+            except ValueError:
+                return Response(
+                    {"detail": "Invalid publish identity."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            existing = Story.objects.filter(
+                author=request.user,
+                client_publish_id=publish_id,
+            ).first()
+            if existing is not None:
+                return Response(_story_payload(request, existing))
+        else:
+            publish_id = None
         raw_shared_post_id = request.data.get("shared_post_id")
         raw_shared_reel_id = request.data.get("shared_reel_id")
         requested_media_type = str(request.data.get("media_type") or "").strip().lower()
@@ -290,6 +316,7 @@ class StoryFeedView(APIView):
                 caption=caption,
                 background_style=background_style,
                 expires_at=timezone.now() + STORY_DURATION,
+                client_publish_id=publish_id,
             )
             return Response(_story_payload(request, story), status=status.HTTP_201_CREATED)
 
@@ -313,6 +340,7 @@ class StoryFeedView(APIView):
                 caption=caption,
                 background_style=background_style,
                 expires_at=timezone.now() + STORY_DURATION,
+                client_publish_id=publish_id,
             )
             return Response(_story_payload(request, story), status=status.HTTP_201_CREATED)
 
@@ -336,6 +364,7 @@ class StoryFeedView(APIView):
                 caption=caption,
                 background_style=background_style,
                 expires_at=timezone.now() + STORY_DURATION,
+                client_publish_id=publish_id,
             )
             return Response(_story_payload(request, story), status=status.HTTP_201_CREATED)
 
@@ -344,26 +373,40 @@ class StoryFeedView(APIView):
             media_type = Story.MediaType.IMAGE
             max_bytes = MAX_STORY_IMAGE_BYTES
             size_message = "Story photo must be 15 MB or smaller."
-        elif content_type.startswith("video/"):
+        elif content_type == "video/mp4":
             media_type = Story.MediaType.VIDEO
             max_bytes = MAX_STORY_VIDEO_BYTES
             size_message = "Story video must be 60 MB or smaller."
         else:
             return Response(
-                {"detail": "Stories support photos and videos only."},
+                {"detail": "Story videos must be compatible MP4 files."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if media.size > max_bytes:
             return Response({"detail": size_message}, status=status.HTTP_400_BAD_REQUEST)
+        if thumbnail is not None:
+            thumbnail_type = str(getattr(thumbnail, "content_type", "") or "").lower()
+            if not thumbnail_type.startswith("image/") or thumbnail.size > 2 * 1024 * 1024:
+                return Response(
+                    {"detail": "Story thumbnail must be an image up to 2 MB."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        if media_type != Story.MediaType.VIDEO and thumbnail is not None:
+            return Response(
+                {"detail": "Only Story videos accept a thumbnail."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         story = Story.objects.create(
             author=request.user,
             media=media,
+            thumbnail=thumbnail or "",
             media_type=media_type,
             audience=audience,
             caption=caption,
             background_style=background_style,
             expires_at=timezone.now() + STORY_DURATION,
+            client_publish_id=publish_id,
         )
         return Response(_story_payload(request, story), status=status.HTTP_201_CREATED)
 

@@ -31,7 +31,9 @@ class Story(models.Model):
         related_name="stories",
     )
     media = models.FileField(upload_to="stories/%Y/%m/", blank=True)
+    thumbnail = models.ImageField(upload_to="stories/thumbnails/%Y/%m/", blank=True)
     media_type = models.CharField(max_length=8, choices=MediaType.choices)
+    client_publish_id = models.UUIDField(null=True, blank=True)
     shared_post = models.ForeignKey(
         Post,
         on_delete=models.CASCADE,
@@ -90,6 +92,11 @@ class Story(models.Model):
                 condition=~Q(shared_post__isnull=False, shared_reel__isnull=False),
                 name="story_single_shared_target",
             ),
+            models.UniqueConstraint(
+                fields=("author", "client_publish_id"),
+                condition=Q(client_publish_id__isnull=False),
+                name="unique_story_author_publish_id",
+            ),
         ]
 
     def save(self, *args, **kwargs):
@@ -110,9 +117,13 @@ class Story(models.Model):
     def delete(self, *args, **kwargs):
         media_name = self.media.name
         storage = self.media.storage
+        thumbnail_name = self.thumbnail.name
+        thumbnail_storage = self.thumbnail.storage
         result = super().delete(*args, **kwargs)
         if media_name:
             storage.delete(media_name)
+        if thumbnail_name:
+            thumbnail_storage.delete(thumbnail_name)
         return result
 
     def __str__(self):

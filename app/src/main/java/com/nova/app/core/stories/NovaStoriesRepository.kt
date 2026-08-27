@@ -5,8 +5,10 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import com.nova.app.core.auth.NovaSessionStore
+import com.nova.app.core.media.NovaVideoPreparer
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
+import com.nova.app.core.network.UploadFile
 import com.nova.app.feature.stories.data.StoriesRepository
 import com.nova.app.feature.stories.domain.model.NovaStory
 import com.nova.app.feature.stories.domain.model.NovaStoryAuthor
@@ -18,11 +20,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.BufferedOutputStream
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
-import java.util.UUID
 
 
 private data class PreparedStoryMedia(
@@ -39,6 +39,7 @@ class NovaStoriesRepository(
     private val appContext = context.applicationContext
     private val sessionStore = NovaSessionStore(appContext)
     private val authApi = NovaApiClient(baseUrl)
+    private val videoPreparer = NovaVideoPreparer(appContext)
 
     override suspend fun stories(): ApiResult<List<NovaStoryGroup>> {
         return authenticatedCall { token ->
@@ -63,33 +64,86 @@ class NovaStoriesRepository(
         mediaUri: Uri,
         caption: String,
         audience: String,
+    ): ApiResult<NovaStory> = createStory(
+        mediaUri = mediaUri,
+        caption = caption,
+        audience = audience,
+        clientPublishId = "",
+        onProgress = {},
+        expectedUserId = null,
+    )
+
+    override suspend fun createStory(
+        mediaUri: Uri,
+        caption: String,
+        audience: String,
+        clientPublishId: String,
+        onProgress: (Int?) -> Unit,
+        expectedUserId: Long?,
     ): ApiResult<NovaStory> {
+        if (!storyPublishAccountMatches(expectedUserId, sessionStore.load()?.cachedUser?.id)) {
+            return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)
+        }
         val cleanAudience = audience.takeIf { it == "followers" || it == "close_friends" }
             ?: return ApiResult.Failure("Choose a valid Story audience.")
         val mimeType = resolveStoryMimeType(mediaUri)
             ?: return ApiResult.Failure("Stories support photos and videos only.")
-        val maxBytes = when {
-            mimeType.startsWith("image/") -> 15L * 1024 * 1024
-            mimeType.startsWith("video/") -> 60L * 1024 * 1024
-            else -> return ApiResult.Failure("Stories support photos and videos only.")
-        }
 
-        val prepared = when (val result = prepareStoryMedia(mediaUri, mimeType, maxBytes)) {
-            is ApiResult.Success -> result.value
-            is ApiResult.Failure -> return result
-        }
-
-        return try {
-            authenticatedCall { token ->
-                multipartStoryUpload(
-                    media = prepared,
-                    caption = caption.trim().take(240),
-                    audience = cleanAudience,
-                    bearerToken = token,
+        return if (mimeType.startsWith("video/")) {
+            val prepared = when (
+                val result = videoPreparer.prepare(
+                    source = mediaUri,
+                    maxSourceBytes = 60L * 1024 * 1024,
+                    sizeMessage = "Story video must be 60 MB or smaller.",
+                    onProgress = onProgress,
                 )
+            ) {
+                is ApiResult.Success -> result.value
+                is ApiResult.Failure -> return result
             }
-        } finally {
-            prepared.file.delete()
+            try {
+                uploadStoryMedia(
+                    media = UploadFile(
+                        fileName = "nova-story-${System.currentTimeMillis()}.mp4",
+                        mimeType = "video/mp4",
+                        sourceFile = prepared.videoFile,
+                    ),
+                    thumbnail = UploadFile(
+                        fileName = "nova-story-${System.currentTimeMillis()}.jpg",
+                        mimeType = "image/jpeg",
+                        sourceFile = prepared.thumbnailFile,
+                    ),
+                    caption = caption,
+                    audience = cleanAudience,
+                    clientPublishId = clientPublishId,
+                    expectedUserId = expectedUserId,
+                )
+            } finally {
+                prepared.delete()
+            }
+        } else {
+            val prepared = when (
+                val result = prepareStoryMedia(mediaUri, mimeType, 15L * 1024 * 1024)
+            ) {
+                is ApiResult.Success -> result.value
+                is ApiResult.Failure -> return result
+            }
+            try {
+                uploadStoryMedia(
+                    media = UploadFile(
+                        fileName = prepared.fileName,
+                        mimeType = prepared.mimeType,
+                        sourceFile = prepared.file,
+                    ),
+                    thumbnail = null,
+                    caption = caption,
+                    audience = cleanAudience,
+                    clientPublishId = clientPublishId,
+                    expectedUserId = expectedUserId,
+                )
+            } finally {
+                prepared.file.delete()
+            }
         }
     }
 
@@ -318,74 +372,34 @@ class NovaStoriesRepository(
         }
     }
 
-    private suspend fun multipartStoryUpload(
-        media: PreparedStoryMedia,
+    private suspend fun uploadStoryMedia(
+        media: UploadFile,
+        thumbnail: UploadFile?,
         caption: String,
         audience: String,
-        bearerToken: String,
-    ): ApiResult<NovaStory> = withContext(Dispatchers.IO) {
-        var connection: HttpURLConnection? = null
-        try {
-            val boundary = "NovaStory-${UUID.randomUUID()}"
-            val lineEnd = "\r\n"
-
-            fun textPart(name: String, value: String): ByteArray = buildString {
-                append("--$boundary$lineEnd")
-                append("Content-Disposition: form-data; name=\"$name\"$lineEnd")
-                append("Content-Type: text/plain; charset=UTF-8$lineEnd$lineEnd")
-                append(value)
-                append(lineEnd)
-            }.toByteArray(Charsets.UTF_8)
-
-            val captionPart = textPart("caption", caption)
-            val audiencePart = textPart("audience", audience)
-            val fileHeader = buildString {
-                append("--$boundary$lineEnd")
-                append("Content-Disposition: form-data; name=\"media\"; filename=\"${media.fileName}\"$lineEnd")
-                append("Content-Type: ${media.mimeType}$lineEnd$lineEnd")
-            }.toByteArray(Charsets.UTF_8)
-            val closing = "$lineEnd--$boundary--$lineEnd".toByteArray(Charsets.UTF_8)
-            val contentLength = captionPart.size.toLong() +
-                audiencePart.size.toLong() +
-                fileHeader.size.toLong() +
-                media.file.length() +
-                closing.size.toLong()
-
-            connection = (URL(baseUrl + "stories/").openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                connectTimeout = 20_000
-                readTimeout = 90_000
-                doOutput = true
-                setFixedLengthStreamingMode(contentLength)
-                setRequestProperty("Accept", "application/json")
-                setRequestProperty("Authorization", "Bearer $bearerToken")
-                setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
-            }
-
-            BufferedOutputStream(connection.outputStream).use { output ->
-                output.write(captionPart)
-                output.write(audiencePart)
-                output.write(fileHeader)
-                media.file.inputStream().buffered().use { input ->
-                    val buffer = ByteArray(64 * 1024)
-                    while (true) {
-                        val read = input.read(buffer)
-                        if (read <= 0) break
-                        output.write(buffer, 0, read)
+        clientPublishId: String,
+        expectedUserId: Long?,
+    ): ApiResult<NovaStory> = authenticatedCall(expectedUserId) { token ->
+        when (
+            val response = authApi.requestMultipart(
+                path = "stories/",
+                method = "POST",
+                fields = buildMap {
+                    put("caption", caption.trim().take(240))
+                    put("audience", audience)
+                    clientPublishId.takeIf(String::isNotBlank)?.let {
+                        put("client_publish_id", it)
                     }
-                }
-                output.write(closing)
-                output.flush()
-            }
-
-            when (val response = readJsonResponse(connection)) {
+                },
+                files = buildMap {
+                    put("media", media)
+                    thumbnail?.let { put("thumbnail", it) }
+                },
+                bearerToken = token,
+            )
+        ) {
                 is ApiResult.Success -> ApiResult.Success(parseStory(response.value))
                 is ApiResult.Failure -> response
-            }
-        } catch (_: Exception) {
-            ApiResult.Failure("Nova couldn't upload that Story. Check your connection and try again.")
-        } finally {
-            connection?.disconnect()
         }
     }
 
@@ -444,16 +458,26 @@ class NovaStoriesRepository(
     }
 
     private suspend fun <T> authenticatedCall(
+        expectedUserId: Long? = null,
         call: suspend (String) -> ApiResult<T>,
     ): ApiResult<T> {
         val stored = sessionStore.load()
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
+        if (!storyPublishAccountMatches(expectedUserId, stored.cachedUser?.id)) {
+            return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)
+        }
         when (val first = call(stored.accessToken)) {
             is ApiResult.Success -> return first
             is ApiResult.Failure -> if (first.statusCode != 401) return first
         }
         return when (val refreshed = authApi.refresh(stored.refreshToken)) {
             is ApiResult.Success -> {
+                if (!storyPublishAccountMatches(expectedUserId, sessionStore.load()?.cachedUser?.id)) {
+                    return ApiResult.Failure(
+                        "This publish belongs to a different signed-in account.",
+                        409,
+                    )
+                }
                 sessionStore.updateAccessToken(refreshed.value)
                 when (val retried = call(refreshed.value)) {
                     is ApiResult.Success -> retried
@@ -523,6 +547,7 @@ class NovaStoriesRepository(
             backgroundStyle = json.optString("background_style").ifBlank { "midnight" },
             sharedPost = sharedPost,
             sharedReel = sharedReel,
+            thumbnailUrl = resolveMediaUrl(json.optString("thumbnail_url")),
         )
     }
 
@@ -548,3 +573,7 @@ class NovaStoriesRepository(
         const val PRODUCTION_API_URL = "https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/"
     }
 }
+
+
+internal fun storyPublishAccountMatches(expectedUserId: Long?, activeUserId: Long?): Boolean =
+    expectedUserId == null || (expectedUserId > 0L && activeUserId == expectedUserId)

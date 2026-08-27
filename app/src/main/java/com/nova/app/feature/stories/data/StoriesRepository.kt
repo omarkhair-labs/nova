@@ -16,6 +16,15 @@ interface StoriesRepository {
         audience: String = "followers",
     ): ApiResult<NovaStory>
 
+    suspend fun createStory(
+        mediaUri: Uri,
+        caption: String,
+        audience: String,
+        clientPublishId: String,
+        onProgress: (Int?) -> Unit,
+        expectedUserId: Long?,
+    ): ApiResult<NovaStory> = createStory(mediaUri, caption, audience)
+
     suspend fun createTextStory(
         text: String,
         backgroundStyle: String = "midnight",
