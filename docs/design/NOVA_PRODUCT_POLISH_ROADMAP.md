@@ -210,7 +210,7 @@ Product boundaries recorded with that review: Stories remain a 24-hour personal/
 
 ### Flow 3 — Reels + Stories + immersive media
 
-Status: `IN PROGRESS`
+Status: `PR READY` — implementation is complete; hosted CI and Samsung device review remain the validation boundary
 
 Primary goals:
 
@@ -220,6 +220,14 @@ Primary goals:
 - Story viewer/composer as a Nova-owned experience;
 - playback/loading/failure continuity;
 - cross-surface consistency with Flow 1 actions without copying another app.
+
+Flow 3 replaces the remaining Reel text-symbol action columns with Nova-owned semantic icons, accessible 48dp controls, active/busy states, restrained Like haptics/motion, thumbnail-backed buffering/error continuity, and pooled shared playback in both the root and Profile Reel viewers. Existing VerticalPager behavior, watch tracking, comments-over-video sheet, optimistic Like/Repost ownership and internal/external sharing contracts remain intact.
+
+Story media creation now provides an immersive real photo/video preview and truthful Followers/Close Friends selection. Video Stories reuse the Flow 2 H.264/AAC normalizer, duration-integrity check, first-frame thumbnail, account-scoped idempotent WorkManager publication and retry state. The viewer now renders through the shared TextureView player/error/retry surface, pauses for viewer/mutation/IME overlays, and advances video only at the actual playback endpoint; photo and text timing remains intentionally bounded. Existing reactions, replies, viewers, delete, shared Post and shared Reel semantics are preserved.
+
+The Create hub keeps its rich multi-format composition while presenting Reel once, alongside the other real creation formats, and truthfully describes video Posts. Pulse remains a separate approximately 12-hour format and continues to use the shared Flow 2 preparation/player foundation; only exposed legacy play, reaction, reply and close glyphs were aligned with Nova's icon catalog. Stories were not moved to Home, and no broad Home/Create redesign or Flow 4 work was included.
+
+Samsung device review still must confirm Reel gesture/action density, pooled playback and overlay pause/resume; Story picker preview, background publication/retry, first-frame thumbnail, full-duration video advance, IME/back/system-bar behavior, reactions/replies/viewers; and Pulse icon/playback continuity. Flow 3 is not `DEVICE VERIFIED`.
 
 ### Flow 4 — Profile + Edit Profile + People/Discovery
 

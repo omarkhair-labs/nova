@@ -39,11 +39,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.nova.app.app.appContainer
 import com.nova.app.feature.pulse.domain.model.NovaPulse
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaMediaImage
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
@@ -357,12 +358,11 @@ private fun PulseCard(
                         modifier = Modifier.fillMaxSize(),
                         contentDescription = "${pulse.author.username} Pulse video thumbnail",
                     )
-                    Text(
-                        text = "▶",
+                    NovaIcon(
+                        asset = NovaIconAsset.Play,
+                        contentDescription = "Play ${pulse.author.username} Pulse video",
                         modifier = Modifier.align(Alignment.Center),
-                        color = mediaPalette.ink,
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
+                        tint = mediaPalette.ink,
                     )
                 }
                 else -> Box(
@@ -411,12 +411,23 @@ private fun PulseCard(
                     shape = MaterialTheme.shapes.small,
                     color = mediaPalette.overlay,
                 ) {
-                    Text(
-                        text = "↳ reply",
+                    Row(
                         modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp),
-                        color = mediaPalette.ink,
-                        style = NovaType.badge,
-                    )
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        NovaIcon(
+                            asset = NovaIconAsset.Send,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                            tint = mediaPalette.ink,
+                        )
+                        Text(
+                            text = "reply",
+                            color = mediaPalette.ink,
+                            style = NovaType.badge,
+                        )
+                    }
                 }
             }
 

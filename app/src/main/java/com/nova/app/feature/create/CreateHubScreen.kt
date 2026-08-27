@@ -41,7 +41,6 @@ import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSpacing
-import com.nova.app.ui.theme.NovaSurface
 import com.nova.app.ui.theme.NovaType
 import kotlinx.coroutines.launch
 
@@ -76,8 +75,9 @@ fun CreateHubScreen(
     }
 
     val actions = listOf(
-        CreateHubAction("Post", "Share a photo and caption", NovaIconAsset.Create, onCreatePost),
-        CreateHubAction("Story", "Add a 24-hour moment", NovaIconAsset.Reels) { reveal(2) },
+        CreateHubAction("Post", "Share a photo or video", NovaIconAsset.Create, onCreatePost),
+        CreateHubAction("Reel", "Create immersive vertical video", NovaIconAsset.Reels, onOpenReels),
+        CreateHubAction("Story", "Add a 24-hour moment", NovaIconAsset.Story) { reveal(2) },
         CreateHubAction("Pulse", "Share what is happening now", NovaIconAsset.Orbit) { reveal(3) },
         CreateHubAction("Room", "Start a place with your people", NovaIconAsset.Inbox) { reveal(4) },
         CreateHubAction("Memory", "Relive a week or make a film", NovaIconAsset.Home) { reveal(5) },
@@ -141,39 +141,6 @@ fun CreateHubScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(NovaSpacing.sm)) {
                     actions.forEach { action ->
                         CreateActionCard(action)
-                    }
-                    NovaCard(
-                        onClick = onOpenReels,
-                        modifier = Modifier.fillMaxWidth(),
-                        containerColor = NovaAccentSoft,
-                        borderColor = NovaAccent.copy(alpha = 0.22f),
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(NovaSpacing.md),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(NovaSpacing.md),
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = NovaAccent,
-                            ) {
-                                NovaIcon(
-                                    asset = NovaIconAsset.Reels,
-                                    contentDescription = null,
-                                    tint = NovaSurface,
-                                    modifier = Modifier.padding(NovaSpacing.sm).size(20.dp),
-                                )
-                            }
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Reel", color = NovaInk, style = NovaType.label)
-                                Text(
-                                    "Open the real short-video composer",
-                                    color = NovaMuted,
-                                    style = NovaType.meta,
-                                )
-                            }
-                            Text("Open", color = NovaAccent, style = NovaType.meta)
-                        }
                     }
                 }
             }

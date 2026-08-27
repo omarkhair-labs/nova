@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -36,7 +37,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.media3.ui.AspectRatioFrameLayout
@@ -44,6 +44,8 @@ import com.nova.app.feature.pulse.domain.model.NovaPulse
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaMediaImage
 import com.nova.app.ui.components.NovaVideoPlayer
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
@@ -130,13 +132,14 @@ fun PulseViewerDialog(
                         style = NovaType.micro,
                     )
                 }
-                Text(
-                    text = "✕",
-                    color = palette.ink,
-                    fontSize = 20.sp,
+                NovaIcon(
+                    asset = NovaIconAsset.Close,
+                    contentDescription = "Close Pulse",
+                    tint = palette.ink,
                     modifier = Modifier
+                        .size(48.dp)
                         .clickable(enabled = !state.replying, onClick = onDismiss)
-                        .padding(NovaSpacing.sm),
+                        .padding(12.dp),
                 )
             }
 
@@ -215,16 +218,36 @@ fun PulseViewerDialog(
                             )
                             Surface(
                                 onClick = { onReaction(activePulse, !activePulse.isReacted) },
+                                modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp),
                                 shape = MaterialTheme.shapes.small,
                                 color = if (activePulse.isReacted) NovaAccent else palette.background,
                                 border = BorderStroke(1.dp, NovaAccent.copy(alpha = 0.55f)),
                             ) {
-                                Text(
-                                    text = "${if (activePulse.isReacted) "♥" else "♡"} ${activePulse.reactionsCount}",
+                                Row(
                                     modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-                                    color = if (activePulse.isReacted) NovaBackground else palette.ink,
-                                    style = NovaType.micro.copy(fontWeight = FontWeight.Bold),
-                                )
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    NovaIcon(
+                                        asset = if (activePulse.isReacted) {
+                                            NovaIconAsset.LikeFilled
+                                        } else {
+                                            NovaIconAsset.Like
+                                        },
+                                        contentDescription = if (activePulse.isReacted) {
+                                            "Remove Pulse reaction"
+                                        } else {
+                                            "React to Pulse"
+                                        },
+                                        modifier = Modifier.size(17.dp),
+                                        tint = if (activePulse.isReacted) NovaBackground else palette.ink,
+                                    )
+                                    Text(
+                                        text = activePulse.reactionsCount.toString(),
+                                        color = if (activePulse.isReacted) NovaBackground else palette.ink,
+                                        style = NovaType.micro.copy(fontWeight = FontWeight.Bold),
+                                    )
+                                }
                             }
                         }
                     }
@@ -257,8 +280,15 @@ fun PulseViewerDialog(
                                         strokeWidth = 2.dp,
                                     )
                                 } else {
+                                    NovaIcon(
+                                        asset = NovaIconAsset.Send,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = NovaBackground,
+                                    )
+                                    Spacer(modifier = Modifier.width(NovaSpacing.sm))
                                     Text(
-                                        text = "↳ Reply with a moment",
+                                        text = "Reply with a moment",
                                         color = NovaBackground,
                                         style = NovaType.meta.copy(fontWeight = FontWeight.Bold),
                                     )

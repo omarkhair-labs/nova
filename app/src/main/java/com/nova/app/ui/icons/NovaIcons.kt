@@ -21,6 +21,7 @@ enum class NovaIconAsset(@param:DrawableRes val drawableRes: Int) {
     Search(R.drawable.ic_nova_search),
     People(R.drawable.ic_nova_search),
     Reels(R.drawable.ic_nova_play),
+    Story(R.drawable.ic_nova_story),
     Play(R.drawable.ic_nova_play),
     Pause(R.drawable.ic_nova_pause),
     VolumeOn(R.drawable.ic_nova_volume_on),
