@@ -15,6 +15,7 @@ import com.nova.app.navigation.NovaRootTab
 
 /** Lifecycle-aware owner for global session bootstrap and primary route state. */
 class AppViewModel internal constructor(
+    private val restoreCachedUser: () -> NovaUser?,
     private val restoreSession: suspend () -> ApiResult<NovaUser?>,
     private val logout: () -> Unit,
     private val requestSocialRoot: (NovaRootTab) -> Unit,
@@ -22,10 +23,28 @@ class AppViewModel internal constructor(
     var state by mutableStateOf(AppState())
         private set
 
-    suspend fun bootstrapSession() {
-        if (!state.isBootstrapping) return
+    private var bootstrapStarted = false
+    private var sessionGeneration = 0
 
-        state = when (val restored = restoreSession()) {
+    /**
+     * Makes a persisted returning session available to the shell synchronously.
+     * [bootstrapSession] still validates it remotely and remains authoritative.
+     */
+    fun hydrateCachedSession(): Boolean {
+        if (!state.isBootstrapping) return state.currentUser != null
+        val cachedUser = restoreCachedUser() ?: return false
+        state = state.copy(currentUser = cachedUser, isBootstrapping = false)
+        return true
+    }
+
+    suspend fun bootstrapSession() {
+        if (bootstrapStarted) return
+        bootstrapStarted = true
+        val expectedGeneration = sessionGeneration
+
+        val restored = restoreSession()
+        if (expectedGeneration != sessionGeneration) return
+        state = when (restored) {
             is ApiResult.Success -> state.copy(
                 currentUser = restored.value,
                 isBootstrapping = false,
@@ -46,6 +65,7 @@ class AppViewModel internal constructor(
                     expireSession()
                     false
                 } else {
+                    sessionGeneration += 1
                     state = state.copy(currentUser = refreshed.value)
                     true
                 }
@@ -63,10 +83,12 @@ class AppViewModel internal constructor(
     }
 
     fun onAuthenticated(user: NovaUser) {
+        sessionGeneration += 1
         state = state.copy(currentUser = user, isBootstrapping = false)
     }
 
     fun expireSession() {
+        sessionGeneration += 1
         logout()
         state = state.copy(primaryOverlay = null, currentUser = null)
     }
@@ -99,6 +121,7 @@ class AppViewModel internal constructor(
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     require(modelClass.isAssignableFrom(AppViewModel::class.java))
                     return AppViewModel(
+                        restoreCachedUser = container.authRepository::cachedUser,
                         restoreSession = container.authRepository::restoreSession,
                         logout = container.authRepository::logout,
                         requestSocialRoot = NovaRootNavigationSignal::request,

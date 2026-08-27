@@ -9,7 +9,6 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -20,9 +19,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
+import com.nova.app.ui.theme.NovaMotion
 import kotlinx.coroutines.delay
 
 
@@ -46,7 +46,7 @@ fun NovaLikeBurst(
         // Yield one frame so repeated double taps restart the entrance motion.
         delay(16)
         visible = true
-        delay(390)
+        delay(NovaMotion.emphasized.toLong())
         visible = false
     }
 
@@ -56,24 +56,22 @@ fun NovaLikeBurst(
     ) {
         AnimatedVisibility(
             visible = visible,
-            enter = fadeIn(tween(90)) + scaleIn(
+            enter = fadeIn(tween(NovaMotion.fast)) + scaleIn(
                 initialScale = 0.34f,
-                animationSpec = tween(210, easing = FastOutSlowInEasing),
+                animationSpec = tween(NovaMotion.standard, easing = FastOutSlowInEasing),
             ),
-            exit = fadeOut(tween(180)) + scaleOut(
+            exit = fadeOut(tween(NovaMotion.standard)) + scaleOut(
                 targetScale = 1.18f,
-                animationSpec = tween(180, easing = FastOutSlowInEasing),
+                animationSpec = tween(NovaMotion.standard, easing = FastOutSlowInEasing),
             ),
         ) {
-            Text(
-                text = "♥",
+            NovaIcon(
+                asset = NovaIconAsset.LikeFilled,
+                contentDescription = null,
                 modifier = Modifier
-                    .size(112.dp)
+                    .size(96.dp)
                     .shadow(14.dp, clip = false),
-                color = Color.White,
-                fontSize = 88.sp,
-                lineHeight = 104.sp,
-                fontWeight = FontWeight.Black,
+                tint = Color.White,
             )
         }
     }

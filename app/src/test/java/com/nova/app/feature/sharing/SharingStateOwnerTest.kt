@@ -111,6 +111,7 @@ class SharingStateOwnerTest {
             sharing.calls,
         )
         assertEquals("Sent to Crew", owner.state.message)
+        assertEquals(setOf(10L, 11L), owner.state.sentConversationIds)
         assertNull(owner.state.error)
     }
 
@@ -140,7 +141,11 @@ class SharingStateOwnerTest {
 
         assertEquals(listOf("addPostToStory:7:close_friends"), sharing.calls)
         assertEquals("Added to your Close Friends Story", postOwner.state.message)
+        assertEquals(setOf("close_friends"), postOwner.state.addedStoryAudiences)
         assertFalse(postOwner.state.addingToStory)
+
+        postOwner.addToStoryNow("close_friends")
+        assertEquals(listOf("addPostToStory:7:close_friends"), sharing.calls)
 
         val profileSharing = FakeSharingRepository()
         val profileOwner = owner(target = SharingTarget.Profile("me"), sharing = profileSharing)

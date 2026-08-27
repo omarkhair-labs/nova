@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -30,18 +31,25 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.feature.posts.domain.model.NovaComment
 import com.nova.app.feature.posts.domain.model.NovaPost
 import com.nova.app.ui.components.NovaAvatar
+import com.nova.app.ui.components.NovaBackButton
 import com.nova.app.ui.components.NovaConfirmDeleteDialog
 import com.nova.app.ui.components.NovaMediaImage
 import com.nova.app.ui.components.NovaSecondaryButton
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
@@ -62,7 +70,7 @@ fun PostCommentsScreen(
     deletingCommentId: Long?,
     isReplySending: Boolean,
     deletingReplyId: Long?,
-    likingCommentId: Long?,
+    likingCommentIds: Set<Long>,
     errorMessage: String?,
     replyErrorMessage: String?,
     onBack: () -> Unit,
@@ -75,10 +83,13 @@ fun PostCommentsScreen(
     onClearReplyError: () -> Unit,
     onAuthorClick: (String) -> Unit,
 ) {
-    var draft by remember(post?.id) { mutableStateOf("") }
+    var draft by rememberSaveable(post?.id) { mutableStateOf("") }
     var wasSending by remember(post?.id) { mutableStateOf(false) }
     var wasReplySending by remember(post?.id) { mutableStateOf(false) }
-    var replyingTo by remember(post?.id) { mutableStateOf<NovaComment?>(null) }
+    var replyingToId by rememberSaveable(post?.id) { mutableStateOf<Long?>(null) }
+    val replyingTo = comments.firstOrNull { it.id == replyingToId }
+    val composerFocusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(isSending, errorMessage) {
         if (wasSending && !isSending && errorMessage == null) {
@@ -90,7 +101,7 @@ fun PostCommentsScreen(
     LaunchedEffect(isReplySending, replyErrorMessage) {
         if (wasReplySending && !isReplySending && replyErrorMessage == null) {
             draft = ""
-            replyingTo = null
+            replyingToId = null
         }
         wasReplySending = isReplySending
     }
@@ -112,8 +123,9 @@ fun PostCommentsScreen(
                     draft = draft,
                     isSending = composerBusy,
                     replyingTo = replyingTo,
+                    focusRequester = composerFocusRequester,
                     onCancelReply = {
-                        replyingTo = null
+                        replyingToId = null
                         onClearReplyError()
                     },
                     onDraftChange = { draft = it.take(300) },
@@ -207,11 +219,13 @@ fun PostCommentsScreen(
                                 isDeleting = deletingCommentId == comment.id,
                                 onAuthorClick = { onAuthorClick(comment.author.username) },
                                 onReply = {
-                                    replyingTo = comment
+                                    replyingToId = comment.id
                                     onClearReplyError()
+                                    composerFocusRequester.requestFocus()
+                                    keyboardController?.show()
                                 },
                                 onDelete = { onDelete(comment) },
-                                isLiking = likingCommentId == comment.id,
+                                isLiking = comment.id in likingCommentIds,
                                 onLike = { onLike(comment) },
                             )
 
@@ -223,11 +237,13 @@ fun PostCommentsScreen(
                                     isDeleting = deletingReplyId == reply.id,
                                     onAuthorClick = { onAuthorClick(reply.author.username) },
                                     onReply = {
-                                        replyingTo = comment
+                                        replyingToId = comment.id
                                         onClearReplyError()
+                                        composerFocusRequester.requestFocus()
+                                        keyboardController?.show()
                                     },
                                     onDelete = { onDeleteReply(reply) },
-                                    isLiking = likingCommentId == reply.id,
+                                    isLiking = reply.id in likingCommentIds,
                                     onLike = { onLike(reply) },
                                 )
                             }
@@ -267,22 +283,7 @@ private fun CommentsTopBar(
                 .padding(horizontal = 14.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Surface(
-                onClick = onBack,
-                modifier = Modifier.size(42.dp),
-                shape = CircleShape,
-                color = NovaBackground,
-                border = BorderStroke(1.dp, NovaBorder),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "‹",
-                        color = NovaInk,
-                        fontSize = 29.sp,
-                        fontWeight = FontWeight.Medium,
-                    )
-                }
-            }
+            NovaBackButton(onClick = onBack)
             Spacer(modifier = Modifier.size(12.dp))
             Column {
                 Text(
@@ -309,6 +310,7 @@ private fun CommentComposer(
     draft: String,
     isSending: Boolean,
     replyingTo: NovaComment?,
+    focusRequester: FocusRequester,
     onCancelReply: () -> Unit,
     onDraftChange: (String) -> Unit,
     onSend: () -> Unit,
@@ -320,7 +322,8 @@ private fun CommentComposer(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding(),
+                .navigationBarsPadding()
+                .imePadding(),
         ) {
             replyingTo?.let { target ->
                 Row(
@@ -336,8 +339,20 @@ private fun CommentComposer(
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
                     )
-                    Surface(onClick = onCancelReply, color = NovaSurface) {
-                        Text("×", color = NovaMuted, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                    Surface(
+                        onClick = onCancelReply,
+                        modifier = Modifier.size(44.dp),
+                        shape = CircleShape,
+                        color = NovaSurface,
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            NovaIcon(
+                                asset = NovaIconAsset.Close,
+                                contentDescription = "Cancel reply",
+                                modifier = Modifier.size(18.dp),
+                                tint = NovaMuted,
+                            )
+                        }
                     }
                 }
             }
@@ -352,7 +367,7 @@ private fun CommentComposer(
                 OutlinedTextField(
                     value = draft,
                     onValueChange = onDraftChange,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).focusRequester(focusRequester),
                     placeholder = {
                         Text(
                             if (replyingTo == null) "Add a comment…" else "Write a reply…",
@@ -387,11 +402,11 @@ private fun CommentComposer(
                                 strokeWidth = 2.dp,
                             )
                         } else {
-                            Text(
-                                text = "↑",
-                                color = if (enabled) NovaBackground else NovaMuted,
-                                fontSize = 22.sp,
-                                fontWeight = FontWeight.Bold,
+                            NovaIcon(
+                                asset = NovaIconAsset.Send,
+                                contentDescription = "Send comment",
+                                modifier = Modifier.size(22.dp),
+                                tint = if (enabled) NovaBackground else NovaMuted,
                             )
                         }
                     }
@@ -549,22 +564,24 @@ private fun CommentRow(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    text = friendlyCommentDate(comment.createdAt),
+                    text = if (comment.id < 0L) "Sending…" else friendlyCommentDate(comment.createdAt),
                     color = NovaMuted,
                     fontSize = 10.sp,
                 )
-                Surface(
-                    onClick = onReply,
-                    color = NovaBackground,
-                ) {
-                    Text(
-                        text = "Reply",
-                        color = NovaMuted,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                if (comment.id > 0L) {
+                    Surface(
+                        onClick = onReply,
+                        color = NovaBackground,
+                    ) {
+                        Text(
+                            text = "Reply",
+                            color = NovaMuted,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
                 }
-                if (comment.isMine) {
+                if (comment.isMine && comment.id > 0L) {
                     Surface(
                         onClick = { if (!isDeleting) showDeleteConfirm = true },
                         color = NovaBackground,
@@ -580,7 +597,7 @@ private fun CommentRow(
             }
         }
         Surface(
-            onClick = { if (!isLiking) onLike() },
+            onClick = { if (!isLiking && comment.id > 0L) onLike() },
             shape = CircleShape,
             color = NovaBackground,
         ) {
@@ -588,11 +605,24 @@ private fun CommentRow(
                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 5.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text(
-                    text = if (comment.isLiked) "♥" else "♡",
-                    color = if (comment.isLiked) NovaAccent else NovaMuted,
-                    fontSize = if (isReply) 17.sp else 20.sp,
-                )
+                Box(
+                    modifier = Modifier.size(if (isReply) 24.dp else 26.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (isLiking) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(if (isReply) 23.dp else 25.dp),
+                            color = (if (comment.isLiked) NovaAccent else NovaMuted).copy(alpha = 0.45f),
+                            strokeWidth = 1.4.dp,
+                        )
+                    }
+                    NovaIcon(
+                        asset = if (comment.isLiked) NovaIconAsset.LikeFilled else NovaIconAsset.Like,
+                        contentDescription = if (comment.isLiked) "Unlike comment" else "Like comment",
+                        modifier = Modifier.size(if (isReply) 16.dp else 18.dp),
+                        tint = if (comment.isLiked) NovaAccent else NovaMuted,
+                    )
+                }
                 if (comment.likesCount > 0) {
                     Text(comment.likesCount.toString(), color = NovaMuted, fontSize = 9.sp)
                 }

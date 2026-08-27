@@ -69,13 +69,18 @@ fun HomeScreen(
     hasMore: Boolean,
     errorMessage: String?,
     deletingPostId: Long?,
-    likingPostId: Long?,
+    likingPostIds: Set<Long>,
+    repostingPostIds: Set<Long>,
+    actionErrorPostId: Long?,
+    actionErrorMessage: String?,
     onCreatePost: () -> Unit,
     onRefresh: () -> Unit,
     onLoadMore: () -> Unit,
     onRetry: () -> Unit,
     onDeletePost: (NovaPost) -> Unit,
     onLikeToggle: (NovaPost) -> Unit,
+    onRepostToggle: (NovaPost) -> Unit,
+    onPostClick: (NovaPost) -> Unit,
     onCommentsClick: (NovaPost) -> Unit,
     onResolvePost: suspend (Long) -> ApiResult<NovaPost>,
     onPersonClick: (String) -> Unit,
@@ -259,13 +264,44 @@ fun HomeScreen(
                         NovaPostCard(
                             post = post,
                             isDeleting = deletingPostId == post.id,
-                            isLiking = likingPostId == post.id,
+                            isLiking = post.id in likingPostIds,
+                            isReposting = post.id in repostingPostIds,
+                            actionErrorMessage = actionErrorMessage.takeIf { actionErrorPostId == post.id },
                             onAuthorClick = {
                                 if (post.isMine) onProfileClick() else onPersonClick(post.author.username)
                             },
+                            onReposterClick = { reposter ->
+                                if (reposter == username) onProfileClick() else onPersonClick(reposter)
+                            },
+                            onOpenPost = { onPostClick(post) },
                             onLikeToggle = { onLikeToggle(post) },
                             onCommentsClick = { onCommentsClick(post) },
+                            onRepostToggle = { onRepostToggle(post) },
                             onDelete = { onDeletePost(post) },
+                        )
+                    }
+                } else if (isLoading) {
+                    item {
+                        NovaLoadingState(
+                            message = "Loading your feed…",
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                } else if (errorMessage != null) {
+                    item {
+                        NovaErrorState(
+                            title = "Couldn't load your feed",
+                            message = errorMessage,
+                            onRetry = onRetry,
+                        )
+                    }
+                } else {
+                    item {
+                        NovaEmptyState(
+                            title = "Your orbit is quiet",
+                            message = "Share a moment or find someone in People to begin your feed.",
+                            actionLabel = "Find people",
+                            onAction = onPeopleClick,
                         )
                     }
                 }
@@ -344,31 +380,7 @@ fun HomeScreen(
                     }
                 }
 
-                if (isLoading && posts.isEmpty()) {
-                    item {
-                        NovaLoadingState(
-                            message = "Loading your feed…",
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-                } else if (errorMessage != null && posts.isEmpty()) {
-                    item {
-                        NovaErrorState(
-                            title = "Couldn't load your feed",
-                            message = errorMessage,
-                            onRetry = onRetry,
-                        )
-                    }
-                } else if (posts.isEmpty()) {
-                    item {
-                        NovaEmptyState(
-                            title = "Your feed is ready",
-                            message = "Post your first moment or find someone in People to start building your feed.",
-                            actionLabel = "Find people",
-                            onAction = onPeopleClick,
-                        )
-                    }
-                } else {
+                if (posts.isNotEmpty()) {
                     if (posts.size > 1) item {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -395,7 +407,9 @@ fun HomeScreen(
                         NovaPostCard(
                             post = post,
                             isDeleting = deletingPostId == post.id,
-                            isLiking = likingPostId == post.id,
+                            isLiking = post.id in likingPostIds,
+                            isReposting = post.id in repostingPostIds,
+                            actionErrorMessage = actionErrorMessage.takeIf { actionErrorPostId == post.id },
                             onAuthorClick = {
                                 if (post.isMine) {
                                     onProfileClick()
@@ -403,8 +417,13 @@ fun HomeScreen(
                                     onPersonClick(post.author.username)
                                 }
                             },
+                            onReposterClick = { reposter ->
+                                if (reposter == username) onProfileClick() else onPersonClick(reposter)
+                            },
+                            onOpenPost = { onPostClick(post) },
                             onLikeToggle = { onLikeToggle(post) },
                             onCommentsClick = { onCommentsClick(post) },
+                            onRepostToggle = { onRepostToggle(post) },
                             onDelete = { onDeletePost(post) },
                         )
                     }

@@ -19,6 +19,9 @@ data class NovaPost(
     val likesCount: Int = 0,
     val commentsCount: Int = 0,
     val isLiked: Boolean = false,
+    val repostsCount: Int = 0,
+    val isReposted: Boolean = false,
+    val repostedBy: NovaPostAuthor? = null,
 )
 
 
