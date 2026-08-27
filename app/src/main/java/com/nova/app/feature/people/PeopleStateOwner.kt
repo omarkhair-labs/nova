@@ -57,6 +57,7 @@ class PeopleStateOwner(
     fun setQuery(raw: String) {
         val query = raw.take(40)
         if (query == state.query) return
+        requestVersion += 1
         state = state.copy(query = query)
         scheduleQueryLoad()
     }
@@ -64,7 +65,15 @@ class PeopleStateOwner(
     fun setFilter(filter: String) {
         val clean = filter.lowercase()
         if (clean == state.filter || clean !in setOf("people", "nearby", "interests", "verified", "new")) return
-        state = state.copy(filter = clean)
+        requestVersion += 1
+        state = state.copy(
+            filter = clean,
+            people = emptyList(),
+            privacyByUserId = emptyMap(),
+            nextCursor = null,
+            firstPageLoading = true,
+            pagingError = null,
+        )
         scheduleQueryLoad()
     }
 
@@ -153,6 +162,7 @@ class PeopleStateOwner(
     }
 
     fun toggleFollow(person: NovaPerson) {
+        if (state.followingUsername != null || state.cancelingUsername != null) return
         val privacy = state.privacyByUserId[person.id]
             ?: NovaPersonPrivacyState(isPrivate = false, followRequested = false, canViewContent = true)
 
@@ -191,9 +201,6 @@ class PeopleStateOwner(
             )
         }
 
-        // Preserve the old split-owner quirk: optimistic UI happened before NovaApp's global follow lock.
-        if (state.followingUsername != null) return
-
         state = state.copy(
             followingUsername = person.username,
             followError = null,
@@ -207,6 +214,9 @@ class PeopleStateOwner(
             ) {
                 is ApiResult.Success -> {
                     state = state.copy(
+                        people = state.people.map { existing ->
+                            if (existing.id == result.value.id) result.value else existing
+                        },
                         followingUsername = null,
                         profileRefreshVersion = state.profileRefreshVersion + 1,
                         feedRefreshVersion = state.feedRefreshVersion + 1,
@@ -238,6 +248,9 @@ class PeopleStateOwner(
                     val privacy = state.privacyByUserId[person.id]
                         ?: NovaPersonPrivacyState(false, false, true)
                     state = state.copy(
+                        people = state.people.map { existing ->
+                            if (existing.id == result.value.id) result.value else existing
+                        },
                         privacyByUserId = state.privacyByUserId + (
                             person.id to privacy.copy(followRequested = false)
                         ),

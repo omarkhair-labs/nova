@@ -231,7 +231,7 @@ Samsung device review still must confirm Reel gesture/action density, pooled pla
 
 ### Flow 4 — Profile + Edit Profile + People/Discovery
 
-Status: `IN PROGRESS`
+Status: `PR READY` — implementation is complete; hosted CI and Samsung device review remain the validation boundary
 
 Primary goals:
 
@@ -241,6 +241,12 @@ Primary goals:
 - own/other-profile continuity;
 - search/discovery/connections quality;
 - verify all persisted profile metadata actually renders truthfully.
+
+Flow 4 now gives self and other-person profiles one mature identity grammar while preserving their different ownership and safety actions. Persisted links are rendered and handed only to valid HTTP(S) destinations; saved profile themes have a restrained identity-level effect; `showOrbit` controls the Orbit treatment; and verified, location, link and private-account states use Nova-owned iconography. Edit Profile previews the actual saved identity choices, keeps its action above the IME, blocks back while saving and surfaces link/server validation without exposing the private email field. Existing Posts/Reels/Reposts paging, follow/private gating, Message, call, share, report and block contracts remain intact.
+
+People discovery retains its confirmed server-backed People, Nearby, Interests, Verified and New semantics and now explains those semantics in place. Active searches are revision-owned so stale responses cannot replace a newer query or filter; semantic filter changes never present the previous filter's rows. Recent profile handoffs remain usable even when the account is outside the current result page, row treatment is denser and shared across discovery and connections, verified/private/follow-request truth is explicit, and follow mutations reconcile from the server without allowing a second busy mutation to change an unsent row. Followers/Following now have calm loading/error/empty/paging states, automatic bottom paging and a real handoff back into the selected Nova profile.
+
+Samsung review still must confirm long-link and large-font layout, theme/Orbit visibility, external browser handoff, Edit Profile IME/back/save behavior, discovery filter transitions, recent searches, automatic paging and Follow/Requested/Following touch feedback. Flow 4 is not `DEVICE VERIFIED`.
 
 ### Flow 5 — Orbit + Tonight + Activity/Notifications
 

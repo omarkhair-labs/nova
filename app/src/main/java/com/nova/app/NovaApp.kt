@@ -94,6 +94,7 @@ fun NovaApp(
     }
     val rootRequestVersion = NovaRootNavigationSignal.requestVersion
     val tonightRequestVersion = NovaRootNavigationSignal.tonightRequestVersion
+    val personRequestVersion = NovaRootNavigationSignal.personRequestVersion
 
     var pendingEmail by remember { mutableStateOf("") }
     var pendingPassword by remember { mutableStateOf("") }
@@ -166,6 +167,17 @@ fun NovaApp(
             backStack.add(NovaRoute.Tonight)
             NovaRootNavigationSignal.consumeTonight()
         }
+    }
+
+    LaunchedEffect(personRequestVersion, appState.currentUser?.id) {
+        val requested = NovaRootNavigationSignal.pendingPersonUsername ?: return@LaunchedEffect
+        val currentUser = appState.currentUser ?: return@LaunchedEffect
+        if (requested == currentUser.username) {
+            openRoot(NovaRootTab.Profile)
+        } else if (backStack.lastOrNull() != NovaRoute.Person(requested)) {
+            backStack.add(NovaRoute.Person(requested))
+        }
+        NovaRootNavigationSignal.consumePerson(requested)
     }
 
     LaunchedEffect(feedState.sessionExpiryVersion) {
@@ -676,6 +688,7 @@ fun NovaApp(
                             backStack.add(NovaRoute.Person(username))
                         },
                         onFollowToggle = peopleOwner::toggleFollow,
+                        onRetry = peopleOwner::retry,
                         onLoadMore = peopleOwner::loadMore,
                         onHomeClick = ::openHome,
                         onOrbitClick = { openRoot(NovaRootTab.Orbit) },

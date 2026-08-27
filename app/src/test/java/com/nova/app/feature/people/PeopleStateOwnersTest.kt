@@ -13,6 +13,7 @@ import com.nova.app.feature.posts.domain.model.NovaCommentMutation
 import com.nova.app.feature.posts.domain.model.NovaPost
 import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -103,6 +104,29 @@ class PeopleStateOwnersTest {
     }
 
     @Test
+    fun `second person is not changed while another follow mutation is busy`() = runBlocking {
+        val first = person(20)
+        val second = person(21)
+        val paging = QueuePeoplePagingRepository(
+            ApiResult.Success(NovaPersonPage(listOf(first, second), null)),
+        )
+        val people = BlockingPeopleRepository(first.copy(isFollowing = true, followersCount = 11))
+        val owner = PeopleStateOwner(people, paging, CoroutineScope(Dispatchers.Unconfined))
+        owner.loadPageNow(reset = true)
+
+        owner.toggleFollow(first)
+        people.started.await()
+        owner.toggleFollow(second)
+
+        assertFalse(owner.state.people.first { it.id == second.id }.isFollowing)
+        assertEquals(first.username, owner.state.followingUsername)
+
+        people.release.complete(ApiResult.Success(people.result))
+        assertNull(owner.state.followingUsername)
+        assertEquals(1, people.calls)
+    }
+
+    @Test
     fun `social graph 401 is terminal and does not become inline error`() = runBlocking {
         val owner = SocialConnectionsStateOwner(
             username = "omar",
@@ -184,6 +208,25 @@ private class NoOpPeopleRepository : PeopleRepository {
     override suspend fun report(username: String, reason: String, details: String): ApiResult<String> = unsupported()
 
     private fun <T> unsupported(): T = error("not used")
+}
+
+
+private class BlockingPeopleRepository(
+    val result: NovaPerson,
+) : PeopleRepository {
+    val started = CompletableDeferred<Unit>()
+    val release = CompletableDeferred<ApiResult<NovaPerson>>()
+    var calls = 0
+
+    override suspend fun people(query: String): ApiResult<List<NovaPerson>> = ApiResult.Success(emptyList())
+    override suspend fun person(username: String): ApiResult<NovaPerson> = ApiResult.Success(result)
+    override suspend fun setFollowing(username: String, follow: Boolean): ApiResult<NovaPerson> {
+        calls += 1
+        started.complete(Unit)
+        return release.await()
+    }
+    override suspend fun setBlocked(username: String, blocked: Boolean): ApiResult<Unit> = ApiResult.Success(Unit)
+    override suspend fun report(username: String, reason: String, details: String): ApiResult<String> = ApiResult.Success("ok")
 }
 
 

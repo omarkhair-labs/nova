@@ -17,10 +17,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,7 +35,6 @@ import com.nova.app.feature.people.domain.model.NovaPerson
 import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
-import com.nova.app.ui.components.NovaCard
 import com.nova.app.ui.components.NovaEmptyState
 import com.nova.app.ui.components.NovaLoadingState
 import com.nova.app.ui.components.NovaSecondaryButton
@@ -56,6 +56,7 @@ fun PeopleScreen(
     onFilterChange: (String) -> Unit,
     onPersonClick: (String) -> Unit,
     onFollowToggle: (NovaPerson) -> Unit,
+    onRetry: () -> Unit,
     onLoadMore: () -> Unit,
     onHomeClick: () -> Unit,
     onOrbitClick: () -> Unit,
@@ -115,32 +116,46 @@ fun PeopleScreen(
                 label = "Search",
                 placeholder = "Name or @username",
             )
-            val recentPeople = recentUsernames.mapNotNull { username ->
-                state.people.firstOrNull { it.username == username }
+            val recentPeople = recentUsernames.map { username ->
+                username to state.people.firstOrNull { it.username == username }
             }
             if (state.query.isBlank() && recentPeople.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(NovaSpacing.md))
-                Text("Recent searches", color = NovaInk, style = NovaType.label)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Recent searches", color = NovaInk, style = NovaType.label)
+                    TextButton(
+                        onClick = {
+                            recentUsernames = emptyList()
+                            recentPreferences.edit().remove("usernames").apply()
+                        },
+                    ) {
+                        Text("Clear", color = NovaMuted, style = NovaType.micro)
+                    }
+                }
                 Spacer(modifier = Modifier.height(NovaSpacing.sm))
                 Row(
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(NovaSpacing.md),
                 ) {
-                    recentPeople.forEach { person ->
+                    recentPeople.forEach { (username, person) ->
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Surface(
-                                onClick = { recordAndOpen(person.username) },
+                                onClick = { recordAndOpen(username) },
                                 shape = RoundedCornerShape(999.dp),
                                 color = NovaBackground,
                             ) {
                                 NovaAvatar(
-                                    source = person.avatarUrl,
-                                    fallbackText = person.name.ifBlank { person.username },
+                                    source = person?.avatarUrl.orEmpty(),
+                                    fallbackText = person?.name?.ifBlank { username } ?: username,
                                     size = 46.dp,
                                 )
                             }
                             Text(
-                                person.name.ifBlank { person.username },
+                                person?.name?.ifBlank { username } ?: "@$username",
                                 color = NovaInk,
                                 style = NovaType.micro,
                                 maxLines = 1,
@@ -176,6 +191,12 @@ fun PeopleScreen(
                     }
                 }
             }
+            Spacer(modifier = Modifier.height(NovaSpacing.sm))
+            Text(
+                text = discoveryFilterDescription(state.filter),
+                color = NovaMuted,
+                style = NovaType.micro,
+            )
             Spacer(modifier = Modifier.height(NovaSpacing.lg))
 
             if (state.people.isNotEmpty()) {
@@ -224,17 +245,15 @@ fun PeopleScreen(
                         title = "Couldn't load people",
                         message = visibleError,
                         modifier = Modifier.weight(1f),
+                        actionLabel = "Try again",
+                        onAction = onRetry,
                     )
                 }
 
                 state.people.isEmpty() -> {
                     NovaEmptyState(
                         title = if (state.query.isBlank()) "No one to show yet" else "No matches",
-                        message = if (state.query.isBlank()) {
-                            "Your discovery space will grow as more people join Nova."
-                        } else {
-                            "Try a different name or username."
-                        },
+                        message = peopleEmptyMessage(state.filter, state.query),
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -247,7 +266,7 @@ fun PeopleScreen(
                         items(state.people, key = { it.id }) { person ->
                             val privacy = state.privacyByUserId[person.id]
                                 ?: NovaPersonPrivacyState(false, false, true)
-                            PersonRow(
+                            NovaPersonRow(
                                 person = person,
                                 privacy = privacy,
                                 isUpdating = state.followingUsername == person.username ||
@@ -257,10 +276,10 @@ fun PeopleScreen(
                             )
                         }
 
-                        if (visibleError != null) {
+                        if (state.followError != null) {
                             item {
                                 Text(
-                                    text = visibleError,
+                                    text = state.followError,
                                     color = NovaMuted,
                                     style = NovaType.meta,
                                     modifier = Modifier.padding(horizontal = NovaSpacing.sm, vertical = NovaSpacing.xs),
@@ -268,12 +287,26 @@ fun PeopleScreen(
                             }
                         }
 
-                        if (state.nextCursor != null) {
+                        if (state.pagingError != null && state.people.isNotEmpty()) {
                             item {
                                 NovaSecondaryButton(
-                                    text = if (state.loadingMore) "Loading more…" else "Load more people",
-                                    onClick = { if (!state.loadingMore) onLoadMore() },
+                                    text = "Retry loading people",
+                                    onClick = onRetry,
                                 )
+                            }
+                        } else if (state.nextCursor != null) {
+                            item(key = "people-next-${state.nextCursor}") {
+                                LaunchedEffect(state.nextCursor) { onLoadMore() }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(NovaSpacing.md),
+                                    horizontalArrangement = Arrangement.Center,
+                                ) {
+                                    CircularProgressIndicator(
+                                        color = NovaAccent,
+                                        strokeWidth = 2.dp,
+                                        modifier = Modifier.height(18.dp),
+                                    )
+                                }
                             }
                         }
                         item { Spacer(modifier = Modifier.height(NovaSpacing.lg)) }
@@ -285,113 +318,20 @@ fun PeopleScreen(
 }
 
 
-@Composable
-private fun PersonRow(
-    person: NovaPerson,
-    privacy: NovaPersonPrivacyState,
-    isUpdating: Boolean,
-    onClick: () -> Unit,
-    onFollowToggle: () -> Unit,
-) {
-    NovaCard(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        containerColor = NovaBackground,
-        borderColor = NovaBackground,
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = NovaSpacing.xs, vertical = NovaSpacing.sm),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(NovaSpacing.md),
-        ) {
-            NovaAvatar(
-                source = person.avatarUrl,
-                fallbackText = person.name.ifBlank { person.username },
-                size = 46.dp,
-            )
+internal fun discoveryFilterDescription(filter: String): String = when (filter) {
+    "nearby" -> "People who share the location saved on your profile."
+    "interests" -> "People with interests that overlap your saved profile interests."
+    "verified" -> "Verified Nova accounts."
+    "new" -> "Accounts that joined Nova most recently."
+    else -> "People you can discover across Nova."
+}
 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = person.name.ifBlank { person.username },
-                    color = NovaInk,
-                    style = NovaType.label,
-                    maxLines = 1,
-                )
-                Text(
-                    text = "@${person.username}",
-                    color = NovaMuted,
-                    style = NovaType.meta,
-                    maxLines = 1,
-                )
-                Spacer(modifier = Modifier.height(NovaSpacing.xs))
-                Text(
-                    text = buildString {
-                        if (privacy.isPrivate) append("Private · ")
-                        append("${person.followersCount} ${if (person.followersCount == 1) "follower" else "followers"}")
-                    },
-                    color = NovaMuted,
-                    style = NovaType.micro,
-                )
-            }
 
-            when {
-                person.isFollowing -> {
-                    OutlinedButton(
-                        onClick = onFollowToggle,
-                        enabled = !isUpdating,
-                        shape = RoundedCornerShape(14.dp),
-                        border = BorderStroke(1.dp, NovaBorder),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                            horizontal = 13.dp,
-                            vertical = 7.dp,
-                        ),
-                    ) {
-                        Text(
-                            text = if (isUpdating) "…" else "Following",
-                            color = NovaInk,
-                            style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
-                        )
-                    }
-                }
-
-                privacy.followRequested -> {
-                    OutlinedButton(
-                        onClick = onFollowToggle,
-                        enabled = !isUpdating,
-                        shape = RoundedCornerShape(14.dp),
-                        border = BorderStroke(1.dp, NovaBorder),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                            horizontal = 13.dp,
-                            vertical = 7.dp,
-                        ),
-                    ) {
-                        Text(
-                            text = if (isUpdating) "…" else "Requested",
-                            color = NovaMuted,
-                            style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
-                        )
-                    }
-                }
-
-                else -> {
-                    OutlinedButton(
-                        onClick = onFollowToggle,
-                        enabled = !isUpdating,
-                        shape = RoundedCornerShape(14.dp),
-                        border = BorderStroke(1.dp, NovaAccent.copy(alpha = 0.55f)),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                            horizontal = 15.dp,
-                            vertical = 7.dp,
-                        ),
-                    ) {
-                        Text(
-                            text = if (isUpdating) "…" else "Follow",
-                            color = NovaAccent,
-                            style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
-                        )
-                    }
-                }
-            }
-        }
-    }
+internal fun peopleEmptyMessage(filter: String, query: String): String = when {
+    query.isNotBlank() -> "Try a different name or username."
+    filter == "nearby" -> "Nearby uses the location saved on your profile. Add one or try another filter."
+    filter == "interests" -> "Add interests to your profile or try another filter."
+    filter == "verified" -> "No verified accounts are available here yet."
+    filter == "new" -> "New accounts will appear here as people join Nova."
+    else -> "Your discovery space will grow as more people join Nova."
 }
