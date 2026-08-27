@@ -81,7 +81,9 @@ for path, text in ((PULSE_RAIL, pulse_rail), (PULSE_VIEWER, pulse_viewer)):
         errors.append(f"Pulse surface restored raw media colors outside PulseTheme: {path.relative_to(ROOT)}")
 
 for seam in (
-    "NovaCard(",
+    "Surface(",
+    "NovaOrbitRing(",
+    "OrbitPersonRailItem(",
     "NovaType.",
     "NovaSpacing.",
     "MaterialTheme.shapes",
