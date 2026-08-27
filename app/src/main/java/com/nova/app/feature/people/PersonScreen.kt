@@ -52,12 +52,13 @@ import com.nova.app.feature.calls.domain.model.NovaCallPerson
 import com.nova.app.feature.posts.domain.model.NovaPost
 import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState
 import com.nova.app.feature.sharing.NovaShareDialog
-import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaHeader
-import com.nova.app.ui.components.NovaOrbitRing
 import com.nova.app.ui.components.NovaPagedProfilePostsGrid
 import com.nova.app.ui.components.NovaPrimaryButton
 import com.nova.app.ui.components.NovaSecondaryButton
+import com.nova.app.feature.profile.NovaProfileIdentity
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
@@ -88,6 +89,7 @@ fun PersonScreen(
     profilePosts: List<NovaPost>,
     postsLoading: Boolean,
     postsError: String?,
+    onRetryProfile: () -> Unit,
     onRetryPosts: () -> Unit,
     onPostClick: (NovaPost) -> Unit,
     onBack: () -> Unit,
@@ -422,77 +424,48 @@ fun PersonScreen(
                             fontSize = 13.sp,
                             lineHeight = 19.sp,
                         )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        NovaSecondaryButton(
+                            text = "Try again",
+                            onClick = onRetryProfile,
+                        )
                     }
                 }
             }
 
             else -> {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    NovaOrbitRing(
-                        modifier = Modifier.size(126.dp),
-                        rings = 2,
-                        showLivePoint = person.isFollowing,
+                NovaProfileIdentity(
+                    displayName = person.name,
+                    username = person.username,
+                    avatarUrl = person.avatarUrl,
+                    bio = person.bio,
+                    location = person.location,
+                    link = person.link,
+                    interests = person.interests,
+                    profileTheme = person.profileTheme,
+                    showOrbit = person.showOrbit,
+                    isVerified = person.isVerified,
+                )
+                if (shouldShowPrivateProfileBadge(privacyState)) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                        shape = RoundedCornerShape(14.dp),
+                        color = NovaAccentSoft,
                     ) {
-                        NovaAvatar(
-                            source = person.avatarUrl,
-                            fallbackText = person.name.ifBlank { person.username },
-                            size = 96.dp,
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(18.dp))
-                    Text(
-                        text = buildString {
-                            append(person.name.ifBlank { person.username })
-                            if (person.isVerified) append("  ✓")
-                        },
-                        color = NovaInk,
-                        fontSize = 25.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "@${person.username}",
-                        color = NovaMuted,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                    )
-                    if (person.bio.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = person.bio,
-                            color = NovaInk,
-                            fontSize = 13.sp,
-                            lineHeight = 19.sp,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                        )
-                    }
-                    if (person.location.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(5.dp))
-                        Text(
-                            text = "⌖ ${person.location}",
-                            color = NovaMuted,
-                            fontSize = 12.sp,
-                        )
-                    }
-                    if (person.interests.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = person.interests.joinToString("  ·  "),
-                            color = NovaAccent,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                        )
-                    }
-                    if (shouldShowPrivateProfileBadge(privacyState)) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Surface(shape = RoundedCornerShape(14.dp), color = NovaAccentSoft) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            NovaIcon(
+                                asset = NovaIconAsset.Lock,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = NovaAccent,
+                            )
                             Text(
-                                text = "🔒 Private account",
-                                modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
+                                text = "Private account",
                                 color = NovaAccent,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
@@ -671,7 +644,12 @@ fun PersonScreen(
                             modifier = Modifier.padding(horizontal = 22.dp, vertical = 30.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            Text("🔒", fontSize = 28.sp)
+                            NovaIcon(
+                                asset = NovaIconAsset.Lock,
+                                contentDescription = null,
+                                modifier = Modifier.size(28.dp),
+                                tint = NovaAccent,
+                            )
                             Spacer(Modifier.height(10.dp))
                             Text(
                                 text = "This account is private",

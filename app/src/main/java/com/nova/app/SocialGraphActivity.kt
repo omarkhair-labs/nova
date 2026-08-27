@@ -16,6 +16,7 @@ import com.nova.app.feature.people.MODE_FOLLOWERS
 import com.nova.app.feature.people.MODE_FOLLOWING
 import com.nova.app.feature.people.SocialConnectionsScreen
 import com.nova.app.feature.people.SocialConnectionsStateOwner
+import com.nova.app.navigation.NovaRootNavigationSignal
 import com.nova.app.ui.theme.NovaTheme
 
 
@@ -74,6 +75,10 @@ class SocialGraphActivity : ComponentActivity() {
                     onRetry = owner::retry,
                     onLoadMore = owner::loadMore,
                     onFollowToggle = owner::toggleFollow,
+                    onPersonClick = { selectedUsername ->
+                        NovaRootNavigationSignal.requestPerson(selectedUsername)
+                        finish()
+                    },
                     onBack = { finish() },
                 )
             }

@@ -94,6 +94,7 @@ fun NovaApp(
     }
     val rootRequestVersion = NovaRootNavigationSignal.requestVersion
     val tonightRequestVersion = NovaRootNavigationSignal.tonightRequestVersion
+    val personRequestVersion = NovaRootNavigationSignal.personRequestVersion
 
     var pendingEmail by remember { mutableStateOf("") }
     var pendingPassword by remember { mutableStateOf("") }
@@ -166,6 +167,17 @@ fun NovaApp(
             backStack.add(NovaRoute.Tonight)
             NovaRootNavigationSignal.consumeTonight()
         }
+    }
+
+    LaunchedEffect(personRequestVersion, appState.currentUser?.id) {
+        val requested = NovaRootNavigationSignal.pendingPersonUsername ?: return@LaunchedEffect
+        val currentUser = appState.currentUser ?: return@LaunchedEffect
+        if (requested == currentUser.username) {
+            openRoot(NovaRootTab.Profile)
+        } else if (backStack.lastOrNull() != NovaRoute.Person(requested)) {
+            backStack.add(NovaRoute.Person(requested))
+        }
+        NovaRootNavigationSignal.consumePerson(requested)
     }
 
     LaunchedEffect(feedState.sessionExpiryVersion) {
@@ -676,6 +688,7 @@ fun NovaApp(
                             backStack.add(NovaRoute.Person(username))
                         },
                         onFollowToggle = peopleOwner::toggleFollow,
+                        onRetry = peopleOwner::retry,
                         onLoadMore = peopleOwner::loadMore,
                         onHomeClick = ::openHome,
                         onOrbitClick = { openRoot(NovaRootTab.Orbit) },
@@ -731,6 +744,7 @@ fun NovaApp(
                         profilePosts = personState.profilePosts,
                         postsLoading = personState.postsLoading,
                         postsError = personState.postsError,
+                        onRetryProfile = personOwner::loadPerson,
                         onRetryPosts = personOwner::loadPosts,
                         onPostClick = { post ->
                             backStack.add(NovaRoute.PostDetail(post.id))
@@ -778,11 +792,14 @@ fun NovaApp(
                     ProfileScreen(
                         displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
                         username = user?.username ?: "nova",
-                        email = user?.email.orEmpty(),
                         avatarUrl = user?.avatarUrl.orEmpty(),
                         bio = user?.bio.orEmpty(),
                         location = user?.location.orEmpty(),
+                        link = user?.link.orEmpty(),
                         interests = user?.interests.orEmpty(),
+                        profileTheme = user?.profileTheme ?: "violet",
+                        showOrbit = user?.showOrbit ?: true,
+                        isVerified = user?.isVerified ?: false,
                         postsCount = user?.postsCount ?: 0,
                         followersCount = user?.followersCount ?: 0,
                         followingCount = user?.followingCount ?: 0,
@@ -797,7 +814,6 @@ fun NovaApp(
                             authError = null
                             backStack.add(NovaRoute.EditProfile)
                         },
-                        onLogout = ::expireSession,
                     )
                 }
 
@@ -813,6 +829,7 @@ fun NovaApp(
                         interests = user?.interests.orEmpty(),
                         profileTheme = user?.profileTheme ?: "violet",
                         showOrbit = user?.showOrbit ?: true,
+                        isVerified = user?.isVerified ?: false,
                         isLoading = authLoading,
                         errorMessage = authError,
                         onBack = {

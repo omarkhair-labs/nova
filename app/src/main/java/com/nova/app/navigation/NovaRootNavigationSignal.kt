@@ -45,6 +45,12 @@ object NovaRootNavigationSignal {
     var pendingTonight by mutableStateOf(false)
         private set
 
+    var personRequestVersion by mutableIntStateOf(0)
+        private set
+
+    var pendingPersonUsername by mutableStateOf<String?>(null)
+        private set
+
     fun request(tab: NovaRootTab) {
         pendingTab = tab
         requestVersion += 1
@@ -61,5 +67,16 @@ object NovaRootNavigationSignal {
 
     fun consumeTonight() {
         pendingTonight = false
+    }
+
+    fun requestPerson(username: String) {
+        val normalized = username.trim().lowercase()
+        if (normalized.isBlank()) return
+        pendingPersonUsername = normalized
+        personRequestVersion += 1
+    }
+
+    fun consumePerson(username: String) {
+        if (pendingPersonUsername == username) pendingPersonUsername = null
     }
 }
