@@ -220,7 +220,7 @@ fun OrbitScreen(
                 filteredEvents.isEmpty() -> item {
                     NovaEmptyState(
                         title = "Nothing in ${selectedFilter.label.lowercase()} yet",
-                        message = "Your live relationships will appear here as they move.",
+                        message = "Your relationship activity will gather here as it happens.",
                     )
                 }
 
@@ -330,11 +330,11 @@ private fun OrbitPersonDetailDialog(
                 Spacer(modifier = Modifier.weight(1f))
                 Spacer(modifier = Modifier.size(42.dp))
             }
-            NovaOrbitRing(modifier = Modifier.size(210.dp), rings = 4, showLivePoint = events.isNotEmpty()) {
+            NovaOrbitRing(modifier = Modifier.size(210.dp), rings = 4, showLivePoint = events.any { it.pulse != null }) {
                 NovaAvatar(source = avatarUrl, fallbackText = name, size = 92.dp)
             }
             Text(name, color = Color.White, style = NovaType.pageTitle)
-            Text("@$username · ${events.size} live moments", color = Color(0xFFB8C0D8), style = NovaType.bodyCompact)
+            Text("@$username · ${events.size} Orbit moments", color = Color(0xFFB8C0D8), style = NovaType.bodyCompact)
             Surface(
                 onClick = onOpenProfile,
                 modifier = Modifier.fillMaxWidth(),
@@ -390,7 +390,7 @@ private fun OrbitConstellation(
             NovaOrbitRing(
                 modifier = Modifier.size(218.dp),
                 rings = 4,
-                showLivePoint = people.isNotEmpty(),
+                showLivePoint = events.any { it.pulse != null },
             ) {
                 NovaAvatar(
                     source = avatarUrl,

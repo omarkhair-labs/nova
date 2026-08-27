@@ -4,12 +4,14 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -17,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -28,8 +31,14 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.app.appContainer
@@ -45,6 +54,8 @@ import com.nova.app.ui.components.NovaInlineLoading
 import com.nova.app.ui.components.NovaInlineRetry
 import com.nova.app.ui.components.NovaLoadingState
 import com.nova.app.ui.components.NovaUnreadDot
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
@@ -130,7 +141,7 @@ fun NotificationsScreen(
                 top = NovaSpacing.lg,
                 bottom = NovaSpacing.xxxl,
             ),
-            verticalArrangement = Arrangement.spacedBy(NovaSpacing.md),
+            verticalArrangement = Arrangement.spacedBy(0.dp),
         ) {
             item {
                 Row(
@@ -139,14 +150,18 @@ fun NotificationsScreen(
                 ) {
                     NovaBackButton(onClick = onBack)
                     Spacer(modifier = Modifier.width(NovaSpacing.md))
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(bottom = NovaSpacing.lg),
+                    ) {
                         Text(
                             text = "Activity",
                             color = NovaInk,
                             style = NovaType.screenTitle,
                         )
                         Text(
-                            text = "Follow requests, likes, comments, replies, reposts and new people around you.",
+                            text = "Follow requests and moments from people you connect with.",
                             color = NovaMuted,
                             style = NovaType.meta,
                         )
@@ -157,7 +172,9 @@ fun NotificationsScreen(
             if (state.followRequests.isNotEmpty()) {
                 item(key = "follow-requests-title") {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = NovaSpacing.sm),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
@@ -207,20 +224,31 @@ fun NotificationsScreen(
                 }
             }
 
-            if (state.isLoading && state.notifications.isEmpty() && state.followRequests.isEmpty() && state.requestsLoading) {
+            if (state.isLoading && state.notifications.isEmpty()) {
                 item {
-                    NovaLoadingState(
-                        message = "Loading activity…",
-                        modifier = Modifier.height(220.dp),
-                    )
+                    if (state.followRequests.isEmpty()) {
+                        NovaLoadingState(
+                            message = "Loading activity…",
+                            modifier = Modifier.height(220.dp),
+                        )
+                    } else {
+                        NovaInlineLoading(message = "Loading recent activity…")
+                    }
                 }
-            } else if (state.errorMessage != null && state.notifications.isEmpty() && state.followRequests.isEmpty()) {
+            } else if (state.errorMessage != null && state.notifications.isEmpty()) {
                 item {
-                    NovaErrorState(
-                        title = "Couldn't load Activity",
-                        message = state.errorMessage.orEmpty(),
-                        onRetry = { owner.loadActivity(reset = true) },
-                    )
+                    if (state.followRequests.isEmpty()) {
+                        NovaErrorState(
+                            title = "Couldn't load Activity",
+                            message = state.errorMessage.orEmpty(),
+                            onRetry = { owner.loadActivity(reset = true) },
+                        )
+                    } else {
+                        NovaInlineRetry(
+                            message = state.errorMessage.orEmpty(),
+                            onRetry = { owner.loadActivity(reset = true) },
+                        )
+                    }
                 }
             } else if (state.notifications.isEmpty() && state.followRequests.isEmpty() && !state.requestsLoading) {
                 item {
@@ -235,6 +263,7 @@ fun NotificationsScreen(
                         text = "Recent",
                         color = NovaInk,
                         style = NovaType.title,
+                        modifier = Modifier.padding(top = NovaSpacing.lg, bottom = NovaSpacing.sm),
                     )
                 }
 
@@ -244,17 +273,16 @@ fun NotificationsScreen(
                 ) { notification ->
                     NotificationRow(
                         notification = notification,
-                        isOpening = state.openingPostId == notification.postId && state.openingPostId != null,
+                        isOpening = state.openingNotificationId == notification.id,
                         onClick = {
                             when (val target = owner.openTarget(notification)) {
                                 is NotificationOpenTarget.Person -> onPersonClick(target.username)
-                                is NotificationOpenTarget.Post -> owner.openPost(target.postId)
+                                is NotificationOpenTarget.Post -> owner.openPost(notification.id, target.postId)
                                 is NotificationOpenTarget.Reel -> NovaReelsNavigator.openProfile(
                                     context = context,
                                     username = target.username,
                                     initialReelId = target.reelId,
                                 )
-                                NotificationOpenTarget.None -> Unit
                             }
                         },
                     )
@@ -296,7 +324,9 @@ private fun FollowRequestRow(
     onDecline: () -> Unit,
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = NovaSpacing.sm),
         shape = RoundedCornerShape(22.dp),
         color = NovaSurface,
         border = BorderStroke(1.dp, NovaAccent.copy(alpha = 0.35f)),
@@ -329,6 +359,7 @@ private fun FollowRequestRow(
             ) {
                 Surface(
                     onClick = { if (enabled) onDecline() },
+                    enabled = enabled,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(14.dp),
                     color = NovaBackground,
@@ -345,6 +376,7 @@ private fun FollowRequestRow(
                 }
                 Surface(
                     onClick = { if (enabled) onAccept() },
+                    enabled = enabled,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(14.dp),
                     color = NovaAccent,
@@ -384,71 +416,100 @@ private fun NotificationRow(
 ) {
     Surface(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
-        color = if (notification.isRead) NovaSurface else NovaAccentSoft,
-        border = BorderStroke(1.dp, if (notification.isRead) NovaBorder else NovaAccent),
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics {
+                stateDescription = if (notification.isRead) "Read" else "Unread"
+            },
+        shape = RoundedCornerShape(0.dp),
+        color = if (notification.isRead) Color.Transparent else NovaAccentSoft.copy(alpha = 0.58f),
     ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            NovaAvatar(
-                source = notification.actor.avatarUrl,
-                fallbackText = notification.actor.name.ifBlank { notification.actor.username },
-                size = 46.dp,
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = notificationText(notification),
-                    color = NovaInk,
-                    fontSize = 13.sp,
-                    lineHeight = 18.sp,
-                    fontWeight = if (notification.isRead) FontWeight.Medium else FontWeight.SemiBold,
+        Column {
+            Row(
+                modifier = Modifier
+                    .defaultMinSize(minHeight = 68.dp)
+                    .padding(horizontal = 10.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                NovaAvatar(
+                    source = notification.actor.avatarUrl,
+                    fallbackText = notification.actor.name.ifBlank { notification.actor.username },
+                    size = 42.dp,
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = relativeTime(notification.createdAt),
-                    color = NovaMuted,
-                    fontSize = 11.sp,
-                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = notificationText(notification),
+                        color = NovaInk,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = relativeTime(notification.createdAt),
+                        color = NovaMuted,
+                        fontSize = 11.sp,
+                    )
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                if (isOpening) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        color = NovaAccent,
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    NovaIcon(
+                        asset = notificationIcon(notification.kind),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = if (notification.isRead) NovaMuted else NovaAccent,
+                    )
+                }
+                if (!notification.isRead) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    NovaUnreadDot()
+                }
             }
-            Spacer(modifier = Modifier.width(8.dp))
-            if (isOpening) {
-                CircularProgressIndicator(
-                    modifier = Modifier.width(18.dp).height(18.dp),
-                    color = NovaAccent,
-                    strokeWidth = 2.dp,
-                )
-            } else if (!notification.isRead) {
-                NovaUnreadDot()
-            }
+            HorizontalDivider(color = NovaBorder.copy(alpha = 0.7f))
         }
     }
 }
 
 
-private fun notificationText(notification: NovaNotification): String {
+private fun notificationText(notification: NovaNotification) = buildAnnotatedString {
     val name = notification.actor.name.ifBlank { "@${notification.actor.username}" }
-    return when (notification.kind) {
-        "follow" -> "$name started following you"
-        "like" -> "$name liked your post"
+    withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) {
+        append(name)
+    }
+    append(" ")
+    append(when (notification.kind) {
+        "follow" -> "started following you"
+        "like" -> "liked your post"
         "comment" -> {
             val preview = notification.commentPreview.trim()
             if (preview.isBlank()) {
-                "$name commented on your post"
+                "commented on your post"
             } else {
-                "$name commented: “${preview.take(90)}${if (preview.length > 90) "…" else ""}”"
+                "commented: “${preview.take(90)}${if (preview.length > 90) "…" else ""}”"
             }
         }
-        "comment_reply" -> "$name replied to your comment"
-        "reel_like" -> "$name liked your Reel"
-        "reel_comment" -> "$name commented on your Reel"
-        "reel_repost" -> "$name reposted your Reel"
-        "reel_reply" -> "$name replied to your Reel comment"
-        else -> "$name interacted with you"
-    }
+        "comment_reply" -> "replied to your comment"
+        "reel_like" -> "liked your Reel"
+        "reel_comment" -> "commented on your Reel"
+        "reel_repost" -> "reposted your Reel"
+        "reel_reply" -> "replied to your Reel comment"
+        else -> "interacted with you"
+    })
+}
+
+
+private fun notificationIcon(kind: String): NovaIconAsset = when (kind) {
+    "like", "reel_like" -> NovaIconAsset.LikeFilled
+    "comment", "comment_reply", "reel_comment", "reel_reply" -> NovaIconAsset.Comment
+    "reel_repost" -> NovaIconAsset.Repost
+    "follow" -> NovaIconAsset.Profile
+    else -> NovaIconAsset.Notifications
 }
 
 

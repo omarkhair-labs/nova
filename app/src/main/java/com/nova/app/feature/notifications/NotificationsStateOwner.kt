@@ -23,6 +23,7 @@ data class NotificationsUiState(
     val requestsLoading: Boolean = true,
     val requestBusyId: Long? = null,
     val openingPostId: Long? = null,
+    val openingNotificationId: Long? = null,
     val errorMessage: String? = null,
     val requestError: String? = null,
 ) {
@@ -35,7 +36,6 @@ sealed interface NotificationOpenTarget {
     data class Person(val username: String) : NotificationOpenTarget
     data class Post(val postId: Long) : NotificationOpenTarget
     data class Reel(val reelId: Long, val username: String) : NotificationOpenTarget
-    data object None : NotificationOpenTarget
 }
 
 
@@ -52,12 +52,24 @@ class NotificationsStateOwner(
     var state by mutableStateOf(NotificationsUiState())
         private set
 
+    private var activityRequestInFlight = false
+    private var followRequestsRequestInFlight = false
+    private val resolvedFollowRequestIds = mutableSetOf<Long>()
+
     fun start() {
         loadActivity(reset = true)
     }
 
     fun loadFollowRequests() {
-        scope.launch { loadFollowRequestsNow() }
+        if (followRequestsRequestInFlight) return
+        followRequestsRequestInFlight = true
+        scope.launch {
+            try {
+                loadFollowRequestsNow()
+            } finally {
+                followRequestsRequestInFlight = false
+            }
+        }
     }
 
     internal suspend fun loadFollowRequestsNow() {
@@ -66,7 +78,9 @@ class NotificationsStateOwner(
             requestError = null,
         )
         when (val result = followRequestRepository.followRequests()) {
-            is ApiResult.Success -> state = state.copy(followRequests = result.value)
+            is ApiResult.Success -> state = state.copy(
+                followRequests = result.value.filterNot { it.id in resolvedFollowRequestIds },
+            )
             is ApiResult.Failure -> {
                 if (result.statusCode == 401) {
                     onSessionExpired()
@@ -79,13 +93,18 @@ class NotificationsStateOwner(
     }
 
     fun loadActivity(reset: Boolean) {
-        if (state.isLoadingMore || (reset && state.isLoading && state.notifications.isNotEmpty())) return
+        if (activityRequestInFlight) return
         val cursor = if (reset) null else state.nextCursor ?: return
 
         if (reset) loadFollowRequests()
 
+        activityRequestInFlight = true
         scope.launch {
-            loadActivityRequestNow(reset = reset, cursor = cursor)
+            try {
+                loadActivityRequestNow(reset = reset, cursor = cursor)
+            } finally {
+                activityRequestInFlight = false
+            }
         }
     }
 
@@ -103,7 +122,9 @@ class NotificationsStateOwner(
                     page.notifications
                 } else {
                     val existingIds = state.notifications.mapTo(mutableSetOf()) { it.id }
-                    state.notifications + page.notifications.filterNot { it.id in existingIds }
+                    state.notifications + page.notifications
+                        .distinctBy { it.id }
+                        .filterNot { it.id in existingIds }
                 }
                 state = state.copy(
                     notifications = nextNotifications,
@@ -111,11 +132,16 @@ class NotificationsStateOwner(
                     isLoading = false,
                     isLoadingMore = false,
                 )
-                onUnreadCountChanged(page.unreadCount)
+                if (reset) onUnreadCountChanged(page.unreadCount)
 
                 if (reset && page.unreadCount > 0) {
                     when (val readResult = notificationsRepository.markAllRead()) {
-                        is ApiResult.Success -> onUnreadCountChanged(readResult.value)
+                        is ApiResult.Success -> {
+                            state = state.copy(
+                                notifications = state.notifications.map { it.copy(isRead = true) },
+                            )
+                            onUnreadCountChanged(readResult.value)
+                        }
                         is ApiResult.Failure -> {
                             if (readResult.statusCode == 401) onSessionExpired()
                         }
@@ -153,9 +179,12 @@ class NotificationsStateOwner(
             followRequestRepository.declineFollowRequest(request.id)
         }
         when (result) {
-            is ApiResult.Success -> state = state.copy(
-                followRequests = state.followRequests.filterNot { it.id == request.id },
-            )
+            is ApiResult.Success -> {
+                resolvedFollowRequestIds += request.id
+                state = state.copy(
+                    followRequests = state.followRequests.filterNot { it.id == request.id },
+                )
+            }
 
             is ApiResult.Failure -> {
                 if (result.statusCode == 401) {
@@ -168,24 +197,25 @@ class NotificationsStateOwner(
         state = state.copy(requestBusyId = null)
     }
 
-    fun openPost(postId: Long) {
-        scope.launch { openPostNow(postId) }
+    fun openPost(notificationId: Long, postId: Long) {
+        scope.launch { openPostNow(notificationId, postId) }
     }
 
-    internal suspend fun openPostNow(postId: Long) {
+    internal suspend fun openPostNow(notificationId: Long, postId: Long) {
         if (state.openingPostId != null) return
         state = state.copy(
             openingPostId = postId,
+            openingNotificationId = notificationId,
             errorMessage = null,
         )
         when (val result = postRepository.post(postId)) {
             is ApiResult.Success -> {
-                state = state.copy(openingPostId = null)
+                state = state.copy(openingPostId = null, openingNotificationId = null)
                 onPostOpened(result.value)
             }
 
             is ApiResult.Failure -> {
-                state = state.copy(openingPostId = null)
+                state = state.copy(openingPostId = null, openingNotificationId = null)
                 if (result.statusCode == 401) {
                     onSessionExpired()
                 } else {
@@ -215,7 +245,7 @@ class NotificationsStateOwner(
                 val reelId = notification.reelId
                 if (reelId != null && notification.reelAuthorUsername.isNotBlank()) {
                     if (reelId <= 0L) {
-                        NotificationOpenTarget.None
+                        NotificationOpenTarget.Person(notification.actor.username)
                     } else {
                         NotificationOpenTarget.Reel(
                             reelId = reelId,

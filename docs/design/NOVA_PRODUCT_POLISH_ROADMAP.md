@@ -250,7 +250,7 @@ Samsung review still must confirm long-link and large-font layout, theme/Orbit v
 
 ### Flow 5 — Orbit + Tonight + Activity/Notifications
 
-Status: `IN PROGRESS`
+Status: `PR READY` — implementation is complete; hosted CI and Samsung device review remain the validation boundary
 
 Primary goals:
 
@@ -260,6 +260,14 @@ Primary goals:
 - preserve real presence semantics without fake activity;
 - strengthen handoffs into profiles/messages/content;
 - ensure unique Nova identity becomes deeper, not more generic.
+
+Orbit keeps its constellation and relationship-first identity while replacing repetitive oversized activity cards with a denser semantic event stream. Real Post events open the exact Post, actor/profile handoffs remain direct, available Post/Pulse context media is rendered, filters retain their server-backed meanings and cursor paging now reaches a truthful filtered-empty state before stopping. Pulse is the only event that produces a live Orbit marker; ordinary relationship activity no longer implies fabricated presence. Because Nova has no specific-Pulse destination route, Pulse activity truthfully hands off to its actor rather than inventing a dead content target.
+
+Tonight keeps its existing local-time window, identity hero and Rooms handoffs. The live surface now exposes the real server-returned nearby Pulse moments with their image or first-frame thumbnail previews, Nova-owned Moon/Play iconography and no new presence claim. The backend contract already supplied `thumbnail_url`; Flow 5 preserves that field in the Android model/parser and consumes it instead of adding a parallel or fake media source.
+
+Activity keeps Follow Requests prominent and actionable while rendering normal notifications as a compact row-and-divider stream with semantic icons, actor hierarchy, relative timestamps and a non-colour unread description. Successful mark-all-read now reconciles visible rows immediately; cursor-page unread counts cannot overwrite the global badge; paging deduplicates repeated items; duplicate in-flight refreshes are suppressed; a resolved follow request cannot be resurrected by a stale request response; and only the notification whose Post is resolving shows opening progress. Existing pull-to-refresh and Follow/Post/Reel/Person destinations remain intact, with invalid or deleted Reel metadata falling back to the real actor profile instead of a dead tap.
+
+Samsung review still must confirm constellation and event-row density, real Pulse-only live markers, filtered paging and Post/profile handoffs; Tonight image/video thumbnail treatment and local-window transitions; and Activity large-font layout, unread contrast/announcement, pull-to-refresh, follow-request decision feedback, paging and Post/Reel/Profile navigation. Flow 5 is not `DEVICE VERIFIED`.
 
 ### Flow 6 — Inbox + Messaging + Calls
 

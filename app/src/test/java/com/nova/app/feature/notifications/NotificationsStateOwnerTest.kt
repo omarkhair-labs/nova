@@ -65,7 +65,7 @@ class NotificationsStateOwnerTest {
     }
 
     @Test
-    fun `load more filters preexisting ids only and preserves duplicates inside incoming page`() = runBlocking {
+    fun `load more deduplicates existing and repeated incoming notifications`() = runBlocking {
         val notifications = FakeNotificationsRepository(
             pageResults = mutableListOf(
                 ApiResult.Success(NovaNotificationPage(listOf(notification(1, "follow")), "next", 0)),
@@ -87,9 +87,44 @@ class NotificationsStateOwnerTest {
         owner.loadActivityRequestNow(reset = true, cursor = null)
         owner.loadActivityRequestNow(reset = false, cursor = "next")
 
-        assertEquals(listOf(1L, 2L, 2L), owner.state.notifications.map { it.id })
+        assertEquals(listOf(1L, 2L), owner.state.notifications.map { it.id })
         assertNull(owner.state.nextCursor)
         assertFalse(owner.state.isLoadingMore)
+    }
+
+    @Test
+    fun `load more cannot replace the global unread count with a cursor page count`() = runBlocking {
+        val unreadCounts = mutableListOf<Int>()
+        val owner = owner(
+            notifications = FakeNotificationsRepository(
+                pageResults = mutableListOf(
+                    ApiResult.Success(NovaNotificationPage(listOf(notification(1, "follow")), "next", 0)),
+                    ApiResult.Success(NovaNotificationPage(listOf(notification(2, "follow")), null, 7)),
+                ),
+            ),
+            onUnreadCountChanged = unreadCounts::add,
+        )
+
+        owner.loadActivityRequestNow(reset = true, cursor = null)
+        owner.loadActivityRequestNow(reset = false, cursor = "next")
+
+        assertEquals(listOf(0), unreadCounts)
+    }
+
+    @Test
+    fun `successful mark all read reconciles visible unread rows immediately`() = runBlocking {
+        val owner = owner(
+            notifications = FakeNotificationsRepository(
+                pageResults = mutableListOf(
+                    ApiResult.Success(NovaNotificationPage(listOf(notification(1, "like", postId = 5)), null, 1)),
+                ),
+                markResults = mutableListOf(ApiResult.Success(0)),
+            ),
+        )
+
+        owner.loadActivityRequestNow(reset = true, cursor = null)
+
+        assertTrue(owner.state.notifications.single().isRead)
     }
 
     @Test
@@ -194,6 +229,25 @@ class NotificationsStateOwnerTest {
     }
 
     @Test
+    fun `resolved follow request is not resurrected by a stale request refresh`() = runBlocking {
+        val requestA = followRequest(1, "alice")
+        val requestB = followRequest(2, "bob")
+        val followRequests = FakeFollowRequestRepository(
+            loadResults = mutableListOf(
+                ApiResult.Success(listOf(requestA, requestB)),
+                ApiResult.Success(listOf(requestA, requestB)),
+            ),
+        )
+        val owner = owner(followRequests = followRequests)
+
+        owner.loadFollowRequestsNow()
+        owner.decideFollowRequestNow(requestA, accept = true)
+        owner.loadFollowRequestsNow()
+
+        assertEquals(listOf(2L), owner.state.followRequests.map { it.id })
+    }
+
+    @Test
     fun `open post clears busy before success callback and keeps failure semantics`() = runBlocking {
         val post = post(77)
         var busyAtCallback: Long? = -1L
@@ -203,17 +257,18 @@ class NotificationsStateOwnerTest {
             onPostOpened = { busyAtCallback = successOwner.state.openingPostId },
         )
 
-        successOwner.openPostNow(77)
+        successOwner.openPostNow(notificationId = 7, postId = 77)
 
         assertNull(busyAtCallback)
         assertNull(successOwner.state.openingPostId)
+        assertNull(successOwner.state.openingNotificationId)
 
         val terminalEvents = mutableListOf<String>()
         val failureOwner = owner(
             posts = FakePostRepository(postResults = mutableListOf(ApiResult.Failure("gone", 404))),
             onSessionExpired = { terminalEvents += "expired" },
         )
-        failureOwner.openPostNow(88)
+        failureOwner.openPostNow(notificationId = 8, postId = 88)
         assertEquals("gone", failureOwner.state.errorMessage)
         assertNull(failureOwner.state.openingPostId)
         assertTrue(terminalEvents.isEmpty())
@@ -222,7 +277,7 @@ class NotificationsStateOwnerTest {
             posts = FakePostRepository(postResults = mutableListOf(ApiResult.Failure("expired", 401))),
             onSessionExpired = { terminalEvents += "expired" },
         )
-        terminalOwner.openPostNow(99)
+        terminalOwner.openPostNow(notificationId = 9, postId = 99)
         assertNull(terminalOwner.state.errorMessage)
         assertEquals(listOf("expired"), terminalEvents)
     }
@@ -268,7 +323,7 @@ class NotificationsStateOwnerTest {
             owner.openTarget(notification(5, "reel_reply", reelId = null, reelAuthor = "owner")),
         )
         assertEquals(
-            NotificationOpenTarget.None,
+            NotificationOpenTarget.Person("actor"),
             owner.openTarget(notification(6, "reel_comment", reelId = 0, reelAuthor = "owner")),
         )
         assertEquals(
