@@ -16,6 +16,7 @@ CREATE_HUB = MAIN / "com/nova/app/feature/create/CreateHubScreen.kt"
 APP_HOST = MAIN / "com/nova/app/NovaApp.kt"
 APP_DESTINATION = MAIN / "com/nova/app/navigation/AppDestination.kt"
 PEOPLE_SCREEN = MAIN / "com/nova/app/feature/people/PeopleScreen.kt"
+PEOPLE_ROW = MAIN / "com/nova/app/feature/people/NovaPersonRow.kt"
 ICON_ALIASES = MAIN / "com/nova/app/ui/icons/NovaMaterialIconAliases.kt"
 SHARED_UI = MAIN / "com/nova/app/ui"
 SHARED_COMPONENTS = SHARED_UI / "components"
@@ -223,9 +224,9 @@ for seam in ("NovaCard(", "NovaType.screenTitle", "NovaSpacing.xxl", "SettingsSe
         errors.append(f"Settings bypassed Nova container/type/spacing seam: {seam}")
 
 profile_text = PROFILE_SCREEN.read_text(encoding="utf-8")
-for seam in ("NovaCard(", "NovaType.pageTitle", "NovaType.sectionTitle", "NovaSpacing.xxl"):
+for seam in ("NovaProfileIdentity(", "NovaPagedProfilePostsGrid(", "NovaType.pageTitle", "NovaSpacing.xxl"):
     if seam not in profile_text:
-        errors.append(f"Profile bypassed Nova container/type/spacing seam: {seam}")
+        errors.append(f"Profile bypassed Nova identity/content/type/spacing seam: {seam}")
 
 home_text = HOME_SCREEN.read_text(encoding="utf-8")
 for seam in (
@@ -301,16 +302,31 @@ for stale_destination in ("data object People", "data object Messages"):
 
 people_text = PEOPLE_SCREEN.read_text(encoding="utf-8")
 for seam in (
-    "NovaCard(",
+    "NovaPersonRow(",
     "NovaLoadingState(",
     "NovaEmptyState(",
     "NovaType.pageTitle",
     "NovaSpacing.xl",
 ):
     if seam not in people_text:
-        errors.append(f"People bypassed Nova container/type/spacing seam: {seam}")
+        errors.append(f"People bypassed Nova row/feedback/type/spacing seam: {seam}")
 if "EmptyPeopleCard(" in people_text:
     errors.append("People restored its feature-local empty card after DS-3 migration")
+
+if not PEOPLE_ROW.is_file():
+    errors.append("missing mature People row owner")
+else:
+    people_row_text = PEOPLE_ROW.read_text(encoding="utf-8")
+    for seam in (
+        "fun NovaPersonRow(",
+        "NovaAvatar(",
+        "NovaIconAsset.Verified",
+        "NovaIconAsset.Lock",
+        "HorizontalDivider(",
+        "NovaSpacing.",
+    ):
+        if seam not in people_row_text:
+            errors.append(f"People row bypassed Nova identity/status/spacing seam: {seam}")
 
 if not ICON_ALIASES.is_file():
     errors.append("missing app-owned communication icon aliases")
