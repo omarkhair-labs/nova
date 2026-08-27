@@ -88,8 +88,10 @@ for required in (
 for required in (
     "context.appContainer.orbitRepository",
     "OrbitStateOwner(repository, scope)",
-    "OrbitEventCard(",
+    "OrbitPersonRailItem(",
     "OrbitMoreCard(",
+    "showLivePoint = event.pulse != null",
+    "orbitIcon(",
 ):
     if required not in rail:
         errors.append(f"Orbit live UI is missing stable wiring: {required}")
@@ -107,6 +109,9 @@ for required in (
     "NovaBottomBar(",
     "NovaTab.Orbit",
     "OrbitConstellation(",
+    "OrbitActivityRow(",
+    "onPostClick: (Long) -> Unit",
+    "showLivePoint = events.any { it.pulse != null }",
 ):
     if required not in screen:
         errors.append(f"full Orbit destination is missing stable visual/navigation seam: {required}")
