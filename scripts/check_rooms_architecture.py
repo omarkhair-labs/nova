@@ -17,6 +17,7 @@ RAIL = ROOT / "app/src/main/java/com/nova/app/feature/rooms/RoomsRail.kt"
 LIST_SCREEN = ROOT / "app/src/main/java/com/nova/app/feature/rooms/RoomsScreen.kt"
 ROOM_SCREEN = ROOT / "app/src/main/java/com/nova/app/feature/rooms/RoomScreen.kt"
 TONIGHT_SURFACE = ROOT / "app/src/main/java/com/nova/app/feature/tonight/TonightSurface.kt"
+TONIGHT_SCREEN = ROOT / "app/src/main/java/com/nova/app/feature/tonight/TonightScreen.kt"
 CONTAINER = ROOT / "app/src/main/java/com/nova/app/app/AppContainer.kt"
 HOME = ROOT / "app/src/main/java/com/nova/app/feature/home/HomeScreen.kt"
 NETWORK = ROOT / "app/src/main/java/com/nova/app/core/network/NovaApiClient.kt"
@@ -44,6 +45,7 @@ rail = read(RAIL)
 list_screen = read(LIST_SCREEN)
 room_screen = read(ROOM_SCREEN)
 tonight_surface = read(TONIGHT_SURFACE)
+tonight_screen = read(TONIGHT_SCREEN)
 container = read(CONTAINER)
 home = read(HOME)
 network = read(NETWORK)
@@ -180,12 +182,12 @@ for forbidden in ("NovaMessagingApiClient", "ConversationRealtime", "sendMessage
     if forbidden in room_screen:
         errors.append(f"Room UI must reuse Messaging rather than own chat transport: {forbidden}")
 
-if "import com.nova.app.feature.rooms.RoomTonightSection" not in tonight_surface:
-    errors.append("Tonight must compose the feature-owned RoomTonightSection")
-if "RoomTonightSection(" not in tonight_surface:
-    errors.append("Tonight live surface must expose live Rooms")
+if "import com.nova.app.feature.rooms.RoomTonightSection" not in tonight_screen:
+    errors.append("Tonight destination must compose the feature-owned RoomTonightSection")
+if "RoomTonightSection(" not in tonight_screen:
+    errors.append("Tonight destination must expose live Rooms")
 for forbidden in ("RoomTonightSnapshot", "roomRepository", "rooms/tonight/"):
-    if forbidden in tonight_surface:
+    if forbidden in tonight_screen or forbidden in tonight_surface:
         errors.append(f"Tonight must compose Rooms UI without owning Rooms data: {forbidden}")
 
 if "val roomRepository: RoomRepository = RoomRemoteRepository(appContext, api)" not in container:
