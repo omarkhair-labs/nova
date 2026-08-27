@@ -292,7 +292,7 @@ Samsung review still must confirm Inbox density/search/filter/paging and large-f
 
 ### Flow 7 — Rooms
 
-Status: `PLANNED`
+Status: `IN PROGRESS`
 
 Primary goals:
 

@@ -37,6 +37,8 @@ import com.nova.app.app.appContainer
 import com.nova.app.feature.rooms.domain.model.RoomSummary
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaCard
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBorder
@@ -220,6 +222,17 @@ private fun RoomRailCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
+                Text(
+                    text = if (conversation.currentUserRole.isNotBlank()) {
+                        "${conversation.membersCount} members · ${conversation.currentUserRole.replaceFirstChar(Char::titlecase)}"
+                    } else {
+                        "${conversation.membersCount} members"
+                    },
+                    color = NovaMuted,
+                    style = NovaType.micro,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
             if (conversation.unreadCount > 0) {
                 Spacer(modifier = Modifier.width(7.dp))
@@ -251,7 +264,12 @@ private fun EmptyRoomsCard(onClick: () -> Unit) {
             modifier = Modifier.padding(horizontal = NovaSpacing.md, vertical = 13.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("⌂", color = NovaAccent, style = NovaType.sectionTitle)
+            NovaIcon(
+                asset = NovaIconAsset.Room,
+                contentDescription = null,
+                tint = NovaAccent,
+                modifier = Modifier.size(24.dp),
+            )
             Spacer(modifier = Modifier.width(11.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(

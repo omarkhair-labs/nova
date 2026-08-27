@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -35,10 +37,13 @@ import com.nova.app.feature.messages.NewGroupDialog
 import com.nova.app.feature.rooms.domain.model.RoomSummary
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBackButton
-import com.nova.app.ui.components.NovaCard
 import com.nova.app.ui.components.NovaEmptyState
+import com.nova.app.ui.components.NovaErrorState
+import com.nova.app.ui.components.NovaIconButton
 import com.nova.app.ui.components.NovaInlineRetry
 import com.nova.app.ui.components.NovaLoadingState
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
@@ -100,18 +105,15 @@ fun RoomsScreen(
                         style = NovaType.micro,
                     )
                 }
-                Surface(
+                NovaIconButton(
+                    asset = NovaIconAsset.Create,
+                    contentDescription = "Create a Room",
                     onClick = { showCreate = true },
-                    shape = MaterialTheme.shapes.medium,
-                    color = NovaAccent,
-                ) {
-                    Text(
-                        text = "+ New",
-                        modifier = Modifier.padding(horizontal = 13.dp, vertical = 9.dp),
-                        color = NovaBackground,
-                        style = NovaType.meta.copy(fontWeight = FontWeight.Bold),
-                    )
-                }
+                    size = 48.dp,
+                    containerColor = NovaAccent,
+                    contentColor = NovaBackground,
+                    borderColor = NovaAccent,
+                )
             }
 
             Spacer(modifier = Modifier.padding(top = NovaSpacing.sm))
@@ -124,14 +126,14 @@ fun RoomsScreen(
                     val selected = state.selectedList == key
                     Surface(
                         onClick = { owner.selectList(key) },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                         shape = MaterialTheme.shapes.medium,
                         color = if (selected) NovaAccent else NovaAccentSoft,
                         border = BorderStroke(1.dp, if (selected) NovaAccent else NovaBorder),
                     ) {
                         Text(
                             text = label,
-                            modifier = Modifier.padding(vertical = 9.dp),
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 14.dp),
                             color = if (selected) NovaBackground else NovaAccent,
                             style = NovaType.micro.copy(fontWeight = FontWeight.Bold),
                             maxLines = 1,
@@ -144,6 +146,15 @@ fun RoomsScreen(
                 state.loading && state.rooms.isEmpty() -> {
                     NovaLoadingState(
                         message = "Loading your Rooms…",
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+
+                !state.error.isNullOrBlank() && state.rooms.isEmpty() -> {
+                    NovaErrorState(
+                        title = "Rooms couldn't load",
+                        message = state.error ?: "Check your connection and try again.",
+                        onRetry = { owner.load(showSpinner = true) },
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -183,7 +194,7 @@ fun RoomsScreen(
                         }
 
                         items(state.rooms, key = { it.conversation.id }) { room ->
-                            RoomListCard(
+                            RoomListRow(
                                 room = room,
                                 busy = state.busyRoomId == room.conversation.id,
                                 onClick = {
@@ -217,16 +228,18 @@ fun RoomsScreen(
 
 
 @Composable
-private fun RoomListCard(
+private fun RoomListRow(
     room: RoomSummary,
     busy: Boolean,
     onClick: () -> Unit,
     onFollow: () -> Unit,
 ) {
     val conversation = room.conversation
-    NovaCard(
+    Surface(
         onClick = onClick,
+        enabled = room.isMember,
         modifier = Modifier.fillMaxWidth(),
+        color = NovaBackground,
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
@@ -248,13 +261,34 @@ private fun RoomListCard(
                 )
                 Text(
                     text = room.description.ifBlank {
-                        "${conversation.membersCount} people · shared place"
+                        "A shared place for ${conversation.membersCount} people"
                     },
                     color = NovaMuted,
                     style = NovaType.micro,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
+                Row(
+                    modifier = Modifier.padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RoomTruthLabel(if (room.isPublic) "Public" else "Private")
+                    RoomTruthLabel("${conversation.membersCount} members")
+                    if (room.isMember && conversation.currentUserRole.isNotBlank()) {
+                        RoomTruthLabel(conversation.currentUserRole.replaceFirstChar(Char::titlecase))
+                    }
+                }
+                if (room.topics.isNotEmpty()) {
+                    Text(
+                        text = room.topics.take(3).joinToString("  ·  ") { "#$it" },
+                        modifier = Modifier.padding(top = 4.dp),
+                        color = NovaAccent,
+                        style = NovaType.micro,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
             if (conversation.unreadCount > 0) {
                 Surface(
@@ -274,29 +308,51 @@ private fun RoomListCard(
                         Surface(
                             onClick = onClick,
                             enabled = !busy,
+                            modifier = Modifier.heightIn(min = 48.dp),
                             shape = MaterialTheme.shapes.small,
                             color = NovaAccent,
                         ) {
                             Text(
                                 if (busy) "Working…" else "Join",
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 14.dp),
                                 color = NovaBackground,
                                 style = NovaType.micro.copy(fontWeight = FontWeight.Bold),
                             )
                         }
-                        Spacer(modifier = Modifier.padding(top = 3.dp))
-                        Surface(onClick = onFollow, enabled = !busy, color = NovaBackground) {
+                        Surface(
+                            onClick = onFollow,
+                            enabled = !busy,
+                            modifier = Modifier.heightIn(min = 48.dp),
+                            color = NovaBackground,
+                        ) {
                             Text(
                                 if (room.isFollowing) "Following" else "Follow",
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 14.dp),
                                 color = NovaAccent,
-                                style = NovaType.micro,
+                                style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
                             )
                         }
                     } else {
-                        Text("›", color = NovaMuted, style = NovaType.sectionTitle)
+                        NovaIcon(
+                            asset = NovaIconAsset.Room,
+                            contentDescription = null,
+                            tint = NovaMuted,
+                            modifier = Modifier.size(20.dp),
+                        )
                     }
                 }
             }
         }
     }
+}
+
+
+@Composable
+private fun RoomTruthLabel(label: String) {
+    Text(
+        text = label,
+        color = NovaMuted,
+        style = NovaType.micro.copy(fontWeight = FontWeight.Medium),
+        maxLines = 1,
+    )
 }
