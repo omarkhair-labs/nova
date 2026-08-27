@@ -35,6 +35,7 @@ data class MediaPublishingUiState(
     val items: List<MediaPublishItem> = emptyList(),
     val postPublishedVersion: Int = 0,
     val reelPublishedVersion: Int = 0,
+    val storyPublishedVersion: Int = 0,
 )
 
 
@@ -85,11 +86,13 @@ class MediaPublishingStateOwner(
         if (state.userId != userId) return
         var postVersion = state.postPublishedVersion
         var reelVersion = state.reelPublishedVersion
+        var storyVersion = state.storyPublishedVersion
         infos.filter { it.state == WorkInfo.State.SUCCEEDED }.forEach { info ->
             if (seenSuccesses.add(info.id)) {
                 when (MediaPublishTarget.fromWire(info.outputData.getString(MediaPublishWorker.KEY_TARGET).orEmpty())) {
                     MediaPublishTarget.POST -> postVersion += 1
                     MediaPublishTarget.REEL -> reelVersion += 1
+                    MediaPublishTarget.STORY -> storyVersion += 1
                     null -> Unit
                 }
             }
@@ -100,6 +103,7 @@ class MediaPublishingStateOwner(
             },
             postPublishedVersion = postVersion,
             reelPublishedVersion = reelVersion,
+            storyPublishedVersion = storyVersion,
         )
     }
 }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,6 +22,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -53,22 +56,29 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
-import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
 import com.nova.app.ReelsActivity
 import com.nova.app.app.appContainer
 import com.nova.app.core.push.NovaPushOpenSignal
+import com.nova.app.feature.publishing.MediaPublishStatus
+import com.nova.app.feature.publishing.MediaPublishTarget
+import com.nova.app.feature.publishing.MediaPublishWorker
+import com.nova.app.feature.publishing.MediaPublishingStateOwner
 import com.nova.app.feature.stories.domain.model.NovaStory
 import com.nova.app.feature.stories.domain.model.NovaStoryGroup
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaMediaImage
+import com.nova.app.ui.components.NovaPlayerSurface
+import com.nova.app.ui.components.NovaVideoPlayer
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
@@ -99,6 +109,10 @@ fun StoriesRail(
     val scope = rememberCoroutineScope()
     val owner = remember(repository, scope) { StoriesStateOwner(repository, scope) }
     val state = owner.state
+    val publishingOwner = remember(context, scope) { MediaPublishingStateOwner(context, scope) }
+    val publishingState = publishingOwner.state
+    val currentUserId = context.appContainer.currentCachedUserId()
+    val storyPublishes = publishingState.items.filter { it.target == MediaPublishTarget.STORY }
 
     var pendingMedia by remember { mutableStateOf<Uri?>(null) }
     var showTextComposer by remember { mutableStateOf(false) }
@@ -106,12 +120,21 @@ fun StoriesRail(
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }
             pendingMedia = uri
             owner.clearError()
         }
     }
 
-    LaunchedEffect(Unit) { owner.load(showSpinner = true) }
+    LaunchedEffect(Unit) {
+        owner.load(showSpinner = true)
+        currentUserId?.let(publishingOwner::enter)
+    }
     LaunchedEffect(state.sessionExpiryVersion) {
         if (state.sessionExpiryVersion > 0) onSessionExpired()
     }
@@ -120,6 +143,9 @@ fun StoriesRail(
     }
     LaunchedEffect(state.textCreatedVersion) {
         if (state.textCreatedVersion > 0) showTextComposer = false
+    }
+    LaunchedEffect(publishingState.storyPublishedVersion) {
+        if (publishingState.storyPublishedVersion > 0) owner.load()
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -189,15 +215,34 @@ fun StoriesRail(
         state.error?.let {
             Text(it, color = NovaMuted, fontSize = 10.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
+        if (storyPublishes.isNotEmpty()) {
+            MediaPublishStatus(
+                items = storyPublishes,
+                modifier = Modifier.fillMaxWidth(),
+                onRetry = publishingOwner::retry,
+                onCancel = publishingOwner::cancel,
+            )
+        }
     }
 
     pendingMedia?.let { uri ->
         MediaStoryComposer(
             mediaUri = uri,
-            uploading = state.uploading,
-            onDismiss = { if (!state.uploading) pendingMedia = null },
+            uploading = false,
+            onDismiss = { pendingMedia = null },
             onPost = { caption, audience ->
-                owner.createMediaStory(uri, caption, audience)
+                currentUserId?.let { userId ->
+                    MediaPublishWorker.enqueue(
+                        context = context,
+                        target = MediaPublishTarget.STORY,
+                        userId = userId,
+                        sourceUri = uri,
+                        caption = caption,
+                        audience = audience,
+                    )
+                    publishingOwner.enter(userId)
+                    pendingMedia = null
+                }
             },
         )
     }
@@ -305,24 +350,84 @@ private fun MediaStoryComposer(
     onDismiss: () -> Unit,
     onPost: (String, String) -> Unit,
 ) {
+    val context = LocalContext.current
     var caption by remember(mediaUri) { mutableStateOf("") }
     var audience by remember(mediaUri) { mutableStateOf("followers") }
+    val isVideo = remember(mediaUri) {
+        context.contentResolver.getType(mediaUri)?.startsWith("video/") == true
+    }
 
-    AlertDialog(
+    Dialog(
         onDismissRequest = onDismiss,
-        title = { Text("New Story", color = NovaInk, fontWeight = FontWeight.Bold) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(StoryBackground)
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .imePadding(),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column {
+                    Text("New Story", color = StoryInk, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text("Visible for 24 hours", color = StoryMuted, fontSize = 10.sp)
+                }
                 Surface(
-                    shape = RoundedCornerShape(18.dp),
-                    color = NovaAccentSoft,
-                    modifier = Modifier.fillMaxWidth(),
+                    onClick = onDismiss,
+                    enabled = !uploading,
+                    modifier = Modifier.size(48.dp),
+                    shape = CircleShape,
+                    color = Color.White.copy(alpha = 0.12f),
                 ) {
-                    Column(Modifier.padding(14.dp)) {
-                        Text("Photo / video ready", color = NovaInk, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                        Text("Add a caption or post it as-is.", color = NovaMuted, fontSize = 10.sp)
+                    Box(contentAlignment = Alignment.Center) {
+                        NovaIcon(
+                            asset = NovaIconAsset.Close,
+                            contentDescription = "Close Story composer",
+                            modifier = Modifier.size(22.dp),
+                            tint = StoryInk,
+                        )
                     }
                 }
+            }
+
+            Box(
+                modifier = Modifier.weight(1f).fillMaxWidth().background(Color.Black),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (isVideo) {
+                    NovaVideoPlayer(
+                        source = mediaUri.toString(),
+                        modifier = Modifier.fillMaxSize(),
+                        autoplay = true,
+                        repeat = true,
+                        muted = true,
+                        useController = true,
+                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT,
+                        description = "Selected Story video preview",
+                    )
+                } else {
+                    NovaMediaImage(
+                        source = mediaUri.toString(),
+                        modifier = Modifier.fillMaxSize(),
+                        contentDescription = "Selected Story photo preview",
+                    )
+                }
+            }
+
+            Surface(
+                color = NovaSurface,
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
                 OutlinedTextField(
                     value = caption,
                     onValueChange = { caption = it.take(240) },
@@ -335,17 +440,32 @@ private fun MediaStoryComposer(
                     colors = storyFieldColors(),
                 )
                 StoryAudienceChooser(audience, !uploading) { audience = it }
+                    Surface(
+                        onClick = { if (!uploading) onPost(caption, audience) },
+                        enabled = !uploading,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = NovaAccent,
+                    ) {
+                        Box(
+                            modifier = Modifier.padding(vertical = 13.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            if (uploading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(19.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp,
+                                )
+                            } else {
+                                Text("Share Story", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = { if (!uploading) onPost(caption, audience) }, enabled = !uploading) {
-                Text(if (uploading) "Posting…" else "Share Story", color = NovaAccent)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !uploading) { Text("Cancel") }
-        },
-    )
+        }
+    }
 }
 
 
@@ -472,6 +592,7 @@ private fun StoryAudienceChip(label: String, selected: Boolean, enabled: Boolean
 
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun StoryViewer(
     initialGroup: NovaStoryGroup,
     onDismiss: () -> Unit,
@@ -485,6 +606,7 @@ private fun StoryViewer(
     }
     val state = owner.state
     var progress by remember { mutableFloatStateOf(0f) }
+    val imeVisible = WindowInsets.isImeVisible
 
     val story = state.currentStory
     if (story == null) {
@@ -511,7 +633,7 @@ private fun StoryViewer(
         var elapsedMs = 0L
         while (elapsedMs < STORY_FRAME_MS) {
             delay(STORY_TICK_MS)
-            if (owner.state.viewersVisible || owner.state.mutationBusy) continue
+            if (owner.state.viewersVisible || owner.state.mutationBusy || imeVisible) continue
             elapsedMs += STORY_TICK_MS
             progress = (elapsedMs.toFloat() / STORY_FRAME_MS.toFloat()).coerceIn(0f, 1f)
         }
@@ -525,6 +647,7 @@ private fun StoryViewer(
         Box(modifier = Modifier.fillMaxSize().background(StoryBackground)) {
             StoryVisual(
                 story = story,
+                paused = state.viewersVisible || state.mutationBusy || imeVisible,
                 onVideoProgress = { progress = it },
                 onVideoFinished = owner::advance,
             )
@@ -567,8 +690,20 @@ private fun StoryViewer(
                             fontSize = 9.sp,
                         )
                     }
-                    Surface(onClick = onDismiss, shape = CircleShape, color = Color.Black.copy(alpha = 0.35f)) {
-                        Text("×", modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp), color = StoryInk, fontSize = 20.sp)
+                    Surface(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(48.dp),
+                        shape = CircleShape,
+                        color = Color.Black.copy(alpha = 0.35f),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            NovaIcon(
+                                asset = NovaIconAsset.Close,
+                                contentDescription = "Close Story",
+                                modifier = Modifier.size(22.dp),
+                                tint = StoryInk,
+                            )
+                        }
                     }
                 }
             }
@@ -618,13 +753,23 @@ private fun StoryViewer(
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("▶", color = NovaAccent, fontSize = 15.sp)
+                            NovaIcon(
+                                asset = NovaIconAsset.Play,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = NovaAccent,
+                            )
                             Spacer(Modifier.width(9.dp))
                             Column(Modifier.weight(1f)) {
                                 Text("Watch original Reel", color = StoryInk, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 Text("@${shared.author.username}", color = StoryMuted, fontSize = 9.sp)
                             }
-                            Text("›", color = StoryMuted, fontSize = 18.sp)
+                            NovaIcon(
+                                asset = NovaIconAsset.Play,
+                                contentDescription = null,
+                                modifier = Modifier.size(17.dp),
+                                tint = StoryMuted,
+                            )
                         }
                     }
                 }
@@ -643,13 +788,23 @@ private fun StoryViewer(
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("▣", color = NovaAccent, fontSize = 15.sp)
+                            NovaIcon(
+                                asset = NovaIconAsset.Comment,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = NovaAccent,
+                            )
                             Spacer(Modifier.width(9.dp))
                             Column(Modifier.weight(1f)) {
                                 Text("View original post", color = StoryInk, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 Text("@${shared.author.username}", color = StoryMuted, fontSize = 9.sp)
                             }
-                            Text("›", color = StoryMuted, fontSize = 18.sp)
+                            NovaIcon(
+                                asset = NovaIconAsset.Play,
+                                contentDescription = null,
+                                modifier = Modifier.size(17.dp),
+                                tint = StoryMuted,
+                            )
                         }
                     }
                 }
@@ -662,7 +817,7 @@ private fun StoryViewer(
                             color = Color.Black.copy(alpha = 0.52f),
                         ) {
                             Text(
-                                "◉ ${story.viewsCount ?: 0} viewers",
+                                "${story.viewsCount ?: 0} viewers",
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
                                 color = StoryInk,
                                 fontSize = 10.sp,
@@ -724,7 +879,14 @@ private fun StoryViewer(
                             shape = CircleShape,
                             color = if (state.replyBody.isNotBlank()) NovaAccent else Color.Black.copy(alpha = 0.4f),
                         ) {
-                            Text("↑", modifier = Modifier.padding(horizontal = 13.dp, vertical = 9.dp), color = StoryInk, fontSize = 18.sp)
+                            Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                                NovaIcon(
+                                    asset = NovaIconAsset.Send,
+                                    contentDescription = "Send Story reply",
+                                    modifier = Modifier.size(21.dp),
+                                    tint = StoryInk,
+                                )
+                            }
                         }
                     }
                 }
@@ -745,6 +907,7 @@ private fun StoryViewer(
 @Composable
 private fun StoryVisual(
     story: NovaStory,
+    paused: Boolean,
     onVideoProgress: (Float) -> Unit,
     onVideoFinished: () -> Unit,
 ) {
@@ -769,38 +932,42 @@ private fun StoryVisual(
         "video" -> {
             val player = remember(story.id) {
                 ExoPlayer.Builder(context.applicationContext).build().apply {
-                    playWhenReady = true
+                    setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(C.USAGE_MEDIA)
+                            .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                            .build(),
+                        true,
+                    )
+                    playWhenReady = false
                     repeatMode = Player.REPEAT_MODE_OFF
                 }
             }
-            var playbackState by remember(story.id) { mutableStateOf(Player.STATE_IDLE) }
-            var playbackError by remember(story.id) { mutableStateOf<String?>(null) }
 
             DisposableEffect(story.id, player) {
                 val listener = object : Player.Listener {
                     override fun onPlaybackStateChanged(state: Int) {
-                        playbackState = state
                         if (state == Player.STATE_ENDED) {
                             onVideoProgress(1f)
                             onVideoFinished()
                         }
                     }
 
-                    override fun onPlayerError(error: PlaybackException) {
-                        playbackError = "Video couldn't play"
-                    }
                 }
 
                 player.addListener(listener)
                 player.setMediaItem(MediaItem.fromUri(story.mediaUrl))
                 player.seekTo(0)
                 player.prepare()
-                player.play()
 
                 onDispose {
                     player.removeListener(listener)
                     player.release()
                 }
+            }
+
+            LaunchedEffect(paused, player) {
+                if (paused) player.pause() else player.play()
             }
 
             LaunchedEffect(story.id, player) {
@@ -815,53 +982,14 @@ private fun StoryVisual(
                 }
             }
 
-            AndroidView(
-                modifier = Modifier.fillMaxSize().background(Color.Black),
-                factory = { viewContext ->
-                    PlayerView(viewContext).apply {
-                        useController = false
-                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                        setShutterBackgroundColor(android.graphics.Color.BLACK)
-                        this.player = player
-                    }
-                },
-                update = { view -> view.player = player },
+            NovaPlayerSurface(
+                player = player,
+                thumbnailSource = story.thumbnailUrl,
+                modifier = Modifier.fillMaxSize(),
+                useController = false,
+                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT,
+                description = "Story video by @${story.author.username}",
             )
-
-            if (playbackError != null) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Surface(
-                        onClick = {
-                            playbackError = null
-                            playbackState = Player.STATE_BUFFERING
-                            onVideoProgress(0f)
-                            player.setMediaItem(MediaItem.fromUri(story.mediaUrl))
-                            player.seekTo(0)
-                            player.prepare()
-                            player.play()
-                        },
-                        shape = RoundedCornerShape(16.dp),
-                        color = Color.Black.copy(alpha = 0.66f),
-                        border = BorderStroke(1.dp, StoryInk.copy(alpha = 0.25f)),
-                    ) {
-                        Text(
-                            "Video couldn't play · Tap to retry",
-                            modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp),
-                            color = StoryInk,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                }
-            } else if (playbackState == Player.STATE_IDLE || playbackState == Player.STATE_BUFFERING) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(
-                        color = StoryInk,
-                        strokeWidth = 2.dp,
-                        modifier = Modifier.size(28.dp),
-                    )
-                }
-            }
         }
         else -> {
             Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
@@ -888,7 +1016,28 @@ private fun StoryViewersDialog(owner: StoryViewerStateOwner) {
                 state.viewersLoading -> Box(Modifier.fillMaxWidth().height(140.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = NovaAccent)
                 }
-                state.viewers.isEmpty() -> Text(state.viewersError ?: "No viewers yet.", color = NovaMuted, fontSize = 12.sp)
+                state.viewers.isEmpty() -> Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text(state.viewersError ?: "No viewers yet.", color = NovaMuted, fontSize = 12.sp)
+                    if (state.viewersError != null) {
+                        Surface(
+                            onClick = owner::openViewers,
+                            shape = RoundedCornerShape(13.dp),
+                            color = NovaAccentSoft,
+                        ) {
+                            Text(
+                                "Try again",
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                                color = NovaAccent,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    }
+                }
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxWidth().height(280.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),

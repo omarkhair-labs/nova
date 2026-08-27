@@ -1,5 +1,6 @@
 import shutil
 import tempfile
+import uuid
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
@@ -189,3 +190,48 @@ class StoriesV2Tests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Story.objects.count(), 0)
+
+    def test_video_story_accepts_compatible_mp4_thumbnail_and_is_idempotent(self):
+        publish_id = str(uuid.uuid4())
+        self.auth(self.owner)
+
+        def payload():
+            return {
+                "media": SimpleUploadedFile("story.mp4", b"nova-story-video", content_type="video/mp4"),
+                "thumbnail": SimpleUploadedFile("story.jpg", b"nova-story-thumb", content_type="image/jpeg"),
+                "caption": "Right now",
+                "audience": "close_friends",
+                "client_publish_id": publish_id,
+            }
+
+        created = self.client.post(reverse("stories"), payload(), format="multipart")
+        duplicate = self.client.post(reverse("stories"), payload(), format="multipart")
+
+        self.assertEqual(created.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(duplicate.status_code, status.HTTP_200_OK)
+        self.assertEqual(created.data["id"], duplicate.data["id"])
+        self.assertEqual(created.data["media_type"], "video")
+        self.assertIn(".mp4", created.data["media_url"])
+        self.assertIn(".jpg", created.data["thumbnail_url"])
+        self.assertEqual(Story.objects.filter(author=self.owner).count(), 1)
+
+    def test_story_publish_identity_is_scoped_per_account(self):
+        publish_id = str(uuid.uuid4())
+        for user in (self.owner, self.viewer):
+            self.auth(user)
+            response = self.client.post(
+                reverse("stories"),
+                {
+                    "media": SimpleUploadedFile(
+                        f"{user.username}.jpg",
+                        b"nova-story-image",
+                        content_type="image/jpeg",
+                    ),
+                    "client_publish_id": publish_id,
+                    "audience": "followers",
+                },
+                format="multipart",
+            )
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        self.assertEqual(Story.objects.filter(client_publish_id=publish_id).count(), 2)

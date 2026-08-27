@@ -205,9 +205,10 @@ class DeleteAccountView(APIView):
             if field and field.name
         ]
         story_files = [
-            (story.media.storage, story.media.name)
+            (field.storage, field.name)
             for story in Story.objects.filter(author=user)
-            if story.media and story.media.name
+            for field in (story.media, story.thumbnail)
+            if field and field.name
         ]
         pulse_files = [
             (pulse.media.storage, pulse.media.name)

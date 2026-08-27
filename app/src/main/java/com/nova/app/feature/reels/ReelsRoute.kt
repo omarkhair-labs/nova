@@ -67,6 +67,7 @@ fun ReelsRoute(
             username = route.username,
             initialReelId = route.initialReelId,
             onFinish = onFinish,
+            onPersonClick = onPersonClick,
         )
     }
 }

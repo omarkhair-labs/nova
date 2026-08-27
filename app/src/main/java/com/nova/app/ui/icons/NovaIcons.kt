@@ -21,6 +21,11 @@ enum class NovaIconAsset(@param:DrawableRes val drawableRes: Int) {
     Search(R.drawable.ic_nova_search),
     People(R.drawable.ic_nova_search),
     Reels(R.drawable.ic_nova_play),
+    Story(R.drawable.ic_nova_story),
+    Play(R.drawable.ic_nova_play),
+    Pause(R.drawable.ic_nova_pause),
+    VolumeOn(R.drawable.ic_nova_volume_on),
+    VolumeOff(R.drawable.ic_nova_volume_off),
     Messages(R.drawable.ic_nova_mail),
     Inbox(R.drawable.ic_nova_mail),
     Notifications(R.drawable.ic_nova_notifications),
@@ -41,6 +46,7 @@ enum class NovaIconAsset(@param:DrawableRes val drawableRes: Int) {
     More(R.drawable.ic_nova_more),
     Send(R.drawable.ic_nova_send),
     Close(R.drawable.ic_nova_close),
+    Delete(R.drawable.ic_nova_delete),
 }
 
 @Composable

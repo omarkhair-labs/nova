@@ -52,7 +52,7 @@ fun MediaPublishStatus(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "${if (item.target == MediaPublishTarget.POST) "Post" else "Reel"} · ${stageLabel(item.stage)}",
+                                text = "${targetLabel(item.target)} · ${stageLabel(item.stage)}",
                                 color = NovaInk,
                                 style = NovaType.meta.copy(fontWeight = FontWeight.Bold),
                             )
@@ -108,6 +108,13 @@ fun MediaPublishStatus(
             }
         }
     }
+}
+
+
+private fun targetLabel(target: MediaPublishTarget): String = when (target) {
+    MediaPublishTarget.POST -> "Post"
+    MediaPublishTarget.REEL -> "Reel"
+    MediaPublishTarget.STORY -> "Story"
 }
 
 
