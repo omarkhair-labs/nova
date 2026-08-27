@@ -59,6 +59,7 @@ private fun parsePulse(
     id = json.optLong("id"),
     author = parsePerson(json.optJSONObject("author") ?: JSONObject(), resolveMediaUrl),
     mediaUrl = resolveMediaUrl(json.optString("media_url")),
+    thumbnailUrl = resolveMediaUrl(json.optString("thumbnail_url")),
     mediaType = json.optString("media_type"),
     audience = json.optString("audience"),
     note = json.optString("note"),

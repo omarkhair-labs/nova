@@ -34,12 +34,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.app.appContainer
-import com.nova.app.feature.rooms.RoomTonightSection
 import com.nova.app.feature.tonight.domain.model.TonightPersonRow
 import com.nova.app.feature.tonight.domain.model.TonightPulse
 import com.nova.app.feature.tonight.domain.model.TonightSnapshot
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaMediaImage
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBorder
@@ -60,19 +61,12 @@ fun TonightSurface(
     onPersonClick: (String) -> Unit,
     onSessionExpired: () -> Unit,
     onOpenTonight: (() -> Unit)? = null,
-    liveRoomsContent: (@Composable () -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val repository = context.appContainer.tonightRepository
     val scope = rememberCoroutineScope()
     val owner = remember(repository, scope) { TonightStateOwner(repository, scope) }
     val state = owner.state
-    val roomsContent: @Composable () -> Unit = liveRoomsContent ?: {
-        RoomTonightSection(
-            onPersonClick = onPersonClick,
-            onSessionExpired = onSessionExpired,
-        )
-    }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -100,7 +94,6 @@ fun TonightSurface(
                 error = state.error,
                 onRetry = { owner.load(currentUtcOffsetMinutes(), showSpinner = false) },
                 onPersonClick = onPersonClick,
-                liveRoomsContent = roomsContent,
             )
             else -> TonightSleepingCard(
                 error = state.error,
@@ -158,12 +151,11 @@ private fun TonightSleepingCard(
                 shape = MaterialTheme.shapes.medium,
                 color = NovaAccentSoft,
             ) {
-                Text(
-                    text = "☾",
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                    color = NovaAccent,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
+                NovaIcon(
+                    asset = NovaIconAsset.Moon,
+                    contentDescription = null,
+                    modifier = Modifier.padding(11.dp).size(24.dp),
+                    tint = NovaAccent,
                 )
             }
             Column(modifier = Modifier.weight(1f)) {
@@ -198,15 +190,35 @@ private fun TonightLiveCard(
     error: String?,
     onRetry: () -> Unit,
     onPersonClick: (String) -> Unit,
-    liveRoomsContent: @Composable () -> Unit,
 ) {
     val value = snapshot ?: return
-    TonightIdentityHero(
-        snapshot = value,
-        error = error,
-        onRetry = onRetry,
-        onPersonClick = onPersonClick,
-    )
+    val palette = TonightTheme.live
+    Column(verticalArrangement = Arrangement.spacedBy(NovaSpacing.md)) {
+        TonightIdentityHero(
+            snapshot = value,
+            error = error,
+            onRetry = onRetry,
+            onPersonClick = onPersonClick,
+        )
+        if (value.people.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Moments around you", color = palette.ink, style = NovaType.label)
+                Text(tonightSummary(value), color = palette.muted, style = NovaType.micro)
+            }
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm)) {
+                items(value.people, key = { it.person.id }) { row ->
+                    TonightPersonCard(
+                        row = row,
+                        onClick = { onPersonClick(row.person.username) },
+                    )
+                }
+            }
+        }
+    }
 }
 
 
@@ -277,15 +289,30 @@ private fun TonightPulseBackdrop(pulse: TonightPulse) {
     val palette = TonightTheme.live
     when (pulse.mediaType) {
         "image" -> NovaMediaImage(
-            source = pulse.mediaUrl,
+            source = pulse.previewUrl,
             modifier = Modifier.fillMaxSize(),
             contentDescription = "Tonight moment",
         )
-        "video" -> Box(
-            modifier = Modifier.fillMaxSize().background(palette.mediaVideoBackground),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("▶", color = palette.ink, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        "video" -> Box(modifier = Modifier.fillMaxSize().background(palette.mediaVideoBackground)) {
+            if (pulse.previewUrl.isNotBlank()) {
+                NovaMediaImage(
+                    source = pulse.previewUrl,
+                    modifier = Modifier.fillMaxSize(),
+                    contentDescription = "Tonight video thumbnail",
+                )
+            }
+            Surface(
+                modifier = Modifier.align(Alignment.Center),
+                shape = androidx.compose.foundation.shape.CircleShape,
+                color = palette.background.copy(alpha = 0.72f),
+            ) {
+                NovaIcon(
+                    asset = NovaIconAsset.Play,
+                    contentDescription = "Video moment",
+                    modifier = Modifier.padding(9.dp).size(20.dp),
+                    tint = palette.ink,
+                )
+            }
         }
         else -> Box(
             modifier = Modifier.fillMaxSize().background(palette.mediaTextBackground),

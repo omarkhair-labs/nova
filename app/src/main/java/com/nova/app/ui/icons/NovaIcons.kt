@@ -26,6 +26,7 @@ enum class NovaIconAsset(@param:DrawableRes val drawableRes: Int) {
     Pause(R.drawable.ic_nova_pause),
     VolumeOn(R.drawable.ic_nova_volume_on),
     VolumeOff(R.drawable.ic_nova_volume_off),
+    Moon(R.drawable.ic_nova_moon),
     Messages(R.drawable.ic_nova_mail),
     Inbox(R.drawable.ic_nova_mail),
     Notifications(R.drawable.ic_nova_notifications),

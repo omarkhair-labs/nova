@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -34,9 +35,9 @@ import androidx.compose.ui.unit.dp
 import com.nova.app.app.appContainer
 import com.nova.app.feature.orbit.domain.model.OrbitEvent
 import com.nova.app.ui.components.NovaAvatar
-import com.nova.app.ui.components.NovaCard
-import com.nova.app.ui.components.NovaMediaImage
 import com.nova.app.ui.components.NovaOrbitRing
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBorder
@@ -196,117 +197,6 @@ private fun OrbitPersonRailItem(
 }
 
 
-@Composable
-private fun OrbitEventCard(
-    event: OrbitEvent,
-    onClick: () -> Unit,
-) {
-    val mediaUrl = event.post?.previewUrl
-        ?.takeIf { it.isNotBlank() }
-        ?: event.pulse?.previewUrl?.takeIf { it.isNotBlank() }
-    val textPulse = event.pulse?.takeIf { it.mediaType == "text" }
-
-    NovaCard(
-        onClick = onClick,
-        modifier = Modifier.width(224.dp).height(118.dp),
-    ) {
-        Row(
-            modifier = Modifier.padding(NovaSpacing.md),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Column(
-                modifier = Modifier.weight(1f).fillMaxSize(),
-                verticalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    NovaAvatar(
-                        source = event.actor.avatarUrl,
-                        fallbackText = event.actor.name.ifBlank { event.actor.username },
-                        size = 30.dp,
-                    )
-                    Spacer(modifier = Modifier.width(7.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = event.actor.name.ifBlank { event.actor.username },
-                            color = NovaInk,
-                            style = NovaType.meta.copy(fontWeight = FontWeight.Bold),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            text = "@${event.actor.username}",
-                            color = NovaMuted,
-                            style = NovaType.badge,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-
-                Column {
-                    Text(
-                        text = orbitActionText(event),
-                        color = NovaInk,
-                        style = NovaType.meta.copy(fontWeight = FontWeight.SemiBold),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    orbitContextText(event)?.let { context ->
-                        Spacer(modifier = Modifier.height(3.dp))
-                        Text(
-                            text = context,
-                            color = NovaMuted,
-                            style = NovaType.micro,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-            }
-
-            when {
-                mediaUrl != null -> NovaMediaImage(
-                    source = mediaUrl,
-                    modifier = Modifier.width(64.dp).height(94.dp),
-                    contentDescription = "Orbit activity media",
-                )
-                textPulse != null -> Surface(
-                    modifier = Modifier.width(64.dp).height(94.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    color = NovaAccentSoft,
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize().padding(NovaSpacing.sm),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = textPulse.note,
-                            color = NovaInk,
-                            style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
-                            maxLines = 5,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-                else -> Surface(
-                    modifier = Modifier.width(42.dp).height(94.dp),
-                    shape = MaterialTheme.shapes.small,
-                    color = NovaAccentSoft,
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = orbitSymbol(event.kind),
-                            color = NovaAccent,
-                            style = NovaType.sectionTitle.copy(fontWeight = FontWeight.Bold),
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-
 internal fun orbitActionText(event: OrbitEvent): String = when (event.kind) {
     "like" -> "liked a post"
     "comment" -> "joined a conversation"
@@ -331,13 +221,13 @@ internal fun orbitContextText(event: OrbitEvent): String? = when (event.kind) {
 }
 
 
-internal fun orbitSymbol(kind: String): String = when (kind) {
-    "like" -> "♥"
-    "comment" -> "↳"
-    "repost" -> "↻"
-    "follow" -> "+"
-    "pulse_reply" -> "◉"
-    else -> "✦"
+internal fun orbitIcon(kind: String): NovaIconAsset = when (kind) {
+    "like" -> NovaIconAsset.LikeFilled
+    "comment" -> NovaIconAsset.Comment
+    "repost" -> NovaIconAsset.Repost
+    "follow" -> NovaIconAsset.Create
+    "pulse_reply" -> NovaIconAsset.Orbit
+    else -> NovaIconAsset.Orbit
 }
 
 
@@ -363,7 +253,12 @@ private fun OrbitMoreCard(
                 )
             } else {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("→", color = NovaAccent, style = NovaType.sectionTitle)
+                    NovaIcon(
+                        asset = NovaIconAsset.Back,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp).graphicsLayer { scaleX = -1f },
+                        tint = NovaAccent,
+                    )
                     Text("More", color = NovaInk, style = NovaType.micro.copy(fontWeight = FontWeight.Bold))
                 }
             }
@@ -374,9 +269,12 @@ private fun OrbitMoreCard(
 
 @Composable
 private fun OrbitEmptyCard(onRetry: () -> Unit) {
-    NovaCard(
+    Surface(
         onClick = onRetry,
         modifier = Modifier.fillMaxWidth().height(92.dp),
+        shape = MaterialTheme.shapes.large,
+        color = NovaSurface,
+        border = BorderStroke(1.dp, NovaBorder),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = NovaSpacing.md),
@@ -387,11 +285,11 @@ private fun OrbitEmptyCard(onRetry: () -> Unit) {
                 shape = MaterialTheme.shapes.medium,
                 color = NovaAccentSoft,
             ) {
-                Text(
-                    text = "✦",
-                    modifier = Modifier.padding(horizontal = 13.dp, vertical = 9.dp),
-                    color = NovaAccent,
-                    style = NovaType.sectionTitle,
+                NovaIcon(
+                    asset = NovaIconAsset.Orbit,
+                    contentDescription = null,
+                    modifier = Modifier.padding(11.dp).size(22.dp),
+                    tint = NovaAccent,
                 )
             }
             Column(modifier = Modifier.weight(1f)) {

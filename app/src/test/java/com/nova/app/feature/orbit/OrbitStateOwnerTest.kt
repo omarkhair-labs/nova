@@ -12,9 +12,19 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
+import java.time.Instant
 
 
 class OrbitStateOwnerTest {
+    @Test
+    fun `orbit timestamps stay compact and invalid values stay quiet`() {
+        val now = Instant.parse("2026-08-27T12:00:00Z")
+
+        assertEquals("5m", orbitRelativeTime("2026-08-27T11:55:00+00:00", now))
+        assertEquals("2d", orbitRelativeTime("2026-08-25T12:00:00+00:00", now))
+        assertEquals("", orbitRelativeTime("not-a-timestamp", now))
+    }
+
     @Test
     fun `initial load owns page and next cursor`() = runBlocking {
         val expected = listOf(event("like:1"), event("comment:2"))

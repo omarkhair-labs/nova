@@ -2,6 +2,7 @@ package com.nova.app.feature.orbit
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +21,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -47,6 +50,7 @@ import com.nova.app.ui.components.NovaEmptyState
 import com.nova.app.ui.components.NovaInlineLoading
 import com.nova.app.ui.components.NovaInlineRetry
 import com.nova.app.ui.components.NovaLoadingState
+import com.nova.app.ui.components.NovaMediaImage
 import com.nova.app.ui.components.NovaOrbitRing
 import com.nova.app.ui.components.NovaTab
 import com.nova.app.ui.icons.NovaIcon
@@ -60,6 +64,9 @@ import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSpacing
 import com.nova.app.ui.theme.NovaSurface
 import com.nova.app.ui.theme.NovaType
+import java.time.Duration
+import java.time.Instant
+import java.time.OffsetDateTime
 
 
 private enum class OrbitFilter(val label: String) {
@@ -76,6 +83,7 @@ fun OrbitScreen(
     username: String,
     avatarUrl: String,
     onPersonClick: (String) -> Unit,
+    onPostClick: (Long) -> Unit,
     onDiscoveryClick: () -> Unit,
     onHomeClick: () -> Unit,
     onCreateClick: () -> Unit,
@@ -204,6 +212,11 @@ fun OrbitScreen(
                     )
                 }
 
+                filteredEvents.isEmpty() && state.nextCursor != null -> item {
+                    LaunchedEffect(selectedFilter, state.nextCursor) { owner.loadMore() }
+                    NovaInlineLoading(message = "Looking deeper in your orbit…")
+                }
+
                 filteredEvents.isEmpty() -> item {
                     NovaEmptyState(
                         title = "Nothing in ${selectedFilter.label.lowercase()} yet",
@@ -227,27 +240,24 @@ fun OrbitScreen(
                         }
                     }
                     items(filteredEvents, key = { it.id }) { event ->
-                        OrbitActivityCard(event = event, onClick = { selectedUsername = event.actor.username })
+                        OrbitActivityRow(
+                            event = event,
+                            onActorClick = { onPersonClick(event.actor.username) },
+                            onClick = {
+                                when {
+                                    event.post != null -> onPostClick(event.post.id)
+                                    event.kind == "follow" -> onPersonClick(
+                                        event.person?.username ?: event.actor.username,
+                                    )
+                                    else -> onPersonClick(event.actor.username)
+                                }
+                            },
+                        )
                     }
                     if (state.nextCursor != null) {
-                        item {
-                            if (state.loadingMore) {
-                                NovaInlineLoading(message = "Loading more orbit activity…")
-                            } else {
-                                Surface(
-                                    onClick = owner::loadMore,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = androidx.compose.material3.MaterialTheme.shapes.medium,
-                                    color = NovaAccentSoft,
-                                ) {
-                                    Text(
-                                        "Show more",
-                                        modifier = Modifier.padding(NovaSpacing.md),
-                                        color = NovaAccent,
-                                        style = NovaType.label,
-                                    )
-                                }
-                            }
+                        item(key = "orbit-next-${state.nextCursor}") {
+                            LaunchedEffect(state.nextCursor) { owner.loadMore() }
+                            NovaInlineLoading(message = "Loading more orbit activity…")
                         }
                     }
                 }
@@ -308,7 +318,12 @@ private fun OrbitPersonDetailDialog(
         ) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Surface(onClick = onDismiss, shape = CircleShape, color = panel) {
-                    Text("‹", modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp), color = Color.White)
+                    NovaIcon(
+                        asset = NovaIconAsset.Back,
+                        contentDescription = "Back",
+                        modifier = Modifier.padding(10.dp).size(22.dp),
+                        tint = Color.White,
+                    )
                 }
                 Spacer(modifier = Modifier.weight(1f))
                 Text("Orbit Activity", color = Color.White, style = NovaType.sectionTitle)
@@ -421,26 +436,59 @@ private fun OrbitPersonNode(
 
 
 @Composable
-private fun OrbitActivityCard(event: OrbitEvent, onClick: () -> Unit) {
-    NovaCard(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+private fun OrbitActivityRow(
+    event: OrbitEvent,
+    onActorClick: () -> Unit,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+    ) {
         Row(
-            modifier = Modifier.padding(NovaSpacing.md),
+            modifier = Modifier.padding(vertical = NovaSpacing.sm),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(NovaSpacing.md),
         ) {
-            NovaAvatar(
-                source = event.actor.avatarUrl,
-                fallbackText = event.actor.name.ifBlank { event.actor.username },
-                size = 48.dp,
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    event.actor.name.ifBlank { event.actor.username },
-                    color = NovaInk,
-                    style = NovaType.label,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+            Box(modifier = Modifier.size(48.dp).clickable(onClick = onActorClick)) {
+                NovaAvatar(
+                    source = event.actor.avatarUrl,
+                    fallbackText = event.actor.name.ifBlank { event.actor.username },
+                    size = 48.dp,
                 )
+                Surface(
+                    modifier = Modifier.align(Alignment.BottomEnd).size(20.dp),
+                    shape = CircleShape,
+                    color = NovaAccentSoft,
+                    border = BorderStroke(1.dp, NovaBackground),
+                ) {
+                    NovaIcon(
+                        asset = orbitIcon(event.kind),
+                        contentDescription = null,
+                        modifier = Modifier.padding(4.dp),
+                        tint = NovaAccent,
+                    )
+                }
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        event.actor.name.ifBlank { event.actor.username },
+                        color = NovaInk,
+                        style = NovaType.label,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        orbitRelativeTime(event.createdAt),
+                        color = NovaMuted,
+                        style = NovaType.badge,
+                    )
+                }
                 Text(
                     orbitActionText(event),
                     color = NovaMuted,
@@ -453,8 +501,24 @@ private fun OrbitActivityCard(event: OrbitEvent, onClick: () -> Unit) {
                     Text(context, color = NovaMuted, style = NovaType.micro, maxLines = 1)
                 }
             }
-            Text(orbitSymbol(event.kind), color = NovaAccent, style = NovaType.sectionTitle)
+            val preview = event.post?.previewUrl?.takeIf(String::isNotBlank)
+                ?: event.pulse?.previewUrl?.takeIf(String::isNotBlank)
+            if (preview != null) {
+                NovaMediaImage(
+                    source = preview,
+                    modifier = Modifier.size(54.dp),
+                    contentDescription = "Open Orbit activity media",
+                )
+            } else {
+                NovaIcon(
+                    asset = NovaIconAsset.Back,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp).graphicsLayer { scaleX = -1f },
+                    tint = NovaMuted,
+                )
+            }
         }
+        HorizontalDivider(color = NovaBorder.copy(alpha = 0.72f))
     }
 }
 
@@ -464,4 +528,20 @@ private fun OrbitFilter.accepts(event: OrbitEvent): Boolean = when (this) {
     OrbitFilter.Posts -> event.kind in setOf("like", "comment", "repost")
     OrbitFilter.People -> event.kind == "follow"
     OrbitFilter.Pulse -> event.kind == "pulse_reply" || event.pulse != null
+}
+
+
+internal fun orbitRelativeTime(
+    value: String,
+    now: Instant = Instant.now(),
+): String {
+    val instant = runCatching { OffsetDateTime.parse(value).toInstant() }.getOrNull() ?: return ""
+    val elapsed = Duration.between(instant, now).coerceAtLeast(Duration.ZERO)
+    return when {
+        elapsed.toMinutes() < 1 -> "now"
+        elapsed.toHours() < 1 -> "${elapsed.toMinutes()}m"
+        elapsed.toDays() < 1 -> "${elapsed.toHours()}h"
+        elapsed.toDays() < 7 -> "${elapsed.toDays()}d"
+        else -> "${elapsed.toDays() / 7}w"
+    }
 }
