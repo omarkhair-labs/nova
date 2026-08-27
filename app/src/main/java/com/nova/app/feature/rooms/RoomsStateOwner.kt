@@ -26,14 +26,20 @@ class RoomsStateOwner(
 ) {
     var state by mutableStateOf(RoomsUiState())
         private set
+    private var requestVersion = 0
 
     fun load(showSpinner: Boolean = false) {
         scope.launch { loadNow(showSpinner) }
     }
 
     internal suspend fun loadNow(showSpinner: Boolean = false) {
+        requestVersion += 1
+        val version = requestVersion
+        val selectedList = state.selectedList
         if (showSpinner) state = state.copy(loading = true)
-        when (val result = repository.rooms(state.selectedList)) {
+        val result = repository.rooms(selectedList)
+        if (version != requestVersion || selectedList != state.selectedList) return
+        when (result) {
             is ApiResult.Success -> state = state.copy(
                 rooms = result.value,
                 loading = false,
@@ -61,6 +67,7 @@ class RoomsStateOwner(
 
     fun join(room: RoomSummary, onJoined: (Long) -> Unit) {
         if (state.busyRoomId != null) return
+        requestVersion += 1
         scope.launch {
             state = state.copy(busyRoomId = room.conversation.id, error = null)
             when (val result = repository.joinRoom(room.conversation.id)) {
@@ -78,6 +85,7 @@ class RoomsStateOwner(
 
     fun toggleFollow(room: RoomSummary) {
         if (state.busyRoomId != null) return
+        requestVersion += 1
         scope.launch {
             state = state.copy(busyRoomId = room.conversation.id, error = null)
             when (val result = repository.followRoom(room.conversation.id, !room.isFollowing)) {

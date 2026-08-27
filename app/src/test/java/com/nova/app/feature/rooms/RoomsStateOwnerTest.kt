@@ -11,7 +11,10 @@ import com.nova.app.feature.rooms.domain.model.RoomSections
 import com.nova.app.feature.rooms.domain.model.RoomSummary
 import com.nova.app.feature.rooms.domain.model.RoomTonightSnapshot
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -45,6 +48,46 @@ class RoomsStateOwnerTest {
         assertEquals(1, owner.state.sessionExpiryVersion)
         assertFalse(owner.state.loading)
         assertNull(owner.state.error)
+    }
+
+    @Test
+    fun `stale Rooms refresh cannot restore a Room after join succeeds`() = runBlocking {
+        val discoverRoom = summary(12).copy(isPublic = true, isMember = false)
+        val refresh = CompletableDeferred<ApiResult<List<RoomSummary>>>()
+        val repository = DeferredRoomsRepository(discoverRoom, refresh)
+        val owner = RoomsStateOwner(repository, CoroutineScope(Dispatchers.Unconfined))
+
+        owner.selectList("discover")
+        assertEquals(listOf(discoverRoom), owner.state.rooms)
+
+        val refreshJob = launch(start = CoroutineStart.UNDISPATCHED) {
+            owner.loadNow()
+        }
+        owner.join(discoverRoom) {}
+        refresh.complete(ApiResult.Success(listOf(discoverRoom)))
+        refreshJob.join()
+
+        assertEquals(emptyList<RoomSummary>(), owner.state.rooms)
+        assertNull(owner.state.busyRoomId)
+    }
+
+    @Test
+    fun `stale Rooms refresh cannot undo a follow transition`() = runBlocking {
+        val discoverRoom = summary(13).copy(isPublic = true, isMember = false, isFollowing = false)
+        val refresh = CompletableDeferred<ApiResult<List<RoomSummary>>>()
+        val repository = DeferredRoomsRepository(discoverRoom, refresh)
+        val owner = RoomsStateOwner(repository, CoroutineScope(Dispatchers.Unconfined))
+
+        owner.selectList("discover")
+        val refreshJob = launch(start = CoroutineStart.UNDISPATCHED) {
+            owner.loadNow()
+        }
+        owner.toggleFollow(discoverRoom)
+        refresh.complete(ApiResult.Success(listOf(discoverRoom)))
+        refreshJob.join()
+
+        assertEquals(true, owner.state.rooms.single().isFollowing)
+        assertNull(owner.state.busyRoomId)
     }
 
     @Test
@@ -168,6 +211,56 @@ class RoomsStateOwnerTest {
 }
 
 
+private class DeferredRoomsRepository(
+    private val original: RoomSummary,
+    private val refresh: CompletableDeferred<ApiResult<List<RoomSummary>>>,
+) : RoomRepository {
+    private var roomCalls = 0
+
+    override suspend fun rooms(): ApiResult<List<RoomSummary>> = rooms("mine")
+
+    override suspend fun rooms(view: String): ApiResult<List<RoomSummary>> {
+        roomCalls += 1
+        return if (roomCalls == 1) ApiResult.Success(listOf(original)) else refresh.await()
+    }
+
+    override suspend fun joinRoom(conversationId: Long): ApiResult<RoomSummary> =
+        ApiResult.Success(original.copy(isMember = true))
+
+    override suspend fun followRoom(conversationId: Long, enabled: Boolean): ApiResult<RoomSummary> =
+        ApiResult.Success(original.copy(isFollowing = enabled))
+
+    override suspend fun room(conversationId: Long): ApiResult<RoomDetail> =
+        ApiResult.Failure("Not used")
+
+    override suspend fun items(
+        conversationId: Long,
+        kind: String?,
+        before: Long?,
+        limit: Int,
+    ): ApiResult<RoomItemPage> = ApiResult.Failure("Not used")
+
+    override suspend fun createItem(
+        conversationId: Long,
+        kind: String,
+        title: String,
+        body: String,
+        url: String,
+        scheduledFor: String?,
+        mediaUri: Uri?,
+        onProgress: (Int?) -> Unit,
+    ): ApiResult<RoomItem> = ApiResult.Failure("Not used")
+
+    override suspend fun roomTonight(utcOffsetMinutes: Int): ApiResult<RoomTonightSnapshot> =
+        ApiResult.Failure("Not used")
+
+    override suspend fun updateDescription(
+        conversationId: Long,
+        description: String,
+    ): ApiResult<RoomDetail> = ApiResult.Failure("Not used")
+}
+
+
 private class FakeRoomRepository(
     private val roomsResult: ApiResult<List<RoomSummary>> = ApiResult.Success(emptyList()),
     private val detailResult: ApiResult<RoomDetail> = ApiResult.Success(detail(7)),
@@ -210,6 +303,7 @@ private class FakeRoomRepository(
         url: String,
         scheduledFor: String?,
         mediaUri: Uri?,
+        onProgress: (Int?) -> Unit,
     ): ApiResult<RoomItem> {
         createdKinds += kind
         createdBodies += body

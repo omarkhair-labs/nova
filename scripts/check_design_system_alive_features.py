@@ -98,7 +98,18 @@ for path, text in ((ROOMS_RAIL, rooms_rail), (ROOMS_SCREEN, rooms_screen)):
             errors.append(f"Rooms surface bypassed DS-4 seam in {path.relative_to(ROOT)}: {seam}")
 if "NovaCard(" not in rooms_rail or "NovaMotion.standard" not in rooms_rail:
     errors.append("Rooms rail must use NovaCard and NovaMotion")
-for seam in ("NovaBackButton(", "NovaLoadingState(", "NovaEmptyState(", "NovaInlineRetry(", "NovaCard("):
+# Flow 7 deliberately flattens Rooms discovery rows instead of forcing every
+# ordinary list item back into NovaCard. Keep the shared Nova navigation/state
+# primitives and the icon action seam alive while allowing Surface-backed rows.
+for seam in (
+    "NovaBackButton(",
+    "NovaLoadingState(",
+    "NovaEmptyState(",
+    "NovaErrorState(",
+    "NovaInlineRetry(",
+    "NovaIconButton(",
+    "Surface(",
+):
     if seam not in rooms_screen:
         errors.append(f"Rooms screen bypassed shared ordinary-screen presentation: {seam}")
 if 'text = "‹"' in rooms_screen:

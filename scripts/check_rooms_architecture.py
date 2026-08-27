@@ -98,6 +98,8 @@ for required in (
     "api.requestMultipart(",
     "withContext(Dispatchers.IO)",
     "NovaSessionStore",
+    "NovaVideoPreparer",
+    "sourceFile = preparedVideo.videoFile",
 ):
     if required not in remote:
         errors.append(f"Rooms remote implementation is missing protected seam: {required}")
@@ -175,10 +177,11 @@ for required in (
     "AddToRoomCard(",
     "RoomSectionRail(",
     "MembersRail(",
+    "NovaVideoPlayer(",
 ):
     if required not in room_screen:
         errors.append(f"Room experience is missing stable seam: {required}")
-for forbidden in ("NovaMessagingApiClient", "ConversationRealtime", "sendMessage("):
+for forbidden in ("NovaMessagingApiClient", "ConversationRealtime", "sendMessage(", 'Text("▶"'):
     if forbidden in room_screen:
         errors.append(f"Room UI must reuse Messaging rather than own chat transport: {forbidden}")
 

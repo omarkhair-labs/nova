@@ -292,7 +292,7 @@ Samsung review still must confirm Inbox density/search/filter/paging and large-f
 
 ### Flow 7 — Rooms
 
-Status: `PLANNED`
+Status: `PR READY`
 
 Primary goals:
 
@@ -302,6 +302,12 @@ Primary goals:
 - Discover/Following/public join/follow states;
 - live/chat handoffs;
 - permissions remain obvious and truthful.
+
+Flow 7 keeps Messaging as the source of truth for group creation, membership, roles, chat and realtime transport while Rooms owns public discovery/following, profile metadata, sections, items, plans, reminders, media and Tonight composition. My Rooms, Discover and Following now present Room identity, privacy, topics, member/role truth, distinct Join/Follow actions, accessible busy/retry states and stale-list reconciliation without inventing activity or presence. Home retains a compact Rooms rail and continues to hand creation to Messaging's `NewGroupDialog`.
+
+Room detail now carries Room identity through header, description/topics, members/admins, section counts, pinned items, creator profiles, safe external links, readable local plan times, reminders and bounded automatic older-item paging. The confirmed video gap is fixed at its source: Room video no longer uses whole-file `readBytes()` or uploads arbitrary source encoding; it reuses Nova's bounded Flow 2 preparation to normalize H.264/AAC, verify duration, extract a first frame for preparation validation, stream the prepared file through multipart upload and delete temporary files. The composer previews the real selected photo/video and exposes validation/preparation/publishing/failure/retry states; published Room videos use the shared Nova player with real playback and shared error/retry behavior. The existing Room API intentionally remains a single-media contract, so no fabricated thumbnail field was added.
+
+Samsung review still must confirm My Rooms/Discover/Following density and transitions; Home rail to list to detail continuity; large-font and system-bar behavior; Room-to-Chat and creator-profile handoffs; section and automatic paging behavior; date/time readability; reminder feedback; photo selection; and representative short/long/device-recorded video preparation, duration, upload, first-frame startup, controller playback, audio, retry and rotation/background recovery. Flow 7 is not `DEVICE VERIFIED`.
 
 ### Flow 8 — Memories
 
