@@ -731,6 +731,7 @@ fun NovaApp(
                         profilePosts = personState.profilePosts,
                         postsLoading = personState.postsLoading,
                         postsError = personState.postsError,
+                        onRetryProfile = personOwner::loadPerson,
                         onRetryPosts = personOwner::loadPosts,
                         onPostClick = { post ->
                             backStack.add(NovaRoute.PostDetail(post.id))
@@ -778,11 +779,14 @@ fun NovaApp(
                     ProfileScreen(
                         displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
                         username = user?.username ?: "nova",
-                        email = user?.email.orEmpty(),
                         avatarUrl = user?.avatarUrl.orEmpty(),
                         bio = user?.bio.orEmpty(),
                         location = user?.location.orEmpty(),
+                        link = user?.link.orEmpty(),
                         interests = user?.interests.orEmpty(),
+                        profileTheme = user?.profileTheme ?: "violet",
+                        showOrbit = user?.showOrbit ?: true,
+                        isVerified = user?.isVerified ?: false,
                         postsCount = user?.postsCount ?: 0,
                         followersCount = user?.followersCount ?: 0,
                         followingCount = user?.followingCount ?: 0,
@@ -797,7 +801,6 @@ fun NovaApp(
                             authError = null
                             backStack.add(NovaRoute.EditProfile)
                         },
-                        onLogout = ::expireSession,
                     )
                 }
 
@@ -813,6 +816,7 @@ fun NovaApp(
                         interests = user?.interests.orEmpty(),
                         profileTheme = user?.profileTheme ?: "violet",
                         showOrbit = user?.showOrbit ?: true,
+                        isVerified = user?.isVerified ?: false,
                         isLoading = authLoading,
                         errorMessage = authError,
                         onBack = {

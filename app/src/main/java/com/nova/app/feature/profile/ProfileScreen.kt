@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -28,11 +27,8 @@ import com.nova.app.SocialGraphActivity
 import com.nova.app.feature.people.MODE_FOLLOWERS
 import com.nova.app.feature.people.MODE_FOLLOWING
 import com.nova.app.feature.posts.domain.model.NovaPost
-import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
-import com.nova.app.ui.components.NovaCard
 import com.nova.app.ui.components.NovaIconButton
-import com.nova.app.ui.components.NovaOrbitRing
 import com.nova.app.ui.components.NovaPagedProfilePostsGrid
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.components.NovaTab
@@ -43,16 +39,18 @@ import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSpacing
 import com.nova.app.ui.theme.NovaType
 
-@Suppress("UNUSED_PARAMETER")
 @Composable
 fun ProfileScreen(
     displayName: String,
     username: String,
-    email: String,
     avatarUrl: String,
     bio: String,
     location: String,
+    link: String,
     interests: List<String>,
+    profileTheme: String,
+    showOrbit: Boolean,
+    isVerified: Boolean,
     postsCount: Int,
     followersCount: Int,
     followingCount: Int,
@@ -62,7 +60,6 @@ fun ProfileScreen(
     onOrbitClick: () -> Unit,
     onCreateClick: () -> Unit,
     onEditProfile: () -> Unit,
-    onLogout: () -> Unit,
 ) {
     val context = LocalContext.current
 
@@ -113,82 +110,42 @@ fun ProfileScreen(
             }
 
             Spacer(modifier = Modifier.height(NovaSpacing.xl))
-            NovaOrbitRing(
-                modifier = Modifier.size(116.dp).align(Alignment.CenterHorizontally),
-                rings = 2,
-                showLivePoint = true,
-            ) {
-                NovaAvatar(
-                    source = avatarUrl,
-                    fallbackText = displayName.ifBlank { username },
-                    size = 88.dp,
-                )
-            }
-            Spacer(modifier = Modifier.height(NovaSpacing.sm))
-            Text(
-                text = displayName.ifBlank { username },
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-                color = NovaInk,
-                style = NovaType.sectionTitle,
+            NovaProfileIdentity(
+                displayName = displayName,
+                username = username,
+                avatarUrl = avatarUrl,
+                bio = bio,
+                location = location,
+                link = link,
+                interests = interests,
+                profileTheme = profileTheme,
+                showOrbit = showOrbit,
+                isVerified = isVerified,
             )
-            Text(
-                text = "@$username",
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-                color = NovaMuted,
-                style = NovaType.bodyCompact.copy(fontWeight = FontWeight.Medium),
-            )
-            if (bio.isNotBlank()) {
-                Spacer(modifier = Modifier.height(NovaSpacing.sm))
-                Text(
-                    text = bio,
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                    color = NovaInk,
-                    style = NovaType.bodyCompact,
-                )
-            }
-            if (location.isNotBlank()) {
-                Spacer(modifier = Modifier.height(NovaSpacing.xs))
-                Text(
-                    text = "⌖ $location",
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                    color = NovaMuted,
-                    style = NovaType.meta,
-                )
-            }
-            if (interests.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(NovaSpacing.sm))
-                Text(
-                    text = interests.joinToString("  ·  "),
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                    color = com.nova.app.ui.theme.NovaAccent,
-                    style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
-                )
-            }
 
             Spacer(modifier = Modifier.height(NovaSpacing.xxl))
-            NovaCard(
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                containerColor = NovaBackground,
-                borderColor = NovaBackground,
+                horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = NovaSpacing.sm, vertical = NovaSpacing.lg),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                ) {
-                    ProfileStat(postsCount.toString(), "Posts", Modifier.weight(1f))
-                    ProfileStat(
-                        followersCount.toString(),
-                        "Followers",
-                        Modifier.weight(1f),
-                        onClick = { openSocialGraph(MODE_FOLLOWERS) },
-                    )
-                    ProfileStat(
-                        followingCount.toString(),
-                        "Following",
-                        Modifier.weight(1f),
-                        onClick = { openSocialGraph(MODE_FOLLOWING) },
-                    )
-                }
+                ProfileStat(
+                    postsCount.toString(),
+                    "Posts",
+                    Modifier.weight(1f),
+                    onClick = { profileContentOwner.selectTab(ProfileContentTab.Posts) },
+                )
+                ProfileStat(
+                    followersCount.toString(),
+                    "Followers",
+                    Modifier.weight(1f),
+                    onClick = { openSocialGraph(MODE_FOLLOWERS) },
+                )
+                ProfileStat(
+                    followingCount.toString(),
+                    "Following",
+                    Modifier.weight(1f),
+                    onClick = { openSocialGraph(MODE_FOLLOWING) },
+                )
             }
 
             Spacer(modifier = Modifier.height(NovaSpacing.md))

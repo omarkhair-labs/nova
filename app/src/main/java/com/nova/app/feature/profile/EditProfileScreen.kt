@@ -1,6 +1,7 @@
 package com.nova.app.feature.profile
 
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Spacer
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -31,7 +33,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
-import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaKeyboardAwareFormPage
 import com.nova.app.ui.components.NovaPrimaryButton
 import com.nova.app.ui.components.NovaTextField
@@ -52,6 +53,7 @@ fun EditProfileScreen(
     interests: List<String>,
     profileTheme: String,
     showOrbit: Boolean,
+    isVerified: Boolean,
     isLoading: Boolean,
     errorMessage: String?,
     onBack: () -> Unit,
@@ -66,6 +68,13 @@ fun EditProfileScreen(
     var interestsText by remember(interests) { mutableStateOf(interests.joinToString(", ")) }
     var selectedTheme by remember(profileTheme) { mutableStateOf(profileTheme) }
     var orbitVisible by remember(showOrbit) { mutableStateOf(showOrbit) }
+    val linkError = if (
+        profileLink.isNotBlank() && normalizedProfileExternalUrl(profileLink) == null
+    ) {
+        "Enter a valid http or https profile link."
+    } else {
+        null
+    }
 
     val photoPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
@@ -73,11 +82,24 @@ fun EditProfileScreen(
         if (uri != null) selectedPhoto = uri
     }
 
+    BackHandler(enabled = isLoading) { }
+
     NovaKeyboardAwareFormPage(
         title = "Edit Profile",
         subtitle = "Curate your identity and how your orbit appears.",
         onBack = onBack,
         action = {
+            val visibleError = errorMessage ?: linkError
+            if (visibleError != null) {
+                Text(
+                    text = visibleError,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 13.sp,
+                    lineHeight = 19.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+            }
             NovaPrimaryButton(
                 text = if (isLoading) "Saving…" else "Save changes",
                 onClick = {
@@ -93,17 +115,26 @@ fun EditProfileScreen(
                         orbitVisible,
                     )
                 },
-                enabled = !isLoading && name.trim().length >= 2 && handle.trim().length >= 3,
+                enabled = !isLoading &&
+                    linkError == null &&
+                    name.trim().length >= 2 &&
+                    handle.trim().length >= 3,
             )
         },
     ) {
         Spacer(modifier = Modifier.height(26.dp))
 
-        NovaAvatar(
-            source = selectedPhoto?.toString() ?: avatarUrl,
-            fallbackText = name.ifBlank { handle },
-            size = 104.dp,
-            modifier = Modifier.align(Alignment.CenterHorizontally),
+        NovaProfileIdentity(
+            displayName = name,
+            username = handle,
+            avatarUrl = selectedPhoto?.toString() ?: avatarUrl,
+            bio = profileBio,
+            location = profileLocation,
+            link = profileLink,
+            interests = interestsText.split(',').map(String::trim).filter(String::isNotBlank).take(8),
+            profileTheme = selectedTheme,
+            showOrbit = orbitVisible,
+            isVerified = isVerified,
         )
 
         TextButton(
@@ -207,13 +238,23 @@ fun EditProfileScreen(
                         if (selectedTheme == theme) NovaAccent else NovaBorder,
                     ),
                 ) {
-                    Text(
-                        text = theme.replaceFirstChar { it.uppercase() },
-                        color = if (selectedTheme == theme) NovaAccent else NovaInk,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(7.dp),
+                    ) {
+                        Surface(
+                            modifier = Modifier.size(10.dp),
+                            shape = RoundedCornerShape(999.dp),
+                            color = novaProfileThemePalette(theme).accent,
+                        ) { }
+                        Text(
+                            text = theme.replaceFirstChar { it.uppercase() },
+                            color = if (selectedTheme == theme) NovaAccent else NovaInk,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
                 }
             }
         }
@@ -236,23 +277,12 @@ fun EditProfileScreen(
             ),
         )
 
-        if (errorMessage != null) {
-            Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                text = errorMessage,
-                color = MaterialTheme.colorScheme.error,
-                fontSize = 13.sp,
-                lineHeight = 19.sp,
-                fontWeight = FontWeight.Medium,
-            )
-        } else {
-            Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                text = "Your username has to stay unique across Nova.",
-                color = NovaMuted,
-                fontSize = 12.sp,
-                lineHeight = 18.sp,
-            )
-        }
+        Spacer(modifier = Modifier.height(10.dp))
+        Text(
+            text = "Your username has to stay unique across Nova.",
+            color = NovaMuted,
+            fontSize = 12.sp,
+            lineHeight = 18.sp,
+        )
     }
 }
