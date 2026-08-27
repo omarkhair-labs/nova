@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import com.nova.app.core.auth.NovaSessionStore
+import com.nova.app.core.media.NovaVideoPreparer
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.UploadFile
@@ -31,6 +32,7 @@ class RoomRemoteRepository(
 ) : RoomRepository {
     private val appContext = context.applicationContext
     private val sessionStore = NovaSessionStore(appContext)
+    private val videoPreparer = NovaVideoPreparer(appContext)
 
     override suspend fun rooms(): ApiResult<List<RoomSummary>> = authenticatedCall { token ->
         when (val response = api.requestJson("rooms/", bearerToken = token)) {
@@ -101,6 +103,7 @@ class RoomRemoteRepository(
         url: String,
         scheduledFor: String?,
         mediaUri: Uri?,
+        onProgress: (Int?) -> Unit,
     ): ApiResult<RoomItem> {
         val cleanKind = kind.trim().lowercase()
         if (cleanKind !in ROOM_ITEM_KINDS) return ApiResult.Failure("Choose a valid Room item type.")
@@ -121,34 +124,59 @@ class RoomRemoteRepository(
         val path = "rooms/$conversationId/items/"
         if (cleanKind == "photo" || cleanKind == "video") {
             val source = mediaUri ?: return ApiResult.Failure("Choose a $cleanKind first.")
-            val media = when (
-                val prepared = withContext(Dispatchers.IO) { prepareMedia(source, cleanKind) }
-            ) {
-                is ApiResult.Success -> prepared.value
-                is ApiResult.Failure -> return prepared
-            }
-            return authenticatedCall { token ->
+            val preparedVideo = if (cleanKind == "video") {
                 when (
-                    val response = api.requestMultipart(
-                        path = path,
-                        method = "POST",
-                        fields = buildMap {
-                            put("kind", cleanKind)
-                            put("title", cleanTitle)
-                            put("body", cleanBody)
-                            put("url", cleanUrl)
-                            cleanScheduledFor?.let { put("scheduled_for", it) }
-                        },
-                        fileField = "media",
-                        file = media,
-                        bearerToken = token,
+                    val prepared = videoPreparer.prepare(
+                        source = source,
+                        maxSourceBytes = MAX_ROOM_VIDEO_BYTES,
+                        sizeMessage = "Room video must be 60 MB or smaller.",
+                        onProgress = onProgress,
                     )
                 ) {
-                    is ApiResult.Success -> ApiResult.Success(
-                        parseRoomItem(response.value, api::resolveMediaUrl),
-                    )
-                    is ApiResult.Failure -> response
+                    is ApiResult.Success -> prepared.value
+                    is ApiResult.Failure -> return prepared
                 }
+            } else {
+                null
+            }
+            val media = if (preparedVideo != null) {
+                UploadFile(
+                    fileName = "nova-room-${System.currentTimeMillis()}.mp4",
+                    mimeType = "video/mp4",
+                    sourceFile = preparedVideo.videoFile,
+                )
+            } else {
+                when (val prepared = withContext(Dispatchers.IO) { preparePhoto(source) }) {
+                    is ApiResult.Success -> prepared.value
+                    is ApiResult.Failure -> return prepared
+                }
+            }
+            return try {
+                authenticatedCall { token ->
+                    when (
+                        val response = api.requestMultipart(
+                            path = path,
+                            method = "POST",
+                            fields = buildMap {
+                                put("kind", cleanKind)
+                                put("title", cleanTitle)
+                                put("body", cleanBody)
+                                put("url", cleanUrl)
+                                cleanScheduledFor?.let { put("scheduled_for", it) }
+                            },
+                            fileField = "media",
+                            file = media,
+                            bearerToken = token,
+                        )
+                    ) {
+                        is ApiResult.Success -> ApiResult.Success(
+                            parseRoomItem(response.value, api::resolveMediaUrl),
+                        )
+                        is ApiResult.Failure -> response
+                    }
+                }
+            } finally {
+                preparedVideo?.delete()
             }
         }
 
@@ -279,7 +307,7 @@ class RoomRemoteRepository(
             }
         }
 
-    private fun prepareMedia(uri: Uri, kind: String): ApiResult<UploadFile> {
+    private fun preparePhoto(uri: Uri): ApiResult<UploadFile> {
         val resolver = appContext.contentResolver
         val mimeType = resolver.getType(uri)
             ?.substringBefore(';')
@@ -290,20 +318,12 @@ class RoomRemoteRepository(
                 val extension = displayName(uri).substringAfterLast('.', "").lowercase()
                 MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension).orEmpty()
             }
-        val expectsPhoto = kind == "photo"
-        if (expectsPhoto && !mimeType.startsWith("image/")) {
+        if (!mimeType.startsWith("image/")) {
             return ApiResult.Failure("Room photos must be image files.")
         }
-        if (!expectsPhoto && !mimeType.startsWith("video/")) {
-            return ApiResult.Failure("Room videos must be video files.")
-        }
 
-        val maxBytes = if (expectsPhoto) 12L * 1024 * 1024 else 60L * 1024 * 1024
-        val sizeMessage = if (expectsPhoto) {
-            "Room photo must be 12 MB or smaller."
-        } else {
-            "Room video must be 60 MB or smaller."
-        }
+        val maxBytes = MAX_ROOM_PHOTO_BYTES
+        val sizeMessage = "Room photo must be 12 MB or smaller."
         val reportedSize = mediaSize(uri)
         if (reportedSize != null && reportedSize > maxBytes) return ApiResult.Failure(sizeMessage)
 
@@ -314,7 +334,7 @@ class RoomRemoteRepository(
 
         val fileName = displayName(uri).ifBlank {
             val extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType).orEmpty()
-            val base = if (expectsPhoto) "room-photo" else "room-video"
+            val base = "room-photo"
             if (extension.isBlank()) base else "$base.$extension"
         }
         return ApiResult.Success(
@@ -389,6 +409,8 @@ class RoomRemoteRepository(
     }
 
     private companion object {
+        const val MAX_ROOM_PHOTO_BYTES = 12L * 1024 * 1024
+        const val MAX_ROOM_VIDEO_BYTES = 60L * 1024 * 1024
         val ROOM_ITEM_KINDS = setOf("note", "photo", "video", "music", "plan", "saved")
     }
 }

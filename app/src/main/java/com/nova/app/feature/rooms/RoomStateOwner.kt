@@ -22,6 +22,7 @@ data class RoomUiState(
     val loadingMore: Boolean = false,
     val savingDescription: Boolean = false,
     val creatingItem: Boolean = false,
+    val mediaProgress: Int? = null,
     val reminderBusyId: Long? = null,
     val itemCreatedVersion: Int = 0,
     val error: String? = null,
@@ -135,7 +136,11 @@ class RoomStateOwner(
         scheduledFor: String? = null,
         mediaUri: Uri? = null,
     ) {
-        state = state.copy(creatingItem = true, error = null)
+        state = state.copy(
+            creatingItem = true,
+            mediaProgress = if (kind.trim().lowercase() == "video") 0 else null,
+            error = null,
+        )
         when (
             val result = repository.createItem(
                 conversationId = conversationId,
@@ -145,6 +150,9 @@ class RoomStateOwner(
                 url = url,
                 scheduledFor = scheduledFor,
                 mediaUri = mediaUri,
+                onProgress = { progress ->
+                    if (state.creatingItem) state = state.copy(mediaProgress = progress)
+                },
             )
         ) {
             is ApiResult.Success -> {
@@ -159,11 +167,13 @@ class RoomStateOwner(
                         items = pageResult.value.items,
                         nextBefore = pageResult.value.nextBefore,
                         creatingItem = false,
+                        mediaProgress = null,
                         itemCreatedVersion = createdVersion,
                         error = null,
                     )
                     is ApiResult.Failure -> state = state.copy(
                         creatingItem = false,
+                        mediaProgress = null,
                         itemCreatedVersion = createdVersion,
                         error = null,
                     )
@@ -173,11 +183,12 @@ class RoomStateOwner(
                 if (result.statusCode == 401) {
                     state = state.copy(
                         creatingItem = false,
+                        mediaProgress = null,
                         error = null,
                         sessionExpiryVersion = state.sessionExpiryVersion + 1,
                     )
                 } else {
-                    state = state.copy(creatingItem = false, error = result.message)
+                    state = state.copy(creatingItem = false, mediaProgress = null, error = result.message)
                 }
             }
         }
@@ -266,6 +277,7 @@ class RoomStateOwner(
                 loading = if (releaseMain) false else state.loading,
                 loadingMore = false,
                 creatingItem = false,
+                mediaProgress = null,
                 error = null,
                 sessionExpiryVersion = state.sessionExpiryVersion + 1,
             )
@@ -274,6 +286,7 @@ class RoomStateOwner(
                 loading = if (releaseMain) false else state.loading,
                 loadingMore = false,
                 creatingItem = false,
+                mediaProgress = null,
                 error = result.message,
             )
         }

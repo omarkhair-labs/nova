@@ -37,6 +37,7 @@ interface RoomRepository {
         url: String = "",
         scheduledFor: String? = null,
         mediaUri: Uri? = null,
+        onProgress: (Int?) -> Unit = {},
     ): ApiResult<RoomItem>
 
     suspend fun roomTonight(utcOffsetMinutes: Int): ApiResult<RoomTonightSnapshot>

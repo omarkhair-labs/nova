@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -38,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -50,7 +53,11 @@ import com.nova.app.feature.rooms.domain.model.RoomDetail
 import com.nova.app.feature.rooms.domain.model.RoomItem
 import com.nova.app.feature.rooms.domain.model.RoomMember
 import com.nova.app.ui.components.NovaAvatar
+import com.nova.app.ui.components.NovaBackButton
 import com.nova.app.ui.components.NovaMediaImage
+import com.nova.app.ui.components.NovaVideoPlayer
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
@@ -58,6 +65,10 @@ import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
+import kotlinx.coroutines.flow.distinctUntilChanged
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 
 @Composable
@@ -76,6 +87,7 @@ fun RoomScreen(
         }
     }
     val state = owner.state
+    val listState = rememberLazyListState()
     var editDescription by remember { mutableStateOf(false) }
     var showComposer by remember { mutableStateOf(false) }
 
@@ -88,6 +100,21 @@ fun RoomScreen(
     }
     LaunchedEffect(state.itemCreatedVersion) {
         if (state.itemCreatedVersion > 0) showComposer = false
+    }
+    LaunchedEffect(listState, owner) {
+        androidx.compose.runtime.snapshotFlow {
+            val latestState = owner.state
+            val layout = listState.layoutInfo
+            val lastVisible = layout.visibleItemsInfo.lastOrNull()?.index ?: -1
+            latestState.nextBefore != null &&
+                !latestState.loading &&
+                !latestState.loadingMore &&
+                latestState.error == null &&
+                layout.totalItemsCount > 0 &&
+                lastVisible >= layout.totalItemsCount - 4
+        }
+            .distinctUntilChanged()
+            .collect { shouldLoad -> if (shouldLoad) owner.loadMore() }
     }
 
     Surface(
@@ -116,6 +143,7 @@ fun RoomScreen(
                 val detail = state.detail
                 val canEdit = detail.conversation.currentUserRole in setOf("owner", "admin")
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier
                         .fillMaxSize()
                         .background(NovaBackground)
@@ -154,7 +182,7 @@ fun RoomScreen(
 
                     item {
                         DescriptionCard(
-                            description = detail.description,
+                            detail = detail,
                             canEdit = canEdit,
                             onEdit = { editDescription = true },
                         )
@@ -198,6 +226,7 @@ fun RoomScreen(
                                 item = item,
                                 reminderBusy = state.reminderBusyId == item.id,
                                 onReminder = { owner.toggleReminder(item) },
+                                onPersonClick = onPersonClick,
                             )
                         }
                     }
@@ -235,6 +264,7 @@ fun RoomScreen(
                                     item = item,
                                     reminderBusy = state.reminderBusyId == item.id,
                                     onReminder = { owner.toggleReminder(item) },
+                                    onPersonClick = onPersonClick,
                                 )
                             }
                         }
@@ -309,6 +339,7 @@ fun RoomScreen(
                 if (showComposer) {
                     RoomItemComposer(
                         submitting = state.creatingItem,
+                        mediaProgress = state.mediaProgress,
                         error = state.error,
                         onDismiss = { if (!state.creatingItem) showComposer = false },
                         onSubmit = { kind, title, body, url, scheduledFor, mediaUri ->
@@ -340,20 +371,7 @@ private fun RoomHeader(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Surface(
-            onClick = onBack,
-            shape = RoundedCornerShape(16.dp),
-            color = NovaSurface,
-            border = BorderStroke(1.dp, NovaBorder),
-        ) {
-            Text(
-                text = "‹",
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
-                color = NovaInk,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-            )
-        }
+        NovaBackButton(onClick = onBack)
         Spacer(modifier = Modifier.width(11.dp))
         NovaAvatar(
             source = room.avatarUrl,
@@ -371,19 +389,20 @@ private fun RoomHeader(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = "${room.membersCount} people · ${room.currentUserRole.ifBlank { "member" }}",
+                text = "${room.membersCount} members · ${room.currentUserRole.ifBlank { "member" }.replaceFirstChar(Char::titlecase)}",
                 color = NovaMuted,
                 fontSize = 9.sp,
             )
         }
         Surface(
             onClick = onChat,
+            modifier = Modifier.heightIn(min = 48.dp),
             shape = RoundedCornerShape(17.dp),
             color = NovaAccent,
         ) {
             Text(
                 text = "Chat",
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
                 color = NovaBackground,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
@@ -395,10 +414,11 @@ private fun RoomHeader(
 
 @Composable
 private fun DescriptionCard(
-    description: String,
+    detail: RoomDetail,
     canEdit: Boolean,
     onEdit: () -> Unit,
 ) {
+    val description = detail.description
     Surface(
         onClick = { if (canEdit) onEdit() },
         modifier = Modifier.fillMaxWidth(),
@@ -417,6 +437,23 @@ private fun DescriptionCard(
                     fontSize = 11.sp,
                     lineHeight = 16.sp,
                 )
+                Text(
+                    text = if (detail.isPublic) "Public Room" else "Private Room",
+                    modifier = Modifier.padding(top = 6.dp),
+                    color = NovaAccent,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                if (detail.topics.isNotEmpty()) {
+                    Text(
+                        text = detail.topics.joinToString("  ·  ") { "#$it" },
+                        modifier = Modifier.padding(top = 4.dp),
+                        color = NovaMuted,
+                        fontSize = 9.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
             if (canEdit) {
                 Spacer(modifier = Modifier.width(10.dp))
@@ -447,12 +484,11 @@ private fun AddToRoomCard(
                 shape = RoundedCornerShape(15.dp),
                 color = NovaAccent,
             ) {
-                Text(
-                    text = "+",
-                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 5.dp),
-                    color = NovaBackground,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
+                NovaIcon(
+                    asset = NovaIconAsset.Create,
+                    contentDescription = null,
+                    tint = NovaBackground,
+                    modifier = Modifier.padding(8.dp).size(24.dp),
                 )
             }
             Spacer(modifier = Modifier.width(11.dp))
@@ -513,13 +549,19 @@ private fun MembersRail(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        if (member.role != "member") {
-                            Text(
-                                text = member.role,
-                                color = NovaAccent,
-                                fontSize = 8.sp,
-                            )
-                        }
+                        Text(
+                            text = "@${member.person.username}",
+                            color = NovaMuted,
+                            fontSize = 8.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = member.role.ifBlank { "member" }.replaceFirstChar(Char::titlecase),
+                            color = if (member.role == "member") NovaMuted else NovaAccent,
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
                     }
                 }
             }
@@ -549,13 +591,14 @@ private fun RoomSectionRail(
             val selected = selectedKind == kind
             Surface(
                 onClick = { onSelect(kind) },
+                modifier = Modifier.heightIn(min = 48.dp),
                 shape = RoundedCornerShape(15.dp),
                 color = if (selected) NovaAccent else NovaSurface,
                 border = BorderStroke(1.dp, if (selected) NovaAccent else NovaBorder),
             ) {
                 Text(
                     text = "$label $count",
-                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
+                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 14.dp),
                     color = if (selected) NovaBackground else NovaInk,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -571,7 +614,9 @@ private fun RoomItemCard(
     item: RoomItem,
     reminderBusy: Boolean,
     onReminder: () -> Unit,
+    onPersonClick: (String) -> Unit,
 ) {
+    val uriHandler = LocalUriHandler.current
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
@@ -589,16 +634,14 @@ private fun RoomItemCard(
                     contentDescription = "Room photo",
                 )
             }
-            if (item.kind == "video") {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
-                        .background(Color(0xFF10131B)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("▶", color = Color.White, fontSize = 30.sp)
-                }
+            if (item.kind == "video" && item.mediaUrl.isNotBlank()) {
+                NovaVideoPlayer(
+                    source = item.mediaUrl,
+                    modifier = Modifier.fillMaxWidth().height(220.dp),
+                    autoplay = false,
+                    useController = true,
+                    description = "Room video",
+                )
             }
             Column(
                 modifier = Modifier.padding(
@@ -622,11 +665,19 @@ private fun RoomItemCard(
                     }
                     Spacer(modifier = Modifier.weight(1f))
                     item.createdBy?.let { creator ->
-                        Text(
-                            text = "@${creator.username}",
-                            color = NovaMuted,
-                            fontSize = 8.sp,
-                        )
+                        Surface(
+                            onClick = { onPersonClick(creator.username) },
+                            modifier = Modifier.heightIn(min = 48.dp),
+                            color = Color.Transparent,
+                        ) {
+                            Text(
+                                text = "@${creator.username}",
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 15.dp),
+                                color = NovaAccent,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
                     }
                 }
                 if (item.title.isNotBlank()) {
@@ -646,13 +697,34 @@ private fun RoomItemCard(
                     )
                 }
                 if (item.url.isNotBlank()) {
-                    Text(
-                        text = item.url,
-                        color = NovaAccent,
-                        fontSize = 9.sp,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    val safeUrl = item.url.takeIf { it.startsWith("https://") || it.startsWith("http://") }
+                    Surface(
+                        onClick = { safeUrl?.let { runCatching { uriHandler.openUri(it) } } },
+                        enabled = safeUrl != null,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        color = NovaBackground,
+                        shape = RoundedCornerShape(12.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            NovaIcon(
+                                asset = NovaIconAsset.Link,
+                                contentDescription = null,
+                                tint = NovaAccent,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = item.url,
+                                color = NovaAccent,
+                                fontSize = 9.sp,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
                 }
                 item.scheduledFor?.let { scheduled ->
                     Row(
@@ -661,7 +733,7 @@ private fun RoomItemCard(
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text(
-                            text = "Planned · $scheduled",
+                            text = "Planned · ${formatRoomSchedule(scheduled)}",
                             color = NovaMuted,
                             fontSize = 9.sp,
                             modifier = Modifier.weight(1f),
@@ -669,13 +741,14 @@ private fun RoomItemCard(
                         Surface(
                             onClick = onReminder,
                             enabled = !reminderBusy,
+                            modifier = Modifier.heightIn(min = 48.dp),
                             shape = RoundedCornerShape(12.dp),
                             color = if (item.reminderSet) NovaAccentSoft else NovaBackground,
                             border = BorderStroke(1.dp, if (item.reminderSet) NovaAccent else NovaBorder),
                         ) {
                             Text(
                                 text = if (reminderBusy) "…" else if (item.reminderSet) "Reminded" else "Remind",
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 14.dp),
                                 color = if (item.reminderSet) NovaAccent else NovaInk,
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.SemiBold,
@@ -701,7 +774,12 @@ private fun EmptyRoomSection(kind: String?) {
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text("✦", color = NovaAccent, fontSize = 22.sp)
+            NovaIcon(
+                asset = NovaIconAsset.Room,
+                contentDescription = null,
+                tint = NovaAccent,
+                modifier = Modifier.size(24.dp),
+            )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = if (kind == null) "This Room is waiting for its first shared thing." else "Nothing in ${sectionTitle(kind).lowercase()} yet.",
@@ -836,3 +914,10 @@ private fun sectionTitle(kind: String?): String = when (kind) {
     "saved" -> "Saved"
     else -> "Room timeline"
 }
+
+
+private fun formatRoomSchedule(value: String): String = runCatching {
+    Instant.parse(value)
+        .atZone(ZoneId.systemDefault())
+        .format(DateTimeFormatter.ofPattern("EEE, MMM d · h:mm a"))
+}.getOrDefault(value)

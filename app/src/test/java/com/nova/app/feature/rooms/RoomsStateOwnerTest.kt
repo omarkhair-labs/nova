@@ -248,6 +248,7 @@ private class DeferredRoomsRepository(
         url: String,
         scheduledFor: String?,
         mediaUri: Uri?,
+        onProgress: (Int?) -> Unit,
     ): ApiResult<RoomItem> = ApiResult.Failure("Not used")
 
     override suspend fun roomTonight(utcOffsetMinutes: Int): ApiResult<RoomTonightSnapshot> =
@@ -302,6 +303,7 @@ private class FakeRoomRepository(
         url: String,
         scheduledFor: String?,
         mediaUri: Uri?,
+        onProgress: (Int?) -> Unit,
     ): ApiResult<RoomItem> {
         createdKinds += kind
         createdBodies += body

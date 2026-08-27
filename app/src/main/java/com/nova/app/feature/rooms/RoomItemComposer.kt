@@ -7,16 +7,20 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -38,6 +42,8 @@ import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
+import com.nova.app.ui.components.NovaMediaImage
+import com.nova.app.ui.components.NovaVideoPlayer
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -62,6 +68,7 @@ private val roomComposerKinds = listOf(
 @Composable
 fun RoomItemComposer(
     submitting: Boolean,
+    mediaProgress: Int?,
     error: String?,
     onDismiss: () -> Unit,
     onSubmit: (
@@ -80,6 +87,13 @@ fun RoomItemComposer(
     var mediaUri by remember { mutableStateOf<Uri?>(null) }
     var scheduledAt by remember { mutableStateOf<LocalDateTime?>(null) }
     val context = LocalContext.current
+    val canSubmit = when (kind) {
+        "note" -> body.isNotBlank()
+        "plan" -> title.isNotBlank() && scheduledAt != null
+        "music", "saved" -> url.isNotBlank()
+        "photo", "video" -> mediaUri != null
+        else -> false
+    }
 
     fun pickSchedule() {
         val initial = scheduledAt ?: LocalDateTime.now().plusHours(1)
@@ -111,7 +125,9 @@ fun RoomItemComposer(
         onDismissRequest = { if (!submitting) onDismiss() },
         title = { Text("Add to Room") },
         text = {
-            Column {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -128,13 +144,14 @@ fun RoomItemComposer(
                                     if (kind != "plan") scheduledAt = null
                                 }
                             },
+                            modifier = Modifier.heightIn(min = 48.dp),
                             shape = RoundedCornerShape(14.dp),
                             color = if (selected) NovaAccent else NovaSurface,
                             border = BorderStroke(1.dp, if (selected) NovaAccent else NovaBorder),
                         ) {
                             Text(
                                 text = option.label,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 14.dp),
                                 color = if (selected) NovaSurface else NovaInk,
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.SemiBold,
@@ -203,13 +220,31 @@ fun RoomItemComposer(
                 }
 
                 if (kind == "photo" || kind == "video") {
+                    mediaUri?.let { selected ->
+                        if (kind == "photo") {
+                            NovaMediaImage(
+                                source = selected.toString(),
+                                modifier = Modifier.fillMaxWidth().height(190.dp),
+                                contentDescription = "Selected Room photo",
+                            )
+                        } else {
+                            NovaVideoPlayer(
+                                source = selected.toString(),
+                                modifier = Modifier.fillMaxWidth().height(190.dp),
+                                autoplay = false,
+                                useController = true,
+                                description = "Selected Room video",
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(9.dp))
+                    }
                     Surface(
                         onClick = {
                             if (!submitting) {
                                 if (kind == "photo") photoPicker.launch("image/*") else videoPicker.launch("video/*")
                             }
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         shape = RoundedCornerShape(16.dp),
                         color = NovaAccentSoft,
                         border = BorderStroke(1.dp, NovaAccent.copy(alpha = 0.22f)),
@@ -226,7 +261,11 @@ fun RoomItemComposer(
                                 fontWeight = FontWeight.Bold,
                             )
                             Text(
-                                text = if (kind == "photo") "Up to 12 MB" else "Up to 60 MB",
+                                text = if (kind == "photo") {
+                                    "Image file · up to 12 MB"
+                                } else {
+                                    "Video · up to 60 MB · Nova prepares H.264/AAC before publishing"
+                                },
                                 color = NovaMuted,
                                 fontSize = 8.sp,
                             )
@@ -263,6 +302,27 @@ fun RoomItemComposer(
                         fontSize = 9.sp,
                     )
                 }
+
+                if (submitting) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = NovaAccent,
+                            strokeWidth = 2.dp,
+                        )
+                        Text(
+                            text = when {
+                                kind != "video" -> "Publishing to this Room…"
+                                mediaProgress == null -> "Preparing video…"
+                                mediaProgress >= 100 -> "Publishing prepared video…"
+                                else -> "Preparing video · $mediaProgress%"
+                            },
+                            color = NovaMuted,
+                            fontSize = 9.sp,
+                        )
+                    }
+                }
             }
         },
         confirmButton = {
@@ -274,9 +334,9 @@ fun RoomItemComposer(
                         ?.toString()
                     onSubmit(kind, title, body, url, scheduledFor, mediaUri)
                 },
-                enabled = !submitting && (kind != "plan" || scheduledAt != null),
+                enabled = !submitting && canSubmit,
             ) {
-                Text(if (submitting) "Adding…" else "Add")
+                Text(if (submitting) "Publishing…" else "Add")
             }
         },
         dismissButton = {
