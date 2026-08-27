@@ -231,7 +231,7 @@ Samsung device review still must confirm Reel gesture/action density, pooled pla
 
 ### Flow 4 — Profile + Edit Profile + People/Discovery
 
-Status: `PLANNED`
+Status: `IN PROGRESS`
 
 Primary goals:
 
