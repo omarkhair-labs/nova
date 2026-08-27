@@ -49,7 +49,10 @@ import com.nova.app.app.appContainer
 import com.nova.app.feature.messages.details.model.ConversationMessageContext
 import com.nova.app.feature.messages.details.model.ConversationToolMessage
 import com.nova.app.ui.components.NovaAvatar
+import com.nova.app.ui.components.NovaBackButton
 import com.nova.app.ui.components.NovaMediaImage
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
@@ -261,9 +264,16 @@ fun ConversationDetailsDialog(
                     onClick = { fullPhotoUrl = null },
                     shape = CircleShape,
                     color = Color.Black.copy(alpha = 0.65f),
-                    modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(18.dp),
+                    modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(18.dp).size(48.dp),
                 ) {
-                    Text("×", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = Color.White, fontSize = 24.sp)
+                    Box(contentAlignment = Alignment.Center) {
+                        NovaIcon(
+                            asset = NovaIconAsset.Close,
+                            contentDescription = "Close photo",
+                            modifier = Modifier.size(22.dp),
+                            tint = Color.White,
+                        )
+                    }
                 }
             }
         }
@@ -283,9 +293,7 @@ private fun ConversationDetailsHeader(onDismiss: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Surface(onClick = onDismiss, shape = CircleShape, color = NovaSurface, border = BorderStroke(1.dp, NovaBorder)) {
-            Text("‹", modifier = Modifier.padding(horizontal = 13.dp, vertical = 5.dp), color = NovaInk, fontSize = 27.sp)
-        }
+        NovaBackButton(onClick = onDismiss)
         Column(Modifier.weight(1f)) {
             Text("Conversation details", color = NovaInk, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Text("Appearance, search, media and notifications", color = NovaMuted, fontSize = 11.sp)
@@ -595,9 +603,7 @@ private fun ConversationContextView(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Surface(onClick = onBack, shape = CircleShape, color = NovaSurface, border = BorderStroke(1.dp, NovaBorder)) {
-                Text("‹", modifier = Modifier.padding(horizontal = 13.dp, vertical = 5.dp), color = NovaInk, fontSize = 27.sp)
-            }
+            NovaBackButton(onClick = onBack)
             Column {
                 Text("Message context", color = NovaInk, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Text("@$username", color = NovaMuted, fontSize = 11.sp)
@@ -807,15 +813,20 @@ private fun ConversationVoiceRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text(
-                when {
-                    voiceFailedUrl == url -> "!"
-                    active && voicePreparing -> "…"
-                    active && voicePlaying -> "❚❚"
-                    else -> "▶"
+            NovaIcon(
+                asset = when {
+                    voiceFailedUrl == url -> NovaIconAsset.Info
+                    active && voicePlaying -> NovaIconAsset.Pause
+                    else -> NovaIconAsset.Play
                 },
-                color = NovaAccent,
-                fontWeight = FontWeight.Bold,
+                contentDescription = when {
+                    voiceFailedUrl == url -> "Voice message unavailable"
+                    active && voicePreparing -> "Preparing voice message"
+                    active && voicePlaying -> "Pause voice message"
+                    else -> "Play voice message"
+                },
+                modifier = Modifier.size(20.dp),
+                tint = NovaAccent,
             )
             Column {
                 Text("Voice message", color = NovaInk, fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -864,8 +875,8 @@ private fun ConversationContextEdge(text: String) {
 private fun conversationDetailsPreview(item: ConversationToolMessage): String = when {
     item.isDeleted -> "Message deleted"
     item.body.isNotBlank() -> item.body
-    item.audioUrl.isNotBlank() -> "🎤 Voice message"
-    item.imageUrl.isNotBlank() -> "📷 Photo"
+    item.audioUrl.isNotBlank() -> "Voice message"
+    item.imageUrl.isNotBlank() -> "Photo"
     else -> "Message"
 }
 

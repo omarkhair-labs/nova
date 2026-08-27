@@ -311,8 +311,8 @@ internal fun conversationReplyPreview(
 ): String = when {
     isDeleted -> "Message deleted"
     body.isNotBlank() -> body
-    audioUrl.isNotBlank() -> "🎤 Voice message"
-    imageUrl.isNotBlank() -> "📷 Photo"
+    audioUrl.isNotBlank() -> "Voice message"
+    imageUrl.isNotBlank() -> "Photo"
     else -> "Message"
 }
 

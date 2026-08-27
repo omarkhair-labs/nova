@@ -43,6 +43,9 @@ import com.nova.app.core.messaging.NovaRealtimeStatus
 import com.nova.app.feature.messages.ConversationChromeScaffold
 import com.nova.app.feature.messages.domain.model.NovaMessage
 import com.nova.app.ui.components.NovaAvatar
+import com.nova.app.ui.components.NovaBackButton
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaBorder
@@ -296,9 +299,7 @@ private fun ConversationHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(11.dp),
         ) {
-            Surface(onClick = onBack, shape = CircleShape, color = NovaBackground) {
-                Text("‹", modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp), fontSize = 28.sp, color = NovaInk)
-            }
+            NovaBackButton(onClick = onBack)
             Box {
                 NovaAvatar(source = avatarUrl, fallbackText = displayName.ifBlank { username }, size = 44.dp)
                 if (online) {
@@ -311,8 +312,20 @@ private fun ConversationHeader(
                 Text(displayName.ifBlank { username }, color = NovaInk, fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 1)
                 Text(subtitle, color = if (online || isTyping) NovaAccent else NovaMuted, fontSize = 12.sp, maxLines = 1)
             }
-            Surface(onClick = onRefresh, shape = CircleShape, color = NovaBackground) {
-                Text("↻", modifier = Modifier.padding(10.dp), color = NovaAccent, fontSize = 17.sp)
+            Surface(
+                onClick = onRefresh,
+                modifier = Modifier.size(48.dp),
+                shape = CircleShape,
+                color = NovaBackground,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    NovaIcon(
+                        asset = NovaIconAsset.Refresh,
+                        contentDescription = "Refresh conversation",
+                        modifier = Modifier.size(20.dp),
+                        tint = NovaAccent,
+                    )
+                }
             }
         }
     }
