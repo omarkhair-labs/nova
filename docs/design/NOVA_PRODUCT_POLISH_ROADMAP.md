@@ -187,7 +187,7 @@ Do not redesign the full application in this PR.
 
 ### Flow 2 — Create + media pipeline
 
-Status: `PLANNED`
+Status: `PR READY` — implementation and CI-equivalent local gates are complete; Samsung device confirmation remains required
 
 **Create → media selection → validation → upload → progress → publish → first frame/thumbnail → playback**
 
@@ -200,7 +200,11 @@ Primary goals:
 - harden Post/Reel media lifecycle;
 - ensure media reliability is not hidden behind visual polish.
 
-The 2026-08-26 Samsung review confirmed a Pulse video path with a black surface and audio-only playback plus an apparent short restart loop despite a longer source. It also confirmed that Pulse lacks a real selected-video preview and rail thumbnail, normal Posts need an image-or-video contract, media publishing needs durable pending/progress/failure/retry state, and opened media needs a mature full-screen handoff. Flow 2 must trace the picker/upload/storage/HTTP/player path to actual root causes before changing behavior.
+The 2026-08-26 Samsung review confirmed a Pulse video path with a black surface and audio-only playback plus an apparent short restart loop despite a longer source. Static tracing proved that the previous picker accepted arbitrary `video/*`, uploaded the original bytes unchanged, validated only type and size, generated no first-frame thumbnail, and used the default `SurfaceView` player inside a Compose dialog without visible playback errors or retry. The backend did not trim or transcode the upload; the player looped at the endpoint Media3 interpreted from the unnormalised source. The exact source codec/profile/timestamp defect versus Samsung decoder contribution cannot be proven without the original device file and decoder logs, so that attribution remains a device-review question rather than a code claim.
+
+Flow 2 now normalises accepted video to H.264/AAC MP4, rejects transforms that lose duration, extracts a real first-frame JPEG, and uses thumbnail-backed `TextureView` playback with surfaced failure and retry. Post and Reel publishing use account-scoped, idempotent WorkManager jobs with queued/preparing/uploading/published/failed state, real preparation progress, bounded automatic retry, safe manual retry, and session checks that prevent account-switch uploads. Normal Posts now have an image-or-video API contract, persistent video metadata, feed/profile/detail playback, and media-preserving DM, Story, and Orbit handoffs. Pulse and Reels share the same preparation and playback foundations. No foreground-service, manifest, release, signing, WebRTC, TURN, Memory Film, or Play-version contract was changed.
+
+Samsung review still must confirm the original Pulse clip plays picture and audio for its full duration before looping, first-frame thumbnails appear across Pulse/Post/Reel surfaces, full-screen handoff and retry behavior feel correct, and queued publication survives the relevant app/background/network transitions. These paths are not marked `DEVICE VERIFIED` by local or hosted CI.
 
 Product boundaries recorded with that review: Stories remain a 24-hour personal/narrative format and are not being moved to Home; Pulse remains a distinct approximately 12-hour “right now” text/photo/video format whose accepted videos play their full duration before looping; Reels remain a distinct immersive format; normal video Posts remain persistent feed content; and Create remains a rich Nova hub. Broad Home/Create composition cleanup is deferred until stronger product evidence exists.
 

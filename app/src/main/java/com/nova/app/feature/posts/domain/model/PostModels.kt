@@ -22,6 +22,9 @@ data class NovaPost(
     val repostsCount: Int = 0,
     val isReposted: Boolean = false,
     val repostedBy: NovaPostAuthor? = null,
+    val mediaType: String = "image",
+    val mediaUrl: String = imageUrl,
+    val thumbnailUrl: String = imageUrl,
 )
 
 

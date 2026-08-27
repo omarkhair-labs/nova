@@ -1,4 +1,5 @@
 from datetime import timedelta
+import base64
 import tempfile
 
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -43,6 +44,12 @@ class PulseApiTests(APITestCase):
     def image(self, name="pulse.jpg"):
         return SimpleUploadedFile(name, b"pulse-image", content_type="image/jpeg")
 
+    def thumbnail(self, name="pulse-thumb.png"):
+        png = base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC"
+        )
+        return SimpleUploadedFile(name, png, content_type="image/png")
+
     def test_feed_requires_authentication(self):
         response = self.client.get(self.feed_url)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -82,6 +89,34 @@ class PulseApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["media_type"], Pulse.MediaType.IMAGE)
         self.assertTrue(response.data["media_url"].endswith(".jpg"))
+
+    def test_compatible_video_pulse_returns_real_thumbnail_contract(self):
+        self.authenticate()
+        response = self.client.post(
+            self.feed_url,
+            {
+                "media": SimpleUploadedFile("pulse.mp4", b"nova-mp4", content_type="video/mp4"),
+                "thumbnail": self.thumbnail(),
+                "media_type": "video",
+                "audience": "followers",
+            },
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["media_type"], "video")
+        self.assertTrue(response.data["media_url"].endswith(".mp4"))
+        self.assertTrue(response.data["thumbnail_url"].endswith(".png"))
+
+        incompatible = self.client.post(
+            self.feed_url,
+            {
+                "media": SimpleUploadedFile("pulse.webm", b"nova-webm", content_type="video/webm"),
+                "media_type": "video",
+                "audience": "followers",
+            },
+            format="multipart",
+        )
+        self.assertEqual(incompatible.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_blank_or_mismatched_content_is_rejected(self):
         self.authenticate()

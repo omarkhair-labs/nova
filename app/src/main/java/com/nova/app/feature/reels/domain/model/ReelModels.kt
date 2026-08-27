@@ -24,6 +24,7 @@ data class NovaReel(
     val isLiked: Boolean,
     val isReposted: Boolean,
     val repostedBy: NovaReelAuthor?,
+    val thumbnailUrl: String = "",
 )
 
 

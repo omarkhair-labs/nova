@@ -5,8 +5,10 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import com.nova.app.core.auth.NovaSessionStore
+import com.nova.app.core.media.NovaVideoPreparer
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
+import com.nova.app.core.network.UploadFile
 import com.nova.app.feature.reels.data.ReelsRepository
 import com.nova.app.feature.reels.domain.model.NovaReel
 import com.nova.app.feature.reels.domain.model.NovaReelAuthor
@@ -17,18 +19,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.BufferedOutputStream
-import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
-import java.util.UUID
-
-
-private data class PreparedReelVideo(
-    val file: File,
-    val mimeType: String,
-    val fileName: String,
-)
 
 
 class NovaReelsRepository(
@@ -38,6 +30,7 @@ class NovaReelsRepository(
     private val appContext = context.applicationContext
     private val sessionStore = NovaSessionStore(appContext)
     private val authApi = NovaApiClient(baseUrl)
+    private val videoPreparer = NovaVideoPreparer(appContext)
 
     override suspend fun reels(cursor: String?): ApiResult<NovaReelPage> {
         val path = if (cursor.isNullOrBlank()) "reels/" else "reels/?cursor=${cursor.trim()}"
@@ -63,19 +56,65 @@ class NovaReelsRepository(
         }
     }
 
-    override suspend fun createReel(videoUri: Uri, caption: String): ApiResult<NovaReel> {
-        val mimeType = resolveVideoMimeType(videoUri)
+    override suspend fun createReel(videoUri: Uri, caption: String): ApiResult<NovaReel> =
+        createReel(videoUri, caption, "")
+
+    override suspend fun createReel(
+        videoUri: Uri,
+        caption: String,
+        clientPublishId: String,
+        onProgress: (Int?) -> Unit,
+        expectedUserId: Long?,
+    ): ApiResult<NovaReel> {
+        if (!reelPublishAccountMatches(expectedUserId, sessionStore.load()?.cachedUser?.id)) {
+            return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)
+        }
+        resolveVideoMimeType(videoUri)
             ?: return ApiResult.Failure("Reels support video files only.")
-        val prepared = when (val result = prepareVideo(videoUri, mimeType)) {
+        val prepared = when (
+            val result = videoPreparer.prepare(
+                source = videoUri,
+                maxSourceBytes = MAX_REEL_VIDEO_BYTES,
+                sizeMessage = "Reel video must be 120 MB or smaller.",
+                onProgress = onProgress,
+            )
+        ) {
             is ApiResult.Success -> result.value
             is ApiResult.Failure -> return result
         }
         return try {
-            authenticatedCall { token ->
-                multipartUpload(prepared, caption.trim().take(500), token)
+            authenticatedCall(expectedUserId) { token ->
+                when (
+                    val response = authApi.requestMultipart(
+                        path = "reels/",
+                        method = "POST",
+                        fields = buildMap {
+                            put("caption", caption.trim().take(500))
+                            clientPublishId.takeIf(String::isNotBlank)?.let {
+                                put("client_publish_id", it)
+                            }
+                        },
+                        files = mapOf(
+                            "video" to UploadFile(
+                                fileName = "nova-reel-${System.currentTimeMillis()}.mp4",
+                                mimeType = "video/mp4",
+                                sourceFile = prepared.videoFile,
+                            ),
+                            "thumbnail" to UploadFile(
+                                fileName = "nova-reel-${System.currentTimeMillis()}.jpg",
+                                mimeType = "image/jpeg",
+                                sourceFile = prepared.thumbnailFile,
+                            ),
+                        ),
+                        bearerToken = token,
+                    )
+                ) {
+                    is ApiResult.Success -> ApiResult.Success(parseReel(response.value))
+                    is ApiResult.Failure -> response
+                }
             }
         } finally {
-            prepared.file.delete()
+            prepared.delete()
         }
     }
 
@@ -270,111 +309,6 @@ class NovaReelsRepository(
             ?.takeIf { it.startsWith("video/") }
     }
 
-    private suspend fun prepareVideo(
-        videoUri: Uri,
-        mimeType: String,
-    ): ApiResult<PreparedReelVideo> = withContext(Dispatchers.IO) {
-        val extension = MimeTypeMap.getSingleton()
-            .getExtensionFromMimeType(mimeType)
-            ?.takeIf { it.isNotBlank() }
-            ?: "mp4"
-        val tempFile = File.createTempFile("nova-reel-", ".$extension", appContext.cacheDir)
-        try {
-            val input = appContext.contentResolver.openInputStream(videoUri)
-                ?: throw IllegalStateException("Couldn't read that Reel video.")
-            input.use { source ->
-                tempFile.outputStream().buffered().use { target ->
-                    val buffer = ByteArray(64 * 1024)
-                    var total = 0L
-                    while (true) {
-                        val read = source.read(buffer)
-                        if (read <= 0) break
-                        total += read
-                        if (total > MAX_REEL_VIDEO_BYTES) {
-                            tempFile.delete()
-                            return@withContext ApiResult.Failure("Reel video must be 120 MB or smaller.")
-                        }
-                        target.write(buffer, 0, read)
-                    }
-                }
-            }
-            if (tempFile.length() <= 0L) {
-                tempFile.delete()
-                ApiResult.Failure("Nova couldn't read that Reel video. Pick it again and retry.")
-            } else {
-                ApiResult.Success(
-                    PreparedReelVideo(
-                        file = tempFile,
-                        mimeType = mimeType,
-                        fileName = "nova-reel-${System.currentTimeMillis()}.$extension",
-                    )
-                )
-            }
-        } catch (_: Exception) {
-            tempFile.delete()
-            ApiResult.Failure("Nova couldn't read that Reel video. Pick it again and retry.")
-        }
-    }
-
-    private suspend fun multipartUpload(
-        video: PreparedReelVideo,
-        caption: String,
-        bearerToken: String,
-    ): ApiResult<NovaReel> = withContext(Dispatchers.IO) {
-        var connection: HttpURLConnection? = null
-        try {
-            val boundary = "NovaReel-${UUID.randomUUID()}"
-            val lineEnd = "\r\n"
-            val captionPart = buildString {
-                append("--$boundary$lineEnd")
-                append("Content-Disposition: form-data; name=\"caption\"$lineEnd")
-                append("Content-Type: text/plain; charset=UTF-8$lineEnd$lineEnd")
-                append(caption)
-                append(lineEnd)
-            }.toByteArray(Charsets.UTF_8)
-            val fileHeader = buildString {
-                append("--$boundary$lineEnd")
-                append("Content-Disposition: form-data; name=\"video\"; filename=\"${video.fileName}\"$lineEnd")
-                append("Content-Type: ${video.mimeType}$lineEnd$lineEnd")
-            }.toByteArray(Charsets.UTF_8)
-            val closing = "$lineEnd--$boundary--$lineEnd".toByteArray(Charsets.UTF_8)
-            val contentLength = captionPart.size.toLong() + fileHeader.size.toLong() + video.file.length() + closing.size.toLong()
-
-            connection = (URL(baseUrl + "reels/").openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                connectTimeout = 20_000
-                readTimeout = 120_000
-                doOutput = true
-                setFixedLengthStreamingMode(contentLength)
-                setRequestProperty("Accept", "application/json")
-                setRequestProperty("Authorization", "Bearer $bearerToken")
-                setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
-            }
-            BufferedOutputStream(connection.outputStream).use { output ->
-                output.write(captionPart)
-                output.write(fileHeader)
-                video.file.inputStream().buffered().use { input ->
-                    val buffer = ByteArray(64 * 1024)
-                    while (true) {
-                        val read = input.read(buffer)
-                        if (read <= 0) break
-                        output.write(buffer, 0, read)
-                    }
-                }
-                output.write(closing)
-                output.flush()
-            }
-            when (val result = readJsonResponse(connection)) {
-                is ApiResult.Success -> ApiResult.Success(parseReel(result.value))
-                is ApiResult.Failure -> result
-            }
-        } catch (_: Exception) {
-            ApiResult.Failure("Nova couldn't upload that Reel. Check your connection and try again.")
-        } finally {
-            connection?.disconnect()
-        }
-    }
-
     private suspend fun requestJson(
         path: String,
         method: String = "GET",
@@ -430,16 +364,26 @@ class NovaReelsRepository(
     }
 
     private suspend fun <T> authenticatedCall(
+        expectedUserId: Long? = null,
         call: suspend (String) -> ApiResult<T>,
     ): ApiResult<T> {
         val stored = sessionStore.load()
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
+        if (!reelPublishAccountMatches(expectedUserId, stored.cachedUser?.id)) {
+            return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)
+        }
         when (val first = call(stored.accessToken)) {
             is ApiResult.Success -> return first
             is ApiResult.Failure -> if (first.statusCode != 401) return first
         }
         return when (val refreshed = authApi.refresh(stored.refreshToken)) {
             is ApiResult.Success -> {
+                if (!reelPublishAccountMatches(expectedUserId, sessionStore.load()?.cachedUser?.id)) {
+                    return ApiResult.Failure(
+                        "This publish belongs to a different signed-in account.",
+                        409,
+                    )
+                }
                 sessionStore.updateAccessToken(refreshed.value)
                 when (val retried = call(refreshed.value)) {
                     is ApiResult.Success -> retried
@@ -465,6 +409,7 @@ class NovaReelsRepository(
             id = json.optLong("id"),
             author = parseAuthor(json.optJSONObject("author") ?: JSONObject()),
             videoUrl = resolveMediaUrl(json.optString("video_url")),
+            thumbnailUrl = resolveMediaUrl(json.optString("thumbnail_url")),
             caption = json.optString("caption"),
             createdAt = json.optString("created_at"),
             isMine = json.optBoolean("is_mine"),
@@ -525,3 +470,7 @@ class NovaReelsRepository(
         const val MAX_REEL_VIDEO_BYTES = 120L * 1024 * 1024
     }
 }
+
+
+internal fun reelPublishAccountMatches(expectedUserId: Long?, activeUserId: Long?): Boolean =
+    expectedUserId == null || (expectedUserId > 0L && activeUserId == expectedUserId)

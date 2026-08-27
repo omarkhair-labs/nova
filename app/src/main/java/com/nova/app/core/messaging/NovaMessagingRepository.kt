@@ -569,6 +569,9 @@ class NovaMessagingApiClient(
                 ),
                 imageUrl = resolveMediaUrl(item.optString("image_url")),
                 caption = item.optString("caption"),
+                mediaType = item.optString("media_type", "image"),
+                mediaUrl = resolveMediaUrl(item.optString("media_url")),
+                thumbnailUrl = resolveMediaUrl(item.optString("thumbnail_url")),
             )
         }
         val profile = json.optJSONObject("profile")?.let { item ->

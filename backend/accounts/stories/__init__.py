@@ -120,7 +120,12 @@ def _story_payload(request, story, viewed_story_ids=None, reaction_by_story=None
     shared_reel = story.shared_reel
     media_url = ""
     if shared_post is not None:
-        media_url = _absolute_media_url(request, shared_post.image)
+        post_media = (
+            shared_post.video
+            if shared_post.media_type == shared_post.MediaType.VIDEO
+            else shared_post.image
+        )
+        media_url = _absolute_media_url(request, post_media)
     elif shared_reel is not None:
         media_url = _absolute_media_url(request, shared_reel.video)
     elif story.media:

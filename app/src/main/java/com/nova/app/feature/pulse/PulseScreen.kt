@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -313,15 +314,17 @@ private fun PulseFeedCard(pulse: NovaPulse, onClick: () -> Unit) {
                     modifier = Modifier.fillMaxSize(),
                     contentDescription = "${pulse.author.username} Pulse",
                 )
-                "video" -> Box(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
+                "video" -> Box(modifier = Modifier.fillMaxWidth().height(180.dp)) {
+                    NovaMediaImage(
+                        source = pulse.thumbnailUrl,
+                        modifier = Modifier.fillMaxSize(),
+                        contentDescription = "${pulse.author.username} Pulse video thumbnail",
+                    )
                     NovaIcon(
                         asset = NovaIconAsset.Reels,
                         contentDescription = "Play Pulse",
                         tint = palette.ink,
-                        modifier = Modifier.size(28.dp),
+                        modifier = Modifier.size(28.dp).align(Alignment.Center),
                     )
                 }
                 else -> Text(

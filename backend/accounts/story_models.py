@@ -96,7 +96,7 @@ class Story(models.Model):
         # Shared media keeps its durable source relation while Android can
         # render it through the normal image/video viewer paths.
         if self.shared_post_id and self.media_type == self.MediaType.POST:
-            self.media_type = self.MediaType.IMAGE
+            self.media_type = self.shared_post.media_type
         if self.shared_reel_id:
             self.media_type = self.MediaType.VIDEO
         if self.expires_at is None:

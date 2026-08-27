@@ -1,5 +1,6 @@
 import shutil
 import tempfile
+import uuid
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
@@ -65,6 +66,43 @@ class ReelFlowTests(APITestCase):
         self.assertEqual(feed.status_code, status.HTTP_200_OK)
         self.assertEqual(len(feed.data["results"]), 1)
         self.assertEqual(feed.data["results"][0]["id"], created.data["id"])
+
+    def test_reel_publish_identity_prevents_duplicate_retry(self):
+        publish_id = str(uuid.uuid4())
+        first = self.client.post(
+            reverse("reels"),
+            {
+                "video": self.video("first.mp4"),
+                "caption": "Durable Reel",
+                "client_publish_id": publish_id,
+            },
+            format="multipart",
+        )
+        second = self.client.post(
+            reverse("reels"),
+            {
+                "video": self.video("retry.mp4"),
+                "caption": "Duplicate attempt",
+                "client_publish_id": publish_id,
+            },
+            format="multipart",
+        )
+        self.assertEqual(first.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(second.status_code, status.HTTP_200_OK)
+        self.assertEqual(second.data["id"], first.data["id"])
+        self.assertEqual(Reel.objects.filter(author=self.me).count(), 1)
+
+        self.client.force_authenticate(user=self.maya)
+        other_account = self.client.post(
+            reverse("reels"),
+            {
+                "video": self.video("other-account.mp4"),
+                "client_publish_id": publish_id,
+            },
+            format="multipart",
+        )
+        self.assertEqual(other_account.status_code, status.HTTP_201_CREATED)
+        self.assertNotEqual(other_account.data["id"], first.data["id"])
 
     def test_like_is_idempotent_and_can_be_removed(self):
         created = self.create_reel_as(self.maya)

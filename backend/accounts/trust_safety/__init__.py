@@ -199,9 +199,10 @@ class DeleteAccountView(APIView):
         avatar_name = getattr(user.avatar, "name", "")
         avatar_storage = getattr(user.avatar, "storage", None)
         post_files = [
-            (post.image.storage, post.image.name)
+            (field.storage, field.name)
             for post in Post.objects.filter(author=user)
-            if post.image and post.image.name
+            for field in (post.image, post.video, post.thumbnail)
+            if field and field.name
         ]
         story_files = [
             (story.media.storage, story.media.name)

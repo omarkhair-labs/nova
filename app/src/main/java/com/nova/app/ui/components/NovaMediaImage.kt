@@ -25,6 +25,7 @@ fun NovaMediaImage(
     source: String,
     modifier: Modifier = Modifier,
     contentDescription: String = "Nova photo",
+    contentScale: ContentScale = ContentScale.Crop,
 ) {
     var isLoading by remember(source) { mutableStateOf(source.isNotBlank()) }
     var hasFailed by remember(source) { mutableStateOf(false) }
@@ -38,7 +39,7 @@ fun NovaMediaImage(
                 model = source,
                 contentDescription = contentDescription,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
+                contentScale = contentScale,
                 onLoading = {
                     isLoading = true
                     hasFailed = false

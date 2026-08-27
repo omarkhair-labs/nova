@@ -14,7 +14,13 @@ data class OrbitPost(
     val author: OrbitPerson,
     val imageUrl: String,
     val caption: String,
-)
+    val mediaType: String = "image",
+    val mediaUrl: String = "",
+    val thumbnailUrl: String = "",
+) {
+    val previewUrl: String
+        get() = thumbnailUrl.ifBlank { mediaUrl.ifBlank { imageUrl } }
+}
 
 
 data class OrbitPulse(
@@ -25,7 +31,11 @@ data class OrbitPulse(
     val note: String,
     val replyToId: Long?,
     val chainRootId: Long?,
-)
+    val thumbnailUrl: String = "",
+) {
+    val previewUrl: String
+        get() = thumbnailUrl.ifBlank { mediaUrl }
+}
 
 
 data class OrbitEvent(

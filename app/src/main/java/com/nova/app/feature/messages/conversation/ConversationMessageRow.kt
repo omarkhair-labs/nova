@@ -338,12 +338,27 @@ private fun ConversationSharedContentCard(
                     }
                     Text("›", color = secondary, fontSize = 18.sp)
                 }
-                if (post.imageUrl.isNotBlank()) {
-                    NovaMediaImage(
-                        source = post.imageUrl,
-                        modifier = Modifier.fillMaxWidth().height(180.dp),
-                        contentDescription = "Shared post photo",
-                    )
+                if (post.previewUrl.isNotBlank()) {
+                    Box {
+                        NovaMediaImage(
+                            source = post.previewUrl,
+                            modifier = Modifier.fillMaxWidth().height(180.dp),
+                            contentDescription = if (post.mediaType == "video") {
+                                "Shared post video thumbnail"
+                            } else {
+                                "Shared post photo"
+                            },
+                        )
+                        if (post.mediaType == "video") {
+                            Text(
+                                text = "▶",
+                                modifier = Modifier.align(Alignment.Center),
+                                color = Color.White,
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
                 }
                 if (post.caption.isNotBlank()) {
                     Text(

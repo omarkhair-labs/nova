@@ -26,7 +26,13 @@ data class NovaSharedPost(
     val author: NovaPostAuthor,
     val imageUrl: String,
     val caption: String,
-)
+    val mediaType: String = "image",
+    val mediaUrl: String = "",
+    val thumbnailUrl: String = "",
+) {
+    val previewUrl: String
+        get() = thumbnailUrl.ifBlank { mediaUrl.ifBlank { imageUrl } }
+}
 
 
 data class NovaSharedReel(

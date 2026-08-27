@@ -3,7 +3,6 @@ package com.nova.app.feature.pulse
 import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.ui.components.NovaMediaImage
+import com.nova.app.ui.components.NovaVideoPlayer
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBorder
@@ -89,19 +89,15 @@ fun PulseComposerDialog(
                             contentDescription = "Selected Pulse photo",
                         )
                     } else {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth().height(86.dp),
-                            shape = RoundedCornerShape(18.dp),
-                            color = NovaAccentSoft,
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text(
-                                    text = "▶ Video selected",
-                                    color = NovaInk,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                            }
-                        }
+                        NovaVideoPlayer(
+                            source = pendingMedia.toString(),
+                            modifier = Modifier.fillMaxWidth().height(180.dp),
+                            autoplay = true,
+                            repeat = true,
+                            muted = true,
+                            useController = false,
+                            description = "Selected Pulse video preview",
+                        )
                     }
                     TextButton(
                         onClick = onPickMedia,

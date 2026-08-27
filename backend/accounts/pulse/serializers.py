@@ -21,6 +21,7 @@ class PulseAuthorSerializer(serializers.ModelSerializer):
 class PulseSerializer(serializers.ModelSerializer):
     author = PulseAuthorSerializer(read_only=True)
     media_url = serializers.SerializerMethodField()
+    thumbnail_url = serializers.SerializerMethodField()
     is_mine = serializers.SerializerMethodField()
     reply_to_id = serializers.IntegerField(read_only=True)
     chain_root_id = serializers.IntegerField(read_only=True)
@@ -34,6 +35,7 @@ class PulseSerializer(serializers.ModelSerializer):
             "id",
             "author",
             "media_url",
+            "thumbnail_url",
             "media_type",
             "audience",
             "category",
@@ -53,6 +55,14 @@ class PulseSerializer(serializers.ModelSerializer):
             return ""
         request = self.context.get("request")
         url = pulse.media.url
+        return request.build_absolute_uri(url) if request is not None else url
+
+    def get_thumbnail_url(self, pulse):
+        field = pulse.thumbnail or (pulse.media if pulse.media_type == Pulse.MediaType.IMAGE else None)
+        if not field:
+            return ""
+        request = self.context.get("request")
+        url = field.url
         return request.build_absolute_uri(url) if request is not None else url
 
     def get_is_mine(self, pulse):

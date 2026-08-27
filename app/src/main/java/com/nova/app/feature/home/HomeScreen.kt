@@ -38,6 +38,8 @@ import com.nova.app.feature.notifications.NotificationsScreen
 import com.nova.app.feature.orbit.OrbitRail
 import com.nova.app.feature.posts.domain.model.NovaPost
 import com.nova.app.feature.pulse.PulseRail
+import com.nova.app.feature.publishing.MediaPublishItem
+import com.nova.app.feature.publishing.MediaPublishStatus
 import com.nova.app.feature.rooms.RoomsRail
 import com.nova.app.feature.tonight.TonightSurface
 import com.nova.app.ui.components.NovaAvatar
@@ -73,7 +75,10 @@ fun HomeScreen(
     repostingPostIds: Set<Long>,
     actionErrorPostId: Long?,
     actionErrorMessage: String?,
+    publishingItems: List<MediaPublishItem>,
     onCreatePost: () -> Unit,
+    onRetryPublish: (MediaPublishItem) -> Unit,
+    onCancelPublish: (MediaPublishItem) -> Unit,
     onRefresh: () -> Unit,
     onLoadMore: () -> Unit,
     onRetry: () -> Unit,
@@ -250,6 +255,16 @@ fun HomeScreen(
                     )
                 }
 
+                if (publishingItems.isNotEmpty()) {
+                    item(key = "media-publishing") {
+                        MediaPublishStatus(
+                            items = publishingItems,
+                            onRetry = onRetryPublish,
+                            onCancel = onCancelPublish,
+                        )
+                    }
+                }
+
                 item {
                     TonightSurface(
                         onPersonClick = onPersonClick,
@@ -360,7 +375,7 @@ fun HomeScreen(
                                     style = NovaType.bodyCompact.copy(fontWeight = FontWeight.SemiBold),
                                 )
                                 Text(
-                                    text = "Photo + caption",
+                                    text = "Photo or video + caption",
                                     color = NovaMuted,
                                     style = NovaType.micro,
                                 )

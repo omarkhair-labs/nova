@@ -150,7 +150,7 @@ fun NovaProfilePostsGrid(
                                 color = NovaSurface,
                             ) {
                                 NovaMediaImage(
-                                    source = post.imageUrl,
+                                    source = if (post.mediaType == "video") post.thumbnailUrl else post.mediaUrl,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .aspectRatio(1f)

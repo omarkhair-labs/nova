@@ -218,10 +218,23 @@ fun NovaPostCard(
             contentAlignment = Alignment.Center,
         ) {
             NovaMediaImage(
-                source = post.imageUrl,
+                source = if (post.mediaType == "video") post.thumbnailUrl else post.mediaUrl,
                 modifier = Modifier.fillMaxWidth().aspectRatio(4f / 3f),
                 contentDescription = "Post by ${post.author.username}",
             )
+            if (post.mediaType == "video") {
+                Surface(
+                    shape = CircleShape,
+                    color = NovaInk.copy(alpha = 0.72f),
+                ) {
+                    NovaIcon(
+                        asset = NovaIconAsset.Reels,
+                        contentDescription = "Open video post",
+                        tint = androidx.compose.ui.graphics.Color.White,
+                        modifier = Modifier.padding(14.dp).size(28.dp),
+                    )
+                }
+            }
             NovaLikeBurst(
                 trigger = likeBurstTrigger,
                 modifier = Modifier.fillMaxWidth().aspectRatio(4f / 3f),

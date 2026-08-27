@@ -2,7 +2,6 @@ package com.nova.app.feature.reels
 
 import android.content.Intent
 import android.net.Uri
-import android.widget.VideoView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -48,17 +47,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
 import com.nova.app.app.appContainer
 import com.nova.app.feature.reels.domain.model.NovaReel
+import com.nova.app.feature.publishing.MediaPublishStatus
+import com.nova.app.feature.publishing.MediaPublishTarget
+import com.nova.app.feature.publishing.MediaPublishWorker
+import com.nova.app.feature.publishing.MediaPublishingStateOwner
 import com.nova.app.feature.sharing.NovaShareDialog
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
 import com.nova.app.ui.components.NovaLikeBurst
+import com.nova.app.ui.components.NovaPlayerSurface
+import com.nova.app.ui.components.NovaVideoPlayer
 import com.nova.app.ui.components.NovaTab
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBackground
@@ -95,6 +98,9 @@ fun ReelsScreen(
         )
     }
     val state = owner.state
+    val publishingOwner = remember(context, scope) { MediaPublishingStateOwner(context, scope) }
+    val publishingState = publishingOwner.state
+    val currentUserId = appContainer.currentCachedUserId()
     val reels = state.reels
     val nextCursor = state.nextCursor
     val loading = state.loading
@@ -119,12 +125,16 @@ fun ReelsScreen(
 
     LaunchedEffect(Unit) {
         owner.load(reset = true)
+        currentUserId?.let(publishingOwner::enter)
     }
     LaunchedEffect(state.sessionExpiryVersion) {
         if (state.sessionExpiryVersion > 0) onFinish()
     }
     LaunchedEffect(state.createdVersion) {
         if (state.createdVersion > 0) pendingVideo = null
+    }
+    LaunchedEffect(publishingState.reelPublishedVersion) {
+        if (publishingState.reelPublishedVersion > 0) owner.load(reset = true)
     }
     LaunchedEffect(state.deletedVersion) {
         if (state.deletedVersion > 0) {
@@ -166,6 +176,12 @@ fun ReelsScreen(
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }
             pendingVideo = uri
             owner.clearError()
         }
@@ -220,6 +236,15 @@ fun ReelsScreen(
                             color = ReelMuted,
                             fontSize = 14.sp,
                         )
+                        if (publishingState.items.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(14.dp))
+                            MediaPublishStatus(
+                                items = publishingState.items,
+                                modifier = Modifier.fillMaxWidth(),
+                                onRetry = publishingOwner::retry,
+                                onCancel = publishingOwner::cancel,
+                            )
+                        }
                         Spacer(modifier = Modifier.height(18.dp))
                         Surface(
                             onClick = { picker.launch(arrayOf("video/*")) },
@@ -362,6 +387,18 @@ fun ReelsScreen(
                             )
                         }
                     }
+
+                    if (publishingState.items.isNotEmpty()) {
+                        MediaPublishStatus(
+                            items = publishingState.items,
+                            onRetry = publishingOwner::retry,
+                            onCancel = publishingOwner::cancel,
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .statusBarsPadding()
+                                .padding(top = 58.dp, start = 20.dp, end = 20.dp),
+                        )
+                    }
                 }
             }
         }
@@ -370,9 +407,21 @@ fun ReelsScreen(
     pendingVideo?.let { uri ->
         ReelComposerDialog(
             videoUri = uri,
-            uploading = uploading,
-            onDismiss = { if (!uploading) pendingVideo = null },
-            onPost = { caption -> owner.createReel(uri, caption) },
+            uploading = false,
+            onDismiss = { pendingVideo = null },
+            onPost = { caption ->
+                currentUserId?.let { userId ->
+                    MediaPublishWorker.enqueue(
+                        context = context,
+                        target = MediaPublishTarget.REEL,
+                        userId = userId,
+                        sourceUri = uri,
+                        caption = caption,
+                    )
+                    publishingOwner.enter(userId)
+                    pendingVideo = null
+                }
+            },
         )
     }
 
@@ -462,16 +511,13 @@ private fun ReelPage(
                 },
             ),
     ) {
-        AndroidView(
+        NovaPlayerSurface(
+            player = player,
+            thumbnailSource = reel.thumbnailUrl,
             modifier = Modifier.fillMaxSize(),
-            factory = { viewContext ->
-                PlayerView(viewContext).apply {
-                    useController = false
-                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                    this.player = player
-                }
-            },
-            update = { it.player = player },
+            useController = false,
+            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM,
+            description = "Reel by ${reel.author.username}",
         )
 
         Box(
@@ -742,17 +788,14 @@ private fun ReelComposerDialog(
                         .clip(RoundedCornerShape(18.dp))
                         .background(ReelBackground),
                 ) {
-                    AndroidView(
+                    NovaVideoPlayer(
+                        source = videoUri.toString(),
                         modifier = Modifier.fillMaxSize(),
-                        factory = { viewContext ->
-                            VideoView(viewContext).apply {
-                                setVideoURI(videoUri)
-                                setOnPreparedListener { mediaPlayer ->
-                                    mediaPlayer.isLooping = true
-                                    start()
-                                }
-                            }
-                        },
+                        autoplay = true,
+                        repeat = true,
+                        muted = true,
+                        useController = true,
+                        description = "Selected Reel video preview",
                     )
                 }
                 Spacer(modifier = Modifier.height(12.dp))

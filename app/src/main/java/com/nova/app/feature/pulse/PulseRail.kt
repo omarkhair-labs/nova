@@ -351,12 +351,15 @@ private fun PulseCard(
                     modifier = Modifier.fillMaxSize(),
                     contentDescription = "${pulse.author.username} Pulse",
                 )
-                "video" -> Box(
-                    modifier = Modifier.fillMaxSize().background(mediaPalette.background),
-                    contentAlignment = Alignment.Center,
-                ) {
+                "video" -> Box(modifier = Modifier.fillMaxSize()) {
+                    NovaMediaImage(
+                        source = pulse.thumbnailUrl,
+                        modifier = Modifier.fillMaxSize(),
+                        contentDescription = "${pulse.author.username} Pulse video thumbnail",
+                    )
                     Text(
                         text = "▶",
+                        modifier = Modifier.align(Alignment.Center),
                         color = mediaPalette.ink,
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,

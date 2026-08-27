@@ -201,9 +201,9 @@ private fun OrbitEventCard(
     event: OrbitEvent,
     onClick: () -> Unit,
 ) {
-    val mediaUrl = event.post?.imageUrl
+    val mediaUrl = event.post?.previewUrl
         ?.takeIf { it.isNotBlank() }
-        ?: event.pulse?.mediaUrl?.takeIf { it.isNotBlank() }
+        ?: event.pulse?.previewUrl?.takeIf { it.isNotBlank() }
     val textPulse = event.pulse?.takeIf { it.mediaType == "text" }
 
     NovaCard(

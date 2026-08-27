@@ -60,6 +60,9 @@ private fun parsePost(
     author = parsePerson(json.optJSONObject("author") ?: JSONObject(), resolveMediaUrl),
     imageUrl = resolveMediaUrl(json.optString("image_url")),
     caption = json.optString("caption"),
+    mediaType = json.optString("media_type", "image"),
+    mediaUrl = resolveMediaUrl(json.optString("media_url")),
+    thumbnailUrl = resolveMediaUrl(json.optString("thumbnail_url")),
 )
 
 
@@ -74,6 +77,7 @@ private fun parsePulse(
     note = json.optString("note"),
     replyToId = json.optNullableLong("reply_to_id"),
     chainRootId = json.optNullableLong("chain_root_id"),
+    thumbnailUrl = resolveMediaUrl(json.optString("thumbnail_url")),
 )
 
 
