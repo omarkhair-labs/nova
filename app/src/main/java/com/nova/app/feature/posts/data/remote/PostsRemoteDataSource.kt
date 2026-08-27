@@ -52,15 +52,28 @@ class PostsRemoteDataSource(
     suspend fun createPost(
         accessToken: String,
         caption: String,
-        image: UploadFile,
+        mediaType: String,
+        media: UploadFile,
+        thumbnail: UploadFile? = null,
+        clientPublishId: String? = null,
     ): ApiResult<NovaPost> {
+        val mediaField = if (mediaType == "video") "video" else "image"
+        val files = buildMap {
+            put(mediaField, media)
+            thumbnail?.let { put("thumbnail", it) }
+        }
         return when (
             val response = api.requestMultipart(
                 path = "posts/",
                 method = "POST",
-                fields = mapOf("caption" to caption),
-                fileField = "image",
-                file = image,
+                fields = buildMap {
+                    put("caption", caption)
+                    put("media_type", mediaType)
+                    clientPublishId?.takeIf(String::isNotBlank)?.let {
+                        put("client_publish_id", it)
+                    }
+                },
+                files = files,
                 bearerToken = accessToken,
             )
         ) {

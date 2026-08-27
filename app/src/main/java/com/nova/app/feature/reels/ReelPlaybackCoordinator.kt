@@ -3,6 +3,7 @@ package com.nova.app.feature.reels
 import android.content.Context
 import android.os.SystemClock
 import androidx.media3.common.C
+import androidx.media3.common.AudioAttributes
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -67,6 +68,13 @@ class ReelPlayerPool(context: Context) {
         entries[reel.id]?.let { return it.player }
 
         return ExoPlayer.Builder(appContext).build().apply {
+            setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                    .build(),
+                true,
+            )
             repeatMode = Player.REPEAT_MODE_ONE
             playWhenReady = false
             setMediaItem(MediaItem.fromUri(reel.videoUrl))

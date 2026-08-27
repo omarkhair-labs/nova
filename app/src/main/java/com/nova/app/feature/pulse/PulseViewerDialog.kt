@@ -26,7 +26,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,21 +33,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.media3.common.MediaItem
-import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
 import com.nova.app.feature.pulse.domain.model.NovaPulse
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaMediaImage
+import com.nova.app.ui.components.NovaVideoPlayer
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
@@ -323,8 +318,6 @@ fun PulseViewerDialog(
         )
     }
 }
-
-
 @Composable
 private fun PulseChainChip(
     pulse: NovaPulse,
@@ -368,7 +361,6 @@ private fun PulseChainChip(
     }
 }
 
-
 @Composable
 private fun PulseViewerMedia(pulse: NovaPulse) {
     val palette = PulseTheme.media
@@ -378,7 +370,16 @@ private fun PulseViewerMedia(pulse: NovaPulse) {
             modifier = Modifier.fillMaxSize(),
             contentDescription = "${pulse.author.username} Pulse",
         )
-        "video" -> PulseVideoPlayer(source = pulse.mediaUrl)
+        "video" -> NovaVideoPlayer(
+            source = pulse.mediaUrl,
+            thumbnailSource = pulse.thumbnailUrl,
+            modifier = Modifier.fillMaxSize(),
+            autoplay = true,
+            repeat = true,
+            useController = false,
+            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM,
+            description = "${pulse.author.username} Pulse video",
+        )
         else -> Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
@@ -391,34 +392,4 @@ private fun PulseViewerMedia(pulse: NovaPulse) {
             )
         }
     }
-}
-
-
-@Composable
-private fun PulseVideoPlayer(source: String) {
-    val context = LocalContext.current
-    val player = remember(source) {
-        ExoPlayer.Builder(context).build().apply {
-            repeatMode = ExoPlayer.REPEAT_MODE_ONE
-            volume = 1f
-            setMediaItem(MediaItem.fromUri(source))
-            prepare()
-            playWhenReady = true
-        }
-    }
-
-    DisposableEffect(player) {
-        onDispose { player.release() }
-    }
-
-    AndroidView(
-        factory = { viewContext ->
-            PlayerView(viewContext).apply {
-                useController = false
-                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                this.player = player
-            }
-        },
-        modifier = Modifier.fillMaxSize(),
-    )
 }

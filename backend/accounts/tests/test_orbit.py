@@ -86,6 +86,34 @@ class OrbitApiTests(APITestCase):
         for item in response.data["results"]:
             self.assertEqual(item["actor"]["username"], self.actor.username)
 
+    def test_video_post_activity_keeps_thumbnail_and_media_contract(self):
+        post = Post.objects.create(
+            author=self.target,
+            video=SimpleUploadedFile(
+                "orbit-video.mp4",
+                b"nova-compatible-video",
+                content_type="video/mp4",
+            ),
+            thumbnail=SimpleUploadedFile(
+                "orbit-video-thumbnail.jpg",
+                b"nova-thumbnail",
+                content_type="image/jpeg",
+            ),
+            media_type=Post.MediaType.VIDEO,
+            caption="Video movement",
+        )
+        Like.objects.create(post=post, user=self.actor)
+
+        self.authenticate()
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payload = response.data["results"][0]["post"]
+        self.assertEqual(payload["media_type"], "video")
+        self.assertTrue(payload["media_url"].endswith(".mp4"))
+        self.assertTrue(payload["thumbnail_url"].endswith(".jpg"))
+        self.assertEqual(payload["image_url"], "")
+
     def test_stranger_activity_is_not_in_viewers_orbit(self):
         post = self.post(self.target)
         Like.objects.create(post=post, user=self.stranger)

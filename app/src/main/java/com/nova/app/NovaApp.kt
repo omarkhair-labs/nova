@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation3.runtime.NavEntry
@@ -53,6 +54,9 @@ import com.nova.app.feature.profile.EditProfileScreen
 import com.nova.app.feature.profile.ProfileContentStateOwner
 import com.nova.app.feature.profile.ProfileScreen
 import com.nova.app.feature.pulse.PulseScreen
+import com.nova.app.feature.publishing.MediaPublishTarget
+import com.nova.app.feature.publishing.MediaPublishWorker
+import com.nova.app.feature.publishing.MediaPublishingStateOwner
 import com.nova.app.feature.tonight.TonightScreen
 import com.nova.app.feature.welcome.WelcomeScreen
 import com.nova.app.navigation.AppDestination
@@ -77,10 +81,13 @@ fun NovaApp(
     val postRepostRepository = appContainer.postRepostRepository
     val appState = appViewModel.state
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val feedOwner = remember(feedRepository, postRepository, postRepostRepository, scope) {
         FeedStateOwner(feedRepository, postRepository, postRepostRepository, scope)
     }
     val feedState = feedOwner.state
+    val publishingOwner = remember(context, scope) { MediaPublishingStateOwner(context, scope) }
+    val publishingState = publishingOwner.state
 
     val backStack = remember {
         mutableStateListOf<NovaRoute>(NovaRoute.Welcome)
@@ -96,6 +103,7 @@ fun NovaApp(
     var handledFeedSessionExpiry by remember { mutableStateOf(0) }
     var handledProfileRefresh by remember { mutableStateOf(0) }
     var handledPostCreated by remember { mutableStateOf(0) }
+    var handledBackgroundPostPublished by remember { mutableStateOf(0) }
 
     fun openRoot(tab: NovaRootTab) {
         backStack.clear()
@@ -113,6 +121,7 @@ fun NovaApp(
 
     fun resetSocialState() {
         feedOwner.reset()
+        publishingOwner.reset()
     }
 
     fun resetToWelcome() {
@@ -177,6 +186,18 @@ fun NovaApp(
         if (feedState.postCreatedVersion > handledPostCreated) {
             handledPostCreated = feedState.postCreatedVersion
             backStack.removeLastOrNull()
+        }
+    }
+
+    LaunchedEffect(appState.currentUser?.id) {
+        appState.currentUser?.id?.let(publishingOwner::enter) ?: publishingOwner.reset()
+    }
+
+    LaunchedEffect(publishingState.postPublishedVersion) {
+        if (publishingState.postPublishedVersion > handledBackgroundPostPublished) {
+            handledBackgroundPostPublished = publishingState.postPublishedVersion
+            feedOwner.loadFeed()
+            refreshCurrentUser()
         }
     }
 
@@ -377,10 +398,15 @@ fun NovaApp(
                         repostingPostIds = feedState.repostingPostIds.takeIf { feedBelongsToUser }.orEmpty(),
                         actionErrorPostId = feedState.actionErrorPostId.takeIf { feedBelongsToUser },
                         actionErrorMessage = feedState.actionErrorMessage.takeIf { feedBelongsToUser },
+                        publishingItems = publishingState.items.takeIf {
+                            publishingState.userId == user?.id
+                        }.orEmpty(),
                         onCreatePost = {
                             feedOwner.clearPostError()
                             backStack.add(NovaRoute.CreatePost)
                         },
+                        onRetryPublish = publishingOwner::retry,
+                        onCancelPublish = publishingOwner::cancel,
                         onRefresh = feedOwner::loadFeed,
                         onLoadMore = feedOwner::loadMore,
                         onRetry = feedOwner::loadFeed,
@@ -461,16 +487,24 @@ fun NovaApp(
 
                 NovaRoute.CreatePost -> NavEntry(route) {
                     CreatePostScreen(
-                        isLoading = feedState.isUploadingPost,
-                        errorMessage = feedState.postErrorMessage,
+                        isLoading = false,
+                        errorMessage = null,
                         onBack = {
-                            if (!feedState.isUploadingPost) {
-                                feedOwner.clearPostError()
+                            feedOwner.clearPostError()
+                            backStack.removeLastOrNull()
+                        },
+                        onShare = { mediaUri, caption ->
+                            appState.currentUser?.id?.let { userId ->
+                                MediaPublishWorker.enqueue(
+                                    context = context,
+                                    target = MediaPublishTarget.POST,
+                                    userId = userId,
+                                    sourceUri = mediaUri,
+                                    caption = caption,
+                                )
+                                publishingOwner.enter(userId)
                                 backStack.removeLastOrNull()
                             }
-                        },
-                        onShare = { imageUri, caption ->
-                            feedOwner.createPost(caption = caption, imageUri = imageUri)
                         },
                     )
                 }

@@ -188,8 +188,12 @@ class PostAuthorSerializer(AvatarUrlMixin, serializers.ModelSerializer):
 
 class PostSerializer(serializers.ModelSerializer):
     author = PostAuthorSerializer(read_only=True)
-    image = serializers.ImageField(write_only=True, required=True)
+    image = serializers.ImageField(write_only=True, required=False)
+    video = serializers.FileField(write_only=True, required=False)
+    thumbnail = serializers.ImageField(write_only=True, required=False)
     image_url = serializers.SerializerMethodField()
+    media_url = serializers.SerializerMethodField()
+    thumbnail_url = serializers.SerializerMethodField()
     is_mine = serializers.SerializerMethodField()
     likes_count = serializers.SerializerMethodField()
     comments_count = serializers.SerializerMethodField()
@@ -204,7 +208,13 @@ class PostSerializer(serializers.ModelSerializer):
             "id",
             "author",
             "image",
+            "video",
+            "thumbnail",
             "image_url",
+            "media_url",
+            "thumbnail_url",
+            "media_type",
+            "client_publish_id",
             "caption",
             "created_at",
             "is_mine",
@@ -219,6 +229,8 @@ class PostSerializer(serializers.ModelSerializer):
             "id",
             "author",
             "image_url",
+            "media_url",
+            "thumbnail_url",
             "created_at",
             "is_mine",
             "likes_count",
@@ -228,6 +240,47 @@ class PostSerializer(serializers.ModelSerializer):
             "is_reposted",
             "reposted_by",
         )
+        extra_kwargs = {
+            "client_publish_id": {"write_only": True, "required": False},
+        }
+
+    def validate(self, attrs):
+        image = attrs.get("image")
+        video = attrs.get("video")
+        if bool(image) == bool(video):
+            raise serializers.ValidationError(
+                {"detail": "Choose exactly one photo or video for your post."}
+            )
+
+        requested_type = attrs.get("media_type")
+        actual_type = Post.MediaType.VIDEO if video else Post.MediaType.IMAGE
+        if requested_type and requested_type != actual_type:
+            raise serializers.ValidationError(
+                {"detail": "Post media type doesn't match the uploaded file."}
+            )
+        attrs["media_type"] = actual_type
+
+        media = video or image
+        content_type = str(getattr(media, "content_type", "") or "").lower()
+        if actual_type == Post.MediaType.VIDEO:
+            if content_type != "video/mp4":
+                raise serializers.ValidationError(
+                    {"detail": "Post videos must be compatible MP4 files."}
+                )
+            if media.size > 120 * 1024 * 1024:
+                raise serializers.ValidationError(
+                    {"detail": "Post video must be 120 MB or smaller."}
+                )
+        else:
+            if not content_type.startswith("image/"):
+                raise serializers.ValidationError(
+                    {"detail": "Post photos must be image files."}
+                )
+            if media.size > 10 * 1024 * 1024:
+                raise serializers.ValidationError(
+                    {"detail": "Post photo must be 10 MB or smaller."}
+                )
+        return attrs
 
     def get_image_url(self, obj):
         if not obj.image:
@@ -235,6 +288,22 @@ class PostSerializer(serializers.ModelSerializer):
 
         request = self.context.get("request")
         url = obj.image.url
+        return request.build_absolute_uri(url) if request else url
+
+    def get_media_url(self, obj):
+        field = obj.video if obj.media_type == Post.MediaType.VIDEO else obj.image
+        if not field:
+            return ""
+        request = self.context.get("request")
+        url = field.url
+        return request.build_absolute_uri(url) if request else url
+
+    def get_thumbnail_url(self, obj):
+        field = obj.thumbnail or obj.image
+        if not field:
+            return ""
+        request = self.context.get("request")
+        url = field.url
         return request.build_absolute_uri(url) if request else url
 
     def get_is_mine(self, obj):
@@ -281,6 +350,11 @@ class PostSerializer(serializers.ModelSerializer):
     def validate_image(self, value):
         if value.size > 10 * 1024 * 1024:
             raise serializers.ValidationError("Post photo must be 10 MB or smaller.")
+        return value
+
+    def validate_thumbnail(self, value):
+        if value.size > 2 * 1024 * 1024:
+            raise serializers.ValidationError("Post video thumbnail must be 2 MB or smaller.")
         return value
 
     def validate_caption(self, value):

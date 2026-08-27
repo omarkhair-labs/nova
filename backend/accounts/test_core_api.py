@@ -1,4 +1,5 @@
 import base64
+import uuid
 import shutil
 import tempfile
 
@@ -48,6 +49,9 @@ class AuthFlowTests(APITestCase):
             "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC"
         )
         return SimpleUploadedFile(name, png, content_type="image/png")
+
+    def video(self, name="moment.mp4"):
+        return SimpleUploadedFile(name, b"nova-compatible-mp4", content_type="video/mp4")
 
     def test_register_login_and_me_flow(self):
         register_response = self.register(self.payload)
@@ -228,6 +232,87 @@ class AuthFlowTests(APITestCase):
         feed_after_delete = self.client.get(feed_url)
         self.assertEqual(len(feed_after_delete.data["results"]), 1)
         self.assertEqual(feed_after_delete.data["results"][0]["author"]["username"], "maya")
+
+    def test_video_post_contract_is_backward_compatible_and_publish_is_idempotent(self):
+        me = self.register(self.payload)
+        self.authenticate(me.data["access"])
+        publish_id = str(uuid.uuid4())
+
+        created = self.client.post(
+            reverse("posts"),
+            {
+                "caption": "A full video moment",
+                "media_type": "video",
+                "video": self.video(),
+                "thumbnail": self.image("moment-thumb.png"),
+                "client_publish_id": publish_id,
+            },
+            format="multipart",
+        )
+        self.assertEqual(created.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(created.data["media_type"], "video")
+        self.assertTrue(created.data["media_url"].endswith(".mp4"))
+        self.assertTrue(created.data["thumbnail_url"].endswith(".png"))
+        self.assertEqual(created.data["image_url"], "")
+
+        retried = self.client.post(
+            reverse("posts"),
+            {
+                "caption": "A duplicate retry",
+                "media_type": "video",
+                "video": self.video("retry.mp4"),
+                "thumbnail": self.image("retry-thumb.png"),
+                "client_publish_id": publish_id,
+            },
+            format="multipart",
+        )
+        self.assertEqual(retried.status_code, status.HTTP_200_OK)
+        self.assertEqual(retried.data["id"], created.data["id"])
+        self.assertEqual(Post.objects.filter(author__username="omar").count(), 1)
+
+        maya = self.register(
+            {
+                "email": "maya-publish@example.com",
+                "password": "StrongNovaPass2026!",
+                "username": "maya_publish",
+                "name": "Maya Publish",
+            }
+        )
+        self.authenticate(maya.data["access"])
+        other_account = self.client.post(
+            reverse("posts"),
+            {
+                "media_type": "video",
+                "video": self.video("other-account.mp4"),
+                "thumbnail": self.image("other-account-thumb.png"),
+                "client_publish_id": publish_id,
+            },
+            format="multipart",
+        )
+        self.assertEqual(other_account.status_code, status.HTTP_201_CREATED)
+        self.assertNotEqual(other_account.data["id"], created.data["id"])
+
+        legacy = self.client.post(
+            reverse("posts"),
+            {"caption": "Still an image post", "image": self.image("legacy.png")},
+            format="multipart",
+        )
+        self.assertEqual(legacy.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(legacy.data["media_type"], "image")
+        self.assertEqual(legacy.data["media_url"], legacy.data["image_url"])
+
+    def test_post_requires_exactly_one_supported_media_file(self):
+        me = self.register(self.payload)
+        self.authenticate(me.data["access"])
+        missing = self.client.post(reverse("posts"), {"caption": "No media"}, format="multipart")
+        self.assertEqual(missing.status_code, status.HTTP_400_BAD_REQUEST)
+
+        both = self.client.post(
+            reverse("posts"),
+            {"image": self.image(), "video": self.video()},
+            format="multipart",
+        )
+        self.assertEqual(both.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_post_likes_and_comments_are_persistent_and_idempotent(self):
         me = self.register(self.payload)

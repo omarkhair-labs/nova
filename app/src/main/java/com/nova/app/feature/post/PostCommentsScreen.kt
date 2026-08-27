@@ -434,7 +434,7 @@ private fun PostContext(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             NovaMediaImage(
-                source = post.imageUrl,
+                source = if (post.mediaType == "video") post.thumbnailUrl else post.mediaUrl,
                 modifier = Modifier
                     .size(58.dp)
                     .clip(RoundedCornerShape(13.dp)),

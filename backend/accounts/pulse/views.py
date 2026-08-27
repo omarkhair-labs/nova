@@ -48,6 +48,7 @@ def visible_pulse_for_request(request, pulse_id):
 
 def pulse_create_values(request):
     media = request.FILES.get("media")
+    thumbnail = request.FILES.get("thumbnail")
     note = str(request.data.get("note") or "").strip()
     audience = str(
         request.data.get("audience") or Pulse.Audience.FOLLOWERS
@@ -113,9 +114,22 @@ def pulse_create_values(request):
                 {"detail": size_message},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if media_type == Pulse.MediaType.VIDEO and content_type != "video/mp4":
+            return None, Response(
+                {"detail": "Pulse videos must be compatible MP4 files."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if thumbnail is not None:
+            thumbnail_type = str(getattr(thumbnail, "content_type", "") or "").lower()
+            if not thumbnail_type.startswith("image/") or thumbnail.size > 2 * 1024 * 1024:
+                return None, Response(
+                    {"detail": "Pulse video thumbnail must be an image up to 2 MB."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
     return {
         "media": media or "",
+        "thumbnail": thumbnail or "",
         "media_type": media_type,
         "audience": audience,
         "category": category,

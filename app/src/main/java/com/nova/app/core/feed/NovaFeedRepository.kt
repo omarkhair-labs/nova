@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.webkit.MimeTypeMap
 import com.nova.app.core.auth.NovaSessionStore
+import com.nova.app.core.media.NovaVideoPreparer
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.UploadFile
@@ -30,6 +31,7 @@ class NovaFeedRepository(
     private val authRemote = AuthRemoteDataSource(api)
     private val peopleRemote = PeopleRemoteDataSource(api)
     private val postsRemote = PostsRemoteDataSource(api)
+    private val videoPreparer = NovaVideoPreparer(appContext)
 
     override suspend fun feed(cursor: String?): ApiResult<NovaPostPage> {
         val cachedUserId = sessionStore.load()?.cachedUser?.id?.takeIf { it > 0L }
@@ -74,18 +76,76 @@ class NovaFeedRepository(
     override suspend fun createPost(
         caption: String,
         imageUri: Uri,
+    ): ApiResult<NovaPost> = createPost(
+        caption = caption,
+        mediaUri = imageUri,
+        clientPublishId = "",
+    )
+
+    override suspend fun createPost(
+        caption: String,
+        mediaUri: Uri,
+        clientPublishId: String,
+        onProgress: (Int?) -> Unit,
+        expectedUserId: Long?,
     ): ApiResult<NovaPost> {
-        val image = when (val prepared = prepareImage(imageUri)) {
+        if (!publishAccountMatches(expectedUserId, sessionStore.load()?.cachedUser?.id)) {
+            return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)
+        }
+        val mimeType = appContext.contentResolver.getType(mediaUri)
+            ?.substringBefore(';')
+            ?.lowercase()
+            .orEmpty()
+        if (!mimeType.startsWith("video/")) {
+            val image = when (val prepared = prepareImage(mediaUri)) {
+                is ApiResult.Success -> prepared.value
+                is ApiResult.Failure -> return prepared
+            }
+
+            return authenticatedCall(expectedUserId) { accessToken ->
+                postsRemote.createPost(
+                    accessToken = accessToken,
+                    caption = caption.trim(),
+                    mediaType = "image",
+                    media = image,
+                    clientPublishId = clientPublishId,
+                )
+            }
+        }
+
+        val preparedVideo = when (
+            val prepared = videoPreparer.prepare(
+                source = mediaUri,
+                maxSourceBytes = MAX_POST_VIDEO_BYTES,
+                sizeMessage = "Post video must be 120 MB or smaller.",
+                onProgress = onProgress,
+            )
+        ) {
             is ApiResult.Success -> prepared.value
             is ApiResult.Failure -> return prepared
         }
 
-        return authenticatedCall { accessToken ->
-            postsRemote.createPost(
-                accessToken = accessToken,
-                caption = caption.trim(),
-                image = image,
-            )
+        return try {
+            authenticatedCall(expectedUserId) { accessToken ->
+                postsRemote.createPost(
+                    accessToken = accessToken,
+                    caption = caption.trim(),
+                    mediaType = "video",
+                    media = UploadFile(
+                        fileName = "nova-post-${System.currentTimeMillis()}.mp4",
+                        mimeType = "video/mp4",
+                        sourceFile = preparedVideo.videoFile,
+                    ),
+                    thumbnail = UploadFile(
+                        fileName = "nova-post-${System.currentTimeMillis()}.jpg",
+                        mimeType = "image/jpeg",
+                        sourceFile = preparedVideo.thumbnailFile,
+                    ),
+                    clientPublishId = clientPublishId,
+                )
+            }
+        } finally {
+            preparedVideo.delete()
         }
     }
 
@@ -171,10 +231,14 @@ class NovaFeedRepository(
     }
 
     private suspend fun <T> authenticatedCall(
+        expectedUserId: Long? = null,
         call: suspend (String) -> ApiResult<T>,
     ): ApiResult<T> {
         val stored = sessionStore.load()
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
+        if (!publishAccountMatches(expectedUserId, stored.cachedUser?.id)) {
+            return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)
+        }
 
         when (val first = call(stored.accessToken)) {
             is ApiResult.Success -> return first
@@ -185,6 +249,12 @@ class NovaFeedRepository(
 
         return when (val refreshed = authRemote.refresh(stored.refreshToken)) {
             is ApiResult.Success -> {
+                if (!publishAccountMatches(expectedUserId, sessionStore.load()?.cachedUser?.id)) {
+                    return ApiResult.Failure(
+                        "This publish belongs to a different signed-in account.",
+                        409,
+                    )
+                }
                 sessionStore.updateAccessToken(refreshed.value)
                 when (val retried = call(refreshed.value)) {
                     is ApiResult.Success -> retried
@@ -205,4 +275,12 @@ class NovaFeedRepository(
             }
         }
     }
+
+    private companion object {
+        const val MAX_POST_VIDEO_BYTES = 120L * 1024 * 1024
+    }
 }
+
+
+internal fun publishAccountMatches(expectedUserId: Long?, activeUserId: Long?): Boolean =
+    expectedUserId == null || (expectedUserId > 0L && activeUserId == expectedUserId)

@@ -5,16 +5,37 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.DataOutputStream
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.UUID
 
 
 data class UploadFile(
-    val bytes: ByteArray,
+    val bytes: ByteArray? = null,
     val fileName: String,
     val mimeType: String,
-)
+    val sourceFile: File? = null,
+) {
+    init {
+        require(bytes != null || sourceFile != null) { "UploadFile needs bytes or a source file." }
+    }
+
+    fun writeTo(output: DataOutputStream) {
+        bytes?.let {
+            output.write(it)
+            return
+        }
+        requireNotNull(sourceFile).inputStream().buffered().use { input ->
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            while (true) {
+                val read = input.read(buffer)
+                if (read <= 0) break
+                output.write(buffer, 0, read)
+            }
+        }
+    }
+}
 
 
 sealed interface ApiResult<out T> {
@@ -98,6 +119,20 @@ class NovaApiClient(
         fileField: String,
         file: UploadFile?,
         bearerToken: String,
+    ): ApiResult<JSONObject> = requestMultipart(
+        path = path,
+        method = method,
+        fields = fields,
+        files = if (file == null) emptyMap() else mapOf(fileField to file),
+        bearerToken = bearerToken,
+    )
+
+    internal suspend fun requestMultipart(
+        path: String,
+        method: String,
+        fields: Map<String, String>,
+        files: Map<String, UploadFile>,
+        bearerToken: String,
     ): ApiResult<JSONObject> = withContext(Dispatchers.IO) {
         var connection: HttpURLConnection? = null
         val boundary = "Nova-${UUID.randomUUID()}"
@@ -107,8 +142,9 @@ class NovaApiClient(
             connection = (URL(baseUrl + path).openConnection() as HttpURLConnection).apply {
                 requestMethod = method
                 connectTimeout = 20_000
-                readTimeout = 20_000
+                readTimeout = 120_000
                 doOutput = true
+                setChunkedStreamingMode(64 * 1024)
                 setRequestProperty("Accept", "application/json")
                 setRequestProperty("Authorization", "Bearer $bearerToken")
                 setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
@@ -123,13 +159,13 @@ class NovaApiClient(
                     output.writeBytes(lineEnd)
                 }
 
-                if (file != null) {
+                files.forEach { (fileField, file) ->
                     output.writeBytes("--$boundary$lineEnd")
                     output.writeBytes(
                         "Content-Disposition: form-data; name=\"$fileField\"; filename=\"${file.fileName}\"$lineEnd",
                     )
                     output.writeBytes("Content-Type: ${file.mimeType}$lineEnd$lineEnd")
-                    output.write(file.bytes)
+                    file.writeTo(output)
                     output.writeBytes(lineEnd)
                 }
 

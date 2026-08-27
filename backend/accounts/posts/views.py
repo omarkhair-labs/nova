@@ -1,3 +1,5 @@
+import uuid
+
 from django.db.models import Count, Exists, OuterRef, Q
 from django.shortcuts import get_object_or_404
 from rest_framework import status
@@ -94,6 +96,23 @@ class PostsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        raw_publish_id = str(request.data.get("client_publish_id") or "").strip()
+        if raw_publish_id:
+            try:
+                publish_id = uuid.UUID(raw_publish_id)
+            except ValueError:
+                return Response(
+                    {"detail": "Invalid publish identity."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            existing = Post.objects.filter(
+                author=request.user,
+                client_publish_id=publish_id,
+            ).first()
+            if existing is not None:
+                existing = post_queryset(request).get(pk=existing.pk)
+                return Response(PostSerializer(existing, context={"request": request}).data)
+
         serializer = PostSerializer(
             data=request.data,
             context={"request": request},

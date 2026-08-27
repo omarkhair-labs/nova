@@ -188,6 +188,15 @@ class MessageSerializer(serializers.ModelSerializer):
                     "id": post.pk,
                     "author": PostAuthorSerializer(post.author, context=self.context).data,
                     "image_url": _absolute_file_url(request, post.image),
+                    "media_url": _absolute_file_url(
+                        request,
+                        post.video if post.media_type == post.MediaType.VIDEO else post.image,
+                    ),
+                    "media_type": post.media_type,
+                    "thumbnail_url": _absolute_file_url(
+                        request,
+                        post.thumbnail or post.image,
+                    ),
                     "caption": post.caption,
                 },
                 "profile": None,

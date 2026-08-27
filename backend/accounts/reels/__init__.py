@@ -132,6 +132,7 @@ def _reel_payload(request, reel):
         "id": reel.pk,
         "author": _author_payload(request, reel.author),
         "video_url": _absolute_media_url(request, reel.video),
+        "thumbnail_url": _absolute_media_url(request, reel.thumbnail),
         "caption": reel.caption,
         "created_at": reel.created_at.isoformat(),
         "is_mine": reel.author_id == request.user.pk,
@@ -243,7 +244,25 @@ class ReelFeedView(APIView):
 
     def post(self, request):
         video = request.FILES.get("video")
+        thumbnail = request.FILES.get("thumbnail")
         caption = str(request.data.get("caption") or "").strip()
+        raw_publish_id = str(request.data.get("client_publish_id") or "").strip()
+        if raw_publish_id:
+            try:
+                publish_id = uuid.UUID(raw_publish_id)
+            except ValueError:
+                return Response(
+                    {"detail": "Invalid publish identity."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            existing = Reel.objects.filter(
+                author=request.user,
+                client_publish_id=publish_id,
+            ).first()
+            if existing is not None:
+                return Response(_reel_payload(request, existing))
+        else:
+            publish_id = None
         if video is None:
             return Response(
                 {"detail": "Choose a video for your Reel."},
@@ -255,9 +274,9 @@ class ReelFeedView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         content_type = str(getattr(video, "content_type", "") or "").lower()
-        if not content_type.startswith("video/"):
+        if content_type != "video/mp4":
             return Response(
-                {"detail": "Reels support video files only."},
+                {"detail": "Reels require a compatible MP4 video."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if video.size > MAX_REEL_VIDEO_BYTES:
@@ -266,7 +285,21 @@ class ReelFeedView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        reel = Reel.objects.create(author=request.user, video=video, caption=caption)
+        if thumbnail is not None:
+            thumbnail_type = str(getattr(thumbnail, "content_type", "") or "").lower()
+            if not thumbnail_type.startswith("image/") or thumbnail.size > 2 * 1024 * 1024:
+                return Response(
+                    {"detail": "Reel thumbnail must be an image up to 2 MB."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        reel = Reel.objects.create(
+            author=request.user,
+            video=video,
+            thumbnail=thumbnail or "",
+            caption=caption,
+            client_publish_id=publish_id,
+        )
         return Response(_reel_payload(request, reel), status=status.HTTP_201_CREATED)
 
 

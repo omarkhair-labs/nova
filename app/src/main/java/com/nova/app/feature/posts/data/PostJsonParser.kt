@@ -55,10 +55,17 @@ internal fun parseNovaPost(
     val repostedBy = json.optJSONObject("reposted_by")?.let {
         parseNovaPostAuthor(it, resolveMediaUrl)
     }
+    val media = normalizePostMedia(
+        legacyImageUrl = json.optString("image_url"),
+        mediaUrl = json.optString("media_url"),
+        mediaType = json.optString("media_type", "image"),
+        thumbnailUrl = json.optString("thumbnail_url"),
+        resolveMediaUrl = resolveMediaUrl,
+    )
     return NovaPost(
         id = json.optLong("id"),
         author = parseNovaPostAuthor(author, resolveMediaUrl),
-        imageUrl = resolveMediaUrl(json.optString("image_url")),
+        imageUrl = media.imageUrl,
         caption = json.optString("caption"),
         createdAt = json.optString("created_at"),
         isMine = json.optBoolean("is_mine", false),
@@ -68,6 +75,44 @@ internal fun parseNovaPost(
         repostsCount = json.optInt("reposts_count", 0),
         isReposted = json.optBoolean("is_reposted", false),
         repostedBy = repostedBy,
+        mediaType = media.mediaType,
+        mediaUrl = media.mediaUrl,
+        thumbnailUrl = media.thumbnailUrl,
+    )
+}
+
+
+internal data class NormalizedPostMedia(
+    val imageUrl: String,
+    val mediaType: String,
+    val mediaUrl: String,
+    val thumbnailUrl: String,
+)
+
+
+internal fun normalizePostMedia(
+    legacyImageUrl: String,
+    mediaUrl: String,
+    mediaType: String,
+    thumbnailUrl: String,
+    resolveMediaUrl: (String) -> String,
+): NormalizedPostMedia {
+    val normalizedType = mediaType.takeIf { it == "video" } ?: "image"
+    val normalizedLegacyImage = resolveMediaUrl(legacyImageUrl)
+    val normalizedMedia = resolveMediaUrl(mediaUrl).ifBlank { normalizedLegacyImage }
+    val normalizedImage = if (normalizedType == "image") {
+        normalizedLegacyImage.ifBlank { normalizedMedia }
+    } else {
+        normalizedLegacyImage
+    }
+    val normalizedThumbnail = resolveMediaUrl(thumbnailUrl).ifBlank {
+        if (normalizedType == "image") normalizedMedia else normalizedLegacyImage
+    }
+    return NormalizedPostMedia(
+        imageUrl = normalizedImage,
+        mediaType = normalizedType,
+        mediaUrl = normalizedMedia,
+        thumbnailUrl = normalizedThumbnail,
     )
 }
 

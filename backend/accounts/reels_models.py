@@ -13,6 +13,8 @@ class Reel(models.Model):
         related_name="reels",
     )
     video = models.FileField(upload_to="reels/%Y/%m/")
+    thumbnail = models.ImageField(upload_to="reels/thumbnails/%Y/%m/", blank=True)
+    client_publish_id = models.UUIDField(null=True, blank=True)
     caption = models.CharField(max_length=500, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -22,6 +24,13 @@ class Reel(models.Model):
         indexes = [
             models.Index(fields=("-created_at", "-id"), name="reel_created_idx"),
             models.Index(fields=("author", "-created_at"), name="reel_author_created_idx"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=("author", "client_publish_id"),
+                condition=models.Q(client_publish_id__isnull=False),
+                name="unique_reel_author_publish_id",
+            ),
         ]
 
     def delete(self, *args, **kwargs):
@@ -34,11 +43,14 @@ class Reel(models.Model):
             kind__in=REEL_NOTIFICATION_KINDS,
             dedupe_key__endswith=f":{self.pk}",
         ).delete()
-        video_name = self.video.name
-        storage = self.video.storage
+        stored_files = [
+            (field.name, field.storage)
+            for field in (self.video, self.thumbnail)
+            if field and field.name
+        ]
         result = super().delete(*args, **kwargs)
-        if video_name:
-            storage.delete(video_name)
+        for name, storage in stored_files:
+            storage.delete(name)
         return result
 
     def __str__(self):

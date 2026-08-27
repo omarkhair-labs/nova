@@ -19,6 +19,7 @@ internal fun parseNovaPulse(
             avatarUrl = resolveMediaUrl(author.optString("avatar_url")),
         ),
         mediaUrl = resolveMediaUrl(json.optString("media_url")),
+        thumbnailUrl = resolveMediaUrl(json.optString("thumbnail_url")),
         mediaType = json.optString("media_type"),
         audience = json.optString("audience"),
         category = json.optString("category", "vibes"),

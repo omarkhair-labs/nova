@@ -17,6 +17,14 @@ interface PostRepository {
         imageUri: Uri,
     ): ApiResult<NovaPost>
 
+    suspend fun createPost(
+        caption: String,
+        mediaUri: Uri,
+        clientPublishId: String,
+        onProgress: (Int?) -> Unit = {},
+        expectedUserId: Long? = null,
+    ): ApiResult<NovaPost> = createPost(caption, mediaUri)
+
     suspend fun deletePost(postId: Long): ApiResult<Unit>
 
     suspend fun setLiked(

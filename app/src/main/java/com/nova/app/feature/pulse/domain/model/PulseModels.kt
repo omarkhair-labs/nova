@@ -13,6 +13,7 @@ data class NovaPulse(
     val id: Long,
     val author: NovaPulseAuthor,
     val mediaUrl: String,
+    val thumbnailUrl: String = "",
     val mediaType: String,
     val audience: String,
     val category: String = "vibes",

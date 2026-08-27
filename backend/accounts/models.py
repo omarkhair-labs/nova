@@ -104,12 +104,24 @@ class Follow(models.Model):
 
 
 class Post(models.Model):
+    class MediaType(models.TextChoices):
+        IMAGE = "image", "Image"
+        VIDEO = "video", "Video"
+
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name="posts",
     )
-    image = models.ImageField(upload_to="posts/%Y/%m/")
+    image = models.ImageField(upload_to="posts/%Y/%m/", blank=True)
+    video = models.FileField(upload_to="posts/video/%Y/%m/", blank=True)
+    thumbnail = models.ImageField(upload_to="posts/thumbnails/%Y/%m/", blank=True)
+    media_type = models.CharField(
+        max_length=8,
+        choices=MediaType.choices,
+        default=MediaType.IMAGE,
+    )
+    client_publish_id = models.UUIDField(null=True, blank=True)
     caption = models.CharField(max_length=500, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -119,13 +131,23 @@ class Post(models.Model):
             models.Index(fields=("-created_at",), name="post_created_idx"),
             models.Index(fields=("author", "-created_at"), name="post_author_created_idx"),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=("author", "client_publish_id"),
+                condition=models.Q(client_publish_id__isnull=False),
+                name="unique_post_author_publish_id",
+            ),
+        ]
 
     def delete(self, *args, **kwargs):
-        image_name = self.image.name
-        storage = self.image.storage
+        stored_files = [
+            (field.name, field.storage)
+            for field in (self.image, self.video, self.thumbnail)
+            if field and field.name
+        ]
         result = super().delete(*args, **kwargs)
-        if image_name:
-            storage.delete(image_name)
+        for name, storage in stored_files:
+            storage.delete(name)
         return result
 
     def __str__(self):

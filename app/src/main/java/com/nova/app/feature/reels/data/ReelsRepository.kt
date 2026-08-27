@@ -13,6 +13,14 @@ interface ReelsRepository {
 
     suspend fun createReel(videoUri: Uri, caption: String): ApiResult<NovaReel>
 
+    suspend fun createReel(
+        videoUri: Uri,
+        caption: String,
+        clientPublishId: String,
+        onProgress: (Int?) -> Unit = {},
+        expectedUserId: Long? = null,
+    ): ApiResult<NovaReel> = createReel(videoUri, caption)
+
     suspend fun setLiked(reelId: Long, liked: Boolean): ApiResult<NovaReel>
 
     suspend fun setReposted(reelId: Long, reposted: Boolean): ApiResult<NovaReel>

@@ -46,6 +46,7 @@ class Pulse(models.Model):
         blank=True,
     )
     media = models.FileField(upload_to="pulses/%Y/%m/", blank=True)
+    thumbnail = models.ImageField(upload_to="pulses/thumbnails/%Y/%m/", blank=True)
     media_type = models.CharField(max_length=8, choices=MediaType.choices)
     audience = models.CharField(
         max_length=16,
@@ -97,11 +98,14 @@ class Pulse(models.Model):
         return self.expires_at <= timezone.now()
 
     def delete(self, *args, **kwargs):
-        media_name = self.media.name
-        storage = self.media.storage
+        stored_files = [
+            (field.name, field.storage)
+            for field in (self.media, self.thumbnail)
+            if field and field.name
+        ]
         result = super().delete(*args, **kwargs)
-        if media_name:
-            storage.delete(media_name)
+        for name, storage in stored_files:
+            storage.delete(name)
         return result
 
     def __str__(self):

@@ -57,6 +57,20 @@ class SharingAndRepostTests(APITestCase):
             caption=caption,
         )
 
+    def video_post(self, author=None, caption="Share this video"):
+        index = Post.objects.count()
+        return Post.objects.create(
+            author=author or self.author,
+            video=SimpleUploadedFile(
+                f"post-{index}.mp4",
+                b"nova-compatible-video",
+                content_type="video/mp4",
+            ),
+            thumbnail=self.image(f"post-{index}-thumbnail.png"),
+            media_type=Post.MediaType.VIDEO,
+            caption=caption,
+        )
+
     def auth(self, user):
         self.client.force_authenticate(user=user)
 
@@ -134,6 +148,26 @@ class SharingAndRepostTests(APITestCase):
         )
         self.assertEqual(messages.status_code, status.HTTP_200_OK)
         self.assertEqual(messages.data["results"][0]["share"]["post"]["id"], post.pk)
+
+    def test_video_post_share_preserves_media_contract(self):
+        post = self.video_post()
+        self.auth(self.me)
+        response = self.client.post(
+            reverse("message-share"),
+            {
+                "recipient_username": self.recipient.username,
+                "kind": "post",
+                "post_id": post.pk,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        payload = response.data["message"]["share"]["post"]
+        self.assertEqual(payload["media_type"], "video")
+        self.assertTrue(payload["media_url"].endswith(".mp4"))
+        self.assertTrue(payload["thumbnail_url"].endswith(".png"))
+        self.assertEqual(payload["image_url"], "")
 
     def test_profile_share_creates_rich_dm(self):
         self.auth(self.me)
@@ -219,3 +253,19 @@ class SharingAndRepostTests(APITestCase):
         hidden = self.client.get(reverse("stories"))
         stories_after_block = [story for group in hidden.data["results"] for story in group["stories"]]
         self.assertEqual(stories_after_block, [])
+
+    def test_video_post_can_be_shared_to_story_with_video_media(self):
+        post = self.video_post(author=self.me)
+
+        self.auth(self.me)
+        created = self.client.post(
+            reverse("stories"),
+            {"shared_post_id": post.pk},
+            format="json",
+        )
+
+        self.assertEqual(created.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(created.data["media_type"], "video")
+        self.assertTrue(created.data["media_url"].endswith(".mp4"))
+        self.assertEqual(created.data["shared_post"]["media_type"], "video")
+        self.assertTrue(created.data["shared_post"]["thumbnail_url"].endswith(".png"))

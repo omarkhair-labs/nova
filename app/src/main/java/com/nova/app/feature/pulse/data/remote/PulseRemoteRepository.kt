@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import com.nova.app.core.auth.NovaSessionStore
+import com.nova.app.core.media.NovaVideoPreparer
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.UploadFile
@@ -17,12 +18,32 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 
+private data class PreparedPulseUpload(
+    val mediaType: String,
+    val files: Map<String, UploadFile>,
+    val temporaryVideo: com.nova.app.core.media.PreparedNovaVideo? = null,
+) {
+    fun deleteTemporaryFiles() = temporaryVideo?.delete()
+}
+
+private val IMAGE_MIME_TYPES = setOf(
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/heic",
+    "image/heif",
+    "image/gif",
+)
+private const val MAX_PULSE_VIDEO_BYTES = 60L * 1024 * 1024
+
+
 class PulseRemoteRepository(
     context: Context,
     private val api: NovaApiClient,
 ) : PulseRepository {
     private val appContext = context.applicationContext
     private val sessionStore = NovaSessionStore(appContext)
+    private val videoPreparer = NovaVideoPreparer(appContext)
 
     override suspend fun pulses(): ApiResult<List<NovaPulse>> = authenticatedCall { token ->
         when (val response = api.requestJson("pulses/", bearerToken = token)) {
@@ -200,32 +221,79 @@ class PulseRemoteRepository(
         if (cleanNote.length > 180) return ApiResult.Failure("Pulse note must be 180 characters or fewer.")
         val cleanAudience = validateAudience(audience) ?: return invalidAudience()
         val cleanCategory = validateCategory(category) ?: return invalidCategory()
-        val media = when (
-            val prepared = withContext(Dispatchers.IO) { prepareMedia(mediaUri) }
-        ) {
+        val media = when (val prepared = prepareUpload(mediaUri)) {
             is ApiResult.Success -> prepared.value
             is ApiResult.Failure -> return prepared
         }
 
-        return authenticatedCall { token ->
-            when (
-                val response = api.requestMultipart(
-                    path = path,
-                    method = "POST",
-                    fields = mapOf(
-                        "note" to cleanNote,
-                        "audience" to cleanAudience,
-                        "category" to cleanCategory,
-                    ),
-                    fileField = "media",
-                    file = media,
-                    bearerToken = token,
-                )
-            ) {
+        return try {
+            authenticatedCall { token ->
+                when (
+                    val response = api.requestMultipart(
+                        path = path,
+                        method = "POST",
+                        fields = mapOf(
+                            "note" to cleanNote,
+                            "audience" to cleanAudience,
+                            "category" to cleanCategory,
+                            "media_type" to media.mediaType,
+                        ),
+                        files = media.files,
+                        bearerToken = token,
+                    )
+                ) {
+                    is ApiResult.Success -> ApiResult.Success(
+                        parseNovaPulse(response.value, api::resolveMediaUrl),
+                    )
+                    is ApiResult.Failure -> response
+                }
+            }
+        } finally {
+            media.deleteTemporaryFiles()
+        }
+    }
+
+    private suspend fun prepareUpload(uri: Uri): ApiResult<PreparedPulseUpload> {
+        return when (val mimeType = resolveMimeType(uri)) {
+            in IMAGE_MIME_TYPES -> when (val image = withContext(Dispatchers.IO) { prepareImage(uri) }) {
                 is ApiResult.Success -> ApiResult.Success(
-                    parseNovaPulse(response.value, api::resolveMediaUrl),
+                    PreparedPulseUpload(
+                        mediaType = "image",
+                        files = mapOf("media" to image.value),
+                    ),
                 )
-                is ApiResult.Failure -> response
+                is ApiResult.Failure -> image
+            }
+            else -> if (mimeType.startsWith("video/")) {
+                when (
+                    val prepared = videoPreparer.prepare(
+                        source = uri,
+                        maxSourceBytes = MAX_PULSE_VIDEO_BYTES,
+                        sizeMessage = "Pulse video must be 60 MB or smaller.",
+                    )
+                ) {
+                    is ApiResult.Success -> ApiResult.Success(
+                        PreparedPulseUpload(
+                            mediaType = "video",
+                            files = mapOf(
+                                "media" to UploadFile(
+                                    fileName = "nova-pulse-${System.currentTimeMillis()}.mp4",
+                                    mimeType = "video/mp4",
+                                    sourceFile = prepared.value.videoFile,
+                                ),
+                                "thumbnail" to UploadFile(
+                                    fileName = "nova-pulse-${System.currentTimeMillis()}.jpg",
+                                    mimeType = "image/jpeg",
+                                    sourceFile = prepared.value.thumbnailFile,
+                                ),
+                            ),
+                            temporaryVideo = prepared.value,
+                        ),
+                    )
+                    is ApiResult.Failure -> prepared
+                }
+            } else {
+                ApiResult.Failure("Pulses support photos and videos only.")
             }
         }
     }
@@ -241,28 +309,12 @@ class PulseRemoteRepository(
         }
     }
 
-    private fun prepareMedia(uri: Uri): ApiResult<UploadFile> {
+    private fun prepareImage(uri: Uri): ApiResult<UploadFile> {
         val resolver = appContext.contentResolver
-        val mimeType = resolver.getType(uri)
-            ?.substringBefore(';')
-            ?.trim()
-            ?.lowercase()
-            .orEmpty()
-            .ifBlank {
-                val extension = displayName(uri).substringAfterLast('.', "").lowercase()
-                MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension).orEmpty()
-            }
+        val mimeType = resolveMimeType(uri)
 
-        val maxBytes = when {
-            mimeType.startsWith("image/") -> 15L * 1024 * 1024
-            mimeType.startsWith("video/") -> 60L * 1024 * 1024
-            else -> return ApiResult.Failure("Pulses support photos and videos only.")
-        }
-        val sizeMessage = if (mimeType.startsWith("image/")) {
-            "Pulse photo must be 15 MB or smaller."
-        } else {
-            "Pulse video must be 60 MB or smaller."
-        }
+        val maxBytes = 15L * 1024 * 1024
+        val sizeMessage = "Pulse photo must be 15 MB or smaller."
 
         val reportedSize = mediaSize(uri)
         if (reportedSize != null && reportedSize > maxBytes) {
@@ -286,6 +338,16 @@ class PulseRemoteRepository(
             ),
         )
     }
+
+    private fun resolveMimeType(uri: Uri): String = appContext.contentResolver.getType(uri)
+        ?.substringBefore(';')
+        ?.trim()
+        ?.lowercase()
+        .orEmpty()
+        .ifBlank {
+            val extension = displayName(uri).substringAfterLast('.', "").lowercase()
+            MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension).orEmpty()
+        }
 
     private fun displayName(uri: Uri): String {
         return runCatching {

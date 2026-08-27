@@ -69,6 +69,9 @@ class NovaFeedCache(context: Context) {
                     .put("avatar_url", post.author.avatarUrl),
             )
             .put("image_url", post.imageUrl)
+            .put("media_type", post.mediaType)
+            .put("media_url", post.mediaUrl)
+            .put("thumbnail_url", post.thumbnailUrl)
             .put("caption", post.caption)
             .put("created_at", post.createdAt)
             .put("is_mine", post.isMine)
@@ -117,6 +120,9 @@ class NovaFeedCache(context: Context) {
                     avatarUrl = it.optString("avatar_url"),
                 )
             },
+            mediaType = json.optString("media_type", "image"),
+            mediaUrl = json.optString("media_url").ifBlank { json.optString("image_url") },
+            thumbnailUrl = json.optString("thumbnail_url").ifBlank { json.optString("image_url") },
         )
     }
 

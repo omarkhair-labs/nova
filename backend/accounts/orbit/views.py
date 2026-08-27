@@ -45,10 +45,14 @@ def _person_payload(request, user):
 
 
 def _post_payload(request, post):
+    media = post.video if post.media_type == Post.MediaType.VIDEO else post.image
     return {
         "id": post.pk,
         "author": _person_payload(request, post.author),
         "image_url": _media_url(request, post.image),
+        "media_url": _media_url(request, media),
+        "media_type": post.media_type,
+        "thumbnail_url": _media_url(request, post.thumbnail or post.image),
         "caption": post.caption,
     }
 
@@ -58,6 +62,7 @@ def _pulse_payload(request, pulse):
         "id": pulse.pk,
         "author": _person_payload(request, pulse.author),
         "media_url": _media_url(request, pulse.media),
+        "thumbnail_url": _media_url(request, pulse.thumbnail),
         "media_type": pulse.media_type,
         "note": pulse.note,
         "reply_to_id": pulse.reply_to_id,
