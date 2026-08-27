@@ -43,6 +43,8 @@ import com.nova.app.feature.messages.group.AddGroupMembersDialog
 import com.nova.app.feature.messages.group.GroupInfoViewModel
 import com.nova.app.feature.messages.group.model.GroupMember
 import com.nova.app.ui.components.NovaAvatar
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBorder
@@ -247,13 +249,24 @@ fun GroupInfoDialog(
                                 color = NovaAccentSoft,
                                 border = BorderStroke(1.dp, NovaAccent.copy(alpha = 0.25f)),
                             ) {
-                                Text(
-                                    text = "+ Add people",
+                                Row(
                                     modifier = Modifier.padding(horizontal = 13.dp, vertical = 10.dp),
-                                    color = NovaAccent,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    NovaIcon(
+                                        asset = NovaIconAsset.Group,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                        tint = NovaAccent,
+                                    )
+                                    Text(
+                                        text = "Add people",
+                                        color = NovaAccent,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                }
                             }
                         }
 

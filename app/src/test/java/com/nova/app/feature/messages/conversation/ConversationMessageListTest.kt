@@ -88,8 +88,8 @@ class ConversationMessageListTest {
         assertEquals("Aug 12, 2026", dayLabel(today.minusDays(2), today))
         assertEquals("5:00", formatVoiceDuration(5 * 60 * 1000L + 20_000L))
         assertEquals("0:00", formatVoiceDuration(-1L))
-        assertEquals("🎤 Voice message", replyPreviewText(reply(audioUrl = "voice.mp4")))
-        assertEquals("📷 Photo", replyPreviewText(reply(imageUrl = "photo.jpg")))
+        assertEquals("Voice message", replyPreviewText(reply(audioUrl = "voice.mp4")))
+        assertEquals("Photo", replyPreviewText(reply(imageUrl = "photo.jpg")))
         assertEquals("Message deleted", replyPreviewText(reply(isDeleted = true)))
     }
 

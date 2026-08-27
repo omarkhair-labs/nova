@@ -23,11 +23,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.feature.messages.domain.model.NovaMessage
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
@@ -152,17 +155,28 @@ internal fun ConversationMessageList(
                     shadowElevation = 5.dp,
                     modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
                 ) {
-                    Text(
-                        if (state.newMessagesAwayCount > 0) {
-                            "↓  ${state.newMessagesAwayCount} new"
-                        } else {
-                            "↓  Latest"
-                        },
+                    Row(
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
-                        color = NovaAccent,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(7.dp),
+                    ) {
+                        NovaIcon(
+                            asset = NovaIconAsset.Back,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp).rotate(-90f),
+                            tint = NovaAccent,
+                        )
+                        Text(
+                            if (state.newMessagesAwayCount > 0) {
+                                "${state.newMessagesAwayCount} new"
+                            } else {
+                                "Latest"
+                            },
+                            color = NovaAccent,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
                 }
             }
         }

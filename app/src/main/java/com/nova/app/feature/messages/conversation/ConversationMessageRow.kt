@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -49,6 +50,8 @@ import com.nova.app.feature.messages.domain.model.NovaMessageShare
 import com.nova.app.feature.messages.domain.model.NovaReplyPreview
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaMediaImage
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
@@ -109,7 +112,19 @@ internal fun ConversationMessageRow(
         horizontalAlignment = if (message.isMine) Alignment.End else Alignment.Start,
     ) {
         if (abs(dragX) > 24f) {
-            Text("↩ Reply", color = NovaAccent, fontSize = 10.sp, modifier = Modifier.padding(bottom = 3.dp))
+            Row(
+                modifier = Modifier.padding(bottom = 3.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                NovaIcon(
+                    asset = NovaIconAsset.Reply,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = NovaAccent,
+                )
+                Text("Reply", color = NovaAccent, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+            }
         }
 
         Box(contentAlignment = if (message.isMine) Alignment.TopEnd else Alignment.TopStart) {
@@ -226,12 +241,18 @@ internal fun ConversationMessageRow(
                 }
                 DropdownMenuItem(
                     text = { Text("Reply", color = NovaInk) },
+                    leadingIcon = {
+                        NovaIcon(NovaIconAsset.Reply, contentDescription = null, tint = NovaAccent)
+                    },
                     onClick = { if (!mutationBusy) onReply() },
                     enabled = !mutationBusy,
                 )
                 if (message.isMine && message.share == null && !message.isCallHistory()) {
                     DropdownMenuItem(
                         text = { Text("Edit", color = NovaInk) },
+                        leadingIcon = {
+                            NovaIcon(NovaIconAsset.Edit, contentDescription = null, tint = NovaAccent)
+                        },
                         onClick = { if (!mutationBusy) onEdit() },
                         enabled = !mutationBusy,
                     )
@@ -239,6 +260,9 @@ internal fun ConversationMessageRow(
                 if (message.isMine) {
                     DropdownMenuItem(
                         text = { Text("Delete", color = NovaInk) },
+                        leadingIcon = {
+                            NovaIcon(NovaIconAsset.Delete, contentDescription = null, tint = NovaAccent)
+                        },
                         onClick = { if (!mutationBusy) onDelete() },
                         enabled = !mutationBusy,
                     )
@@ -336,7 +360,7 @@ private fun ConversationSharedContentCard(
                         )
                         Text("@${post.author.username} · Shared post", color = secondary, fontSize = 9.sp, maxLines = 1)
                     }
-                    Text("›", color = secondary, fontSize = 18.sp)
+                    Text("Open", color = secondary, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
                 }
                 if (post.previewUrl.isNotBlank()) {
                     Box {
@@ -350,12 +374,11 @@ private fun ConversationSharedContentCard(
                             },
                         )
                         if (post.mediaType == "video") {
-                            Text(
-                                text = "▶",
-                                modifier = Modifier.align(Alignment.Center),
-                                color = Color.White,
-                                fontSize = 28.sp,
-                                fontWeight = FontWeight.Bold,
+                            NovaIcon(
+                                asset = NovaIconAsset.Play,
+                                contentDescription = "Play shared post video",
+                                modifier = Modifier.align(Alignment.Center).size(32.dp),
+                                tint = Color.White,
                             )
                         }
                     }
@@ -403,11 +426,11 @@ private fun ConversationSharedContentCard(
                         )
                         Text("@${reel.author.username} · Reel", color = secondary, fontSize = 9.sp, maxLines = 1)
                     }
-                    Text(
-                        "▶",
-                        color = if (mine) NovaBackground else NovaAccent,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
+                    NovaIcon(
+                        asset = NovaIconAsset.Play,
+                        contentDescription = "Open shared Reel",
+                        modifier = Modifier.size(20.dp),
+                        tint = if (mine) NovaBackground else NovaAccent,
                     )
                 }
                 if (reel.caption.isNotBlank()) {
@@ -467,7 +490,7 @@ private fun ConversationSharedContentCard(
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
-                Text("›", color = secondary, fontSize = 20.sp)
+                Text("Open", color = secondary, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
             }
         }
         return
@@ -619,16 +642,20 @@ private fun ConversationVoiceNotePlayer(audioUrl: String, durationMs: Long?, min
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text(
-                when {
-                    failed -> "!"
-                    !prepared -> "…"
-                    playing -> "❚❚"
-                    else -> "▶"
+            NovaIcon(
+                asset = when {
+                    failed -> NovaIconAsset.Info
+                    playing -> NovaIconAsset.Pause
+                    else -> NovaIconAsset.Play
                 },
-                color = if (mine) NovaBackground else NovaAccent,
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.sp,
+                contentDescription = when {
+                    failed -> "Voice message unavailable"
+                    !prepared -> "Preparing voice message"
+                    playing -> "Pause voice message"
+                    else -> "Play voice message"
+                },
+                modifier = Modifier.size(20.dp),
+                tint = if (mine) NovaBackground else NovaAccent,
             )
             Column(Modifier.weight(1f)) {
                 Text(
@@ -662,14 +689,16 @@ internal fun ConversationFullScreenPhoto(photoUrl: String, onDismiss: () -> Unit
                 onClick = onDismiss,
                 shape = CircleShape,
                 color = Color.Black.copy(alpha = 0.65f),
-                modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(18.dp),
+                modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(18.dp).size(48.dp),
             ) {
-                Text(
-                    "×",
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    color = Color.White,
-                    fontSize = 24.sp,
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    NovaIcon(
+                        asset = NovaIconAsset.Close,
+                        contentDescription = "Close photo",
+                        modifier = Modifier.size(22.dp),
+                        tint = Color.White,
+                    )
+                }
             }
         }
     }
@@ -679,8 +708,8 @@ internal fun ConversationFullScreenPhoto(photoUrl: String, onDismiss: () -> Unit
 internal fun replyPreviewText(reply: NovaReplyPreview): String = when {
     reply.isDeleted -> "Message deleted"
     reply.body.isNotBlank() -> reply.body
-    reply.audioUrl.isNotBlank() -> "🎤 Voice message"
-    reply.imageUrl.isNotBlank() -> "📷 Photo"
+    reply.audioUrl.isNotBlank() -> "Voice message"
+    reply.imageUrl.isNotBlank() -> "Photo"
     else -> "Message"
 }
 

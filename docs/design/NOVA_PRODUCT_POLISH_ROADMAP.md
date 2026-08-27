@@ -271,7 +271,7 @@ Samsung review still must confirm constellation and event-row density, real Puls
 
 ### Flow 6 — Inbox + Messaging + Calls
 
-Status: `PLANNED`
+Status: `PR READY` — implementation is complete; hosted CI and Samsung device review remain the validation boundary
 
 Primary goals:
 
@@ -281,6 +281,14 @@ Primary goals:
 - attachment flow;
 - real call lifecycle/reconnection/audio continuity regression checks;
 - preserve TURN/Redis/realtime infrastructure and recent reliability work.
+
+Inbox retains the real server-owned All, Unread and Mentions filters while replacing the remaining generic search/chip/create glyph treatment with Nova-owned controls. Conversation rows are denser and no longer repeat full bordered cards; unread count and group identity remain explicit without inventing online presence. Bottom paging is automatic, loading/error/empty states use shared Nova feedback, and New Message/New Group keep their existing repositories and creation contracts while sharing the same communication icon language.
+
+Conversation preserves `ConversationViewModel` ownership of realtime reconciliation, drafts, typing, unread anchors, paging, pending messages, retry, replies, edit/delete, reactions, photo/voice media and shared Nova content. The visible experience now uses coherent call/info/reply/edit/delete/photo/voice/send controls with accessible touch targets across the header, swipe-to-reply, action menus, composer, full-screen photo, Details and group management. Pending/failed retry, client-ID reconciliation, shared Post/Profile/Reel destinations, call-history messages, IME/navigation-bar ownership and real presence/reconnecting copy remain intact; no speculative message type or delivery/encryption claim was added.
+
+Calls keep `CallStateOwner`, signaling, WebRTC, negotiation/recovery, audio routing, Telecom and PiP ownership unchanged. Incoming, outgoing and active controls now use the Nova communication icon family, the active-call pill matches that language, and Reconnecting is visually distinct from ordinary Connecting while remaining non-terminal. No TURN, Redis, deployment, permission or foreground-service contract changed.
+
+Samsung review still must confirm Inbox density/search/filter/paging and large-font behavior; Conversation IME/back, swipe/reaction/action feedback, draft/photo/voice lifecycle, shared-content handoffs and call-history return; and two-device call connection, audio continuity, speaker/Bluetooth/earpiece transitions, incoming-call/background/foreground/PiP behavior and recovery after network disturbance. Flow 6 is not `DEVICE VERIFIED`.
 
 ### Flow 7 — Rooms
 

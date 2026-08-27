@@ -348,19 +348,27 @@ else:
             errors.append(f"app-owned communication icon alias seam changed: {seam}")
 
 activity = CALL_ACTIVITY.read_text(encoding="utf-8")
-for import_name in COMMUNICATION_ICON_ALIASES:
-    required = f"import com.nova.app.ui.icons.{import_name}"
-    if required not in activity:
-        errors.append(f"CallActivity must import app-owned icon alias: {required}")
+for seam in (
+    "import com.nova.app.ui.icons.NovaIcon",
+    "import com.nova.app.ui.icons.NovaIconAsset",
+    "NovaIconAsset.CallEnd",
+    "NovaIconAsset.CallAudio",
+    "NovaIconAsset.CallVideo",
+    "NovaIconAsset.Microphone",
+    "NovaIconAsset.VolumeOn",
+    "NovaIconAsset.Refresh",
+):
+    if seam not in activity:
+        errors.append(f"CallActivity bypassed Nova communication icon catalog: {seam}")
 
-for usage in (
+for legacy_usage in (
     "Icons.Filled.CallEnd",
     "Icons.Filled.Mic",
     "Icons.Filled.Videocam",
     "Icons.Filled.VolumeUp",
 ):
-    if usage not in activity:
-        errors.append(f"CallActivity icon usage changed unexpectedly: {usage}")
+    if legacy_usage in activity:
+        errors.append(f"CallActivity restored legacy communication icon usage: {legacy_usage}")
 
 if errors:
     print("Shared UI architecture check failed:")

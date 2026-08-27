@@ -31,12 +31,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -50,8 +45,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -64,15 +59,14 @@ import com.nova.app.app.appContainer
 import com.nova.app.core.calls.NovaAudioRouteState
 import com.nova.app.core.calls.NovaCallAudioRouter
 import com.nova.app.feature.calls.CallLaunchSpec
+import com.nova.app.feature.calls.CallPhase
 import com.nova.app.feature.calls.CallStateOwner
 import com.nova.app.feature.calls.CallUiState
 import com.nova.app.feature.calls.domain.model.NovaCallKind
 import com.nova.app.feature.calls.domain.model.NovaCallPerson
 import com.nova.app.ui.components.NovaMediaImage
-import com.nova.app.ui.icons.CallEnd
-import com.nova.app.ui.icons.Mic
-import com.nova.app.ui.icons.Videocam
-import com.nova.app.ui.icons.VolumeUp
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
@@ -390,6 +384,7 @@ private fun CallScreen(
             CallIdentity(
                 peer = peer,
                 stage = state.stage,
+                phase = state.phase,
                 isVideo = isVideo,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -438,11 +433,11 @@ private fun CallScreen(
                     .size(42.dp),
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Filled.KeyboardArrowDown,
+                    NovaIcon(
+                        asset = NovaIconAsset.Back,
                         contentDescription = "Minimize call",
                         tint = if (isVideo) Color.White else NovaInk,
-                        modifier = Modifier.size(23.dp),
+                        modifier = Modifier.size(23.dp).rotate(-90f),
                     )
                 }
             }
@@ -465,8 +460,13 @@ private fun CallScreen(
                 )
                 Text(
                     text = state.stage,
-                    color = Color.White.copy(alpha = 0.72f),
+                    color = if (state.phase == CallPhase.Reconnecting) {
+                        Color(0xFFB8AEFF)
+                    } else {
+                        Color.White.copy(alpha = 0.72f)
+                    },
                     fontSize = 11.sp,
+                    fontWeight = if (state.phase == CallPhase.Reconnecting) FontWeight.SemiBold else FontWeight.Normal,
                 )
             }
         }
@@ -528,6 +528,7 @@ private fun CallScreen(
 private fun CallIdentity(
     peer: NovaCallPerson?,
     stage: String,
+    phase: CallPhase,
     isVideo: Boolean,
     modifier: Modifier = Modifier,
 ) {
@@ -593,14 +594,24 @@ private fun CallIdentity(
             )
         }
         Spacer(Modifier.height(15.dp))
+        val reconnecting = phase == CallPhase.Reconnecting
         Surface(
             shape = RoundedCornerShape(16.dp),
-            color = if (isVideo) Color.White.copy(alpha = 0.10f) else NovaSurface,
-            border = if (isVideo) null else BorderStroke(1.dp, NovaBorder),
+            color = when {
+                isVideo && reconnecting -> NovaAccent.copy(alpha = 0.28f)
+                isVideo -> Color.White.copy(alpha = 0.10f)
+                reconnecting -> NovaAccentSoft
+                else -> NovaSurface
+            },
+            border = if (isVideo) null else BorderStroke(1.dp, if (reconnecting) NovaAccent else NovaBorder),
         ) {
             Text(
                 text = stage,
-                color = if (isVideo) Color.White.copy(alpha = 0.82f) else NovaMuted,
+                color = when {
+                    isVideo -> Color.White.copy(alpha = 0.88f)
+                    reconnecting -> NovaAccent
+                    else -> NovaMuted
+                },
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
@@ -641,7 +652,7 @@ private fun CallControls(
                         .padding(horizontal = 26.dp, vertical = 18.dp),
                 ) {
                     RoundCallButton(
-                        icon = Icons.Filled.CallEnd,
+                        icon = NovaIconAsset.CallEnd,
                         label = "Decline",
                         background = Color(0xFFE2444E),
                         iconColor = Color.White,
@@ -649,7 +660,7 @@ private fun CallControls(
                         onClick = onDecline,
                     )
                     RoundCallButton(
-                        icon = Icons.Filled.Call,
+                        icon = NovaIconAsset.CallAudio,
                         label = "Answer",
                         background = Color(0xFF2EAE68),
                         iconColor = Color.White,
@@ -670,7 +681,7 @@ private fun CallControls(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         RoundCallButton(
-                            icon = Icons.Filled.Mic,
+                            icon = NovaIconAsset.Microphone,
                             label = if (state.microphoneEnabled) "Mute" else "Unmute",
                             background = if (state.microphoneEnabled) Color.White.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.28f),
                             iconColor = Color.White,
@@ -679,7 +690,7 @@ private fun CallControls(
                         )
                         if (audioRoute.canToggleSpeaker) {
                             RoundCallButton(
-                                icon = Icons.Filled.VolumeUp,
+                                icon = NovaIconAsset.VolumeOn,
                                 label = if (audioRoute.speakerEnabled) "Speaker" else audioRoute.name.take(9),
                                 background = if (audioRoute.speakerEnabled) Color.White.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.14f),
                                 iconColor = Color.White,
@@ -688,7 +699,7 @@ private fun CallControls(
                             )
                         }
                         RoundCallButton(
-                            icon = Icons.Filled.Videocam,
+                            icon = NovaIconAsset.CallVideo,
                             label = if (state.cameraEnabled) "Camera" else "Camera off",
                             background = if (state.cameraEnabled) Color.White.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.28f),
                             iconColor = Color.White,
@@ -696,7 +707,7 @@ private fun CallControls(
                             onClick = onToggleCamera,
                         )
                         RoundCallButton(
-                            icon = Icons.Filled.Refresh,
+                            icon = NovaIconAsset.Refresh,
                             label = "Flip",
                             background = Color.White.copy(alpha = 0.14f),
                             iconColor = Color.White,
@@ -706,7 +717,7 @@ private fun CallControls(
                     }
                     Spacer(Modifier.height(12.dp))
                     RoundCallButton(
-                        icon = Icons.Filled.CallEnd,
+                        icon = NovaIconAsset.CallEnd,
                         label = if (state.session?.status?.wireValue == "ringing") "Cancel" else "End",
                         background = Color(0xFFE2444E),
                         iconColor = Color.White,
@@ -725,7 +736,7 @@ private fun CallControls(
                         .padding(horizontal = 16.dp, vertical = 17.dp),
                 ) {
                     RoundCallButton(
-                        icon = Icons.Filled.Mic,
+                        icon = NovaIconAsset.Microphone,
                         label = if (state.microphoneEnabled) "Mute" else "Unmute",
                         background = if (state.microphoneEnabled) NovaBackground else NovaAccentSoft,
                         iconColor = if (state.microphoneEnabled) NovaInk else NovaAccent,
@@ -735,7 +746,7 @@ private fun CallControls(
                     )
                     if (audioRoute.canToggleSpeaker) {
                         RoundCallButton(
-                            icon = Icons.Filled.VolumeUp,
+                            icon = NovaIconAsset.VolumeOn,
                             label = if (audioRoute.speakerEnabled) "Speaker" else audioRoute.name.take(9),
                             background = if (audioRoute.speakerEnabled) NovaAccentSoft else NovaBackground,
                             iconColor = if (audioRoute.speakerEnabled) NovaAccent else NovaInk,
@@ -745,7 +756,7 @@ private fun CallControls(
                         )
                     }
                     RoundCallButton(
-                        icon = Icons.Filled.CallEnd,
+                        icon = NovaIconAsset.CallEnd,
                         label = if (state.session?.status?.wireValue == "ringing") "Cancel" else "End",
                         background = Color(0xFFE2444E),
                         iconColor = Color.White,
@@ -761,7 +772,7 @@ private fun CallControls(
 
 @Composable
 private fun RoundCallButton(
-    icon: ImageVector,
+    icon: NovaIconAsset,
     label: String,
     background: Color,
     iconColor: Color,
@@ -778,8 +789,8 @@ private fun RoundCallButton(
             modifier = Modifier.size(56.dp),
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = icon,
+                NovaIcon(
+                    asset = icon,
                     contentDescription = label,
                     tint = iconColor,
                     modifier = Modifier.size(23.dp),

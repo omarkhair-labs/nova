@@ -8,6 +8,7 @@ import android.os.SystemClock
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,6 +44,8 @@ import com.nova.app.core.messaging.NovaVoiceDraft
 import com.nova.app.core.messaging.NovaVoiceRecorder
 import com.nova.app.feature.messages.domain.model.NovaMessage
 import com.nova.app.ui.components.NovaMediaImage
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
@@ -292,7 +296,12 @@ internal fun ConversationComposer(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        Text("●", color = NovaAccent, fontSize = 16.sp)
+                        NovaIcon(
+                            asset = NovaIconAsset.Microphone,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = NovaAccent,
+                        )
                         Column(Modifier.weight(1f)) {
                             Text(
                                 "Recording ${formatConversationVoiceDuration(state.recordingElapsedMs)}",
@@ -304,12 +313,14 @@ internal fun ConversationComposer(
                         }
                         ComposerSmallChip("Cancel", state::cancelRecording)
                         Surface(onClick = state::finishVoiceRecording, shape = CircleShape, color = NovaAccent) {
-                            Text(
-                                "■",
-                                modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
-                                color = NovaBackground,
-                                fontSize = 12.sp,
-                            )
+                            Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                                NovaIcon(
+                                    asset = NovaIconAsset.Stop,
+                                    contentDescription = "Finish recording",
+                                    modifier = Modifier.size(18.dp),
+                                    tint = NovaBackground,
+                                )
+                            }
                         }
                     }
                 }
@@ -341,7 +352,14 @@ internal fun ConversationComposer(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Surface(shape = CircleShape, color = NovaAccentSoft) {
-                        Text("🎤", modifier = Modifier.padding(12.dp), fontSize = 18.sp)
+                        Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                            NovaIcon(
+                                asset = NovaIconAsset.Microphone,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = NovaAccent,
+                            )
+                        }
                     }
                     Column(Modifier.weight(1f)) {
                         Text("Voice message ready", color = NovaInk, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
@@ -373,13 +391,14 @@ internal fun ConversationComposer(
                         shape = CircleShape,
                         color = if (state.voiceDraft == null) NovaAccentSoft else NovaBackground,
                     ) {
-                        Text(
-                            "+",
-                            modifier = Modifier.padding(horizontal = 13.dp, vertical = 9.dp),
-                            color = NovaAccent,
-                            fontSize = 21.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
+                        Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                            NovaIcon(
+                                asset = NovaIconAsset.Photo,
+                                contentDescription = "Choose photo",
+                                modifier = Modifier.size(21.dp),
+                                tint = NovaAccent,
+                            )
+                        }
                     }
                 }
 
@@ -415,7 +434,14 @@ internal fun ConversationComposer(
                     state.selectedImage == null && state.voiceDraft == null && draft.isBlank()
                 ) {
                     Surface(onClick = ::requestVoiceRecording, shape = CircleShape, color = NovaAccentSoft) {
-                        Text("🎤", modifier = Modifier.padding(horizontal = 11.dp, vertical = 10.dp), fontSize = 16.sp)
+                        Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                            NovaIcon(
+                                asset = NovaIconAsset.Microphone,
+                                contentDescription = "Record voice message",
+                                modifier = Modifier.size(20.dp),
+                                tint = NovaAccent,
+                            )
+                        }
                     }
                 }
 
@@ -432,17 +458,22 @@ internal fun ConversationComposer(
                     shape = CircleShape,
                     color = if (enabled) NovaAccent else NovaAccentSoft,
                 ) {
-                    Text(
-                        when {
-                            isMutating -> "…"
-                            editingTarget != null -> "✓"
-                            else -> "↑"
-                        },
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                        color = if (enabled) NovaBackground else NovaMuted,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
+                    Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                        if (isMutating) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = NovaMuted,
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            NovaIcon(
+                                asset = if (editingTarget != null) NovaIconAsset.Check else NovaIconAsset.Send,
+                                contentDescription = if (editingTarget != null) "Save edited message" else "Send message",
+                                modifier = Modifier.size(20.dp),
+                                tint = if (enabled) NovaBackground else NovaMuted,
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -466,12 +497,14 @@ private fun ComposerContextCard(title: String, preview: String, onClose: () -> U
                 Text(preview, color = NovaMuted, fontSize = 12.sp, maxLines = 1)
             }
             Surface(onClick = onClose, shape = CircleShape, color = NovaSurface) {
-                Text(
-                    "×",
-                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
-                    color = NovaMuted,
-                    fontSize = 18.sp,
-                )
+                Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                    NovaIcon(
+                        asset = NovaIconAsset.Close,
+                        contentDescription = "Close message context",
+                        modifier = Modifier.size(18.dp),
+                        tint = NovaMuted,
+                    )
+                }
             }
         }
     }
@@ -511,12 +544,12 @@ internal fun isConversationComposerSendEnabled(
 
 private fun composerReplyPreview(message: NovaMessage): String = when {
     message.isDeleted -> "Message deleted"
-    message.share?.kind == "post" -> "↗ Shared post"
-    message.share?.kind == "profile" -> "↗ Shared profile"
-    message.share?.kind == "reel" -> "↗ Shared Reel"
+    message.share?.kind == "post" -> "Shared post"
+    message.share?.kind == "profile" -> "Shared profile"
+    message.share?.kind == "reel" -> "Shared Reel"
     message.body.isNotBlank() -> message.body
-    message.audioUrl.isNotBlank() -> "🎤 Voice message"
-    message.imageUrl.isNotBlank() -> "📷 Photo"
+    message.audioUrl.isNotBlank() -> "Voice message"
+    message.imageUrl.isNotBlank() -> "Photo"
     else -> "Message"
 }
 

@@ -14,9 +14,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,7 +35,8 @@ import com.nova.app.core.calls.NovaActiveCallSignal
 import com.nova.app.core.calls.NovaActiveCallSummary
 import com.nova.app.feature.calls.domain.model.NovaCallKind
 import com.nova.app.feature.calls.domain.model.NovaCallStatus
-import com.nova.app.ui.icons.Videocam
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBorder
@@ -88,11 +86,11 @@ fun NovaActiveCallPill(
                 modifier = Modifier.size(38.dp),
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = if (call.kind == NovaCallKind.Video) {
-                            Icons.Filled.Videocam
+                    NovaIcon(
+                        asset = if (call.kind == NovaCallKind.Video) {
+                            NovaIconAsset.CallVideo
                         } else {
-                            Icons.Filled.Call
+                            NovaIconAsset.CallAudio
                         },
                         contentDescription = null,
                         tint = NovaAccent,

@@ -18,8 +18,8 @@ class ConversationToolsRemoteRepositoryTest {
     fun replyPreviewKeepsTheExistingPriorityOrder() {
         assertEquals("Message deleted", conversationReplyPreview(true, "text", "voice", "photo"))
         assertEquals("text", conversationReplyPreview(false, "text", "voice", "photo"))
-        assertEquals("🎤 Voice message", conversationReplyPreview(false, "", "voice", "photo"))
-        assertEquals("📷 Photo", conversationReplyPreview(false, "", "", "photo"))
+        assertEquals("Voice message", conversationReplyPreview(false, "", "voice", "photo"))
+        assertEquals("Photo", conversationReplyPreview(false, "", "", "photo"))
         assertEquals("Message", conversationReplyPreview(false, "", "", ""))
     }
 

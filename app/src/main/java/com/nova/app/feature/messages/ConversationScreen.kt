@@ -11,10 +11,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -28,7 +24,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelStore
@@ -39,7 +34,8 @@ import com.nova.app.feature.messages.appearance.ConversationAppearanceViewModel
 import com.nova.app.feature.messages.conversation.ConversationContent
 import com.nova.app.feature.messages.details.ConversationDetailsDialog
 import com.nova.app.feature.messages.details.ConversationDetailsTab
-import com.nova.app.ui.icons.Videocam
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.LocalNovaColorOverride
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBackground
@@ -89,7 +85,7 @@ fun ConversationScreen(
     var liveDisplayName by remember(conversationId, displayName) { mutableStateOf(displayName) }
     var liveAvatarUrl by remember(conversationId, avatarUrl) { mutableStateOf(avatarUrl) }
     var liveMembersCount by remember(conversationId, membersCount) { mutableIntStateOf(membersCount) }
-    val identityEndPadding = if (username == "group") 61.dp else 110.dp
+    val identityEndPadding = if (username == "group") 70.dp else 124.dp
 
     val palette = NovaChatThemes.resolve(appearanceState.themeKey)
     CompositionLocalProvider(
@@ -130,7 +126,7 @@ fun ConversationScreen(
 
             if (isGroup) {
                 ConversationCallAction(
-                    icon = Icons.Filled.Info,
+                    icon = NovaIconAsset.Info,
                     contentDescription = "Open group info",
                     onClick = { showGroupInfo = true },
                     modifier = Modifier
@@ -140,7 +136,7 @@ fun ConversationScreen(
                 )
             } else {
                 ConversationCallAction(
-                    icon = Icons.Filled.Call,
+                    icon = NovaIconAsset.CallAudio,
                     contentDescription = "Start voice call",
                     onClick = onAudioCall,
                     modifier = Modifier
@@ -149,7 +145,7 @@ fun ConversationScreen(
                         .padding(top = 10.dp, end = 61.dp),
                 )
                 ConversationCallAction(
-                    icon = Icons.Filled.Videocam,
+                    icon = NovaIconAsset.CallVideo,
                     contentDescription = "Start video call",
                     onClick = onVideoCall,
                     modifier = Modifier
@@ -211,7 +207,7 @@ private class ConversationAppearanceStoreOwner : ViewModelStoreOwner {
 
 @Composable
 private fun ConversationCallAction(
-    icon: ImageVector,
+    icon: NovaIconAsset,
     contentDescription: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -221,14 +217,14 @@ private fun ConversationCallAction(
         shape = CircleShape,
         color = NovaBackground,
         border = BorderStroke(1.dp, NovaBorder),
-        modifier = modifier.size(38.dp),
+        modifier = modifier.size(48.dp),
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = icon,
+            NovaIcon(
+                asset = icon,
                 contentDescription = contentDescription,
                 tint = NovaAccent,
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(20.dp),
             )
         }
     }
