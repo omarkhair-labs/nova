@@ -271,7 +271,7 @@ Samsung review still must confirm constellation and event-row density, real Puls
 
 ### Flow 6 — Inbox + Messaging + Calls
 
-Status: `PLANNED`
+Status: `IN PROGRESS`
 
 Primary goals:
 
