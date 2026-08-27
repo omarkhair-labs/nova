@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -96,6 +97,7 @@ fun NovaPlayerSurface(
 ) {
     var firstFrameRendered by remember(player) { mutableStateOf(player.currentPosition > 0L) }
     var playbackError by remember(player) { mutableStateOf(false) }
+    var playbackState by remember(player) { mutableStateOf(player.playbackState) }
 
     DisposableEffect(player) {
         val listener = object : Player.Listener {
@@ -106,6 +108,10 @@ fun NovaPlayerSurface(
 
             override fun onPlayerError(error: PlaybackException) {
                 playbackError = true
+            }
+
+            override fun onPlaybackStateChanged(state: Int) {
+                playbackState = state
             }
         }
         player.addListener(listener)
@@ -151,6 +157,24 @@ fun NovaPlayerSurface(
                 .fillMaxSize()
                 .alpha(if (firstFrameRendered || thumbnailSource.isBlank()) 1f else 0.01f),
         )
+
+        if (!playbackError && playbackState == Player.STATE_BUFFERING) {
+            Surface(
+                color = ComposeColor.Black.copy(alpha = 0.46f),
+                shape = androidx.compose.foundation.shape.CircleShape,
+            ) {
+                Box(
+                    modifier = Modifier.padding(13.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.sizeIn(minWidth = 22.dp, minHeight = 22.dp),
+                        color = ComposeColor.White,
+                        strokeWidth = 2.dp,
+                    )
+                }
+            }
+        }
 
         if (playbackError) {
             Column(

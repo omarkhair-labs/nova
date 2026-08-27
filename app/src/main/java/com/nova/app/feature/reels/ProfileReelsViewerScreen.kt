@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -33,22 +34,25 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
-import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
 import com.nova.app.app.appContainer
 import com.nova.app.feature.reels.domain.model.NovaReel
 import com.nova.app.feature.sharing.NovaShareDialog
 import com.nova.app.ui.components.NovaAvatar
+import com.nova.app.ui.components.NovaImmersiveAction
+import com.nova.app.ui.components.NovaLikeBurst
+import com.nova.app.ui.components.NovaPlayerSurface
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaBorder
@@ -67,6 +71,7 @@ fun ProfileReelsViewerScreen(
     username: String,
     initialReelId: Long,
     onFinish: () -> Unit,
+    onPersonClick: (String) -> Unit,
 ) {
     val context = LocalContext.current
     val appContainer = context.appContainer
@@ -97,12 +102,17 @@ fun ProfileReelsViewerScreen(
     val likingId = state.likingId
     val repostingId = state.repostingId
     val deletingId = state.deletingId
+    val playerPool = remember(context) { ReelPlayerPool(context.applicationContext) }
 
     var commentsReel by remember(username) { mutableStateOf<NovaReel?>(null) }
     var shareReelTarget by remember(username) { mutableStateOf<NovaReel?>(null) }
     var deleteReelTarget by remember(username) { mutableStateOf<NovaReel?>(null) }
 
     val overlayOpen = commentsReel != null || shareReelTarget != null || deleteReelTarget != null
+
+    DisposableEffect(playerPool) {
+        onDispose { playerPool.releaseAll() }
+    }
 
     LaunchedEffect(owner) {
         owner.loadInitial()
@@ -182,17 +192,19 @@ fun ProfileReelsViewerScreen(
             ) {
                 Surface(
                     onClick = onFinish,
-                    modifier = Modifier.align(Alignment.TopStart),
+                    modifier = Modifier.align(Alignment.TopStart).size(48.dp),
                     shape = CircleShape,
                     color = Color.Black.copy(alpha = 0.45f),
                     border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
                 ) {
-                    Text(
-                        text = "‹",
-                        modifier = Modifier.padding(horizontal = 15.dp, vertical = 7.dp),
-                        color = ProfileViewerInk,
-                        fontSize = 27.sp,
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        NovaIcon(
+                            asset = NovaIconAsset.Back,
+                            contentDescription = "Back",
+                            modifier = Modifier.size(23.dp),
+                            tint = ProfileViewerInk,
+                        )
+                    }
                 }
                 Column(
                     modifier = Modifier.align(Alignment.Center),
@@ -210,6 +222,22 @@ fun ProfileReelsViewerScreen(
                         color = ProfileViewerMuted,
                         fontSize = 12.sp,
                     )
+                    if (error != null) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Surface(
+                            onClick = owner::loadInitial,
+                            shape = RoundedCornerShape(14.dp),
+                            color = Color.White.copy(alpha = 0.12f),
+                        ) {
+                            Text(
+                                text = "Try again",
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 11.dp),
+                                color = ProfileViewerInk,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -220,6 +248,13 @@ fun ProfileReelsViewerScreen(
                 initialPage = initialIndex,
                 pageCount = { reels.size },
             )
+            val reelIdentity = reels.map { it.id to it.videoUrl }
+
+            LaunchedEffect(pagerState.currentPage, reelIdentity, overlayOpen) {
+                val center = pagerState.currentPage.coerceIn(0, reels.lastIndex)
+                playerPool.retainAround(reels, center)
+                playerPool.pauseAllExcept(reels.getOrNull(center)?.id?.takeUnless { overlayOpen })
+            }
 
             LaunchedEffect(pagerState.currentPage, reels.size, nextCursor, loadingMore) {
                 if (
@@ -243,8 +278,10 @@ fun ProfileReelsViewerScreen(
                     key = { index -> reels[index].id },
                 ) { page ->
                     val reel = reels[page]
+                    val player = remember(reel.id, reel.videoUrl) { playerPool.playerFor(reel) }
                     ProfileViewerReelPage(
                         reel = reel,
+                        player = player,
                         isActive = pagerState.currentPage == page && !overlayOpen,
                         isLiking = likingId == reel.id,
                         isReposting = repostingId == reel.id,
@@ -267,16 +304,19 @@ fun ProfileReelsViewerScreen(
                 ) {
                     Surface(
                         onClick = onFinish,
+                        modifier = Modifier.size(48.dp),
                         shape = CircleShape,
                         color = Color.Black.copy(alpha = 0.45f),
                         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
                     ) {
-                        Text(
-                            text = "‹",
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                            color = ProfileViewerInk,
-                            fontSize = 27.sp,
-                        )
+                        Box(contentAlignment = Alignment.Center) {
+                            NovaIcon(
+                                asset = NovaIconAsset.Back,
+                                contentDescription = "Back",
+                                modifier = Modifier.size(23.dp),
+                                tint = ProfileViewerInk,
+                            )
+                        }
                     }
                     Surface(
                         shape = RoundedCornerShape(16.dp),
@@ -331,7 +371,7 @@ fun ProfileReelsViewerScreen(
             repository = interactionRepository,
             onDismiss = { commentsReel = null },
             onReelUpdated = ::replaceOverlayReel,
-            onPersonClick = {},
+            onPersonClick = onPersonClick,
             onSessionExpired = onFinish,
         )
     }
@@ -358,6 +398,7 @@ fun ProfileReelsViewerScreen(
 @Composable
 private fun ProfileViewerReelPage(
     reel: NovaReel,
+    player: ExoPlayer,
     isActive: Boolean,
     isLiking: Boolean,
     isReposting: Boolean,
@@ -368,16 +409,10 @@ private fun ProfileViewerReelPage(
     onShare: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    val context = LocalContext.current
+    val haptics = LocalHapticFeedback.current
     var pausedByUser by remember(reel.id) { mutableStateOf(false) }
     var muted by remember(reel.id) { mutableStateOf(false) }
-    val player = remember(reel.id, reel.videoUrl) {
-        ExoPlayer.Builder(context).build().apply {
-            repeatMode = Player.REPEAT_MODE_ONE
-            setMediaItem(MediaItem.fromUri(reel.videoUrl))
-            prepare()
-        }
-    }
+    var likeBurstTrigger by remember(reel.id) { mutableIntStateOf(0) }
 
     LaunchedEffect(isActive, pausedByUser) {
         if (isActive && !pausedByUser) player.play() else player.pause()
@@ -385,10 +420,6 @@ private fun ProfileViewerReelPage(
     LaunchedEffect(muted) {
         player.volume = if (muted) 0f else 1f
     }
-    DisposableEffect(player) {
-        onDispose { player.release() }
-    }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -397,26 +428,32 @@ private fun ProfileViewerReelPage(
                 onClick = { pausedByUser = !pausedByUser },
                 onDoubleClick = {
                     // Double-tap always means Like. Repeating it never unlikes the Reel.
-                    if (!reel.isLiked && !isLiking) onLike()
+                    if (!isLiking) {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        likeBurstTrigger += 1
+                        if (!reel.isLiked) onLike()
+                    }
                 },
             ),
     ) {
-        AndroidView(
+        NovaPlayerSurface(
+            player = player,
+            thumbnailSource = reel.thumbnailUrl,
             modifier = Modifier.fillMaxSize(),
-            factory = { viewContext ->
-                PlayerView(viewContext).apply {
-                    useController = false
-                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                    this.player = player
-                }
-            },
-            update = { it.player = player },
+            useController = false,
+            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM,
+            description = "Reel by ${reel.author.username}",
         )
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.06f)),
+        )
+
+        NovaLikeBurst(
+            trigger = likeBurstTrigger,
+            modifier = Modifier.fillMaxSize(),
         )
 
         if (pausedByUser) {
@@ -428,7 +465,12 @@ private fun ProfileViewerReelPage(
                 color = Color.Black.copy(alpha = 0.48f),
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text("▶", color = ProfileViewerInk, fontSize = 25.sp)
+                    NovaIcon(
+                        asset = NovaIconAsset.Play,
+                        contentDescription = "Resume Reel",
+                        modifier = Modifier.size(28.dp),
+                        tint = ProfileViewerInk,
+                    )
                 }
             }
         }
@@ -440,41 +482,51 @@ private fun ProfileViewerReelPage(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            ProfileViewerAction(
-                symbol = if (reel.isLiked) "♥" else "♡",
+            NovaImmersiveAction(
+                icon = if (reel.isLiked) NovaIconAsset.LikeFilled else NovaIconAsset.Like,
+                contentDescription = if (reel.isLiked) "Unlike Reel" else "Like Reel",
                 label = reel.likesCount.toString(),
                 active = reel.isLiked,
                 busy = isLiking,
-                onClick = onLike,
+                onClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onLike()
+                },
             )
-            ProfileViewerAction(
-                symbol = "◌",
+            NovaImmersiveAction(
+                icon = NovaIconAsset.Comment,
+                contentDescription = "Open Reel comments",
                 label = reel.commentsCount.toString(),
                 onClick = onComments,
             )
-            ProfileViewerAction(
-                symbol = "↻",
+            NovaImmersiveAction(
+                icon = NovaIconAsset.Repost,
+                contentDescription = if (reel.isReposted) "Remove Reel repost" else "Repost Reel",
                 label = reel.repostsCount.toString(),
                 active = reel.isReposted,
                 busy = isReposting,
                 onClick = onRepost,
             )
-            ProfileViewerAction(
-                symbol = "↗",
+            NovaImmersiveAction(
+                icon = NovaIconAsset.Share,
+                contentDescription = "Share Reel",
                 label = "Share",
                 onClick = onShare,
             )
             if (reel.isMine) {
-                ProfileViewerAction(
-                    symbol = "×",
+                NovaImmersiveAction(
+                    icon = NovaIconAsset.Delete,
+                    contentDescription = "Delete Reel",
                     label = "Delete",
                     busy = isDeleting,
                     onClick = onDelete,
                 )
             }
-            ProfileViewerAction(
-                symbol = if (muted) "×" else "♪",
+            NovaImmersiveAction(
+                icon = if (muted) NovaIconAsset.VolumeOff else NovaIconAsset.VolumeOn,
+                contentDescription = if (muted) "Unmute Reel" else "Mute Reel",
                 label = if (muted) "Muted" else "Sound",
+                active = !muted,
                 onClick = { muted = !muted },
             )
         }
@@ -520,53 +572,6 @@ private fun ProfileViewerReelPage(
                 )
             }
         }
-    }
-}
-
-
-@Composable
-private fun ProfileViewerAction(
-    symbol: String,
-    label: String,
-    onClick: () -> Unit,
-    active: Boolean = false,
-    busy: Boolean = false,
-) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Surface(
-            onClick = { if (!busy) onClick() },
-            modifier = Modifier.size(45.dp),
-            shape = CircleShape,
-            color = Color.Black.copy(alpha = 0.44f),
-            border = BorderStroke(
-                1.dp,
-                if (active) NovaAccent.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.14f),
-            ),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                if (busy) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        color = ProfileViewerInk,
-                        strokeWidth = 2.dp,
-                    )
-                } else {
-                    Text(
-                        text = symbol,
-                        color = if (active) NovaAccent else ProfileViewerInk,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = label,
-            color = ProfileViewerInk,
-            fontSize = 9.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
     }
 }
 

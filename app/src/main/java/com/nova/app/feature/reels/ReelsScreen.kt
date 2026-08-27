@@ -42,7 +42,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -60,9 +62,12 @@ import com.nova.app.feature.sharing.NovaShareDialog
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
 import com.nova.app.ui.components.NovaLikeBurst
+import com.nova.app.ui.components.NovaImmersiveAction
 import com.nova.app.ui.components.NovaPlayerSurface
 import com.nova.app.ui.components.NovaVideoPlayer
 import com.nova.app.ui.components.NovaTab
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaBorder
@@ -472,6 +477,7 @@ private fun ReelPage(
     onAuthor: () -> Unit,
     onWatchSession: (ReelWatchSnapshot) -> Unit,
 ) {
+    val haptics = LocalHapticFeedback.current
     var pausedByUser by remember(reel.id) { mutableStateOf(false) }
     var muted by remember(reel.id) { mutableStateOf(false) }
     var likeBurstTrigger by remember(reel.id) { mutableIntStateOf(0) }
@@ -506,8 +512,11 @@ private fun ReelPage(
                 onClick = { pausedByUser = !pausedByUser },
                 onDoubleClick = {
                     // The burst is visual feedback only; double-tap never unlikes.
-                    likeBurstTrigger += 1
-                    if (!reel.isLiked && !isLiking) onLike()
+                    if (!isLiking) {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        likeBurstTrigger += 1
+                        if (!reel.isLiked) onLike()
+                    }
                 },
             ),
     ) {
@@ -540,7 +549,12 @@ private fun ReelPage(
                 color = Color.Black.copy(alpha = 0.46f),
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text("▶", color = ReelInk, fontSize = 26.sp)
+                    NovaIcon(
+                        asset = NovaIconAsset.Play,
+                        contentDescription = "Resume Reel",
+                        modifier = Modifier.size(28.dp),
+                        tint = ReelInk,
+                    )
                 }
             }
         }
@@ -552,41 +566,51 @@ private fun ReelPage(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            ReelAction(
-                symbol = if (reel.isLiked) "♥" else "♡",
+            NovaImmersiveAction(
+                icon = if (reel.isLiked) NovaIconAsset.LikeFilled else NovaIconAsset.Like,
+                contentDescription = if (reel.isLiked) "Unlike Reel" else "Like Reel",
                 label = reel.likesCount.toString(),
                 active = reel.isLiked,
                 busy = isLiking,
-                onClick = onLike,
+                onClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onLike()
+                },
             )
-            ReelAction(
-                symbol = "◌",
+            NovaImmersiveAction(
+                icon = NovaIconAsset.Comment,
+                contentDescription = "Open Reel comments",
                 label = reel.commentsCount.toString(),
                 onClick = onComments,
             )
-            ReelAction(
-                symbol = "↻",
+            NovaImmersiveAction(
+                icon = NovaIconAsset.Repost,
+                contentDescription = if (reel.isReposted) "Remove Reel repost" else "Repost Reel",
                 label = reel.repostsCount.toString(),
                 active = reel.isReposted,
                 busy = isReposting,
                 onClick = onRepost,
             )
-            ReelAction(
-                symbol = "↗",
+            NovaImmersiveAction(
+                icon = NovaIconAsset.Share,
+                contentDescription = "Share Reel",
                 label = "Share",
                 onClick = onShare,
             )
             if (reel.isMine) {
-                ReelAction(
-                    symbol = "×",
+                NovaImmersiveAction(
+                    icon = NovaIconAsset.Delete,
+                    contentDescription = "Delete Reel",
                     label = "Delete",
                     busy = isDeleting,
                     onClick = onDelete,
                 )
             }
-            ReelAction(
-                symbol = if (muted) "×" else "♪",
+            NovaImmersiveAction(
+                icon = if (muted) NovaIconAsset.VolumeOff else NovaIconAsset.VolumeOn,
+                contentDescription = if (muted) "Unmute Reel" else "Mute Reel",
                 label = if (muted) "Muted" else "Sound",
+                active = !muted,
                 onClick = { muted = !muted },
             )
         }
@@ -598,12 +622,23 @@ private fun ReelPage(
                 .padding(start = 16.dp, end = 10.dp, bottom = 24.dp),
         ) {
             reel.repostedBy?.let { reposter ->
-                Text(
-                    text = "↻ @${reposter.username} reposted",
-                    color = ReelMuted,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                ) {
+                    NovaIcon(
+                        asset = NovaIconAsset.Repost,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = ReelMuted,
+                    )
+                    Text(
+                        text = "@${reposter.username} reposted",
+                        color = ReelMuted,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
                 Spacer(modifier = Modifier.height(8.dp))
             }
             Row(
@@ -635,46 +670,6 @@ private fun ReelPage(
                 )
             }
         }
-    }
-}
-
-
-@Composable
-private fun ReelAction(
-    symbol: String,
-    label: String,
-    onClick: () -> Unit,
-    active: Boolean = false,
-    busy: Boolean = false,
-) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Surface(
-            onClick = onClick,
-            enabled = !busy,
-            modifier = Modifier.size(44.dp),
-            shape = CircleShape,
-            color = Color.Black.copy(alpha = 0.38f),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                if (busy) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        color = ReelInk,
-                        strokeWidth = 2.dp,
-                    )
-                } else {
-                    Text(
-                        text = symbol,
-                        color = if (active) NovaAccent else ReelInk,
-                        fontSize = 21.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(label, color = ReelInk, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
