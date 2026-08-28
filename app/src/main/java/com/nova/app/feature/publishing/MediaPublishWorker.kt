@@ -19,7 +19,8 @@ import java.util.UUID
 enum class MediaPublishTarget(val wireValue: String) {
     POST("post"),
     REEL("reel"),
-    STORY("story");
+    STORY("story"),
+    PULSE("pulse");
 
     companion object {
         fun fromWire(value: String): MediaPublishTarget? = entries.firstOrNull { it.wireValue == value }
@@ -41,6 +42,7 @@ class MediaPublishWorker(
         val source = inputData.getString(KEY_SOURCE_URI).orEmpty()
         val caption = inputData.getString(KEY_CAPTION).orEmpty()
         val audience = inputData.getString(KEY_AUDIENCE).orEmpty().ifBlank { "followers" }
+        val category = inputData.getString(KEY_CATEGORY).orEmpty().ifBlank { "vibes" }
         val clientPublishId = inputData.getString(KEY_CLIENT_PUBLISH_ID).orEmpty()
         if (source.isBlank() || clientPublishId.isBlank()) {
             return failed("Nova lost access to the selected media. Pick it again and retry.")
@@ -94,6 +96,20 @@ class MediaPublishWorker(
                 is ApiResult.Success -> ApiResult.Success(result.value.id)
                 is ApiResult.Failure -> result
             }
+            MediaPublishTarget.PULSE -> when (
+                val result = applicationContext.appContainer.pulseRepository.createMediaPulse(
+                    mediaUri = Uri.parse(source),
+                    note = caption,
+                    audience = audience,
+                    category = category,
+                    clientPublishId = clientPublishId,
+                    onProgress = progress,
+                    expectedUserId = userId,
+                )
+            ) {
+                is ApiResult.Success -> ApiResult.Success(result.value.id)
+                is ApiResult.Failure -> result
+            }
         }
 
         return when (response) {
@@ -124,6 +140,7 @@ class MediaPublishWorker(
             KEY_SOURCE_URI to inputData.getString(KEY_SOURCE_URI),
             KEY_CAPTION to inputData.getString(KEY_CAPTION),
             KEY_AUDIENCE to inputData.getString(KEY_AUDIENCE),
+            KEY_CATEGORY to inputData.getString(KEY_CATEGORY),
             KEY_CLIENT_PUBLISH_ID to inputData.getString(KEY_CLIENT_PUBLISH_ID),
             KEY_ENQUEUED_AT to inputData.getLong(KEY_ENQUEUED_AT, 0L),
         ),
@@ -141,6 +158,7 @@ class MediaPublishWorker(
         const val KEY_SOURCE_URI = "source_uri"
         const val KEY_CAPTION = "caption"
         const val KEY_AUDIENCE = "audience"
+        const val KEY_CATEGORY = "category"
         const val KEY_CLIENT_PUBLISH_ID = "client_publish_id"
         const val KEY_ENQUEUED_AT = "enqueued_at"
         const val KEY_STAGE = "stage"
@@ -162,10 +180,19 @@ class MediaPublishWorker(
             sourceUri: Uri,
             caption: String,
             audience: String = "followers",
+            category: String = "vibes",
             clientPublishId: String = UUID.randomUUID().toString(),
             replace: Boolean = false,
         ): UUID {
-            val input = inputData(target, userId, sourceUri, caption, audience, clientPublishId)
+            val input = inputData(
+                target,
+                userId,
+                sourceUri,
+                caption,
+                audience,
+                category,
+                clientPublishId,
+            )
             val request = OneTimeWorkRequestBuilder<MediaPublishWorker>()
                 .setInputData(input)
                 .setConstraints(
@@ -193,6 +220,7 @@ class MediaPublishWorker(
                 sourceUri = Uri.parse(input.getString(KEY_SOURCE_URI).orEmpty()),
                 caption = input.getString(KEY_CAPTION).orEmpty(),
                 audience = input.getString(KEY_AUDIENCE).orEmpty().ifBlank { "followers" },
+                category = input.getString(KEY_CATEGORY).orEmpty().ifBlank { "vibes" },
                 clientPublishId = input.getString(KEY_CLIENT_PUBLISH_ID).orEmpty(),
                 replace = true,
             )
@@ -212,6 +240,7 @@ class MediaPublishWorker(
             sourceUri: Uri,
             caption: String,
             audience: String,
+            category: String,
             clientPublishId: String,
         ): Data = workDataOf(
             KEY_TARGET to target.wireValue,
@@ -219,6 +248,7 @@ class MediaPublishWorker(
             KEY_SOURCE_URI to sourceUri.toString(),
             KEY_CAPTION to caption.take(500),
             KEY_AUDIENCE to audience,
+            KEY_CATEGORY to category,
             KEY_CLIENT_PUBLISH_ID to clientPublishId,
             KEY_ENQUEUED_AT to System.currentTimeMillis(),
         )

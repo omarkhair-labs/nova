@@ -87,6 +87,25 @@ class PulseRemoteRepository(
         category = category,
     )
 
+    override suspend fun createMediaPulse(
+        mediaUri: Uri,
+        note: String,
+        audience: String,
+        category: String,
+        clientPublishId: String,
+        onProgress: (Int?) -> Unit,
+        expectedUserId: Long?,
+    ): ApiResult<NovaPulse> = createMediaAt(
+        path = "pulses/",
+        mediaUri = mediaUri,
+        note = note,
+        audience = audience,
+        category = category,
+        clientPublishId = clientPublishId,
+        onProgress = onProgress,
+        expectedUserId = expectedUserId,
+    )
+
     override suspend fun pulseChain(pulseId: Long): ApiResult<List<NovaPulse>> = authenticatedCall { token ->
         when (
             val response = api.requestJson(
@@ -216,28 +235,37 @@ class PulseRemoteRepository(
         note: String,
         audience: String,
         category: String,
+        clientPublishId: String = "",
+        onProgress: (Int?) -> Unit = {},
+        expectedUserId: Long? = null,
     ): ApiResult<NovaPulse> {
+        if (!pulsePublishAccountMatches(expectedUserId, sessionStore.load()?.cachedUser?.id)) {
+            return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)
+        }
         val cleanNote = note.trim()
         if (cleanNote.length > 180) return ApiResult.Failure("Pulse note must be 180 characters or fewer.")
         val cleanAudience = validateAudience(audience) ?: return invalidAudience()
         val cleanCategory = validateCategory(category) ?: return invalidCategory()
-        val media = when (val prepared = prepareUpload(mediaUri)) {
+        val media = when (val prepared = prepareUpload(mediaUri, onProgress)) {
             is ApiResult.Success -> prepared.value
             is ApiResult.Failure -> return prepared
         }
 
         return try {
-            authenticatedCall { token ->
+            authenticatedCall(expectedUserId) { token ->
                 when (
                     val response = api.requestMultipart(
                         path = path,
                         method = "POST",
-                        fields = mapOf(
-                            "note" to cleanNote,
-                            "audience" to cleanAudience,
-                            "category" to cleanCategory,
-                            "media_type" to media.mediaType,
-                        ),
+                        fields = buildMap {
+                            put("note", cleanNote)
+                            put("audience", cleanAudience)
+                            put("category", cleanCategory)
+                            put("media_type", media.mediaType)
+                            clientPublishId.takeIf(String::isNotBlank)?.let {
+                                put("client_publish_id", it)
+                            }
+                        },
                         files = media.files,
                         bearerToken = token,
                     )
@@ -253,7 +281,10 @@ class PulseRemoteRepository(
         }
     }
 
-    private suspend fun prepareUpload(uri: Uri): ApiResult<PreparedPulseUpload> {
+    private suspend fun prepareUpload(
+        uri: Uri,
+        onProgress: (Int?) -> Unit,
+    ): ApiResult<PreparedPulseUpload> {
         return when (val mimeType = resolveMimeType(uri)) {
             in IMAGE_MIME_TYPES -> when (val image = withContext(Dispatchers.IO) { prepareImage(uri) }) {
                 is ApiResult.Success -> ApiResult.Success(
@@ -270,6 +301,7 @@ class PulseRemoteRepository(
                         source = uri,
                         maxSourceBytes = MAX_PULSE_VIDEO_BYTES,
                         sizeMessage = "Pulse video must be 60 MB or smaller.",
+                        onProgress = onProgress,
                     )
                 ) {
                     is ApiResult.Success -> ApiResult.Success(
@@ -394,10 +426,14 @@ class PulseRemoteRepository(
         ApiResult.Failure("Choose a valid Pulse category.")
 
     private suspend fun <T> authenticatedCall(
+        expectedUserId: Long? = null,
         call: suspend (String) -> ApiResult<T>,
     ): ApiResult<T> {
         val stored = sessionStore.load()
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
+        if (!pulsePublishAccountMatches(expectedUserId, stored.cachedUser?.id)) {
+            return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)
+        }
 
         when (val first = call(stored.accessToken)) {
             is ApiResult.Success -> return first
@@ -406,6 +442,12 @@ class PulseRemoteRepository(
 
         return when (val refreshed = api.refresh(stored.refreshToken)) {
             is ApiResult.Success -> {
+                if (!pulsePublishAccountMatches(expectedUserId, sessionStore.load()?.cachedUser?.id)) {
+                    return ApiResult.Failure(
+                        "This publish belongs to a different signed-in account.",
+                        409,
+                    )
+                }
                 sessionStore.updateAccessToken(refreshed.value)
                 when (val retried = call(refreshed.value)) {
                     is ApiResult.Success -> retried
@@ -427,3 +469,7 @@ class PulseRemoteRepository(
         }
     }
 }
+
+
+internal fun pulsePublishAccountMatches(expectedUserId: Long?, activeUserId: Long?): Boolean =
+    expectedUserId == null || (expectedUserId > 0L && activeUserId == expectedUserId)

@@ -326,15 +326,22 @@ require_all(client, "JSON transport", (
 ))
 require_all(client, "multipart transport", (
     'internal suspend fun requestMultipart(',
-    'val boundary = "Nova-${UUID.randomUUID()}"',
-    'connectTimeout = 20_000',
-    'readTimeout = 120_000',
-    'setChunkedStreamingMode(64 * 1024)',
-    'setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")',
-    'files.forEach { (fileField, file) ->',
-    'file.writeTo(output)',
-    'output.writeBytes("--$boundary--$lineEnd")',
+    'OkHttpClient.Builder()',
+    '.connectTimeout(20, TimeUnit.SECONDS)',
+    '.readTimeout(120, TimeUnit.SECONDS)',
+    '.writeTimeout(120, TimeUnit.SECONDS)',
+    'val multipart = MultipartBody.Builder()',
+    '.setType(MultipartBody.FORM)',
+    'addFormDataPart(name, value)',
+    'addFormDataPart(fieldName, file.fileName, file.asRequestBody())',
+    '.method(method.uppercase(), multipart)',
+    'contentLength = multipart.contentLength()',
     'message = "Nova couldn\'t upload that right now. Check your connection and try again."',
+))
+forbid_all(client, "superseded chunked multipart transport", (
+    'setChunkedStreamingMode(',
+    'DataOutputStream(',
+    'file.writeTo(output)',
 ))
 require_all(client, "network response/error behavior", (
     'val status = connection.responseCode',

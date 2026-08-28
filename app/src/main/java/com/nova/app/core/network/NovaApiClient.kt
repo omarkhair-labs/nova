@@ -1,14 +1,22 @@
 package com.nova.app.core.network
 
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody
+import okio.BufferedSink
+import okio.source
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.DataOutputStream
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
-import java.util.UUID
+import java.util.concurrent.TimeUnit
 
 
 data class UploadFile(
@@ -21,18 +29,23 @@ data class UploadFile(
         require(bytes != null || sourceFile != null) { "UploadFile needs bytes or a source file." }
     }
 
-    fun writeTo(output: DataOutputStream) {
+    internal fun asRequestBody(): RequestBody = object : RequestBody() {
+        override fun contentType(): MediaType? = mimeType.toMediaTypeOrNull()
+
+        override fun contentLength(): Long = bytes?.size?.toLong() ?: requireNotNull(sourceFile).length()
+
+        override fun writeTo(sink: BufferedSink) {
+            writeToSink(sink)
+        }
+    }
+
+    private fun writeToSink(sink: BufferedSink) {
         bytes?.let {
-            output.write(it)
+            sink.write(it)
             return
         }
-        requireNotNull(sourceFile).inputStream().buffered().use { input ->
-            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-            while (true) {
-                val read = input.read(buffer)
-                if (read <= 0) break
-                output.write(buffer, 0, read)
-            }
+        requireNotNull(sourceFile).source().use { source ->
+            sink.writeAll(source)
         }
     }
 }
@@ -50,6 +63,12 @@ sealed interface ApiResult<out T> {
 class NovaApiClient(
     private val baseUrl: String = "http://127.0.0.1:8000/api/v1/",
 ) {
+    private val multipartClient = OkHttpClient.Builder()
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(120, TimeUnit.SECONDS)
+        .writeTimeout(120, TimeUnit.SECONDS)
+        .build()
+
     suspend fun refresh(refreshToken: String): ApiResult<String> {
         val body = JSONObject().put("refresh", refreshToken)
 
@@ -134,52 +153,61 @@ class NovaApiClient(
         files: Map<String, UploadFile>,
         bearerToken: String,
     ): ApiResult<JSONObject> = withContext(Dispatchers.IO) {
-        var connection: HttpURLConnection? = null
-        val boundary = "Nova-${UUID.randomUUID()}"
-        val lineEnd = "\r\n"
-
         try {
-            connection = (URL(baseUrl + path).openConnection() as HttpURLConnection).apply {
-                requestMethod = method
-                connectTimeout = 20_000
-                readTimeout = 120_000
-                doOutput = true
-                setChunkedStreamingMode(64 * 1024)
-                setRequestProperty("Accept", "application/json")
-                setRequestProperty("Authorization", "Bearer $bearerToken")
-                setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
-            }
-
-            DataOutputStream(connection.outputStream).use { output ->
-                fields.forEach { (name, value) ->
-                    output.writeBytes("--$boundary$lineEnd")
-                    output.writeBytes("Content-Disposition: form-data; name=\"$name\"$lineEnd")
-                    output.writeBytes("Content-Type: text/plain; charset=UTF-8$lineEnd$lineEnd")
-                    output.write(value.toByteArray(Charsets.UTF_8))
-                    output.writeBytes(lineEnd)
+            val multipart = MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .apply {
+                    fields.forEach { (name, value) ->
+                        addFormDataPart(name, value)
+                    }
+                    files.forEach { (fieldName, file) ->
+                        addFormDataPart(fieldName, file.fileName, file.asRequestBody())
+                    }
                 }
+                .build()
+            val request = Request.Builder()
+                .url(baseUrl + path)
+                .header("Accept", "application/json")
+                .header("Authorization", "Bearer $bearerToken")
+                .method(method.uppercase(), multipart)
+                .build()
 
-                files.forEach { (fileField, file) ->
-                    output.writeBytes("--$boundary$lineEnd")
-                    output.writeBytes(
-                        "Content-Disposition: form-data; name=\"$fileField\"; filename=\"${file.fileName}\"$lineEnd",
+            debugMultipart(
+                method = method,
+                path = path,
+                fields = fields.keys,
+                files = files.keys,
+                contentLength = multipart.contentLength(),
+            )
+            multipartClient.newCall(request).execute().use { response ->
+                val result = parseJsonResponse(
+                    status = response.code,
+                    raw = response.body.string(),
+                )
+                if (result is ApiResult.Failure) {
+                    debugMultipart(
+                        method = method,
+                        path = path,
+                        fields = fields.keys,
+                        files = files.keys,
+                        contentLength = multipart.contentLength(),
+                        status = response.code,
+                        error = result.message,
                     )
-                    output.writeBytes("Content-Type: ${file.mimeType}$lineEnd$lineEnd")
-                    file.writeTo(output)
-                    output.writeBytes(lineEnd)
                 }
-
-                output.writeBytes("--$boundary--$lineEnd")
-                output.flush()
+                result
             }
-
-            readJsonResponse(connection)
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            debugMultipart(
+                method = method,
+                path = path,
+                fields = fields.keys,
+                files = files.keys,
+                error = error::class.java.simpleName,
+            )
             ApiResult.Failure(
                 message = "Nova couldn't upload that right now. Check your connection and try again.",
             )
-        } finally {
-            connection?.disconnect()
         }
     }
 
@@ -187,6 +215,10 @@ class NovaApiClient(
         val status = connection.responseCode
         val stream = if (status in 200..299) connection.inputStream else connection.errorStream
         val raw = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+        return parseJsonResponse(status, raw)
+    }
+
+    private fun parseJsonResponse(status: Int, raw: String): ApiResult<JSONObject> {
         val json = if (raw.isBlank()) JSONObject() else runCatching { JSONObject(raw) }
             .getOrElse { JSONObject().put("detail", raw) }
 
@@ -238,5 +270,29 @@ class NovaApiClient(
             in 500..599 -> "Nova's server had a problem. Try again in a moment."
             else -> "Something went wrong. Please try again."
         }
+    }
+
+    private fun debugMultipart(
+        method: String,
+        path: String,
+        fields: Set<String>,
+        files: Set<String>,
+        contentLength: Long? = null,
+        status: Int? = null,
+        error: String? = null,
+    ) {
+        val message = buildString {
+            append("multipart ${method.uppercase()} $path")
+            append(" fields=${fields.sorted()}")
+            append(" files=${files.sorted()}")
+            contentLength?.let { append(" contentLength=$it") }
+            status?.let { append(" status=$it") }
+            error?.let { append(" error=$it") }
+        }
+        runCatching { Log.d(MULTIPART_LOG_TAG, message) }
+    }
+
+    private companion object {
+        const val MULTIPART_LOG_TAG = "NovaMultipart"
     }
 }

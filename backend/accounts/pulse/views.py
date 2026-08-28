@@ -1,3 +1,5 @@
+import uuid
+
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -139,6 +141,24 @@ def pulse_create_values(request):
 
 
 def create_pulse_response(request, reply_to=None):
+    raw_publish_id = str(request.data.get("client_publish_id") or "").strip()
+    if raw_publish_id:
+        try:
+            publish_id = uuid.UUID(raw_publish_id)
+        except ValueError:
+            return Response(
+                {"detail": "Invalid publish identity."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        existing = Pulse.objects.filter(
+            author=request.user,
+            client_publish_id=publish_id,
+        ).first()
+        if existing is not None:
+            return Response(PulseSerializer(existing, context={"request": request}).data)
+    else:
+        publish_id = None
+
     values, error_response = pulse_create_values(request)
     if error_response is not None:
         return error_response
@@ -146,6 +166,7 @@ def create_pulse_response(request, reply_to=None):
     pulse = Pulse.objects.create(
         author=request.user,
         reply_to=reply_to,
+        client_publish_id=publish_id,
         **values,
     )
     return Response(

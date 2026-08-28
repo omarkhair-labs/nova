@@ -115,6 +115,7 @@ private fun targetLabel(target: MediaPublishTarget): String = when (target) {
     MediaPublishTarget.POST -> "Post"
     MediaPublishTarget.REEL -> "Reel"
     MediaPublishTarget.STORY -> "Story"
+    MediaPublishTarget.PULSE -> "Pulse"
 }
 
 

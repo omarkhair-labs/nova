@@ -1,5 +1,6 @@
 package com.nova.app.feature.pulse
 
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -40,6 +41,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nova.app.app.appContainer
+import com.nova.app.feature.publishing.MediaPublishStatus
+import com.nova.app.feature.publishing.MediaPublishTarget
+import com.nova.app.feature.publishing.MediaPublishWorker
+import com.nova.app.feature.publishing.MediaPublishingStateOwner
 import com.nova.app.feature.pulse.domain.model.NovaPulse
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaMediaImage
@@ -72,6 +77,10 @@ fun PulseRail(
     val scope = rememberCoroutineScope()
     val owner = remember(repository, scope) { PulseStateOwner(repository, scope) }
     val state = owner.state
+    val publishingOwner = remember(context, scope) { MediaPublishingStateOwner(context, scope) }
+    val publishingState = publishingOwner.state
+    val currentUserId = context.appContainer.currentCachedUserId()
+    val pulsePublishes = publishingState.items.filter { it.target == MediaPublishTarget.PULSE }
 
     var composerVisible by remember { mutableStateOf(false) }
     var pendingMedia by remember { mutableStateOf<Uri?>(null) }
@@ -79,13 +88,22 @@ fun PulseRail(
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }
             pendingMedia = uri
             composerVisible = true
             owner.clearError()
         }
     }
 
-    LaunchedEffect(Unit) { owner.load(showSpinner = true) }
+    LaunchedEffect(owner, currentUserId) {
+        owner.load(showSpinner = true)
+        currentUserId?.let(publishingOwner::enter) ?: publishingOwner.reset()
+    }
     LaunchedEffect(state.sessionExpiryVersion) {
         if (state.sessionExpiryVersion > 0) onSessionExpired()
     }
@@ -94,6 +112,9 @@ fun PulseRail(
             composerVisible = false
             pendingMedia = null
         }
+    }
+    LaunchedEffect(publishingState.pulsePublishedVersion) {
+        if (publishingState.pulsePublishedVersion > 0) owner.load()
     }
 
     Column(
@@ -180,6 +201,14 @@ fun PulseRail(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+        if (pulsePublishes.isNotEmpty()) {
+            MediaPublishStatus(
+                items = pulsePublishes,
+                modifier = Modifier.fillMaxWidth(),
+                onRetry = publishingOwner::retry,
+                onCancel = publishingOwner::cancel,
+            )
+        }
     }
 
     if (composerVisible) {
@@ -204,7 +233,21 @@ fun PulseRail(
                 if (media == null) {
                     owner.createText(note, audience, category)
                 } else {
-                    owner.createMedia(media, note, audience, category)
+                    currentUserId?.let { userId ->
+                        MediaPublishWorker.enqueue(
+                            context = context,
+                            target = MediaPublishTarget.PULSE,
+                            userId = userId,
+                            sourceUri = media,
+                            caption = note,
+                            audience = audience,
+                            category = category,
+                        )
+                        publishingOwner.enter(userId)
+                        composerVisible = false
+                        pendingMedia = null
+                        owner.clearError()
+                    } ?: onSessionExpired()
                 }
             },
         )

@@ -1,6 +1,7 @@
 package com.nova.app.feature.publishing
 
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -22,9 +23,12 @@ class MediaPublishWorkerTest {
         val anotherAccount = MediaPublishWorker.uniqueName(MediaPublishTarget.POST, 13L, "same-client")
         val reel = MediaPublishWorker.uniqueName(MediaPublishTarget.REEL, 12L, "same-client")
         val story = MediaPublishWorker.uniqueName(MediaPublishTarget.STORY, 12L, "same-client")
+        val pulse = MediaPublishWorker.uniqueName(MediaPublishTarget.PULSE, 12L, "same-client")
         assertNotEquals(post, anotherAccount)
         assertNotEquals(post, reel)
         assertNotEquals(reel, story)
+        assertNotEquals(story, pulse)
+        assertEquals(MediaPublishTarget.PULSE, MediaPublishTarget.fromWire("pulse"))
     }
 
     @Test
