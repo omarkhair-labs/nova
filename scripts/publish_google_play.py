@@ -6,7 +6,10 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+import httplib2
+
 from google.oauth2 import service_account
+from google_auth_httplib2 import AuthorizedHttp
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
@@ -55,10 +58,14 @@ def main() -> None:
         credentials_path,
         scopes=[ANDROID_PUBLISHER_SCOPE],
     )
+    authorized_http = AuthorizedHttp(
+        credentials,
+        http=httplib2.Http(timeout=300),
+    )
     publisher = build(
         "androidpublisher",
         "v3",
-        credentials=credentials,
+        http=authorized_http,
         cache_discovery=False,
     )
 
