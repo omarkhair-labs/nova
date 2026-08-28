@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Publish a signed Nova AAB to a Google Play track using the official Publishing API."""
+"""Publish or promote a Nova Android release using the official Google Play Publishing API."""
 
 from __future__ import annotations
 
@@ -16,7 +16,11 @@ ANDROID_PUBLISHER_SCOPE = "https://www.googleapis.com/auth/androidpublisher"
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--package-name", required=True)
-    parser.add_argument("--bundle", required=True)
+
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--bundle")
+    source.add_argument("--existing-version-code")
+
     parser.add_argument("--track", default="alpha")
     parser.add_argument("--priority", type=int, default=2)
     parser.add_argument("--release-name", required=True)
@@ -26,15 +30,26 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    bundle_path = Path(args.bundle).resolve()
     credentials_path = Path(args.service_account_json_file).resolve()
 
-    if not bundle_path.is_file():
-        raise SystemExit(f"AAB not found: {bundle_path}")
     if not credentials_path.is_file():
         raise SystemExit(f"Service-account JSON not found: {credentials_path}")
     if args.priority < 0 or args.priority > 5:
         raise SystemExit("In-app update priority must be between 0 and 5.")
+
+    bundle_path = Path(args.bundle).resolve() if args.bundle else None
+    if bundle_path is not None and not bundle_path.is_file():
+        raise SystemExit(f"AAB not found: {bundle_path}")
+
+    if args.existing_version_code is not None:
+        try:
+            existing_version_code = int(args.existing_version_code)
+        except ValueError as exc:
+            raise SystemExit("Existing versionCode must be an integer.") from exc
+        if existing_version_code <= 0:
+            raise SystemExit("Existing versionCode must be positive.")
+    else:
+        existing_version_code = None
 
     credentials = service_account.Credentials.from_service_account_file(
         credentials_path,
@@ -55,25 +70,29 @@ def main() -> None:
 
     print(f"Created Google Play edit {edit_id}")
 
-    upload = publisher.edits().bundles().upload(
-        packageName=args.package_name,
-        editId=edit_id,
-        media_body=MediaFileUpload(
-            str(bundle_path),
-            mimetype="application/octet-stream",
-            resumable=True,
-            chunksize=5 * 1024 * 1024,
-        ),
-    )
+    if bundle_path is not None:
+        upload = publisher.edits().bundles().upload(
+            packageName=args.package_name,
+            editId=edit_id,
+            media_body=MediaFileUpload(
+                str(bundle_path),
+                mimetype="application/octet-stream",
+                resumable=True,
+                chunksize=5 * 1024 * 1024,
+            ),
+        )
 
-    uploaded_bundle = None
-    while uploaded_bundle is None:
-        status, uploaded_bundle = upload.next_chunk(num_retries=3)
-        if status is not None:
-            print(f"Upload progress: {int(status.progress() * 100)}%")
+        uploaded_bundle = None
+        while uploaded_bundle is None:
+            status, uploaded_bundle = upload.next_chunk(num_retries=3)
+            if status is not None:
+                print(f"Upload progress: {int(status.progress() * 100)}%")
 
-    version_code = str(uploaded_bundle["versionCode"])
-    print(f"Uploaded AAB versionCode={version_code}")
+        version_code = str(uploaded_bundle["versionCode"])
+        print(f"Uploaded AAB versionCode={version_code}")
+    else:
+        version_code = str(existing_version_code)
+        print(f"Promoting existing Google Play versionCode={version_code}")
 
     publisher.edits().tracks().update(
         packageName=args.package_name,
