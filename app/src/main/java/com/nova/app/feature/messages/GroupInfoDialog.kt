@@ -224,7 +224,7 @@ fun GroupInfoDialog(
                                     onClick = groupInfoViewModel::rename,
                                     shape = CircleShape,
                                     color = NovaAccent,
-                                    modifier = Modifier.size(44.dp),
+                                    modifier = Modifier.size(48.dp),
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         if (state.busyAction == "rename") {
@@ -234,7 +234,12 @@ fun GroupInfoDialog(
                                                 strokeWidth = 2.dp,
                                             )
                                         } else {
-                                            Text("✓", color = NovaSurface, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                                            NovaIcon(
+                                                asset = NovaIconAsset.Check,
+                                                contentDescription = "Save group name",
+                                                modifier = Modifier.size(20.dp),
+                                                tint = NovaSurface,
+                                            )
                                         }
                                     }
                                 }

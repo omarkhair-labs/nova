@@ -37,6 +37,7 @@ import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
+import com.nova.app.ui.components.NovaBackButton
 
 
 @Composable
@@ -68,19 +69,7 @@ fun NovaChatThemePicker(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Surface(
-                        onClick = onDismiss,
-                        shape = CircleShape,
-                        color = NovaSurface,
-                        border = BorderStroke(1.dp, NovaBorder),
-                    ) {
-                        Text(
-                            "‹",
-                            modifier = Modifier.padding(horizontal = 13.dp, vertical = 5.dp),
-                            color = NovaInk,
-                            fontSize = 27.sp,
-                        )
-                    }
+                    NovaBackButton(onClick = onDismiss)
                     Column(Modifier.weight(1f)) {
                         Text(
                             "Chat theme",
@@ -240,7 +229,7 @@ private fun NovaThemePreviewCard(
                             color = palette.outgoingBubble,
                         ) {
                             Text(
-                                "Keep this one ✦",
+                                "Keep this one.",
                                 modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
                                 color = palette.outgoingText,
                                 fontSize = 12.sp,

@@ -403,7 +403,7 @@ Any glaring inconsistency must either be fixed if bounded or explicitly recorded
 
 ## 11. Final whole-product coherence pass
 
-Status: `PLANNED`
+Status: `PR READY` — bounded implementation and focused local validation are complete; hosted CI and Samsung device review remain the validation boundary
 
 This pass starts only after the major flows are individually stable.
 
@@ -434,6 +434,12 @@ The final question is:
 > Can a normal user wander through Nova and still find an obvious part that feels old, generic, broken, strangely inconsistent or unfinished?
 
 If yes, the polish phase is not closed.
+
+The final coherence audit traversed the current route inventory and the live Flow 1–9 implementation across entry/auth, Home/social, creation/media, Reels/Stories/Pulse, Orbit/Tonight/Activity, People/Profile, Inbox/Messaging/Calls, Rooms, Memories and Settings/Privacy/Security. Bounded closures replace the remaining fake profile-Reel glyph tiles with real thumbnail-backed tiles and Nova icons, remove stale version/glyph copy from creation, messaging, sharing and publish states, correct Create hub Room/Memory icon semantics, preserve visible progress during reminder/mute/Reel publication work, make Welcome scroll safely at constrained height, and raise the affected shared/high-frequency action targets to at least 48dp.
+
+Already coherent state ownership, navigation contracts, feed/post mutation behavior, media preparation/publication, immersive playback, Room and Memory product contracts, privacy/security repositories and call/realtime behavior were intentionally left unchanged. Memory Film rendering/WorkManager/FGS/export identity, WebRTC/TURN/Redis/Telecom/audio/PiP, Nova Dev Firebase and release/Play/signing files remain protected and untouched.
+
+Samsung review still must confirm large-font/RTL/IME and system-bar behavior, Welcome/auth constrained-height layout, profile Reel thumbnail loading/fallback/playback handoff, shared action density, Story reactions, Room reminder feedback, messaging mute/rename feedback and the existing Flow 1–9 media/background/realtime/device checks. This pass is not `DEVICE VERIFIED`.
 
 ---
 

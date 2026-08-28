@@ -132,11 +132,11 @@ fun NovaShareDialog(
                     StoryAudienceAction(
                         title = when {
                             state.addingToStoryAudience == "followers" -> "Adding…"
-                            addedToFollowersStory -> "Added ✓"
+                            addedToFollowersStory -> "Added"
                             else -> "Your Story"
                         },
                         subtitle = if (addedToFollowersStory) "Story updated" else "Followers",
-                        icon = NovaIconAsset.Create,
+                        icon = if (addedToFollowersStory) NovaIconAsset.Check else NovaIconAsset.Create,
                         modifier = Modifier.weight(1f),
                         enabled = !busy && !addedToFollowersStory,
                         onClick = { owner.addToStory("followers") },
@@ -188,7 +188,7 @@ fun NovaShareDialog(
                         horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
                     ) {
                         NovaIcon(
-                            asset = NovaIconAsset.Orbit,
+                            asset = if (addedToCloseFriendsStory) NovaIconAsset.Check else NovaIconAsset.Orbit,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
                             tint = NovaAccent,
@@ -198,7 +198,7 @@ fun NovaShareDialog(
                                 if (state.addingToStoryAudience == "close_friends") {
                                     "Adding to Close Friends Story…"
                                 } else if (addedToCloseFriendsStory) {
-                                    "Added to Close Friends Story ✓"
+                                    "Added to Close Friends Story"
                                 } else {
                                     "Add to Close Friends Story"
                                 },

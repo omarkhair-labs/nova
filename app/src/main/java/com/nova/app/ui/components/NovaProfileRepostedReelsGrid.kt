@@ -1,14 +1,11 @@
 package com.nova.app.ui.components
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -22,27 +19,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.app.appContainer
 import com.nova.app.core.reels.NovaReelsNavigator
 import com.nova.app.feature.reels.ProfileReelsGridStateOwner
 import com.nova.app.feature.reels.ProfileReelsSource
-import com.nova.app.feature.reels.domain.model.NovaReel
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
-
-
-private val RepostedReelBackground = Color(0xFF090B10)
-private val RepostedReelInk = Color(0xFFF6F7FA)
-private val RepostedReelMuted = Color(0xFFB8BDC8)
 
 
 @Composable
@@ -128,8 +117,9 @@ fun NovaProfileRepostedReelsGrid(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         rowReels.forEach { reel ->
-                            RepostedReelCard(
+                            NovaProfileReelThumbnail(
                                 reel = reel,
+                                showRepostAuthor = true,
                                 modifier = Modifier.weight(1f),
                                 onClick = {
                                     // Open through the original author's authored-Reels source so
@@ -155,56 +145,6 @@ fun NovaProfileRepostedReelsGrid(
                     NovaSecondaryButton(
                         text = if (loadingMore) "Loading more…" else "Load more Reposted Reels",
                         onClick = { if (!loadingMore) owner.loadMore() },
-                    )
-                }
-            }
-        }
-    }
-}
-
-
-@Composable
-private fun RepostedReelCard(
-    reel: NovaReel,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    Surface(
-        onClick = onClick,
-        modifier = modifier.aspectRatio(0.72f),
-        shape = RoundedCornerShape(7.dp),
-        color = RepostedReelBackground,
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize().background(RepostedReelBackground),
-        ) {
-            Text(
-                text = "▶",
-                modifier = Modifier.align(Alignment.Center),
-                color = RepostedReelInk.copy(alpha = 0.88f),
-                fontSize = 22.sp,
-            )
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.52f))
-                    .padding(horizontal = 7.dp, vertical = 6.dp),
-            ) {
-                Text(
-                    text = "↻ @${reel.author.username}",
-                    color = RepostedReelInk,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                )
-                if (reel.caption.isNotBlank()) {
-                    Text(
-                        text = reel.caption,
-                        color = RepostedReelMuted,
-                        fontSize = 8.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
