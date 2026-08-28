@@ -545,7 +545,7 @@ private fun ReelPage(
             thumbnailSource = reel.thumbnailUrl,
             modifier = Modifier.fillMaxSize(),
             useController = false,
-            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM,
+            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT,
             description = "Reel by ${reel.author.username}",
         )
 

@@ -413,7 +413,7 @@ private fun PulseViewerMedia(
             autoplay = playbackEnabled,
             repeat = true,
             useController = false,
-            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM,
+            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT,
             description = "${pulse.author.username} Pulse video",
         )
         else -> Box(
