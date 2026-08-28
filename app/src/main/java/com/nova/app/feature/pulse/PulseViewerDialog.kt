@@ -100,7 +100,10 @@ fun PulseViewerDialog(
         Box(
             modifier = Modifier.fillMaxSize().background(palette.background),
         ) {
-            PulseViewerMedia(pulse = activePulse)
+            PulseViewerMedia(
+                pulse = activePulse,
+                playbackEnabled = !replyComposerVisible,
+            )
 
             Row(
                 modifier = Modifier.align(Alignment.TopStart).fillMaxWidth().padding(22.dp),
@@ -392,7 +395,10 @@ private fun PulseChainChip(
 }
 
 @Composable
-private fun PulseViewerMedia(pulse: NovaPulse) {
+private fun PulseViewerMedia(
+    pulse: NovaPulse,
+    playbackEnabled: Boolean,
+) {
     val palette = PulseTheme.media
     when (pulse.mediaType) {
         "image" -> NovaMediaImage(
@@ -404,7 +410,7 @@ private fun PulseViewerMedia(pulse: NovaPulse) {
             source = pulse.mediaUrl,
             thumbnailSource = pulse.thumbnailUrl,
             modifier = Modifier.fillMaxSize(),
-            autoplay = true,
+            autoplay = playbackEnabled,
             repeat = true,
             useController = false,
             resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM,

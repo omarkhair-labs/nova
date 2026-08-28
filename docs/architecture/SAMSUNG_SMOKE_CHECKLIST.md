@@ -92,6 +92,46 @@ MessagesActivity conversation.
 - [ ] Audio route, microphone, camera, Telecom registration, TURN/STUN, and call
       history match the baseline.
 
+## Multipart publishing and Pulse closure
+
+Root-cause record (2026-08-28): authenticated production logs showed Edit
+Profile `PUT /me/`, Post `POST /posts/`, Story `POST /stories/`, and Pulse
+`POST /pulses/` reached Django with the multipart content type but with empty
+fields/files. All four paths shared manual `HttpURLConnection` multipart with
+`setChunkedStreamingMode`, which sends `Transfer-Encoding: chunked` without a
+`Content-Length`. The exact server validation bodies and response byte lengths
+matched empty request data. The corrected client uses one known-length OkHttp
+`MultipartBody` and streams file-backed video/thumbnail bodies. This is proved
+by focused transport tests, but still requires a deployed Samsung pass.
+
+- [ ] Save Profile theme/metadata without choosing a new avatar; the existing
+      username is submitted and the saved theme is visible after re-entry.
+- [ ] Publish an image Post; progress completes, the composer closes, and one
+      durable Post appears without duplication.
+- [ ] Publish an image Story, then a representative device-recorded video
+      Story; confirm first frame, picture, audio, duration and retry behavior.
+- [ ] Pick a Pulse video; preview starts with audible sound, the 48dp mute
+      control announces and toggles its state, and no competing viewer audio is
+      audible behind a reply composer.
+- [ ] Publish Pulse image and video media; queued/preparing/uploading/published
+      state remains visible after the composer closes and the resulting Pulse
+      reconciles once without duplication.
+- [ ] Interrupt Pulse network access during preparation/upload; confirm bounded
+      retry, actionable failure, manual retry, and cancel only while cancellation
+      is valid.
+- [ ] Background and foreground Nova during a queued Pulse publish; persisted
+      picker access survives and publication remains scoped to the initiating
+      account.
+- [ ] Switch accounts while a Pulse publish is pending; no media is published
+      into the other account and no other-account status leaks into its UI.
+- [ ] Play the original failing Samsung Pulse clip full-screen; confirm a real
+      first frame, picture plus audio, full source duration before repeat, and
+      correct pause/resume after composer, background and full-screen handoff.
+
+Backend deployment prerequisite: apply
+`accounts.0036_pulse_publish_identity` before judging durable Pulse retries.
+Do not mark these checks passed from JVM tests, architecture gates, or CI.
+
 ## Result
 
 - [ ] All required checks passed.

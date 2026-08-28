@@ -47,6 +47,7 @@ class Pulse(models.Model):
     )
     media = models.FileField(upload_to="pulses/%Y/%m/", blank=True)
     thumbnail = models.ImageField(upload_to="pulses/thumbnails/%Y/%m/", blank=True)
+    client_publish_id = models.UUIDField(null=True, blank=True)
     media_type = models.CharField(max_length=8, choices=MediaType.choices)
     audience = models.CharField(
         max_length=16,
@@ -83,6 +84,11 @@ class Pulse(models.Model):
             models.CheckConstraint(
                 condition=~Q(media_type="text") | Q(media=""),
                 name="pulse_text_has_no_file",
+            ),
+            models.UniqueConstraint(
+                fields=("author", "client_publish_id"),
+                condition=Q(client_publish_id__isnull=False),
+                name="unique_pulse_author_publish_id",
             ),
         ]
 

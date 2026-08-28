@@ -32,6 +32,16 @@ interface PulseRepository {
         category: String,
     ): ApiResult<NovaPulse> = createMediaPulse(mediaUri, note, audience)
 
+    suspend fun createMediaPulse(
+        mediaUri: Uri,
+        note: String,
+        audience: String,
+        category: String,
+        clientPublishId: String,
+        onProgress: (Int?) -> Unit,
+        expectedUserId: Long?,
+    ): ApiResult<NovaPulse> = createMediaPulse(mediaUri, note, audience, category)
+
     suspend fun pulseChain(pulseId: Long): ApiResult<List<NovaPulse>>
 
     suspend fun replyTextPulse(

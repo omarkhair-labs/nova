@@ -1,6 +1,7 @@
 from datetime import timedelta
 import base64
 import tempfile
+import uuid
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
@@ -129,6 +130,80 @@ class PulseApiTests(APITestCase):
             format="multipart",
         )
         self.assertEqual(mismatch.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_media_publish_identity_is_idempotent_for_one_account(self):
+        self.authenticate()
+        publish_id = str(uuid.uuid4())
+        first = self.client.post(
+            self.feed_url,
+            {
+                "media": self.image("first.jpg"),
+                "note": "First attempt",
+                "audience": "followers",
+                "category": "vibes",
+                "client_publish_id": publish_id,
+            },
+            format="multipart",
+        )
+        retry = self.client.post(
+            self.feed_url,
+            {
+                "media": self.image("retry.jpg"),
+                "note": "Retry must resolve the original",
+                "audience": "everyone",
+                "category": "now",
+                "client_publish_id": publish_id,
+            },
+            format="multipart",
+        )
+
+        self.assertEqual(first.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(retry.status_code, status.HTTP_200_OK)
+        self.assertEqual(retry.data["id"], first.data["id"])
+        self.assertEqual(retry.data["note"], "First attempt")
+        self.assertEqual(
+            Pulse.objects.filter(author=self.me, client_publish_id=publish_id).count(),
+            1,
+        )
+
+    def test_media_publish_identity_is_scoped_to_the_account(self):
+        publish_id = str(uuid.uuid4())
+        self.authenticate()
+        mine = self.client.post(
+            self.feed_url,
+            {
+                "media": self.image("mine.jpg"),
+                "client_publish_id": publish_id,
+            },
+            format="multipart",
+        )
+        self.authenticate(self.friend)
+        theirs = self.client.post(
+            self.feed_url,
+            {
+                "media": self.image("theirs.jpg"),
+                "client_publish_id": publish_id,
+            },
+            format="multipart",
+        )
+
+        self.assertEqual(mine.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(theirs.status_code, status.HTTP_201_CREATED)
+        self.assertNotEqual(mine.data["id"], theirs.data["id"])
+
+    def test_invalid_media_publish_identity_is_rejected(self):
+        self.authenticate()
+        response = self.client.post(
+            self.feed_url,
+            {
+                "media": self.image(),
+                "client_publish_id": "not-a-publish-id",
+            },
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["detail"], "Invalid publish identity.")
 
     def test_feed_shows_followed_live_pulses_and_hides_strangers_expired_and_blocked(self):
         stranger = User.objects.create_user(

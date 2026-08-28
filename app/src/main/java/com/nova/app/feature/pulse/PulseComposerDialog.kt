@@ -3,9 +3,11 @@ package com.nova.app.feature.pulse
 import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -24,12 +26,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.ui.components.NovaMediaImage
 import com.nova.app.ui.components.NovaVideoPlayer
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBorder
@@ -64,6 +69,7 @@ fun PulseComposerDialog(
     var category by remember(initialCategory) {
         mutableStateOf(initialCategory.takeIf { it in setOf("live", "music", "talks", "vibes") } ?: "vibes")
     }
+    var muted by remember(pendingMedia) { mutableStateOf(false) }
     val mime = remember(pendingMedia) {
         pendingMedia?.let { context.contentResolver.getType(it).orEmpty().lowercase() }.orEmpty()
     }
@@ -89,15 +95,43 @@ fun PulseComposerDialog(
                             contentDescription = "Selected Pulse photo",
                         )
                     } else {
-                        NovaVideoPlayer(
-                            source = pendingMedia.toString(),
-                            modifier = Modifier.fillMaxWidth().height(180.dp),
-                            autoplay = true,
-                            repeat = true,
-                            muted = true,
-                            useController = false,
-                            description = "Selected Pulse video preview",
-                        )
+                        Box(modifier = Modifier.fillMaxWidth().height(180.dp)) {
+                            NovaVideoPlayer(
+                                source = pendingMedia.toString(),
+                                modifier = Modifier.fillMaxSize(),
+                                autoplay = true,
+                                repeat = true,
+                                muted = muted,
+                                useController = false,
+                                description = "Selected Pulse video preview",
+                            )
+                            Surface(
+                                onClick = { muted = !muted },
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(8.dp)
+                                    .size(48.dp),
+                                shape = androidx.compose.foundation.shape.CircleShape,
+                                color = Color.Black.copy(alpha = 0.58f),
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    NovaIcon(
+                                        asset = if (muted) {
+                                            NovaIconAsset.VolumeOff
+                                        } else {
+                                            NovaIconAsset.VolumeOn
+                                        },
+                                        contentDescription = if (muted) {
+                                            "Turn on Pulse preview sound"
+                                        } else {
+                                            "Mute Pulse preview"
+                                        },
+                                        modifier = Modifier.size(22.dp),
+                                        tint = Color.White,
+                                    )
+                                }
+                            }
+                        }
                     }
                     TextButton(
                         onClick = onPickMedia,

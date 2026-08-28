@@ -14,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -73,6 +74,22 @@ fun NovaVideoPlayer(
 
     DisposableEffect(player) {
         onDispose { player.release() }
+    }
+
+    LaunchedEffect(player, muted) {
+        player.setAudioAttributes(
+            AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                .build(),
+            !muted,
+        )
+        player.volume = if (muted) 0f else 1f
+    }
+
+    LaunchedEffect(player, autoplay, repeat) {
+        player.repeatMode = if (repeat) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+        player.playWhenReady = autoplay
     }
 
     NovaPlayerSurface(

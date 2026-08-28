@@ -17,6 +17,14 @@ VIEWER = ROOT / "app/src/main/java/com/nova/app/feature/pulse/PulseViewerDialog.
 CONTAINER = ROOT / "app/src/main/java/com/nova/app/app/AppContainer.kt"
 HOME = ROOT / "app/src/main/java/com/nova/app/feature/home/HomeScreen.kt"
 NETWORK = ROOT / "app/src/main/java/com/nova/app/core/network/NovaApiClient.kt"
+PLAYER = ROOT / "app/src/main/java/com/nova/app/ui/components/NovaVideoPlayer.kt"
+PUBLISH_WORKER = ROOT / "app/src/main/java/com/nova/app/feature/publishing/MediaPublishWorker.kt"
+PUBLISH_OWNER = ROOT / "app/src/main/java/com/nova/app/feature/publishing/MediaPublishingStateOwner.kt"
+PUBLISH_STATUS = ROOT / "app/src/main/java/com/nova/app/feature/publishing/MediaPublishStatus.kt"
+BACKEND_MODEL = ROOT / "backend/accounts/pulse_models.py"
+BACKEND_VIEW = ROOT / "backend/accounts/pulse/views.py"
+BACKEND_MIGRATION = ROOT / "backend/accounts/migrations/0036_pulse_publish_identity.py"
+TRANSPORT_TEST = ROOT / "app/src/test/java/com/nova/app/core/network/NovaApiClientMultipartTest.kt"
 
 errors: list[str] = []
 
@@ -41,6 +49,14 @@ viewer = read(VIEWER)
 container = read(CONTAINER)
 home = read(HOME)
 network = read(NETWORK)
+player = read(PLAYER)
+publish_worker = read(PUBLISH_WORKER)
+publish_owner = read(PUBLISH_OWNER)
+publish_status = read(PUBLISH_STATUS)
+backend_model = read(BACKEND_MODEL)
+backend_view = read(BACKEND_VIEW)
+backend_migration = read(BACKEND_MIGRATION)
+transport_test = read(TRANSPORT_TEST)
 
 for declaration in ("data class NovaPulseAuthor(", "data class NovaPulse("):
     if declaration not in models:
@@ -83,6 +99,10 @@ for required in (
     "NovaSessionStore",
     "createTextAt(",
     "createMediaAt(",
+    'put("client_publish_id", it)',
+    "expectedUserId: Long?",
+    "onProgress: (Int?) -> Unit",
+    "pulsePublishAccountMatches(",
 ):
     if required not in remote:
         errors.append(f"Pulse remote implementation is missing protected seam: {required}")
@@ -125,6 +145,10 @@ for required in (
     "PulseViewerStateOwner(pulse, repository, scope)",
     "PulseComposerDialog(",
     "PulseViewerDialog(",
+    "MediaPublishWorker.enqueue(",
+    "MediaPublishTarget.PULSE",
+    "MediaPublishStatus(",
+    "takePersistableUriPermission(",
 ):
     if required not in rail:
         errors.append(f"Pulse live UI is missing stable wiring: {required}")
@@ -164,12 +188,77 @@ for required in (
     "PulseComposerDialog(",
     "PulseViewerDialog(",
     "NovaBottomBar(",
+    "MediaPublishWorker.enqueue(",
+    "MediaPublishTarget.PULSE",
+    "MediaPublishStatus(",
+    "takePersistableUriPermission(",
 ):
     if required not in screen:
         errors.append(f"full Pulse destination is missing stable visual/navigation seam: {required}")
 for forbidden in ("NovaApiClient", "ApiResult", "repository.pulses("):
     if forbidden in screen:
         errors.append(f"full Pulse destination must not own transport orchestration: {forbidden}")
+
+for ui_path, text in ((RAIL, rail), (SCREEN, screen)):
+    if "owner.createMedia(" in text:
+        errors.append(
+            f"root Pulse media must use durable publishing in {ui_path.relative_to(ROOT)}"
+        )
+
+for required in (
+    'PULSE("pulse")',
+    "MediaPublishTarget.PULSE ->",
+    "pulseRepository.createMediaPulse(",
+    "KEY_CATEGORY",
+):
+    if required not in publish_worker:
+        errors.append(f"durable Pulse worker seam is missing: {required}")
+for required in ("pulsePublishedVersion", "MediaPublishTarget.PULSE -> pulseVersion += 1"):
+    if required not in publish_owner:
+        errors.append(f"Pulse publish reconciliation seam is missing: {required}")
+if 'MediaPublishTarget.PULSE -> "Pulse"' not in publish_status:
+    errors.append("Pulse publish status label is missing")
+
+for required in (
+    "var muted by remember(pendingMedia)",
+    "muted = muted",
+    "NovaIconAsset.VolumeOn",
+    "NovaIconAsset.VolumeOff",
+    ".size(48.dp)",
+):
+    if required not in composer:
+        errors.append(f"audible Pulse preview seam is missing: {required}")
+if "LaunchedEffect(player, muted)" not in player:
+    errors.append("shared video player must react to Pulse preview mute changes")
+if "playbackEnabled = !replyComposerVisible" not in viewer:
+    errors.append("Pulse viewer playback must yield while the reply composer is open")
+
+for required in (
+    "client_publish_id = models.UUIDField",
+    'name="unique_pulse_author_publish_id"',
+):
+    if required not in backend_model:
+        errors.append(f"Pulse backend publish identity seam is missing: {required}")
+for required in (
+    'request.data.get("client_publish_id")',
+    "client_publish_id=publish_id",
+    "PulseSerializer(existing",
+):
+    if required not in backend_view:
+        errors.append(f"Pulse backend retry reconciliation seam is missing: {required}")
+if 'name="client_publish_id"' not in backend_migration:
+    errors.append("Pulse publish identity migration is missing")
+
+for required in (
+    "text-only multipart has known length and preserves UTF-8 fields",
+    "profile PUT sends every field when no avatar is selected",
+    "Post multipart sends one byte-backed image",
+    "Story multipart streams video file and includes thumbnail",
+    "Pulse multipart sends publication fields plus prepared video and thumbnail",
+    "assertKnownLengthBody()",
+):
+    if required not in transport_test:
+        errors.append(f"shared multipart transport regression coverage is missing: {required}")
 
 if "val pulseRepository: PulseRepository = PulseRemoteRepository(appContext, api)" not in container:
     errors.append("AppContainer must construct PulseRemoteRepository behind PulseRepository")
