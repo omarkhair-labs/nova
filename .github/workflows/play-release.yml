@@ -15,6 +15,7 @@ on:
         type: choice
         options:
           - publish
+          - promote
           - build-only
       track:
         description: Google Play track
@@ -26,6 +27,11 @@ on:
           - beta
           - internal
           - production
+      existing_version_code:
+        description: Existing Play versionCode (required for promote mode)
+        required: false
+        default: ""
+        type: string
       priority:
         description: In-app update priority (0-5)
         required: true
@@ -75,10 +81,15 @@ jobs:
         run: |
           set -euo pipefail
 
+          mode="publish"
+          existing_version_code=""
+
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            mode="${{ inputs.mode }}"
             track="${{ inputs.track }}"
             priority="${{ inputs.priority }}"
             confirm_production="${{ inputs.confirm_production }}"
+            existing_version_code="${{ inputs.existing_version_code }}"
             release_name="manual-${GITHUB_SHA::7}"
           else
             if [[ "${GITHUB_REF_NAME}" != "master" ]]; then
@@ -96,27 +107,44 @@ jobs:
             release_name="android-v${version_name}"
           fi
 
+          if [[ "${track}" == "internal" ]]; then
+            track="qa"
+          fi
+
+          if [[ "${mode}" == "promote" && -z "${existing_version_code}" ]]; then
+            echo "Promote mode requires existing_version_code."
+            exit 1
+          fi
+
           if [[ "${track}" == "production" && "${confirm_production}" != "PUBLISH" ]]; then
             echo "Production publishing requires confirm_production=PUBLISH."
             exit 1
           fi
 
+          echo "PLAY_MODE=${mode}" >> "${GITHUB_ENV}"
           echo "PLAY_TRACK=${track}" >> "${GITHUB_ENV}"
           echo "PLAY_PRIORITY=${priority}" >> "${GITHUB_ENV}"
           echo "PLAY_RELEASE_NAME=${release_name}" >> "${GITHUB_ENV}"
+          echo "PLAY_EXISTING_VERSION_CODE=${existing_version_code}" >> "${GITHUB_ENV}"
 
       - name: Validate release secrets
         shell: bash
         run: |
           set -euo pipefail
           missing=0
-          for item in \
-            KEYSTORE_B64 \
-            STORE_PASSWORD \
-            KEY_ALIAS \
-            KEY_PASSWORD \
-            GOOGLE_SERVICES_JSON_B64 \
-            PLAY_SERVICE_ACCOUNT_JSON_B64
+
+          required=(PLAY_SERVICE_ACCOUNT_JSON_B64)
+          if [[ "${PLAY_MODE}" != "promote" ]]; then
+            required+=(
+              KEYSTORE_B64
+              STORE_PASSWORD
+              KEY_ALIAS
+              KEY_PASSWORD
+              GOOGLE_SERVICES_JSON_B64
+            )
+          fi
+
+          for item in "${required[@]}"
           do
             if [[ -z "${!item:-}" ]]; then
               echo "Missing GitHub secret for ${item}."
@@ -127,34 +155,46 @@ jobs:
             exit 1
           fi
 
-      - name: Materialize signing and Google credentials
+      - name: Materialize Google Play credentials
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.mode != 'build-only' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          service_account_path="${RUNNER_TEMP}/google-play-service-account.json"
+          printf '%s' "${PLAY_SERVICE_ACCOUNT_JSON_B64}" | base64 --decode > "${service_account_path}"
+          chmod 600 "${service_account_path}"
+          echo "PLAY_SERVICE_ACCOUNT_FILE=${service_account_path}" >> "${GITHUB_ENV}"
+
+      - name: Materialize signing and Firebase credentials
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.mode != 'promote' }}
         shell: bash
         run: |
           set -euo pipefail
           keystore_path="${RUNNER_TEMP}/nova-upload.jks"
-          service_account_path="${RUNNER_TEMP}/google-play-service-account.json"
 
           printf '%s' "${KEYSTORE_B64}" | base64 --decode > "${keystore_path}"
           printf '%s' "${GOOGLE_SERVICES_JSON_B64}" | base64 --decode > app/google-services.json
-          printf '%s' "${PLAY_SERVICE_ACCOUNT_JSON_B64}" | base64 --decode > "${service_account_path}"
 
-          chmod 600 "${keystore_path}" "${service_account_path}" app/google-services.json
+          chmod 600 "${keystore_path}" app/google-services.json
           echo "NOVA_RELEASE_KEYSTORE_PATH=${keystore_path}" >> "${GITHUB_ENV}"
-          echo "PLAY_SERVICE_ACCOUNT_FILE=${service_account_path}" >> "${GITHUB_ENV}"
 
       - name: Set up Java
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.mode != 'promote' }}
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
 
       - name: Set up Gradle
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.mode != 'promote' }}
         uses: gradle/actions/setup-gradle@v6
 
       - name: Allow Gradle wrapper execution
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.mode != 'promote' }}
         run: chmod +x gradlew
 
       - name: Build signed release APK and AAB
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.mode != 'promote' }}
         env:
           NOVA_RELEASE_STORE_PASSWORD: ${{ secrets.NOVA_RELEASE_STORE_PASSWORD }}
           NOVA_RELEASE_KEY_ALIAS: ${{ secrets.NOVA_RELEASE_KEY_ALIAS }}
@@ -162,6 +202,7 @@ jobs:
         run: ./gradlew --no-daemon clean assembleRelease bundleRelease
 
       - name: Verify signed AAB
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.mode != 'promote' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -173,6 +214,7 @@ jobs:
           echo "PLAY_AAB_PATH=${aab}" >> "${GITHUB_ENV}"
 
       - name: Upload signed release artifacts
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.mode != 'promote' }}
         uses: actions/upload-artifact@v4
         with:
           name: nova-${{ github.sha }}-release-artifacts
@@ -183,7 +225,7 @@ jobs:
           retention-days: 7
 
       - name: Set up Python
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.mode == 'publish' }}
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.mode != 'build-only' }}
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
@@ -191,17 +233,28 @@ jobs:
           cache-dependency-path: scripts/play_release_requirements.txt
 
       - name: Install Play publishing client
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.mode == 'publish' }}
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.mode != 'build-only' }}
         run: |
           python -m pip install --upgrade pip
           pip install -r scripts/play_release_requirements.txt
 
-      - name: Publish to Google Play
+      - name: Publish new AAB to Google Play
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.mode == 'publish' }}
         run: |
           python scripts/publish_google_play.py \
             --package-name "${PLAY_PACKAGE_NAME}" \
             --bundle "${PLAY_AAB_PATH}" \
+            --track "${PLAY_TRACK}" \
+            --priority "${PLAY_PRIORITY}" \
+            --release-name "${PLAY_RELEASE_NAME}" \
+            --service-account-json-file "${PLAY_SERVICE_ACCOUNT_FILE}"
+
+      - name: Promote existing Google Play version
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'promote' }}
+        run: |
+          python scripts/publish_google_play.py \
+            --package-name "${PLAY_PACKAGE_NAME}" \
+            --existing-version-code "${PLAY_EXISTING_VERSION_CODE}" \
             --track "${PLAY_TRACK}" \
             --priority "${PLAY_PRIORITY}" \
             --release-name "${PLAY_RELEASE_NAME}" \
