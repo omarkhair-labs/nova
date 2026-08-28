@@ -1,9 +1,7 @@
 package com.nova.app.feature.welcome
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,9 +11,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,19 +39,18 @@ fun WelcomeScreen(
     onTerms: () -> Unit,
     onPrivacy: () -> Unit,
 ) {
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(NovaBackground)
             .statusBarsPadding()
             .navigationBarsPadding()
-            .padding(horizontal = 24.dp),
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp, vertical = 18.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.TopCenter)
-                .padding(top = 18.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Surface(
@@ -75,11 +75,10 @@ fun WelcomeScreen(
             )
         }
 
+        Spacer(modifier = Modifier.height(72.dp))
+
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.Center)
-                .padding(bottom = 76.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Surface(
@@ -118,11 +117,10 @@ fun WelcomeScreen(
             )
         }
 
+        Spacer(modifier = Modifier.height(56.dp))
+
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 18.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             NovaPrimaryButton(
@@ -150,26 +148,26 @@ fun WelcomeScreen(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = "Terms of Use",
-                    modifier = Modifier
-                        .clickable(onClick = onTerms)
-                        .padding(horizontal = 6.dp, vertical = 3.dp),
-                    color = NovaAccent,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
+                TextButton(onClick = onTerms) {
+                    Text(
+                        text = "Terms of Use",
+                        color = NovaAccent,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
                 Text(text = "·", color = NovaMuted, fontSize = 11.sp)
-                Text(
-                    text = "Privacy",
-                    modifier = Modifier
-                        .clickable(onClick = onPrivacy)
-                        .padding(horizontal = 6.dp, vertical = 3.dp),
-                    color = NovaAccent,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
+                TextButton(onClick = onPrivacy) {
+                    Text(
+                        text = "Privacy",
+                        color = NovaAccent,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
         }
+
+        Spacer(modifier = Modifier.height(12.dp))
     }
 }

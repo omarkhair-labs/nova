@@ -21,6 +21,7 @@ COMMENTS_SHEET = ROOT / "app/src/main/java/com/nova/app/feature/reels/ThreadedRe
 PLAYBACK = ROOT / "app/src/main/java/com/nova/app/feature/reels/ReelPlaybackCoordinator.kt"
 PROFILE_GRID = ROOT / "app/src/main/java/com/nova/app/ui/components/NovaProfileReelsGrid.kt"
 REPOSTED_GRID = ROOT / "app/src/main/java/com/nova/app/ui/components/NovaProfileRepostedReelsGrid.kt"
+PROFILE_THUMBNAIL = ROOT / "app/src/main/java/com/nova/app/ui/components/NovaProfileReelThumbnail.kt"
 MAIN_KOTLIN = ROOT / "app/src/main/java"
 TEST_KOTLIN = ROOT / "app/src/test/java"
 
@@ -49,6 +50,7 @@ comments_sheet = read(COMMENTS_SHEET)
 playback = read(PLAYBACK)
 profile_grid = read(PROFILE_GRID)
 reposted_grid = read(REPOSTED_GRID)
+profile_thumbnail = read(PROFILE_THUMBNAIL)
 
 for declaration in (
     "data class NovaReelAuthor(",
@@ -312,7 +314,7 @@ for grid_name, grid, source in (
         source,
         "owner.loadFirstPage()",
         "owner.loadMore()",
-        "com.nova.app.feature.reels.domain.model.NovaReel",
+        "NovaProfileReelThumbnail(",
     ):
         if required not in grid:
             errors.append(f"{grid_name} is missing stable-owner wiring: {required}")
@@ -330,6 +332,24 @@ if "username = username" not in profile_grid:
     errors.append("authored profile Reel grid must continue opening the current profile's authored source")
 if "username = reel.author.username" not in reposted_grid:
     errors.append("reposted profile Reel grid must continue opening the original author's authored source")
+
+for required in (
+    "import com.nova.app.feature.reels.domain.model.NovaReel",
+    "reel.thumbnailUrl",
+    "NovaMediaImage(",
+    "NovaIconAsset.Play",
+    "NovaIconAsset.Repost",
+    "NovaIconAsset.Like",
+    "NovaIconAsset.Comment",
+    "compactSocialCount(reel.likesCount)",
+    "compactSocialCount(reel.commentsCount)",
+):
+    if required not in profile_thumbnail:
+        errors.append(f"shared profile Reel thumbnail is missing truthful media/stat seam: {required}")
+
+for forbidden in ('text = "▶"', 'text = "♥', 'text = "↻'):
+    if forbidden in profile_grid or forbidden in reposted_grid or forbidden in profile_thumbnail:
+        errors.append(f"profile Reel grids restored a fake text-glyph tile seam: {forbidden}")
 
 # No Kotlin source may restore ownership of the removed core Reel record graph.
 legacy_model_imports = (

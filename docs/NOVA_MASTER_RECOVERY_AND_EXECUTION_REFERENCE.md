@@ -31,39 +31,28 @@ Recommended opening instruction:
 
 # 1. Current live checkpoint
 
-At creation time:
+At the Final Whole-Product Coherence checkpoint:
 
 - Repository: `omarkhair-labs/nova`
 - Default branch: `master`
 - Current master:
-  `6553d60c12998bf36e3502511a8bf22b118b493f`
-- This is the merge commit of PR #213 / Flow 7 Rooms.
-- Flow 7 CI #686: SUCCESS.
-- PR #213: MERGED.
-- Post-merge master CI #687: SUCCESS.
-- No open PRs at this checkpoint.
+  `7ab0a7e7ac65d62a41f0fd5ce001c16e1a58d4e0`
+- This is the merge commit of PR #216 / Flow 9 Settings, Account, Privacy and Security.
+- PR #214 / Flow 8 Memories: MERGED.
+- PR #216 / Flow 9: MERGED.
+- Flows 1–9 are merged.
+- Final Whole-Product Coherence is `PR READY`; hosted CI and Samsung validation remain pending.
 
 Important immediate history:
 
-PR #213 originally had a CI failure on run #685. It was not the final state. A current Rooms/design-system gate alignment was committed as:
-
-`ac0e32641d40d9234b18e88716f4b3a99cb41730`
-`ci: align Rooms design-system gate with Flow 7`
-
-Then CI #686 succeeded, PR #213 merged, and post-merge #687 succeeded.
+PR #214 merged Flow 8 Memories at `4286ad5ab319c2aec9a80d3d618722b9b0bd4c57`. PR #215 then updated this recovery reference. PR #216 merged Flow 9 at `7ab0a7e7ac65d62a41f0fd5ce001c16e1a58d4e0`. Live GitHub and repository state continue to outrank older checkpoint prose elsewhere in this document.
 
 Current roadmap:
 
-- Flow 1 Social core — merged; real-device verification remains where applicable.
-- Flow 2 Create + media — merged; Samsung validation remains for real media/background behavior.
-- Flow 3 Reels + Stories — merged.
-- Flow 4 Profile + People — merged.
-- Flow 5 Orbit + Tonight + Activity — merged.
-- Flow 6 Inbox + Messaging + Calls — merged.
-- Flow 7 Rooms — merged.
-- Flow 8 Memories — next planned major flow.
-- Flow 9 Settings / Account / Privacy / Security / secondary surfaces — planned after Flow 8.
-- Final Whole-Product Coherence Pass — mandatory after the major flows.
+- Flows 1–9 — merged; their documented Samsung/device checks remain open where applicable.
+- Final Whole-Product Coherence Pass — `PR READY` with bounded visible seam closures and focused local validation.
+- Real Samsung/device closure — next product-validation phase after hosted review/CI.
+- Release/Play — separate and not authorized by product-polish work.
 
 Do not invent a Flow 10 unless a genuinely separate product domain is discovered.
 
@@ -782,7 +771,9 @@ CI history:
 
 ---
 
-# 18. Flow 8 — Memories: next product target
+# 18. Flow 8 — Memories (merged)
+
+Status: merged via PR #214 at `4286ad5ab319c2aec9a80d3d618722b9b0bd4c57`. The notes below preserve the governing implementation brief and protected boundaries.
 
 Preserve strong existing foundation:
 
@@ -840,7 +831,9 @@ Memory Film product UI may be modernized, but render/lifecycle infrastructure re
 
 ---
 
-# 19. Flow 9 — Settings / Account / Privacy / Security
+# 19. Flow 9 — Settings / Account / Privacy / Security (merged)
+
+Status: merged via PR #216 at `7ab0a7e7ac65d62a41f0fd5ce001c16e1a58d4e0`. The notes below remain the governing capability-truth and safety record.
 
 Principle:
 
@@ -1035,6 +1028,8 @@ Do not claim:
 - PR #211 / Flow 5 → `147f5f32ffbf60ef95129f78774ac339cf5e14eb`
 - PR #212 / Flow 6 → `6c34c189405d712a14918d378733add8515a1cf5`
 - PR #213 / Flow 7 → `6553d60c12998bf36e3502511a8bf22b118b493f`
+- PR #214 / Flow 8 → `4286ad5ab319c2aec9a80d3d618722b9b0bd4c57`
+- PR #216 / Flow 9 → `7ab0a7e7ac65d62a41f0fd5ce001c16e1a58d4e0`
 
 Always verify live GitHub before acting.
 
@@ -1115,14 +1110,11 @@ Never destructively reset over in-progress Codex work.
 
 At this checkpoint:
 
-1. Flow 7 is merged and post-merge master CI is green.
-2. Start Flow 8 from exact current `origin/master`.
-3. Finish Flow 8 in an independently reviewable PR.
-4. Merge only after hosted CI/review.
-5. Run Flow 9.
-6. Then perform Final Whole-Product Coherence.
-7. Then perform real Samsung/device closure.
-8. Release/Play remains a separate later concern.
+1. Flows 1–9 are merged on master at `7ab0a7e7ac65d62a41f0fd5ce001c16e1a58d4e0`.
+2. Final Whole-Product Coherence is `PR READY` as one bounded PR against master.
+3. Hosted GitHub CI remains the full merge gate.
+4. After hosted review/merge, perform the real Samsung/device closure recorded in the roadmap and smoke checklist.
+5. Release/Play remains a separate later concern.
 
 Do not start a new architecture phase.
 
@@ -1130,7 +1122,9 @@ Do not start a new architecture phase.
 
 # 30. Final Whole-Product Coherence Pass
 
-After Flows 8 and 9, traverse Nova like a normal user.
+Status: `PR READY`, with focused local gates and Kotlin compilation complete. Hosted CI and Samsung/device validation are still required; this status is not `DEVICE VERIFIED`.
+
+After Flows 8 and 9, Nova was traversed like a normal user. The bounded closure replaced fake profile-Reel glyph tiles with real thumbnail-backed tiles and Nova icons; corrected stale glyph/version copy and Create icon semantics; made affected busy/success states explicit; made Welcome/auth actions safer under constrained height; and raised the affected shared/high-frequency action targets to the 48dp baseline. Existing state owners, navigation and protected media/realtime/release contracts were deliberately not reopened.
 
 Audit:
 
@@ -1238,7 +1232,7 @@ Paste this with the file:
 > Competitive products are maturity references, never templates.
 > ChatGPT audits/scopes/reviews CI; Codex implements in isolated worktree with focused checks. Hosted CI is the full gate. Samsung proves device-sensitive behavior.
 > Protect Nova Dev Firebase, release/Play, Memory Film FGS/export identity, WebRTC/TURN/Redis.
-> Flows 1–7 merged. Next = Flow 8 Memories, Flow 9 Settings/Privacy/Security, then Final Whole-Product Coherence.
+> Flows 1–9 merged. Final Whole-Product Coherence is PR READY. Next after hosted review = real Samsung/device closure; release/Play remains separate.
 
 ---
 
@@ -1255,7 +1249,10 @@ The reference philosophy is:
 This file should be updated at major Nova milestones rather than reconstructed again from chat memory.
 
 **Checkpoint in this version:**  
-`master = 6553d60c12998bf36e3502511a8bf22b118b493f`  
-Flow 7 / PR #213 merged  
-post-merge Nova CI #687 successful  
-next major roadmap item: Flow 8 — Memories
+`master = 7ab0a7e7ac65d62a41f0fd5ce001c16e1a58d4e0`
+
+Flows 1–9 merged through Flow 9 / PR #216.
+
+Final Whole-Product Coherence: PR READY, not device verified.
+
+next product-validation item: real Samsung/device closure after hosted review

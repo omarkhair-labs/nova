@@ -23,7 +23,7 @@ fun NovaIconButton(
     contentDescription: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    size: Dp = 44.dp,
+    size: Dp = 48.dp,
     iconSize: Dp = 22.dp,
     containerColor: Color = NovaSurface,
     contentColor: Color = NovaInk,

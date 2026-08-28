@@ -1,13 +1,13 @@
 package com.nova.app.feature.auth
 
 import android.content.Intent
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -195,16 +195,15 @@ private fun AuthPage(
         }
 
         if (!secondaryActionText.isNullOrBlank() && onSecondaryAction != null) {
-            Text(
-                text = secondaryActionText,
-                color = NovaAccent,
-                fontSize = 13.sp,
-                lineHeight = 19.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .clickable(enabled = !isLoading, onClick = onSecondaryAction)
-                    .padding(vertical = 4.dp),
-            )
+            TextButton(onClick = onSecondaryAction, enabled = !isLoading) {
+                Text(
+                    text = secondaryActionText,
+                    color = NovaAccent,
+                    fontSize = 13.sp,
+                    lineHeight = 19.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
             Spacer(modifier = Modifier.height(6.dp))
         }
 

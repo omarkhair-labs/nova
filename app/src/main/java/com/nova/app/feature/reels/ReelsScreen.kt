@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -237,7 +238,7 @@ fun ReelsScreen(
                         Text("Reels", color = ReelInk, fontSize = 31.sp, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = error ?: "Nova V3 starts here. Share the first Reel.",
+                            text = error ?: "No Reels yet. Share the first one.",
                             color = ReelMuted,
                             fontSize = 14.sp,
                         )
@@ -352,13 +353,32 @@ fun ReelsScreen(
                             color = Color.Black.copy(alpha = 0.42f),
                             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
                         ) {
-                            Text(
-                                text = if (uploading) "Posting…" else "+ Create",
-                                modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
-                                color = ReelInk,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                            )
+                            Row(
+                                modifier = Modifier.heightIn(min = 48.dp).padding(horizontal = 13.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                            ) {
+                                if (uploading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        color = ReelInk,
+                                        strokeWidth = 2.dp,
+                                    )
+                                } else {
+                                    NovaIcon(
+                                        asset = NovaIconAsset.Create,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                        tint = ReelInk,
+                                    )
+                                }
+                                Text(
+                                    text = if (uploading) "Posting…" else "Create",
+                                    color = ReelInk,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            }
                         }
                     }
 
@@ -773,7 +793,12 @@ private fun ReelComposerDialog(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text("New Reel", color = NovaInk, fontSize = 21.sp, fontWeight = FontWeight.Bold)
-                    Text("V3", color = NovaAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    NovaIcon(
+                        asset = NovaIconAsset.Reels,
+                        contentDescription = null,
+                        tint = NovaAccent,
+                        modifier = Modifier.size(20.dp),
+                    )
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 Box(

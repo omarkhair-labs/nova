@@ -122,7 +122,7 @@ private fun stageLabel(stage: String): String = when (stage) {
     MediaPublishWorker.STAGE_QUEUED -> "Queued for connection"
     MediaPublishWorker.STAGE_PREPARING -> "Preparing media"
     MediaPublishWorker.STAGE_UPLOADING -> "Uploading"
-    MediaPublishWorker.STAGE_PUBLISHED -> "Published ✓"
+    MediaPublishWorker.STAGE_PUBLISHED -> "Published"
     MediaPublishWorker.STAGE_FAILED -> "Needs attention"
     else -> "Queued"
 }

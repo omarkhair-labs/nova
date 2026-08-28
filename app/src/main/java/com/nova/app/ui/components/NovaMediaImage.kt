@@ -26,6 +26,7 @@ fun NovaMediaImage(
     modifier: Modifier = Modifier,
     contentDescription: String = "Nova photo",
     contentScale: ContentScale = ContentScale.Crop,
+    failureLabel: String = "Photo unavailable",
 ) {
     var isLoading by remember(source) { mutableStateOf(source.isNotBlank()) }
     var hasFailed by remember(source) { mutableStateOf(false) }
@@ -58,7 +59,7 @@ fun NovaMediaImage(
         when {
             isLoading -> CircularProgressIndicator(color = NovaAccent)
             hasFailed -> Text(
-                text = "Photo unavailable",
+                text = failureLabel,
                 color = NovaMuted,
                 fontSize = 11.sp,
             )

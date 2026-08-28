@@ -341,7 +341,7 @@ private fun CommentComposer(
                     )
                     Surface(
                         onClick = onCancelReply,
-                        modifier = Modifier.size(44.dp),
+                        modifier = Modifier.size(48.dp),
                         shape = CircleShape,
                         color = NovaSurface,
                     ) {

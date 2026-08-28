@@ -1,14 +1,11 @@
 package com.nova.app.ui.components
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -25,24 +22,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.app.appContainer
 import com.nova.app.core.reels.NovaReelsNavigator
 import com.nova.app.feature.reels.ProfileReelsGridStateOwner
 import com.nova.app.feature.reels.ProfileReelsSource
-import com.nova.app.feature.reels.domain.model.NovaReel
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSurface
-
-
-private val ProfileReelBackground = Color(0xFF090B10)
-private val ProfileReelInk = Color(0xFFF6F7FA)
-private val ProfileReelMuted = Color(0xFFB8BDC8)
 
 
 @Composable
@@ -148,8 +138,9 @@ fun NovaProfileReelsGrid(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         rowReels.forEach { reel ->
-                            ProfileReelCard(
+                            NovaProfileReelThumbnail(
                                 reel = reel,
+                                showRepostAuthor = false,
                                 modifier = Modifier.weight(1f),
                                 onClick = {
                                     NovaReelsNavigator.openProfile(
@@ -183,59 +174,6 @@ fun NovaProfileReelsGrid(
                         onClick = { if (!isLoadingMore) owner.loadMore() },
                     )
                 }
-            }
-        }
-    }
-}
-
-
-@Composable
-private fun ProfileReelCard(
-    reel: NovaReel,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    Surface(
-        onClick = onClick,
-        modifier = modifier.aspectRatio(0.72f),
-        shape = RoundedCornerShape(6.dp),
-        color = ProfileReelBackground,
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(ProfileReelBackground),
-        ) {
-            Text(
-                text = "▶",
-                modifier = Modifier.align(Alignment.Center),
-                color = ProfileReelInk.copy(alpha = 0.88f),
-                fontSize = 23.sp,
-            )
-
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.48f))
-                    .padding(horizontal = 7.dp, vertical = 6.dp),
-            ) {
-                if (reel.caption.isNotBlank()) {
-                    Text(
-                        text = reel.caption,
-                        color = ProfileReelInk,
-                        fontSize = 9.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Spacer(modifier = Modifier.height(3.dp))
-                }
-                Text(
-                    text = "♥ ${reel.likesCount}   ◌ ${reel.commentsCount}",
-                    color = ProfileReelMuted,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
             }
         }
     }

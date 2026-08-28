@@ -172,6 +172,10 @@ else:
         if seam not in icon_catalog_text:
             errors.append(f"Nova icon catalog seam changed: {seam}")
 
+icon_button_text = ICON_BUTTON.read_text(encoding="utf-8")
+if "size: Dp = 48.dp" not in icon_button_text:
+    errors.append("shared Nova icon button must preserve a 48dp accessible touch target")
+
 for drawable_name in MATERIAL_SYMBOL_DRAWABLES:
     drawable = DRAWABLE / drawable_name
     if not drawable.is_file():
@@ -255,6 +259,7 @@ else:
         "NovaOrbitRing(",
         "NovaUnreadDot(",
         "NovaSpacing.",
+        "Modifier.size(48.dp)",
     ):
         if seam not in home_identity_text:
             errors.append(f"Home identity header bypassed approved visual-identity seam: {seam}")

@@ -79,8 +79,8 @@ fun CreateHubScreen(
         CreateHubAction("Reel", "Create immersive vertical video", NovaIconAsset.Reels, onOpenReels),
         CreateHubAction("Story", "Add a 24-hour moment", NovaIconAsset.Story) { reveal(2) },
         CreateHubAction("Pulse", "Share what is happening now", NovaIconAsset.Orbit) { reveal(3) },
-        CreateHubAction("Room", "Start a place with your people", NovaIconAsset.Inbox) { reveal(4) },
-        CreateHubAction("Memory", "Relive a week or make a film", NovaIconAsset.Home) { reveal(5) },
+        CreateHubAction("Room", "Start a place with your people", NovaIconAsset.Room) { reveal(4) },
+        CreateHubAction("Memory", "Relive a week or make a film", NovaIconAsset.Memory) { reveal(5) },
     )
 
     Scaffold(

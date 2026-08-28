@@ -539,6 +539,7 @@ private fun ConversationDetailsView(
         Text("Notifications", color = NovaInk, fontSize = 19.sp, fontWeight = FontWeight.Bold)
         Surface(
             onClick = { if (!loading) onToggleMute() },
+            enabled = !loading,
             shape = RoundedCornerShape(20.dp),
             color = NovaSurface,
             border = BorderStroke(1.dp, NovaBorder),
@@ -558,20 +559,26 @@ private fun ConversationDetailsView(
                     )
                 }
                 Surface(
+                    modifier = Modifier.size(48.dp),
                     shape = RoundedCornerShape(15.dp),
                     color = if (muted) NovaAccent else NovaAccentSoft,
                 ) {
-                    Text(
-                        when {
-                            loading -> "…"
-                            muted -> "Muted"
-                            else -> "On"
-                        },
-                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
-                        color = if (muted) NovaBackground else NovaAccent,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        if (loading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = NovaAccent,
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Text(
+                                if (muted) "Muted" else "On",
+                                color = if (muted) NovaBackground else NovaAccent,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
                 }
             }
         }

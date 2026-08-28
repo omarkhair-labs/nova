@@ -484,7 +484,7 @@ private fun TextStoryComposer(
         title = {
             Column {
                 Text("Text Story", color = NovaInk, fontWeight = FontWeight.Bold)
-                Text("Aa · Nova V3", color = NovaMuted, fontSize = 10.sp)
+                Text("Choose a look for your words.", color = NovaMuted, fontSize = 10.sp)
             }
         },
         text = {
@@ -522,7 +522,7 @@ private fun TextStoryComposer(
                     listOf("midnight", "sunset", "ocean", "forest").forEach { option ->
                         Surface(
                             onClick = { if (!uploading) style = option },
-                            modifier = Modifier.size(34.dp),
+                            modifier = Modifier.size(48.dp),
                             shape = CircleShape,
                             color = Color.Transparent,
                             border = BorderStroke(if (style == option) 2.dp else 1.dp, if (style == option) NovaAccent else NovaBorder),
@@ -845,7 +845,7 @@ private fun StoryViewer(
                                 onClick = {
                                     if (!state.mutationBusy) owner.toggleReaction(emoji)
                                 },
-                                modifier = Modifier.size(37.dp),
+                                modifier = Modifier.size(48.dp),
                                 shape = CircleShape,
                                 color = if (story.myReaction == emoji) NovaAccent.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.48f),
                             ) {

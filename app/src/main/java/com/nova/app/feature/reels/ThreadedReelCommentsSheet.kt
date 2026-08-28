@@ -184,7 +184,7 @@ internal fun ThreadedReelCommentsSheet(
                     )
                     Surface(
                         onClick = owner::cancelReply,
-                        modifier = Modifier.size(44.dp),
+                        modifier = Modifier.size(48.dp),
                         shape = CircleShape,
                         color = Color.Transparent,
                     ) {

@@ -746,13 +746,25 @@ private fun RoomItemCard(
                             color = if (item.reminderSet) NovaAccentSoft else NovaBackground,
                             border = BorderStroke(1.dp, if (item.reminderSet) NovaAccent else NovaBorder),
                         ) {
-                            Text(
-                                text = if (reminderBusy) "…" else if (item.reminderSet) "Reminded" else "Remind",
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 14.dp),
-                                color = if (item.reminderSet) NovaAccent else NovaInk,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.SemiBold,
-                            )
+                            Box(
+                                modifier = Modifier.heightIn(min = 48.dp).padding(horizontal = 10.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                if (reminderBusy) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        color = NovaAccent,
+                                        strokeWidth = 2.dp,
+                                    )
+                                } else {
+                                    Text(
+                                        text = if (item.reminderSet) "Reminded" else "Remind",
+                                        color = if (item.reminderSet) NovaAccent else NovaInk,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                }
+                            }
                         }
                     }
                 }
