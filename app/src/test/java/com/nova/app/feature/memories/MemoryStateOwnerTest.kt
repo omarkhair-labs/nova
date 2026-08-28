@@ -6,7 +6,10 @@ import com.nova.app.feature.memories.domain.model.MemoryFilmPlan
 import com.nova.app.feature.memories.domain.model.MemoryStats
 import com.nova.app.feature.memories.domain.model.WeeklyMemory
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -72,6 +75,45 @@ class MemoryStateOwnerTest {
         assertFalse(owner.state.loading)
         assertNull(owner.state.memory)
     }
+
+    @Test
+    fun `newer week request cannot be overwritten by an older response`() = runBlocking {
+        val older = CompletableDeferred<ApiResult<WeeklyMemory>>()
+        val newer = CompletableDeferred<ApiResult<WeeklyMemory>>()
+        val repository = DeferredMemoryRepository(listOf(older, newer))
+        val owner = MemoryStateOwner(repository, CoroutineScope(Dispatchers.Unconfined))
+
+        val olderJob = launch(start = CoroutineStart.UNDISPATCHED) {
+            owner.loadNow(utcOffsetMinutes = 180, weeksAgo = 3, showSpinner = true)
+        }
+        val newerJob = launch(start = CoroutineStart.UNDISPATCHED) {
+            owner.loadNow(utcOffsetMinutes = 180, weeksAgo = 2, showSpinner = true)
+        }
+        newer.complete(ApiResult.Success(memory(weeksAgo = 2)))
+        newerJob.join()
+        older.complete(ApiResult.Success(memory(weeksAgo = 3)))
+        olderJob.join()
+
+        assertEquals(2, owner.state.weeksAgo)
+        assertEquals(2, owner.state.memory?.weeksAgo)
+    }
+}
+
+
+private class DeferredMemoryRepository(
+    private val responses: List<CompletableDeferred<ApiResult<WeeklyMemory>>>,
+) : MemoryRepository {
+    private var requestIndex = 0
+
+    override suspend fun week(
+        utcOffsetMinutes: Int,
+        weeksAgo: Int,
+    ): ApiResult<WeeklyMemory> = responses[requestIndex++].await()
+
+    override suspend fun filmPlan(
+        utcOffsetMinutes: Int,
+        weeksAgo: Int,
+    ): ApiResult<MemoryFilmPlan> = ApiResult.Failure("unused", 500)
 }
 
 

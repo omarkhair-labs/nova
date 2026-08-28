@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -27,7 +28,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,11 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.FileProvider
-import androidx.media3.common.MediaItem
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.PlayerView
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.nova.app.app.appContainer
@@ -54,6 +50,10 @@ import com.nova.app.feature.memories.domain.model.MemoryFilmPlan
 import com.nova.app.feature.memories.domain.model.MemoryFilmScene
 import com.nova.app.feature.memories.film.MemoryFilmWorker
 import com.nova.app.ui.components.NovaMediaImage
+import com.nova.app.ui.components.NovaBackButton
+import com.nova.app.ui.components.NovaVideoPlayer
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
@@ -87,6 +87,7 @@ fun MemoryFilmScreen(
     val state = owner.state
     val workManager = remember(context) { WorkManager.getInstance(context.applicationContext) }
     var activeWorkId by remember { mutableStateOf<UUID?>(null) }
+    var canceling by remember { mutableStateOf(false) }
 
     BackHandler(onBack = onBack)
     LaunchedEffect(owner, initialWeeksAgo) {
@@ -101,6 +102,7 @@ fun MemoryFilmScreen(
     }
     LaunchedEffect(state.plan?.selectionVersion) {
         val plan = state.plan ?: return@LaunchedEffect
+        canceling = false
         val existing = withContext(Dispatchers.IO) {
             workManager.getWorkInfosForUniqueWork(MemoryFilmWorker.uniqueName(plan)).get()
                 .firstOrNull { it.state != WorkInfo.State.CANCELLED }
@@ -117,21 +119,27 @@ fun MemoryFilmScreen(
                         running = true,
                         progress = info.progress.getInt(MemoryFilmWorker.KEY_PROGRESS, 0),
                     )
-                WorkInfo.State.SUCCEEDED -> owner.acceptBackgroundWork(
-                    running = false,
-                    progress = 100,
-                    outputPath = info.outputData.getString(MemoryFilmWorker.KEY_OUTPUT_PATH),
-                )
-                WorkInfo.State.FAILED -> owner.acceptBackgroundWork(
-                    running = false,
-                    progress = 0,
-                    error = info.outputData.getString(MemoryFilmWorker.KEY_ERROR)
-                        ?: "Nova couldn't render this film.",
-                )
-                WorkInfo.State.CANCELLED -> owner.acceptBackgroundWork(
-                    running = false,
-                    progress = 0,
-                )
+                WorkInfo.State.SUCCEEDED -> {
+                    canceling = false
+                    owner.acceptBackgroundWork(
+                        running = false,
+                        progress = 100,
+                        outputPath = info.outputData.getString(MemoryFilmWorker.KEY_OUTPUT_PATH),
+                    )
+                }
+                WorkInfo.State.FAILED -> {
+                    canceling = false
+                    owner.acceptBackgroundWork(
+                        running = false,
+                        progress = 0,
+                        error = info.outputData.getString(MemoryFilmWorker.KEY_ERROR)
+                            ?: "Nova couldn't render this film.",
+                    )
+                }
+                WorkInfo.State.CANCELLED -> {
+                    canceling = false
+                    owner.acceptBackgroundWork(running = false, progress = 0)
+                }
             }
             if (info.state.isFinished) break
             delay(1_000)
@@ -162,6 +170,7 @@ fun MemoryFilmScreen(
             else -> FilmContent(
                 plan = state.plan,
                 exporting = state.exporting,
+                canceling = canceling,
                 progress = state.progress,
                 outputPath = state.outputPath,
                 error = state.error,
@@ -175,8 +184,10 @@ fun MemoryFilmScreen(
                     }
                 },
                 onCancel = {
-                    activeWorkId?.let(workManager::cancelWorkById)
-                    owner.acceptBackgroundWork(running = false, progress = 0)
+                    activeWorkId?.let { workId ->
+                        canceling = true
+                        workManager.cancelWorkById(workId)
+                    }
                 },
                 onShare = { path -> shareFilm(context, path) },
                 onOlder = {
@@ -207,6 +218,7 @@ fun MemoryFilmScreen(
 private fun FilmContent(
     plan: MemoryFilmPlan,
     exporting: Boolean,
+    canceling: Boolean,
     progress: Int,
     outputPath: String?,
     error: String?,
@@ -232,20 +244,7 @@ private fun FilmContent(
     ) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    onClick = onBack,
-                    shape = RoundedCornerShape(16.dp),
-                    color = NovaSurface,
-                    border = BorderStroke(1.dp, NovaBorder),
-                ) {
-                    Text(
-                        text = "‹",
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
-                        color = NovaInk,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
+                NovaBackButton(onClick = onBack)
                 Spacer(modifier = Modifier.width(11.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -272,18 +271,29 @@ private fun FilmContent(
             item {
                 Surface(
                     onClick = { onShare(outputPath) },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     shape = RoundedCornerShape(20.dp),
                     color = NovaAccent,
                 ) {
-                    Text(
-                        text = "Share your film",
+                    Row(
                         modifier = Modifier.padding(vertical = 13.dp),
-                        color = NovaBackground,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    )
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        NovaIcon(
+                            asset = NovaIconAsset.Share,
+                            contentDescription = null,
+                            tint = NovaBackground,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Share your film",
+                            color = NovaBackground,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
                 }
             }
         } else if (!plan.filmReady) {
@@ -298,7 +308,12 @@ private fun FilmContent(
                         modifier = Modifier.padding(20.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Text("☾", color = NovaAccent, fontSize = 24.sp)
+                        NovaIcon(
+                            asset = NovaIconAsset.Memory,
+                            contentDescription = null,
+                            tint = NovaAccent,
+                            modifier = Modifier.size(24.dp),
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "This week needs a little more media.",
@@ -318,7 +333,8 @@ private fun FilmContent(
             item {
                 Surface(
                     onClick = if (exporting) onCancel else onRender,
-                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !canceling,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                     shape = RoundedCornerShape(20.dp),
                     color = if (exporting) NovaAccentSoft else NovaAccent,
                     border = if (exporting) BorderStroke(1.dp, NovaAccent.copy(alpha = 0.25f)) else null,
@@ -337,7 +353,12 @@ private fun FilmContent(
                             Spacer(modifier = Modifier.width(9.dp))
                         }
                         Text(
-                            text = if (exporting) "Rendering $progress% · tap to cancel" else "Make my film",
+                            text = when {
+                                canceling -> "Canceling render…"
+                                exporting -> "Rendering $progress% · tap to cancel"
+                                error != null -> "Try rendering again"
+                                else -> "Make my film"
+                            },
                             color = if (exporting) NovaAccent else NovaBackground,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
@@ -351,7 +372,7 @@ private fun FilmContent(
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Nova picked ${plan.scenes.size} scenes",
+                        text = "Storyboard · ${plan.scenes.size} scenes",
                         color = NovaInk,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
@@ -414,12 +435,23 @@ private fun FilmHero(
         border = BorderStroke(1.dp, NovaAccent.copy(alpha = 0.28f)),
     ) {
         Box(modifier = Modifier.fillMaxWidth().height(260.dp)) {
-            if (plan.coverMediaUrl.isNotBlank() && plan.scenes.firstOrNull()?.mediaType == "image") {
-                NovaMediaImage(
-                    source = plan.coverMediaUrl,
-                    modifier = Modifier.fillMaxSize(),
-                    contentDescription = "Memory Film cover",
-                )
+            if (plan.coverMediaUrl.isNotBlank()) {
+                if (plan.scenes.firstOrNull()?.mediaType == "video") {
+                    NovaVideoPlayer(
+                        source = plan.coverMediaUrl,
+                        modifier = Modifier.fillMaxSize(),
+                        autoplay = false,
+                        muted = true,
+                        useController = false,
+                        description = "Memory Film cover",
+                    )
+                } else {
+                    NovaMediaImage(
+                        source = plan.coverMediaUrl,
+                        modifier = Modifier.fillMaxSize(),
+                        contentDescription = "Memory Film cover",
+                    )
+                }
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -465,19 +497,18 @@ private fun FilmSceneCard(scene: MemoryFilmScene) {
                     contentDescription = "Film scene",
                 )
             } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(116.dp)
-                        .background(Color(0xFF11151E)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("▶", color = Color.White, fontSize = 23.sp)
-                }
+                NovaVideoPlayer(
+                    source = scene.mediaUrl,
+                    modifier = Modifier.fillMaxWidth().height(116.dp),
+                    autoplay = false,
+                    muted = true,
+                    useController = true,
+                    description = "Film scene ${scene.index + 1}",
+                )
             }
             Column(modifier = Modifier.padding(9.dp)) {
                 Text(
-                    text = scene.caption.ifBlank { scene.source.replace('_', ' ') },
+                    text = "Scene ${scene.index + 1} · ${scene.caption.ifBlank { scene.source.replace('_', ' ') }}",
                     color = NovaInk,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -497,26 +528,14 @@ private fun FilmSceneCard(scene: MemoryFilmScene) {
 
 @Composable
 private fun RenderedFilmPreview(path: String) {
-    val context = LocalContext.current
-    val player = remember(path) {
-        ExoPlayer.Builder(context).build().apply {
-            setMediaItem(MediaItem.fromUri(Uri.fromFile(File(path))))
-            prepare()
-        }
-    }
-    DisposableEffect(player) {
-        onDispose { player.release() }
-    }
-    AndroidView(
-        factory = { viewContext ->
-            PlayerView(viewContext).apply {
-                this.player = player
-                useController = true
-            }
-        },
+    NovaVideoPlayer(
+        source = Uri.fromFile(File(path)).toString(),
         modifier = Modifier
             .fillMaxWidth()
             .height(430.dp),
+        autoplay = false,
+        useController = true,
+        description = "Rendered Memory Film",
     )
 }
 
@@ -529,14 +548,14 @@ private fun FilmNavButton(
 ) {
     Surface(
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.heightIn(min = 48.dp),
         shape = RoundedCornerShape(18.dp),
         color = NovaSurface,
         border = BorderStroke(1.dp, NovaBorder),
     ) {
         Text(
             text = text,
-            modifier = Modifier.padding(vertical = 11.dp),
+            modifier = Modifier.padding(vertical = 14.dp),
             color = NovaAccent,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,

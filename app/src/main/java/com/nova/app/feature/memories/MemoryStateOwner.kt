@@ -30,6 +30,7 @@ class MemoryStateOwner(
 ) {
     var state by mutableStateOf(MemoryUiState())
         private set
+    private var requestVersion = 0
 
     fun load(
         utcOffsetMinutes: Int,
@@ -44,9 +45,13 @@ class MemoryStateOwner(
         weeksAgo: Int = state.weeksAgo,
         showSpinner: Boolean = false,
     ) {
+        requestVersion += 1
+        val version = requestVersion
         val boundedWeek = weeksAgo.coerceIn(0, 51)
         if (showSpinner) state = state.copy(loading = true)
-        when (val result = repository.week(utcOffsetMinutes, boundedWeek)) {
+        val result = repository.week(utcOffsetMinutes, boundedWeek)
+        if (version != requestVersion) return
+        when (result) {
             is ApiResult.Success -> state = state.copy(
                 memory = result.value,
                 weeksAgo = boundedWeek,
@@ -65,7 +70,9 @@ class MemoryStateOwner(
                 }
             }
         }
-        when (val draftsResult = repository.drafts()) {
+        val draftsResult = repository.drafts()
+        if (version != requestVersion) return
+        when (draftsResult) {
             is ApiResult.Success -> state = state.copy(drafts = draftsResult.value)
             is ApiResult.Failure -> if (draftsResult.statusCode == 401) {
                 state = state.copy(sessionExpiryVersion = state.sessionExpiryVersion + 1)
