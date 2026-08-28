@@ -7,6 +7,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +17,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -24,11 +29,10 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,13 +48,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.nova.app.app.appContainer
 import com.nova.app.feature.memories.domain.model.MemoryHighlight
 import com.nova.app.feature.memories.domain.model.MemoryDraft
 import com.nova.app.feature.memories.domain.model.MemoryStats
 import com.nova.app.feature.memories.domain.model.WeeklyMemory
 import com.nova.app.ui.components.NovaAvatar
+import com.nova.app.ui.components.NovaBackButton
+import com.nova.app.ui.components.NovaIconButton
 import com.nova.app.ui.components.NovaMediaImage
+import com.nova.app.ui.components.NovaPrimaryButton
+import com.nova.app.ui.components.NovaVideoPlayer
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
@@ -68,6 +80,7 @@ import kotlinx.coroutines.delay
 fun MemoryScreen(
     onBack: () -> Unit,
     onPersonClick: (String) -> Unit,
+    onRoomClick: (Long) -> Unit,
     onSessionExpired: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -78,6 +91,8 @@ fun MemoryScreen(
     var showDraftComposer by remember { mutableStateOf(false) }
     var draftMedia by remember { mutableStateOf<Uri?>(null) }
     var selectedDraft by remember { mutableStateOf<MemoryDraft?>(null) }
+    var awaitingDraftSave by remember { mutableStateOf(false) }
+    var sawDraftSaving by remember { mutableStateOf(false) }
     val draftMediaPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {
         draftMedia = it
         if (it != null) showDraftComposer = true
@@ -93,6 +108,18 @@ fun MemoryScreen(
     }
     LaunchedEffect(state.sessionExpiryVersion) {
         if (state.sessionExpiryVersion > 0) onSessionExpired()
+    }
+    LaunchedEffect(state.savingDraft, state.error, awaitingDraftSave) {
+        if (awaitingDraftSave && state.savingDraft) sawDraftSaving = true
+        if (awaitingDraftSave && sawDraftSaving && !state.savingDraft) {
+            if (state.error == null) {
+                showDraftComposer = false
+                draftMedia = null
+                selectedDraft = null
+            }
+            awaitingDraftSave = false
+            sawDraftSaving = false
+        }
     }
 
     Surface(modifier = Modifier.fillMaxSize(), color = NovaBackground) {
@@ -139,6 +166,7 @@ fun MemoryScreen(
                     owner.load(memoryUtcOffsetMinutes(), state.weeksAgo, showSpinner = false)
                 },
                 onPersonClick = onPersonClick,
+                onRoomClick = onRoomClick,
                 onShare = { shareMemory(context, state.memory) },
                 drafts = state.drafts,
                 savingDraft = state.savingDraft,
@@ -159,21 +187,22 @@ fun MemoryScreen(
             initialDraft = selectedDraft,
             mediaUri = draftMedia,
             saving = state.savingDraft,
+            error = state.error,
             onPickMedia = { draftMediaPicker.launch(arrayOf("image/*", "video/*")) },
             onDismiss = {
                 if (!state.savingDraft) {
                     showDraftComposer = false
                     draftMedia = null
                     selectedDraft = null
+                    awaitingDraftSave = false
+                    sawDraftSaving = false
                 }
             },
             onSave = { kind, title, note ->
+                awaitingDraftSave = true
                 val draft = selectedDraft
                 if (draft == null) owner.createDraft(kind, title, note, draftMedia)
                 else owner.updateDraft(draft.id, kind, title, note, draftMedia)
-                showDraftComposer = false
-                draftMedia = null
-                selectedDraft = null
             },
             onAutoSave = { kind, title, note ->
                 selectedDraft?.let { owner.updateDraft(it.id, kind, title, note, draftMedia) }
@@ -193,6 +222,7 @@ private fun MemoryContent(
     onNewer: (() -> Unit)?,
     onRetry: () -> Unit,
     onPersonClick: (String) -> Unit,
+    onRoomClick: (Long) -> Unit,
     onShare: () -> Unit,
     drafts: List<MemoryDraft>,
     savingDraft: Boolean,
@@ -331,6 +361,7 @@ private fun MemoryContent(
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                         items(memory.rooms, key = { it.room.id }) { row ->
                             Surface(
+                                onClick = { onRoomClick(row.room.id) },
                                 modifier = Modifier.width(190.dp),
                                 shape = RoundedCornerShape(20.dp),
                                 color = NovaSurface,
@@ -383,7 +414,12 @@ private fun MemoryContent(
                         modifier = Modifier.padding(horizontal = 22.dp, vertical = 28.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Text("☾", color = NovaAccent, fontSize = 24.sp)
+                        NovaIcon(
+                            asset = NovaIconAsset.Memory,
+                            contentDescription = null,
+                            tint = NovaAccent,
+                            modifier = Modifier.size(24.dp),
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "A quiet week is still a week.",
@@ -462,20 +498,7 @@ private fun MemoryHeader(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(13.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Surface(
-                onClick = onBack,
-                shape = RoundedCornerShape(16.dp),
-                color = NovaSurface,
-                border = BorderStroke(1.dp, NovaBorder),
-            ) {
-                Text(
-                    text = "‹",
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
-                    color = NovaInk,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
+            NovaBackButton(onClick = onBack)
             Spacer(modifier = Modifier.width(11.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -490,20 +513,15 @@ private fun MemoryHeader(
                     fontSize = 10.sp,
                 )
             }
-            Surface(
+            NovaIconButton(
+                asset = NovaIconAsset.Share,
+                contentDescription = "Share Your week",
                 onClick = onShare,
-                shape = RoundedCornerShape(16.dp),
-                color = NovaAccentSoft,
-                border = BorderStroke(1.dp, NovaAccent.copy(alpha = 0.22f)),
-            ) {
-                Text(
-                    text = "Share",
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    color = NovaAccent,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
+                size = 48.dp,
+                containerColor = NovaAccentSoft,
+                contentColor = NovaAccent,
+                borderColor = NovaAccent.copy(alpha = 0.22f),
+            )
         }
 
         Surface(
@@ -586,16 +604,14 @@ private fun MemoryHighlightCard(
                     modifier = Modifier.fillMaxWidth().height(240.dp),
                     contentDescription = "Memory image",
                 )
-            } else if (highlight.mediaType == "video") {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(190.dp)
-                        .background(Color(0xFF0E1118)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("▶", color = Color.White, fontSize = 30.sp)
-                }
+            } else if (highlight.mediaType == "video" && highlight.mediaUrl.isNotBlank()) {
+                NovaVideoPlayer(
+                    source = highlight.mediaUrl,
+                    modifier = Modifier.fillMaxWidth().height(220.dp),
+                    autoplay = false,
+                    useController = true,
+                    description = "Memory video",
+                )
             }
 
             Column(
@@ -724,6 +740,7 @@ private fun MemoryDraftDialog(
     initialDraft: MemoryDraft?,
     mediaUri: Uri?,
     saving: Boolean,
+    error: String?,
     onPickMedia: () -> Unit,
     onDismiss: () -> Unit,
     onSave: (String, String, String) -> Unit,
@@ -738,22 +755,64 @@ private fun MemoryDraftDialog(
             onAutoSave(kind, title, note)
         }
     }
-    AlertDialog(
+    val previewSource = mediaUri?.toString() ?: initialDraft?.mediaUrl.orEmpty()
+    val previewType = if (mediaUri != null) {
+        LocalContext.current.contentResolver.getType(mediaUri).orEmpty()
+    } else {
+        initialDraft?.mediaType.orEmpty()
+    }
+    Dialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (initialDraft == null) "New Memory" else "Edit Memory") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
+        ),
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = NovaBackground,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    NovaBackButton(onClick = onDismiss)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (initialDraft == null) "New Memory" else "Edit Memory",
+                            color = NovaInk,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            text = "Keep the part of the week that mattered to you.",
+                            color = NovaMuted,
+                            fontSize = 10.sp,
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Column(
+                    modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("recap" to "Recap", "film" to "Film").forEach { (value, label) ->
                         Surface(
                             onClick = { kind = value },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                             shape = RoundedCornerShape(16.dp),
                             color = if (kind == value) NovaAccent else NovaAccentSoft,
                         ) {
                             Text(
                                 label,
-                                modifier = Modifier.padding(10.dp),
+                                modifier = Modifier.padding(14.dp),
                                 color = if (kind == value) NovaBackground else NovaAccent,
                                 fontWeight = FontWeight.Bold,
                             )
@@ -766,6 +825,7 @@ private fun MemoryDraftDialog(
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("Title") },
                     placeholder = { Text("Seoul nights") },
+                    supportingText = { Text("${title.length}/120") },
                 )
                 OutlinedTextField(
                     value = note,
@@ -773,33 +833,58 @@ private fun MemoryDraftDialog(
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("What should this Memory keep?") },
                     minLines = 3,
+                    maxLines = 7,
+                    supportingText = { Text("${note.length}/500") },
                 )
+                if (previewSource.isNotBlank()) {
+                    if (previewType.startsWith("video") || initialDraft?.mediaType == "video") {
+                        NovaVideoPlayer(
+                            source = previewSource,
+                            modifier = Modifier.fillMaxWidth().height(220.dp),
+                            autoplay = false,
+                            useController = true,
+                            description = "Selected Memory video",
+                        )
+                    } else {
+                        NovaMediaImage(
+                            source = previewSource,
+                            modifier = Modifier.fillMaxWidth().height(220.dp),
+                            contentDescription = "Selected Memory photo",
+                        )
+                    }
+                }
                 Surface(
                     onClick = onPickMedia,
-                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !saving,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     shape = RoundedCornerShape(16.dp),
                     color = NovaAccentSoft,
                 ) {
                     Text(
-                        if (mediaUri == null) "Add a photo or video" else "Media selected · Change",
-                        modifier = Modifier.padding(12.dp),
+                        if (previewSource.isBlank()) "Add a photo or video" else "Change selected media",
+                        modifier = Modifier.padding(14.dp),
                         color = NovaAccent,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
-            }
-        },
-        confirmButton = {
-            TextButton(
+                if (!error.isNullOrBlank()) {
+                    Text(
+                        text = error,
+                        color = NovaMuted,
+                        fontSize = 10.sp,
+                    )
+                }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                NovaPrimaryButton(
+                text = if (saving) "Saving…" else if (initialDraft == null) "Save draft" else "Done",
                 onClick = { onSave(kind, title, note) },
                 enabled = title.isNotBlank() && !saving,
-            ) { Text(if (saving) "Saving…" else if (initialDraft == null) "Save draft" else "Done") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !saving) { Text("Cancel") }
-        },
-    )
+                )
+            }
+        }
+    }
 }
 
 

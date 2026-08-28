@@ -32,6 +32,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.nova.app.app.appContainer
 import com.nova.app.ui.components.NovaCard
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
+import com.nova.app.feature.rooms.RoomScreen
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBorder
@@ -56,6 +59,7 @@ fun MemoriesRail(
     val state = owner.state
     var showMemory by remember { mutableStateOf(false) }
     var showFilm by remember { mutableStateOf(false) }
+    var selectedRoomId by remember { mutableStateOf<Long?>(null) }
     val ready = (state.memory?.stats?.highlights ?: 0) > 0
     val memoryPalette = MemoryTheme.ready
 
@@ -91,11 +95,11 @@ fun MemoriesRail(
                     shape = MaterialTheme.shapes.medium,
                     color = NovaAccentSoft,
                 ) {
-                    Text(
-                        text = "✦",
-                        modifier = Modifier.padding(horizontal = 13.dp, vertical = 9.dp),
-                        color = NovaAccent,
-                        style = NovaType.sectionTitle.copy(fontWeight = FontWeight.Bold),
+                    NovaIcon(
+                        asset = NovaIconAsset.Memory,
+                        contentDescription = null,
+                        modifier = Modifier.padding(10.dp).size(24.dp),
+                        tint = NovaAccent,
                     )
                 }
                 Column(modifier = Modifier.weight(1f)) {
@@ -130,11 +134,14 @@ fun MemoriesRail(
                         strokeWidth = 2.dp,
                     )
                 } else {
-                    Text(
-                        text = if (state.memory != null) "Open ›" else "",
-                        color = NovaAccent,
-                        style = NovaType.micro.copy(fontWeight = FontWeight.Bold),
-                    )
+                    if (state.memory != null) {
+                        NovaIcon(
+                            asset = NovaIconAsset.Memory,
+                            contentDescription = "Open Your week",
+                            tint = NovaAccent,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
                 }
             }
         }
@@ -155,7 +162,12 @@ fun MemoriesRail(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("▶", color = NovaAccent, style = NovaType.bodyCompact)
+                    NovaIcon(
+                        asset = NovaIconAsset.Play,
+                        contentDescription = null,
+                        tint = NovaAccent,
+                        modifier = Modifier.size(24.dp),
+                    )
                     Spacer(modifier = Modifier.width(9.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
@@ -169,10 +181,11 @@ fun MemoriesRail(
                             style = NovaType.badge,
                         )
                     }
-                    Text(
-                        "Film ›",
-                        color = NovaAccent,
-                        style = NovaType.micro.copy(fontWeight = FontWeight.Bold),
+                    NovaIcon(
+                        asset = NovaIconAsset.Play,
+                        contentDescription = "Open Memory Film",
+                        tint = NovaAccent,
+                        modifier = Modifier.size(22.dp),
                     )
                 }
             }
@@ -192,6 +205,10 @@ fun MemoriesRail(
                 onPersonClick = { username ->
                     showMemory = false
                     onPersonClick(username)
+                },
+                onRoomClick = { roomId ->
+                    showMemory = false
+                    selectedRoomId = roomId
                 },
                 onSessionExpired = {
                     showMemory = false
@@ -214,6 +231,26 @@ fun MemoriesRail(
                 onBack = { showFilm = false },
                 onSessionExpired = {
                     showFilm = false
+                    onSessionExpired()
+                },
+            )
+        }
+    }
+
+    selectedRoomId?.let { roomId ->
+        Dialog(
+            onDismissRequest = { selectedRoomId = null },
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false,
+            ),
+        ) {
+            RoomScreen(
+                conversationId = roomId,
+                onBack = { selectedRoomId = null },
+                onPersonClick = onPersonClick,
+                onSessionExpired = {
+                    selectedRoomId = null
                     onSessionExpired()
                 },
             )

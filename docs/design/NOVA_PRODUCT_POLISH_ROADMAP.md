@@ -311,7 +311,7 @@ Samsung review still must confirm My Rooms/Discover/Following density and transi
 
 ### Flow 8 — Memories
 
-Status: `PLANNED`
+Status: `IN PROGRESS`
 
 Primary goals:
 
