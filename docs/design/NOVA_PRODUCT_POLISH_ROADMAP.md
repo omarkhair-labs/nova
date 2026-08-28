@@ -311,7 +311,7 @@ Samsung review still must confirm My Rooms/Discover/Following density and transi
 
 ### Flow 8 — Memories
 
-Status: `IN PROGRESS`
+Status: `PR READY`
 
 Primary goals:
 
@@ -320,6 +320,12 @@ Primary goals:
 - real empty/small-memory behavior;
 - protect recent route/thread/work-identity/FGS fixes;
 - ensure the feature feels intentional even with minimal content.
+
+Flow 8 preserves Memories as the completed-week read model over Pulse, Posts and Rooms, including local Monday boundaries, bounded week navigation, chronological highlights, privacy filtering, authored drafts and existing sharing semantics. The Home rail and Your Week now use Nova-owned Memory/Play/Share/Back language, real shared video playback, calmer quiet/error/loading truth, direct people and Room handoffs, and revision-owned week loading so an older response cannot overwrite a newer selection.
+
+Authored recap/film drafts now open in a full-screen, status-bar/IME-safe Nova composer with explicit kind selection, title/note limits, existing-media and newly selected photo/video preview, visible save progress/errors and retry without inventing publication. Existing create/update/delete and edit autosave ownership remain intact.
+
+Memory Film keeps its server plan, selection/render identity, unique WorkManager reattachment, immediate media-processing foreground notification, Media3 exporter and final MP4 ownership unchanged. Its product layer now distinguishes ready, rendering, canceling, failed and finished states; uses shared Nova playback for video covers, storyboard scenes and rendered output; clarifies chronological scene order; replaces Unicode glyphs; and provides accessible render/cancel/share/week controls. Samsung review remains required for quiet/normal/older weeks, draft picker and IME/back, highlight playback, render background/reattachment/progress/cancel/retry, completed preview/share and process lifecycle. Flow 8 is not `DEVICE VERIFIED`.
 
 ### Flow 9 — Settings / Account / Privacy / Security / secondary utility surfaces
 
