@@ -329,7 +329,7 @@ Memory Film keeps its server plan, selection/render identity, unique WorkManager
 
 ### Flow 9 — Settings / Account / Privacy / Security / secondary utility surfaces
 
-Status: `PLANNED`
+Status: `IN PROGRESS`
 
 Primary goals:
 

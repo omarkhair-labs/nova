@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -34,6 +35,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,6 +45,9 @@ import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.privacy.data.PrivacyRepository
 import com.nova.app.feature.privacy.domain.model.NovaNotificationPreferences
 import com.nova.app.ui.components.NovaHeader
+import com.nova.app.ui.components.NovaErrorState
+import com.nova.app.ui.components.NovaInlineRetry
+import com.nova.app.ui.components.NovaLoadingState
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaBorder
@@ -86,12 +92,17 @@ private fun NotificationPreferencesScreen(
     var preferences by remember { mutableStateOf<NovaNotificationPreferences?>(null) }
     var busyKey by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+    var loadRequest by remember { mutableStateOf(0) }
+    var loading by remember { mutableStateOf(true) }
 
-    LaunchedEffect(repository) {
+    LaunchedEffect(repository, loadRequest) {
+        loading = true
+        error = null
         when (val result = repository.notificationPreferences()) {
             is ApiResult.Success -> preferences = result.value
             is ApiResult.Failure -> if (result.statusCode == 401) onSessionExpired() else error = result.message
         }
+        loading = false
     }
 
     fun update(key: String, enabled: Boolean) {
@@ -122,11 +133,14 @@ private fun NotificationPreferencesScreen(
             onBack = onBack,
         )
         Spacer(Modifier.height(22.dp))
-        if (preferences == null && error == null) {
-            Row(Modifier.fillMaxWidth().padding(vertical = 48.dp), horizontalArrangement = Arrangement.Center) {
-                CircularProgressIndicator(color = NovaAccent)
-            }
-        } else {
+        when {
+            loading && preferences == null -> NovaLoadingState(message = "Loading notification preferences…")
+            preferences == null -> NovaErrorState(
+                title = "Couldn't load notifications",
+                message = error ?: "Try again to load your current preferences.",
+                onRetry = { loadRequest += 1 },
+            )
+            else -> {
             Text("What's new", color = NovaMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(8.dp))
             NotificationToggle("Likes, comments & shares", "People interacting with your content.", "likes_comments_shares", preferences?.likesCommentsShares == true, busyKey, ::update)
@@ -140,10 +154,19 @@ private fun NotificationPreferencesScreen(
             NotificationToggle("Reels & stories", "Updates from people you follow.", "reels_stories", preferences?.reelsStories == true, busyKey, ::update)
             NotificationToggle("Events & spaces", "Rooms, plans and reminders.", "events_spaces", preferences?.eventsSpaces == true, busyKey, ::update)
             NotificationToggle("Product updates", "Important changes to Nova.", "product_updates", preferences?.productUpdates == true, busyKey, ::update)
-        }
-        error?.let {
-            Spacer(Modifier.height(12.dp))
-            Text(it, color = androidx.compose.material3.MaterialTheme.colorScheme.error, fontSize = 12.sp)
+            if (error != null) {
+                Spacer(Modifier.height(4.dp))
+                NovaInlineRetry(
+                    message = error.orEmpty(),
+                    retryLabel = "Reload",
+                    onRetry = { loadRequest += 1 },
+                )
+            }
+            if (loading) {
+                Spacer(Modifier.height(8.dp))
+                Text("Refreshing preferences…", color = NovaMuted, fontSize = 12.sp)
+            }
+            }
         }
         Spacer(Modifier.height(24.dp))
     }
@@ -174,12 +197,28 @@ private fun NotificationToggle(
                 Text(title, color = NovaInk, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 Text(subtitle, color = NovaMuted, fontSize = 11.sp, lineHeight = 16.sp)
             }
-            Switch(
-                checked = checked,
-                onCheckedChange = { onChange(key, it) },
-                enabled = busyKey == null,
-                colors = SwitchDefaults.colors(checkedTrackColor = NovaAccent),
-            )
+            if (busyKey == key) {
+                androidx.compose.foundation.layout.Box(
+                    modifier = Modifier.size(48.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        color = NovaAccent,
+                        strokeWidth = 2.dp,
+                    )
+                }
+            } else {
+                Switch(
+                    checked = checked,
+                    onCheckedChange = { onChange(key, it) },
+                    enabled = busyKey == null,
+                    modifier = Modifier.semantics {
+                        stateDescription = if (checked) "On" else "Off"
+                    },
+                    colors = SwitchDefaults.colors(checkedTrackColor = NovaAccent),
+                )
+            }
         }
     }
 }

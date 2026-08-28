@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -23,13 +24,20 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nova.app.app.appContainer
 import com.nova.app.ui.components.NovaBackButton
 import com.nova.app.ui.components.NovaCard
+import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
@@ -111,13 +119,6 @@ class SettingsActivity : ComponentActivity() {
                         )
                         finish()
                     },
-                    onAbout = {
-                        android.app.AlertDialog.Builder(this)
-                            .setTitle("About Nova")
-                            .setMessage("Nova $appVersion\nQuiet Orbit. Real connections, when it matters.")
-                            .setPositiveButton("Done", null)
-                            .show()
-                    },
                     onPrivacyPolicy = { openExternalUrl(PRIVACY_POLICY_URL) },
                     onAccountDeletion = { openExternalUrl(ACCOUNT_DELETION_URL) },
                     onLogout = {
@@ -148,11 +149,19 @@ private fun SettingsScreen(
     onDataStorage: () -> Unit,
     onHelpSupport: () -> Unit,
     onTonight: () -> Unit,
-    onAbout: () -> Unit,
     onPrivacyPolicy: () -> Unit,
     onAccountDeletion: () -> Unit,
     onLogout: () -> Unit,
 ) {
+    var showAbout by rememberSaveable { mutableStateOf(false) }
+
+    if (showAbout) {
+        AboutNovaDialog(
+            appVersion = appVersion,
+            onDismiss = { showAbout = false },
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -189,13 +198,6 @@ private fun SettingsScreen(
             Column {
                 SettingsRow(
                     icon = NovaIconAsset.Security,
-                    title = "Account",
-                    subtitle = "Your Nova identity and account settings",
-                    onClick = null,
-                )
-                SettingsDivider()
-                SettingsRow(
-                    icon = NovaIconAsset.Security,
                     title = "Security",
                     subtitle = "Password, sessions and account protection",
                     onClick = onSecurity,
@@ -216,24 +218,38 @@ private fun SettingsScreen(
                 )
                 SettingsDivider()
                 SettingsRow(
-                    icon = NovaIconAsset.Home,
-                    title = "Appearance",
-                    subtitle = "Warm off-white · Light",
-                    onClick = null,
+                    icon = NovaIconAsset.Blocked,
+                    title = "Blocked accounts",
+                    subtitle = "Review people you've blocked",
+                    onClick = onBlockedAccounts,
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.size(NovaSpacing.xxl))
+        SettingsSectionLabel("Nova & device")
+
+        NovaCard(modifier = Modifier.fillMaxWidth()) {
+            Column {
+                SettingsRow(
+                    icon = NovaIconAsset.Orbit,
+                    title = "Tonight (Full)",
+                    subtitle = "Open Nova's live night experience",
+                    onClick = onTonight,
                 )
                 SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.AccountDeletion,
-                    title = "Data & storage",
-                    subtitle = "Permissions, cache and app storage",
+                    title = "Android app settings",
+                    subtitle = "Manage Nova permissions and storage in Android",
                     onClick = onDataStorage,
                 )
                 SettingsDivider()
                 SettingsRow(
-                    icon = NovaIconAsset.Policy,
-                    title = "Language",
-                    subtitle = "English",
-                    onClick = null,
+                    icon = NovaIconAsset.Info,
+                    title = "About Nova",
+                    subtitle = "Version $appVersion",
+                    onClick = { showAbout = true },
                 )
             }
         }
@@ -251,27 +267,6 @@ private fun SettingsScreen(
                 )
                 SettingsDivider()
                 SettingsRow(
-                    icon = NovaIconAsset.Orbit,
-                    title = "Tonight (Full)",
-                    subtitle = "Open Nova's live night experience",
-                    onClick = onTonight,
-                )
-                SettingsDivider()
-                SettingsRow(
-                    icon = NovaIconAsset.Home,
-                    title = "About Nova",
-                    subtitle = "Version $appVersion",
-                    onClick = onAbout,
-                )
-                SettingsDivider()
-                SettingsRow(
-                    icon = NovaIconAsset.Blocked,
-                    title = "Blocked accounts",
-                    subtitle = "Review people you've blocked",
-                    onClick = onBlockedAccounts,
-                )
-                SettingsDivider()
-                SettingsRow(
                     icon = NovaIconAsset.Policy,
                     title = "Privacy policy",
                     subtitle = "How Nova handles and protects your information",
@@ -280,8 +275,8 @@ private fun SettingsScreen(
                 SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.AccountDeletion,
-                    title = "Account deletion",
-                    subtitle = "Delete in-app or request deletion on the web",
+                    title = "Account deletion help",
+                    subtitle = "Web instructions; delete directly from Security",
                     onClick = onAccountDeletion,
                 )
             }
@@ -320,6 +315,55 @@ private fun SettingsScreen(
                     color = NovaInk,
                     style = NovaType.bodyCompact.copy(fontWeight = FontWeight.SemiBold),
                 )
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun AboutNovaDialog(
+    appVersion: String,
+    onDismiss: () -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = NovaSpacing.xl),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+            color = NovaSurface,
+            border = androidx.compose.foundation.BorderStroke(1.dp, NovaBorder),
+        ) {
+            Column(
+                modifier = Modifier.padding(NovaSpacing.xxl),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Surface(shape = CircleShape, color = NovaAccentSoft) {
+                    Box(modifier = Modifier.size(56.dp), contentAlignment = Alignment.Center) {
+                        NovaIcon(
+                            asset = NovaIconAsset.Orbit,
+                            contentDescription = null,
+                            tint = NovaAccent,
+                            modifier = Modifier.size(28.dp),
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.size(NovaSpacing.lg))
+                Text(text = "Nova", color = NovaInk, style = NovaType.screenTitle)
+                Text(text = "Version $appVersion", color = NovaMuted, style = NovaType.meta)
+                Spacer(modifier = Modifier.size(NovaSpacing.lg))
+                Text(
+                    text = "Quiet Orbit. Real connections, when it matters.",
+                    color = NovaMuted,
+                    style = NovaType.bodyCompact,
+                )
+                Spacer(modifier = Modifier.size(NovaSpacing.xl))
+                NovaSecondaryButton(text = "Done", onClick = onDismiss)
             }
         }
     }
