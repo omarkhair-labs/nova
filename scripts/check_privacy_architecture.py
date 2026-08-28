@@ -210,9 +210,12 @@ for required in (
     "fun start()",
     "loadSummaryBundle()",
     "loadFollowers(reset = true)",
+    "private var followerRequestVersion = 0L",
+    "if (requestVersion != followerRequestVersion) return",
     "raw.take(FOLLOWER_QUERY_MAX_LENGTH)",
     "delay(FOLLOWER_SEARCH_DEBOUNCE_MS)",
-    "query = state.followerQuery.trim()",
+    "val requestQuery = state.followerQuery.trim()",
+    "query = requestQuery",
     "val existingIds = state.followers.mapTo(mutableSetOf()) { it.id }",
     "state.followers + page.people.filterNot { it.id in existingIds }",
     "if (state.privacyBusy) return",
@@ -237,6 +240,7 @@ for test_name in (
     "close friend toggle keeps one global busy id and updates summary count",
     "follower query keeps 50 character cap and 280 ms debounce contract",
     "load more without cursor stays a no op",
+    "new follower search ignores an older in flight response",
 ):
     if test_name not in owner_test:
         errors.append(f"Privacy state-owner characterization is missing test: {test_name}")

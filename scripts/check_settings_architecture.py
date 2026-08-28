@@ -36,7 +36,7 @@ for forbidden in (
     "import com.nova.app.core.auth.NovaAuthRepository",
     "NovaSessionStore(applicationContext)",
     "NovaAuthRepository(applicationContext)",
-    "mutableStateOf",
+    "rememberCoroutineScope",
     "scope.launch",
 ):
     if forbidden in settings:
@@ -58,8 +58,10 @@ for required in (
     'title = "Security"',
     'title = "Blocked accounts"',
     'title = "Privacy policy"',
-    'title = "Account deletion"',
+    'title = "Account deletion help"',
     'text = "Log out"',
+    "AboutNovaDialog(",
+    'title = "Android app settings"',
 ):
     if required not in settings:
         errors.append(f"Settings protected navigation/UI seam changed or disappeared: {required}")

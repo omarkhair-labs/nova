@@ -329,7 +329,7 @@ Memory Film keeps its server plan, selection/render identity, unique WorkManager
 
 ### Flow 9 — Settings / Account / Privacy / Security / secondary utility surfaces
 
-Status: `PLANNED`
+Status: `PR READY`
 
 Primary goals:
 
@@ -338,6 +338,10 @@ Primary goals:
 - Privacy, Notifications, Security, Login Activity, Blocked Accounts, Data & Storage, Help/About;
 - accessibility and low cognitive load;
 - no unnecessary visual spectacle.
+
+Settings now exposes only real destinations: Security, Privacy, Notifications and Blocked Accounts remain AppContainer-backed; Android-owned permission/storage controls are named as Android app settings; unsupported Account, Appearance and Language affordances were removed; About uses a bounded Nova presentation with the installed version; and the distinct in-app deletion versus required web-help/legal routes is explicit. Notification Preferences preserves the exact eight server-owned switches while adding non-false initial loading, retryable failures, retained content during reload, per-action progress and accessible state descriptions.
+
+Privacy keeps its established repositories and truth model while removing its duplicate initial follower request and rejecting stale older follower-search responses. Its controls now provide recoverable initial/inline errors, IME-aware search, clearer loading/paging/decision progress, 48dp actions and switch state descriptions. Security keeps password, session, app-lock and deletion ownership unchanged while clarifying signed-in devices, offering device-list retry, presenting app lock as a truthful switch and moving the exact destructive confirmation into Nova UI. Blocked Accounts keeps one-at-a-time unblock and session-expiry semantics with flatter rows, Nova iconography and real progress. Samsung review remains required for large-font/RTL/IME behavior, system credential handoff for app lock, external legal/help intents, switch feedback and destructive confirmation. Flow 9 is not `DEVICE VERIFIED`.
 
 ---
 

@@ -1,6 +1,7 @@
 package com.nova.app.feature.auth
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -15,9 +17,10 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -29,24 +32,32 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.nova.app.app.appContainer
 import com.nova.app.feature.security.AccountSecurityStateOwner
 import com.nova.app.feature.security.PasswordRecoveryStage
 import com.nova.app.feature.security.PasswordRecoveryStateOwner
 import com.nova.app.ui.components.NovaHeader
+import com.nova.app.ui.components.NovaInlineLoading
 import com.nova.app.ui.components.NovaPrimaryButton
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.components.NovaTextField
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
+import com.nova.app.ui.theme.NovaBorder
+import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
+import com.nova.app.ui.theme.NovaSurface
 
 
 @Composable
@@ -204,32 +215,54 @@ fun AccountSecurityScreen(
     LaunchedEffect(owner) { owner.loadSessions() }
 
     if (state.showDeleteConfirm) {
-        AlertDialog(
+        Dialog(
             onDismissRequest = owner::dismissDeleteConfirmation,
-            title = { Text("Delete your Nova account?") },
-            text = {
-                Text(
-                    "Your profile, posts and social connections will be removed. Shared direct-message history stays with the other participant under Deleted user. This can't be undone.",
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = owner::confirmDelete,
-                    enabled = state.loadingAction == null,
-                ) {
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 24.dp),
+                color = NovaSurface,
+                shape = MaterialTheme.shapes.extraLarge,
+                border = BorderStroke(1.dp, NovaBorder),
+            ) {
+                Column(modifier = Modifier.padding(22.dp)) {
                     Text(
-                        if (state.loadingAction == "delete") "Deleting…" else "Delete account",
-                        color = MaterialTheme.colorScheme.error,
+                        "Delete your Nova account?",
+                        color = NovaInk,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
                     )
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "Your profile, posts and social connections will be removed. Shared direct-message history stays with the other participant under Deleted user. This can't be undone.",
+                        color = NovaMuted,
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp,
+                    )
+                    Spacer(Modifier.height(18.dp))
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        TextButton(
+                            onClick = owner::dismissDeleteConfirmation,
+                            enabled = state.loadingAction == null,
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        ) { Text("Cancel") }
+                        TextButton(
+                            onClick = owner::confirmDelete,
+                            enabled = state.loadingAction == null,
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        ) {
+                            Text(
+                                if (state.loadingAction == "delete") "Deleting…" else "Delete account",
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
                 }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = owner::dismissDeleteConfirmation,
-                    enabled = state.loadingAction == null,
-                ) { Text("Cancel") }
-            },
-        )
+            }
+        }
     }
 
     SecurityScrollablePage(
@@ -295,14 +328,24 @@ fun AccountSecurityScreen(
         )
         Spacer(Modifier.height(14.dp))
         if (state.loadingSessions && state.sessions.isEmpty()) {
-            Text("Loading signed-in devices…", color = NovaMuted, fontSize = 12.sp)
+            NovaInlineLoading(message = "Loading signed-in devices…")
+        } else if (state.sessions.isEmpty()) {
+            Text(
+                "No signed-in device details are available right now.",
+                color = NovaMuted,
+                fontSize = 12.sp,
+                lineHeight = 18.sp,
+            )
+            Spacer(Modifier.height(10.dp))
+            NovaSecondaryButton(text = "Refresh signed-in devices", onClick = owner::loadSessions)
             Spacer(Modifier.height(10.dp))
         }
         state.sessions.forEach { session ->
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = NovaAccentSoft,
+                color = NovaSurface,
                 shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
+                border = BorderStroke(1.dp, if (session.isCurrent) NovaAccent else NovaBorder),
             ) {
                 Row(
                     modifier = Modifier.padding(14.dp),
@@ -353,10 +396,34 @@ fun AccountSecurityScreen(
         )
         Spacer(Modifier.height(14.dp))
         if (appLockAvailable || appLockEnabled) {
-            NovaSecondaryButton(
-                text = if (appLockEnabled) "Turn off app lock" else "Turn on app lock",
-                onClick = { onAppLockChange(!appLockEnabled) },
-            )
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = NovaSurface,
+                shape = MaterialTheme.shapes.large,
+                border = BorderStroke(1.dp, NovaBorder),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Lock Nova on return", color = NovaInk, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            if (appLockEnabled) "Uses your device screen lock" else "Off",
+                            color = NovaMuted,
+                            fontSize = 11.sp,
+                        )
+                    }
+                    Switch(
+                        checked = appLockEnabled,
+                        onCheckedChange = onAppLockChange,
+                        modifier = Modifier.semantics {
+                            stateDescription = if (appLockEnabled) "On" else "Off"
+                        },
+                        colors = SwitchDefaults.colors(checkedTrackColor = NovaAccent),
+                    )
+                }
+            }
         }
 
         Spacer(Modifier.height(24.dp))
