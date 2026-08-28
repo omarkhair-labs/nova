@@ -49,13 +49,16 @@ class PrivacyStateOwner(
         private set
 
     private var followerQueryJob: Job? = null
+    private var followerRequestVersion = 0L
 
     fun start() {
         loadSummaryBundle()
         loadFollowers(reset = true)
-        // Match the existing LaunchedEffect(followerQuery): the initial empty query
-        // schedules a second reset after the same debounce window.
-        scheduleFollowerQueryLoad()
+    }
+
+    fun retry() {
+        loadSummaryBundle()
+        loadFollowers(reset = true)
     }
 
     fun loadSummaryBundle() {
@@ -116,6 +119,10 @@ class PrivacyStateOwner(
         if (username.isBlank()) return
         if (!reset && (state.loadingMore || state.followerCursor == null)) return
 
+        val requestVersion = if (reset) ++followerRequestVersion else followerRequestVersion
+        val requestQuery = state.followerQuery.trim()
+        val requestCursor = if (reset) null else state.followerCursor
+
         state = if (reset) {
             state.copy(loadingFollowers = true, error = null)
         } else {
@@ -125,11 +132,12 @@ class PrivacyStateOwner(
         when (
             val result = peoplePagingRepository.followers(
                 username = username,
-                query = state.followerQuery.trim(),
-                cursor = if (reset) null else state.followerCursor,
+                query = requestQuery,
+                cursor = requestCursor,
             )
         ) {
             is ApiResult.Success -> {
+                if (requestVersion != followerRequestVersion) return
                 val page = result.value
                 val nextFollowers = if (reset) {
                     page.people
@@ -143,13 +151,18 @@ class PrivacyStateOwner(
                 )
             }
 
-            is ApiResult.Failure -> handleFailure(result)
+            is ApiResult.Failure -> {
+                if (requestVersion != followerRequestVersion) return
+                handleFailure(result)
+            }
         }
 
-        state = state.copy(
-            loadingFollowers = false,
-            loadingMore = false,
-        )
+        if (requestVersion == followerRequestVersion) {
+            state = state.copy(
+                loadingFollowers = false,
+                loadingMore = false,
+            )
+        }
     }
 
     fun togglePrivate(enabled: Boolean) {

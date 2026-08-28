@@ -9,8 +9,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,6 +25,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -30,14 +35,21 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.app.appContainer
 import com.nova.app.feature.people.domain.model.NovaPerson
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaHeader
+import com.nova.app.ui.components.NovaErrorState
+import com.nova.app.ui.components.NovaInlineRetry
+import com.nova.app.ui.components.NovaLoadingState
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
@@ -55,6 +67,7 @@ fun PrivacyScreen(
 ) {
     val context = LocalContext.current
     val appContainer = context.appContainer
+    val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
     val sessionExpiredCallback = rememberUpdatedState(onSessionExpired)
     val owner = remember(appContainer, scope) {
@@ -79,6 +92,7 @@ fun PrivacyScreen(
             .background(NovaBackground)
             .statusBarsPadding()
             .navigationBarsPadding()
+            .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 18.dp),
     ) {
@@ -91,12 +105,13 @@ fun PrivacyScreen(
         Spacer(Modifier.height(22.dp))
 
         if (state.loading && state.summary == null) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 36.dp),
-                horizontalArrangement = Arrangement.Center,
-            ) {
-                CircularProgressIndicator(color = NovaAccent)
-            }
+            NovaLoadingState(message = "Loading privacy settings…")
+        } else if (state.summary == null) {
+            NovaErrorState(
+                title = "Couldn't load privacy settings",
+                message = state.error ?: "Try again to load your privacy controls.",
+                onRetry = owner::retry,
+            )
         } else {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -132,6 +147,9 @@ fun PrivacyScreen(
                         checked = state.summary?.isPrivate == true,
                         onCheckedChange = owner::togglePrivate,
                         enabled = !state.privacyBusy,
+                        modifier = Modifier.semantics {
+                            stateDescription = if (state.summary?.isPrivate == true) "Private" else "Public"
+                        },
                         colors = SwitchDefaults.colors(checkedThumbColor = NovaBackground, checkedTrackColor = NovaAccent),
                     )
                 }
@@ -169,7 +187,7 @@ fun PrivacyScreen(
                         listOf("followers" to "Followers", "close_friends" to "Close Friends").forEach { (value, label) ->
                             Surface(
                                 onClick = { if (!state.privacyBusy) owner.setStoryAudience(value) },
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                                 shape = RoundedCornerShape(14.dp),
                                 color = if (state.summary?.storyAudience == value) NovaAccent else NovaBackground,
                                 border = BorderStroke(1.dp, if (state.summary?.storyAudience == value) NovaAccent else NovaBorder),
@@ -201,7 +219,7 @@ fun PrivacyScreen(
                 listOf("received" to "Received", "sent" to "Sent").forEach { (value, label) ->
                     Surface(
                         onClick = { owner.setFollowRequestTab(value) },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                         shape = RoundedCornerShape(14.dp),
                         color = if (state.followRequestTab == value) NovaAccent else NovaSurface,
                         border = BorderStroke(1.dp, if (state.followRequestTab == value) NovaAccent else NovaBorder),
@@ -266,6 +284,8 @@ fun PrivacyScreen(
                     unfocusedBorderColor = NovaBorder,
                     cursorColor = NovaAccent,
                 ),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
             )
             Spacer(Modifier.height(10.dp))
 
@@ -321,21 +341,9 @@ fun PrivacyScreen(
                 )
             }
         }
-        state.error?.let {
+        if (state.summary != null) state.error?.let {
             Spacer(Modifier.height(10.dp))
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                color = NovaSurface,
-                border = BorderStroke(1.dp, NovaBorder),
-            ) {
-                Text(
-                    text = it,
-                    modifier = Modifier.padding(13.dp),
-                    color = NovaMuted,
-                    fontSize = 12.sp,
-                )
-            }
+            NovaInlineRetry(message = it, onRetry = owner::retry)
         }
 
         Spacer(Modifier.height(24.dp))
@@ -403,6 +411,9 @@ private fun PrivacyToggleRow(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
                 enabled = enabled,
+                modifier = Modifier.semantics {
+                    stateDescription = if (checked) "On" else "Off"
+                },
                 colors = SwitchDefaults.colors(checkedTrackColor = NovaAccent),
             )
         }
@@ -463,7 +474,7 @@ private fun PersonDecisionCard(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Surface(
                     onClick = { if (!busy) onPrimary() },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                     shape = RoundedCornerShape(14.dp),
                     color = NovaAccent,
                 ) {
@@ -478,7 +489,7 @@ private fun PersonDecisionCard(
                 }
                 Surface(
                     onClick = { if (!busy) onSecondary() },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                     shape = RoundedCornerShape(14.dp),
                     color = NovaSurface,
                     border = BorderStroke(1.dp, NovaBorder),
@@ -527,17 +538,31 @@ private fun CloseFriendRow(
             }
             Surface(
                 onClick = { if (!busy) onToggle() },
+                modifier = Modifier.heightIn(min = 48.dp),
                 shape = RoundedCornerShape(13.dp),
                 color = if (selected) NovaAccentSoft else NovaBackground,
                 border = BorderStroke(1.dp, if (selected) NovaAccent else NovaBorder),
             ) {
-                Text(
-                    text = if (busy) "…" else if (selected) "Close friend" else "Add",
-                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
-                    color = if (selected) NovaAccent else NovaInk,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
+                if (busy) {
+                    androidx.compose.foundation.layout.Box(
+                        modifier = Modifier.heightIn(min = 48.dp).padding(horizontal = 18.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = NovaAccent,
+                            strokeWidth = 2.dp,
+                        )
+                    }
+                } else {
+                    Text(
+                        text = if (selected) "Close friend" else "Add",
+                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
+                        color = if (selected) NovaAccent else NovaInk,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
         }
     }

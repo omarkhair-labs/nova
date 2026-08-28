@@ -281,6 +281,37 @@ class PrivacyStateOwnerTest {
         assertFalse(owner.state.loadingMore)
     }
 
+    @Test
+    fun `new follower search ignores an older in flight response`() = runBlocking {
+        val releaseFirst = CompletableDeferred<Unit>()
+        val firstStarted = CompletableDeferred<Unit>()
+        val job = Job()
+        val paging = FakePeoplePagingRepository(
+            followerResults = mutableListOf(
+                ApiResult.Success(NovaPersonPage(listOf(person(1, "old")), null)),
+                ApiResult.Success(NovaPersonPage(listOf(person(2, "new")), null)),
+            ),
+            firstStarted = firstStarted,
+            releaseFirst = releaseFirst,
+        )
+        val owner = owner(
+            paging = paging,
+            scope = CoroutineScope(job + Dispatchers.Unconfined),
+        )
+
+        owner.setFollowerQuery("old")
+        owner.loadFollowers(reset = true)
+        firstStarted.await()
+        owner.setFollowerQuery("new")
+        owner.loadFollowersNow(reset = true)
+        assertEquals(listOf(2L), owner.state.followers.map { it.id })
+
+        releaseFirst.complete(Unit)
+        assertEquals(listOf(2L), owner.state.followers.map { it.id })
+        assertFalse(owner.state.loadingFollowers)
+        job.cancel()
+    }
+
     private fun owner(
         username: String = "omar",
         privacy: PrivacyRepository = FakePrivacyRepository(),
@@ -386,8 +417,11 @@ private class FakePeoplePagingRepository(
     private val followerResults: MutableList<ApiResult<NovaPersonPage>> = mutableListOf(
         ApiResult.Success(NovaPersonPage(emptyList(), null)),
     ),
+    private val firstStarted: CompletableDeferred<Unit>? = null,
+    private val releaseFirst: CompletableDeferred<Unit>? = null,
 ) : PeoplePagingRepository {
     val followerCalls = mutableListOf<FollowerCall>()
+    private var followerCallCount = 0
 
     override suspend fun people(query: String, cursor: String?): ApiResult<NovaPersonPage> = error("unused")
 
@@ -397,11 +431,17 @@ private class FakePeoplePagingRepository(
         cursor: String?,
     ): ApiResult<NovaPersonPage> {
         followerCalls += FollowerCall(username, query, cursor)
-        return if (followerResults.isEmpty()) {
+        followerCallCount += 1
+        val result = if (followerResults.isEmpty()) {
             ApiResult.Success(NovaPersonPage(emptyList(), null))
         } else {
             followerResults.removeFirst()
         }
+        if (followerCallCount == 1 && releaseFirst != null) {
+            firstStarted?.complete(Unit)
+            releaseFirst.await()
+        }
+        return result
     }
 
     override suspend fun following(

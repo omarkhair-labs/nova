@@ -10,13 +10,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,6 +39,8 @@ import com.nova.app.feature.security.BlockedAccountsStateOwner
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaHeader
 import com.nova.app.ui.components.NovaSecondaryButton
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
@@ -130,13 +135,14 @@ fun BlockedAccountsScreen(
                                 shape = RoundedCornerShape(20.dp),
                                 color = NovaAccentSoft,
                             ) {
-                                Text(
-                                    text = "✓",
-                                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
-                                    color = NovaAccent,
-                                    fontSize = 22.sp,
-                                    fontWeight = FontWeight.Bold,
-                                )
+                                Box(modifier = Modifier.size(52.dp), contentAlignment = Alignment.Center) {
+                                    NovaIcon(
+                                        asset = NovaIconAsset.Check,
+                                        contentDescription = null,
+                                        tint = NovaAccent,
+                                        modifier = Modifier.size(24.dp),
+                                    )
+                                }
                             }
                             Spacer(modifier = Modifier.height(14.dp))
                             Text(
@@ -165,9 +171,7 @@ fun BlockedAccountsScreen(
                     items(state.blocked, key = { it.id }) { person ->
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(20.dp),
-                            color = NovaSurface,
-                            border = BorderStroke(1.dp, NovaBorder),
+                            color = NovaBackground,
                         ) {
                             Row(
                                 modifier = Modifier.padding(14.dp),
@@ -196,19 +200,34 @@ fun BlockedAccountsScreen(
                                     onClick = {
                                         if (state.unblockingUsername == null) owner.unblock(person)
                                     },
+                                    modifier = Modifier.heightIn(min = 48.dp),
                                     shape = RoundedCornerShape(14.dp),
                                     color = NovaAccentSoft,
                                 ) {
-                                    Text(
-                                        text = if (state.unblockingUsername == person.username) "…" else "Unblock",
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                        color = NovaAccent,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                    )
+                                    if (state.unblockingUsername == person.username) {
+                                        Box(
+                                            modifier = Modifier.heightIn(min = 48.dp).padding(horizontal = 20.dp),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(20.dp),
+                                                color = NovaAccent,
+                                                strokeWidth = 2.dp,
+                                            )
+                                        }
+                                    } else {
+                                        Text(
+                                            text = "Unblock",
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                            color = NovaAccent,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                        )
+                                    }
                                 }
                             }
                         }
+                        HorizontalDivider(color = NovaBorder)
                     }
                     item { Spacer(modifier = Modifier.height(12.dp)) }
                 }
