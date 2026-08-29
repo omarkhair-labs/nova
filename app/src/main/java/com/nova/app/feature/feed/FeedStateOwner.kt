@@ -93,6 +93,8 @@ class FeedStateOwner(
         firstPageJob?.cancel()
         accountGeneration += 1
         clearMutationTracking()
+        pendingUserRefresh = false
+        pendingBackgroundRefresh = false
         val generation = accountGeneration
         val refreshActionRevision = actionRevision
         val refreshFeedMutationRevision = feedMutationRevision
