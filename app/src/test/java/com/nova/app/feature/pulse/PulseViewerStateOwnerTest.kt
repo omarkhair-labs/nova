@@ -11,6 +11,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 
@@ -30,6 +31,55 @@ class PulseViewerStateOwnerTest {
         assertEquals(expected, owner.state.chain)
         assertFalse(owner.state.loading)
         assertNull(owner.state.error)
+    }
+
+    @Test
+    fun `chain refresh preserves playback identity when signed urls rotate`() = runBlocking {
+        val initial = pulse(
+            id = 1,
+            mediaUrl = "https://media.example/pulse.mp4?signature=old",
+            thumbnailUrl = "https://media.example/pulse.jpg?signature=old",
+        )
+        val refreshed = initial.copy(
+            mediaUrl = "https://media.example/pulse.mp4?signature=new",
+            thumbnailUrl = "https://media.example/pulse.jpg?signature=new",
+            viewersCount = 12,
+        )
+        val owner = PulseViewerStateOwner(
+            initial,
+            FakePulseViewerRepository(chainResults = mutableListOf(ApiResult.Success(listOf(refreshed)))),
+            CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        owner.loadChainNow(initial.id, showSpinner = false)
+
+        assertEquals(initial.mediaUrl, owner.state.chain.single().mediaUrl)
+        assertEquals(initial.thumbnailUrl, owner.state.chain.single().thumbnailUrl)
+        assertEquals(12, owner.state.chain.single().viewersCount)
+        assertFalse(owner.state.loading)
+    }
+
+    @Test
+    fun `record view updates engagement without rotating playback url`() = runBlocking {
+        val initial = pulse(
+            id = 1,
+            mediaUrl = "https://media.example/pulse.mp4?signature=old",
+        )
+        val viewed = initial.copy(
+            mediaUrl = "https://media.example/pulse.mp4?signature=new",
+            viewersCount = 9,
+        )
+        val owner = PulseViewerStateOwner(
+            initial,
+            FakePulseViewerRepository(viewResults = mutableListOf(ApiResult.Success(viewed))),
+            CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        owner.recordView(initial.id)
+
+        assertEquals(initial.mediaUrl, owner.state.chain.single().mediaUrl)
+        assertEquals(9, owner.state.chain.single().viewersCount)
+        assertTrue(owner.state.error == null)
     }
 
     @Test
@@ -88,6 +138,7 @@ private class FakePulseViewerRepository(
     private val chainResults: MutableList<ApiResult<List<NovaPulse>>> = mutableListOf(),
     private val textReplyResults: MutableList<ApiResult<NovaPulse>> = mutableListOf(),
     private val mediaReplyResults: MutableList<ApiResult<NovaPulse>> = mutableListOf(),
+    private val viewResults: MutableList<ApiResult<NovaPulse>> = mutableListOf(),
 ) : PulseRepository {
     override suspend fun pulses(): ApiResult<List<NovaPulse>> = ApiResult.Success(emptyList())
 
@@ -117,6 +168,9 @@ private class FakePulseViewerRepository(
     ): ApiResult<NovaPulse> = mediaReplyResults.removeFirst()
 
     override suspend fun deletePulse(pulseId: Long): ApiResult<Unit> = ApiResult.Success(Unit)
+
+    override suspend fun recordView(pulseId: Long): ApiResult<NovaPulse> =
+        viewResults.removeFirst()
 }
 
 
@@ -125,6 +179,8 @@ private fun pulse(
     mine: Boolean = false,
     replyToId: Long? = null,
     chainRootId: Long? = null,
+    mediaUrl: String = "",
+    thumbnailUrl: String = "",
 ) = NovaPulse(
     id = id,
     author = NovaPulseAuthor(
@@ -133,8 +189,9 @@ private fun pulse(
         name = "Person $id",
         avatarUrl = "",
     ),
-    mediaUrl = "",
-    mediaType = "text",
+    mediaUrl = mediaUrl,
+    thumbnailUrl = thumbnailUrl,
+    mediaType = if (mediaUrl.isBlank()) "text" else "video",
     audience = "followers",
     note = "Pulse $id",
     createdAt = "2026-08-22T12:00:0${id}Z",

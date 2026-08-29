@@ -260,11 +260,11 @@ fun PulseRail(
         val viewerState = viewerOwner.state
 
         LaunchedEffect(pulse.id) {
-            viewerOwner.loadChain(pulse.id)
+            viewerOwner.loadChain(pulse.id, showSpinner = true)
             viewerOwner.recordView(pulse.id)
             while (true) {
                 delay(10_000)
-                viewerOwner.loadChain(pulse.id)
+                viewerOwner.loadChain(pulse.id, showSpinner = false)
             }
         }
         LaunchedEffect(viewerState.sessionExpiryVersion) {
