@@ -268,6 +268,7 @@ class PulseRemoteRepository(
                         },
                         files = media.files,
                         bearerToken = token,
+                        onUploadProgress = onProgress,
                     )
                 ) {
                     is ApiResult.Success -> ApiResult.Success(

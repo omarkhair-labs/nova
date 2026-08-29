@@ -109,6 +109,7 @@ class NovaFeedRepository(
                     mediaType = "image",
                     media = image,
                     clientPublishId = clientPublishId,
+                    onUploadProgress = onProgress,
                 )
             }
         }
@@ -142,6 +143,7 @@ class NovaFeedRepository(
                         sourceFile = preparedVideo.thumbnailFile,
                     ),
                     clientPublishId = clientPublishId,
+                    onUploadProgress = onProgress,
                 )
             }
         } finally {

@@ -117,6 +117,7 @@ class NovaStoriesRepository(
                     audience = cleanAudience,
                     clientPublishId = clientPublishId,
                     expectedUserId = expectedUserId,
+                    onUploadProgress = onProgress,
                 )
             } finally {
                 prepared.delete()
@@ -140,6 +141,7 @@ class NovaStoriesRepository(
                     audience = cleanAudience,
                     clientPublishId = clientPublishId,
                     expectedUserId = expectedUserId,
+                    onUploadProgress = onProgress,
                 )
             } finally {
                 prepared.file.delete()
@@ -379,6 +381,7 @@ class NovaStoriesRepository(
         audience: String,
         clientPublishId: String,
         expectedUserId: Long?,
+        onUploadProgress: ((Int?) -> Unit)? = null,
     ): ApiResult<NovaStory> = authenticatedCall(expectedUserId) { token ->
         when (
             val response = authApi.requestMultipart(
@@ -396,6 +399,7 @@ class NovaStoriesRepository(
                     thumbnail?.let { put("thumbnail", it) }
                 },
                 bearerToken = token,
+                onUploadProgress = onUploadProgress,
             )
         ) {
                 is ApiResult.Success -> ApiResult.Success(parseStory(response.value))

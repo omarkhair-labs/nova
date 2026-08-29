@@ -107,6 +107,7 @@ class NovaReelsRepository(
                             ),
                         ),
                         bearerToken = token,
+                        onUploadProgress = onProgress,
                     )
                 ) {
                     is ApiResult.Success -> ApiResult.Success(parseReel(response.value))

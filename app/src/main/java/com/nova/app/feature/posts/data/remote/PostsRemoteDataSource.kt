@@ -56,6 +56,7 @@ class PostsRemoteDataSource(
         media: UploadFile,
         thumbnail: UploadFile? = null,
         clientPublishId: String? = null,
+        onUploadProgress: ((Int?) -> Unit)? = null,
     ): ApiResult<NovaPost> {
         val mediaField = if (mediaType == "video") "video" else "image"
         val files = buildMap {
@@ -75,6 +76,7 @@ class PostsRemoteDataSource(
                 },
                 files = files,
                 bearerToken = accessToken,
+                onUploadProgress = onUploadProgress,
             )
         ) {
             is ApiResult.Success -> ApiResult.Success(parseNovaPost(response.value, api::resolveMediaUrl))

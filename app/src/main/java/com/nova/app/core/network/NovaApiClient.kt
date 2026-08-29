@@ -9,7 +9,10 @@ import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
+import okio.Buffer
 import okio.BufferedSink
+import okio.ForwardingSink
+import okio.buffer
 import okio.source
 import org.json.JSONArray
 import org.json.JSONObject
@@ -138,12 +141,14 @@ class NovaApiClient(
         fileField: String,
         file: UploadFile?,
         bearerToken: String,
+        onUploadProgress: ((Int?) -> Unit)? = null,
     ): ApiResult<JSONObject> = requestMultipart(
         path = path,
         method = method,
         fields = fields,
         files = if (file == null) emptyMap() else mapOf(fileField to file),
         bearerToken = bearerToken,
+        onUploadProgress = onUploadProgress,
     )
 
     internal suspend fun requestMultipart(
@@ -152,6 +157,7 @@ class NovaApiClient(
         fields: Map<String, String>,
         files: Map<String, UploadFile>,
         bearerToken: String,
+        onUploadProgress: ((Int?) -> Unit)? = null,
     ): ApiResult<JSONObject> = withContext(Dispatchers.IO) {
         try {
             val multipart = MultipartBody.Builder()
@@ -165,11 +171,14 @@ class NovaApiClient(
                     }
                 }
                 .build()
+            val requestBody = onUploadProgress?.let { callback ->
+                UploadProgressRequestBody(multipart, callback)
+            } ?: multipart
             val request = Request.Builder()
                 .url(baseUrl + path)
                 .header("Accept", "application/json")
                 .header("Authorization", "Bearer $bearerToken")
-                .method(method.uppercase(), multipart)
+                .method(method.uppercase(), requestBody)
                 .build()
 
             debugMultipart(
@@ -294,5 +303,47 @@ class NovaApiClient(
 
     private companion object {
         const val MULTIPART_LOG_TAG = "NovaMultipart"
+    }
+}
+
+
+private class UploadProgressRequestBody(
+    private val delegate: RequestBody,
+    private val onProgress: (Int?) -> Unit,
+) : RequestBody() {
+    override fun contentType(): MediaType? = delegate.contentType()
+
+    override fun contentLength(): Long = delegate.contentLength()
+
+    override fun writeTo(sink: BufferedSink) {
+        val totalBytes = contentLength()
+        var writtenBytes = 0L
+        var lastProgress = -1
+
+        if (totalBytes <= 0L) {
+            onProgress(null)
+            delegate.writeTo(sink)
+            return
+        }
+
+        onProgress(0)
+        lastProgress = 0
+        val countingSink = object : ForwardingSink(sink) {
+            override fun write(source: Buffer, byteCount: Long) {
+                super.write(source, byteCount)
+                writtenBytes += byteCount
+                val progress = ((writtenBytes * 100L) / totalBytes)
+                    .toInt()
+                    .coerceIn(0, 100)
+                if (progress != lastProgress) {
+                    lastProgress = progress
+                    onProgress(progress)
+                }
+            }
+        }
+        val bufferedSink = countingSink.buffer()
+        delegate.writeTo(bufferedSink)
+        bufferedSink.flush()
+        if (lastProgress < 100) onProgress(100)
     }
 }
