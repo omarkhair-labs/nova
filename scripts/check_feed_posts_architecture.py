@@ -223,9 +223,30 @@ for required_text in (
     "onResolvePost = postRepository::post",
     "onSendReply = commentsOwner::sendReply",
     "onDeleteReply = commentsOwner::deleteReply",
+    "val homeFeedState = feedOwner.state",
+    "val homePublishingState = publishingOwner.state",
+    "posts = homeFeedState.posts.takeIf { feedBelongsToUser }.orEmpty()",
+    "isLoading = !feedBelongsToUser || homeFeedState.isLoading",
+    "publishingItems = homePublishingState.items.takeIf",
 ):
     if required_text not in app_text:
         errors.append(f"NovaApp missing stable feed/posts wiring: {required_text}")
+
+home_entry = app_text.split("NovaRoute.Home -> NavEntry(route) {", 1)
+if len(home_entry) != 2:
+    errors.append("NovaApp Home NavEntry is missing")
+else:
+    home_entry_text = home_entry[1].split("NovaRoute.Orbit -> NavEntry(route) {", 1)[0]
+    for stale_capture in (
+        "posts = feedState.posts",
+        "isLoading = !feedBelongsToUser || feedState.isLoading",
+        "publishingItems = publishingState.items",
+    ):
+        if stale_capture in home_entry_text:
+            errors.append(
+                "Home NavEntry must observe owner state inside its composable content; "
+                f"stale outer snapshot returned: {stale_capture}"
+            )
 
 # Phase 5 exit: no core post-author alias/import may return anywhere in Android sources.
 for kotlin_file in (ROOT / "app/src").rglob("*.kt"):
