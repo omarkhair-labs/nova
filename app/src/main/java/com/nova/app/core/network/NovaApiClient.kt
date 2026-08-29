@@ -160,7 +160,7 @@ class NovaApiClient(
         onUploadProgress: ((Int?) -> Unit)? = null,
     ): ApiResult<JSONObject> = withContext(Dispatchers.IO) {
         try {
-            val multipart = MultipartBody.Builder()
+            val multipartBody = MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
                 .apply {
                     fields.forEach { (name, value) ->
@@ -171,14 +171,14 @@ class NovaApiClient(
                     }
                 }
                 .build()
-            val requestBody = onUploadProgress?.let { callback ->
-                UploadProgressRequestBody(multipart, callback)
-            } ?: multipart
+            val multipart: RequestBody = onUploadProgress?.let { callback ->
+                UploadProgressRequestBody(multipartBody, callback)
+            } ?: multipartBody
             val request = Request.Builder()
                 .url(baseUrl + path)
                 .header("Accept", "application/json")
                 .header("Authorization", "Bearer $bearerToken")
-                .method(method.uppercase(), requestBody)
+                .method(method.uppercase(), multipart)
                 .build()
 
             debugMultipart(
