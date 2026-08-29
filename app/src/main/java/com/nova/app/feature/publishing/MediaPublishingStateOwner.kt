@@ -48,6 +48,7 @@ class MediaPublishingStateOwner(
     private val workManager = WorkManager.getInstance(appContext)
     private var pollingJob: Job? = null
     private val seenSuccesses = mutableSetOf<UUID>()
+    private var observerStartedAtMs = 0L
 
     var state by mutableStateOf(MediaPublishingUiState())
         private set
@@ -56,11 +57,12 @@ class MediaPublishingStateOwner(
         if (state.userId == userId && pollingJob?.isActive == true) return
         pollingJob?.cancel()
         seenSuccesses.clear()
+        observerStartedAtMs = System.currentTimeMillis()
         state = MediaPublishingUiState(userId = userId)
         pollingJob = scope.launch {
             while (isActive && state.userId == userId) {
                 refresh(userId)
-                delay(1_500L)
+                delay(POLL_INTERVAL_MS)
             }
         }
     }
@@ -69,6 +71,7 @@ class MediaPublishingStateOwner(
         pollingJob?.cancel()
         pollingJob = null
         seenSuccesses.clear()
+        observerStartedAtMs = 0L
         state = MediaPublishingUiState()
     }
 
@@ -90,6 +93,11 @@ class MediaPublishingStateOwner(
         var storyVersion = state.storyPublishedVersion
         var pulseVersion = state.pulsePublishedVersion
         infos.filter { it.state == WorkInfo.State.SUCCEEDED }.forEach { info ->
+            val finishedAt = info.outputData.getLong(MediaPublishWorker.KEY_FINISHED_AT, 0L)
+            if (!isPublishSuccessFresh(finishedAt, observerStartedAtMs)) {
+                seenSuccesses.add(info.id)
+                return@forEach
+            }
             if (seenSuccesses.add(info.id)) {
                 when (MediaPublishTarget.fromWire(info.outputData.getString(MediaPublishWorker.KEY_TARGET).orEmpty())) {
                     MediaPublishTarget.POST -> postVersion += 1
@@ -110,7 +118,17 @@ class MediaPublishingStateOwner(
             pulsePublishedVersion = pulseVersion,
         )
     }
+
+    private companion object {
+        const val POLL_INTERVAL_MS = 2_500L
+    }
 }
+
+
+internal fun isPublishSuccessFresh(
+    finishedAtMs: Long,
+    observerStartedAtMs: Long,
+): Boolean = finishedAtMs > 0L && observerStartedAtMs > 0L && finishedAtMs >= observerStartedAtMs
 
 
 internal fun publishItem(info: WorkInfo, nowMs: Long = System.currentTimeMillis()): MediaPublishItem? {

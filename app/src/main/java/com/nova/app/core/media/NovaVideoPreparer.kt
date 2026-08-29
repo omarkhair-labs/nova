@@ -2,6 +2,8 @@ package com.nova.app.core.media
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.media.MediaExtractor
+import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Handler
@@ -57,12 +59,30 @@ class NovaVideoPreparer(context: Context) {
             )
         }
 
+        onProgress(0)
+        if (isAlreadyNovaCompatible(sourceFile)) {
+            val thumbnail = extractThumbnail(sourceFile)
+                ?: run {
+                    sourceFile.delete()
+                    return ApiResult.Failure(
+                        "Nova couldn't read a visible frame from that video. Nothing was uploaded.",
+                    )
+                }
+            onProgress(100)
+            return ApiResult.Success(
+                PreparedNovaVideo(
+                    videoFile = sourceFile,
+                    thumbnailFile = thumbnail,
+                    durationMs = sourceDuration,
+                ),
+            )
+        }
+
         val outputFile = File.createTempFile("nova-video-ready-", ".mp4", appContext.cacheDir)
         outputFile.delete()
-        onProgress(0)
         val transformed = transform(sourceFile, outputFile, onProgress)
         sourceFile.delete()
-        transformed.exceptionOrNull()?.let { error ->
+        transformed.exceptionOrNull()?.let {
             outputFile.delete()
             return ApiResult.Failure(
                 "That video isn't compatible with Nova yet. Choose another clip and try again.",
@@ -209,6 +229,28 @@ class NovaVideoPreparer(context: Context) {
         }
     }
 
+    private suspend fun isAlreadyNovaCompatible(file: File): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            val containerMime = withRetriever(file) { retriever ->
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE).orEmpty()
+            }
+            val extractor = MediaExtractor()
+            try {
+                extractor.setDataSource(file.absolutePath)
+                val trackMimes = buildList {
+                    for (index in 0 until extractor.trackCount) {
+                        extractor.getTrackFormat(index)
+                            .getString(MediaFormat.KEY_MIME)
+                            ?.let(::add)
+                    }
+                }
+                supportsNovaVideoContract(containerMime, trackMimes)
+            } finally {
+                extractor.release()
+            }
+        }.getOrDefault(false)
+    }
+
     private suspend fun extractThumbnail(file: File): File? = withContext(Dispatchers.IO) {
         runCatching {
             withRetriever(file) { retriever ->
@@ -244,4 +286,19 @@ internal fun isDurationPreserved(sourceDurationMs: Long, outputDurationMs: Long)
     if (sourceDurationMs <= 0L || outputDurationMs <= 0L) return false
     val allowedLoss = maxOf(500L, sourceDurationMs / 20L)
     return outputDurationMs >= sourceDurationMs - allowedLoss
+}
+
+
+internal fun supportsNovaVideoContract(
+    containerMime: String,
+    trackMimes: List<String>,
+): Boolean {
+    if (!containerMime.equals("video/mp4", ignoreCase = true)) return false
+
+    val normalized = trackMimes.map(String::lowercase)
+    val videoTracks = normalized.filter { it.startsWith("video/") }
+    if (videoTracks.size != 1 || videoTracks.single() != "video/avc") return false
+
+    val audioTracks = normalized.filter { it.startsWith("audio/") }
+    return audioTracks.all { it == "audio/mp4a-latm" }
 }

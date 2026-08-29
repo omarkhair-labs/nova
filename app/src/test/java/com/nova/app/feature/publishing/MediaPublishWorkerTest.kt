@@ -32,6 +32,14 @@ class MediaPublishWorkerTest {
     }
 
     @Test
+    fun `old completed work is not replayed as a new publish event`() {
+        assertFalse(isPublishSuccessFresh(finishedAtMs = 9_999L, observerStartedAtMs = 10_000L))
+        assertFalse(isPublishSuccessFresh(finishedAtMs = 0L, observerStartedAtMs = 10_000L))
+        assertTrue(isPublishSuccessFresh(finishedAtMs = 10_000L, observerStartedAtMs = 10_000L))
+        assertTrue(isPublishSuccessFresh(finishedAtMs = 10_001L, observerStartedAtMs = 10_000L))
+    }
+
+    @Test
     fun `durable publish never crosses signed-in account`() {
         assertTrue(publishAccountMatches(expectedUserId = 12L, activeUserId = 12L))
         assertFalse(publishAccountMatches(expectedUserId = 12L, activeUserId = 13L))
