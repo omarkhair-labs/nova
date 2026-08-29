@@ -67,6 +67,7 @@ fun HomeScreen(
     avatarUrl: String,
     posts: List<NovaPost>,
     isLoading: Boolean,
+    isRefreshing: Boolean,
     isLoadingMore: Boolean,
     hasMore: Boolean,
     errorMessage: String?,
@@ -219,7 +220,7 @@ fun HomeScreen(
         },
     ) { innerPadding ->
         PullToRefreshBox(
-            isRefreshing = isLoading && posts.isNotEmpty(),
+            isRefreshing = isRefreshing,
             onRefresh = {
                 if (!isLoadingMore) onRefresh()
                 refreshUnreadCount()

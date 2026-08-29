@@ -10,6 +10,7 @@ import com.nova.app.feature.posts.data.PostRepository
 import com.nova.app.feature.posts.data.PostRepostRepository
 import com.nova.app.feature.posts.domain.model.NovaPost
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
@@ -18,6 +19,7 @@ data class FeedUiState(
     val userId: Long? = null,
     val posts: List<NovaPost> = emptyList(),
     val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
     val isLoadingMore: Boolean = false,
     val nextCursor: String? = null,
     val errorMessage: String? = null,
@@ -61,6 +63,8 @@ class FeedStateOwner(
     private var firstPageJob: Job? = null
     private var lastFirstPageRefreshUserId: Long? = null
     private var lastFirstPageRefreshAtMs: Long? = null
+    private var pendingUserRefresh = false
+    private var pendingBackgroundRefresh = false
 
     fun reset() {
         firstPageJob?.cancel()
@@ -69,6 +73,8 @@ class FeedStateOwner(
         clearMutationTracking()
         lastFirstPageRefreshUserId = null
         lastFirstPageRefreshAtMs = null
+        pendingUserRefresh = false
+        pendingBackgroundRefresh = false
         state = FeedUiState(
             contentVersion = state.contentVersion + 1,
             sessionExpiryVersion = state.sessionExpiryVersion,
@@ -87,6 +93,8 @@ class FeedStateOwner(
         firstPageJob?.cancel()
         accountGeneration += 1
         clearMutationTracking()
+        pendingUserRefresh = false
+        pendingBackgroundRefresh = false
         val generation = accountGeneration
         val refreshActionRevision = actionRevision
         val refreshFeedMutationRevision = feedMutationRevision
@@ -148,8 +156,24 @@ class FeedStateOwner(
     }
 
     fun loadFeed() {
-        if (state.isLoading || state.isLoadingMore) return
-        val request = beginFirstPageRefresh() ?: return
+        if (state.isLoading || state.isLoadingMore) {
+            pendingBackgroundRefresh = true
+            return
+        }
+        startFirstPageRefresh(userInitiated = false)
+    }
+
+    fun refreshFeed() {
+        if (state.isLoading || state.isLoadingMore) {
+            pendingUserRefresh = true
+            state = state.copy(isRefreshing = true)
+            return
+        }
+        startFirstPageRefresh(userInitiated = true)
+    }
+
+    private fun startFirstPageRefresh(userInitiated: Boolean) {
+        val request = beginFirstPageRefresh(userInitiated) ?: return
         firstPageJob = scope.launch {
             refreshFirstPage(
                 expectedUserId = request.expectedUserId,
@@ -161,7 +185,7 @@ class FeedStateOwner(
     }
 
     internal suspend fun loadFeedNow() {
-        val request = beginFirstPageRefresh() ?: return
+        val request = beginFirstPageRefresh(userInitiated = false) ?: return
         refreshFirstPage(
             expectedUserId = request.expectedUserId,
             generation = request.generation,
@@ -170,7 +194,7 @@ class FeedStateOwner(
         )
     }
 
-    private fun beginFirstPageRefresh(): FirstPageRefreshRequest? {
+    private fun beginFirstPageRefresh(userInitiated: Boolean): FirstPageRefreshRequest? {
         if (state.isLoading || state.isLoadingMore) return null
         val request = FirstPageRefreshRequest(
             expectedUserId = state.userId,
@@ -180,6 +204,7 @@ class FeedStateOwner(
         )
         state = state.copy(
             isLoading = true,
+            isRefreshing = userInitiated,
             errorMessage = null,
             actionErrorPostId = null,
             actionErrorMessage = null,
@@ -194,30 +219,55 @@ class FeedStateOwner(
         refreshActionRevision: Int = actionRevision,
         refreshFeedMutationRevision: Int = feedMutationRevision,
     ) {
-        when (val result = feedRepository.feed()) {
-            is ApiResult.Success -> {
-                if (!isCurrentAccount(expectedUserId, generation)) return
+        try {
+            when (val result = feedRepository.feed()) {
+                is ApiResult.Success -> {
+                    if (!isCurrentAccount(expectedUserId, generation)) return
+                    state = state.copy(
+                        posts = reconcileRefreshPosts(
+                            serverPosts = result.value.posts,
+                            refreshActionRevision = refreshActionRevision,
+                            refreshFeedMutationRevision = refreshFeedMutationRevision,
+                        ),
+                        nextCursor = result.value.nextCursor,
+                        isLoading = false,
+                        isRefreshing = false,
+                    )
+                }
+
+                is ApiResult.Failure -> {
+                    if (!isCurrentAccount(expectedUserId, generation)) return
+                    state = if (result.statusCode == 401) {
+                        state.copy(
+                            isLoading = false,
+                            isRefreshing = false,
+                            sessionExpiryVersion = state.sessionExpiryVersion + 1,
+                        )
+                    } else {
+                        state.copy(
+                            isLoading = false,
+                            isRefreshing = false,
+                            errorMessage = result.message,
+                        )
+                    }
+                }
+            }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Throwable) {
+            if (isCurrentAccount(expectedUserId, generation)) {
                 state = state.copy(
-                    posts = reconcileRefreshPosts(
-                        serverPosts = result.value.posts,
-                        refreshActionRevision = refreshActionRevision,
-                        refreshFeedMutationRevision = refreshFeedMutationRevision,
-                    ),
-                    nextCursor = result.value.nextCursor,
                     isLoading = false,
+                    isRefreshing = false,
+                    errorMessage = "Can't refresh your feed right now. Try again.",
                 )
             }
-
-            is ApiResult.Failure -> {
-                if (!isCurrentAccount(expectedUserId, generation)) return
-                state = if (result.statusCode == 401) {
-                    state.copy(
-                        isLoading = false,
-                        sessionExpiryVersion = state.sessionExpiryVersion + 1,
-                    )
-                } else {
-                    state.copy(isLoading = false, errorMessage = result.message)
+        } finally {
+            if (isCurrentAccount(expectedUserId, generation)) {
+                if (state.isLoading || state.isRefreshing) {
+                    state = state.copy(isLoading = false, isRefreshing = false)
                 }
+                drainPendingFirstPageRefresh()
             }
         }
     }
@@ -233,26 +283,42 @@ class FeedStateOwner(
         val expectedUserId = state.userId
         val generation = accountGeneration
         state = state.copy(isLoadingMore = true, errorMessage = null)
-        when (val result = feedRepository.feed(cursor)) {
-            is ApiResult.Success -> {
-                if (!isCurrentAccount(expectedUserId, generation)) return
+        try {
+            when (val result = feedRepository.feed(cursor)) {
+                is ApiResult.Success -> {
+                    if (!isCurrentAccount(expectedUserId, generation)) return
+                    state = state.copy(
+                        posts = mergeFeedPage(state.posts, result.value.posts),
+                        nextCursor = result.value.nextCursor,
+                        isLoadingMore = false,
+                    )
+                }
+
+                is ApiResult.Failure -> {
+                    if (!isCurrentAccount(expectedUserId, generation)) return
+                    state = if (result.statusCode == 401) {
+                        state.copy(
+                            isLoadingMore = false,
+                            sessionExpiryVersion = state.sessionExpiryVersion + 1,
+                        )
+                    } else {
+                        state.copy(isLoadingMore = false, errorMessage = result.message)
+                    }
+                }
+            }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Throwable) {
+            if (isCurrentAccount(expectedUserId, generation)) {
                 state = state.copy(
-                    posts = mergeFeedPage(state.posts, result.value.posts),
-                    nextCursor = result.value.nextCursor,
                     isLoadingMore = false,
+                    errorMessage = "Can't load more moments right now. Try again.",
                 )
             }
-
-            is ApiResult.Failure -> {
-                if (!isCurrentAccount(expectedUserId, generation)) return
-                state = if (result.statusCode == 401) {
-                    state.copy(
-                        isLoadingMore = false,
-                        sessionExpiryVersion = state.sessionExpiryVersion + 1,
-                    )
-                } else {
-                    state.copy(isLoadingMore = false, errorMessage = result.message)
-                }
+        } finally {
+            if (isCurrentAccount(expectedUserId, generation)) {
+                if (state.isLoadingMore) state = state.copy(isLoadingMore = false)
+                drainPendingFirstPageRefresh()
             }
         }
     }
@@ -538,6 +604,18 @@ class FeedStateOwner(
             posts = cached.posts,
             nextCursor = cached.nextCursor,
         )
+    }
+
+    private fun drainPendingFirstPageRefresh() {
+        if (state.isLoading || state.isLoadingMore) return
+
+        val userInitiated = pendingUserRefresh
+        val backgroundRequested = pendingBackgroundRefresh
+        if (!userInitiated && !backgroundRequested) return
+
+        pendingUserRefresh = false
+        pendingBackgroundRefresh = false
+        startFirstPageRefresh(userInitiated = userInitiated)
     }
 
     private fun recordFirstPageRefreshStarted(userId: Long?) {
