@@ -51,11 +51,13 @@ class MediaPublishWorker(
         setProgress(progressData(STAGE_PREPARING))
         val isVideo = applicationContext.contentResolver.getType(Uri.parse(source))
             ?.startsWith("video/") == true
-        if (!isVideo) setProgress(progressData(STAGE_UPLOADING))
+        var uploadStarted = !isVideo
+        if (uploadStarted) setProgress(progressData(STAGE_UPLOADING, 0))
 
         val progress: (Int?) -> Unit = { value ->
-            val stage = if (value == 100) STAGE_UPLOADING else STAGE_PREPARING
-            setProgressAsync(progressData(stage, value.takeUnless { stage == STAGE_UPLOADING }))
+            val transition = advancePublishProgress(uploadStarted, value)
+            uploadStarted = transition.uploadStarted
+            setProgressAsync(progressData(transition.stage, transition.progress))
         }
 
         val response: ApiResult<Long> = when (target) {
@@ -266,3 +268,34 @@ internal fun shouldRetryPublish(statusCode: Int?, runAttemptCount: Int): Boolean
 
 internal fun publishAccountMatches(expectedUserId: Long, activeUserId: Long?): Boolean =
     expectedUserId > 0L && activeUserId == expectedUserId
+
+
+
+internal data class PublishProgressTransition(
+    val uploadStarted: Boolean,
+    val stage: String,
+    val progress: Int?,
+)
+
+
+internal fun advancePublishProgress(
+    uploadStarted: Boolean,
+    value: Int?,
+): PublishProgressTransition {
+    if (!uploadStarted && value == 100) {
+        return PublishProgressTransition(
+            uploadStarted = true,
+            stage = MediaPublishWorker.STAGE_UPLOADING,
+            progress = 0,
+        )
+    }
+    return PublishProgressTransition(
+        uploadStarted = uploadStarted,
+        stage = if (uploadStarted) {
+            MediaPublishWorker.STAGE_UPLOADING
+        } else {
+            MediaPublishWorker.STAGE_PREPARING
+        },
+        progress = value,
+    )
+}

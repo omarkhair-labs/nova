@@ -32,6 +32,24 @@ class MediaPublishWorkerTest {
     }
 
     @Test
+    fun `publish progress switches from preparation to real upload progress`() {
+        val preparing = advancePublishProgress(uploadStarted = false, value = 42)
+        assertFalse(preparing.uploadStarted)
+        assertEquals(MediaPublishWorker.STAGE_PREPARING, preparing.stage)
+        assertEquals(42, preparing.progress)
+
+        val uploadStart = advancePublishProgress(uploadStarted = false, value = 100)
+        assertTrue(uploadStart.uploadStarted)
+        assertEquals(MediaPublishWorker.STAGE_UPLOADING, uploadStart.stage)
+        assertEquals(0, uploadStart.progress)
+
+        val uploading = advancePublishProgress(uploadStarted = true, value = 63)
+        assertTrue(uploading.uploadStarted)
+        assertEquals(MediaPublishWorker.STAGE_UPLOADING, uploading.stage)
+        assertEquals(63, uploading.progress)
+    }
+
+    @Test
     fun `old completed work is not replayed as a new publish event`() {
         assertFalse(isPublishSuccessFresh(finishedAtMs = 9_999L, observerStartedAtMs = 10_000L))
         assertFalse(isPublishSuccessFresh(finishedAtMs = 0L, observerStartedAtMs = 10_000L))

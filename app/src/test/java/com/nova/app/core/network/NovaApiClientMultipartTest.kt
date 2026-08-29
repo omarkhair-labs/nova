@@ -131,6 +131,33 @@ class NovaApiClientMultipartTest {
     }
 
     @Test
+    fun `multipart reports real upload byte progress from zero to one hundred`() = withServer { server ->
+        val progress = mutableListOf<Int?>()
+        runBlocking {
+            server.client.requestMultipart(
+                path = "progress/",
+                method = "POST",
+                fields = mapOf("caption" to "Progress"),
+                files = mapOf(
+                    "media" to UploadFile(
+                        bytes = ByteArray(128 * 1024) { (it % 251).toByte() },
+                        fileName = "progress.bin",
+                        mimeType = "application/octet-stream",
+                    ),
+                ),
+                bearerToken = "test-token",
+                onUploadProgress = { progress += it },
+            )
+        }
+
+        assertTrue(progress.isNotEmpty())
+        assertEquals(0, progress.first())
+        assertEquals(100, progress.last())
+        assertTrue(progress.filterNotNull().zipWithNext().all { (a, b) -> b >= a })
+        server.singleRequest().assertKnownLengthBody()
+    }
+
+    @Test
     fun `Pulse multipart sends publication fields plus prepared video and thumbnail`() = withServer { server ->
         runBlocking {
             server.client.requestMultipart(
