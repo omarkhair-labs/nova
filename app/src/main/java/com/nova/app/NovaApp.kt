@@ -390,29 +390,31 @@ fun NovaApp(
 
                 NovaRoute.Home -> NavEntry(route) {
                     val user = appState.currentUser
+                    val homeFeedState = feedOwner.state
+                    val homePublishingState = publishingOwner.state
                     LaunchedEffect(user?.id) {
                         if (user == null) feedOwner.reset() else feedOwner.enter(user.id)
                     }
 
-                    val feedBelongsToUser = user != null && feedState.userId == user.id
+                    val feedBelongsToUser = user != null && homeFeedState.userId == user.id
 
                     HomeScreen(
                         displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
                         username = user?.username ?: "nova",
                         avatarUrl = user?.avatarUrl.orEmpty(),
-                        posts = feedState.posts.takeIf { feedBelongsToUser }.orEmpty(),
-                        isLoading = !feedBelongsToUser || feedState.isLoading,
-                        isRefreshing = feedBelongsToUser && feedState.isRefreshing,
-                        isLoadingMore = feedBelongsToUser && feedState.isLoadingMore,
-                        hasMore = feedBelongsToUser && feedState.hasMore,
-                        errorMessage = feedState.errorMessage.takeIf { feedBelongsToUser },
-                        deletingPostId = feedState.deletingPostId.takeIf { feedBelongsToUser },
-                        likingPostIds = feedState.likingPostIds.takeIf { feedBelongsToUser }.orEmpty(),
-                        repostingPostIds = feedState.repostingPostIds.takeIf { feedBelongsToUser }.orEmpty(),
-                        actionErrorPostId = feedState.actionErrorPostId.takeIf { feedBelongsToUser },
-                        actionErrorMessage = feedState.actionErrorMessage.takeIf { feedBelongsToUser },
-                        publishingItems = publishingState.items.takeIf {
-                            publishingState.userId == user?.id
+                        posts = homeFeedState.posts.takeIf { feedBelongsToUser }.orEmpty(),
+                        isLoading = !feedBelongsToUser || homeFeedState.isLoading,
+                        isRefreshing = feedBelongsToUser && homeFeedState.isRefreshing,
+                        isLoadingMore = feedBelongsToUser && homeFeedState.isLoadingMore,
+                        hasMore = feedBelongsToUser && homeFeedState.hasMore,
+                        errorMessage = homeFeedState.errorMessage.takeIf { feedBelongsToUser },
+                        deletingPostId = homeFeedState.deletingPostId.takeIf { feedBelongsToUser },
+                        likingPostIds = homeFeedState.likingPostIds.takeIf { feedBelongsToUser }.orEmpty(),
+                        repostingPostIds = homeFeedState.repostingPostIds.takeIf { feedBelongsToUser }.orEmpty(),
+                        actionErrorPostId = homeFeedState.actionErrorPostId.takeIf { feedBelongsToUser },
+                        actionErrorMessage = homeFeedState.actionErrorMessage.takeIf { feedBelongsToUser },
+                        publishingItems = homePublishingState.items.takeIf {
+                            homePublishingState.userId == user?.id
                         }.orEmpty(),
                         onCreatePost = {
                             feedOwner.clearPostError()
