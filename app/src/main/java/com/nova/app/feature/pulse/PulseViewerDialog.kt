@@ -408,6 +408,7 @@ private fun PulseViewerMedia(
         )
         "video" -> NovaVideoPlayer(
             source = pulse.mediaUrl,
+            mediaIdentity = "pulse:${pulse.id}",
             thumbnailSource = pulse.thumbnailUrl,
             modifier = Modifier.fillMaxSize(),
             autoplay = playbackEnabled,

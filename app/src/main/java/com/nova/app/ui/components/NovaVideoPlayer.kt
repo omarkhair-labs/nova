@@ -45,6 +45,7 @@ import com.nova.app.ui.theme.NovaMuted
 @Composable
 fun NovaVideoPlayer(
     source: String,
+    mediaIdentity: String = source,
     modifier: Modifier = Modifier,
     thumbnailSource: String = "",
     autoplay: Boolean = false,
@@ -55,7 +56,7 @@ fun NovaVideoPlayer(
     description: String = "Video",
 ) {
     val context = LocalContext.current
-    val player = remember(source) {
+    val player = remember(mediaIdentity) {
         ExoPlayer.Builder(context.applicationContext).build().apply {
             setAudioAttributes(
                 AudioAttributes.Builder()

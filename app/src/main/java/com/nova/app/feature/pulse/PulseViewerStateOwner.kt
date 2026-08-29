@@ -33,8 +33,8 @@ class PulseViewerStateOwner(
         state = state.copy(error = null)
     }
 
-    fun loadChain(pulseId: Long) {
-        scope.launch { loadChainNow(pulseId) }
+    fun loadChain(pulseId: Long, showSpinner: Boolean = true) {
+        scope.launch { loadChainNow(pulseId, showSpinner) }
     }
 
     fun recordView(pulseId: Long) {
@@ -55,11 +55,17 @@ class PulseViewerStateOwner(
         }
     }
 
-    internal suspend fun loadChainNow(pulseId: Long) {
-        state = state.copy(loading = true, error = null)
+    internal suspend fun loadChainNow(pulseId: Long, showSpinner: Boolean = true) {
+        state = state.copy(
+            loading = if (showSpinner) true else state.loading,
+            error = null,
+        )
         when (val result = repository.pulseChain(pulseId)) {
             is ApiResult.Success -> state = state.copy(
-                chain = result.value.ifEmpty { state.chain },
+                chain = reconcilePulseChainPlaybackIdentity(
+                    current = state.chain,
+                    incoming = result.value,
+                ),
                 loading = false,
                 error = null,
             )
@@ -113,7 +119,13 @@ class PulseViewerStateOwner(
 
     private fun replacePulse(pulse: NovaPulse) {
         state = state.copy(
-            chain = state.chain.map { if (it.id == pulse.id) pulse else it },
+            chain = state.chain.map { current ->
+                if (current.id == pulse.id) {
+                    reconcilePulsePlaybackIdentity(current, pulse)
+                } else {
+                    current
+                }
+            },
             error = null,
         )
     }
@@ -125,4 +137,28 @@ class PulseViewerStateOwner(
             state.copy(error = result.message)
         }
     }
+}
+
+
+internal fun reconcilePulseChainPlaybackIdentity(
+    current: List<NovaPulse>,
+    incoming: List<NovaPulse>,
+): List<NovaPulse> {
+    if (incoming.isEmpty()) return current
+    val currentById = current.associateBy(NovaPulse::id)
+    return incoming.map { pulse ->
+        reconcilePulsePlaybackIdentity(currentById[pulse.id], pulse)
+    }
+}
+
+
+internal fun reconcilePulsePlaybackIdentity(
+    current: NovaPulse?,
+    incoming: NovaPulse,
+): NovaPulse {
+    current ?: return incoming
+    return incoming.copy(
+        mediaUrl = current.mediaUrl.ifBlank { incoming.mediaUrl },
+        thumbnailUrl = current.thumbnailUrl.ifBlank { incoming.thumbnailUrl },
+    )
 }
