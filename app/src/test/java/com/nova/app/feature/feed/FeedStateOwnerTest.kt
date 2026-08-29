@@ -478,6 +478,119 @@ class FeedStateOwnerTest {
         assertNull(owner.state.deletingPostId)
     }
 
+    @Test
+    fun `background refresh never impersonates a user pull refresh`() = runBlocking {
+        val initial = completedPage(post(70))
+        val background = CompletableDeferred<ApiResult<NovaPostPage>>()
+        val feed = CachedDeferredFeedRepository(
+            caches = emptyMap(),
+            responses = listOf(initial, background),
+        )
+        val owner = FeedStateOwner(
+            feed,
+            NoOpPostRepository(),
+            NoOpPostRepostRepository(),
+            CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        owner.loadFeedNow()
+        owner.loadFeed()
+
+        assertTrue(owner.state.isLoading)
+        assertFalse(owner.state.isRefreshing)
+
+        background.complete(ApiResult.Success(NovaPostPage(listOf(post(71)), null)))
+        yield()
+        assertFalse(owner.state.isLoading)
+        assertFalse(owner.state.isRefreshing)
+    }
+
+    @Test
+    fun `user refresh requested during background refresh is queued instead of dropped`() = runBlocking {
+        val initial = completedPage(post(72))
+        val background = CompletableDeferred<ApiResult<NovaPostPage>>()
+        val manual = CompletableDeferred<ApiResult<NovaPostPage>>()
+        val feed = CachedDeferredFeedRepository(
+            caches = emptyMap(),
+            responses = listOf(initial, background, manual),
+        )
+        val owner = FeedStateOwner(
+            feed,
+            NoOpPostRepository(),
+            NoOpPostRepostRepository(),
+            CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        owner.loadFeedNow()
+        owner.loadFeed()
+        owner.refreshFeed()
+
+        assertEquals(2, feed.feedCalls)
+        assertTrue(owner.state.isRefreshing)
+
+        background.complete(ApiResult.Success(NovaPostPage(listOf(post(73)), null)))
+        yield()
+
+        assertEquals(3, feed.feedCalls)
+        assertTrue(owner.state.isRefreshing)
+
+        manual.complete(ApiResult.Success(NovaPostPage(listOf(post(74)), null)))
+        yield()
+
+        assertEquals(listOf(74L), owner.state.posts.map { it.id })
+        assertFalse(owner.state.isLoading)
+        assertFalse(owner.state.isRefreshing)
+    }
+
+    @Test
+    fun `background refresh requested while busy runs after current request`() = runBlocking {
+        val initial = completedPage(post(75))
+        val firstBackground = CompletableDeferred<ApiResult<NovaPostPage>>()
+        val pendingBackground = CompletableDeferred<ApiResult<NovaPostPage>>()
+        val feed = CachedDeferredFeedRepository(
+            caches = emptyMap(),
+            responses = listOf(initial, firstBackground, pendingBackground),
+        )
+        val owner = FeedStateOwner(
+            feed,
+            NoOpPostRepository(),
+            NoOpPostRepostRepository(),
+            CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        owner.loadFeedNow()
+        owner.loadFeed()
+        owner.loadFeed()
+
+        assertEquals(2, feed.feedCalls)
+
+        firstBackground.complete(ApiResult.Success(NovaPostPage(listOf(post(76)), null)))
+        yield()
+
+        assertEquals(3, feed.feedCalls)
+        pendingBackground.complete(ApiResult.Success(NovaPostPage(listOf(post(77)), null)))
+        yield()
+
+        assertEquals(listOf(77L), owner.state.posts.map { it.id })
+        assertFalse(owner.state.isLoading)
+    }
+
+    @Test
+    fun `unexpected feed exception releases loading state`() = runBlocking {
+        val owner = FeedStateOwner(
+            ThrowingFeedRepository(),
+            NoOpPostRepository(),
+            NoOpPostRepostRepository(),
+            CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        owner.loadFeedNow()
+
+        assertFalse(owner.state.isLoading)
+        assertFalse(owner.state.isRefreshing)
+        assertEquals("Can't refresh your feed right now. Try again.", owner.state.errorMessage)
+    }
+
     private fun post(id: Long) = NovaPost(
         id = id,
         author = NovaPostAuthor(7L, "author", "Author", ""),
@@ -581,4 +694,13 @@ private class CachedDeferredFeedRepository(
         cacheRequests += userId
         return caches[userId]
     }
+}
+
+
+
+private class ThrowingFeedRepository : FeedRepository {
+    override suspend fun feed(cursor: String?): ApiResult<NovaPostPage> =
+        error("synthetic feed transport failure")
+
+    override fun cachedFeed(userId: Long): NovaPostPage? = null
 }
