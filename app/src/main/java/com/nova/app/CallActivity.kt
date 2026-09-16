@@ -31,7 +31,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -64,7 +63,9 @@ import com.nova.app.feature.calls.CallStateOwner
 import com.nova.app.feature.calls.CallUiState
 import com.nova.app.feature.calls.domain.model.NovaCallKind
 import com.nova.app.feature.calls.domain.model.NovaCallPerson
+import com.nova.app.ui.components.NovaBrandMark
 import com.nova.app.ui.components.NovaMediaImage
+import com.nova.app.ui.components.NovaPresenceIndicator
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
@@ -370,7 +371,7 @@ private fun CallScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(if (isVideo) Color(0xFF090A0C) else NovaBackground),
+            .background(if (isVideo) Color(0xFF0A0B14) else NovaBackground),
     ) {
         if (videoLive) {
             WebRtcVideo(
@@ -494,12 +495,12 @@ private fun CallScreen(
         }
 
         if (!isPictureInPicture && state.permissionsPending) {
-            CircularProgressIndicator(
-                color = NovaAccent,
-                strokeWidth = 2.5.dp,
+            NovaPresenceIndicator(
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .size(28.dp),
+                    .size(32.dp),
+                monochrome = isVideo,
+                monochromeColor = Color.White,
             )
         }
 
@@ -566,12 +567,21 @@ private fun CallIdentity(
                             .clip(CircleShape)
                             .background(if (isVideo) Color.White.copy(alpha = 0.08f) else NovaSurface),
                     ) {
-                        Text(
-                            text = peer?.displayName?.firstOrNull()?.uppercase() ?: "N",
-                            color = if (isVideo) Color.White else NovaAccent,
-                            fontSize = 44.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
+                        val fallbackInitial = peer?.displayName?.firstOrNull()?.uppercase()
+                        if (fallbackInitial != null) {
+                            Text(
+                                text = fallbackInitial,
+                                color = if (isVideo) Color.White else NovaAccent,
+                                fontSize = 44.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        } else {
+                            NovaBrandMark(
+                                modifier = Modifier.size(54.dp),
+                                monochrome = true,
+                                monochromeColor = if (isVideo) Color.White else NovaAccent,
+                            )
+                        }
                     }
                 }
             }
@@ -605,17 +615,29 @@ private fun CallIdentity(
             },
             border = if (isVideo) null else BorderStroke(1.dp, if (reconnecting) NovaAccent else NovaBorder),
         ) {
-            Text(
-                text = stage,
-                color = when {
-                    isVideo -> Color.White.copy(alpha = 0.88f)
-                    reconnecting -> NovaAccent
-                    else -> NovaMuted
-                },
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
+            Row(
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
-            )
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                if (reconnecting) {
+                    NovaPresenceIndicator(
+                        modifier = Modifier.size(14.dp),
+                        monochrome = true,
+                        monochromeColor = if (isVideo) Color.White else NovaAccent,
+                    )
+                }
+                Text(
+                    text = stage,
+                    color = when {
+                        isVideo -> Color.White.copy(alpha = 0.88f)
+                        reconnecting -> NovaAccent
+                        else -> NovaMuted
+                    },
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
         }
     }
 }
