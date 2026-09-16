@@ -2,6 +2,7 @@ package com.nova.app.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -99,7 +100,16 @@ fun NovaEmptyState(
                 shape = MaterialTheme.shapes.large,
                 color = NovaAccentSoft,
             ) {
-                Spacer(modifier = Modifier.size(48.dp))
+                Box(
+                    modifier = Modifier.size(48.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    NovaBrandMark(
+                        modifier = Modifier.size(28.dp),
+                        monochrome = true,
+                        monochromeColor = NovaAccent,
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(NovaSpacing.lg))
             Text(

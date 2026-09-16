@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -48,6 +47,7 @@ import com.nova.app.feature.publishing.MediaPublishingStateOwner
 import com.nova.app.feature.pulse.domain.model.NovaPulse
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaMediaImage
+import com.nova.app.ui.components.NovaPresenceIndicator
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
@@ -135,7 +135,7 @@ fun PulseRail(
                     style = NovaType.title.copy(fontWeight = FontWeight.Bold),
                 )
                 Text(
-                    text = "What’s happening in your orbit",
+                    text = "What’s happening with your people",
                     color = NovaMuted,
                     style = NovaType.micro,
                 )
@@ -162,11 +162,7 @@ fun PulseRail(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    color = NovaAccent,
-                    strokeWidth = 2.dp,
-                )
+                NovaPresenceIndicator(modifier = Modifier.size(28.dp))
             }
         } else {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -333,10 +329,10 @@ private fun PulseCreateCard(
             }
 
             if (uploading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(22.dp).align(Alignment.CenterHorizontally),
-                    color = NovaAccent,
-                    strokeWidth = 2.dp,
+                NovaPresenceIndicator(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .align(Alignment.CenterHorizontally),
                 )
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
