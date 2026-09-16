@@ -2,7 +2,6 @@ package com.nova.app.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,7 +26,6 @@ import com.nova.app.app.appContainer
 import com.nova.app.core.reels.NovaReelsNavigator
 import com.nova.app.feature.reels.ProfileReelsGridStateOwner
 import com.nova.app.feature.reels.ProfileReelsSource
-import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
@@ -69,10 +66,7 @@ fun NovaProfileReelsGrid(
                         .padding(vertical = 46.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    CircularProgressIndicator(
-                        color = NovaAccent,
-                        strokeWidth = 2.dp,
-                    )
+                    NovaPresenceIndicator(modifier = Modifier.size(34.dp))
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
                         text = "Loading Reels…",
@@ -169,10 +163,14 @@ fun NovaProfileReelsGrid(
 
                 if (nextCursor != null) {
                     Spacer(modifier = Modifier.height(12.dp))
-                    NovaSecondaryButton(
-                        text = if (isLoadingMore) "Loading more…" else "Load more Reels",
-                        onClick = { if (!isLoadingMore) owner.loadMore() },
-                    )
+                    if (isLoadingMore) {
+                        NovaInlineLoading(message = "Loading more Reels…")
+                    } else {
+                        NovaSecondaryButton(
+                            text = "Load more Reels",
+                            onClick = owner::loadMore,
+                        )
+                    }
                 }
             }
         }
