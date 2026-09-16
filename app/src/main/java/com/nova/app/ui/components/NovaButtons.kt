@@ -1,14 +1,18 @@
 package com.nova.app.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -25,10 +29,12 @@ fun NovaPrimaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    busy: Boolean = false,
+    busyText: String = text,
 ) {
     Button(
         onClick = onClick,
-        enabled = enabled,
+        enabled = enabled && !busy,
         modifier = modifier
             .fillMaxWidth()
             .height(56.dp),
@@ -41,10 +47,22 @@ fun NovaPrimaryButton(
         ),
         elevation = ButtonDefaults.buttonElevation(defaultElevation = NovaElevation.flat),
     ) {
-        Text(
-            text = text,
-            style = NovaType.button,
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (busy) {
+                NovaPresenceIndicator(
+                    modifier = Modifier.size(18.dp),
+                    monochrome = true,
+                    monochromeColor = Color.White,
+                )
+            }
+            Text(
+                text = if (busy) busyText else text,
+                style = NovaType.button,
+            )
+        }
     }
 }
 
