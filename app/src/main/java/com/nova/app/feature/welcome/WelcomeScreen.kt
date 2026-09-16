@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nova.app.ui.components.NovaBrandArrival
 import com.nova.app.ui.components.NovaBrandMark
 import com.nova.app.ui.components.NovaPrimaryButton
 import com.nova.app.ui.components.NovaSecondaryButton
@@ -33,6 +34,7 @@ import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
+
 
 @Composable
 fun WelcomeScreen(
@@ -71,7 +73,7 @@ fun WelcomeScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            NovaBrandMark(modifier = Modifier.size(92.dp))
+            NovaBrandArrival(modifier = Modifier.size(92.dp))
             Spacer(modifier = Modifier.height(22.dp))
 
             Surface(

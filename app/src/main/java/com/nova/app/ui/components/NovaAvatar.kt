@@ -27,6 +27,8 @@ fun NovaAvatar(
     size: Dp = 86.dp,
     modifier: Modifier = Modifier,
 ) {
+    val fallbackInitial = fallbackText.trim().firstOrNull()?.uppercase()
+
     Box(
         modifier = modifier
             .size(size)
@@ -34,12 +36,20 @@ fun NovaAvatar(
             .background(NovaAccentSoft),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = fallbackText.firstOrNull()?.uppercase() ?: "N",
-            color = NovaAccent,
-            fontSize = (size.value * 0.34f).sp,
-            fontWeight = FontWeight.Bold,
-        )
+        if (fallbackInitial != null) {
+            Text(
+                text = fallbackInitial,
+                color = NovaAccent,
+                fontSize = (size.value * 0.34f).sp,
+                fontWeight = FontWeight.Bold,
+            )
+        } else {
+            NovaBrandMark(
+                modifier = Modifier.fillMaxSize(0.54f),
+                monochrome = true,
+                monochromeColor = NovaAccent,
+            )
+        }
 
         if (source.isNotBlank()) {
             AsyncImage(

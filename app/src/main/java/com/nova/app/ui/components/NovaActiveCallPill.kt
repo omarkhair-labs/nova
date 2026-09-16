@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -86,16 +85,20 @@ fun NovaActiveCallPill(
                 modifier = Modifier.size(38.dp),
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    NovaIcon(
-                        asset = if (call.kind == NovaCallKind.Video) {
-                            NovaIconAsset.CallVideo
-                        } else {
-                            NovaIconAsset.CallAudio
-                        },
-                        contentDescription = null,
-                        tint = NovaAccent,
-                        modifier = Modifier.size(19.dp),
-                    )
+                    if (call.status == NovaCallStatus.Ringing) {
+                        NovaPresenceIndicator(modifier = Modifier.size(24.dp))
+                    } else {
+                        NovaIcon(
+                            asset = if (call.kind == NovaCallKind.Video) {
+                                NovaIconAsset.CallVideo
+                            } else {
+                                NovaIconAsset.CallAudio
+                            },
+                            contentDescription = null,
+                            tint = NovaAccent,
+                            modifier = Modifier.size(19.dp),
+                        )
+                    }
                 }
             }
 
