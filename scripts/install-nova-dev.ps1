@@ -7,8 +7,61 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $firebase = Join-Path $root "app\src\debug\google-services.json"
 $apk = Join-Path $root "app\build\outputs\apk\debug\app-debug.apk"
 
+function Resolve-JavaHome {
+    if ($env:JAVA_HOME -and (Test-Path (Join-Path $env:JAVA_HOME "bin\java.exe"))) {
+        return $env:JAVA_HOME
+    }
+
+    $javaCommand = Get-Command java -ErrorAction SilentlyContinue
+    if ($javaCommand) {
+        $javaExe = (Resolve-Path $javaCommand.Source).Path
+        return (Split-Path (Split-Path $javaExe -Parent) -Parent)
+    }
+
+    $candidates = @(
+        (Join-Path $env:ProgramFiles "Android\Android Studio\jbr"),
+        (Join-Path $env:LOCALAPPDATA "Programs\Android Studio\jbr"),
+        (Join-Path $env:ProgramFiles "Android\Android Studio\jre")
+    )
+
+    foreach ($candidate in $candidates) {
+        if ($candidate -and (Test-Path (Join-Path $candidate "bin\java.exe"))) {
+            return $candidate
+        }
+    }
+
+    $roots = @(
+        (Join-Path $env:ProgramFiles "Eclipse Adoptium"),
+        (Join-Path $env:ProgramFiles "Java"),
+        (Join-Path $env:USERPROFILE ".jdks")
+    )
+
+    foreach ($searchRoot in $roots) {
+        if (-not $searchRoot -or -not (Test-Path $searchRoot)) { continue }
+        $jdk = Get-ChildItem $searchRoot -Directory -ErrorAction SilentlyContinue |
+            Where-Object { Test-Path (Join-Path $_.FullName "bin\java.exe") } |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+        if ($jdk) { return $jdk.FullName }
+    }
+
+    return $null
+}
+
 if (-not (Test-Path $firebase)) {
     throw "Missing app\src\debug\google-services.json. Keep the real Nova Dev Firebase config local; do not commit it."
+}
+
+$javaHome = Resolve-JavaHome
+if (-not $javaHome) {
+    throw "Java/JDK was not found. Install Android Studio/JDK 17, or set JAVA_HOME before running this script."
+}
+$env:JAVA_HOME = $javaHome
+$env:Path = "$env:JAVA_HOME\bin;$env:Path"
+Write-Host "Using JAVA_HOME=$env:JAVA_HOME"
+& (Join-Path $env:JAVA_HOME "bin\java.exe") -version
+if ($LASTEXITCODE -ne 0) {
+    throw "Java was found but could not run."
 }
 
 $adbCommand = Get-Command adb -ErrorAction SilentlyContinue
