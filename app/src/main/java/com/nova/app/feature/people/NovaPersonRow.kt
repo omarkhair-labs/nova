@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -28,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import com.nova.app.feature.people.domain.model.NovaPerson
 import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState
 import com.nova.app.ui.components.NovaAvatar
+import com.nova.app.ui.components.NovaPresenceIndicator
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
@@ -173,10 +173,10 @@ private fun PersonRowActionContent(
     color: Color,
 ) {
     if (isUpdating) {
-        CircularProgressIndicator(
-            modifier = Modifier.size(15.dp),
-            color = color,
-            strokeWidth = 2.dp,
+        NovaPresenceIndicator(
+            modifier = Modifier.size(16.dp),
+            monochrome = true,
+            monochromeColor = color,
         )
     } else {
         Text(
