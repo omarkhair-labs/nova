@@ -101,7 +101,9 @@ fun EditProfileScreen(
                 )
             }
             NovaPrimaryButton(
-                text = if (isLoading) "Saving…" else "Save changes",
+                text = "Save changes",
+                busy = isLoading,
+                busyText = "Saving…",
                 onClick = {
                     onSave(
                         name.trim(),
@@ -115,8 +117,7 @@ fun EditProfileScreen(
                         orbitVisible,
                     )
                 },
-                enabled = !isLoading &&
-                    linkError == null &&
+                enabled = linkError == null &&
                     name.trim().length >= 2 &&
                     handle.trim().length >= 3,
             )
