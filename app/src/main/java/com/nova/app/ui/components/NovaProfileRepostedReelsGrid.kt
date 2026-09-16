@@ -142,7 +142,7 @@ fun NovaProfileRepostedReelsGrid(
                     } else {
                         NovaSecondaryButton(
                             text = "Load more Reposted Reels",
-                            onClick = owner::loadMore,
+                            onClick = { owner.loadMore() },
                         )
                     }
                 }
