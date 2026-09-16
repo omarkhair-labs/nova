@@ -1,6 +1,8 @@
 package com.nova.app.feature.pulse
 
 import androidx.compose.ui.graphics.Color
+import com.nova.app.ui.theme.NovaBrandPurple
+import com.nova.app.ui.theme.NovaBrandSoftLight
 
 /** Shared dark-media palette for Pulse cards and the immersive viewer. */
 data class PulseMediaPalette(
@@ -12,11 +14,13 @@ data class PulseMediaPalette(
 )
 
 object PulseTheme {
+    private val deepSpace = Color(0xFF0A0B14)
+
     val media = PulseMediaPalette(
-        background = Color(0xFF07090D),
-        ink = Color(0xFFF8F9FB),
-        muted = Color(0xFFB7BDC8),
-        overlay = Color(0xFF07090D).copy(alpha = 0.76f),
-        panelBorder = Color(0xFFB7BDC8).copy(alpha = 0.20f),
+        background = deepSpace,
+        ink = NovaBrandSoftLight,
+        muted = Color(0xFFB9B4CE),
+        overlay = deepSpace.copy(alpha = 0.78f),
+        panelBorder = NovaBrandPurple.copy(alpha = 0.24f),
     )
 }
