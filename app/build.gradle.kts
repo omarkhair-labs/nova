@@ -45,6 +45,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+        }
         release {
             isMinifyEnabled = false
             signingConfigs.findByName("releaseUpload")?.let { signingConfig = it }
