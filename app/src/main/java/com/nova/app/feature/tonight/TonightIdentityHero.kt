@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -36,12 +35,13 @@ import androidx.compose.ui.unit.dp
 import com.nova.app.feature.tonight.domain.model.TonightPersonRow
 import com.nova.app.feature.tonight.domain.model.TonightSnapshot
 import com.nova.app.ui.components.NovaAvatar
-import com.nova.app.ui.components.NovaOrbitRing
+import com.nova.app.ui.components.NovaBrandMark
 import com.nova.app.ui.theme.NovaSpacing
 import com.nova.app.ui.theme.NovaType
 import java.time.ZonedDateTime
 import java.time.format.TextStyle
 import java.util.Locale
+
 
 @Composable
 internal fun TonightIdentityHero(
@@ -83,7 +83,13 @@ internal fun TonightIdentityHero(
                 Text(
                     text = if (error == null) "LIVE NOW" else "RETRY",
                     modifier = Modifier
-                        .then(if (error != null) Modifier.semantics { contentDescription = "Retry Tonight" } else Modifier)
+                        .then(
+                            if (error != null) {
+                                Modifier.semantics { contentDescription = "Retry Tonight" }
+                            } else {
+                                Modifier
+                            },
+                        )
                         .padding(horizontal = NovaSpacing.md, vertical = NovaSpacing.sm),
                     color = if (error == null) palette.liveSignal else palette.ink,
                     style = NovaType.badge,
@@ -112,11 +118,16 @@ internal fun TonightIdentityHero(
                 Spacer(modifier = Modifier.height(NovaSpacing.sm))
                 Text(
                     text = buildAnnotatedString {
-                        withStyle(SpanStyle(color = palette.liveSignal, fontWeight = FontWeight.SemiBold)) {
+                        withStyle(
+                            SpanStyle(
+                                color = palette.liveSignal,
+                                fontWeight = FontWeight.SemiBold,
+                            ),
+                        ) {
                             append("Live")
                         }
                         withStyle(SpanStyle(color = palette.ink)) {
-                            append(" with your orbit")
+                            append(" where your people meet")
                         }
                     },
                     style = NovaType.body,
@@ -126,64 +137,79 @@ internal fun TonightIdentityHero(
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
-                    .offset(x = 18.dp, y = 8.dp)
+                    .offset(x = 14.dp, y = 10.dp)
                     .size(196.dp),
             ) {
-                NovaOrbitRing(
-                    modifier = Modifier.fillMaxSize(),
-                    color = palette.orbit,
-                    liveColor = palette.liveSignal,
-                    rings = 4,
-                    showLivePoint = true,
-                )
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .size(104.dp),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    color = palette.heroGlow.copy(alpha = 0.52f),
+                    border = BorderStroke(1.dp, palette.divider),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        NovaBrandMark(modifier = Modifier.size(72.dp))
+                    }
+                }
 
                 people.getOrNull(0)?.let { row ->
-                    TonightOrbitAvatar(
+                    TonightPresenceAvatar(
                         row = row,
-                        size = 62.dp,
+                        size = 58.dp,
                         borderWidth = 3.dp,
-                        borderColor = palette.orbit,
-                        modifier = Modifier.align(Alignment.Center),
+                        borderColor = palette.liveSignal,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .offset(x = 14.dp, y = 12.dp),
                         onClick = { onPersonClick(row.person.username) },
                     )
                 }
                 people.getOrNull(1)?.let { row ->
-                    TonightOrbitAvatar(
+                    TonightPresenceAvatar(
                         row = row,
                         size = 42.dp,
                         borderWidth = 2.dp,
                         borderColor = palette.ink.copy(alpha = 0.72f),
-                        modifier = Modifier.align(Alignment.TopCenter),
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = (-4).dp, y = 34.dp),
                         onClick = { onPersonClick(row.person.username) },
                     )
                 }
                 people.getOrNull(2)?.let { row ->
-                    TonightOrbitAvatar(
+                    TonightPresenceAvatar(
                         row = row,
                         size = 44.dp,
                         borderWidth = 2.dp,
                         borderColor = palette.orbit,
-                        modifier = Modifier.align(Alignment.CenterStart),
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .offset(x = 4.dp, y = 36.dp),
                         onClick = { onPersonClick(row.person.username) },
                     )
                 }
                 people.getOrNull(3)?.let { row ->
-                    TonightOrbitAvatar(
+                    TonightPresenceAvatar(
                         row = row,
                         size = 42.dp,
                         borderWidth = 2.dp,
                         borderColor = palette.ink.copy(alpha = 0.72f),
-                        modifier = Modifier.align(Alignment.CenterEnd),
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .offset(x = (-18).dp, y = 46.dp),
                         onClick = { onPersonClick(row.person.username) },
                     )
                 }
                 people.getOrNull(4)?.let { row ->
-                    TonightOrbitAvatar(
+                    TonightPresenceAvatar(
                         row = row,
                         size = 40.dp,
                         borderWidth = 2.dp,
                         borderColor = palette.liveSignal,
-                        modifier = Modifier.align(Alignment.BottomCenter),
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .offset(x = 22.dp, y = (-2).dp),
                         onClick = { onPersonClick(row.person.username) },
                     )
                 }
@@ -242,8 +268,9 @@ internal fun TonightIdentityHero(
     }
 }
 
+
 @Composable
-private fun TonightOrbitAvatar(
+private fun TonightPresenceAvatar(
     row: TonightPersonRow,
     size: Dp,
     borderWidth: Dp,
@@ -273,10 +300,12 @@ private fun TonightOrbitAvatar(
     }
 }
 
+
 private fun currentNightTitle(): String {
     val day = ZonedDateTime.now().dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
     return "$day night"
 }
+
 
 private fun tonightPresenceText(snapshot: TonightSnapshot): String = when (snapshot.peopleCount) {
     0 -> if (snapshot.myMomentsCount > 0) "Your night has started" else "The night is still quiet"

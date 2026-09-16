@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -32,13 +31,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.nova.app.app.appContainer
 import com.nova.app.feature.tonight.domain.model.TonightPersonRow
 import com.nova.app.feature.tonight.domain.model.TonightPulse
 import com.nova.app.feature.tonight.domain.model.TonightSnapshot
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaMediaImage
+import com.nova.app.ui.components.NovaPresenceIndicator
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
@@ -113,16 +112,23 @@ fun TonightSurface(
 private fun TonightLoadingCard() {
     val palette = TonightTheme.live
     Surface(
-        modifier = Modifier.fillMaxWidth().height(112.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(112.dp),
         shape = MaterialTheme.shapes.extraLarge,
         color = palette.background,
         border = BorderStroke(1.dp, NovaAccent.copy(alpha = 0.18f)),
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(24.dp),
-                color = NovaAccent,
-                strokeWidth = 2.dp,
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            NovaPresenceIndicator(modifier = Modifier.size(32.dp))
+            Spacer(modifier = Modifier.height(NovaSpacing.sm))
+            Text(
+                text = "Gathering tonight…",
+                color = palette.muted,
+                style = NovaType.micro,
             )
         }
     }
@@ -206,7 +212,7 @@ private fun TonightLiveCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Moments around you", color = palette.ink, style = NovaType.label)
+                Text("People here tonight", color = palette.ink, style = NovaType.label)
                 Text(tonightSummary(value), color = palette.muted, style = NovaType.micro)
             }
             LazyRow(horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm)) {
@@ -240,7 +246,11 @@ private fun TonightPersonCard(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(palette.background.copy(alpha = if (row.latestPulse.mediaType == "text") 0.08f else 0.42f)),
+                    .background(
+                        palette.background.copy(
+                            alpha = if (row.latestPulse.mediaType == "text") 0.08f else 0.42f,
+                        ),
+                    ),
             )
 
             Row(
