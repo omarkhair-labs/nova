@@ -10,13 +10,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Surface
@@ -36,8 +36,11 @@ import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
 import com.nova.app.ui.components.NovaEmptyState
+import com.nova.app.ui.components.NovaErrorState
+import com.nova.app.ui.components.NovaInlineLoading
+import com.nova.app.ui.components.NovaInlineRetry
 import com.nova.app.ui.components.NovaLoadingState
-import com.nova.app.ui.components.NovaSecondaryButton
+import com.nova.app.ui.components.NovaPresenceIndicator
 import com.nova.app.ui.components.NovaTab
 import com.nova.app.ui.components.NovaTextField
 import com.nova.app.ui.theme.NovaAccent
@@ -214,11 +217,11 @@ fun PeopleScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
                     ) {
-                        if (state.firstPageLoading && state.people.isNotEmpty()) {
-                            CircularProgressIndicator(
-                                color = NovaAccent,
-                                strokeWidth = 2.dp,
-                                modifier = Modifier.height(14.dp),
+                        if (state.firstPageLoading) {
+                            NovaPresenceIndicator(
+                                modifier = Modifier.size(14.dp),
+                                monochrome = true,
+                                monochromeColor = NovaAccent,
                             )
                         }
                         Text(
@@ -241,12 +244,11 @@ fun PeopleScreen(
                 }
 
                 visibleError != null && state.people.isEmpty() -> {
-                    NovaEmptyState(
+                    NovaErrorState(
                         title = "Couldn't load people",
                         message = visibleError,
                         modifier = Modifier.weight(1f),
-                        actionLabel = "Try again",
-                        onAction = onRetry,
+                        onRetry = onRetry,
                     )
                 }
 
@@ -289,24 +291,16 @@ fun PeopleScreen(
 
                         if (state.pagingError != null && state.people.isNotEmpty()) {
                             item {
-                                NovaSecondaryButton(
-                                    text = "Retry loading people",
-                                    onClick = onRetry,
+                                NovaInlineRetry(
+                                    message = state.pagingError,
+                                    onRetry = onRetry,
+                                    retryLabel = "Retry",
                                 )
                             }
                         } else if (state.nextCursor != null) {
                             item(key = "people-next-${state.nextCursor}") {
                                 LaunchedEffect(state.nextCursor) { onLoadMore() }
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(NovaSpacing.md),
-                                    horizontalArrangement = Arrangement.Center,
-                                ) {
-                                    CircularProgressIndicator(
-                                        color = NovaAccent,
-                                        strokeWidth = 2.dp,
-                                        modifier = Modifier.height(18.dp),
-                                    )
-                                }
+                                NovaInlineLoading(message = "Loading more people…")
                             }
                         }
                         item { Spacer(modifier = Modifier.height(NovaSpacing.lg)) }
