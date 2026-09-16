@@ -59,7 +59,11 @@ fun TonightScreen(
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(NovaSpacing.xs)) {
                     Text("Tonight", color = palette.ink, style = NovaType.pageTitle)
-                    Text("Live with your orbit", color = palette.muted, style = NovaType.bodyCompact)
+                    Text(
+                        "The people and moments sharing your night.",
+                        color = palette.muted,
+                        style = NovaType.bodyCompact,
+                    )
                 }
             }
             item {
