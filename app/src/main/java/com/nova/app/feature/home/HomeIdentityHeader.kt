@@ -40,7 +40,7 @@ internal fun HomeIdentityHeader(
 ) {
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(NovaSpacing.md)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
                 NovaBrandMark(modifier = Modifier.size(30.dp))
                 Text(text = "Nova", color = NovaInk, style = NovaType.display)
             }

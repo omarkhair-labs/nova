@@ -12,21 +12,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.nova.app.feature.people.domain.model.NovaPerson
 import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState
 import com.nova.app.ui.components.NovaEmptyState
 import com.nova.app.ui.components.NovaErrorState
 import com.nova.app.ui.components.NovaHeader
-import com.nova.app.ui.components.NovaSecondaryButton
+import com.nova.app.ui.components.NovaInlineLoading
+import com.nova.app.ui.components.NovaInlineRetry
+import com.nova.app.ui.components.NovaLoadingState
 import com.nova.app.ui.components.NovaTextField
-import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSpacing
@@ -54,7 +52,7 @@ fun SocialConnectionsScreen(
             .background(NovaBackground)
             .statusBarsPadding()
             .navigationBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 18.dp),
+            .padding(horizontal = NovaSpacing.xl, vertical = NovaSpacing.lg),
     ) {
         NovaHeader(
             title = title,
@@ -62,30 +60,21 @@ fun SocialConnectionsScreen(
             onBack = onBack,
         )
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(NovaSpacing.lg))
         NovaTextField(
             value = state.query,
             onValueChange = onQueryChange,
             label = "Search",
             placeholder = "Name or @username",
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(NovaSpacing.lg))
 
         when {
             state.isLoading && state.people.isEmpty() -> {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    CircularProgressIndicator(color = NovaAccent)
-                    Text(
-                        text = "Loading $title…",
-                        color = NovaMuted,
-                        style = NovaType.meta,
-                        modifier = Modifier.padding(top = NovaSpacing.md),
-                    )
-                }
+                NovaLoadingState(
+                    message = "Loading $title…",
+                    modifier = Modifier.weight(1f),
+                )
             }
 
             state.errorMessage != null && state.people.isEmpty() -> {
@@ -118,11 +107,11 @@ fun SocialConnectionsScreen(
                     text = "${state.people.size} loaded",
                     color = NovaMuted,
                     style = NovaType.micro,
-                    modifier = Modifier.padding(bottom = 10.dp),
+                    modifier = Modifier.padding(bottom = NovaSpacing.md),
                 )
                 LazyColumn(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(9.dp),
+                    verticalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
                 ) {
                     items(state.people, key = { it.id }) { person ->
                         NovaPersonRow(
@@ -138,34 +127,18 @@ fun SocialConnectionsScreen(
                     }
                     if (state.errorMessage != null) {
                         item {
-                            Text(
-                                text = state.errorMessage,
-                                color = NovaMuted,
-                                style = NovaType.meta,
-                                modifier = Modifier.padding(horizontal = 6.dp),
-                            )
-                            NovaSecondaryButton(
-                                text = "Try again",
-                                onClick = onRetry,
-                                modifier = Modifier.padding(top = NovaSpacing.sm),
+                            NovaInlineRetry(
+                                message = state.errorMessage,
+                                onRetry = onRetry,
                             )
                         }
                     } else if (state.nextCursor != null) {
                         item {
                             LaunchedEffect(state.nextCursor) { onLoadMore() }
-                            Column(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = NovaSpacing.md),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.height(18.dp),
-                                    color = NovaAccent,
-                                    strokeWidth = 2.dp,
-                                )
-                            }
+                            NovaInlineLoading(message = "Loading more $title…")
                         }
                     }
-                    item { Spacer(modifier = Modifier.height(8.dp)) }
+                    item { Spacer(modifier = Modifier.height(NovaSpacing.sm)) }
                 }
             }
         }

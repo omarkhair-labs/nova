@@ -72,9 +72,13 @@ fun NovaSecondaryButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    busy: Boolean = false,
+    busyText: String = text,
 ) {
     OutlinedButton(
         onClick = onClick,
+        enabled = enabled && !busy,
         modifier = modifier
             .fillMaxWidth()
             .height(56.dp),
@@ -82,9 +86,21 @@ fun NovaSecondaryButton(
         border = BorderStroke(1.dp, NovaBorder),
         colors = ButtonDefaults.outlinedButtonColors(contentColor = NovaInk),
     ) {
-        Text(
-            text = text,
-            style = NovaType.button,
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (busy) {
+                NovaPresenceIndicator(
+                    modifier = Modifier.size(18.dp),
+                    monochrome = true,
+                    monochromeColor = NovaInk,
+                )
+            }
+            Text(
+                text = if (busy) busyText else text,
+                style = NovaType.button,
+            )
+        }
     }
 }
