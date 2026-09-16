@@ -2,6 +2,7 @@ package com.nova.app.feature.create
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -21,7 +22,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nova.app.feature.memories.MemoriesRail
 import com.nova.app.feature.pulse.PulseRail
@@ -30,7 +30,6 @@ import com.nova.app.feature.stories.StoriesRail
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
 import com.nova.app.ui.components.NovaCard
-import com.nova.app.ui.components.NovaOrbitRing
 import com.nova.app.ui.components.NovaTab
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
@@ -123,16 +122,19 @@ fun CreateHubScreen(
                             style = NovaType.bodyCompact,
                         )
                     }
-                    NovaOrbitRing(
+                    Surface(
                         modifier = Modifier.size(52.dp),
-                        rings = 2,
-                        showLivePoint = false,
+                        shape = CircleShape,
+                        color = NovaAccentSoft,
+                        border = BorderStroke(1.dp, NovaBorder),
                     ) {
-                        NovaAvatar(
-                            source = avatarUrl,
-                            fallbackText = displayName.ifBlank { username },
-                            size = 38.dp,
-                        )
+                        Box(contentAlignment = Alignment.Center) {
+                            NovaAvatar(
+                                source = avatarUrl,
+                                fallbackText = displayName.ifBlank { username },
+                                size = 42.dp,
+                            )
+                        }
                     }
                 }
             }
