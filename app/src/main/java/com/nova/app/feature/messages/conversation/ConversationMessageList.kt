@@ -17,7 +17,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,6 +28,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.feature.messages.domain.model.NovaMessage
+import com.nova.app.ui.components.NovaLoadingState
+import com.nova.app.ui.components.NovaPresenceIndicator
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
@@ -68,11 +69,11 @@ internal fun ConversationMessageList(
     onScrollLatest: () -> Unit,
 ) {
     when {
-        state.isLoading && state.messages.isEmpty() && state.pendingMessages.isEmpty() -> Box(
-            modifier = modifier,
-            contentAlignment = Alignment.Center,
-        ) {
-            CircularProgressIndicator(color = NovaAccent)
+        state.isLoading && state.messages.isEmpty() && state.pendingMessages.isEmpty() -> {
+            NovaLoadingState(
+                message = "Loading conversation…",
+                modifier = modifier,
+            )
         }
 
         state.messages.isEmpty() && state.pendingMessages.isEmpty() -> Column(
@@ -236,10 +237,10 @@ private fun LoadEarlierRow(loading: Boolean, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (loading) {
-                CircularProgressIndicator(
-                    color = NovaAccent,
-                    strokeWidth = 2.dp,
+                NovaPresenceIndicator(
                     modifier = Modifier.size(16.dp),
+                    monochrome = true,
+                    monochromeColor = NovaAccent,
                 )
                 Spacer(Modifier.size(8.dp))
             }
