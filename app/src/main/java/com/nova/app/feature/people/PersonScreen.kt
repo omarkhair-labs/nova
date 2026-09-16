@@ -19,7 +19,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -52,7 +51,9 @@ import com.nova.app.feature.calls.domain.model.NovaCallPerson
 import com.nova.app.feature.posts.domain.model.NovaPost
 import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState
 import com.nova.app.feature.sharing.NovaShareDialog
+import com.nova.app.ui.components.NovaErrorState
 import com.nova.app.ui.components.NovaHeader
+import com.nova.app.ui.components.NovaLoadingState
 import com.nova.app.ui.components.NovaPagedProfilePostsGrid
 import com.nova.app.ui.components.NovaPrimaryButton
 import com.nova.app.ui.components.NovaSecondaryButton
@@ -387,50 +388,19 @@ fun PersonScreen(
 
         when {
             person == null && isLoading -> {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 72.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    CircularProgressIndicator(color = NovaAccent)
-                    Text(
-                        text = "Opening profile…",
-                        color = NovaMuted,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(top = 12.dp),
-                    )
-                }
+                NovaLoadingState(
+                    message = "Opening profile…",
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
 
             person == null -> {
-                Surface(
+                NovaErrorState(
+                    title = "Couldn't open this profile",
+                    message = errorMessage ?: "Try again in a moment.",
+                    onRetry = onRetryProfile,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
-                    color = NovaSurface,
-                    border = BorderStroke(1.dp, NovaBorder),
-                ) {
-                    Column(modifier = Modifier.padding(22.dp)) {
-                        Text(
-                            text = "Couldn't open this profile",
-                            color = NovaInk,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = errorMessage ?: "Try again in a moment.",
-                            color = NovaMuted,
-                            fontSize = 13.sp,
-                            lineHeight = 19.sp,
-                        )
-                        Spacer(modifier = Modifier.height(14.dp))
-                        NovaSecondaryButton(
-                            text = "Try again",
-                            onClick = onRetryProfile,
-                        )
-                    }
-                }
+                )
             }
 
             else -> {
@@ -550,14 +520,18 @@ fun PersonScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     NovaSecondaryButton(
-                        text = if (isOpeningMessage) "Opening chat…" else "Message",
-                        onClick = { if (!isOpeningMessage) openMessage(person) },
+                        text = "Message",
+                        onClick = { openMessage(person) },
                         modifier = Modifier.weight(1f),
+                        enabled = !isSafetyLoading,
+                        busy = isOpeningMessage,
+                        busyText = "Opening…",
                     )
                     NovaSecondaryButton(
                         text = "Share profile",
                         onClick = { showShareProfile = true },
                         modifier = Modifier.weight(1f),
+                        enabled = !isOpeningMessage && !isSafetyLoading,
                     )
                 }
 
@@ -570,11 +544,13 @@ fun PersonScreen(
                         text = "Audio call",
                         onClick = { openCall(person, NovaCallKind.Audio) },
                         modifier = Modifier.weight(1f),
+                        enabled = !isOpeningMessage && !isSafetyLoading,
                     )
                     NovaSecondaryButton(
                         text = "Video call",
                         onClick = { openCall(person, NovaCallKind.Video) },
                         modifier = Modifier.weight(1f),
+                        enabled = !isOpeningMessage && !isSafetyLoading,
                     )
                 }
 
@@ -583,21 +559,29 @@ fun PersonScreen(
                 when {
                     person.isFollowing -> {
                         NovaSecondaryButton(
-                            text = if (isLoading) "Updating…" else "Following",
+                            text = "Following",
                             onClick = { toggleFollow(person) },
+                            enabled = !privacyLoading,
+                            busy = isLoading,
+                            busyText = "Updating…",
                         )
                     }
                     privacyState.followRequested -> {
                         NovaSecondaryButton(
-                            text = if (requestCanceling) "Canceling…" else "Requested",
+                            text = "Requested",
                             onClick = { toggleFollow(person) },
+                            enabled = !isLoading && !privacyLoading,
+                            busy = requestCanceling,
+                            busyText = "Canceling…",
                         )
                     }
                     else -> {
                         NovaPrimaryButton(
-                            text = if (isLoading || privacyLoading) "Updating…" else "Follow",
+                            text = "Follow",
                             onClick = { toggleFollow(person) },
-                            enabled = !isLoading && !privacyLoading,
+                            enabled = !requestCanceling,
+                            busy = isLoading || privacyLoading,
+                            busyText = "Updating…",
                         )
                     }
                 }
@@ -610,13 +594,15 @@ fun PersonScreen(
                 ) {
                     NovaSecondaryButton(
                         text = "Report",
-                        onClick = { if (!isSafetyLoading) showReportDialog = true },
+                        onClick = { showReportDialog = true },
                         modifier = Modifier.weight(1f),
+                        enabled = !isSafetyLoading && !isOpeningMessage,
                     )
                     NovaSecondaryButton(
                         text = "Block",
-                        onClick = { if (!isSafetyLoading) showBlockConfirm = true },
+                        onClick = { showBlockConfirm = true },
                         modifier = Modifier.weight(1f),
+                        enabled = !isSafetyLoading && !isOpeningMessage,
                     )
                 }
 
