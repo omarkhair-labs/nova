@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,7 +18,6 @@ import androidx.compose.ui.unit.dp
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBrandMark
 import com.nova.app.ui.components.NovaIconButton
-import com.nova.app.ui.components.NovaOrbitRing
 import com.nova.app.ui.components.NovaUnreadDot
 import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaInk
@@ -40,7 +40,7 @@ internal fun HomeIdentityHeader(
 ) {
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(NovaSpacing.md)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
                 NovaBrandMark(modifier = Modifier.size(30.dp))
                 Text(text = "Nova", color = NovaInk, style = NovaType.display)
             }
@@ -50,9 +50,18 @@ internal fun HomeIdentityHeader(
                     NovaIconButton(asset = NovaIconAsset.Notifications, contentDescription = "Activity", onClick = onActivityClick, size = 48.dp, iconSize = 23.dp, containerColor = Color.Transparent, borderColor = Color.Transparent, contentColor = NovaInk)
                     if (unreadCount > 0) NovaUnreadDot(modifier = Modifier.align(Alignment.TopEnd).offset(x = (-2).dp, y = 2.dp))
                 }
-                Surface(onClick = onProfileClick, color = NovaSurface, shape = androidx.compose.foundation.shape.CircleShape) {
-                    NovaOrbitRing(modifier = Modifier.size(48.dp), rings = 1, showLivePoint = true) {
-                        NovaAvatar(source = avatarUrl, fallbackText = displayName.ifBlank { username }, size = 38.dp)
+                Surface(
+                    onClick = onProfileClick,
+                    modifier = Modifier.size(48.dp),
+                    color = NovaSurface,
+                    shape = CircleShape,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        NovaAvatar(
+                            source = avatarUrl,
+                            fallbackText = displayName.ifBlank { username },
+                            size = 40.dp,
+                        )
                     }
                 }
             }
