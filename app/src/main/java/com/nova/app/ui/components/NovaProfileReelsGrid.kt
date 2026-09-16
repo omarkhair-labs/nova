@@ -169,7 +169,7 @@ fun NovaProfileReelsGrid(
                     } else {
                         NovaSecondaryButton(
                             text = "Load more Reels",
-                            onClick = owner::loadMore,
+                            onClick = { owner.loadMore() },
                         )
                     }
                 }
