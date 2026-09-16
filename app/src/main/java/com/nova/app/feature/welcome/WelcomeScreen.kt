@@ -42,40 +42,129 @@ fun WelcomeScreen(
     onPrivacy: () -> Unit,
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().background(NovaBackground)
-            .statusBarsPadding().navigationBarsPadding()
+        modifier = Modifier
+            .fillMaxSize()
+            .background(NovaBackground)
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 18.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             NovaBrandMark(modifier = Modifier.size(34.dp))
-            Text("Nova", Modifier.padding(start = 10.dp), NovaInk, 21.sp, fontWeight = FontWeight.Bold)
+            Text(
+                text = "Nova",
+                modifier = Modifier.padding(start = 10.dp),
+                color = NovaInk,
+                fontSize = 21.sp,
+                fontWeight = FontWeight.Bold,
+            )
         }
-        Spacer(Modifier.height(72.dp))
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+
+        Spacer(modifier = Modifier.height(72.dp))
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
             NovaBrandMark(modifier = Modifier.size(92.dp))
-            Spacer(Modifier.height(22.dp))
-            Surface(shape = RoundedCornerShape(28.dp), color = NovaAccentSoft) {
-                Text("made for your real people", Modifier.padding(horizontal = 16.dp, vertical = 9.dp), NovaAccent, 13.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(22.dp))
+
+            Surface(
+                shape = RoundedCornerShape(28.dp),
+                color = NovaAccentSoft,
+            ) {
+                Text(
+                    text = "made for your real people",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
+                    color = NovaAccent,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
-            Spacer(Modifier.height(24.dp))
-            Text("A social space\nthat feels like yours.", color = NovaInk, fontSize = 38.sp, lineHeight = 44.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(18.dp))
-            Text("Share moments, stay close, and keep the people that matter in one calm place.", Modifier.fillMaxWidth(0.88f), NovaMuted, 16.sp, lineHeight = 24.sp, textAlign = TextAlign.Center)
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "A social space\nthat feels like yours.",
+                color = NovaInk,
+                fontSize = 38.sp,
+                lineHeight = 44.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+            )
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Text(
+                text = "Share moments, stay close, and keep the people that matter in one calm place.",
+                modifier = Modifier.fillMaxWidth(0.88f),
+                color = NovaMuted,
+                fontSize = 16.sp,
+                lineHeight = 24.sp,
+                textAlign = TextAlign.Center,
+            )
         }
-        Spacer(Modifier.height(56.dp))
-        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            NovaPrimaryButton(text = "Create account", onClick = onCreateAccount)
-            NovaSecondaryButton(text = "Log in", onClick = onLogin)
-            Spacer(Modifier.height(2.dp))
-            Text("By continuing, you agree to Nova's", Modifier.fillMaxWidth(), NovaMuted, 11.sp, lineHeight = 16.sp, textAlign = TextAlign.Center)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onTerms) { Text("Terms of Use", color = NovaAccent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold) }
-                Text("·", color = NovaMuted, fontSize = 11.sp)
-                TextButton(onClick = onPrivacy) { Text("Privacy", color = NovaAccent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold) }
+
+        Spacer(modifier = Modifier.height(56.dp))
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            NovaPrimaryButton(
+                text = "Create account",
+                onClick = onCreateAccount,
+            )
+            NovaSecondaryButton(
+                text = "Log in",
+                onClick = onLogin,
+            )
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            Text(
+                text = "By continuing, you agree to Nova's",
+                modifier = Modifier.fillMaxWidth(),
+                color = NovaMuted,
+                fontSize = 11.sp,
+                lineHeight = 16.sp,
+                textAlign = TextAlign.Center,
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = onTerms) {
+                    Text(
+                        text = "Terms of Use",
+                        color = NovaAccent,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                Text(
+                    text = "·",
+                    color = NovaMuted,
+                    fontSize = 11.sp,
+                )
+                TextButton(onClick = onPrivacy) {
+                    Text(
+                        text = "Privacy",
+                        color = NovaAccent,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
         }
-        Spacer(Modifier.height(12.dp))
+
+        Spacer(modifier = Modifier.height(12.dp))
     }
 }
