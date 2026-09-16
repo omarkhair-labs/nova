@@ -14,6 +14,7 @@ val releaseSigningConfigured = listOf(
     releaseKeyAlias,
     releaseKeyPassword,
 ).all { !it.isNullOrBlank() }
+val novaDevVariant = System.getenv("NOVA_DEV_VARIANT") == "1"
 
 android {
     namespace = "com.nova.app"
@@ -45,6 +46,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            if (novaDevVariant) {
+                applicationIdSuffix = ".dev"
+                versionNameSuffix = "-dev"
+            }
+        }
         release {
             isMinifyEnabled = false
             signingConfigs.findByName("releaseUpload")?.let { signingConfig = it }
