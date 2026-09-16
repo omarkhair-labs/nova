@@ -18,7 +18,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -53,6 +52,7 @@ import com.nova.app.ui.components.NovaErrorState
 import com.nova.app.ui.components.NovaInlineLoading
 import com.nova.app.ui.components.NovaInlineRetry
 import com.nova.app.ui.components.NovaLoadingState
+import com.nova.app.ui.components.NovaPresenceIndicator
 import com.nova.app.ui.components.NovaUnreadDot
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
@@ -387,10 +387,10 @@ private fun FollowRequestRow(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         if (busy) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.width(13.dp).height(13.dp),
-                                color = NovaBackground,
-                                strokeWidth = 2.dp,
+                            NovaPresenceIndicator(
+                                modifier = Modifier.size(14.dp),
+                                monochrome = true,
+                                monochromeColor = NovaBackground,
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                         }
@@ -453,10 +453,10 @@ private fun NotificationRow(
                 }
                 Spacer(modifier = Modifier.width(10.dp))
                 if (isOpening) {
-                    CircularProgressIndicator(
+                    NovaPresenceIndicator(
                         modifier = Modifier.size(18.dp),
-                        color = NovaAccent,
-                        strokeWidth = 2.dp,
+                        monochrome = true,
+                        monochromeColor = NovaAccent,
                     )
                 } else {
                     NovaIcon(

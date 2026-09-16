@@ -7,11 +7,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -32,6 +32,7 @@ import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nova.app.app.appContainer
 import com.nova.app.ui.components.NovaAvatar
+import com.nova.app.ui.components.NovaPresenceIndicator
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBorder
@@ -99,7 +100,9 @@ fun AddGroupMembersDialog(
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
                             horizontalArrangement = Arrangement.Center,
-                        ) { CircularProgressIndicator(color = NovaAccent) }
+                        ) {
+                            NovaPresenceIndicator(modifier = Modifier.size(28.dp))
+                        }
                     }
                     state.people.isEmpty() -> Text(
                         if (state.query.isBlank()) "No more people to add." else "No matches.",

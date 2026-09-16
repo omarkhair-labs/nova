@@ -18,7 +18,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -43,6 +42,7 @@ import com.nova.app.feature.messages.group.AddGroupMembersDialog
 import com.nova.app.feature.messages.group.GroupInfoViewModel
 import com.nova.app.feature.messages.group.model.GroupMember
 import com.nova.app.ui.components.NovaAvatar
+import com.nova.app.ui.components.NovaPresenceIndicator
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
@@ -119,7 +119,7 @@ fun GroupInfoDialog(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 34.dp),
                             horizontalArrangement = Arrangement.Center,
                         ) {
-                            CircularProgressIndicator(color = NovaAccent)
+                            NovaPresenceIndicator(modifier = Modifier.size(30.dp))
                         }
                     }
                     currentDetail == null -> {
@@ -148,10 +148,10 @@ fun GroupInfoDialog(
                                         color = NovaSurface.copy(alpha = 0.72f),
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
-                                            CircularProgressIndicator(
+                                            NovaPresenceIndicator(
                                                 modifier = Modifier.size(22.dp),
-                                                color = NovaAccent,
-                                                strokeWidth = 2.dp,
+                                                monochrome = true,
+                                                monochromeColor = NovaAccent,
                                             )
                                         }
                                     }
@@ -228,10 +228,10 @@ fun GroupInfoDialog(
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         if (state.busyAction == "rename") {
-                                            CircularProgressIndicator(
+                                            NovaPresenceIndicator(
                                                 modifier = Modifier.size(18.dp),
-                                                color = NovaSurface,
-                                                strokeWidth = 2.dp,
+                                                monochrome = true,
+                                                monochromeColor = NovaSurface,
                                             )
                                         } else {
                                             NovaIcon(

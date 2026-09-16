@@ -20,7 +20,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,6 +43,7 @@ import com.nova.app.core.messaging.NovaVoiceDraft
 import com.nova.app.core.messaging.NovaVoiceRecorder
 import com.nova.app.feature.messages.domain.model.NovaMessage
 import com.nova.app.ui.components.NovaMediaImage
+import com.nova.app.ui.components.NovaPresenceIndicator
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
@@ -460,10 +460,10 @@ internal fun ConversationComposer(
                 ) {
                     Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
                         if (isMutating) {
-                            CircularProgressIndicator(
+                            NovaPresenceIndicator(
                                 modifier = Modifier.size(18.dp),
-                                color = NovaMuted,
-                                strokeWidth = 2.dp,
+                                monochrome = true,
+                                monochromeColor = NovaMuted,
                             )
                         } else {
                             NovaIcon(
