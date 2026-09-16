@@ -9,8 +9,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,7 +27,6 @@ import com.nova.app.app.appContainer
 import com.nova.app.core.reels.NovaReelsNavigator
 import com.nova.app.feature.reels.ProfileReelsGridStateOwner
 import com.nova.app.feature.reels.ProfileReelsSource
-import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaBorder
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
@@ -76,11 +75,7 @@ fun NovaProfileRepostedReelsGrid(
                     modifier = Modifier.fillMaxWidth().height(82.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.height(22.dp),
-                        color = NovaAccent,
-                        strokeWidth = 2.dp,
-                    )
+                    NovaPresenceIndicator(modifier = Modifier.size(28.dp))
                 }
             }
             error != null && reels.isEmpty() -> {
@@ -142,10 +137,14 @@ fun NovaProfileRepostedReelsGrid(
                     Text(error.orEmpty(), color = NovaMuted, fontSize = 10.sp)
                 }
                 if (nextCursor != null) {
-                    NovaSecondaryButton(
-                        text = if (loadingMore) "Loading more…" else "Load more Reposted Reels",
-                        onClick = { if (!loadingMore) owner.loadMore() },
-                    )
+                    if (loadingMore) {
+                        NovaInlineLoading(message = "Loading more Reposted Reels…")
+                    } else {
+                        NovaSecondaryButton(
+                            text = "Load more Reposted Reels",
+                            onClick = { owner.loadMore() },
+                        )
+                    }
                 }
             }
         }

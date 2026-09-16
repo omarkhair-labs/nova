@@ -27,11 +27,13 @@ import androidx.compose.ui.unit.sp
 import com.nova.app.feature.reels.domain.model.NovaReel
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
+import com.nova.app.ui.theme.NovaBrandDeepSpace
+import com.nova.app.ui.theme.NovaBrandSoftLight
 
 
-private val ReelThumbnailBackground = Color(0xFF090B10)
-private val ReelThumbnailInk = Color(0xFFF6F7FA)
-private val ReelThumbnailMuted = Color(0xFFB8BDC8)
+private val ReelThumbnailBackground = NovaBrandDeepSpace
+private val ReelThumbnailInk = NovaBrandSoftLight
+private val ReelThumbnailMuted = Color(0xFFB9B4CE)
 
 
 /** Shared truthful Reel tile for authored and reposted profile grids. */
@@ -61,14 +63,14 @@ internal fun NovaProfileReelThumbnail(
             Surface(
                 modifier = Modifier.align(Alignment.Center).size(40.dp),
                 shape = CircleShape,
-                color = Color.Black.copy(alpha = 0.52f),
+                color = ReelThumbnailBackground.copy(alpha = 0.68f),
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     NovaIcon(
                         asset = NovaIconAsset.Play,
                         contentDescription = null,
                         modifier = Modifier.size(22.dp),
-                        tint = Color.White,
+                        tint = ReelThumbnailInk,
                     )
                 }
             }
@@ -77,7 +79,7 @@ internal fun NovaProfileReelThumbnail(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.58f))
+                    .background(ReelThumbnailBackground.copy(alpha = 0.72f))
                     .padding(horizontal = 7.dp, vertical = 6.dp),
             ) {
                 if (showRepostAuthor) {
