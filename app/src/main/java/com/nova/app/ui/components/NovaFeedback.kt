@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -26,6 +25,7 @@ import com.nova.app.ui.theme.NovaSpacing
 import com.nova.app.ui.theme.NovaSurface
 import com.nova.app.ui.theme.NovaType
 
+
 /** Shared full-width feedback presentation for ordinary Nova screens. */
 @Composable
 fun NovaLoadingState(
@@ -39,7 +39,7 @@ fun NovaLoadingState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        CircularProgressIndicator(color = NovaAccent)
+        NovaPresenceIndicator(modifier = Modifier.size(38.dp))
         Spacer(modifier = Modifier.height(NovaSpacing.md))
         Text(
             text = message,
@@ -48,6 +48,7 @@ fun NovaLoadingState(
         )
     }
 }
+
 
 /** Compact progress row for secondary loading work inside a populated screen. */
 @Composable
@@ -62,11 +63,7 @@ fun NovaInlineLoading(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
     ) {
-        CircularProgressIndicator(
-            modifier = Modifier.size(16.dp),
-            color = NovaAccent,
-            strokeWidth = 2.dp,
-        )
+        NovaPresenceIndicator(modifier = Modifier.size(18.dp))
         Text(
             text = message,
             color = NovaMuted,
@@ -74,6 +71,7 @@ fun NovaInlineLoading(
         )
     }
 }
+
 
 /** Standard empty-state panel. Copy and optional primary recovery path belong to the feature. */
 @Composable
@@ -126,6 +124,7 @@ fun NovaEmptyState(
     }
 }
 
+
 /** Standard recoverable error panel with one clear retry action. */
 @Composable
 fun NovaErrorState(
@@ -161,6 +160,7 @@ fun NovaErrorState(
         }
     }
 }
+
 
 /** Compact recoverable error for a subsection or pagination failure. */
 @Composable
