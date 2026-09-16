@@ -24,7 +24,6 @@ import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -65,6 +64,7 @@ import com.nova.app.ui.components.NovaBottomBar
 import com.nova.app.ui.components.NovaLikeBurst
 import com.nova.app.ui.components.NovaImmersiveAction
 import com.nova.app.ui.components.NovaPlayerSurface
+import com.nova.app.ui.components.NovaPresenceIndicator
 import com.nova.app.ui.components.NovaVideoPlayer
 import com.nova.app.ui.components.NovaTab
 import com.nova.app.ui.icons.NovaIcon
@@ -78,9 +78,9 @@ import com.nova.app.ui.theme.NovaSurface
 import kotlinx.coroutines.delay
 
 
-private val ReelBackground = Color(0xFF050608)
-private val ReelInk = Color(0xFFF8F8FA)
-private val ReelMuted = Color(0xFFC3C5CA)
+private val ReelBackground = Color(0xFF0A0B14)
+private val ReelInk = Color(0xFFE9E6FF)
+private val ReelMuted = Color(0xFFB9B4CE)
 
 
 @Composable
@@ -217,7 +217,11 @@ fun ReelsScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = NovaAccent)
+                        NovaPresenceIndicator(
+                            modifier = Modifier.size(34.dp),
+                            monochrome = true,
+                            monochromeColor = ReelInk,
+                        )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text("Loading Reels…", color = ReelMuted, fontSize = 12.sp)
                     }
@@ -350,8 +354,8 @@ fun ReelsScreen(
                         Surface(
                             onClick = { if (!uploading) picker.launch(arrayOf("video/*")) },
                             shape = RoundedCornerShape(16.dp),
-                            color = Color.Black.copy(alpha = 0.42f),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+                            color = ReelBackground.copy(alpha = 0.72f),
+                            border = BorderStroke(1.dp, ReelInk.copy(alpha = 0.18f)),
                         ) {
                             Row(
                                 modifier = Modifier.heightIn(min = 48.dp).padding(horizontal = 13.dp),
@@ -359,10 +363,10 @@ fun ReelsScreen(
                                 horizontalArrangement = Arrangement.spacedBy(7.dp),
                             ) {
                                 if (uploading) {
-                                    CircularProgressIndicator(
+                                    NovaPresenceIndicator(
                                         modifier = Modifier.size(18.dp),
-                                        color = ReelInk,
-                                        strokeWidth = 2.dp,
+                                        monochrome = true,
+                                        monochromeColor = ReelInk,
                                     )
                                 } else {
                                     NovaIcon(
@@ -383,13 +387,13 @@ fun ReelsScreen(
                     }
 
                     if (loadingMore) {
-                        CircularProgressIndicator(
+                        NovaPresenceIndicator(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .padding(bottom = 14.dp)
                                 .size(22.dp),
-                            color = NovaAccent,
-                            strokeWidth = 2.dp,
+                            monochrome = true,
+                            monochromeColor = ReelInk,
                         )
                     }
 
@@ -401,8 +405,8 @@ fun ReelsScreen(
                                 .statusBarsPadding()
                                 .padding(top = 58.dp, start = 20.dp, end = 20.dp),
                             shape = RoundedCornerShape(16.dp),
-                            color = Color.Black.copy(alpha = 0.72f),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+                            color = ReelBackground.copy(alpha = 0.86f),
+                            border = BorderStroke(1.dp, ReelInk.copy(alpha = 0.14f)),
                         ) {
                             Text(
                                 text = message,
@@ -566,7 +570,7 @@ private fun ReelPage(
                     .align(Alignment.Center)
                     .size(62.dp),
                 shape = CircleShape,
-                color = Color.Black.copy(alpha = 0.46f),
+                color = ReelBackground.copy(alpha = 0.58f),
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     NovaIcon(
@@ -754,10 +758,10 @@ private fun ReelDeleteDialog(
                             contentAlignment = Alignment.Center,
                         ) {
                             if (deleting) {
-                                CircularProgressIndicator(
+                                NovaPresenceIndicator(
                                     modifier = Modifier.size(17.dp),
-                                    color = Color.White,
-                                    strokeWidth = 2.dp,
+                                    monochrome = true,
+                                    monochromeColor = Color.White,
                                 )
                             } else {
                                 Text("Delete", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
@@ -868,10 +872,10 @@ private fun ReelComposerDialog(
                             contentAlignment = Alignment.Center,
                         ) {
                             if (uploading) {
-                                CircularProgressIndicator(
+                                NovaPresenceIndicator(
                                     modifier = Modifier.size(18.dp),
-                                    color = Color.White,
-                                    strokeWidth = 2.dp,
+                                    monochrome = true,
+                                    monochromeColor = Color.White,
                                 )
                             } else {
                                 Text(
