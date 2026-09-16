@@ -30,7 +30,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -76,6 +75,7 @@ import com.nova.app.feature.stories.domain.model.NovaStoryGroup
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaMediaImage
 import com.nova.app.ui.components.NovaPlayerSurface
+import com.nova.app.ui.components.NovaPresenceIndicator
 import com.nova.app.ui.components.NovaVideoPlayer
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
@@ -89,9 +89,9 @@ import com.nova.app.ui.theme.NovaSurface
 import kotlinx.coroutines.delay
 
 
-private val StoryBackground = Color(0xFF080A0F)
-private val StoryInk = Color(0xFFF7F8FA)
-private val StoryMuted = Color(0xFFB8BDC8)
+private val StoryBackground = Color(0xFF0A0B14)
+private val StoryInk = Color(0xFFE9E6FF)
+private val StoryMuted = Color(0xFFB9B4CE)
 private val StoryReactions = listOf("❤️", "😂", "😮", "😢", "🔥", "👏")
 private const val STORY_FRAME_MS = 5_500L
 private const val STORY_TICK_MS = 55L
@@ -173,7 +173,7 @@ fun StoriesRail(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
             ) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = NovaAccent, strokeWidth = 2.dp)
+                NovaPresenceIndicator(modifier = Modifier.size(28.dp))
             }
         } else {
             val myGroup = state.groups.firstOrNull { it.isMine }
@@ -452,10 +452,10 @@ private fun MediaStoryComposer(
                             contentAlignment = Alignment.Center,
                         ) {
                             if (uploading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(19.dp),
-                                    color = Color.White,
-                                    strokeWidth = 2.dp,
+                                NovaPresenceIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    monochrome = true,
+                                    monochromeColor = Color.White,
                                 )
                             } else {
                                 Text("Share Story", color = Color.White, fontWeight = FontWeight.Bold)
@@ -1014,7 +1014,7 @@ private fun StoryViewersDialog(owner: StoryViewerStateOwner) {
         text = {
             when {
                 state.viewersLoading -> Box(Modifier.fillMaxWidth().height(140.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = NovaAccent)
+                    NovaPresenceIndicator(modifier = Modifier.size(30.dp))
                 }
                 state.viewers.isEmpty() -> Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -1073,5 +1073,5 @@ private fun storyBackgroundBrush(style: String): Brush = when (style) {
     "sunset" -> Brush.linearGradient(listOf(Color(0xFF5B1A55), Color(0xFFE06A46), Color(0xFFF0B35A)))
     "ocean" -> Brush.linearGradient(listOf(Color(0xFF092B4A), Color(0xFF0D6E8A), Color(0xFF31A6A0)))
     "forest" -> Brush.linearGradient(listOf(Color(0xFF102A24), Color(0xFF1D5943), Color(0xFF5A7D45)))
-    else -> Brush.linearGradient(listOf(Color(0xFF0B0E17), Color(0xFF232A45), Color(0xFF4A315D)))
+    else -> Brush.linearGradient(listOf(Color(0xFF0A0B14), Color(0xFF25233B), Color(0xFF5A3E72)))
 }
