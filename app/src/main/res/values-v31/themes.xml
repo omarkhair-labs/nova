@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Nova" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="colorControlNormal">?android:attr/colorControlNormal</item>
+        <item name="android:windowSplashScreenBackground">@color/nova_deep_space</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
+    </style>
+</resources>

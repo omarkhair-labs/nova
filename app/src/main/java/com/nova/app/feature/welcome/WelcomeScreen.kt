@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -24,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nova.app.ui.components.NovaBrandMark
 import com.nova.app.ui.components.NovaPrimaryButton
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.theme.NovaAccent
@@ -53,21 +55,9 @@ fun WelcomeScreen(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = NovaAccent,
-            ) {
-                Text(
-                    text = "N",
-                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
-                    color = androidx.compose.ui.graphics.Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Black,
-                )
-            }
-
+            NovaBrandMark(modifier = Modifier.size(34.dp))
             Text(
-                text = "nova",
+                text = "Nova",
                 modifier = Modifier.padding(start = 10.dp),
                 color = NovaInk,
                 fontSize = 21.sp,
@@ -81,6 +71,9 @@ fun WelcomeScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            NovaBrandMark(modifier = Modifier.size(92.dp))
+            Spacer(modifier = Modifier.height(22.dp))
+
             Surface(
                 shape = RoundedCornerShape(28.dp),
                 color = NovaAccentSoft,
@@ -127,7 +120,6 @@ fun WelcomeScreen(
                 text = "Create account",
                 onClick = onCreateAccount,
             )
-
             NovaSecondaryButton(
                 text = "Log in",
                 onClick = onLogin,
@@ -143,6 +135,7 @@ fun WelcomeScreen(
                 lineHeight = 16.sp,
                 textAlign = TextAlign.Center,
             )
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
@@ -156,7 +149,11 @@ fun WelcomeScreen(
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
-                Text(text = "·", color = NovaMuted, fontSize = 11.sp)
+                Text(
+                    text = "·",
+                    color = NovaMuted,
+                    fontSize = 11.sp,
+                )
                 TextButton(onClick = onPrivacy) {
                     Text(
                         text = "Privacy",

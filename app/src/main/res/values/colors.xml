@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="nova_deep_space">#FF0A0B14</color>
+    <color name="nova_purple">#FF7B5CFF</color>
+    <color name="nova_electric_blue">#FF2D8BFF</color>
+    <color name="nova_sunrise_peach">#FFFFB8A7</color>
+    <color name="nova_soft_light">#FFE9E6FF</color>
+    <color name="nova_background">#FFF8F9FF</color>
     <color name="purple_200">#FFBB86FC</color>
     <color name="purple_500">#FF6200EE</color>
     <color name="purple_700">#FF3700B3</color>

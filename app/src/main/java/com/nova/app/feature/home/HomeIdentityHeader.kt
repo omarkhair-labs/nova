@@ -15,11 +15,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.nova.app.ui.components.NovaAvatar
+import com.nova.app.ui.components.NovaBrandMark
 import com.nova.app.ui.components.NovaIconButton
 import com.nova.app.ui.components.NovaOrbitRing
 import com.nova.app.ui.components.NovaUnreadDot
 import com.nova.app.ui.icons.NovaIconAsset
-import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSpacing
@@ -38,87 +38,28 @@ internal fun HomeIdentityHeader(
     onActivityClick: () -> Unit,
     onProfileClick: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(NovaSpacing.md),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "nova",
-                color = NovaAccent,
-                style = NovaType.display,
-            )
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(NovaSpacing.xs),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                NovaIconButton(
-                    asset = NovaIconAsset.Search,
-                    contentDescription = "Search people",
-                    onClick = onSearchClick,
-                    size = 48.dp,
-                    iconSize = 24.dp,
-                    containerColor = Color.Transparent,
-                    borderColor = Color.Transparent,
-                    contentColor = NovaInk,
-                )
-
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(NovaSpacing.md)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                NovaBrandMark(modifier = Modifier.size(30.dp))
+                Text(text = "Nova", color = NovaInk, style = NovaType.display)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(NovaSpacing.xs), verticalAlignment = Alignment.CenterVertically) {
+                NovaIconButton(asset = NovaIconAsset.Search, contentDescription = "Search people", onClick = onSearchClick, size = 48.dp, iconSize = 24.dp, containerColor = Color.Transparent, borderColor = Color.Transparent, contentColor = NovaInk)
                 Box {
-                    NovaIconButton(
-                        asset = NovaIconAsset.Notifications,
-                        contentDescription = "Activity",
-                        onClick = onActivityClick,
-                        size = 48.dp,
-                        iconSize = 23.dp,
-                        containerColor = Color.Transparent,
-                        borderColor = Color.Transparent,
-                        contentColor = NovaInk,
-                    )
-                    if (unreadCount > 0) {
-                        NovaUnreadDot(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .offset(x = (-2).dp, y = 2.dp),
-                        )
-                    }
+                    NovaIconButton(asset = NovaIconAsset.Notifications, contentDescription = "Activity", onClick = onActivityClick, size = 48.dp, iconSize = 23.dp, containerColor = Color.Transparent, borderColor = Color.Transparent, contentColor = NovaInk)
+                    if (unreadCount > 0) NovaUnreadDot(modifier = Modifier.align(Alignment.TopEnd).offset(x = (-2).dp, y = 2.dp))
                 }
-
-                Surface(
-                    onClick = onProfileClick,
-                    color = NovaSurface,
-                    shape = androidx.compose.foundation.shape.CircleShape,
-                ) {
-                    NovaOrbitRing(
-                        modifier = Modifier.size(48.dp),
-                        rings = 1,
-                        showLivePoint = true,
-                    ) {
-                        NovaAvatar(
-                            source = avatarUrl,
-                            fallbackText = displayName.ifBlank { username },
-                            size = 38.dp,
-                        )
+                Surface(onClick = onProfileClick, color = NovaSurface, shape = androidx.compose.foundation.shape.CircleShape) {
+                    NovaOrbitRing(modifier = Modifier.size(48.dp), rings = 1, showLivePoint = true) {
+                        NovaAvatar(source = avatarUrl, fallbackText = displayName.ifBlank { username }, size = 38.dp)
                     }
                 }
             }
         }
-
         Column(verticalArrangement = Arrangement.spacedBy(NovaSpacing.xxs)) {
-            Text(
-                text = "${currentGreeting()}, $firstName",
-                color = NovaInk,
-                style = NovaType.screenTitle,
-            )
-            Text(
-                text = "Your orbit is awake.",
-                color = NovaMuted,
-                style = NovaType.subtitle,
-            )
+            Text(text = "${currentGreeting()}, $firstName", color = NovaInk, style = NovaType.screenTitle)
+            Text(text = "Your people are here.", color = NovaMuted, style = NovaType.subtitle)
         }
     }
 }
