@@ -42,7 +42,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="SpaceMember",
             fields=[
-                ("id", models.BigAutoField(primary_key=True, serialize=False)),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
                 ("role", models.CharField(max_length=10, default="viewer", choices=[("viewer", "Viewer"), ("carer", "Carer"), ("manager", "Manager")])),
                 ("joined_at", models.DateTimeField(auto_now_add=True)),
                 ("space", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="memberships", to="plants.space")),
@@ -52,7 +52,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="PlantNickname",
             fields=[
-                ("id", models.BigAutoField(primary_key=True, serialize=False)),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
                 ("nickname", models.CharField(max_length=80)),
                 ("plant", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="nicknames", to="plants.plantunit")),
                 ("user", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="plantupia_nicknames", to=settings.AUTH_USER_MODEL)),
