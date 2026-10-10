@@ -96,3 +96,26 @@ class PlantEvent(models.Model):
 
     class Meta:
         ordering = ["-observed_at", "-created_at"]
+
+
+class PlantDiscussion(models.Model):
+    """A consented public Nova post attached privately to its source plant.
+
+    Public responses never serialize space, owner, plant UUID, or private history.
+    Deleting the public post also deletes this link; plant history survives.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    plant = models.ForeignKey(PlantUnit, on_delete=models.PROTECT, related_name="discussions")
+    post = models.OneToOneField("accounts.Post", on_delete=models.CASCADE, related_name="plantupia_discussion")
+    public_topic = models.CharField(max_length=80)
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolution_event = models.ForeignKey(
+        PlantEvent, null=True, blank=True, on_delete=models.SET_NULL, related_name="resolved_discussions"
+    )
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return f"Plant discussion for post {self.post_id}"

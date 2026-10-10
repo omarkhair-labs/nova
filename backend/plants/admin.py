@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import PlantEvent, PlantNickname, PlantUnit, Space, SpaceMember
+from .models import PlantEvent, PlantNickname, PlantUnit, Space, SpaceMember, PlantDiscussion
 
 
 class SpaceMemberInline(admin.TabularInline):
@@ -31,3 +31,10 @@ class PlantEventAdmin(admin.ModelAdmin):
 @admin.register(PlantNickname)
 class PlantNicknameAdmin(admin.ModelAdmin):
     list_display = ("plant", "user", "nickname")
+
+@admin.register(PlantDiscussion)
+class PlantDiscussionAdmin(admin.ModelAdmin):
+    list_display = ("public_topic", "plant", "post", "created_at", "resolved_at")
+    search_fields = ("public_topic", "plant__label", "post__caption")
+    list_filter = ("resolved_at",)
+    readonly_fields = ("post", "plant", "resolution_event", "created_at", "resolved_at")
