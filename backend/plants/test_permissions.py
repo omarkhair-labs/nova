@@ -115,7 +115,10 @@ class PlantupiaPermissionTests(TestCase):
             format="json",
         )
         self.assertEqual(response.status_code, 400)
-        self.assertIn("consent", str(response.json()).lower())
+        self.assertEqual(
+            response.json().get("detail"),
+            "Confirm public photo sharing before posting.",
+        )
         self.client.force_authenticate(user=self.stranger)
         response = self.client.post(
             reverse("plantupia-questions", args=[self.plant.pk]),
