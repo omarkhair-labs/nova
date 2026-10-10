@@ -33,6 +33,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.fillMaxSize
+import coil3.compose.AsyncImage
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.plants.data.PlantupiaCareEvent
 import com.nova.app.feature.plants.data.PlantupiaPlant
@@ -147,6 +151,9 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit) {
                             shape = RoundedCornerShape(14.dp),
                         ) {
                             Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                if (plant.coverPhoto.isNotBlank()) {
+                                    AsyncImage(model = plant.coverPhoto, contentDescription = "صورة ${plant.name}", modifier = Modifier.fillMaxWidth().height(166.dp).clip(RoundedCornerShape(10.dp)), contentScale = ContentScale.Crop)
+                                }
                                 Text(plant.name, color = forestText, fontSize = 17.sp, fontWeight = FontWeight.Medium)
                                 val subtitle = listOf(plant.species, plant.placement).filter(String::isNotBlank).joinToString(" · ")
                                 if (subtitle.isNotBlank()) Text(subtitle, color = muted, fontSize = 12.sp)
@@ -168,6 +175,9 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit) {
                 Text("← الرجوع للمساحة", color = deepGreen)
             }
             BrandEyebrow("LIVING RECORD / تاريخ النبات")
+            if (selectedPlant.coverPhoto.isNotBlank()) {
+                AsyncImage(model = selectedPlant.coverPhoto, contentDescription = "صورة النبات", modifier = Modifier.fillMaxWidth().height(236.dp).clip(RoundedCornerShape(16.dp)), contentScale = ContentScale.Crop)
+            }
             Text(selectedPlant.name, fontFamily = FontFamily.Serif, fontSize = 35.sp, color = deepGreen)
             val meta = listOf(selectedPlant.species, selectedPlant.placement).filter(String::isNotBlank).joinToString(" · ")
             if (meta.isNotBlank()) Text(meta, fontSize = 13.sp, color = muted)
