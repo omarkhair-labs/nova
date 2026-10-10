@@ -50,6 +50,7 @@ class PlantUnit(models.Model):
     space = models.ForeignKey(Space, on_delete=models.PROTECT, related_name="plants")
     unit_type = models.CharField(max_length=12, choices=UnitType.choices, default=UnitType.INDIVIDUAL)
     label = models.CharField(max_length=120)
+    cover_photo = models.ImageField(upload_to="plantupia/units/%Y/%m/", blank=True)
     species_label = models.CharField(max_length=180, blank=True)
     placement_note = models.CharField(max_length=180, blank=True)
     is_active = models.BooleanField(default=True)
