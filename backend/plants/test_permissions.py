@@ -122,3 +122,11 @@ class PlantupiaPermissionTests(TestCase):
             {**body, "public_share_consent": True}, format="json",
         )
         self.assertEqual(response.status_code, 404)
+
+    def test_circle_rejects_invalid_pagination_cursor(self):
+        self.client.force_authenticate(user=self.owner)
+        response = self.client.get(
+            reverse("plantupia-circle"), {"cursor": "not-a-post-id"}
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertNotIn("space", str(response.json()))

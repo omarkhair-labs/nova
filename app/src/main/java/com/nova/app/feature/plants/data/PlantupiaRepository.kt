@@ -45,6 +45,11 @@ data class PlantupiaCareEvent(
 )
 
 
+data class PlantupiaCirclePage(
+    val questions: List<PlantupiaQuestion>,
+    val nextCursor: String?,
+)
+
 data class PlantupiaQuestion(
     val id: String,
     val postId: Long,
@@ -197,30 +202,51 @@ class PlantupiaRepository(context: Context) {
         }
 
 
-    suspend fun circle(): ApiResult<List<PlantupiaQuestion>> =
-        authorized { token -> parseQuestionList("plantupia/circle/", token) }
+    suspend fun circle(cursor: String? = null): ApiResult<PlantupiaCirclePage> =
+        authorized { token ->
+            val safeCursor = cursor?.toLongOrNull()?.takeIf { it > 0L }?.toString()
+            val suffix = safeCursor?.let { "?cursor=$it" }.orEmpty()
+            when (val response = api.requestJson(
+                path = "plantupia/circle/$suffix", bearerToken = token,
+            )) {
+                is ApiResult.Failure -> response
+                is ApiResult.Success -> {
+                    val rows = response.value.optJSONArray("results") ?: JSONArray()
+                    val questions = buildList {
+                        repeat(rows.length()) { index ->
+                            rows.optJSONObject(index)?.let { add(parseQuestion(it)) }
+                        }
+                    }
+                    val next = response.value.optString("next_cursor")
+                        .takeUnless { it.isBlank() || it == "null" }
+                    ApiResult.Success(PlantupiaCirclePage(questions, next))
+                }
+            }
+        }
 
     suspend fun plantQuestions(plantId: String): ApiResult<List<PlantupiaQuestion>> =
         authorized { token -> parseQuestionList("plantupia/plants/$plantId/questions/", token) }
 
     private suspend fun parseQuestionList(path: String, token: String): ApiResult<List<PlantupiaQuestion>> =
-        parseList(path, token) { raw ->
-            val post = raw.optJSONObject("post") ?: JSONObject()
-            val author = post.optJSONObject("author") ?: JSONObject()
-            PlantupiaQuestion(
-                id = raw.optString("id"),
-                postId = post.optLong("id"),
-                topic = raw.optString("topic"),
-                caption = post.optString("caption"),
-                imageUrl = api.resolveMediaUrl(
-                    post.optString("thumbnail_url").ifBlank { post.optString("image_url") }
-                ),
-                authorName = author.optString("name").ifBlank { author.optString("username") },
-                comments = post.optInt("comments_count"),
-                resolved = raw.optBoolean("resolved"),
-                isMine = post.optBoolean("is_mine"),
-            )
-        }
+        parseList(path, token, ::parseQuestion)
+
+    private fun parseQuestion(raw: JSONObject): PlantupiaQuestion {
+        val post = raw.optJSONObject("post") ?: JSONObject()
+        val author = post.optJSONObject("author") ?: JSONObject()
+        return PlantupiaQuestion(
+            id = raw.optString("id"),
+            postId = post.optLong("id"),
+            topic = raw.optString("topic"),
+            caption = post.optString("caption"),
+            imageUrl = api.resolveMediaUrl(
+                post.optString("thumbnail_url").ifBlank { post.optString("image_url") }
+            ),
+            authorName = author.optString("name").ifBlank { author.optString("username") },
+            comments = post.optInt("comments_count"),
+            resolved = raw.optBoolean("resolved"),
+            isMine = post.optBoolean("is_mine"),
+        )
+    }
 
     suspend fun askWithPhoto(
         plantId: String,

@@ -190,6 +190,9 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val repo = remember(context) { PlantupiaRepository(context.applicationContext) }
     var questions by remember { mutableStateOf<List<PlantupiaQuestion>>(emptyList()) }
+    var nextCursor by remember { mutableStateOf<String?>(null) }
+    var loadingMore by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     var pending by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var refresh by remember { mutableStateOf(0) }
@@ -197,7 +200,11 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
     LaunchedEffect(refresh) {
         pending = true
         when (val result = repo.circle()) {
-            is ApiResult.Success -> { questions = result.value; error = null }
+            is ApiResult.Success -> {
+                questions = result.value.questions
+                nextCursor = result.value.nextCursor
+                error = null
+            }
             is ApiResult.Failure -> error = result.message
         }
         pending = false
@@ -217,7 +224,28 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
         if (!pending && error == null && questions.isEmpty()) {
             Text("الدائرة لسه في أولها. أول سؤال هيظهر هنا.", color = mutedGreen, fontSize = 13.sp)
         }
-        questions.take(8).forEach { q -> QuestionCard(q, onClick = { onOpenPost(q.postId) }) }
+        questions.forEach { q -> QuestionCard(q, onClick = { onOpenPost(q.postId) }) }
+        if (nextCursor != null) {
+            OutlinedButton(
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !loadingMore,
+                onClick = {
+                    val cursor = nextCursor ?: return@OutlinedButton
+                    scope.launch {
+                        loadingMore = true
+                        when (val result = repo.circle(cursor)) {
+                            is ApiResult.Failure -> error = result.message
+                            is ApiResult.Success -> {
+                                questions = (questions + result.value.questions).distinctBy { it.id }
+                                nextCursor = result.value.nextCursor
+                                error = null
+                            }
+                        }
+                        loadingMore = false
+                    }
+                },
+            ) { Text(if (loadingMore) "جارٍ تحميل المزيد…" else "اعرض أسئلة أقدم", color = green) }
+        }
         if (questions.isNotEmpty()) TextButton(onClick = { refresh++ }) { Text("تحديث الأسئلة", color = green) }
     }
 }
