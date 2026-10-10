@@ -339,7 +339,7 @@ private fun OrbitPersonDetailDialog(
                 NovaAvatar(source = avatarUrl, fallbackText = name, size = 92.dp)
             }
             Text(name, color = Color.White, style = NovaType.pageTitle)
-            Text("@$username · ${events.size} Orbit moments", color = Color(0xFFB8C0D8), style = NovaType.bodyCompact)
+            Text("@$username · ${events.size} shared moments", color = Color(0xFFB8C0D8), style = NovaType.bodyCompact)
             Surface(
                 onClick = onOpenProfile,
                 modifier = Modifier.fillMaxWidth(),
@@ -512,7 +512,7 @@ private fun OrbitActivityRow(
                 NovaMediaImage(
                     source = preview,
                     modifier = Modifier.size(54.dp),
-                    contentDescription = "Open Orbit activity media",
+                    contentDescription = "Open Circle activity media",
                 )
             } else {
                 NovaIcon(

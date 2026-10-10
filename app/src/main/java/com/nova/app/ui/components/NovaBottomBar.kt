@@ -75,7 +75,7 @@ fun NovaBottomBar(
                 onClick = onHomeClick,
             )
             NovaTabItem(
-                label = "Orbit",
+                label = "Circle",
                 displayLabel = "Circle",
                 icon = NovaIconAsset.Orbit,
                 selected = selected == NovaTab.Orbit,

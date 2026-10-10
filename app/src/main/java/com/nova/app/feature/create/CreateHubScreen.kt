@@ -78,7 +78,7 @@ fun CreateHubScreen(
         CreateHubAction("Reel", "Share a living moment in vertical video", NovaIconAsset.Reels, onOpenReels),
         CreateHubAction("Story", "A brief moment from your living space", NovaIconAsset.Story) { reveal(2) },
         CreateHubAction("Pulse", "Share what you notice now", NovaIconAsset.Orbit) { reveal(3) },
-        CreateHubAction("Room", "Gather people around a shared place", NovaIconAsset.Room) { reveal(4) },
+        CreateHubAction("Gathering", "Bring people together around a place", NovaIconAsset.Room) { reveal(4) },
         CreateHubAction("Memory", "See how life has changed over time", NovaIconAsset.Memory) { reveal(5) },
     )
 
