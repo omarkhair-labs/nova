@@ -68,6 +68,7 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
     var spaces by remember { mutableStateOf<List<PlantupiaSpace>>(emptyList()) }
     var plants by remember { mutableStateOf<List<PlantupiaPlant>>(emptyList()) }
     var currentPlantId by remember { mutableStateOf<String?>(null) }
+    var expandedSpaceId by remember { mutableStateOf<String?>(null) }
     var events by remember { mutableStateOf<List<PlantupiaCareEvent>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var detailLoading by remember { mutableStateOf(false) }
@@ -108,6 +109,10 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
     }
 
     LaunchedEffect(Unit) { refresh() }
+    LaunchedEffect(spaces) {
+        if (spaces.size == 1 && expandedSpaceId == null) expandedSpaceId = spaces.first().id
+        if (expandedSpaceId != null && spaces.none { it.id == expandedSpaceId }) expandedSpaceId = null
+    }
 
     Column(
         modifier = Modifier
@@ -150,7 +155,16 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
                             color = deepGreen,
                             fontSize = 12.sp,
                         )
+                        TextButton(onClick = {
+                            expandedSpaceId = if (expandedSpaceId == space.id) null else space.id
+                        }) {
+                            Text(
+                                if (expandedSpaceId == space.id) "اخفِ نباتات المساحة ↑" else "استكشف نباتات المساحة ↓",
+                                color = deepGreen,
+                            )
+                        }
                     }
+                    if (expandedSpaceId == space.id) {
                     plants.filter { it.spaceId == space.id && it.active }.forEach { plant ->
                         Surface(
                             modifier = Modifier.fillMaxWidth().clickable { scope.launch { openPlant(plant) } },
@@ -164,9 +178,21 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
                                 Text(plant.name, color = forestText, fontSize = 17.sp, fontWeight = FontWeight.Medium)
                                 val subtitle = listOf(plant.species, plant.placement).filter(String::isNotBlank).joinToString(" · ")
                                 if (subtitle.isNotBlank()) Text(subtitle, color = muted, fontSize = 12.sp)
+                                if (plant.lastEventAt.isNotBlank()) {
+                                    val lastKind = when (plant.lastEventKind) {
+                                        "issue" -> "ملاحظة تحتاج متابعة"
+                                        "care" -> "رعاية مسجلة"
+                                        "outcome" -> "نتيجة موثقة"
+                                        else -> "ملاحظة مسجلة"
+                                    }
+                                    Text("آخر سجل: ${plant.lastEventAt.take(10)} · $lastKind", color = muted, fontSize = 12.sp)
+                                } else {
+                                    Text("لم يُسجَّل تاريخ لهذا النبات بعد", color = muted, fontSize = 12.sp)
+                                }
                                 Text("شوف تاريخ النبات ←", color = deepGreen, fontSize = 12.sp)
                             }
                         }
+                    }
                     }
                 }
                 if (spaces.isNotEmpty() && plants.none { it.active }) {
@@ -221,6 +247,7 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
             }
 
             BrandEyebrow("CARE & OBSERVATIONS")
+            if (selectedPlant.canRecord) {
             PlantupiaPanel {
                 OutlinedTextField(
                     value = note,
@@ -263,6 +290,9 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
                     ) { Text("رعاية", color = white) }
                 }
             }
+            } else {
+                Text("لديك صلاحية مشاهدة سجل الرعاية فقط. يمكن للمسؤول منحك صلاحية التوثيق.", color = muted, fontSize = 12.sp)
+            }
             if (error != null) Text(error.orEmpty(), color = Color(0xFF9A4A31), fontSize = 12.sp)
             if (detailLoading) Text("جارٍ تحميل التاريخ…", color = muted, fontSize = 13.sp)
             else if (events.isEmpty()) Text("أول ملاحظة منك هتبدأ تاريخ النبات هنا.", color = muted, fontSize = 13.sp)
@@ -277,7 +307,7 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
                 }
             }
             HorizontalDivider(color = sage)
-            PlantupiaQuestionsPanel(plantId = selectedPlant.id, repository = repository, onOpenPost = onOpenLinkedPost)
+            PlantupiaQuestionsPanel(plantId = selectedPlant.id, repository = repository, canPublish = selectedPlant.canRecord, onOpenPost = onOpenLinkedPost)
             HorizontalDivider(color = sage)
             Text("أو شارك لحظة عامة مع الناس", color = forestText, fontSize = 14.sp)
             OutlinedButton(

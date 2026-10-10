@@ -30,6 +30,9 @@ data class PlantupiaPlant(
     val placement: String,
     val coverPhoto: String,
     val active: Boolean,
+    val canRecord: Boolean,
+    val lastEventKind: String,
+    val lastEventAt: String,
 )
 
 data class PlantupiaCareEvent(
@@ -86,8 +89,11 @@ class PlantupiaRepository(context: Context) {
                     name = raw.optString("my_name").ifBlank { raw.optString("label") },
                     species = raw.optString("species_label"),
                     placement = raw.optString("placement_note"),
-                    coverPhoto = raw.optString("cover_photo"),
+                    coverPhoto = api.resolveMediaUrl(raw.optString("cover_photo")),
                     active = raw.optBoolean("is_active", true),
+                    canRecord = raw.optBoolean("can_record", false),
+                    lastEventKind = raw.optString("last_event_kind").takeUnless { it == "null" }.orEmpty(),
+                    lastEventAt = raw.optString("last_event_at").takeUnless { it == "null" }.orEmpty(),
                 )
             }
         }
@@ -132,7 +138,7 @@ class PlantupiaRepository(context: Context) {
         } ?: return@authorized ApiResult.Failure("Please choose a photo smaller than 10 MB.")
         val mimeType = appContext.contentResolver.getType(photoUri)
             ?.takeIf { it == "image/jpeg" || it == "image/png" || it == "image/webp" }
-            ?: "image/jpeg"
+            ?: return@authorized ApiResult.Failure("Use a JPEG, PNG or WebP photo.")
         val ext = when (mimeType) {
             "image/png" -> "png"
             "image/webp" -> "webp"
@@ -243,6 +249,14 @@ class PlantupiaRepository(context: Context) {
         } ?: return@authorized ApiResult.Failure("Couldn't read this photo (maximum 10 MB).")
 
         if (bytesResult.isEmpty()) return@authorized ApiResult.Failure("Select a non-empty photo.")
+        val mimeType = appContext.contentResolver.getType(imageUri)
+            ?.takeIf { it == "image/jpeg" || it == "image/png" || it == "image/webp" }
+            ?: return@authorized ApiResult.Failure("Use a JPEG, PNG or WebP question photo.")
+        val extension = when (mimeType) {
+            "image/png" -> "png"
+            "image/webp" -> "webp"
+            else -> "jpg"
+        }
         when (val response = api.requestMultipart(
             path = "plantupia/plants/$plantId/questions/",
             method = "POST",
@@ -253,7 +267,7 @@ class PlantupiaRepository(context: Context) {
                 "media_type" to "image",
             ),
             fileField = "image",
-            file = UploadFile(bytes = bytesResult, fileName = "plant-question.jpg", mimeType = appContext.contentResolver.getType(imageUri)?.takeIf { it.startsWith("image/") } ?: "image/jpeg"),
+            file = UploadFile(bytes = bytesResult, fileName = "plant-question.$extension", mimeType = mimeType),
             bearerToken = token,
         )) {
             is ApiResult.Failure -> response

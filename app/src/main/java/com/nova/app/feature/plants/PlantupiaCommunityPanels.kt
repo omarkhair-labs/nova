@@ -52,6 +52,7 @@ private val card = Color(0xFFFFFDF7)
 fun PlantupiaQuestionsPanel(
     plantId: String,
     repository: PlantupiaRepository,
+    canPublish: Boolean,
     onOpenPost: (Long) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -87,6 +88,7 @@ fun PlantupiaQuestionsPanel(
             "صوّر اللي لاحظته. الخبرة هنا مرتبطة بنبات حقيقي، وبعد الرد ارجع سجّل إيه اللي حصل.",
             color = mutedGreen, fontSize = 13.sp, lineHeight = 20.sp,
         )
+        if (canPublish) {
         OutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
             value = topic,
@@ -135,6 +137,9 @@ fun PlantupiaQuestionsPanel(
                 }
             },
         ) { Text(if (submitting) "جارٍ نشر السؤال…" else "انشر في الدائرة", color = card) }
+        } else {
+            Text("يمكنك قراءة الأسئلة والردود. النشر مرتبط بصلاحية الرعاية لهذه المساحة.", color = mutedGreen, fontSize = 12.sp)
+        }
         if (error != null) Text(error.orEmpty(), color = Color(0xFF9F482B), fontSize = 12.sp)
         HorizontalDivider(color = Color(0xFF9FB79A))
         Text("أسئلة مرتبطة بالنبات", color = green, fontSize = 17.sp, fontWeight = FontWeight.Medium)
@@ -142,7 +147,7 @@ fun PlantupiaQuestionsPanel(
         if (!loading && linkedPosts.isEmpty()) Text("لما تسأل عن النبات، الأسئلة هتفضل محفوظة هنا.", color = mutedGreen, fontSize = 12.sp)
         linkedPosts.forEach { entry ->
             QuestionCard(entry = entry, onClick = { onOpenPost(entry.postId) })
-            if (entry.isMine && !entry.resolved) {
+            if (canPublish && entry.isMine && !entry.resolved) {
                 if (respondingTo == entry.id) {
                     OutlinedTextField(
                         value = outcome,

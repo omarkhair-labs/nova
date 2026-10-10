@@ -1,6 +1,6 @@
 """Account-scoped API; possession of a plant ID never grants access."""
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import OuterRef, Q, Subquery
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
@@ -44,7 +44,36 @@ class PlantsView(APIView):
         space_id = request.query_params.get("space")
         if space_id:
             qs = qs.filter(space_id=space_id)
-        return Response({"results": PlantSerializer(qs, many=True, context={"request": request}).data})
+
+        # Show verified activity rather than inventing a health score. Subqueries
+        # keep this bounded when a commercial space has many planting units.
+        latest = PlantEvent.objects.filter(plant_id=OuterRef("pk")).order_by(
+            "-observed_at", "-created_at"
+        )
+        qs = qs.annotate(
+            last_event_kind=Subquery(latest.values("kind")[:1]),
+            last_event_at=Subquery(latest.values("observed_at")[:1]),
+        )
+        editable_space_ids = set(
+            Space.objects.filter(
+                Q(owner=request.user)
+                | Q(
+                    memberships__user=request.user,
+                    memberships__role__in=[
+                        SpaceMember.Role.CARER, SpaceMember.Role.MANAGER
+                    ],
+                )
+            ).values_list("pk", flat=True)
+        )
+        return Response({
+            "results": PlantSerializer(
+                qs, many=True,
+                context={
+                    "request": request,
+                    "editable_space_ids": editable_space_ids,
+                },
+            ).data
+        })
 
 
 class PlantEventsView(APIView):
