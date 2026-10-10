@@ -34,6 +34,7 @@ import com.nova.app.core.network.ApiResult
 import com.nova.app.core.notifications.NovaNotificationRepository
 import com.nova.app.core.push.NovaPushOpenSignal
 import com.nova.app.feature.memories.MemoriesRail
+import com.nova.app.feature.plants.PlantupiaClientSection
 import com.nova.app.feature.notifications.NotificationsScreen
 import com.nova.app.feature.orbit.OrbitRail
 import com.nova.app.feature.posts.domain.model.NovaPost
@@ -266,12 +267,19 @@ fun HomeScreen(
                     }
                 }
 
+                item(key = "plantupia-living-space") {
+                    PlantupiaClientSection(onCommunityCreateClick = onCreatePost)
+                }
+
                 item {
-                    TonightSurface(
-                        onPersonClick = onPersonClick,
-                        onSessionExpired = {},
-                        onOpenTonight = onTonightClick,
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(text = "From the circle", color = NovaInk, style = NovaType.title)
+                        Text(text = "Community", color = NovaMuted, style = NovaType.micro)
+                    }
                 }
 
                 if (posts.isNotEmpty()) {
@@ -314,8 +322,8 @@ fun HomeScreen(
                 } else {
                     item {
                         NovaEmptyState(
-                            title = "Your orbit is quiet",
-                            message = "Share a moment or find someone in People to begin your feed.",
+                            title = "Your circle is quiet",
+                            message = "Share a plant moment or find people to begin the conversation.",
                             actionLabel = "Find people",
                             onAction = onPeopleClick,
                         )
