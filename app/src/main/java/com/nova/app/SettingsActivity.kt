@@ -227,27 +227,27 @@ private fun SettingsScreen(
         }
 
         Spacer(modifier = Modifier.size(NovaSpacing.xxl))
-        SettingsSectionLabel("Nova & device")
+        SettingsSectionLabel("Plantupia & device")
 
         NovaCard(modifier = Modifier.fillMaxWidth()) {
             Column {
                 SettingsRow(
                     icon = NovaIconAsset.Orbit,
-                    title = "Tonight (Full)",
-                    subtitle = "Open Nova's live night experience",
+                    title = "Live together",
+                    subtitle = "Open the existing community live experience",
                     onClick = onTonight,
                 )
                 SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.AccountDeletion,
                     title = "Android app settings",
-                    subtitle = "Manage Nova permissions and storage in Android",
+                    subtitle = "Manage Plantupia permissions and storage in Android",
                     onClick = onDataStorage,
                 )
                 SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.Info,
-                    title = "About Nova",
+                    title = "About Plantupia",
                     subtitle = "Version $appVersion",
                     onClick = { showAbout = true },
                 )
@@ -269,7 +269,7 @@ private fun SettingsScreen(
                 SettingsRow(
                     icon = NovaIconAsset.Policy,
                     title = "Privacy policy",
-                    subtitle = "How Nova handles and protects your information",
+                    subtitle = "Review data and account privacy information",
                     onClick = onPrivacyPolicy,
                 )
                 SettingsDivider()
@@ -354,11 +354,11 @@ private fun AboutNovaDialog(
                     }
                 }
                 Spacer(modifier = Modifier.size(NovaSpacing.lg))
-                Text(text = "Nova", color = NovaInk, style = NovaType.screenTitle)
+                Text(text = "Plantupia", color = NovaInk, style = NovaType.screenTitle)
                 Text(text = "Version $appVersion", color = NovaMuted, style = NovaType.meta)
                 Spacer(modifier = Modifier.size(NovaSpacing.lg))
                 Text(
-                    text = "Quiet Orbit. Real connections, when it matters.",
+                    text = "Transforming Spaces. Inspiring People.",
                     color = NovaMuted,
                     style = NovaType.bodyCompact,
                 )
