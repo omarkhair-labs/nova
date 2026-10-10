@@ -330,6 +330,16 @@ fun HomeScreen(
                     }
                 }
 
+                // Keep the existing Nova live-social destination available during
+                // the Plantupia conversion until its product role is redesigned.
+                item {
+                    TonightSurface(
+                        onPersonClick = onPersonClick,
+                        onSessionExpired = {},
+                        onOpenTonight = onTonightClick,
+                    )
+                }
+
                 item {
                     PulseRail(
                         displayName = displayName,
