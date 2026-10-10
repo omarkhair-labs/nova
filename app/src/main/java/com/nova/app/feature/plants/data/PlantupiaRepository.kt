@@ -23,6 +23,7 @@ data class PlantupiaPlant(
     val name: String,
     val species: String,
     val placement: String,
+    val coverPhoto: String,
     val active: Boolean,
 )
 
@@ -65,6 +66,7 @@ class PlantupiaRepository(context: Context) {
                     name = raw.optString("my_name").ifBlank { raw.optString("label") },
                     species = raw.optString("species_label"),
                     placement = raw.optString("placement_note"),
+                    coverPhoto = raw.optString("cover_photo"),
                     active = raw.optBoolean("is_active", true),
                 )
             }
