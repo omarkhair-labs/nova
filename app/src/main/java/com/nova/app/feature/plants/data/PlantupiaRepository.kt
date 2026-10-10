@@ -38,6 +38,7 @@ data class PlantupiaCareEvent(
     val note: String,
     val evidence: String,
     val observedAt: String,
+    val photoUrl: String,
 )
 
 
@@ -100,9 +101,60 @@ class PlantupiaRepository(context: Context) {
                     note = raw.optString("note"),
                     evidence = raw.optString("evidence_type"),
                     observedAt = raw.optString("observed_at"),
+                    photoUrl = api.resolveMediaUrl(raw.optString("photo")),
                 )
             }
         }
+
+
+    suspend fun recordWithPhoto(
+        plantId: String,
+        kind: String,
+        note: String,
+        photoUri: Uri,
+    ): ApiResult<Unit> = authorized { token ->
+        val data = withContext(Dispatchers.IO) {
+            runCatching {
+                val input = appContext.contentResolver.openInputStream(photoUri)
+                    ?: error("Can't open photo")
+                input.use { stream ->
+                    val out = ByteArrayOutputStream()
+                    val chunk = ByteArray(8192)
+                    while (true) {
+                        val bytes = stream.read(chunk)
+                        if (bytes < 0) break
+                        out.write(chunk, 0, bytes)
+                        if (out.size() > 10 * 1024 * 1024) error("Photo too large")
+                    }
+                    out.toByteArray()
+                }
+            }.getOrNull()
+        } ?: return@authorized ApiResult.Failure("Please choose a photo smaller than 10 MB.")
+        val mimeType = appContext.contentResolver.getType(photoUri)
+            ?.takeIf { it == "image/jpeg" || it == "image/png" || it == "image/webp" }
+            ?: "image/jpeg"
+        val ext = when (mimeType) {
+            "image/png" -> "png"
+            "image/webp" -> "webp"
+            else -> "jpg"
+        }
+        when (val result = api.requestMultipart(
+            path = "plantupia/plants/$plantId/events/",
+            method = "POST",
+            fields = mapOf(
+                "kind" to kind,
+                "note" to note.trim(),
+                "evidence_type" to "observed",
+                "observed_at" to Instant.now().toString(),
+            ),
+            fileField = "photo",
+            file = UploadFile(bytes = data, fileName = "plant-event.$ext", mimeType = mimeType),
+            bearerToken = token,
+        )) {
+            is ApiResult.Success -> ApiResult.Success(Unit)
+            is ApiResult.Failure -> result
+        }
+    }
 
     suspend fun nickname(plantId: String, value: String): ApiResult<Unit> =
         authorized { token ->
@@ -201,7 +253,7 @@ class PlantupiaRepository(context: Context) {
                 "media_type" to "image",
             ),
             fileField = "image",
-            file = UploadFile(bytes = bytesResult, fileName = "plant-question.jpg", mimeType = "image/jpeg"),
+            file = UploadFile(bytes = bytesResult, fileName = "plant-question.jpg", mimeType = appContext.contentResolver.getType(imageUri)?.takeIf { it.startsWith("image/") } ?: "image/jpeg"),
             bearerToken = token,
         )) {
             is ApiResult.Failure -> response

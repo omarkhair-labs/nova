@@ -1,5 +1,9 @@
 package com.nova.app.feature.plants
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -71,6 +75,8 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
     var error by remember { mutableStateOf<String?>(null) }
     var plantName by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
+    var carePhotoUri by remember { mutableStateOf<Uri?>(null) }
+    val carePhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> carePhotoUri = uri }
     val selectedPlant = plants.firstOrNull { it.id == currentPlantId }
 
     suspend fun refresh() {
@@ -91,6 +97,7 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
         currentPlantId = plant.id
         plantName = plant.name
         note = ""
+        carePhotoUri = null
         detailLoading = true
         error = null
         when (val response = repository.history(plant.id)) {
@@ -223,13 +230,16 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
                     minLines = 2,
                     enabled = !saving,
                 )
+                OutlinedButton(onClick = { carePhotoPicker.launch("image/*") }) {
+                    Text(if (carePhotoUri == null) "أضف صورة للملاحظة" else "الصورة جاهزة — غيّرها لو حابب", color = deepGreen)
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
                         enabled = !saving && note.trim().isNotEmpty(),
                         onClick = {
                             scope.launch {
                                 saving = true
-                                when (val r = repository.record(selectedPlant.id, "observation", note)) {
+                                when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "observation", note, it) } ?: repository.record(selectedPlant.id, "observation", note)) {
                                     is ApiResult.Failure -> error = r.message
                                     is ApiResult.Success -> { note = ""; openPlant(selectedPlant) }
                                 }
@@ -242,7 +252,7 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
                         onClick = {
                             scope.launch {
                                 saving = true
-                                when (val r = repository.record(selectedPlant.id, "care", note)) {
+                                when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "care", note, it) } ?: repository.record(selectedPlant.id, "care", note)) {
                                     is ApiResult.Failure -> error = r.message
                                     is ApiResult.Success -> { note = ""; openPlant(selectedPlant) }
                                 }
@@ -259,6 +269,9 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
             events.forEach { event ->
                 PlantupiaPanel {
                     Text("${event.kind.uppercase()}  ·  ${event.observedAt.take(10)}", color = deepGreen, fontSize = 11.sp, letterSpacing = 1.sp)
+                    if (event.photoUrl.isNotBlank()) {
+                        AsyncImage(model = event.photoUrl, contentDescription = "صورة من تاريخ النبات", modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(10.dp)), contentScale = ContentScale.Crop)
+                    }
                     Text(event.note.ifBlank { "حدث رعاية مسجل" }, color = forestText, fontSize = 13.sp, lineHeight = 20.sp)
                     Text("Source: ${event.evidence}", color = muted, fontSize = 11.sp)
                 }
