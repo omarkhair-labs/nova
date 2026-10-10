@@ -22,11 +22,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nova.app.ui.components.NovaBrandArrival
-import com.nova.app.ui.components.NovaBrandMark
 import com.nova.app.ui.components.NovaPrimaryButton
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.theme.NovaAccent
@@ -57,13 +56,13 @@ fun WelcomeScreen(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            NovaBrandMark(modifier = Modifier.size(34.dp))
             Text(
-                text = "Nova",
+                text = "PLANTUPIA",
                 modifier = Modifier.padding(start = 10.dp),
                 color = NovaInk,
-                fontSize = 21.sp,
-                fontWeight = FontWeight.Bold,
+                fontSize = 26.sp,
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.SemiBold,
             )
         }
 
@@ -73,7 +72,7 @@ fun WelcomeScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            NovaBrandArrival(modifier = Modifier.size(92.dp))
+            Text(text = "NATURE  ×  ARCHITECTURE", color = NovaAccent, fontSize = 11.sp, letterSpacing = 2.sp)
             Spacer(modifier = Modifier.height(22.dp))
 
             Surface(
@@ -81,7 +80,7 @@ fun WelcomeScreen(
                 color = NovaAccentSoft,
             ) {
                 Text(
-                    text = "made for your real people",
+                    text = "Transforming Spaces. Inspiring People.",
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
                     color = NovaAccent,
                     fontSize = 13.sp,
@@ -92,7 +91,7 @@ fun WelcomeScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "A social space\nthat feels like yours.",
+                text = "Spaces are living things.",
                 color = NovaInk,
                 fontSize = 38.sp,
                 lineHeight = 44.sp,
@@ -103,7 +102,7 @@ fun WelcomeScreen(
             Spacer(modifier = Modifier.height(18.dp))
 
             Text(
-                text = "Share moments, stay close, and keep the people that matter in one calm place.",
+                text = "Your Plantupia space continues to grow after installation. Know your plants, notice change and learn with people.",
                 modifier = Modifier.fillMaxWidth(0.88f),
                 color = NovaMuted,
                 fontSize = 16.sp,
@@ -130,7 +129,7 @@ fun WelcomeScreen(
             Spacer(modifier = Modifier.height(2.dp))
 
             Text(
-                text = "By continuing, you agree to Nova's",
+                text = "By continuing, you agree to Plantupia's",
                 modifier = Modifier.fillMaxWidth(),
                 color = NovaMuted,
                 fontSize = 11.sp,

@@ -99,7 +99,7 @@ fun ProfileScreen(
             ) {
                 Column {
                     Text(text = "You", color = NovaInk, style = NovaType.pageTitle)
-                    Text(text = "Your profile on Nova", color = NovaMuted, style = NovaType.meta)
+                    Text(text = "Your Plantupia community profile", color = NovaMuted, style = NovaType.meta)
                 }
                 NovaIconButton(
                     asset = NovaIconAsset.Settings,

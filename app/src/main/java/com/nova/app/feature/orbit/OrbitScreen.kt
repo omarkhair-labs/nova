@@ -64,6 +64,7 @@ import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSpacing
 import com.nova.app.ui.theme.NovaSurface
 import com.nova.app.ui.theme.NovaType
+import com.nova.app.feature.plants.PlantupiaCirclePanel
 import java.time.Duration
 import java.time.Instant
 import java.time.OffsetDateTime
@@ -139,9 +140,9 @@ fun OrbitScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Your Orbit", color = NovaInk, style = NovaType.pageTitle)
+                        Text("Plantupia Circle", color = NovaInk, style = NovaType.pageTitle)
                         Text(
-                            "Close connections, in real time.",
+                            "People, plants and the experience between them.",
                             color = NovaMuted,
                             style = NovaType.bodyCompact,
                         )
@@ -160,6 +161,10 @@ fun OrbitScreen(
                         )
                     }
                 }
+            }
+
+            item(key = "plantupia-circle-question-feed") {
+                PlantupiaCirclePanel(onOpenPost = onPostClick)
             }
 
             item {
@@ -205,7 +210,7 @@ fun OrbitScreen(
 
                 state.events.isEmpty() -> item {
                     NovaEmptyState(
-                        title = "Your orbit is quiet",
+                        title = "Your circle is quiet",
                         message = "Discover people and their real activity will gather here.",
                         actionLabel = "Discover people",
                         onAction = onDiscoveryClick,
@@ -231,7 +236,7 @@ fun OrbitScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("Around you", color = NovaInk, style = NovaType.sectionTitle)
+                            Text("People in your circle", color = NovaInk, style = NovaType.sectionTitle)
                             Text(
                                 if (state.loading) "Refreshing…" else "${filteredEvents.size} moments",
                                 color = NovaMuted,
@@ -326,7 +331,7 @@ private fun OrbitPersonDetailDialog(
                     )
                 }
                 Spacer(modifier = Modifier.weight(1f))
-                Text("Orbit Activity", color = Color.White, style = NovaType.sectionTitle)
+                Text("Circle Activity", color = Color.White, style = NovaType.sectionTitle)
                 Spacer(modifier = Modifier.weight(1f))
                 Spacer(modifier = Modifier.size(42.dp))
             }

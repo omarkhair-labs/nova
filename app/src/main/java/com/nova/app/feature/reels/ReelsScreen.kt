@@ -239,7 +239,7 @@ fun ReelsScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Reels", color = ReelInk, fontSize = 31.sp, fontWeight = FontWeight.Bold)
+                        Text("Living moments", color = ReelInk, fontSize = 31.sp, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = error ?: "No Reels yet. Share the first one.",
@@ -796,7 +796,7 @@ private fun ReelComposerDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("New Reel", color = NovaInk, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                    Text("New living moment", color = NovaInk, fontSize = 21.sp, fontWeight = FontWeight.Bold)
                     NovaIcon(
                         asset = NovaIconAsset.Reels,
                         contentDescription = null,
