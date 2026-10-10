@@ -43,7 +43,7 @@ internal fun HomeIdentityHeader(
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(NovaSpacing.md)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Row(horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
-                Text(text = "PLANTUPIA", color = NovaInk, fontFamily = FontFamily.Serif, fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
+                Text(text = "PLANTUPIA", color = NovaInk, style = NovaType.display.copy(fontFamily = FontFamily.Serif, fontSize = 26.sp, fontWeight = FontWeight.SemiBold))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(NovaSpacing.xs), verticalAlignment = Alignment.CenterVertically) {
                 NovaIconButton(asset = NovaIconAsset.Search, contentDescription = "Search people", onClick = onSearchClick, size = 48.dp, iconSize = 24.dp, containerColor = Color.Transparent, borderColor = Color.Transparent, contentColor = NovaInk)
