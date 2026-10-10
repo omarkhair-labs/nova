@@ -87,7 +87,7 @@ fun CreatePostScreen(
     ) {
         NovaHeader(
             title = "New post",
-            subtitle = "Share one moment into your Nova feed.",
+            subtitle = "Share a real moment with your Plantupia connections.",
             onBack = { if (!isLoading) onBack() },
         )
 
@@ -238,7 +238,7 @@ fun CreatePostScreen(
 
         Spacer(modifier = Modifier.height(14.dp))
         Text(
-            text = "Publishing continues safely if you move around Nova or leave the app. Home will show progress and any retry needed.",
+            text = "Publishing continues if you navigate Plantupia or leave the app. Home will show progress and retry options.",
             color = NovaMuted,
             fontSize = 12.sp,
             lineHeight = 18.sp,

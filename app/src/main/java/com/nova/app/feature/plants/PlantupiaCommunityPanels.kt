@@ -54,6 +54,7 @@ fun PlantupiaQuestionsPanel(
     repository: PlantupiaRepository,
     canPublish: Boolean,
     onOpenPost: (Long) -> Unit,
+    onOutcomeSaved: suspend () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     var question by remember(plantId) { mutableStateOf("") }
@@ -166,6 +167,7 @@ fun PlantupiaQuestionsPanel(
                                         respondingTo = null
                                         outcome = ""
                                         refreshQuestions()
+                                        onOutcomeSaved()
                                     }
                                 }
                                 submitting = false

@@ -307,7 +307,18 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
                 }
             }
             HorizontalDivider(color = sage)
-            PlantupiaQuestionsPanel(plantId = selectedPlant.id, repository = repository, canPublish = selectedPlant.canRecord, onOpenPost = onOpenLinkedPost)
+            PlantupiaQuestionsPanel(
+                plantId = selectedPlant.id,
+                repository = repository,
+                canPublish = selectedPlant.canRecord,
+                onOpenPost = onOpenLinkedPost,
+                onOutcomeSaved = {
+                    when (val response = repository.history(selectedPlant.id)) {
+                        is ApiResult.Success -> { events = response.value; error = null }
+                        is ApiResult.Failure -> error = response.message
+                    }
+                },
+            )
             HorizontalDivider(color = sage)
             Text("أو شارك لحظة عامة مع الناس", color = forestText, fontSize = 14.sp)
             OutlinedButton(

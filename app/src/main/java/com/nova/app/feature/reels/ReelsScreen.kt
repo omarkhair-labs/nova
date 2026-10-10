@@ -169,7 +169,7 @@ fun ReelsScreen(
 
     fun shareReelOutsideNova(reel: NovaReel) {
         val shareText = buildString {
-            append("Watch @${reel.author.username} on Nova")
+            append("Watch @${reel.author.username} on Plantupia")
             if (reel.caption.isNotBlank()) append("\n\n${reel.caption}")
             if (reel.videoUrl.isNotBlank()) append("\n\n${reel.videoUrl}")
         }
@@ -716,9 +716,9 @@ private fun ReelDeleteDialog(
                 Spacer(modifier = Modifier.height(7.dp))
                 Text(
                     text = if (reel.caption.isBlank()) {
-                        "This Reel will be permanently removed from Nova."
+                        "This Reel will be permanently removed from Plantupia."
                     } else {
-                        "This Reel and its interactions will be permanently removed from Nova."
+                        "This Reel and its interactions will be permanently removed from Plantupia."
                     },
                     color = NovaMuted,
                     fontSize = 13.sp,
