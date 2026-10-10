@@ -32,6 +32,7 @@ class Migration(migrations.Migration):
                 ("id", models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, serialize=False)),
                 ("unit_type", models.CharField(max_length=12, default="individual", choices=[("individual", "Individual plant"), ("group", "Planted group")])),
                 ("label", models.CharField(max_length=120)),
+                ("cover_photo", models.ImageField(blank=True, upload_to="plantupia/units/%Y/%m/")),
                 ("species_label", models.CharField(max_length=180, blank=True)),
                 ("placement_note", models.CharField(max_length=180, blank=True)),
                 ("is_active", models.BooleanField(default=True)),
