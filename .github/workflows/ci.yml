@@ -197,6 +197,25 @@ jobs:
                     "other_platform_oauth_client": []
                   }
                 }
+              },
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:123456789000:android:1111111111111111111111",
+                  "android_client_info": {
+                    "package_name": "com.omarkhair70.nova.plantupia.qa"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [
+                  {
+                    "current_key": "AIzaSyNovaCiOnlyDummyKey000000000000000"
+                  }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": []
+                  }
+                }
               }
             ],
             "configuration_version": "1"
@@ -227,11 +246,25 @@ jobs:
       - name: Build Android release App Bundle
         run: ./gradlew --no-daemon bundleRelease
 
+      - name: Build standalone Plantupia QA APK
+        if: ${{ github.event_name == 'pull_request' }}
+        run: ./gradlew --no-daemon -PplantupiaQaSideload=true clean assembleDebug
+
+      - name: Check QA package identity
+        if: ${{ github.event_name == 'pull_request' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          aapt="$(find "${ANDROID_HOME}/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$aapt"
+          "$aapt" dump badging app/build/outputs/apk/debug/app-debug.apk | grep -F "name='com.omarkhair70.nova.plantupia.qa'"
+          "$aapt" dump badging app/build/outputs/apk/debug/app-debug.apk | grep -F "application-label:'Plantupia QA'"
+
       - name: Upload QA preview APK (not a Play release)
         if: ${{ github.event_name == 'pull_request' }}
         uses: actions/upload-artifact@v4
         with:
-          name: plantupia-qa-preview-${{ github.run_number }}
+          name: plantupia-standalone-qa-${{ github.run_number }}
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 7
