@@ -67,14 +67,16 @@ fun NovaBottomBar(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             NovaTabItem(
-                label = "Spaces",
+                label = "Home",
+                displayLabel = "Spaces",
                 icon = NovaIconAsset.Home,
                 selected = selected == NovaTab.Home,
                 inactiveContentColor = inactiveContentColor,
                 onClick = onHomeClick,
             )
             NovaTabItem(
-                label = "Circle",
+                label = "Orbit",
+                displayLabel = "Circle",
                 icon = NovaIconAsset.Orbit,
                 selected = selected == NovaTab.Orbit,
                 inactiveContentColor = inactiveContentColor,
@@ -85,7 +87,8 @@ fun NovaBottomBar(
                 onClick = onCreateClick,
             )
             NovaTabItem(
-                label = "Chats",
+                label = "Inbox",
+                displayLabel = "Chats",
                 icon = NovaIconAsset.Inbox,
                 selected = selected == NovaTab.Inbox,
                 badgeCount = resolvedUnreadCount,
@@ -99,7 +102,8 @@ fun NovaBottomBar(
                 },
             )
             NovaTabItem(
-                label = "You",
+                label = "Profile",
+                displayLabel = "You",
                 icon = NovaIconAsset.Profile,
                 selected = selected == NovaTab.Profile,
                 inactiveContentColor = inactiveContentColor,
@@ -156,6 +160,7 @@ private fun NovaCreateTabItem(
 @Composable
 private fun NovaTabItem(
     label: String,
+    displayLabel: String = label,
     icon: NovaIconAsset,
     selected: Boolean,
     onClick: () -> Unit,
@@ -187,7 +192,7 @@ private fun NovaTabItem(
             ) {
                 NovaIcon(
                     asset = icon,
-                    contentDescription = label,
+                    contentDescription = displayLabel,
                     tint = contentColor,
                     modifier = Modifier
                         .size(21.dp)
@@ -209,7 +214,7 @@ private fun NovaTabItem(
             }
             Spacer(modifier = Modifier.height(NovaSpacing.xxs))
             Text(
-                text = label,
+                text = displayLabel,
                 color = contentColor,
                 style = if (selected) NovaType.navigationLabelSelected else NovaType.navigationLabel,
             )
