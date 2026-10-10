@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.ui.components.NovaPrimaryButton
+import com.nova.app.feature.plants.PlantupiaBrandGlyph
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
@@ -56,6 +57,7 @@ fun WelcomeScreen(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            PlantupiaBrandGlyph(modifier = Modifier.size(34.dp))
             Text(
                 text = "PLANTUPIA",
                 modifier = Modifier.padding(start = 10.dp),

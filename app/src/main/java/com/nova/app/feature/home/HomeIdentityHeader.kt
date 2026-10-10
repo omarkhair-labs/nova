@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.nova.app.ui.components.NovaAvatar
+import com.nova.app.feature.plants.PlantupiaBrandGlyph
 import com.nova.app.ui.components.NovaIconButton
 import com.nova.app.ui.components.NovaOrbitRing
 import com.nova.app.ui.components.NovaUnreadDot
@@ -43,6 +44,7 @@ internal fun HomeIdentityHeader(
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(NovaSpacing.md)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Row(horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
+                PlantupiaBrandGlyph(modifier = Modifier.size(30.dp))
                 Text(text = "PLANTUPIA", color = NovaInk, style = NovaType.display.copy(fontFamily = FontFamily.Serif, fontSize = 26.sp, fontWeight = FontWeight.SemiBold))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(NovaSpacing.xs), verticalAlignment = Alignment.CenterVertically) {
