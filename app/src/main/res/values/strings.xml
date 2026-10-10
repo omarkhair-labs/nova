@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Plantupia</string>
+    <string name="plantupia_qa_app_name">Plantupia QA</string>
 </resources>

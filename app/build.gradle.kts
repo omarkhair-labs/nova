@@ -52,7 +52,6 @@ android {
             // continue using the original production applicationId.
             if (providers.gradleProperty("plantupiaQaSideload").orNull == "true") {
                 applicationIdSuffix = ".plantupia.qa"
-                resValue("string", "plantupia_qa_app_name", "Plantupia QA")
                 manifestPlaceholders["plantupiaAppLabel"] = "@string/plantupia_qa_app_name"
             }
         }
