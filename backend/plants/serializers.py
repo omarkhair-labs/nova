@@ -13,7 +13,7 @@ class PlantSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PlantUnit
-        fields = ("id", "space", "unit_type", "label", "my_name", "species_label", "placement_note", "is_active")
+        fields = ("id", "space", "unit_type", "label", "cover_photo", "my_name", "species_label", "placement_note", "is_active")
 
     def get_my_name(self, obj):
         user = self.context["request"].user
