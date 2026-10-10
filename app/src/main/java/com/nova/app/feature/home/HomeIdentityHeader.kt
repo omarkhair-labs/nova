@@ -14,8 +14,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import com.nova.app.ui.components.NovaAvatar
-import com.nova.app.ui.components.NovaBrandMark
 import com.nova.app.ui.components.NovaIconButton
 import com.nova.app.ui.components.NovaOrbitRing
 import com.nova.app.ui.components.NovaUnreadDot
@@ -41,8 +43,7 @@ internal fun HomeIdentityHeader(
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(NovaSpacing.md)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Row(horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
-                NovaBrandMark(modifier = Modifier.size(30.dp))
-                Text(text = "Nova", color = NovaInk, style = NovaType.display)
+                Text(text = "PLANTUPIA", color = NovaInk, fontFamily = FontFamily.Serif, fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(NovaSpacing.xs), verticalAlignment = Alignment.CenterVertically) {
                 NovaIconButton(asset = NovaIconAsset.Search, contentDescription = "Search people", onClick = onSearchClick, size = 48.dp, iconSize = 24.dp, containerColor = Color.Transparent, borderColor = Color.Transparent, contentColor = NovaInk)
@@ -59,7 +60,7 @@ internal fun HomeIdentityHeader(
         }
         Column(verticalArrangement = Arrangement.spacedBy(NovaSpacing.xxs)) {
             Text(text = "${currentGreeting()}, $firstName", color = NovaInk, style = NovaType.screenTitle)
-            Text(text = "Your people are here.", color = NovaMuted, style = NovaType.subtitle)
+            Text(text = "Your living space, its care and its people.", color = NovaMuted, style = NovaType.subtitle)
         }
     }
 }
