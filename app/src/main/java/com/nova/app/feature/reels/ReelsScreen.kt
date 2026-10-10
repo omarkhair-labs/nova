@@ -78,9 +78,9 @@ import com.nova.app.ui.theme.NovaSurface
 import kotlinx.coroutines.delay
 
 
-private val ReelBackground = Color(0xFF0A0B14)
-private val ReelInk = Color(0xFFE9E6FF)
-private val ReelMuted = Color(0xFFB9B4CE)
+private val ReelBackground = Color(0xFF10281F)
+private val ReelInk = Color(0xFFF3EEDE)
+private val ReelMuted = Color(0xFFD7D2C1)
 
 
 @Composable
