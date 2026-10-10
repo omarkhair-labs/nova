@@ -57,7 +57,7 @@ private val white = Color(0xFFFFFDF7)
  * The social engine remains available beneath this content on the same screen.
  */
 @Composable
-fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit) {
+fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost: (Long) -> Unit) {
     val context = LocalContext.current
     val repository = remember(context) { PlantupiaRepository(context.applicationContext) }
     val scope = rememberCoroutineScope()
@@ -264,15 +264,17 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit) {
                 }
             }
             HorizontalDivider(color = sage)
-            Text("هل عايز تشارك تجربة؟", color = forestText, fontSize = 14.sp)
+            PlantupiaQuestionsPanel(plantId = selectedPlant.id, repository = repository, onOpenPost = onOpenLinkedPost)
+            HorizontalDivider(color = sage)
+            Text("أو شارك لحظة عامة مع الناس", color = forestText, fontSize = 14.sp)
             OutlinedButton(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = onCommunityCreateClick,
             ) {
-                Text("اكتب منشورًا للمجتمع", color = deepGreen)
+                Text("منشور عام مستقل", color = deepGreen)
             }
             Text(
-                "المنشور العام لا ينشر بيانات مساحتك الخاصة تلقائيًا. ربط المنشورات بتاريخ النبات هيكون بخطوة موافقة منفصلة.",
+                "اللحظات العامة والستوريز من Nova متاحة؛ أسئلة النبات المنشورة أعلاه مرتبطة بتاريخ النبات فقط بعد موافقتك.",
                 color = muted,
                 fontSize = 11.sp,
                 lineHeight = 18.sp,

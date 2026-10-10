@@ -67,14 +67,14 @@ fun NovaBottomBar(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             NovaTabItem(
-                label = "Home",
+                label = "Spaces",
                 icon = NovaIconAsset.Home,
                 selected = selected == NovaTab.Home,
                 inactiveContentColor = inactiveContentColor,
                 onClick = onHomeClick,
             )
             NovaTabItem(
-                label = "Orbit",
+                label = "Circle",
                 icon = NovaIconAsset.Orbit,
                 selected = selected == NovaTab.Orbit,
                 inactiveContentColor = inactiveContentColor,
@@ -85,7 +85,7 @@ fun NovaBottomBar(
                 onClick = onCreateClick,
             )
             NovaTabItem(
-                label = "Inbox",
+                label = "Chats",
                 icon = NovaIconAsset.Inbox,
                 selected = selected == NovaTab.Inbox,
                 badgeCount = resolvedUnreadCount,
@@ -99,7 +99,7 @@ fun NovaBottomBar(
                 },
             )
             NovaTabItem(
-                label = "Profile",
+                label = "You",
                 icon = NovaIconAsset.Profile,
                 selected = selected == NovaTab.Profile,
                 inactiveContentColor = inactiveContentColor,

@@ -74,12 +74,12 @@ fun CreateHubScreen(
     }
 
     val actions = listOf(
-        CreateHubAction("Post", "Share a photo or video", NovaIconAsset.Create, onCreatePost),
-        CreateHubAction("Reel", "Create immersive vertical video", NovaIconAsset.Reels, onOpenReels),
-        CreateHubAction("Story", "Add a 24-hour moment", NovaIconAsset.Story) { reveal(2) },
-        CreateHubAction("Pulse", "Share what is happening now", NovaIconAsset.Orbit) { reveal(3) },
-        CreateHubAction("Room", "Start a place with your people", NovaIconAsset.Room) { reveal(4) },
-        CreateHubAction("Memory", "Relive a week or make a film", NovaIconAsset.Memory) { reveal(5) },
+        CreateHubAction("Post", "Share a plant photo or video", NovaIconAsset.Create, onCreatePost),
+        CreateHubAction("Reel", "Share a living moment in vertical video", NovaIconAsset.Reels, onOpenReels),
+        CreateHubAction("Story", "A brief moment from your living space", NovaIconAsset.Story) { reveal(2) },
+        CreateHubAction("Pulse", "Share what you notice now", NovaIconAsset.Orbit) { reveal(3) },
+        CreateHubAction("Room", "Gather people around a shared place", NovaIconAsset.Room) { reveal(4) },
+        CreateHubAction("Memory", "See how life has changed over time", NovaIconAsset.Memory) { reveal(5) },
     )
 
     Scaffold(
@@ -115,9 +115,9 @@ fun CreateHubScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Create", color = NovaInk, style = NovaType.pageTitle)
+                        Text("Share a moment", color = NovaInk, style = NovaType.pageTitle)
                         Text(
-                            "What memory will we make today?",
+                            "Photos, questions and stories from your living spaces.",
                             color = NovaMuted,
                             style = NovaType.bodyCompact,
                         )

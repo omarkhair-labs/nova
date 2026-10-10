@@ -35,6 +35,7 @@ import com.nova.app.core.notifications.NovaNotificationRepository
 import com.nova.app.core.push.NovaPushOpenSignal
 import com.nova.app.feature.memories.MemoriesRail
 import com.nova.app.feature.plants.PlantupiaClientSection
+import com.nova.app.feature.plants.PlantupiaCirclePanel
 import com.nova.app.feature.notifications.NotificationsScreen
 import com.nova.app.feature.orbit.OrbitRail
 import com.nova.app.feature.posts.domain.model.NovaPost
@@ -268,7 +269,30 @@ fun HomeScreen(
                 }
 
                 item(key = "plantupia-living-space") {
-                    PlantupiaClientSection(onCommunityCreateClick = onCreatePost)
+                    PlantupiaClientSection(
+                        onCommunityCreateClick = onCreatePost,
+                        onOpenLinkedPost = { postId ->
+                            scope.launch {
+                                when (val result = onResolvePost(postId)) {
+                                    is ApiResult.Success -> onPostClick(result.value)
+                                    is ApiResult.Failure -> Unit
+                                }
+                            }
+                        },
+                    )
+                }
+
+                item(key = "plantupia-community") {
+                    PlantupiaCirclePanel(
+                        onOpenPost = { postId ->
+                            scope.launch {
+                                when (val result = onResolvePost(postId)) {
+                                    is ApiResult.Success -> onPostClick(result.value)
+                                    is ApiResult.Failure -> Unit
+                                }
+                            }
+                        },
+                    )
                 }
 
                 item {
@@ -389,7 +413,7 @@ fun HomeScreen(
                             )
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Share a moment",
+                                    text = "Share a living moment",
                                     color = NovaInk,
                                     style = NovaType.bodyCompact.copy(fontWeight = FontWeight.SemiBold),
                                 )
@@ -422,7 +446,7 @@ fun HomeScreen(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                text = "More from your orbit",
+                                text = "More from your circle",
                                 color = NovaInk,
                                 style = NovaType.title,
                             )
