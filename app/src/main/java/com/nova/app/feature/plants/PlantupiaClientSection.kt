@@ -83,13 +83,23 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
     suspend fun refresh() {
         loading = true
         error = null
-        when (val spaceResult = repository.spaces()) {
-            is ApiResult.Failure -> error = spaceResult.message
-            is ApiResult.Success -> spaces = spaceResult.value
-        }
-        when (val plantResult = repository.plants()) {
-            is ApiResult.Failure -> error = plantResult.message
-            is ApiResult.Success -> plants = plantResult.value
+        val spaceResult = repository.spaces()
+        val plantResult = repository.plants()
+        if (spaceResult is ApiResult.Failure && spaceResult.statusCode == 404 ||
+            plantResult is ApiResult.Failure && plantResult.statusCode == 404
+        ) {
+            spaces = emptyList()
+            plants = emptyList()
+            error = "خدمة المساحات والنباتات مش متاحة على السيرفر الحالي. دي نسخة تجربة، وبيانات نباتاتك مش هتظهر قبل تفعيل Plantupia Backend."
+        } else {
+            when (spaceResult) {
+                is ApiResult.Failure -> { spaces = emptyList(); error = spaceResult.message }
+                is ApiResult.Success -> spaces = spaceResult.value
+            }
+            when (plantResult) {
+                is ApiResult.Failure -> { plants = emptyList(); error = plantResult.message }
+                is ApiResult.Success -> plants = plantResult.value
+            }
         }
         loading = false
     }
