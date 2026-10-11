@@ -31,7 +31,6 @@ android {
         versionName = "2.1.13"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        manifestPlaceholders["plantupiaAppLabel"] = "@string/app_name"
     }
 
     signingConfigs {
@@ -46,15 +45,6 @@ android {
     }
 
     buildTypes {
-        getByName("debug") {
-            // Opt-in QA sideload: separate Android app/data/signature from
-            // Nova on Google Play. Without this property, debug and release
-            // continue using the original production applicationId.
-            if (providers.gradleProperty("plantupiaQaSideload").orNull == "true") {
-                applicationIdSuffix = ".plantupia.qa"
-                manifestPlaceholders["plantupiaAppLabel"] = "@string/plantupia_qa_app_name"
-            }
-        }
         release {
             isMinifyEnabled = false
             signingConfigs.findByName("releaseUpload")?.let { signingConfig = it }
