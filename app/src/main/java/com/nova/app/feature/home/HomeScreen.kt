@@ -285,6 +285,13 @@ fun HomeScreen(
                 item(key = "plantupia-living-space") {
                     PlantupiaClientSection(
                         onCommunityCreateClick = onCreatePost,
+                        onOpenPlant = {
+                            scope.launch {
+                                listState.animateScrollToItem(
+                                    if (publishingItems.isEmpty()) 1 else 2
+                                )
+                            }
+                        },
                         onOpenLinkedPost = { postId ->
                             scope.launch {
                                 when (val result = onResolvePost(postId)) {

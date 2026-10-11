@@ -1,6 +1,7 @@
 package com.nova.app.feature.plants
 
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 
@@ -65,7 +66,11 @@ private val white = Color(0xFFFFFDF7)
  * The social engine remains available beneath this content on the same screen.
  */
 @Composable
-fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost: (Long) -> Unit) {
+fun PlantupiaClientSection(
+    onCommunityCreateClick: () -> Unit,
+    onOpenLinkedPost: (Long) -> Unit,
+    onOpenPlant: () -> Unit = {},
+) {
     val context = LocalContext.current
     val repository = remember(context) { PlantupiaRepository(context.applicationContext) }
     val scope = rememberCoroutineScope()
@@ -121,6 +126,7 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
         showCareEditor = openDetailMode == PlantupiaCreateMode.OBSERVATION
         PlantupiaCreateIntent.clear()
         currentPlantId = plant.id
+        onOpenPlant()
         plantName = plant.name
         note = ""
         carePhotoUri = null
@@ -135,6 +141,19 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
             is ApiResult.Failure -> { events = emptyList(); error = response.message }
         }
         detailLoading = false
+    }
+
+    fun closePlant() {
+        currentPlantId = null
+        openDetailMode = null
+        error = null
+        scope.launch { refresh() }
+    }
+
+    BackHandler(enabled = selectedPlant != null) {
+        // The first Android Back returns to the customer's living space,
+        // instead of unexpectedly leaving the existing Nova tab.
+        closePlant()
     }
 
     LaunchedEffect(Unit) { refresh() }
@@ -400,7 +419,7 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
                 Text("تحديث البيانات", color = deepGreen)
             }
         } else {
-            TextButton(onClick = { currentPlantId = null; scope.launch { refresh() } }) {
+            TextButton(onClick = { closePlant() }) {
                 Text("← الرجوع للمساحة", color = deepGreen)
             }
             BrandEyebrow("LIVING RECORD / تاريخ النبات")
