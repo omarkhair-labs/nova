@@ -14,11 +14,13 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,8 +28,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
+import com.nova.app.core.network.ApiResult
+import com.nova.app.feature.plants.data.PlantupiaRepository
 import com.nova.app.feature.plants.PlantupiaCreateIntent
 import com.nova.app.feature.plants.PlantupiaCreateMode
 import com.nova.app.feature.memories.MemoriesRail
@@ -78,34 +87,37 @@ fun CreateHubScreen(
     var activeFormat by remember { mutableStateOf<String?>(null) }
     var showOtherFormats by remember { mutableStateOf(false) }
 
-    val primary = listOf(
+    val context = LocalContext.current
+    val plantRepository = remember(context) { PlantupiaRepository(context.applicationContext) }
+    var livingCover by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(plantRepository) {
+        when (val result = plantRepository.plants()) {
+            is ApiResult.Success ->
+                livingCover = result.value.firstOrNull { it.active && it.coverPhoto.isNotBlank() }?.coverPhoto
+            is ApiResult.Failure -> Unit
+        }
+    }
+
+    fun enterPlant(mode: PlantupiaCreateMode) {
+        PlantupiaCreateIntent.request(mode)
+        onHomeClick()
+    }
+
+    val publicActions = listOf(
         CreateHubAction(
-            "لحظة جديدة لنباتك",
-            "سجل ملاحظة أو رعاية في تاريخ نباتك الخاص",
-            NovaIconAsset.Home,
-            {
-                PlantupiaCreateIntent.request(PlantupiaCreateMode.OBSERVATION)
-                onHomeClick()
-            },
-        ),
-        CreateHubAction(
-            "سؤال عن نباتك",
-            "ابدأ من النبات؛ مشاركة الصورة للعامة باختيارك",
+            "اسأل عن نباتك",
+            "اختار النبات والسؤال والصورة اللي توافق تنشرها",
             NovaIconAsset.Orbit,
-            {
-                PlantupiaCreateIntent.request(PlantupiaCreateMode.QUESTION)
-                onHomeClick()
-            },
-        ),
+        ) { enterPlant(PlantupiaCreateMode.QUESTION) },
         CreateHubAction(
             "لحظة عامة",
-            "منشور للناس — لا يربط تلقائيًا بمساحة خاصة",
+            "شارك تجربة للناس عبر منشورات Nova الموثوقة",
             NovaIconAsset.Create,
             onCreatePost,
         ),
         CreateHubAction(
             "فيديو",
-            "شارك تجربة أو لحظة بالفيديو",
+            "الريلز واللقطات المصورة من عالمك",
             NovaIconAsset.Reels,
             onOpenReels,
         ),
@@ -143,18 +155,72 @@ fun CreateHubScreen(
             verticalArrangement = Arrangement.spacedBy(NovaSpacing.lg),
         ) {
             item(key = "living-create-heading") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(NovaSpacing.xs)) {
+                        Text("A LIVING RECORD / لحظاتك", color = NovaAccent, style = NovaType.micro)
+                        Text("اللي بيحصل النهارده، يبقى له تاريخ.", color = NovaInk, style = NovaType.screenTitle)
+                    }
+                    Surface(onClick = onProfileClick, shape = CircleShape, color = NovaAccentSoft) {
+                        NovaAvatar(
+                            source = avatarUrl,
+                            fallbackText = displayName.ifBlank { username },
+                            size = 44.dp,
+                        )
+                    }
+                }
+            }
+            item(key = "living-create-private") {
+                Surface(
+                    onClick = { enterPlant(PlantupiaCreateMode.OBSERVATION) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    color = NovaAccent,
+                ) {
+                    Column(
+                        modifier = Modifier.padding(22.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        Text("01 / PRIVATE · YOUR PLANT", color = Color(0xFFBDD4BD), style = NovaType.micro)
+                        Text(
+                            "وثّق لحظة من حياة نباتك",
+                            color = Color(0xFFF3EEDE),
+                            style = NovaType.screenTitle,
+                        )
+                        Text(
+                            "ملاحظة، صورة، أو رعاية. كل حاجة بتفضل في سجل النبات الخاص بيك.",
+                            color = Color(0xFFD5E5D8),
+                            style = NovaType.bodyCompact,
+                        )
+                        if (!livingCover.isNullOrBlank()) {
+                            AsyncImage(
+                                model = livingCover,
+                                contentDescription = "صورة حقيقية من نباتاتك",
+                                modifier = Modifier.fillMaxWidth().height(174.dp).clip(RoundedCornerShape(15.dp)),
+                                contentScale = ContentScale.Crop,
+                            )
+                        }
+                        Text("اختار النبات وسجّل اللحظة ←", color = Color(0xFFF3EEDE), style = NovaType.label)
+                    }
+                }
+            }
+            item(key = "living-create-public") {
                 Column(verticalArrangement = Arrangement.spacedBy(NovaSpacing.sm)) {
-                    Text("إيه اللي حصل في مساحتك؟", color = NovaInk, style = NovaType.pageTitle)
+                    Text("02 / THE CIRCLE · المشاركة اختيارك", color = NovaAccent, style = NovaType.micro)
                     Text(
-                        "احفظ اللي حصل للنبات عندك، أو شارك لحظة مع الدائرة. القرار قرارك.",
+                        "من حياتك للناس",
+                        color = NovaInk,
+                        style = NovaType.sectionTitle,
+                    )
+                    Text(
+                        "السؤال والصورة والمنشور العام حاجة مختلفة عن سجلك الخاص.",
                         color = NovaMuted,
                         style = NovaType.bodyCompact,
                     )
-                }
-            }
-            item(key = "living-create-actions") {
-                Column(verticalArrangement = Arrangement.spacedBy(NovaSpacing.sm)) {
-                    primary.forEach { action -> CreateActionCard(action) }
+                    publicActions.forEach { action -> CreateActionCard(action) }
                 }
             }
             item(key = "living-create-other") {
