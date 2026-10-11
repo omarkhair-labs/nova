@@ -65,10 +65,17 @@ import com.nova.app.ui.theme.NovaSpacing
 import com.nova.app.ui.theme.NovaSurface
 import com.nova.app.ui.theme.NovaType
 import com.nova.app.feature.plants.PlantupiaCirclePanel
+import com.nova.app.feature.plants.PlantupiaCreateIntent
+import com.nova.app.feature.plants.PlantupiaCreateMode
 import java.time.Duration
 import java.time.Instant
 import java.time.OffsetDateTime
 
+
+private enum class CircleSection(val label: String) {
+    PlantQuestions("النباتات والأسئلة"),
+    PeopleActivity("الناس واللحظات"),
+}
 
 private enum class OrbitFilter(val label: String) {
     All("All"),
@@ -96,10 +103,13 @@ fun OrbitScreen(
     val scope = rememberCoroutineScope()
     val owner = remember(repository, scope) { OrbitStateOwner(repository, scope) }
     val state = owner.state
+    var selectedSection by remember { mutableStateOf(CircleSection.PlantQuestions) }
     var selectedFilter by remember { mutableStateOf(OrbitFilter.All) }
     var selectedUsername by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(owner) { owner.load(showSpinner = true) }
+    LaunchedEffect(owner, selectedSection) {
+        if (selectedSection == CircleSection.PeopleActivity) owner.load(showSpinner = true)
+    }
     LaunchedEffect(state.sessionExpiryVersion) {
         if (state.sessionExpiryVersion > 0) onSessionExpired()
     }
@@ -140,9 +150,10 @@ fun OrbitScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Plantupia Circle", color = NovaInk, style = NovaType.pageTitle)
+                        Text("CIRCLE / الدائرة", color = NovaAccent, style = NovaType.micro)
+                        Text("اللي بين الناس والنباتات", color = NovaInk, style = NovaType.pageTitle)
                         Text(
-                            "People, plants and the experience between them.",
+                            "أسئلة حقيقية، لحظات موثّقة، وناس بتشارك خبرتها.",
                             color = NovaMuted,
                             style = NovaType.bodyCompact,
                         )
@@ -163,10 +174,64 @@ fun OrbitScreen(
                 }
             }
 
-            item(key = "plantupia-circle-question-feed") {
-                PlantupiaCirclePanel(onOpenPost = onPostClick)
+            item(key = "circle-content-navigation") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
+                ) {
+                    CircleSection.entries.forEach { section ->
+                        val isSelected = selectedSection == section
+                        Surface(
+                            onClick = { selectedSection = section },
+                            modifier = Modifier.weight(1f),
+                            shape = CircleShape,
+                            color = if (isSelected) NovaAccent else NovaSurface,
+                            border = BorderStroke(
+                                1.dp,
+                                if (isSelected) NovaAccent else NovaBorder,
+                            ),
+                        ) {
+                            Text(
+                                text = section.label,
+                                modifier = Modifier.padding(horizontal = NovaSpacing.sm, vertical = 12.dp),
+                                color = if (isSelected) Color.White else NovaInk,
+                                style = NovaType.meta.copy(fontWeight = FontWeight.SemiBold),
+                            )
+                        }
+                    }
+                }
             }
 
+            if (selectedSection == CircleSection.PlantQuestions) {
+                item(key = "circle-real-plant-questions") {
+                    PlantupiaCirclePanel(onOpenPost = onPostClick)
+                }
+                item(key = "circle-start-your-own-question") {
+                    Surface(
+                        onClick = {
+                            PlantupiaCreateIntent.request(PlantupiaCreateMode.QUESTION)
+                            onHomeClick()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        color = NovaAccentSoft,
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(22.dp),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(NovaSpacing.lg),
+                            verticalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
+                        ) {
+                            Text("FROM YOUR SPACE / من مساحتك", color = NovaAccent, style = NovaType.micro)
+                            Text("عندك سؤال عن نباتك؟", color = NovaInk, style = NovaType.sectionTitle)
+                            Text(
+                                "اختار النبات الأول. إنت اللي تقرر إمتى تشارك سؤالك وصورته مع الناس.",
+                                color = NovaMuted,
+                                style = NovaType.bodyCompact,
+                            )
+                            Text("اسأل من سجل النبات ←", color = NovaAccent, style = NovaType.label)
+                        }
+                    }
+                }
+            } else {
             item {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm)) {
                     items(OrbitFilter.entries) { filter ->
@@ -278,6 +343,7 @@ fun OrbitScreen(
                         },
                     )
                 }
+            }
             }
         }
     }
