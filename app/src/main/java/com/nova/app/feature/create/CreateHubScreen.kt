@@ -17,7 +17,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,20 +71,42 @@ fun CreateHubScreen(
     onProfileClick: () -> Unit,
     onSessionExpired: () -> Unit,
 ) {
-    val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
+    // Private care and public media require different intentional entry points.
+    // Nova engines remain functional; secondary formats are opened on demand.
+    var activeFormat by remember { mutableStateOf<String?>(null) }
+    var showOtherFormats by remember { mutableStateOf(false) }
 
-    fun reveal(index: Int) {
-        scope.launch { listState.animateScrollToItem(index) }
-    }
-
-    val actions = listOf(
-        CreateHubAction("Post", "Share a plant photo or video", NovaIconAsset.Create, onCreatePost),
-        CreateHubAction("Reel", "Share a living moment in vertical video", NovaIconAsset.Reels, onOpenReels),
-        CreateHubAction("Story", "A brief moment from your living space", NovaIconAsset.Story) { reveal(2) },
-        CreateHubAction("Pulse", "Share what you notice now", NovaIconAsset.Orbit) { reveal(3) },
-        CreateHubAction("Gathering", "Bring people together around a place", NovaIconAsset.Room) { reveal(4) },
-        CreateHubAction("Memory", "See how life has changed over time", NovaIconAsset.Memory) { reveal(5) },
+    val primary = listOf(
+        CreateHubAction(
+            "لحظة جديدة لنباتك",
+            "سجل ملاحظة أو رعاية في تاريخ نباتك الخاص",
+            NovaIconAsset.Home,
+            onHomeClick,
+        ),
+        CreateHubAction(
+            "سؤال عن نباتك",
+            "ابدأ من النبات؛ مشاركة الصورة للعامة باختيارك",
+            NovaIconAsset.Orbit,
+            onHomeClick,
+        ),
+        CreateHubAction(
+            "لحظة عامة",
+            "منشور للناس — لا يربط تلقائيًا بمساحة خاصة",
+            NovaIconAsset.Create,
+            onCreatePost,
+        ),
+        CreateHubAction(
+            "فيديو",
+            "شارك تجربة أو لحظة بالفيديو",
+            NovaIconAsset.Reels,
+            onOpenReels,
+        ),
+    )
+    val otherFormats = listOf(
+        CreateHubAction("Story", "لحظة مؤقتة لمدة 24 ساعة", NovaIconAsset.Story) { activeFormat = "story" },
+        CreateHubAction("Pulse", "لحظة قصيرة مع الناس", NovaIconAsset.Orbit) { activeFormat = "pulse" },
+        CreateHubAction("Gathering", "تجمّع اجتماعي حول اهتمام مشترك", NovaIconAsset.Room) { activeFormat = "gathering" },
+        CreateHubAction("Memory", "ارجع للحظات عبر الزمن", NovaIconAsset.Memory) { activeFormat = "memory" },
     )
 
     Scaffold(
@@ -95,7 +122,6 @@ fun CreateHubScreen(
         },
     ) { innerPadding ->
         LazyColumn(
-            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
@@ -106,81 +132,70 @@ fun CreateHubScreen(
                 top = NovaSpacing.lg,
                 bottom = NovaSpacing.xxl,
             ),
-            verticalArrangement = Arrangement.spacedBy(NovaSpacing.xl),
+            verticalArrangement = Arrangement.spacedBy(NovaSpacing.lg),
         ) {
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Share a moment", color = NovaInk, style = NovaType.pageTitle)
-                        Text(
-                            "Photos, questions and stories from your living spaces.",
-                            color = NovaMuted,
-                            style = NovaType.bodyCompact,
-                        )
+            item(key = "living-create-heading") {
+                Column(verticalArrangement = Arrangement.spacedBy(NovaSpacing.sm)) {
+                    Text("إيه اللي حصل في مساحتك؟", color = NovaInk, style = NovaType.pageTitle)
+                    Text(
+                        "احفظ اللي حصل للنبات عندك، أو شارك لحظة مع الدائرة. القرار قرارك.",
+                        color = NovaMuted,
+                        style = NovaType.bodyCompact,
+                    )
+                }
+            }
+            item(key = "living-create-actions") {
+                Column(verticalArrangement = Arrangement.spacedBy(NovaSpacing.sm)) {
+                    primary.forEach { action -> CreateActionCard(action) }
+                }
+            }
+            item(key = "living-create-other") {
+                TextButton(onClick = {
+                    showOtherFormats = !showOtherFormats
+                    if (!showOtherFormats) activeFormat = null
+                }) {
+                    Text(
+                        if (showOtherFormats) "إخفاء وسائل المشاركة الأخرى ↑" else "وسائل مشاركة أخرى ↓",
+                        color = NovaAccent,
+                    )
+                }
+                if (showOtherFormats) {
+                    Column(verticalArrangement = Arrangement.spacedBy(NovaSpacing.sm)) {
+                        otherFormats.forEach { action -> CreateActionCard(action) }
                     }
-                    Surface(
-                        modifier = Modifier.size(52.dp),
-                        shape = CircleShape,
-                        color = NovaAccentSoft,
-                        border = BorderStroke(1.dp, NovaBorder),
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            NovaAvatar(
-                                source = avatarUrl,
-                                fallbackText = displayName.ifBlank { username },
-                                size = 42.dp,
+                }
+            }
+            if (showOtherFormats && activeFormat != null) {
+                item(key = "living-create-format") {
+                    when (activeFormat) {
+                        "story" -> {
+                            CreateSectionLabel("Story", "صورة أو فيديو أو نص — لمدة 24 ساعة")
+                            StoriesRail(
+                                displayName = displayName,
+                                username = username,
+                                avatarUrl = avatarUrl,
+                                onSessionExpired = onSessionExpired,
                             )
+                        }
+                        "pulse" -> {
+                            CreateSectionLabel("Pulse", "لحظات قصيرة")
+                            PulseRail(
+                                displayName = displayName,
+                                username = username,
+                                avatarUrl = avatarUrl,
+                                onSessionExpired = onSessionExpired,
+                            )
+                        }
+                        "gathering" -> {
+                            CreateSectionLabel("Gathering", "تجمعات المجتمع")
+                            RoomsRail(onPersonClick = onPersonClick, onSessionExpired = onSessionExpired)
+                        }
+                        "memory" -> {
+                            CreateSectionLabel("Memory", "لحظاتك القديمة")
+                            MemoriesRail(onPersonClick = onPersonClick, onSessionExpired = onSessionExpired)
                         }
                     }
                 }
-            }
-
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(NovaSpacing.sm)) {
-                    actions.forEach { action ->
-                        CreateActionCard(action)
-                    }
-                }
-            }
-
-            item {
-                CreateSectionLabel("Story", "Photo, video or text - available for 24 hours")
-                StoriesRail(
-                    displayName = displayName,
-                    username = username,
-                    avatarUrl = avatarUrl,
-                    onSessionExpired = onSessionExpired,
-                )
-            }
-
-            item {
-                CreateSectionLabel("Pulse", "A live or short moment for your orbit")
-                PulseRail(
-                    displayName = displayName,
-                    username = username,
-                    avatarUrl = avatarUrl,
-                    onSessionExpired = onSessionExpired,
-                )
-            }
-
-            item {
-                CreateSectionLabel("Rooms", "Start or return to a shared place")
-                RoomsRail(
-                    onPersonClick = onPersonClick,
-                    onSessionExpired = onSessionExpired,
-                )
-            }
-
-            item {
-                CreateSectionLabel("Memories", "Relive your week and build a film")
-                MemoriesRail(
-                    onPersonClick = onPersonClick,
-                    onSessionExpired = onSessionExpired,
-                )
             }
         }
     }
