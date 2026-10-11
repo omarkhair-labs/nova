@@ -35,6 +35,8 @@ data class PlantupiaPlant(
     val lastEventAt: String,
 )
 
+data class PlantupiaHistoryPage(val events: List<PlantupiaCareEvent>, val nextOffset: Int?)
+
 data class PlantupiaCareEvent(
     val id: String,
     val kind: String,
@@ -103,17 +105,35 @@ class PlantupiaRepository(context: Context) {
             }
         }
 
-    suspend fun history(plantId: String): ApiResult<List<PlantupiaCareEvent>> =
+    suspend fun historyPage(plantId: String, offset: Int = 0): ApiResult<PlantupiaHistoryPage> =
         authorized { token ->
-            parseList("plantupia/plants/$plantId/events/", token) { raw ->
-                PlantupiaCareEvent(
-                    id = raw.optString("id"),
-                    kind = raw.optString("kind"),
-                    note = raw.optString("note"),
-                    evidence = raw.optString("evidence_type"),
-                    observedAt = raw.optString("observed_at"),
-                    photoUrl = api.resolveMediaUrl(raw.optString("photo")),
-                )
+            val pageOffset = offset.coerceAtLeast(0)
+            when (val response = api.requestJson(
+                path = "plantupia/plants/$plantId/events/?offset=$pageOffset",
+                bearerToken = token,
+            )) {
+                is ApiResult.Failure -> response
+                is ApiResult.Success -> {
+                    val body = response.value
+                    val rows = body.optJSONArray("results") ?: JSONArray()
+                    val events = buildList {
+                        repeat(rows.length()) { index ->
+                            rows.optJSONObject(index)?.let { raw ->
+                                add(PlantupiaCareEvent(
+                                    id = raw.optString("id"),
+                                    kind = raw.optString("kind"),
+                                    note = raw.optString("note"),
+                                    evidence = raw.optString("evidence_type"),
+                                    observedAt = raw.optString("observed_at"),
+                                    photoUrl = api.resolveMediaUrl(raw.optString("photo")),
+                                ))
+                            }
+                        }
+                    }
+                    val next = if (body.isNull("next_offset")) null
+                        else body.optInt("next_offset").takeIf { it > pageOffset }
+                    ApiResult.Success(PlantupiaHistoryPage(events, next))
+                }
             }
         }
 

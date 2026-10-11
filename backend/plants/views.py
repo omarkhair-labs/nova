@@ -84,7 +84,20 @@ class PlantEventsView(APIView):
 
     def get(self, request, plant_id):
         plant = self.get_plant(request, plant_id)
-        return Response({"results": PlantEventSerializer(plant.events.all()[:100], many=True, context={"request": request}).data})
+        raw_offset = request.query_params.get("offset", "0")
+        try:
+            offset = int(raw_offset)
+            if offset < 0 or offset > 1000000:
+                raise ValueError
+        except (TypeError, ValueError):
+            return Response({"detail": "Invalid event history offset."}, status=400)
+        # Years of observed history must not silently end after 100 entries.
+        size = 20
+        rows = list(plant.events.order_by("-observed_at", "-created_at", "-pk")[offset:offset + size + 1])
+        return Response({
+            "results": PlantEventSerializer(rows[:size], many=True, context={"request": request}).data,
+            "next_offset": offset + size if len(rows) > size else None,
+        })
 
     def post(self, request, plant_id):
         plant = self.get_plant(request, plant_id)

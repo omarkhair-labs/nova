@@ -79,6 +79,8 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
     var plantSearch by remember { mutableStateOf("") }
     var visiblePlantCount by remember { mutableStateOf(8) }
     var events by remember { mutableStateOf<List<PlantupiaCareEvent>>(emptyList()) }
+    var nextHistoryOffset by remember { mutableStateOf<Int?>(null) }
+    var olderEventsLoading by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(true) }
     var detailLoading by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
@@ -124,9 +126,13 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
         carePhotoUri = null
         detailLoading = true
         error = null
-        when (val response = repository.history(plant.id)) {
-            is ApiResult.Success -> events = response.value
-            is ApiResult.Failure -> error = response.message
+        nextHistoryOffset = null
+        when (val response = repository.historyPage(plant.id)) {
+            is ApiResult.Success -> {
+                events = response.value.events
+                nextHistoryOffset = response.value.nextOffset
+            }
+            is ApiResult.Failure -> { events = emptyList(); error = response.message }
         }
         detailLoading = false
     }
@@ -425,8 +431,12 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
                     canPublish = selectedPlant.canRecord,
                     onOpenPost = onOpenLinkedPost,
                     onOutcomeSaved = {
-                        when (val response = repository.history(selectedPlant.id)) {
-                            is ApiResult.Success -> { events = response.value; error = null }
+                        when (val response = repository.historyPage(selectedPlant.id)) {
+                            is ApiResult.Success -> {
+                                events = response.value.events
+                                nextHistoryOffset = response.value.nextOffset
+                                error = null
+                            }
                             is ApiResult.Failure -> error = response.message
                         }
                     },
@@ -587,6 +597,32 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
                     Text("مصدر المعلومة: ${evidenceLabel(event.evidence)}", color = muted, fontSize = 11.sp)
                 }
             }
+            if (nextHistoryOffset != null) {
+                OutlinedButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !olderEventsLoading,
+                    onClick = {
+                        val offset = nextHistoryOffset ?: return@OutlinedButton
+                        scope.launch {
+                            olderEventsLoading = true
+                            when (val result = repository.historyPage(selectedPlant.id, offset)) {
+                                is ApiResult.Success -> {
+                                    events = (events + result.value.events).distinctBy { it.id }
+                                    nextHistoryOffset = result.value.nextOffset
+                                    error = null
+                                }
+                                is ApiResult.Failure -> error = result.message
+                            }
+                            olderEventsLoading = false
+                        }
+                    },
+                ) {
+                    Text(
+                        if (olderEventsLoading) "جارٍ تحميل لحظات أقدم…" else "شوف لحظات أقدم ←",
+                        color = deepGreen,
+                    )
+                }
+            }
             HorizontalDivider(color = sage)
             if (openDetailMode != PlantupiaCreateMode.QUESTION) PlantupiaQuestionsPanel(
                 plantId = selectedPlant.id,
@@ -594,10 +630,14 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
                 canPublish = selectedPlant.canRecord,
                 onOpenPost = onOpenLinkedPost,
                 onOutcomeSaved = {
-                    when (val response = repository.history(selectedPlant.id)) {
-                        is ApiResult.Success -> { events = response.value; error = null }
-                        is ApiResult.Failure -> error = response.message
-                    }
+                    when (val response = repository.historyPage(selectedPlant.id)) {
+                            is ApiResult.Success -> {
+                                events = response.value.events
+                                nextHistoryOffset = response.value.nextOffset
+                                error = null
+                            }
+                            is ApiResult.Failure -> error = response.message
+                        }
                 },
             )
             HorizontalDivider(color = sage)

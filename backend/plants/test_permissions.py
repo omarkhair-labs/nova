@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from datetime import timedelta
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -133,3 +134,30 @@ class PlantupiaPermissionTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertNotIn("space", str(response.json()))
+
+    def test_living_history_supports_older_pages_and_scoping(self):
+        now = timezone.now()
+        for i in range(27):
+            PlantEvent.objects.create(
+                plant=self.plant, actor=self.owner,
+                kind=PlantEvent.Kind.OBSERVATION,
+                evidence_type=PlantEvent.Evidence.OBSERVED,
+                note=f"Observation {i}",
+                observed_at=now - timedelta(days=i),
+            )
+        path = reverse("plantupia-events", args=[self.plant.pk])
+        self.client.force_authenticate(user=self.owner)
+        first = self.client.get(path)
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(len(first.json()["results"]), 20)
+        self.assertEqual(first.json()["next_offset"], 20)
+        second = self.client.get(path, {"offset": 20})
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(len(second.json()["results"]), 7)
+        self.assertIsNone(second.json()["next_offset"])
+        ids = [x["id"] for x in first.json()["results"] + second.json()["results"]]
+        self.assertEqual(len(set(ids)), 27)
+        for bad in ("-1", "NaN", "1000001"):
+            self.assertEqual(self.client.get(path, {"offset": bad}).status_code, 400)
+        self.client.force_authenticate(user=self.stranger)
+        self.assertEqual(self.client.get(path, {"offset": "20"}).status_code, 404)
