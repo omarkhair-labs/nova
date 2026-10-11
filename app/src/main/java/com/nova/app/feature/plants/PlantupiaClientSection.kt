@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -31,6 +32,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -188,23 +191,71 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
                 if (spaces.isNotEmpty()) {
                     val featured = spaces.first()
                     val featuredCount = plants.count { it.spaceId == featured.id && it.active }
+                    val heroPhoto = plants.firstOrNull {
+                        it.spaceId == featured.id && it.active && it.coverPhoto.isNotBlank()
+                    }?.coverPhoto
+                    val photoHero = heroPhoto != null
+                    val heroInk = if (photoHero) white else deepGreen
+                    val heroMuted = if (photoHero) Color(0xFFE0E7DD) else muted
                     Surface(
                         color = Color(0xFFD6E2D4),
-                        shape = RoundedCornerShape(18.dp),
+                        shape = RoundedCornerShape(22.dp),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Column(
-                            modifier = Modifier.padding(18.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(if (photoHero) 244.dp else 202.dp),
                         ) {
-                            BrandEyebrow("YOUR SPACE / مساحة حيّة")
-                            Text(featured.name, color = deepGreen, fontFamily = FontFamily.Serif, fontSize = 27.sp)
-                            if (featured.location.isNotBlank()) {
-                                Text(featured.location, color = muted, fontSize = 12.sp)
+                            if (photoHero) {
+                                AsyncImage(
+                                    model = heroPhoto,
+                                    contentDescription = "صورة حقيقية لنبات ضمن مساحة ${featured.name}",
+                                    modifier = Modifier.matchParentSize(),
+                                    contentScale = ContentScale.Crop,
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .background(
+                                            Brush.verticalGradient(
+                                                0f to Color(0x22112317),
+                                                0.35f to Color(0x66112317),
+                                                1f to Color(0xE6112317),
+                                            )
+                                        )
+                                )
                             }
-                            Text("$featuredCount وحدة نباتية · السجل بيتكوّن من ملاحظاتكم الحقيقية", color = muted, fontSize = 12.sp)
-                            TextButton(onClick = { expandedSpaceId = featured.id }) {
-                                Text("اكتشف نباتات المساحة ←", color = deepGreen)
+                            Column(
+                                modifier = Modifier
+                                    .align(Alignment.BottomStart)
+                                    .padding(19.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Text(
+                                    "LIVING SPACE / مساحة حيّة",
+                                    color = heroInk,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    letterSpacing = 1.2.sp,
+                                )
+                                Text(
+                                    featured.name,
+                                    color = heroInk,
+                                    fontFamily = FontFamily.Serif,
+                                    fontSize = 27.sp,
+                                )
+                                if (featured.location.isNotBlank()) {
+                                    Text(featured.location, color = heroMuted, fontSize = 12.sp)
+                                }
+                                Text(
+                                    "$featuredCount وحدة نباتية · ملاحظات حقيقية عبر الوقت",
+                                    color = heroMuted,
+                                    fontSize = 12.sp,
+                                )
+                                TextButton(onClick = { expandedSpaceId = featured.id }) {
+                                    Text("اكتشف نباتات المساحة ←", color = heroInk)
+                                }
                             }
                         }
                     }
