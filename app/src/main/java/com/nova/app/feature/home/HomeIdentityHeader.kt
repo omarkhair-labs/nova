@@ -61,14 +61,15 @@ internal fun HomeIdentityHeader(
             }
         }
         Column(verticalArrangement = Arrangement.spacedBy(NovaSpacing.xxs)) {
-            Text(text = "${currentGreeting()}, $firstName", color = NovaInk, style = NovaType.screenTitle)
+            Text(text = "${currentGreeting()}، $firstName", color = NovaInk, style = NovaType.screenTitle)
             Text(text = "Your living space, its care and its people.", color = NovaMuted, style = NovaType.subtitle)
         }
     }
 }
 
 private fun currentGreeting(): String = when (LocalTime.now().hour) {
-    in 5..11 -> "Good morning"
-    in 12..17 -> "Good afternoon"
-    else -> "Good evening"
+    in 0..4 -> "أهلًا"
+    in 5..11 -> "صباح الخير"
+    in 12..17 -> "نهارك سعيد"
+    else -> "مساء الخير"
 }
