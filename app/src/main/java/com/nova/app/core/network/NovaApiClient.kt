@@ -234,7 +234,7 @@ class NovaApiClient(
             return ApiResult.Failure(message = it, statusCode = status)
         }
         val json = if (raw.isBlank()) JSONObject() else runCatching { JSONObject(raw) }
-            .getOrElse { JSONObject().put("detail", raw.take(400)) }
+            .getOrElse { JSONObject().put("detail", raw) }
 
         return if (status in 200..299) {
             ApiResult.Success(json)
