@@ -100,14 +100,14 @@ fun PeopleScreen(
                 .padding(horizontal = NovaSpacing.xl),
         ) {
             Text(
-                text = "People",
+                text = "الناس",
                 color = NovaInk,
                 style = NovaType.pageTitle,
                 modifier = Modifier.padding(top = NovaSpacing.lg),
             )
             Spacer(modifier = Modifier.height(NovaSpacing.sm))
             Text(
-                text = "Find someone worth following, then let the connection grow from there.",
+                text = "اكتشف أشخاصًا وتجارب من المجتمع. المتابعة اختيارك.",
                 color = NovaMuted,
                 style = NovaType.bodyCompact,
             )
@@ -315,9 +315,9 @@ fun PeopleScreen(
 internal fun discoveryFilterDescription(filter: String): String = when (filter) {
     "nearby" -> "People who share the location saved on your profile."
     "interests" -> "People with interests that overlap your saved profile interests."
-    "verified" -> "Verified Nova accounts."
-    "new" -> "Accounts that joined Nova most recently."
-    else -> "People you can discover across Nova."
+    "verified" -> "Verified community accounts."
+    "new" -> "Newly joined community accounts."
+    else -> "People you can discover in the community."
 }
 
 
@@ -326,6 +326,6 @@ internal fun peopleEmptyMessage(filter: String, query: String): String = when {
     filter == "nearby" -> "Nearby uses the location saved on your profile. Add one or try another filter."
     filter == "interests" -> "Add interests to your profile or try another filter."
     filter == "verified" -> "No verified accounts are available here yet."
-    filter == "new" -> "New accounts will appear here as people join Nova."
-    else -> "Your discovery space will grow as more people join Nova."
+    filter == "new" -> "New accounts will appear here as people join."
+    else -> "Your discovery space will grow with the community."
 }
