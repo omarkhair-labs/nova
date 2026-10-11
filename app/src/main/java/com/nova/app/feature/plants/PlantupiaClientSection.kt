@@ -46,6 +46,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.fillMaxSize
 import coil3.compose.AsyncImage
 import com.nova.app.core.network.ApiResult
+import com.nova.app.feature.plants.data.PlantupiaCareAction
+import com.nova.app.feature.plants.data.buildPlantupiaCareNote
 import com.nova.app.feature.plants.data.PlantupiaCareEvent
 import com.nova.app.feature.plants.data.PlantupiaPlant
 import com.nova.app.feature.plants.data.PlantupiaRepository
@@ -97,6 +99,7 @@ fun PlantupiaClientSection(
     var error by remember { mutableStateOf<String?>(null) }
     var plantName by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
+    var selectedCareAction by remember { mutableStateOf<PlantupiaCareAction?>(null) }
     var carePhotoUri by remember { mutableStateOf<Uri?>(null) }
     val carePhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> carePhotoUri = uri }
     val selectedPlant = plants.firstOrNull { it.id == currentPlantId }
@@ -134,6 +137,7 @@ fun PlantupiaClientSection(
         onOpenPlant()
         plantName = plant.name
         note = ""
+        selectedCareAction = null
         carePhotoUri = null
         checkAgainInDays = null
         followUpTarget = null
@@ -615,6 +619,30 @@ fun PlantupiaClientSection(
                     Text(if (showCareEditor) "اخفِ تسجيل اللحظة ↑" else "+ سجّل لحظة جديدة للنبات", color = white)
                 }
             if (showCareEditor) PlantupiaPanel {
+                Text("لو عملت رعاية، اختار اللي حصل فعلًا:", color = forestText, fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                PlantupiaCareAction.entries.chunked(2).forEach { pair ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        pair.forEach { action ->
+                            OutlinedButton(
+                                modifier = Modifier.weight(1f),
+                                enabled = !saving,
+                                onClick = {
+                                    selectedCareAction = if (selectedCareAction == action) null else action
+                                },
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = if (selectedCareAction == action) sage else white,
+                                ),
+                            ) {
+                                Text(
+                                    (if (selectedCareAction == action) "✓ " else "") + action.label,
+                                    color = deepGreen, fontSize = 12.sp,
+                                )
+                            }
+                        }
+                        if (pair.size == 1) Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+                Text("الأفعال دي للتوثيق فقط، مش توصيات بمواعيد الري.", color = muted, fontSize = 11.sp)
                 OutlinedTextField(
                     value = note,
                     onValueChange = { note = it.take(1500) },
@@ -656,11 +684,12 @@ fun PlantupiaClientSection(
                         },
                     ) { Text("ملاحظة", color = deepGreen) }
                     Button(
-                        enabled = !saving && (note.isNotBlank() || carePhotoUri != null),
+                        enabled = !saving && (selectedCareAction != null || note.isNotBlank() || carePhotoUri != null),
                         onClick = {
+                            val careDetails = buildPlantupiaCareNote(selectedCareAction, note)
                             scope.launch {
                                 saving = true
-                                when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "care", note, it, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() }) } ?: repository.record(selectedPlant.id, "care", note, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() })) {
+                                when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "care", careDetails, it, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() }) } ?: repository.record(selectedPlant.id, "care", careDetails, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() })) {
                                     is ApiResult.Failure -> error = r.message
                                     is ApiResult.Success -> { note = ""; openPlant(selectedPlant) }
                                 }
