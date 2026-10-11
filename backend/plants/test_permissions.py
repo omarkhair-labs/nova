@@ -1,4 +1,10 @@
 from django.contrib.auth import get_user_model
+from io import BytesIO
+from tempfile import TemporaryDirectory
+
+from PIL import Image
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
 from django.test import TestCase
 from datetime import timedelta
 from django.urls import reverse
@@ -161,3 +167,48 @@ class PlantupiaPermissionTests(TestCase):
             self.assertEqual(self.client.get(path, {"offset": bad}).status_code, 400)
         self.client.force_authenticate(user=self.stranger)
         self.assertEqual(self.client.get(path, {"offset": "20"}).status_code, 404)
+
+    def test_public_image_sanitizes_camera_location_and_preserves_private_record(self):
+        # A photo may be consented for public viewing, but its GPS EXIF data
+        # and the customer's private plant IDs must remain private.
+        source = Image.new("RGB", (16, 16), (16, 112, 51))
+        meta = Image.Exif()
+        meta[0x010E] = "Private customer entrance"
+        payload = BytesIO()
+        source.save(payload, format="JPEG", exif=meta)
+        upload = SimpleUploadedFile(
+            "private-location-photo.jpg", payload.getvalue(),
+            content_type="image/jpeg",
+        )
+        with TemporaryDirectory() as directory, override_settings(MEDIA_ROOT=directory):
+            self.client.force_authenticate(user=self.owner)
+            create = self.client.post(
+                reverse("plantupia-questions", args=[self.plant.pk]),
+                {
+                    "public_share_consent": "true",
+                    "public_topic": "Leaf colour",
+                    "caption": "Could this be less light?",
+                    "media_type": "image",
+                    "image": upload,
+                },
+                format="multipart",
+            )
+            self.assertEqual(create.status_code, 201, create.content)
+            from accounts.models import Post
+            post = Post.objects.get(pk=create.json()["post_id"])
+            with post.image.open("rb") as stored:
+                image = Image.open(stored)
+                self.assertEqual(image.format, "JPEG")
+                self.assertFalse(image.getexif())
+            self.client.force_authenticate(user=self.stranger)
+            circle = self.client.get(reverse("plantupia-circle"))
+            self.assertEqual(circle.status_code, 200)
+            self.assertEqual(len(circle.json()["results"]), 1)
+            public_payload = str(circle.json())
+            self.assertNotIn(str(self.plant.pk), public_payload)
+            self.assertNotIn(str(self.space.pk), public_payload)
+            self.assertNotIn(self.space.name, public_payload)
+            self.assertEqual(
+                self.client.get(reverse("plantupia-events", args=[self.plant.pk])).status_code,
+                404,
+            )

@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 
 from .models import PlantDiscussion, PlantEvent, PlantNickname, PlantUnit, Space, SpaceMember
 from .serializers import PlantEventSerializer, PlantSerializer, SpaceSerializer
+from .media import sanitize_public_plant_photo
 
 
 def accessible_spaces(user):
@@ -163,7 +164,20 @@ class PlantQuestionsView(APIView):
         caption = str(request.data.get("caption", "")).strip()
         if not 1 <= len(caption) <= 500:
             return Response({"caption": "Write a question of 1–500 characters."}, status=400)
-        serializer = PostSerializer(data=request.data, context={"request": request})
+        # Public Nova posts must not preserve the original photo's GPS/EXIF,
+        # even when the user consents to publishing the visible image.
+        try:
+            clean_photo = sanitize_public_plant_photo(request.FILES.get("image"))
+        except ValueError as error:
+            return Response({"image": str(error)}, status=400)
+        if clean_photo is None:
+            return Response({"image": "Select a photo to share publicly."}, status=400)
+        data = {
+            "caption": caption,
+            "media_type": "image",
+            "image": clean_photo,
+        }
+        serializer = PostSerializer(data=data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         post = serializer.save(author=request.user)
         link = PlantDiscussion.objects.create(plant=plant, post=post, public_topic=topic)
