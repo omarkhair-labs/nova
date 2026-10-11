@@ -211,13 +211,18 @@ fun PlantupiaClientSection(
                 fontSize = 13.sp,
                 lineHeight = 21.sp,
             )
+            PlantupiaSelfServiceForms(
+                spaces = spaces,
+                repository = repository,
+                onCreated = { scope.launch { refresh() } },
+            )
             if (loading) {
                 Text("جارٍ تحميل مساحتك…", color = muted, fontSize = 13.sp)
             } else {
                 if (spaces.isEmpty() && error == null) {
                     PlantupiaPanel {
-                        Text("مساحتك لسه بتتجهّز.", color = forestText, fontWeight = FontWeight.Medium)
-                        Text("بعد ما فريق Plantupia يربط مساحتك بحسابك، نباتاتها هتظهر هنا.", color = muted, fontSize = 13.sp, lineHeight = 19.sp)
+                        Text("لسه ما عندكش مساحات.", color = forestText, fontWeight = FontWeight.Medium)
+                        Text("ابدأ بمساحة صغيرة، وبعدها أضف أول نبات وصورته وسجّل حكايته.", color = muted, fontSize = 13.sp, lineHeight = 19.sp)
                     }
                 }
                 if (spaces.isNotEmpty()) {
@@ -411,7 +416,7 @@ fun PlantupiaClientSection(
                     }
                 }
                 if (spaces.isNotEmpty() && plants.none { it.active }) {
-                    Text("الفريق لسه ما أضافش نباتات للمساحة.", color = muted, fontSize = 12.sp)
+                    Text("مساحتك جاهزة! أضف أول نبات من الزر اللي فوق.", color = muted, fontSize = 12.sp)
                 }
             }
             if (error != null) Text(error.orEmpty(), color = Color(0xFF9A4A31), fontSize = 12.sp)
