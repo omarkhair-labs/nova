@@ -531,7 +531,7 @@ fun PlantupiaClientSection(
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
-                        enabled = !saving && note.trim().isNotEmpty(),
+                        enabled = !saving && (note.isNotBlank() || carePhotoUri != null),
                         onClick = {
                             scope.launch {
                                 saving = true
@@ -544,7 +544,7 @@ fun PlantupiaClientSection(
                         },
                     ) { Text("ملاحظة", color = deepGreen) }
                     Button(
-                        enabled = !saving && note.trim().isNotEmpty(),
+                        enabled = !saving && (note.isNotBlank() || carePhotoUri != null),
                         onClick = {
                             scope.launch {
                                 saving = true
@@ -557,7 +557,29 @@ fun PlantupiaClientSection(
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
                     ) { Text("رعاية", color = white) }
+                    OutlinedButton(
+                        enabled = !saving && (note.isNotBlank() || carePhotoUri != null),
+                        onClick = {
+                            scope.launch {
+                                saving = true
+                                when (val result = carePhotoUri?.let {
+                                    repository.recordWithPhoto(selectedPlant.id, "issue", note, it)
+                                } ?: repository.record(selectedPlant.id, "issue", note)) {
+                                    is ApiResult.Failure -> error = result.message
+                                    is ApiResult.Success -> {
+                                        note = ""
+                                        openPlant(selectedPlant)
+                                    }
+                                }
+                                saving = false
+                            }
+                        },
+                    ) { Text("تغيّر مقلق", color = deepGreen) }
                 }
+                Text(
+                    "سجل اللي شفته زي ما هو. مش لازم تشخّص سبب التغيّر.",
+                    color = muted, fontSize = 11.sp,
+                )
             }
             } else {
                 Text("لديك صلاحية مشاهدة سجل الرعاية فقط. يمكن للمسؤول منحك صلاحية التوثيق.", color = muted, fontSize = 12.sp)
