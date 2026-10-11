@@ -33,7 +33,7 @@ data class PlantupiaPlant(
     val canRecord: Boolean,
     val lastEventKind: String,
     val lastEventAt: String,
-    val nextFollowUpOn: String,
+    val nextFollowUpOn: String = "",
 )
 
 data class PlantupiaHistoryPage(val events: List<PlantupiaCareEvent>, val nextOffset: Int?)
