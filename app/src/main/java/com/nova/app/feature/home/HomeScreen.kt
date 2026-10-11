@@ -354,9 +354,48 @@ fun HomeScreen(
                     }
                 }
 
-                // Nova Stories/Pulse/Gatherings/Memories remain in their
-                // respective paths and the on-demand Create tools. Do not
-                // make the client's home an endless duplicate social catalogue.
+                // Optional social layer: rendered only when the user explicitly
+                // opens their community feed, keeping the living space first.
+                item {
+                    TonightSurface(
+                        onPersonClick = onPersonClick,
+                        onSessionExpired = {},
+                        onOpenTonight = onTonightClick,
+                    )
+                }
+
+                item {
+                    PulseRail(
+                        displayName = displayName,
+                        username = username,
+                        avatarUrl = avatarUrl,
+                        showCreateCard = false,
+                        onOpenFeed = onPulseClick,
+                        onSessionExpired = {},
+                    )
+                }
+
+                item {
+                    OrbitRail(
+                        onPersonClick = onPersonClick,
+                        onSessionExpired = {},
+                    )
+                }
+
+                item {
+                    RoomsRail(
+                        onPersonClick = onPersonClick,
+                        onSessionExpired = {},
+                    )
+                }
+
+                item {
+                    MemoriesRail(
+                        onPersonClick = onPersonClick,
+                        onSessionExpired = {},
+                    )
+                }
+
                 item {
                     NovaCard(
                         onClick = onCreatePost,
