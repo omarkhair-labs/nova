@@ -99,16 +99,18 @@ fun PlantupiaQuestionsPanel(
         OutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
             value = topic,
-            onValueChange = { topic = it.take(80) },
+            onValueChange = { topic = it.take(80); consent = false },
             label = { Text("عنوان عام للسؤال — بدون اسم الكافيه أو عنوانه") },
             singleLine = true,
+            enabled = !submitting,
         )
         OutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
             value = question,
-            onValueChange = { question = it.take(500) },
+            onValueChange = { question = it.take(500); consent = false },
             label = { Text("إيه اللي حصل؟ وإيه اللي جربته؟") },
             minLines = 2,
+            enabled = !submitting,
         )
         OutlinedButton(
             modifier = Modifier.fillMaxWidth(),
