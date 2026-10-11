@@ -45,6 +45,13 @@ android {
     }
 
     buildTypes {
+        // Side-by-side QA install, isolated from the Google Play application.
+        create("qa") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".qa"
+            versionNameSuffix = "-qa"
+            matchingFallbacks += listOf("debug")
+        }
         release {
             isMinifyEnabled = false
             signingConfigs.findByName("releaseUpload")?.let { signingConfig = it }
