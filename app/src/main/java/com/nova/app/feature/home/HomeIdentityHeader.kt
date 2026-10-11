@@ -62,7 +62,7 @@ internal fun HomeIdentityHeader(
         }
         Column(verticalArrangement = Arrangement.spacedBy(NovaSpacing.xxs)) {
             Text(text = "${currentGreeting()}، $firstName", color = NovaInk, style = NovaType.screenTitle)
-            Text(text = "Your living space, its care and its people.", color = NovaMuted, style = NovaType.subtitle)
+            Text(text = "كل مساحة ليها حياة، وذكريات بتتكتب مع الوقت.", color = NovaMuted, style = NovaType.subtitle)
         }
     }
 }

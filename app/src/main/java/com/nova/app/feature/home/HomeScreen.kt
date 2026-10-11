@@ -113,7 +113,9 @@ fun HomeScreen(
     // generic disconnected Nova post composer.
     LaunchedEffect(PlantupiaCreateIntent.pending) {
         if (PlantupiaCreateIntent.pending != null) {
-            listState.animateScrollToItem(2)
+            // Publishing-status is an optional item before the living space.
+            // Never land on that item when coming from "record" or "ask".
+            listState.animateScrollToItem(if (publishingItems.isEmpty()) 1 else 2)
         }
     }
 
@@ -297,7 +299,7 @@ fun HomeScreen(
                 item(key = "home-community-toggle") {
                     TextButton(onClick = { showCommunityFeed = !showCommunityFeed }) {
                         Text(
-                            if (showCommunityFeed) "اخفِ لحظات المجتمع ↑" else "استكشف لحظات المجتمع والدائرة ↓",
+                            if (showCommunityFeed) "اخفِ لحظات الناس ↑" else "لحظات الناس (اختياري) ↓",
                             color = NovaAccent,
                             style = NovaType.bodyCompact,
                         )

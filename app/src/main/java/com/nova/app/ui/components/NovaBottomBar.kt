@@ -68,7 +68,7 @@ fun NovaBottomBar(
         ) {
             NovaTabItem(
                 label = "Home",
-                displayLabel = "Spaces",
+                displayLabel = "مساحتي",
                 icon = NovaIconAsset.Home,
                 selected = selected == NovaTab.Home,
                 inactiveContentColor = inactiveContentColor,
@@ -76,7 +76,7 @@ fun NovaBottomBar(
             )
             NovaTabItem(
                 label = "Circle",
-                displayLabel = "Circle",
+                displayLabel = "الدائرة",
                 icon = NovaIconAsset.Orbit,
                 selected = selected == NovaTab.Orbit,
                 inactiveContentColor = inactiveContentColor,
@@ -88,7 +88,7 @@ fun NovaBottomBar(
             )
             NovaTabItem(
                 label = "Inbox",
-                displayLabel = "Chats",
+                displayLabel = "الرسائل",
                 icon = NovaIconAsset.Inbox,
                 selected = selected == NovaTab.Inbox,
                 badgeCount = resolvedUnreadCount,
@@ -103,7 +103,7 @@ fun NovaBottomBar(
             )
             NovaTabItem(
                 label = "Profile",
-                displayLabel = "You",
+                displayLabel = "أنا",
                 icon = NovaIconAsset.Profile,
                 selected = selected == NovaTab.Profile,
                 inactiveContentColor = inactiveContentColor,
@@ -147,7 +147,7 @@ private fun NovaCreateTabItem(
             Box(contentAlignment = Alignment.Center) {
                 NovaIcon(
                     asset = NovaIconAsset.Create,
-                    contentDescription = "Create",
+                    contentDescription = "وثّق لحظة أو شاركها",
                     tint = Color.White,
                     modifier = Modifier.size(25.dp),
                 )

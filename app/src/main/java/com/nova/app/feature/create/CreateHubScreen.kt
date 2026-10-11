@@ -111,19 +111,16 @@ fun CreateHubScreen(
             NovaIconAsset.Orbit,
         ) { enterPlant(PlantupiaCreateMode.QUESTION) },
         CreateHubAction(
-            "لحظة عامة",
-            "شارك تجربة للناس عبر منشورات Nova الموثوقة",
+            "شارك تجربة",
+            "صورة أو حكاية عامة، من غير مشاركة سجل نباتك الخاص",
             NovaIconAsset.Create,
             onCreatePost,
         ),
-        CreateHubAction(
-            "فيديو",
-            "الريلز واللقطات المصورة من عالمك",
-            NovaIconAsset.Reels,
-            onOpenReels,
-        ),
     )
     val otherFormats = listOf(
+        // Retain Nova's engines, but do not turn every format into a separate
+        // Plantupia destination until its role in a living-space journey is clear.
+        CreateHubAction("فيديو عام", "محرك الفيديو الموجود في Nova؛ مش بديل عن سجل النبات", NovaIconAsset.Reels, onOpenReels),
         CreateHubAction("Story", "لحظة مؤقتة لمدة 24 ساعة", NovaIconAsset.Story) { activeFormat = "story" },
         CreateHubAction("Pulse", "لحظة قصيرة مع الناس", NovaIconAsset.Orbit) { activeFormat = "pulse" },
         CreateHubAction("Gathering", "تجمّع اجتماعي حول اهتمام مشترك", NovaIconAsset.Room) { activeFormat = "gathering" },
@@ -230,7 +227,7 @@ fun CreateHubScreen(
                     if (!showOtherFormats) activeFormat = null
                 }) {
                     Text(
-                        if (showOtherFormats) "إخفاء وسائل المشاركة الأخرى ↑" else "وسائل مشاركة أخرى ↓",
+                        if (showOtherFormats) "إخفاء الأدوات الأخرى ↑" else "أدوات اجتماعية أخرى (اختيارية) ↓",
                         color = NovaAccent,
                     )
                 }
