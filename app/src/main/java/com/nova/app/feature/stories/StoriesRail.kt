@@ -89,9 +89,9 @@ import com.nova.app.ui.theme.NovaSurface
 import kotlinx.coroutines.delay
 
 
-private val StoryBackground = Color(0xFF0A0B14)
-private val StoryInk = Color(0xFFE9E6FF)
-private val StoryMuted = Color(0xFFB9B4CE)
+private val StoryBackground = Color(0xFF10281F)
+private val StoryInk = Color(0xFFF3EEDE)
+private val StoryMuted = Color(0xFFD7D2C1)
 private val StoryReactions = listOf("❤️", "😂", "😮", "😢", "🔥", "👏")
 private const val STORY_FRAME_MS = 5_500L
 private const val STORY_TICK_MS = 55L
@@ -1073,5 +1073,5 @@ private fun storyBackgroundBrush(style: String): Brush = when (style) {
     "sunset" -> Brush.linearGradient(listOf(Color(0xFF5B1A55), Color(0xFFE06A46), Color(0xFFF0B35A)))
     "ocean" -> Brush.linearGradient(listOf(Color(0xFF092B4A), Color(0xFF0D6E8A), Color(0xFF31A6A0)))
     "forest" -> Brush.linearGradient(listOf(Color(0xFF102A24), Color(0xFF1D5943), Color(0xFF5A7D45)))
-    else -> Brush.linearGradient(listOf(Color(0xFF0A0B14), Color(0xFF25233B), Color(0xFF5A3E72)))
+    else -> Brush.linearGradient(listOf(Color(0xFF10281F), Color(0xFF123B2E), Color(0xFF406D4D)))
 }

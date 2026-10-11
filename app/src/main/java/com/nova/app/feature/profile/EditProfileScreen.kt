@@ -86,7 +86,7 @@ fun EditProfileScreen(
 
     NovaKeyboardAwareFormPage(
         title = "Edit Profile",
-        subtitle = "Curate your identity and how your orbit appears.",
+        subtitle = "Choose how you appear in the Plantupia community.",
         onBack = onBack,
         action = {
             val visibleError = errorMessage ?: linkError
@@ -212,8 +212,8 @@ fun EditProfileScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             androidx.compose.foundation.layout.Column {
-                Text("Show my orbit", color = NovaInk, fontWeight = FontWeight.SemiBold)
-                Text("Let people see your orbit treatment.", color = NovaMuted, fontSize = 12.sp)
+                Text("Show my circle", color = NovaInk, fontWeight = FontWeight.SemiBold)
+                Text("Let people see your circle treatment.", color = NovaMuted, fontSize = 12.sp)
             }
             Switch(
                 checked = orbitVisible,
@@ -280,7 +280,7 @@ fun EditProfileScreen(
 
         Spacer(modifier = Modifier.height(10.dp))
         Text(
-            text = "Your username has to stay unique across Nova.",
+            text = "Your username has to be unique within Plantupia.",
             color = NovaMuted,
             fontSize = 12.sp,
             lineHeight = 18.sp,

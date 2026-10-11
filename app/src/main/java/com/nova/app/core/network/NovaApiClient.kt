@@ -228,6 +228,11 @@ class NovaApiClient(
     }
 
     private fun parseJsonResponse(status: Int, raw: String): ApiResult<JSONObject> {
+        // Proxies and servers can return an HTML 404/502 page. Never surface
+        // raw HTML to the app or mistake it for a successful API response.
+        htmlErrorMessage(status, raw)?.let {
+            return ApiResult.Failure(message = it, statusCode = status)
+        }
         val json = if (raw.isBlank()) JSONObject() else runCatching { JSONObject(raw) }
             .getOrElse { JSONObject().put("detail", raw) }
 
@@ -345,5 +350,21 @@ private class UploadProgressRequestBody(
         delegate.writeTo(bufferedSink)
         bufferedSink.flush()
         if (lastProgress < 100) onProgress(100)
+    }
+}
+
+/**
+ * An HTML error is not an API error payload. Keep markup and proxy internals
+ * out of any on-screen error message.
+ */
+internal fun htmlErrorMessage(status: Int, raw: String): String? {
+    val trimmed = raw.trimStart()
+    if (!trimmed.startsWith("<!doctype", ignoreCase = true) &&
+        !trimmed.startsWith("<html", ignoreCase = true)
+    ) return null
+    return if (status == 404) {
+        "This API isn't available on the connected server yet."
+    } else {
+        "The server returned a page instead of API data. Please try again later."
     }
 }

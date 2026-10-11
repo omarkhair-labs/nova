@@ -35,6 +35,7 @@ urlpatterns = [
     ),
     path("api/v1/health/", HealthView.as_view(), name="health"),
     path("api/v1/", include("accounts.urls")),
+    path("api/v1/plantupia/", include("plants.urls")),
 ]
 
 if settings.DEBUG:

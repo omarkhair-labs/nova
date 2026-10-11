@@ -67,7 +67,7 @@ class NovaPushRepository(
     }
 
     companion object {
-        const val PRODUCTION_API_URL = "https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/"
+        val PRODUCTION_API_URL = com.nova.app.core.network.NovaServerConfig.API_URL
     }
 }
 

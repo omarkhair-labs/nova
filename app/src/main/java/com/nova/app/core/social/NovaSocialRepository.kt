@@ -12,7 +12,7 @@ import com.nova.app.feature.people.domain.model.NovaPerson
 
 class NovaSocialRepository(
     context: Context,
-    api: NovaApiClient = NovaApiClient("https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/"),
+    api: NovaApiClient = NovaApiClient(com.nova.app.core.network.NovaServerConfig.API_URL),
 ) : PeopleRepository {
     private val sessionStore = NovaSessionStore(context.applicationContext)
     private val peopleRemote = PeopleRemoteDataSource(api)

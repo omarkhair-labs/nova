@@ -203,6 +203,17 @@ jobs:
           }
           JSON
 
+      - name: Configure isolated QA Firebase placeholder
+        shell: bash
+        run: |
+          mkdir -p app/src/qa
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          config = json.loads(Path('app/google-services.json').read_text())
+          config['client'][0]['client_info']['android_client_info']['package_name'] = 'com.omarkhair70.nova.qa'
+          Path('app/src/qa/google-services.json').write_text(json.dumps(config))
+          PY
       - name: Run Android unit tests
         run: ./gradlew --no-daemon testDebugUnitTest
 
@@ -218,6 +229,16 @@ jobs:
       - name: Assemble Android debug APK
         run: ./gradlew --no-daemon assembleDebug
 
+      - name: Assemble side-by-side Plantupia QA APK
+        run: ./gradlew --no-daemon assembleQa
+
+      - name: Upload Plantupia QA APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: plantupia-qa-pr240-apk
+          path: app/build/outputs/apk/qa/app-qa.apk
+          if-no-files-found: error
+          retention-days: 7
       - name: Assemble Android instrumentation APK
         run: ./gradlew --no-daemon assembleDebugAndroidTest
 

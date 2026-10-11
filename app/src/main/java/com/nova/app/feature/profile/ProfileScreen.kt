@@ -24,6 +24,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nova.app.SettingsActivity
 import com.nova.app.SocialGraphActivity
+import com.nova.app.feature.plants.PlantupiaProfileSpaces
+import com.nova.app.core.messaging.NovaMessagingNavigator
+import com.nova.app.core.messaging.NovaMessagesSignal
+import com.nova.app.ui.components.NovaUnreadDot
+import androidx.compose.foundation.layout.Box
 import com.nova.app.feature.people.MODE_FOLLOWERS
 import com.nova.app.feature.people.MODE_FOLLOWING
 import com.nova.app.feature.posts.domain.model.NovaPost
@@ -98,15 +103,29 @@ fun ProfileScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column {
-                    Text(text = "You", color = NovaInk, style = NovaType.pageTitle)
-                    Text(text = "Your profile on Nova", color = NovaMuted, style = NovaType.meta)
+                    Text(text = "YOU / PLANTUPIA", color = NovaMuted, style = NovaType.micro)
+                    Text(text = "حكايتك مع المكان", color = NovaInk, style = NovaType.pageTitle)
+                    Text(text = "هويتك في المجتمع ومساحاتك الخاصة — كل حاجة في مكانها.", color = NovaMuted, style = NovaType.meta)
                 }
-                NovaIconButton(
-                    asset = NovaIconAsset.Settings,
-                    contentDescription = "Settings",
-                    onClick = { context.startActivity(Intent(context, SettingsActivity::class.java)) },
-                    iconSize = 20.dp,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box {
+                        NovaIconButton(
+                            asset = NovaIconAsset.Inbox,
+                            contentDescription = "الرسائل",
+                            onClick = { NovaMessagingNavigator.openInbox(context = context) },
+                            iconSize = 20.dp,
+                        )
+                        if (NovaMessagesSignal.unreadCount > 0) {
+                            NovaUnreadDot(modifier = Modifier.align(Alignment.TopEnd))
+                        }
+                    }
+                    NovaIconButton(
+                        asset = NovaIconAsset.Settings,
+                        contentDescription = "الإعدادات",
+                        onClick = { context.startActivity(Intent(context, SettingsActivity::class.java)) },
+                        iconSize = 20.dp,
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(NovaSpacing.xl))
@@ -123,6 +142,12 @@ fun ProfileScreen(
                 isVerified = isVerified,
             )
 
+            Spacer(modifier = Modifier.height(NovaSpacing.xl))
+            // The personal, authenticated view only. Plantupia sites and
+            // care records must never be injected into public Nova posts
+            // or another user's PersonScreen.
+            PlantupiaProfileSpaces(onOpenSpaces = onHomeClick)
+
             Spacer(modifier = Modifier.height(NovaSpacing.xxl))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -130,7 +155,7 @@ fun ProfileScreen(
             ) {
                 ProfileStat(
                     postsCount.toString(),
-                    "Posts",
+                    "Moments",
                     Modifier.weight(1f),
                     onClick = { profileContentOwner.selectTab(ProfileContentTab.Posts) },
                 )
@@ -150,7 +175,7 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(NovaSpacing.md))
             NovaSecondaryButton(
-                text = "Edit profile",
+                text = "Edit public profile",
                 onClick = onEditProfile,
                 modifier = Modifier.fillMaxWidth(),
             )

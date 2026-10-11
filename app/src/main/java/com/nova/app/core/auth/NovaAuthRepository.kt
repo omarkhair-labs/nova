@@ -17,7 +17,7 @@ import kotlinx.coroutines.withContext
 class NovaAuthRepository(
     context: Context,
     private val remote: AuthRemoteDataSource = AuthRemoteDataSource(
-        NovaApiClient("https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/"),
+        NovaApiClient(com.nova.app.core.network.NovaServerConfig.API_URL),
     ),
 ) {
     private val appContext = context.applicationContext

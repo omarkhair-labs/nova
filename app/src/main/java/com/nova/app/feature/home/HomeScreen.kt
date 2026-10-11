@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,6 +35,9 @@ import com.nova.app.core.network.ApiResult
 import com.nova.app.core.notifications.NovaNotificationRepository
 import com.nova.app.core.push.NovaPushOpenSignal
 import com.nova.app.feature.memories.MemoriesRail
+import com.nova.app.feature.plants.PlantupiaCreateIntent
+import com.nova.app.feature.plants.PlantupiaClientSection
+import com.nova.app.feature.plants.PlantupiaCirclePanel
 import com.nova.app.feature.notifications.NotificationsScreen
 import com.nova.app.feature.orbit.OrbitRail
 import com.nova.app.feature.posts.domain.model.NovaPost
@@ -105,7 +109,18 @@ fun HomeScreen(
     val listState = rememberLazyListState()
     val firstName = displayName.trim().substringBefore(' ').ifBlank { username }
 
+    // Route on-demand creation back to the real living record, never a
+    // generic disconnected Nova post composer.
+    LaunchedEffect(PlantupiaCreateIntent.pending) {
+        if (PlantupiaCreateIntent.pending != null) {
+            // Publishing-status is an optional item before the living space.
+            // Never land on that item when coming from "record" or "ask".
+            listState.animateScrollToItem(if (publishingItems.isEmpty()) 1 else 2)
+        }
+    }
+
     var showActivity by remember { mutableStateOf(false) }
+    var showCommunityFeed by remember { mutableStateOf(false) }
     var notificationUnreadCount by remember { mutableStateOf(0) }
 
     fun refreshUnreadCount() {
@@ -186,7 +201,7 @@ fun HomeScreen(
         return
     }
 
-    LaunchedEffect(listState, hasMore, isLoading, isLoadingMore, posts.size) {
+    LaunchedEffect(listState, showCommunityFeed, hasMore, isLoading, isLoadingMore, posts.size) {
         snapshotFlow {
             val layoutInfo = listState.layoutInfo
             val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
@@ -196,6 +211,7 @@ fun HomeScreen(
             .collect { (lastVisible, totalItems) ->
                 val closeToEnd = totalItems > 0 && lastVisible >= totalItems - 4
                 if (
+                    showCommunityFeed &&
                     closeToEnd &&
                     hasMore &&
                     posts.isNotEmpty() &&
@@ -266,12 +282,46 @@ fun HomeScreen(
                     }
                 }
 
-                item {
-                    TonightSurface(
-                        onPersonClick = onPersonClick,
-                        onSessionExpired = {},
-                        onOpenTonight = onTonightClick,
+                item(key = "plantupia-living-space") {
+                    PlantupiaClientSection(
+                        onCommunityCreateClick = onCreatePost,
+                        onOpenPlant = {
+                            scope.launch {
+                                listState.animateScrollToItem(
+                                    if (publishingItems.isEmpty()) 1 else 2
+                                )
+                            }
+                        },
+                        onOpenLinkedPost = { postId ->
+                            scope.launch {
+                                when (val result = onResolvePost(postId)) {
+                                    is ApiResult.Success -> onPostClick(result.value)
+                                    is ApiResult.Failure -> Unit
+                                }
+                            }
+                        },
                     )
+                }
+
+                item(key = "home-community-toggle") {
+                    TextButton(onClick = { showCommunityFeed = !showCommunityFeed }) {
+                        Text(
+                            if (showCommunityFeed) "اخفِ لحظات الناس ↑" else "لحظات الناس (اختياري) ↓",
+                            color = NovaAccent,
+                            style = NovaType.bodyCompact,
+                        )
+                    }
+                }
+                if (showCommunityFeed) {
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(text = "From the circle", color = NovaInk, style = NovaType.title)
+                        Text(text = "Community", color = NovaMuted, style = NovaType.micro)
+                    }
                 }
 
                 if (posts.isNotEmpty()) {
@@ -314,12 +364,22 @@ fun HomeScreen(
                 } else {
                     item {
                         NovaEmptyState(
-                            title = "Your orbit is quiet",
-                            message = "Share a moment or find someone in People to begin your feed.",
+                            title = "Your circle is quiet",
+                            message = "Share a plant moment or find people to begin the conversation.",
                             actionLabel = "Find people",
                             onAction = onPeopleClick,
                         )
                     }
+                }
+
+                // Optional social layer: rendered only when the user explicitly
+                // opens their community feed, keeping the living space first.
+                item {
+                    TonightSurface(
+                        onPersonClick = onPersonClick,
+                        onSessionExpired = {},
+                        onOpenTonight = onTonightClick,
+                    )
                 }
 
                 item {
@@ -371,7 +431,7 @@ fun HomeScreen(
                             )
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Share a moment",
+                                    text = "Share a living moment",
                                     color = NovaInk,
                                     style = NovaType.bodyCompact.copy(fontWeight = FontWeight.SemiBold),
                                 )
@@ -404,7 +464,7 @@ fun HomeScreen(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                text = "More from your orbit",
+                                text = "More from your circle",
                                 color = NovaInk,
                                 style = NovaType.title,
                             )
@@ -459,6 +519,8 @@ fun HomeScreen(
                         }
                     }
                 }
+                }
+
             }
         }
     }

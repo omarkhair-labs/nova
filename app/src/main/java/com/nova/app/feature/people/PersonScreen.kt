@@ -380,7 +380,7 @@ fun PersonScreen(
     ) {
         NovaHeader(
             title = "Profile",
-            subtitle = "A real person on Nova.",
+            subtitle = "A person in the Plantupia community.",
             onBack = onBack,
         )
 
