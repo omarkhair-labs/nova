@@ -281,6 +281,10 @@ class PlantupiaPermissionTests(TestCase):
         im = Image.new("RGB", (24, 24), (100, 151, 45))
         out = BytesIO()
         im.save(out, format="JPEG")
+        metadata = Image.Exif()
+        metadata[0x010E] = "Customer private address"
+        out = BytesIO()
+        im.save(out, format="JPEG", exif=metadata)
         upload = SimpleUploadedFile("new-fern.jpg", out.getvalue(), content_type="image/jpeg")
         self.client.force_authenticate(user=self.owner)
         with TemporaryDirectory() as directory, override_settings(MEDIA_ROOT=directory):
@@ -292,5 +296,8 @@ class PlantupiaPermissionTests(TestCase):
             self.assertEqual(response.status_code, 201, response.content)
             plant = PlantUnit.objects.get(pk=response.json()["id"])
             self.assertTrue(bool(plant.cover_photo))
+            with plant.cover_photo.open("rb") as stored:
+                saved = Image.open(stored)
+                self.assertFalse(saved.getexif())
             from accounts.models import Post
             self.assertEqual(Post.objects.count(), 0)

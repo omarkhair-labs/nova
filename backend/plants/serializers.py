@@ -59,9 +59,17 @@ class PlantCreateSerializer(serializers.ModelSerializer):
         return value
 
     def validate_cover_photo(self, photo):
-        if photo and photo.size > 10 * 1024 * 1024:
-            raise serializers.ValidationError("Choose a photo smaller than 10 MB.")
-        return photo
+        if not photo:
+            return photo
+        # Normalize uploaded cover images: strip GPS/EXIF metadata and
+        # reject oversized/unsafe formats before putting bytes on storage.
+        from .media import sanitize_public_plant_photo
+        try:
+            clean = sanitize_public_plant_photo(photo)
+        except ValueError as error:
+            raise serializers.ValidationError(str(error)) from error
+        clean.name = "plant-cover.jpg"
+        return clean
 
 
 class PlantEventSerializer(serializers.ModelSerializer):
