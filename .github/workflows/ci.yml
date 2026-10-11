@@ -226,4 +226,3 @@ jobs:
 
       - name: Build Android release App Bundle
         run: ./gradlew --no-daemon bundleRelease
-
