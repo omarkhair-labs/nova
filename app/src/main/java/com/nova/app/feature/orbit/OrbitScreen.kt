@@ -67,6 +67,9 @@ import com.nova.app.ui.theme.NovaType
 import com.nova.app.feature.plants.PlantupiaCirclePanel
 import com.nova.app.feature.plants.PlantupiaCreateIntent
 import com.nova.app.feature.plants.PlantupiaCreateMode
+import com.nova.app.core.messaging.NovaMessagesSignal
+import com.nova.app.core.messaging.NovaMessagingNavigator
+import com.nova.app.ui.components.NovaUnreadDot
 import java.time.Duration
 import java.time.Instant
 import java.time.OffsetDateTime
@@ -158,18 +161,38 @@ fun OrbitScreen(
                             style = NovaType.bodyCompact,
                         )
                     }
-                    Surface(
-                        onClick = onDiscoveryClick,
-                        shape = CircleShape,
-                        color = NovaSurface,
-                        border = BorderStroke(1.dp, NovaBorder),
-                    ) {
-                        NovaIcon(
-                            asset = NovaIconAsset.Search,
-                            contentDescription = "Discover people",
-                            tint = NovaInk,
-                            modifier = Modifier.padding(NovaSpacing.md).size(21.dp),
-                        )
+                    Row(horizontalArrangement = Arrangement.spacedBy(NovaSpacing.xs)) {
+                        Box {
+                            Surface(
+                                onClick = { NovaMessagingNavigator.openInbox(context = context) },
+                                shape = CircleShape,
+                                color = NovaSurface,
+                                border = BorderStroke(1.dp, NovaBorder),
+                            ) {
+                                NovaIcon(
+                                    asset = NovaIconAsset.Inbox,
+                                    contentDescription = "الرسائل",
+                                    tint = NovaInk,
+                                    modifier = Modifier.padding(NovaSpacing.md).size(21.dp),
+                                )
+                            }
+                            if (NovaMessagesSignal.unreadCount > 0) {
+                                NovaUnreadDot(modifier = Modifier.align(Alignment.TopEnd))
+                            }
+                        }
+                        Surface(
+                            onClick = onDiscoveryClick,
+                            shape = CircleShape,
+                            color = NovaSurface,
+                            border = BorderStroke(1.dp, NovaBorder),
+                        ) {
+                            NovaIcon(
+                                asset = NovaIconAsset.Search,
+                                contentDescription = "اكتشف الناس",
+                                tint = NovaInk,
+                                modifier = Modifier.padding(NovaSpacing.md).size(21.dp),
+                            )
+                        }
                     }
                 }
             }

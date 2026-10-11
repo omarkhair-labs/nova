@@ -82,3 +82,12 @@ The original Nova UI work is a preservation asset: media quality, animation, mat
 - A green CI does not establish a deployed Plantupia backend, approved visual assets, signed release or accepted device UX.
 
 **Cross-system limit:** Original app identity remains `com.omarkhair70.nova`. Neither this branch nor its CI should merge, deploy Oracle production, or promote a Play track. Backend deployment documentation for the original Nova includes legacy hosting instructions; confirm the current Oracle runtime branch, migrations, and storage policy from the running service before executing any production operation.
+
+## 2026-10-11 contextual navigation decision
+
+The original experience map has **four primary navigation intents**:
+living spaces, Circle, creating/recording a moment, and personal identity.
+The original Nova Inbox engine and typed deep-link destination are preserved,
+but no longer occupy a mandatory fifth bottom tab. Inbox stays reachable
+from Circle and the personal profile, with an unread indicator. Existing
+Messages and calls remain unchanged; no data or app identity migration.

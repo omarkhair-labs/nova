@@ -23,10 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.nova.app.core.messaging.NovaMessagesSignal
-import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
@@ -37,7 +34,10 @@ import com.nova.app.ui.theme.NovaSurface
 import com.nova.app.ui.theme.NovaType
 
 
-/** Presentation owner for Home / Orbit / Create / Inbox / Profile. */
+/** Primary Plantupia navigation: Space / Circle / Create / You.
+ * Inbox remains a separate working Nova destination, reached contextually
+ * from Circle and the self profile instead of occupying a primary tab.
+ */
 @Composable
 fun NovaBottomBar(
     selected: NovaTab?,
@@ -50,9 +50,6 @@ fun NovaBottomBar(
     containerColor: Color = NovaSurface,
     inactiveContentColor: Color = NovaMuted,
 ) {
-    val context = LocalContext.current
-    val resolvedUnreadCount = messagesUnreadCount ?: NovaMessagesSignal.unreadCount
-
     Surface(
         color = containerColor,
         shadowElevation = NovaElevation.floating,
@@ -85,21 +82,6 @@ fun NovaBottomBar(
             NovaCreateTabItem(
                 selected = selected == NovaTab.Create,
                 onClick = onCreateClick,
-            )
-            NovaTabItem(
-                label = "Inbox",
-                displayLabel = "الرسائل",
-                icon = NovaIconAsset.Inbox,
-                selected = selected == NovaTab.Inbox,
-                badgeCount = resolvedUnreadCount,
-                inactiveContentColor = inactiveContentColor,
-                onClick = {
-                    if (onInboxClick != null) {
-                        onInboxClick()
-                    } else if (selected != NovaTab.Inbox) {
-                        NovaMessagingNavigator.openInbox(context = context)
-                    }
-                },
             )
             NovaTabItem(
                 label = "Profile",

@@ -67,7 +67,6 @@ MIGRATED_COMPONENT_SEAMS = {
         "NovaIconAsset.Home",
         "NovaIconAsset.Orbit",
         "NovaIconAsset.Create",
-        "NovaIconAsset.Inbox",
         'label = "Profile"',
     ),
     "NovaFeedback.kt": ("MaterialTheme.shapes.extraLarge", "NovaType.bodyCompact", "NovaSpacing.xxxl"),
@@ -228,6 +227,17 @@ for seam in ("NovaCard(", "NovaType.screenTitle", "NovaSpacing.xxl", "SettingsSe
         errors.append(f"Settings bypassed Nova container/type/spacing seam: {seam}")
 
 profile_text = PROFILE_SCREEN.read_text(encoding="utf-8")
+# Inbox remains functional but is reached from contextual Plantupia
+# destinations instead of a fifth compulsory primary tab.
+circle_text = (MAIN / "com/nova/app/feature/orbit/OrbitScreen.kt").read_text(encoding="utf-8")
+for file_name, surface_text in (
+    ("ProfileScreen.kt", profile_text),
+    ("OrbitScreen.kt", circle_text),
+):
+    if "NovaMessagingNavigator.openInbox" not in surface_text:
+        errors.append(f"Plantupia contextual messages entry missing from {file_name}")
+    if "NovaIconAsset.Inbox" not in surface_text:
+        errors.append(f"Inbox icon missing from contextual entry {file_name}")
 for seam in ("NovaProfileIdentity(", "NovaPagedProfilePostsGrid(", "NovaType.pageTitle", "NovaSpacing.xxl"):
     if seam not in profile_text:
         errors.append(f"Profile bypassed Nova identity/content/type/spacing seam: {seam}")
