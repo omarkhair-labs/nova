@@ -132,16 +132,16 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         if (selectedPlant == null) {
-            BrandEyebrow("YOUR LIVING SPACES / مساحاتك")
+            BrandEyebrow("YOUR LIVING SPACE / مساحتك")
             Text(
-                "Every space has a life.",
+                "المكان بيتغيّر مع الوقت.",
                 fontFamily = FontFamily.Serif,
-                fontSize = 27.sp,
+                fontSize = 26.sp,
                 color = deepGreen,
-                lineHeight = 31.sp,
+                lineHeight = 33.sp,
             )
             Text(
-                "نباتات المكان، تاريخها، ورعايتها — بعد التركيب، مش بس يوم التسليم.",
+                "لكل نبات مكان وحكاية ورعاية حقيقية. هنا بنحتفظ باللي حصل، مش بنخمن صحته.",
                 color = muted,
                 fontSize = 13.sp,
                 lineHeight = 21.sp,
@@ -154,6 +154,79 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
                         Text("مساحتك لسه بتتجهّز.", color = forestText, fontWeight = FontWeight.Medium)
                         Text("بعد ما فريق Plantupia يربط مساحتك بحسابك، نباتاتها هتظهر هنا.", color = muted, fontSize = 13.sp, lineHeight = 19.sp)
                     }
+                }
+                if (spaces.isNotEmpty()) {
+                    val featured = spaces.first()
+                    val featuredCount = plants.count { it.spaceId == featured.id && it.active }
+                    Surface(
+                        color = Color(0xFFD6E2D4),
+                        shape = RoundedCornerShape(18.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(18.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            BrandEyebrow("YOUR SPACE / مساحة حيّة")
+                            Text(featured.name, color = deepGreen, fontFamily = FontFamily.Serif, fontSize = 27.sp)
+                            if (featured.location.isNotBlank()) {
+                                Text(featured.location, color = muted, fontSize = 12.sp)
+                            }
+                            Text("$featuredCount وحدة نباتية · السجل بيتكوّن من ملاحظاتكم الحقيقية", color = muted, fontSize = 12.sp)
+                            TextButton(onClick = { expandedSpaceId = featured.id }) {
+                                Text("اكتشف نباتات المساحة ←", color = deepGreen)
+                            }
+                        }
+                    }
+
+                    val recent = plants
+                        .filter { it.active && it.lastEventAt.isNotBlank() }
+                        .sortedByDescending { it.lastEventAt }
+                    if (recent.isNotEmpty()) {
+                        val latest = recent.first()
+                        BrandEyebrow("LATEST OBSERVATION / آخر تغيير موثّق")
+                        PlantupiaPanel {
+                            Text(latest.name, color = deepGreen, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                            Text(
+                                "${latest.lastEventAt.take(10)} · ${eventLabel(latest.lastEventKind)}",
+                                color = muted, fontSize = 12.sp,
+                            )
+                            TextButton(onClick = { scope.launch { openPlant(latest) } }) {
+                                Text("شوف تاريخها ←", color = deepGreen)
+                            }
+                        }
+                        BrandEyebrow("RECENT MOMENTS / لحظات موثّقة")
+                        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                            recent.take(4).forEach { plant ->
+                                Surface(
+                                    modifier = Modifier.weight(1f).clickable { scope.launch { openPlant(plant) } },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = white,
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(7.dp),
+                                        verticalArrangement = Arrangement.spacedBy(5.dp),
+                                    ) {
+                                        if (plant.coverPhoto.isNotBlank()) {
+                                            AsyncImage(
+                                                model = plant.coverPhoto,
+                                                contentDescription = plant.name,
+                                                modifier = Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(7.dp)),
+                                                contentScale = ContentScale.Crop,
+                                            )
+                                        }
+                                        Text(plant.name, color = forestText, fontSize = 11.sp, maxLines = 1)
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        Text(
+                            "أول صورة أو ملاحظة هتبدأ حكاية المكان هنا، من غير بيانات وهمية.",
+                            color = muted, fontSize = 12.sp,
+                        )
+                    }
+                    BrandEyebrow("YOUR PLANTS / نباتاتك")
                 }
                 spaces.forEach { space ->
                     PlantupiaPanel {
@@ -189,13 +262,10 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
                                 val subtitle = listOf(plant.species, plant.placement).filter(String::isNotBlank).joinToString(" · ")
                                 if (subtitle.isNotBlank()) Text(subtitle, color = muted, fontSize = 12.sp)
                                 if (plant.lastEventAt.isNotBlank()) {
-                                    val lastKind = when (plant.lastEventKind) {
-                                        "issue" -> "ملاحظة تحتاج متابعة"
-                                        "care" -> "رعاية مسجلة"
-                                        "outcome" -> "نتيجة موثقة"
-                                        else -> "ملاحظة مسجلة"
-                                    }
-                                    Text("آخر سجل: ${plant.lastEventAt.take(10)} · $lastKind", color = muted, fontSize = 12.sp)
+                                    Text(
+                                        "آخر سجل: ${plant.lastEventAt.take(10)} · ${eventLabel(plant.lastEventKind)}",
+                                        color = muted, fontSize = 12.sp,
+                                    )
                                 } else {
                                     Text("لم يُسجَّل تاريخ لهذا النبات بعد", color = muted, fontSize = 12.sp)
                                 }
@@ -214,7 +284,7 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
                 Text("تحديث البيانات", color = deepGreen)
             }
         } else {
-            TextButton(onClick = { currentPlantId = null; error = null }) {
+            TextButton(onClick = { currentPlantId = null; scope.launch { refresh() } }) {
                 Text("← الرجوع للمساحة", color = deepGreen)
             }
             BrandEyebrow("LIVING RECORD / تاريخ النبات")
@@ -308,12 +378,15 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
             else if (events.isEmpty()) Text("أول ملاحظة منك هتبدأ تاريخ النبات هنا.", color = muted, fontSize = 13.sp)
             events.forEach { event ->
                 PlantupiaPanel {
-                    Text("${event.kind.uppercase()}  ·  ${event.observedAt.take(10)}", color = deepGreen, fontSize = 11.sp, letterSpacing = 1.sp)
+                    Text(
+                        "${eventLabel(event.kind)} · ${event.observedAt.take(10)}",
+                        color = deepGreen, fontSize = 12.sp,
+                    )
                     if (event.photoUrl.isNotBlank()) {
                         AsyncImage(model = event.photoUrl, contentDescription = "صورة من تاريخ النبات", modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(10.dp)), contentScale = ContentScale.Crop)
                     }
                     Text(event.note.ifBlank { "حدث رعاية مسجل" }, color = forestText, fontSize = 13.sp, lineHeight = 20.sp)
-                    Text("Source: ${event.evidence}", color = muted, fontSize = 11.sp)
+                    Text("مصدر المعلومة: ${evidenceLabel(event.evidence)}", color = muted, fontSize = 11.sp)
                 }
             }
             HorizontalDivider(color = sage)
@@ -345,6 +418,20 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
             )
         }
     }
+}
+
+private fun eventLabel(kind: String): String = when (kind) {
+    "care" -> "رعاية مسجلة"
+    "issue" -> "ملاحظة تحتاج متابعة"
+    "outcome" -> "نتيجة موثقة"
+    else -> "ملاحظة مسجلة"
+}
+
+private fun evidenceLabel(kind: String): String = when (kind) {
+    "measured" -> "قياس"
+    "reported" -> "نقلًا عن شخص آخر"
+    "inferred" -> "استنتاج غير مؤكّد"
+    else -> "ملاحظة مباشرة"
 }
 
 @Composable
