@@ -341,7 +341,7 @@ class GroupManagementRemoteRepository(
     )
 
     private companion object {
-        const val PRODUCTION_API_URL = "https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/"
+        val PRODUCTION_API_URL = com.nova.app.core.network.NovaServerConfig.API_URL
         const val MAX_GROUP_AVATAR_BYTES = 10 * 1024 * 1024L
     }
 }
