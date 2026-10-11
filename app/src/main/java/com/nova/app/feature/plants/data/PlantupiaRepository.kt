@@ -74,6 +74,97 @@ class PlantupiaRepository(context: Context) {
     private val sessionStore = NovaSessionStore(appContext)
     private val api = NovaApiClient(NovaMessagingRepository.PRODUCTION_API_URL)
 
+    /** A new user's first space is owned by that user, not a company admin. */
+    suspend fun createSpace(name: String, description: String, location: String): ApiResult<String> =
+        authorized { token ->
+            when (val response = api.requestJson(
+                path = "plantupia/spaces/",
+                method = "POST",
+                body = JSONObject()
+                    .put("name", name.trim())
+                    .put("description", description.trim())
+                    .put("location_note", location.trim()),
+                bearerToken = token,
+            )) {
+                is ApiResult.Failure -> response
+                is ApiResult.Success -> response.value.optString("id")
+                    .takeIf(String::isNotBlank)?.let { ApiResult.Success(it) }
+                    ?: ApiResult.Failure("The new space was not returned. Try refreshing.")
+            }
+        }
+
+    /** Uploading a cover photo is private; it never creates a public post. */
+    suspend fun createPlant(
+        spaceId: String,
+        name: String,
+        species: String,
+        placement: String,
+        photoUri: Uri?,
+    ): ApiResult<String> = authorized { token ->
+        val fields = mapOf(
+            "space" to spaceId,
+            "label" to name.trim(),
+            "species_label" to species.trim(),
+            "placement_note" to placement.trim(),
+            "unit_type" to "individual",
+        )
+        val response = if (photoUri == null) {
+            api.requestJson(
+                path = "plantupia/plants/",
+                method = "POST",
+                body = JSONObject().apply { fields.forEach { (key, value) -> put(key, value) } },
+                bearerToken = token,
+            )
+        } else {
+            val photo = when (val result = loadPrivatePhoto(photoUri)) {
+                is ApiResult.Failure -> return@authorized result
+                is ApiResult.Success -> result.value
+            }
+            api.requestMultipart(
+                path = "plantupia/plants/",
+                method = "POST",
+                fields = fields,
+                fileField = "cover_photo",
+                file = photo,
+                bearerToken = token,
+            )
+        }
+        when (response) {
+            is ApiResult.Failure -> response
+            is ApiResult.Success -> response.value.optString("id")
+                .takeIf(String::isNotBlank)?.let { ApiResult.Success(it) }
+                ?: ApiResult.Failure("The new plant was not returned. Try refreshing.")
+        }
+    }
+
+    private suspend fun loadPrivatePhoto(uri: Uri): ApiResult<UploadFile> {
+        val mimeType = appContext.contentResolver.getType(uri)
+            ?.takeIf { it == "image/jpeg" || it == "image/png" || it == "image/webp" }
+            ?: return ApiResult.Failure("Choose a JPEG, PNG or WebP photo.")
+        val bytes = withContext(Dispatchers.IO) {
+            runCatching {
+                appContext.contentResolver.openInputStream(uri)?.use { input ->
+                    val output = ByteArrayOutputStream()
+                    val buffer = ByteArray(8192)
+                    while (true) {
+                        val size = input.read(buffer)
+                        if (size < 0) break
+                        output.write(buffer, 0, size)
+                        if (output.size() > 10 * 1024 * 1024) error("Too big")
+                    }
+                    output.toByteArray()
+                }
+            }.getOrNull()
+        } ?: return ApiResult.Failure("Couldn't read photo. Choose an image smaller than 10 MB.")
+        if (bytes.isEmpty()) return ApiResult.Failure("Choose a non-empty photo.")
+        val ext = when (mimeType) {
+            "image/png" -> "png"
+            "image/webp" -> "webp"
+            else -> "jpg"
+        }
+        return ApiResult.Success(UploadFile(bytes = bytes, fileName = "plant-cover.$ext", mimeType = mimeType))
+    }
+
     suspend fun spaces(): ApiResult<List<PlantupiaSpace>> =
         authorized { token ->
             parseList("plantupia/spaces/", token) { raw ->
