@@ -68,6 +68,7 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
     var spaces by remember { mutableStateOf<List<PlantupiaSpace>>(emptyList()) }
     var plants by remember { mutableStateOf<List<PlantupiaPlant>>(emptyList()) }
     var currentPlantId by remember { mutableStateOf<String?>(null) }
+    var openDetailMode by remember { mutableStateOf<PlantupiaCreateMode?>(null) }
     var expandedSpaceId by remember { mutableStateOf<String?>(null) }
     var events by remember { mutableStateOf<List<PlantupiaCareEvent>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
@@ -105,6 +106,8 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
     }
 
     suspend fun openPlant(plant: PlantupiaPlant) {
+        openDetailMode = PlantupiaCreateIntent.pending
+        PlantupiaCreateIntent.clear()
         currentPlantId = plant.id
         plantName = plant.name
         note = ""
@@ -119,6 +122,12 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
     }
 
     LaunchedEffect(Unit) { refresh() }
+    LaunchedEffect(PlantupiaCreateIntent.pending, plants, loading) {
+        if (!loading && PlantupiaCreateIntent.pending != null) {
+            val available = plants.filter { it.active }
+            if (available.size == 1) openPlant(available.first())
+        }
+    }
     LaunchedEffect(spaces) {
         if (spaces.size == 1 && expandedSpaceId == null) expandedSpaceId = spaces.first().id
         if (expandedSpaceId != null && spaces.none { it.id == expandedSpaceId }) expandedSpaceId = null
@@ -132,6 +141,23 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         if (selectedPlant == null) {
+            if (PlantupiaCreateIntent.pending != null) {
+                PlantupiaPanel {
+                    Text(
+                        if (PlantupiaCreateIntent.pending == PlantupiaCreateMode.QUESTION)
+                            "اختار النبات اللي عايز تسأل الناس عنه"
+                        else "اختار النبات اللي عايز توثّق لحظة من حياته",
+                        color = deepGreen, fontWeight = FontWeight.SemiBold, fontSize = 16.sp,
+                    )
+                    Text(
+                        "اللحظات الخاصة بتفضل في سجل النبات. النشر العام محتاج موافقتك.",
+                        color = muted, fontSize = 12.sp,
+                    )
+                    TextButton(onClick = { PlantupiaCreateIntent.clear() }) {
+                        Text("إلغاء", color = deepGreen)
+                    }
+                }
+            }
             BrandEyebrow("YOUR LIVING SPACE / مساحتك")
             Text(
                 "المكان بيتغيّر مع الوقت.",
@@ -288,12 +314,40 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
                 Text("← الرجوع للمساحة", color = deepGreen)
             }
             BrandEyebrow("LIVING RECORD / تاريخ النبات")
+            if (openDetailMode != null) {
+                BrandEyebrow(
+                    if (openDetailMode == PlantupiaCreateMode.QUESTION)
+                        "ASK ABOUT THIS PLANT / اسأل عن نباتك"
+                    else "RECORD A MOMENT / لحظة جديدة"
+                )
+                Text(
+                    if (openDetailMode == PlantupiaCreateMode.QUESTION)
+                        "اسأل عن النبات ده من غير ما تشارك سجله الخاص."
+                    else "سجّل اللي لاحظته أو عملته؛ اللحظة هتفضل في تاريخه.",
+                    color = muted, fontSize = 13.sp,
+                )
+            }
             if (selectedPlant.coverPhoto.isNotBlank()) {
                 AsyncImage(model = selectedPlant.coverPhoto, contentDescription = "صورة النبات", modifier = Modifier.fillMaxWidth().height(236.dp).clip(RoundedCornerShape(16.dp)), contentScale = ContentScale.Crop)
             }
             Text(selectedPlant.name, fontFamily = FontFamily.Serif, fontSize = 35.sp, color = deepGreen)
             val meta = listOf(selectedPlant.species, selectedPlant.placement).filter(String::isNotBlank).joinToString(" · ")
             if (meta.isNotBlank()) Text(meta, fontSize = 13.sp, color = muted)
+
+            if (openDetailMode == PlantupiaCreateMode.QUESTION) {
+                PlantupiaQuestionsPanel(
+                    plantId = selectedPlant.id,
+                    repository = repository,
+                    canPublish = selectedPlant.canRecord,
+                    onOpenPost = onOpenLinkedPost,
+                    onOutcomeSaved = {
+                        when (val response = repository.history(selectedPlant.id)) {
+                            is ApiResult.Success -> { events = response.value; error = null }
+                            is ApiResult.Failure -> error = response.message
+                        }
+                    },
+                )
+            }
 
             PlantupiaPanel {
                 Text("سمّيه بالاسم اللي تحبه", color = forestText, fontSize = 14.sp, fontWeight = FontWeight.Medium)
@@ -390,7 +444,7 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
                 }
             }
             HorizontalDivider(color = sage)
-            PlantupiaQuestionsPanel(
+            if (openDetailMode != PlantupiaCreateMode.QUESTION) PlantupiaQuestionsPanel(
                 plantId = selectedPlant.id,
                 repository = repository,
                 canPublish = selectedPlant.canRecord,

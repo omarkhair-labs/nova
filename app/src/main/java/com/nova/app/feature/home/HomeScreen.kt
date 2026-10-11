@@ -35,6 +35,7 @@ import com.nova.app.core.network.ApiResult
 import com.nova.app.core.notifications.NovaNotificationRepository
 import com.nova.app.core.push.NovaPushOpenSignal
 import com.nova.app.feature.memories.MemoriesRail
+import com.nova.app.feature.plants.PlantupiaCreateIntent
 import com.nova.app.feature.plants.PlantupiaClientSection
 import com.nova.app.feature.plants.PlantupiaCirclePanel
 import com.nova.app.feature.notifications.NotificationsScreen
@@ -107,6 +108,14 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val firstName = displayName.trim().substringBefore(' ').ifBlank { username }
+
+    // Route on-demand creation back to the real living record, never a
+    // generic disconnected Nova post composer.
+    LaunchedEffect(PlantupiaCreateIntent.pending) {
+        if (PlantupiaCreateIntent.pending != null) {
+            listState.animateScrollToItem(2)
+        }
+    }
 
     var showActivity by remember { mutableStateOf(false) }
     var showCommunityFeed by remember { mutableStateOf(false) }

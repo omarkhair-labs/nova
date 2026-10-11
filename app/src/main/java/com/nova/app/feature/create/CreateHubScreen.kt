@@ -28,6 +28,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
+import com.nova.app.feature.plants.PlantupiaCreateIntent
+import com.nova.app.feature.plants.PlantupiaCreateMode
 import com.nova.app.feature.memories.MemoriesRail
 import com.nova.app.feature.pulse.PulseRail
 import com.nova.app.feature.rooms.RoomsRail
@@ -81,13 +83,19 @@ fun CreateHubScreen(
             "لحظة جديدة لنباتك",
             "سجل ملاحظة أو رعاية في تاريخ نباتك الخاص",
             NovaIconAsset.Home,
-            onHomeClick,
+            {
+                PlantupiaCreateIntent.request(PlantupiaCreateMode.OBSERVATION)
+                onHomeClick()
+            },
         ),
         CreateHubAction(
             "سؤال عن نباتك",
             "ابدأ من النبات؛ مشاركة الصورة للعامة باختيارك",
             NovaIconAsset.Orbit,
-            onHomeClick,
+            {
+                PlantupiaCreateIntent.request(PlantupiaCreateMode.QUESTION)
+                onHomeClick()
+            },
         ),
         CreateHubAction(
             "لحظة عامة",
