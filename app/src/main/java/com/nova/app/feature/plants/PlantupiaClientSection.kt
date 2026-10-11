@@ -69,6 +69,8 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
     var plants by remember { mutableStateOf<List<PlantupiaPlant>>(emptyList()) }
     var currentPlantId by remember { mutableStateOf<String?>(null) }
     var openDetailMode by remember { mutableStateOf<PlantupiaCreateMode?>(null) }
+    var showNameEditor by remember { mutableStateOf(false) }
+    var showCareEditor by remember { mutableStateOf(false) }
     var expandedSpaceId by remember { mutableStateOf<String?>(null) }
     var events by remember { mutableStateOf<List<PlantupiaCareEvent>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
@@ -107,6 +109,8 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
 
     suspend fun openPlant(plant: PlantupiaPlant) {
         openDetailMode = PlantupiaCreateIntent.pending
+        showNameEditor = false
+        showCareEditor = openDetailMode == PlantupiaCreateMode.OBSERVATION
         PlantupiaCreateIntent.clear()
         currentPlantId = plant.id
         plantName = plant.name
@@ -350,7 +354,20 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
             }
 
             PlantupiaPanel {
-                Text("سمّيه بالاسم اللي تحبه", color = forestText, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text("الاسم اللي اخترته", color = muted, fontSize = 11.sp)
+                        Text(selectedPlant.name, color = deepGreen, fontWeight = FontWeight.Medium, fontSize = 19.sp)
+                    }
+                    TextButton(onClick = { showNameEditor = !showNameEditor }) {
+                        Text(if (showNameEditor) "إلغاء" else "غيّر الاسم", color = deepGreen)
+                    }
+                }
+                if (showNameEditor) {
                 OutlinedTextField(
                     value = plantName,
                     onValueChange = { plantName = it.take(80) },
@@ -371,6 +388,7 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
                                         if (it.id == selectedPlant.id) it.copy(name = plantName.trim()) else it
                                     }
                                     error = null
+                                    showNameEditor = false
                                 }
                             }
                             saving = false
@@ -378,11 +396,19 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
                 ) { Text("احفظ الاسم", color = white) }
+                }
             }
 
-            BrandEyebrow("CARE & OBSERVATIONS")
+            BrandEyebrow("CARE & OBSERVATIONS / الرعاية والملاحظة")
             if (selectedPlant.canRecord) {
-            PlantupiaPanel {
+                Button(
+                    onClick = { showCareEditor = !showCareEditor },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
+                ) {
+                    Text(if (showCareEditor) "اخفِ تسجيل اللحظة ↑" else "+ سجّل لحظة جديدة للنبات", color = white)
+                }
+            if (showCareEditor) PlantupiaPanel {
                 OutlinedTextField(
                     value = note,
                     onValueChange = { note = it.take(1500) },
@@ -428,9 +454,47 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
                 Text("لديك صلاحية مشاهدة سجل الرعاية فقط. يمكن للمسؤول منحك صلاحية التوثيق.", color = muted, fontSize = 12.sp)
             }
             if (error != null) Text(error.orEmpty(), color = Color(0xFF9A4A31), fontSize = 12.sp)
-            if (detailLoading) Text("جارٍ تحميل التاريخ…", color = muted, fontSize = 13.sp)
-            else if (events.isEmpty()) Text("أول ملاحظة منك هتبدأ تاريخ النبات هنا.", color = muted, fontSize = 13.sp)
-            events.forEach { event ->
+            BrandEyebrow("LIVING TIME / من أول صورة لآخر تغيير")
+            if (detailLoading) {
+                Text("جارٍ تحميل التاريخ…", color = muted, fontSize = 13.sp)
+            } else if (events.isEmpty()) {
+                Text("أول ملاحظة منك هتبدأ تاريخ النبات هنا.", color = muted, fontSize = 13.sp)
+            } else {
+                Text("${events.size} لحظات موثّقة · من الواقع، مش تقييم صحة تلقائي", color = muted, fontSize = 12.sp)
+                val photos = events
+                    .filter { it.photoUrl.isNotBlank() }
+                    .sortedBy { it.observedAt }
+                if (photos.size >= 2) {
+                    // Compare actual dated photographs, without asserting
+                    // growth, recovery or a causal improvement from appearance.
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        listOf(photos.first(), photos.last()).forEachIndexed { index, event ->
+                            Surface(
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(14.dp),
+                                color = white,
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                                    AsyncImage(
+                                        model = event.photoUrl,
+                                        contentDescription = if (index == 0) "أقدم صورة مسجلة" else "أحدث صورة مسجلة",
+                                        modifier = Modifier.fillMaxWidth().height(135.dp),
+                                        contentScale = ContentScale.Crop,
+                                    )
+                                    Text(
+                                        if (index == 0) "أقدم صورة · ${event.observedAt.take(10)}"
+                                        else "أحدث صورة · ${event.observedAt.take(10)}",
+                                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+                                        color = muted,
+                                        fontSize = 11.sp,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            events.sortedByDescending { it.observedAt }.forEach { event ->
                 PlantupiaPanel {
                     Text(
                         "${eventLabel(event.kind)} · ${event.observedAt.take(10)}",
