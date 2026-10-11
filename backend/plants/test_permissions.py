@@ -301,3 +301,95 @@ class PlantupiaPermissionTests(TestCase):
                 self.assertFalse(saved.getexif())
             from accounts.models import Post
             self.assertEqual(Post.objects.count(), 0)
+
+    def test_manual_check_in_records_real_outcome_once_and_stays_private(self):
+        # A user opts into reviewing a real change; the app never predicts
+        # a watering date, a plant health score, or a push notification.
+        self.client.force_authenticate(user=self.owner)
+        follow_date = (timezone.localdate() + timedelta(days=7)).isoformat()
+        create = self.client.post(
+            reverse("plantupia-events", args=[self.plant.pk]),
+            {
+                "kind": "care", "note": "Moved from the AC draft",
+                "observed_at": timezone.now().isoformat(),
+                "follow_up_on": follow_date,
+            }, format="json",
+        )
+        self.assertEqual(create.status_code, 201, create.content)
+        source_id = create.json()["id"]
+        self.assertEqual(create.json()["follow_up_on"], follow_date)
+        pending = self.client.get(
+            reverse("plantupia-events", args=[self.plant.pk]),
+            {"pending_followups": "1"},
+        )
+        self.assertEqual([x["id"] for x in pending.json()["results"]], [source_id])
+        overview = self.client.get(reverse("plantupia-plants")).json()["results"][0]
+        self.assertEqual(overview["next_follow_up_on"], follow_date)
+
+        # A user with view-only access can read the scheduled check-in, not close it.
+        SpaceMember.objects.create(
+            space=self.space, user=self.stranger, role=SpaceMember.Role.VIEWER,
+        )
+        self.client.force_authenticate(user=self.stranger)
+        self.assertEqual(self.client.get(
+            reverse("plantupia-events", args=[self.plant.pk]),
+            {"pending_followups": "1"},
+        ).status_code, 200)
+        self.assertEqual(self.client.post(
+            reverse("plantupia-events", args=[self.plant.pk]),
+            {"kind": "outcome", "follow_up_for": source_id,
+             "note": "Looks better", "observed_at": timezone.now().isoformat()},
+            format="json",
+        ).status_code, 403)
+
+        self.client.force_authenticate(user=self.owner)
+        close_body = {
+            "kind": "outcome", "follow_up_for": source_id,
+            "note": "New growth is visible today",
+            "observed_at": timezone.now().isoformat(),
+        }
+        result = self.client.post(
+            reverse("plantupia-events", args=[self.plant.pk]),
+            close_body, format="json",
+        )
+        self.assertEqual(result.status_code, 201, result.content)
+        source = PlantEvent.objects.get(pk=source_id)
+        self.assertIsNotNone(source.follow_up_completed_at)
+        self.assertEqual(PlantEvent.objects.get(pk=result.json()["id"]).follow_up_for, source)
+        self.assertEqual(self.client.get(
+            reverse("plantupia-events", args=[self.plant.pk]),
+            {"pending_followups": "1"},
+        ).json()["results"], [])
+        self.assertIsNone(
+            self.client.get(reverse("plantupia-plants")).json()["results"][0]["next_follow_up_on"]
+        )
+        duplicate = self.client.post(
+            reverse("plantupia-events", args=[self.plant.pk]),
+            close_body, format="json",
+        )
+        self.assertEqual(duplicate.status_code, 400)
+        self.assertEqual(PlantEvent.objects.filter(plant=self.plant).count(), 2)
+
+    def test_follow_up_cannot_cross_plant_identity_or_precede_today(self):
+        self.client.force_authenticate(user=self.owner)
+        invalid = self.client.post(
+            reverse("plantupia-events", args=[self.plant.pk]),
+            {"kind": "observation", "note": "Leaf", "observed_at": timezone.now().isoformat(),
+             "follow_up_on": (timezone.localdate() - timedelta(days=1)).isoformat()},
+            format="json",
+        )
+        self.assertEqual(invalid.status_code, 400)
+        first = PlantEvent.objects.create(
+            plant=self.plant, actor=self.owner, kind=PlantEvent.Kind.CARE,
+            observed_at=timezone.now(), follow_up_on=timezone.localdate() + timedelta(days=7),
+        )
+        other = PlantUnit.objects.create(space=self.space, label="Other plant")
+        result = self.client.post(
+            reverse("plantupia-events", args=[other.pk]),
+            {"kind": "outcome", "follow_up_for": str(first.pk),
+             "note": "Must not close another plant", "observed_at": timezone.now().isoformat()},
+            format="json",
+        )
+        self.assertEqual(result.status_code, 400)
+        first.refresh_from_db()
+        self.assertIsNone(first.follow_up_completed_at)

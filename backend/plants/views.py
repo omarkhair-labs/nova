@@ -60,9 +60,14 @@ class PlantsView(APIView):
         latest = PlantEvent.objects.filter(plant_id=OuterRef("pk")).order_by(
             "-observed_at", "-created_at"
         )
+        pending = PlantEvent.objects.filter(
+            plant_id=OuterRef("pk"), follow_up_on__isnull=False,
+            follow_up_completed_at__isnull=True,
+        ).order_by("follow_up_on", "created_at")
         qs = qs.annotate(
             last_event_kind=Subquery(latest.values("kind")[:1]),
             last_event_at=Subquery(latest.values("observed_at")[:1]),
+            next_follow_up_on=Subquery(pending.values("follow_up_on")[:1]),
         )
         editable_space_ids = set(
             Space.objects.filter(
@@ -124,7 +129,14 @@ class PlantEventsView(APIView):
             return Response({"detail": "Invalid event history offset."}, status=400)
         # Years of observed history must not silently end after 100 entries.
         size = 20
-        rows = list(plant.events.order_by("-observed_at", "-created_at", "-pk")[offset:offset + size + 1])
+        events_qs = plant.events.all()
+        if request.query_params.get("pending_followups") == "1":
+            events_qs = events_qs.filter(
+                follow_up_on__isnull=False, follow_up_completed_at__isnull=True,
+            ).order_by("follow_up_on", "created_at")
+        else:
+            events_qs = events_qs.order_by("-observed_at", "-created_at", "-pk")
+        rows = list(events_qs[offset:offset + size + 1])
         return Response({
             "results": PlantEventSerializer(rows[:size], many=True, context={"request": request}).data,
             "next_offset": offset + size if len(rows) > size else None,
@@ -134,9 +146,21 @@ class PlantEventsView(APIView):
         plant = self.get_plant(request, plant_id)
         if not can_record(request.user, plant):
             return Response({"detail": "Read-only space membership."}, status=status.HTTP_403_FORBIDDEN)
-        s = PlantEventSerializer(data=request.data, context={"request": request})
-        s.is_valid(raise_exception=True)
-        event = s.save(plant=plant, actor=request.user)
+        with transaction.atomic():
+            s = PlantEventSerializer(
+                data=request.data, context={"request": request, "plant": plant},
+            )
+            s.is_valid(raise_exception=True)
+            follow_up_for = s.validated_data.get("follow_up_for")
+            if follow_up_for is not None:
+                # Reject duplicate closure even if two devices submit simultaneously.
+                updated = PlantEvent.objects.filter(
+                    pk=follow_up_for.pk, plant=plant, follow_up_on__isnull=False,
+                    follow_up_completed_at__isnull=True,
+                ).update(follow_up_completed_at=timezone.now())
+                if updated != 1:
+                    return Response({"detail": "This check-in was already completed."}, status=409)
+            event = s.save(plant=plant, actor=request.user)
         return Response(PlantEventSerializer(event, context={"request": request}).data, status=status.HTTP_201_CREATED)
 
 

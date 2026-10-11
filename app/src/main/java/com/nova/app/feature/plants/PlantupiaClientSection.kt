@@ -52,6 +52,7 @@ import com.nova.app.feature.plants.data.PlantupiaRepository
 import com.nova.app.feature.plants.data.PlantupiaSpace
 import com.nova.app.feature.plants.data.findSpacePlants
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 private val deepGreen = Color(0xFF123B2E)
 private val cream = Color(0xFFF3EEDE)
@@ -84,6 +85,10 @@ fun PlantupiaClientSection(
     var plantSearch by remember { mutableStateOf("") }
     var visiblePlantCount by remember { mutableStateOf(8) }
     var events by remember { mutableStateOf<List<PlantupiaCareEvent>>(emptyList()) }
+    var pendingFollowUps by remember { mutableStateOf<List<PlantupiaCareEvent>>(emptyList()) }
+    var followUpTarget by remember { mutableStateOf<PlantupiaCareEvent?>(null) }
+    var followUpResult by remember { mutableStateOf("") }
+    var checkAgainInDays by remember { mutableStateOf<Int?>(null) }
     var nextHistoryOffset by remember { mutableStateOf<Int?>(null) }
     var olderEventsLoading by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(true) }
@@ -130,6 +135,10 @@ fun PlantupiaClientSection(
         plantName = plant.name
         note = ""
         carePhotoUri = null
+        checkAgainInDays = null
+        followUpTarget = null
+        followUpResult = ""
+        pendingFollowUps = emptyList()
         detailLoading = true
         error = null
         nextHistoryOffset = null
@@ -139,6 +148,10 @@ fun PlantupiaClientSection(
                 nextHistoryOffset = response.value.nextOffset
             }
             is ApiResult.Failure -> { events = emptyList(); error = response.message }
+        }
+        when (val response = repository.historyPage(plant.id, pendingOnly = true)) {
+            is ApiResult.Success -> pendingFollowUps = response.value.events
+            is ApiResult.Failure -> if (error == null) error = response.message
         }
         detailLoading = false
     }
@@ -344,6 +357,29 @@ fun PlantupiaClientSection(
                             color = muted, fontSize = 12.sp,
                         )
                     }
+                    val checkIns = plants
+                        .filter { it.active && it.nextFollowUpOn.isNotBlank() }
+                        .sortedBy { it.nextFollowUpOn }
+                    if (checkIns.isNotEmpty()) {
+                        BrandEyebrow("CHECK-INS / مواعيد المتابعة اللي اخترتها")
+                        PlantupiaPanel {
+                            Text("دي مواعيد مراجعة أنت اخترتها بعد ملاحظة أو رعاية، مش تشخيص ولا ميعاد ري تلقائي.", color = muted, fontSize = 12.sp)
+                            checkIns.take(4).forEach { item ->
+                                val due = runCatching {
+                                    !LocalDate.parse(item.nextFollowUpOn).isAfter(LocalDate.now())
+                                }.getOrDefault(false)
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(item.name, color = deepGreen, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                        Text(if (due) "وقت المراجعة · ${item.nextFollowUpOn}" else "راجعه يوم ${item.nextFollowUpOn}", color = muted, fontSize = 11.sp)
+                                    }
+                                    TextButton(onClick = { scope.launch { openPlant(item) } }) {
+                                        Text("افتح النبات ←", color = deepGreen, fontSize = 12.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
                     BrandEyebrow("YOUR PLANTS / نباتاتك")
                 }
                 spaces.forEach { space ->
@@ -513,6 +549,62 @@ fun PlantupiaClientSection(
                 }
             }
 
+            BrandEyebrow("CHECK BACK / راجع اللي حصل")
+            if (detailLoading) {
+                Text("جارٍ تحميل مواعيد متابعتك…", color = muted, fontSize = 12.sp)
+            } else if (pendingFollowUps.isEmpty()) {
+                Text("لما تسجّل رعاية أو تغيّر، تقدر تختار بنفسك إمتى ترجع تراجع النتيجة.", color = muted, fontSize = 12.sp)
+            } else {
+                pendingFollowUps.forEach { check ->
+                    PlantupiaPanel {
+                        Text(
+                            "متابعة ${check.followUpOn} · ${eventLabel(check.kind)}",
+                            color = deepGreen, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                        )
+                        if (check.note.isNotBlank()) Text(check.note, color = muted, fontSize = 12.sp)
+                        Text("راجع اللي حصل فعلًا للنبات قبل ما تسجّل نتيجة. الميعاد مش أمر بالري.", color = muted, fontSize = 11.sp)
+                        if (selectedPlant.canRecord) {
+                            OutlinedButton(onClick = {
+                                followUpTarget = if (followUpTarget?.id == check.id) null else check
+                                followUpResult = ""
+                            }) {
+                                Text(if (followUpTarget?.id == check.id) "إلغاء" else "سجّل نتيجة المراجعة", color = deepGreen)
+                            }
+                        }
+                    }
+                }
+            }
+            if (followUpTarget != null && selectedPlant.canRecord) {
+                PlantupiaPanel {
+                    Text("إيه اللي لاحظته لما رجعت للنبات؟", color = deepGreen, fontSize = 15.sp)
+                    OutlinedTextField(
+                        value = followUpResult,
+                        onValueChange = { followUpResult = it.take(1500) },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                        label = { Text("النتيجة اللي شفتها فعلًا *") },
+                        enabled = !saving,
+                    )
+                    Button(
+                        enabled = !saving && followUpResult.isNotBlank(),
+                        onClick = {
+                            val source = followUpTarget ?: return@Button
+                            scope.launch {
+                                saving = true
+                                when (val response = repository.record(
+                                    selectedPlant.id, "outcome", followUpResult,
+                                    followUpFor = source.id,
+                                )) {
+                                    is ApiResult.Failure -> error = response.message
+                                    is ApiResult.Success -> openPlant(selectedPlant)
+                                }
+                                saving = false
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
+                    ) { Text(if (saving) "جارٍ تسجيل النتيجة…" else "احفظ النتيجة وأغلق المتابعة", color = white) }
+                }
+            }
             BrandEyebrow("CARE & OBSERVATIONS / الرعاية والملاحظة")
             if (selectedPlant.canRecord) {
                 Button(
@@ -534,13 +626,28 @@ fun PlantupiaClientSection(
                 OutlinedButton(onClick = { carePhotoPicker.launch("image/*") }) {
                     Text(if (carePhotoUri == null) "أضف صورة للملاحظة" else "الصورة جاهزة — غيّرها لو حابب", color = deepGreen)
                 }
+                Text("تحب ترجع تراجع نتيجة اللي حصل إمتى؟", color = forestText, fontSize = 12.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    listOf(7, 14).forEach { days ->
+                        OutlinedButton(
+                            enabled = !saving,
+                            onClick = { checkAgainInDays = if (checkAgainInDays == days) null else days },
+                            modifier = Modifier.weight(1f),
+                        ) { Text(if (checkAgainInDays == days) "✓ بعد $days يوم" else "بعد $days يوم", color = deepGreen, fontSize = 12.sp) }
+                    }
+                }
+                if (checkAgainInDays != null) {
+                    TextButton(onClick = { checkAgainInDays = null }, enabled = !saving) {
+                        Text("بدون موعد متابعة", color = muted, fontSize = 12.sp)
+                    }
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
                         enabled = !saving && (note.isNotBlank() || carePhotoUri != null),
                         onClick = {
                             scope.launch {
                                 saving = true
-                                when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "observation", note, it) } ?: repository.record(selectedPlant.id, "observation", note)) {
+                                when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "observation", note, it, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() }) } ?: repository.record(selectedPlant.id, "observation", note, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() })) {
                                     is ApiResult.Failure -> error = r.message
                                     is ApiResult.Success -> { note = ""; openPlant(selectedPlant) }
                                 }
@@ -553,7 +660,7 @@ fun PlantupiaClientSection(
                         onClick = {
                             scope.launch {
                                 saving = true
-                                when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "care", note, it) } ?: repository.record(selectedPlant.id, "care", note)) {
+                                when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "care", note, it, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() }) } ?: repository.record(selectedPlant.id, "care", note, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() })) {
                                     is ApiResult.Failure -> error = r.message
                                     is ApiResult.Success -> { note = ""; openPlant(selectedPlant) }
                                 }
@@ -568,8 +675,8 @@ fun PlantupiaClientSection(
                             scope.launch {
                                 saving = true
                                 when (val result = carePhotoUri?.let {
-                                    repository.recordWithPhoto(selectedPlant.id, "issue", note, it)
-                                } ?: repository.record(selectedPlant.id, "issue", note)) {
+                                    repository.recordWithPhoto(selectedPlant.id, "issue", note, it, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() })
+                                } ?: repository.record(selectedPlant.id, "issue", note, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() })) {
                                     is ApiResult.Failure -> error = result.message
                                     is ApiResult.Success -> {
                                         note = ""
@@ -641,6 +748,12 @@ fun PlantupiaClientSection(
                     }
                     Text(event.note.ifBlank { "حدث رعاية مسجل" }, color = forestText, fontSize = 13.sp, lineHeight = 20.sp)
                     Text("مصدر المعلومة: ${evidenceLabel(event.evidence)}", color = muted, fontSize = 11.sp)
+                    if (event.followUpOn.isNotBlank()) {
+                        Text(
+                            if (event.followUpCompletedAt.isNotBlank()) "تمت المتابعة · ${event.followUpOn}" else "متابعة محددة يوم ${event.followUpOn}",
+                            color = muted, fontSize = 11.sp,
+                        )
+                    }
                 }
             }
             if (nextHistoryOffset != null) {

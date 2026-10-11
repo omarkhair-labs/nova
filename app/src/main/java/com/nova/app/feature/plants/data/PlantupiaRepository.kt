@@ -33,6 +33,7 @@ data class PlantupiaPlant(
     val canRecord: Boolean,
     val lastEventKind: String,
     val lastEventAt: String,
+    val nextFollowUpOn: String,
 )
 
 data class PlantupiaHistoryPage(val events: List<PlantupiaCareEvent>, val nextOffset: Int?)
@@ -44,6 +45,8 @@ data class PlantupiaCareEvent(
     val evidence: String,
     val observedAt: String,
     val photoUrl: String,
+    val followUpOn: String,
+    val followUpCompletedAt: String,
 )
 
 
@@ -192,15 +195,17 @@ class PlantupiaRepository(context: Context) {
                     canRecord = raw.optBoolean("can_record", false),
                     lastEventKind = raw.optString("last_event_kind").takeUnless { it == "null" }.orEmpty(),
                     lastEventAt = raw.optString("last_event_at").takeUnless { it == "null" }.orEmpty(),
+                    nextFollowUpOn = raw.optString("next_follow_up_on").takeUnless { it == "null" }.orEmpty(),
                 )
             }
         }
 
-    suspend fun historyPage(plantId: String, offset: Int = 0): ApiResult<PlantupiaHistoryPage> =
+    suspend fun historyPage(plantId: String, offset: Int = 0, pendingOnly: Boolean = false): ApiResult<PlantupiaHistoryPage> =
         authorized { token ->
             val pageOffset = offset.coerceAtLeast(0)
             when (val response = api.requestJson(
-                path = "plantupia/plants/$plantId/events/?offset=$pageOffset",
+                path = "plantupia/plants/$plantId/events/?offset=$pageOffset" +
+                    if (pendingOnly) "&pending_followups=1" else "",
                 bearerToken = token,
             )) {
                 is ApiResult.Failure -> response
@@ -217,6 +222,8 @@ class PlantupiaRepository(context: Context) {
                                     evidence = raw.optString("evidence_type"),
                                     observedAt = raw.optString("observed_at"),
                                     photoUrl = api.resolveMediaUrl(raw.optString("photo")),
+                                    followUpOn = raw.optString("follow_up_on").takeUnless { it == "null" }.orEmpty(),
+                                    followUpCompletedAt = raw.optString("follow_up_completed_at").takeUnless { it == "null" }.orEmpty(),
                                 ))
                             }
                         }
@@ -234,6 +241,8 @@ class PlantupiaRepository(context: Context) {
         kind: String,
         note: String,
         photoUri: Uri,
+        followUpOn: String? = null,
+        followUpFor: String? = null,
     ): ApiResult<Unit> = authorized { token ->
         val data = withContext(Dispatchers.IO) {
             runCatching {
@@ -268,7 +277,10 @@ class PlantupiaRepository(context: Context) {
                 "note" to note.trim(),
                 "evidence_type" to "observed",
                 "observed_at" to Instant.now().toString(),
-            ),
+            ) + listOfNotNull(
+                followUpOn?.let { "follow_up_on" to it },
+                followUpFor?.let { "follow_up_for" to it },
+            ).toMap(),
             fileField = "photo",
             file = UploadFile(bytes = data, fileName = "plant-event.$ext", mimeType = mimeType),
             bearerToken = token,
@@ -295,6 +307,8 @@ class PlantupiaRepository(context: Context) {
         plantId: String,
         kind: String,
         note: String,
+        followUpOn: String? = null,
+        followUpFor: String? = null,
     ): ApiResult<Unit> =
         authorized { token ->
             when (val result = api.requestJson(
@@ -304,7 +318,11 @@ class PlantupiaRepository(context: Context) {
                     .put("kind", kind)
                     .put("note", note.trim())
                     .put("evidence_type", "observed")
-                    .put("observed_at", Instant.now().toString()),
+                    .put("observed_at", Instant.now().toString())
+                    .apply {
+                        followUpOn?.let { put("follow_up_on", it) }
+                        followUpFor?.let { put("follow_up_for", it) }
+                    },
                 bearerToken = token,
             )) {
                 is ApiResult.Success -> ApiResult.Success(Unit)

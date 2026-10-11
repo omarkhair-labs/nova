@@ -91,6 +91,13 @@ class PlantEvent(models.Model):
     evidence_type = models.CharField(max_length=10, choices=Evidence.choices, default=Evidence.OBSERVED)
     note = models.TextField(blank=True)
     photo = models.ImageField(upload_to="plantupia/events/%Y/%m/", blank=True)
+    # A deliberate human check-in, not a watering prediction or notification.
+    follow_up_on = models.DateField(null=True, blank=True)
+    follow_up_completed_at = models.DateTimeField(null=True, blank=True)
+    follow_up_for = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="documented_outcomes",
+    )
     observed_at = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
 
