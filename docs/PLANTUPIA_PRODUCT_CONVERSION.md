@@ -36,7 +36,7 @@ Primary experience:
 3. Each living unit is shown in place/context. A unit can be an individual plant or a group installation.
 4. Client names the plant; personal nickname is distinct from species and installation label.
 5. Client records direct observations/care and sees history over time.
-6. Nova social feed, media publishing, replies, stories and messages remain built-in platform capabilities.
+6. The original Nova Post/Comment/Message/Video/Story engines remain reusable capabilities. **Features are not automatically Plantupia destinations:** private living history, optional public questions and meaningful community moments define the product. Standalone Reels/Stories/Pulse/Gatherings are optional tools, not compulsory Home or Create tabs.
 7. Joining a public community conversation is explicit; private space history is **never automatically published**.
 
 No mandatory serial number/QR. The Django Admin is the first small internal system, not an enterprise operations suite.
@@ -68,3 +68,17 @@ No mandatory serial number/QR. The Django Admin is the first small internal syst
 A GitHub PR changes **code**, not the running Oracle VM or Play listing. This branch is intentionally safe to inspect without triggering the Play-release workflow which only watches the default branch. Production release must be a separate reviewed action.
 
 Do not commit the internal Brand Guidelines PDF, offer letter, private messages, real customer photos, cloud access details or API keys.
+
+## UX conversion checkpoint — 2026-10-11
+
+The original Nova UI work is a preservation asset: media quality, animation, mature profile interactions and safe navigation must remain polished. The Plantupia experience-map file is an interaction reference, **not** a signed-off screen skin.
+
+- Primary Home: a real signed-in client space with a photographed hero *only if the client has a photo*, its units and recent observed change. The Nova feed is optional and collapsed by default.
+- Explore a space: search by a personal plant name, species or placement, sort by real latest event and reveal the inventory progressively (8 at a time). No invented health prediction.
+- Enter one unit: private care/observation/issue, direct photo evidence, chronological history with backend pagination and photo comparison, optional public question by explicit consent, and retained outcome.
+- Circle: separate contextual plant questions from people/relationship activity; the second lane reuses Nova's original constellation/relationships.
+- Create: private record and optional public moment are distinct. Reels, Story and Pulse capabilities remain available through secondary tools for reconsideration, *not* a reason to copy Instagram's structure.
+- Personal profile: preserve the social identity while hiding physical space membership and care data from public profiles. Home and Create use the existing Nova navigation engine.
+- A green CI does not establish a deployed Plantupia backend, approved visual assets, signed release or accepted device UX.
+
+**Cross-system limit:** Original app identity remains `com.omarkhair70.nova`. Neither this branch nor its CI should merge, deploy Oracle production, or promote a Play track. Backend deployment documentation for the original Nova includes legacy hosting instructions; confirm the current Oracle runtime branch, migrations, and storage policy from the running service before executing any production operation.

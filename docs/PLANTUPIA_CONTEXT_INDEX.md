@@ -95,3 +95,13 @@ For every product change:
 5. If missing a private brand asset or private meeting decision, stop and ask rather than invent.
 
 This index should be updated when later decisions are made. It does **not** automatically sync with ChatGPT conversations.
+
+## 8. Later feature-selection decision (2026-10-11)
+
+The user explicitly rejected treating Nova's pre-existing Reels, Stories, Pulse, Chat and Rooms as compulsory Plantupia screens just because the code is available. **Retain technical engines; justify each product surface from the real living-space use case.**
+
+Current primary roles: `Space → living unit → real observation/care/issue → retained history → optional public Circle question → authentic follow-up`. A published media moment is a *separate* action, not a private journal entry.
+
+Secondary roles: people discovery, messaging, temporary Stories, Reels, Pulse and Gatherings can be accessed where appropriate, but should not dominate the client living-space Home or the main Create hierarchy without evidence. Do not invent species, client sites, care outcomes, AI status, sensor readings or fabricated photography to make a UI appear finished.
+
+The work after commit `87865db` began supporting searchable client-scale inventory, older history pages, context-first Circle cards and explicit public publish labels. Verify the **current** PR head and test run before claiming any of these fully QA-accepted. Additional assets, staging/backend and device review remain release gates.
