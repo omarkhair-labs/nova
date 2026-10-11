@@ -70,7 +70,11 @@ fun PlantupiaQuestionsPanel(
     var respondingTo by remember(plantId) { mutableStateOf<String?>(null) }
     var outcome by remember(plantId) { mutableStateOf("") }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        imageUri = uri
+        if (uri != null) {
+            imageUri = uri
+            // Selecting a different file must require renewed public consent.
+            consent = false
+        }
     }
 
     suspend fun refreshQuestions() {
@@ -108,14 +112,33 @@ fun PlantupiaQuestionsPanel(
         )
         OutlinedButton(
             modifier = Modifier.fillMaxWidth(),
+            enabled = !submitting,
             onClick = { picker.launch("image/*") },
         ) {
-            Text(if (imageUri == null) "أضف صورة السؤال" else "تم اختيار الصورة — اضغط للتغيير", color = green)
+            Text(if (imageUri == null) "أضف صورة السؤال" else "غيّر الصورة اللي هتظهر للناس", color = green)
+        }
+        if (imageUri != null) {
+            Surface(color = card, shape = RoundedCornerShape(15.dp)) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text("معاينة النشر العام / PUBLIC PREVIEW", color = green, fontSize = 11.sp)
+                    AsyncImage(
+                        model = imageUri,
+                        contentDescription = "معاينة الصورة التي ستنشر للعامة",
+                        modifier = Modifier.fillMaxWidth().height(205.dp).clip(RoundedCornerShape(10.dp)),
+                        contentScale = ContentScale.Fit,
+                    )
+                    Text(topic.ifBlank { "عنوان السؤال" }, color = green, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text(question.ifBlank { "السؤال اللي هينشر" }, color = mutedGreen, fontSize = 12.sp)
+                }
+            }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Checkbox(checked = consent, onCheckedChange = { consent = it })
+            Checkbox(checked = consent, enabled = !submitting && imageUri != null, onCheckedChange = { consent = it })
             Text(
-                "أوافق على نشر الصورة والعنوان والسؤال للناس. تفاصيل مساحتي وسجل نباتي الخاص لن تُنشر.",
+                "راجعت الصورة والعنوان والسؤال، وأوافق على نشرهم للعامة. لا أنشر عنوان المساحة أو سجل الرعاية الخاص.",
                 modifier = Modifier.weight(1f).padding(top = 9.dp),
                 color = mutedGreen, fontSize = 12.sp, lineHeight = 18.sp,
             )
