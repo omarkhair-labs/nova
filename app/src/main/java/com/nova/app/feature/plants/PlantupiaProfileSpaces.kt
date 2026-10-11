@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -33,7 +32,6 @@ import com.nova.app.feature.plants.data.PlantupiaSpace
 
 private val pine = Color(0xFF123B2E)
 private val sage = Color(0xFFE2EADD)
-private val paper = Color(0xFFF3EEDE)
 
 /**
  * Private authenticated profile context, separate from the public Nova
