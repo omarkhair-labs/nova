@@ -29,6 +29,41 @@ class PlantSerializer(serializers.ModelSerializer):
         return obj.label
 
 
+class SpaceCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Space
+        fields = ("id", "name", "description", "location_note")
+        read_only_fields = ("id",)
+
+    def validate_name(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Give your space a name.")
+        return value
+
+
+class PlantCreateSerializer(serializers.ModelSerializer):
+    # Take an ID rather than a Space object. The view strictly resolves it
+    # against spaces the requester owns or manages.
+    space = serializers.UUIDField()
+
+    class Meta:
+        model = PlantUnit
+        fields = ("id", "space", "unit_type", "label", "species_label", "placement_note", "cover_photo")
+        read_only_fields = ("id",)
+
+    def validate_label(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Give your plant a name.")
+        return value
+
+    def validate_cover_photo(self, photo):
+        if photo and photo.size > 10 * 1024 * 1024:
+            raise serializers.ValidationError("Choose a photo smaller than 10 MB.")
+        return photo
+
+
 class PlantEventSerializer(serializers.ModelSerializer):
     class Meta:
         model = PlantEvent

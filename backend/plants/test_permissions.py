@@ -212,3 +212,85 @@ class PlantupiaPermissionTests(TestCase):
                 self.client.get(reverse("plantupia-events", args=[self.plant.pk])).status_code,
                 404,
             )
+
+
+    def test_self_service_space_and_plant_creation(self):
+        self.client.force_authenticate(user=self.stranger)
+        create_space = self.client.post(
+            reverse("plantupia-spaces"),
+            {"name": "  My balcony  ", "location_note": "South window", "owner": self.owner.pk},
+            format="json",
+        )
+        self.assertEqual(create_space.status_code, 201, create_space.content)
+        self.assertEqual(create_space.json()["name"], "My balcony")
+        space_id = create_space.json()["id"]
+        self.assertEqual(Space.objects.get(pk=space_id).owner, self.stranger)
+        self.assertEqual(
+            len(self.client.get(reverse("plantupia-spaces")).json()["results"]), 1
+        )
+        create_plant = self.client.post(
+            reverse("plantupia-plants"),
+            {"space": space_id, "label": "  Basil  ", "species_label": "Ocimum basilicum",
+             "placement_note": "Kitchen", "unit_type": "individual"}, format="json",
+        )
+        self.assertEqual(create_plant.status_code, 201, create_plant.content)
+        self.assertEqual(create_plant.json()["label"], "Basil")
+        self.assertTrue(create_plant.json()["can_record"])
+        self.assertEqual(
+            len(self.client.get(reverse("plantupia-plants")).json()["results"]), 1
+        )
+        plant_id = create_plant.json()["id"]
+        care = self.client.post(
+            reverse("plantupia-events", args=[plant_id]),
+            {"kind": "observation", "note": "New leaves",
+             "evidence_type": "observed", "observed_at": timezone.now().isoformat()},
+            format="json",
+        )
+        self.assertEqual(care.status_code, 201, care.content)
+
+    def test_create_requires_auth_and_valid_content(self):
+        self.assertEqual(self.client.post(reverse("plantupia-spaces"), {"name": "Room"}).status_code, 401)
+        self.assertEqual(
+            self.client.post(reverse("plantupia-plants"), {"label": "Rose", "space": str(self.space.pk)}).status_code, 401
+        )
+        self.client.force_authenticate(user=self.stranger)
+        self.assertEqual(
+            self.client.post(reverse("plantupia-spaces"), {"name": "   "}, format="json").status_code, 400
+        )
+        self.assertEqual(
+            self.client.post(reverse("plantupia-plants"), {"label": "Rose", "space": str(self.space.pk)}, format="json").status_code, 404
+        )
+        self.assertEqual(PlantUnit.objects.count(), 1)
+
+    def test_only_owner_or_manager_can_add_plants(self):
+        SpaceMember.objects.create(space=self.space, user=self.stranger, role=SpaceMember.Role.VIEWER)
+        self.client.force_authenticate(user=self.stranger)
+        path = reverse("plantupia-plants")
+        self.assertEqual(self.client.post(path, {"label": "Fern", "space": str(self.space.pk)}, format="json").status_code, 404)
+        member = SpaceMember.objects.get(space=self.space, user=self.stranger)
+        member.role = SpaceMember.Role.CARER
+        member.save(update_fields=["role"])
+        self.assertEqual(self.client.post(path, {"label": "Fern", "space": str(self.space.pk)}, format="json").status_code, 404)
+        member.role = SpaceMember.Role.MANAGER
+        member.save(update_fields=["role"])
+        response = self.client.post(path, {"label": "Fern", "space": str(self.space.pk)}, format="json")
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(PlantUnit.objects.filter(space=self.space).count(), 2)
+
+    def test_new_plant_accepts_private_photo_without_public_post(self):
+        im = Image.new("RGB", (24, 24), (100, 151, 45))
+        out = BytesIO()
+        im.save(out, format="JPEG")
+        upload = SimpleUploadedFile("new-fern.jpg", out.getvalue(), content_type="image/jpeg")
+        self.client.force_authenticate(user=self.owner)
+        with TemporaryDirectory() as directory, override_settings(MEDIA_ROOT=directory):
+            response = self.client.post(
+                reverse("plantupia-plants"),
+                {"space": str(self.space.pk), "label": "New fern", "cover_photo": upload},
+                format="multipart",
+            )
+            self.assertEqual(response.status_code, 201, response.content)
+            plant = PlantUnit.objects.get(pk=response.json()["id"])
+            self.assertTrue(bool(plant.cover_photo))
+            from accounts.models import Post
+            self.assertEqual(Post.objects.count(), 0)

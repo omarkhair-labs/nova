@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import PlantDiscussion, PlantEvent, PlantNickname, PlantUnit, Space, SpaceMember
-from .serializers import PlantEventSerializer, PlantSerializer, SpaceSerializer
+from .serializers import (PlantCreateSerializer, PlantEventSerializer, PlantSerializer, SpaceCreateSerializer, SpaceSerializer)
 from .media import sanitize_public_plant_photo
 
 
@@ -35,6 +35,15 @@ class SpacesView(APIView):
 
     def get(self, request):
         return Response({"results": SpaceSerializer(accessible_spaces(request.user), many=True).data})
+
+    @transaction.atomic
+    def post(self, request):
+        # A signed-in person can start a space without an admin invitation.
+        # Never accept an owner field from the request.
+        serializer = SpaceCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        space = serializer.save(owner=request.user)
+        return Response(SpaceSerializer(space).data, status=status.HTTP_201_CREATED)
 
 
 class PlantsView(APIView):
@@ -75,6 +84,27 @@ class PlantsView(APIView):
                 },
             ).data
         })
+
+
+    @transaction.atomic
+    def post(self, request):
+        serializer = PlantCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        space_id = serializer.validated_data.pop("space")
+        writable_spaces = Space.objects.filter(
+            Q(owner=request.user)
+            | Q(memberships__user=request.user, memberships__role=SpaceMember.Role.MANAGER)
+        ).distinct()
+        # 404 prevents disclosure of another customer's space.
+        space = get_object_or_404(writable_spaces, pk=space_id)
+        plant = serializer.save(space=space)
+        return Response(
+            PlantSerializer(
+                plant,
+                context={"request": request, "editable_space_ids": {space.pk}},
+            ).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class PlantEventsView(APIView):
