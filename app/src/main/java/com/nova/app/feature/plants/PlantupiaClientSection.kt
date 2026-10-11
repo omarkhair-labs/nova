@@ -49,6 +49,7 @@ import com.nova.app.feature.plants.data.PlantupiaCareEvent
 import com.nova.app.feature.plants.data.PlantupiaPlant
 import com.nova.app.feature.plants.data.PlantupiaRepository
 import com.nova.app.feature.plants.data.PlantupiaSpace
+import com.nova.app.feature.plants.data.findSpacePlants
 import kotlinx.coroutines.launch
 
 private val deepGreen = Color(0xFF123B2E)
@@ -75,6 +76,8 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
     var showNameEditor by remember { mutableStateOf(false) }
     var showCareEditor by remember { mutableStateOf(false) }
     var expandedSpaceId by remember { mutableStateOf<String?>(null) }
+    var plantSearch by remember { mutableStateOf("") }
+    var visiblePlantCount by remember { mutableStateOf(8) }
     var events by remember { mutableStateOf<List<PlantupiaCareEvent>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var detailLoading by remember { mutableStateOf(false) }
@@ -138,6 +141,10 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
     LaunchedEffect(spaces) {
         if (spaces.size == 1 && expandedSpaceId == null) expandedSpaceId = spaces.first().id
         if (expandedSpaceId != null && spaces.none { it.id == expandedSpaceId }) expandedSpaceId = null
+    }
+    LaunchedEffect(expandedSpaceId, plantSearch) {
+        // Do not compose 100+ client units at once just because a site expands.
+        visiblePlantCount = 8
     }
 
     Column(
@@ -329,7 +336,21 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
                         }
                     }
                     if (expandedSpaceId == space.id) {
-                    plants.filter { it.spaceId == space.id && it.active }.forEach { plant ->
+                    val sitePlants = plants.filter { it.spaceId == space.id && it.active }
+                    if (sitePlants.size > 8) {
+                        OutlinedTextField(
+                            value = plantSearch,
+                            onValueChange = { plantSearch = it.take(80) },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("دوّر باسم النبات أو نوعه أو مكانه") },
+                            singleLine = true,
+                        )
+                    }
+                    val matchingPlants = findSpacePlants(plants, space.id, plantSearch)
+                    if (matchingPlants.isEmpty() && sitePlants.isNotEmpty()) {
+                        Text("مفيش نباتات مطابقة للبحث. جرّب اسم تاني.", color = muted, fontSize = 12.sp)
+                    }
+                    matchingPlants.take(visiblePlantCount).forEach { plant ->
                         Surface(
                             modifier = Modifier.fillMaxWidth().clickable { scope.launch { openPlant(plant) } },
                             color = white,
@@ -352,6 +373,14 @@ fun PlantupiaClientSection(onCommunityCreateClick: () -> Unit, onOpenLinkedPost:
                                 }
                                 Text("شوف تاريخ النبات ←", color = deepGreen, fontSize = 12.sp)
                             }
+                        }
+                    }
+                    if (matchingPlants.size > visiblePlantCount) {
+                        TextButton(onClick = { visiblePlantCount += 8 }) {
+                            Text(
+                                "عرض نباتات أكثر · ${visiblePlantCount} من ${matchingPlants.size}",
+                                color = deepGreen,
+                            )
                         }
                     }
                     }
