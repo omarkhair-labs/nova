@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -108,6 +109,7 @@ fun HomeScreen(
     val firstName = displayName.trim().substringBefore(' ').ifBlank { username }
 
     var showActivity by remember { mutableStateOf(false) }
+    var showCommunityFeed by remember { mutableStateOf(false) }
     var notificationUnreadCount by remember { mutableStateOf(0) }
 
     fun refreshUnreadCount() {
@@ -188,7 +190,7 @@ fun HomeScreen(
         return
     }
 
-    LaunchedEffect(listState, hasMore, isLoading, isLoadingMore, posts.size) {
+    LaunchedEffect(listState, showCommunityFeed, hasMore, isLoading, isLoadingMore, posts.size) {
         snapshotFlow {
             val layoutInfo = listState.layoutInfo
             val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
@@ -198,6 +200,7 @@ fun HomeScreen(
             .collect { (lastVisible, totalItems) ->
                 val closeToEnd = totalItems > 0 && lastVisible >= totalItems - 4
                 if (
+                    showCommunityFeed &&
                     closeToEnd &&
                     hasMore &&
                     posts.isNotEmpty() &&
@@ -282,19 +285,16 @@ fun HomeScreen(
                     )
                 }
 
-                item(key = "plantupia-community") {
-                    PlantupiaCirclePanel(
-                        onOpenPost = { postId ->
-                            scope.launch {
-                                when (val result = onResolvePost(postId)) {
-                                    is ApiResult.Success -> onPostClick(result.value)
-                                    is ApiResult.Failure -> Unit
-                                }
-                            }
-                        },
-                    )
+                item(key = "home-community-toggle") {
+                    TextButton(onClick = { showCommunityFeed = !showCommunityFeed }) {
+                        Text(
+                            if (showCommunityFeed) "اخفِ لحظات المجتمع ↑" else "استكشف لحظات المجتمع والدائرة ↓",
+                            color = NovaAccent,
+                            style = NovaType.bodyCompact,
+                        )
+                    }
                 }
-
+                if (showCommunityFeed) {
                 item {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -354,48 +354,9 @@ fun HomeScreen(
                     }
                 }
 
-                // Keep the existing Nova live-social destination available during
-                // the Plantupia conversion until its product role is redesigned.
-                item {
-                    TonightSurface(
-                        onPersonClick = onPersonClick,
-                        onSessionExpired = {},
-                        onOpenTonight = onTonightClick,
-                    )
-                }
-
-                item {
-                    PulseRail(
-                        displayName = displayName,
-                        username = username,
-                        avatarUrl = avatarUrl,
-                        showCreateCard = false,
-                        onOpenFeed = onPulseClick,
-                        onSessionExpired = {},
-                    )
-                }
-
-                item {
-                    OrbitRail(
-                        onPersonClick = onPersonClick,
-                        onSessionExpired = {},
-                    )
-                }
-
-                item {
-                    RoomsRail(
-                        onPersonClick = onPersonClick,
-                        onSessionExpired = {},
-                    )
-                }
-
-                item {
-                    MemoriesRail(
-                        onPersonClick = onPersonClick,
-                        onSessionExpired = {},
-                    )
-                }
-
+                // Nova Stories/Pulse/Gatherings/Memories remain in their
+                // respective paths and the on-demand Create tools. Do not
+                // make the client's home an endless duplicate social catalogue.
                 item {
                     NovaCard(
                         onClick = onCreatePost,
@@ -501,6 +462,8 @@ fun HomeScreen(
                         }
                     }
                 }
+                }
+
             }
         }
     }
