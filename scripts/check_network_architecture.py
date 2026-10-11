@@ -370,13 +370,20 @@ for kotlin_file in (ROOT / "app/src").rglob("*.kt"):
             f"Phase 5 exit restored core NovaPostAuthor import: {kotlin_file.relative_to(ROOT)}"
         )
 
-production_ctor = 'NovaApiClient("https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/")'
+# All three entrypoints must respect the build-variant server selector.
+server_config = read(ROOT / "app/src/main/java/com/nova/app/core/network/NovaServerConfig.kt")
+require_all(server_config, "QA endpoint isolation", (
+    'BuildConfig.BUILD_TYPE == "qa"',
+    'productionHost = "zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io"',
+    'qaHost = "240.zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io"',
+))
+production_ctor = 'NovaApiClient(com.nova.app.core.network.NovaServerConfig.API_URL)'
 for text, name in (
     (auth_repository, "NovaAuthRepository.kt"),
     (feed_repository, "NovaFeedRepository.kt"),
     (social_repository, "NovaSocialRepository.kt"),
 ):
-    require_all(text, f"{name} production API base URL", (production_ctor,))
+    require_all(text, f"{name} variant-aware API base URL", (production_ctor,))
 
 if errors:
     print("Network architecture exit check failed:")
