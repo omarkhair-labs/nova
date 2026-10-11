@@ -569,7 +569,7 @@ fun PlantupiaClientSection(
             } else if (events.isEmpty()) {
                 Text("أول ملاحظة منك هتبدأ تاريخ النبات هنا.", color = muted, fontSize = 13.sp)
             } else {
-                Text("${events.size} لحظات موثّقة · من الواقع، مش تقييم صحة تلقائي", color = muted, fontSize = 12.sp)
+                Text("${events.size} لحظات معروضة · من ملاحظات حقيقية، مش تقييم صحة تلقائي", color = muted, fontSize = 12.sp)
                 val photos = events
                     .filter { it.photoUrl.isNotBlank() }
                     .sortedBy { it.observedAt }
@@ -591,7 +591,7 @@ fun PlantupiaClientSection(
                                         contentScale = ContentScale.Crop,
                                     )
                                     Text(
-                                        if (index == 0) "أقدم صورة · ${event.observedAt.take(10)}"
+                                        if (index == 0) "أقدم صورة معروضة · ${event.observedAt.take(10)}"
                                         else "أحدث صورة · ${event.observedAt.take(10)}",
                                         modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
                                         color = muted,

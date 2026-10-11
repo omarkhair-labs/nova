@@ -2,6 +2,7 @@ package com.nova.app.feature.plants
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -210,19 +212,22 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
         pending = false
     }
     Column(
-        modifier = Modifier.fillMaxWidth().background(parchment, RoundedCornerShape(22.dp)).padding(20.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text("CIRCLE / PLANTUPIA", color = green, fontSize = 10.sp, letterSpacing = 1.7.sp)
-        Text("A little knowledge grows.", fontFamily = FontFamily.Serif, fontSize = 24.sp, color = green)
-        Text("أسئلة وتجارب من الناس ونباتاتهم. الإجابات بتفضل مرتبطة بالمتابعة الحقيقية.", color = mutedGreen, fontSize = 13.sp, lineHeight = 20.sp)
+        Text("PLANTUPIA / SHARED KNOWLEDGE", color = green, fontSize = 10.sp, letterSpacing = 1.7.sp)
+        Text("الخبرة اللي بتفضل.", fontFamily = FontFamily.Serif, fontSize = 27.sp, color = green)
+        Text(
+            "سؤال وصورة من نبات حقيقي، وردود من الناس، وبعدها متابعة للنتيجة. من غير كشف المساحة الخاصة.",
+            color = mutedGreen, fontSize = 13.sp, lineHeight = 20.sp,
+        )
         if (pending) CircularProgressIndicator(color = green)
         if (error != null) {
             Text(error.orEmpty(), color = Color(0xFF9F482B), fontSize = 12.sp)
             TextButton(onClick = { refresh++ }) { Text("حاول تاني", color = green) }
         }
         if (!pending && error == null && questions.isEmpty()) {
-            Text("الدائرة لسه في أولها. أول سؤال هيظهر هنا.", color = mutedGreen, fontSize = 13.sp)
+            Text("لسه مفيش أسئلة منشورة. ممكن تبدأ من نباتك وتختار بنفسك إيه اللي هيتشارك.", color = mutedGreen, fontSize = 13.sp)
         }
         questions.forEach { q -> QuestionCard(q, onClick = { onOpenPost(q.postId) }) }
         if (nextCursor != null) {
@@ -255,25 +260,69 @@ private fun QuestionCard(entry: PlantupiaQuestion, onClick: () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         color = card,
-        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, Color(0xFFD8E1D5)),
+        shape = RoundedCornerShape(19.dp),
     ) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(11.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    "FROM REAL PLANTS / من تجربة حقيقية",
+                    color = green,
+                    fontSize = 10.sp,
+                    letterSpacing = 0.8.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                if (entry.resolved) {
+                    Text(
+                        "النتيجة اتوثّقت ✓",
+                        color = green,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+            Text(
+                entry.topic,
+                color = green,
+                fontFamily = FontFamily.Serif,
+                fontSize = 22.sp,
+                lineHeight = 28.sp,
+            )
             if (entry.imageUrl.isNotBlank()) {
                 AsyncImage(
                     model = entry.imageUrl,
-                    contentDescription = "صورة السؤال",
-                    modifier = Modifier.fillMaxWidth().height(150.dp),
+                    contentDescription = "صورة السؤال: ${entry.topic}",
+                    modifier = Modifier.fillMaxWidth().height(208.dp).clip(RoundedCornerShape(12.dp)),
                     contentScale = ContentScale.Crop,
                 )
             }
-            Text(entry.topic, color = green, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-            Text(entry.caption, color = mutedGreen, fontSize = 13.sp, maxLines = 3)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(entry.authorName, color = mutedGreen, fontSize = 11.sp)
-                Text("${entry.comments} ردود", color = mutedGreen, fontSize = 11.sp)
-                if (entry.resolved) Text("تمت المتابعة ✓", color = green, fontSize = 11.sp)
+            if (entry.caption.isNotBlank()) {
+                Text(
+                    entry.caption,
+                    color = mutedGreen,
+                    fontSize = 13.sp,
+                    lineHeight = 20.sp,
+                    maxLines = 4,
+                )
             }
-            Text("افتح السؤال والردود ←", color = green, fontSize = 12.sp)
+            HorizontalDivider(color = Color(0xFFD8E1D5))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    entry.authorName.ifBlank { "شخص من الدائرة" },
+                    color = mutedGreen,
+                    fontSize = 12.sp,
+                )
+                Text("${entry.comments} ردود · افتح النقاش ←", color = green, fontSize = 12.sp)
+            }
         }
     }
 }
