@@ -53,6 +53,7 @@ fun PlantupiaSelfServiceForms(
     onRequestConsumed: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
+    val writableSpaces = spaces.filter { it.canAddPlant }
     var spaceOpen by remember { mutableStateOf(false) }
     var plantOpen by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
@@ -71,8 +72,12 @@ fun PlantupiaSelfServiceForms(
     }
 
     LaunchedEffect(spaces) {
-        if (spaces.isNotEmpty() && spaces.none { it.id == selectedSpaceId }) {
-            selectedSpaceId = spaces.first().id
+        if (spaces.any { it.id == selectedSpaceId } &&
+            writableSpaces.none { it.id == selectedSpaceId }
+        ) {
+            selectedSpaceId = writableSpaces.firstOrNull()?.id
+        } else if (selectedSpaceId == null) {
+            selectedSpaceId = writableSpaces.firstOrNull()?.id
         }
     }
 
@@ -80,7 +85,7 @@ fun PlantupiaSelfServiceForms(
     // separate mock composer. A first plant requires creating a space first.
     LaunchedEffect(creationRequest, enabled) {
         if (enabled) {
-            when (creationRequest.creationForm(spaces.isNotEmpty())) {
+            when (creationRequest.creationForm(writableSpaces.isNotEmpty())) {
                 PlantupiaCreationForm.SPACE -> {
                     spaceOpen = true
                     plantOpen = false
@@ -124,9 +129,16 @@ fun PlantupiaSelfServiceForms(
                 }
                 Button(
                     onClick = { error = null; plantOpen = true },
+                    enabled = writableSpaces.isNotEmpty(),
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(containerColor = ink),
                 ) { Text("+ أضف نبات", fontSize = 12.sp) }
+            }
+            if (writableSpaces.isEmpty()) {
+                Text(
+                    "مفيش مساحة عندك بصلاحية إضافة نبات. تقدر تنشئ مساحة خاصة بيك من الزر الأول.",
+                    color = textMuted, fontSize = 12.sp,
+                )
             }
         }
 
@@ -192,13 +204,13 @@ fun PlantupiaSelfServiceForms(
                         modifier = Modifier.fillMaxWidth(), enabled = !saving,
                     ) {
                         Text(
-                            spaces.firstOrNull { it.id == selectedSpaceId }?.name
-                                ?: "اختار المساحة",
+                            writableSpaces.firstOrNull { it.id == selectedSpaceId }?.name
+                                ?: if (selectedSpaceId != null) "المساحة الجديدة" else "اختار المساحة",
                             color = ink,
                         )
                     }
                     DropdownMenu(expanded = spaceMenuOpen, onDismissRequest = { spaceMenuOpen = false }) {
-                        spaces.forEach { space ->
+                        writableSpaces.forEach { space ->
                             DropdownMenuItem(text = { Text(space.name) }, onClick = {
                                 selectedSpaceId = space.id
                                 spaceMenuOpen = false
