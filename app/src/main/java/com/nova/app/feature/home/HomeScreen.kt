@@ -111,8 +111,8 @@ fun HomeScreen(
 
     // Route on-demand creation back to the real living record, never a
     // generic disconnected Nova post composer.
-    LaunchedEffect(PlantupiaCreateIntent.pending) {
-        if (PlantupiaCreateIntent.pending != null) {
+    LaunchedEffect(PlantupiaCreateIntent.pending, PlantupiaCreateIntent.pendingPlantId, PlantupiaCreateIntent.pendingAddPlant) {
+        if (PlantupiaCreateIntent.pending != null || PlantupiaCreateIntent.pendingPlantId != null || PlantupiaCreateIntent.pendingAddPlant) {
             // Publishing-status is an optional item before the living space.
             // Never land on that item when coming from "record" or "ask".
             listState.animateScrollToItem(if (publishingItems.isEmpty()) 1 else 2)

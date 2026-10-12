@@ -13,12 +13,33 @@ enum class PlantupiaCreateMode { OBSERVATION, QUESTION }
 object PlantupiaCreateIntent {
     var pending by mutableStateOf<PlantupiaCreateMode?>(null)
         private set
+    var pendingPlantId by mutableStateOf<String?>(null)
+        private set
+    var pendingAddPlant by mutableStateOf(false)
+        private set
 
     fun request(mode: PlantupiaCreateMode) {
+        pendingPlantId = null
+        pendingAddPlant = false
         pending = mode
     }
 
+    fun requestOpenPlant(plantId: String, mode: PlantupiaCreateMode? = null) {
+        pendingPlantId = plantId
+        pendingAddPlant = false
+        pending = mode
+    }
+
+    fun requestAddPlant() {
+        pending = null
+        pendingPlantId = null
+        pendingAddPlant = true
+    }
+
+    fun consumeAddPlant() { pendingAddPlant = false }
+
     fun clear() {
         pending = null
+        pendingPlantId = null
     }
 }

@@ -28,6 +28,7 @@ class NovaRootNavigationPolicyTest {
         assertEquals(
             listOf(
                 NovaRootTab.Home,
+                NovaRootTab.Care,
                 NovaRootTab.Orbit,
                 NovaRootTab.Create,
                 NovaRootTab.Profile,

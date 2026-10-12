@@ -45,6 +45,7 @@ private val paper = Color(0xFFFFFDF7)
 /** A signed-in person can start a living space without admin provisioning. */
 @Composable
 fun PlantupiaSelfServiceForms(
+    openPlantOnEntry: Boolean = false,
     spaces: List<PlantupiaSpace>,
     repository: PlantupiaRepository,
     onCreated: () -> Unit,
@@ -69,6 +70,13 @@ fun PlantupiaSelfServiceForms(
 
     LaunchedEffect(spaces) {
         if (selectedSpaceId == null && spaces.isNotEmpty()) selectedSpaceId = spaces.first().id
+    }
+    LaunchedEffect(openPlantOnEntry) {
+        if (openPlantOnEntry) {
+            error = null
+            if (spaces.isEmpty()) spaceOpen = true else plantOpen = true
+            PlantupiaCreateIntent.consumeAddPlant()
+        }
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {

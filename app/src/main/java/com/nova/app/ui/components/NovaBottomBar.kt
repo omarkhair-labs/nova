@@ -15,10 +15,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -26,6 +31,14 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
+import com.nova.app.feature.plants.PlantupiaCreateIntent
+import com.nova.app.feature.plants.PlantupiaCreateMode
+import com.nova.app.navigation.NovaRootNavigationSignal
+import com.nova.app.navigation.NovaRootTab
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaElevation
 import com.nova.app.ui.theme.NovaMuted
@@ -34,9 +47,9 @@ import com.nova.app.ui.theme.NovaSurface
 import com.nova.app.ui.theme.NovaType
 
 
-/** Primary Plantupia navigation: Space / Circle / Create / You.
- * Inbox remains a separate working Nova destination, reached contextually
- * from Circle and the self profile instead of occupying a primary tab.
+/** Five native destinations: living space / actual care / create / circle / self.
+ * The + is a visible Create sheet, with the original full CreateHub retained.
+ * Inbox remains the existing real messaging destination, not AI chat.
  */
 @Composable
 fun NovaBottomBar(
@@ -50,6 +63,45 @@ fun NovaBottomBar(
     containerColor: Color = NovaSurface,
     inactiveContentColor: Color = NovaMuted,
 ) {
+    var showQuickCreate by remember { mutableStateOf(false) }
+    if (showQuickCreate) {
+        ModalBottomSheet(
+            onDismissRequest = { showQuickCreate = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = NovaSurface,
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp).padding(bottom = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text("إنشاء", color = NovaAccent, style = NovaType.screenTitle)
+                Text("اختار الفعل، والخاص هيفضل خاص لحد ما تختار تنشر.", color = NovaMuted, style = NovaType.bodyCompact)
+                QuickCreateAction("سجّل رعاية أو ملاحظة", "في سجل نباتك الخاص", NovaIconAsset.Edit) {
+                    showQuickCreate = false
+                    PlantupiaCreateIntent.request(PlantupiaCreateMode.OBSERVATION)
+                    onHomeClick()
+                }
+                QuickCreateAction("أضف نبات", "اسم، مكان، صورة", NovaIconAsset.Photo) {
+                    showQuickCreate = false
+                    PlantupiaCreateIntent.requestAddPlant()
+                    onHomeClick()
+                }
+                QuickCreateAction("اسأل الناس عن نبات", "سؤال عام بموافقتك", NovaIconAsset.Orbit) {
+                    showQuickCreate = false
+                    PlantupiaCreateIntent.request(PlantupiaCreateMode.QUESTION)
+                    onHomeClick()
+                }
+                HorizontalDivider(color = NovaMuted.copy(alpha = 0.2f))
+                QuickCreateAction("Story، فيديو، أو منشور", "استخدم أدوات Nova الاجتماعية", NovaIconAsset.Story) {
+                    showQuickCreate = false
+                    onCreateClick()
+                }
+                TextButton(onClick = { showQuickCreate = false; onCreateClick() }) {
+                    Text("كل أدوات الإنشاء ←", color = NovaAccent, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+    }
     Surface(
         color = containerColor,
         shadowElevation = NovaElevation.floating,
@@ -72,6 +124,14 @@ fun NovaBottomBar(
                 onClick = onHomeClick,
             )
             NovaTabItem(
+                label = "Care",
+                displayLabel = "الرعاية",
+                icon = NovaIconAsset.Like,
+                selected = selected == NovaTab.Care,
+                inactiveContentColor = inactiveContentColor,
+                onClick = { NovaRootNavigationSignal.request(NovaRootTab.Care) },
+            )
+            NovaTabItem(
                 label = "Circle",
                 displayLabel = "الدائرة",
                 icon = NovaIconAsset.Orbit,
@@ -81,7 +141,7 @@ fun NovaBottomBar(
             )
             NovaCreateTabItem(
                 selected = selected == NovaTab.Create,
-                onClick = onCreateClick,
+                onClick = { showQuickCreate = true },
             )
             NovaTabItem(
                 label = "Profile",
@@ -205,8 +265,26 @@ private fun NovaTabItem(
 }
 
 
+@Composable
+private fun QuickCreateAction(label: String, subtitle: String, icon: NovaIconAsset, onClick: () -> Unit) {
+    Surface(onClick = onClick, color = NovaBackground, shape = RoundedCornerShape(18.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            NovaIcon(asset = icon, contentDescription = null, tint = NovaAccent, modifier = Modifier.size(24.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(label, color = NovaAccent, style = NovaType.label)
+                Text(subtitle, color = NovaMuted, style = NovaType.meta)
+            }
+        }
+    }
+}
+
 enum class NovaTab {
     Home,
+    Care,
     Orbit,
     Create,
     Inbox,

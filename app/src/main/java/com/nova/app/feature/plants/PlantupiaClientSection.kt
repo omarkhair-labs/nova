@@ -174,10 +174,17 @@ fun PlantupiaClientSection(
     }
 
     LaunchedEffect(Unit) { refresh() }
-    LaunchedEffect(PlantupiaCreateIntent.pending, plants, loading) {
-        if (!loading && PlantupiaCreateIntent.pending != null) {
+    LaunchedEffect(PlantupiaCreateIntent.pending, PlantupiaCreateIntent.pendingPlantId, plants, loading) {
+        if (!loading) {
+            val requestedId = PlantupiaCreateIntent.pendingPlantId
             val available = plants.filter { it.active }
-            if (available.size == 1) openPlant(available.first())
+            val requested = available.firstOrNull { it.id == requestedId }
+            if (requestedId != null) {
+                if (requested != null) openPlant(requested)
+                else PlantupiaCreateIntent.clear()
+            } else if (PlantupiaCreateIntent.pending != null && available.size == 1) {
+                openPlant(available.first())
+            }
         }
     }
     LaunchedEffect(spaces) {
@@ -229,6 +236,7 @@ fun PlantupiaClientSection(
                 lineHeight = 21.sp,
             )
             PlantupiaSelfServiceForms(
+                openPlantOnEntry = PlantupiaCreateIntent.pendingAddPlant,
                 spaces = spaces,
                 repository = repository,
                 onCreated = { scope.launch { refresh() } },

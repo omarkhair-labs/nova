@@ -36,6 +36,7 @@ import com.nova.app.feature.auth.LoginScreen
 import com.nova.app.feature.create.CreateHubScreen
 import com.nova.app.feature.feed.FeedStateOwner
 import com.nova.app.feature.home.HomeScreen
+import com.nova.app.feature.plants.PlantupiaCareHub
 import com.nova.app.feature.legal.PrivacyScreen
 import com.nova.app.feature.legal.TermsScreen
 import com.nova.app.feature.onboarding.ProfileSetupScreen
@@ -111,6 +112,7 @@ fun NovaApp(
         backStack.add(
             when (tab) {
                 NovaRootTab.Home -> NovaRoute.Home
+                NovaRootTab.Care -> NovaRoute.Care
                 NovaRootTab.Orbit -> NovaRoute.Orbit
                 NovaRootTab.Create -> NovaRoute.Create
                 NovaRootTab.Profile -> NovaRoute.Profile
@@ -443,6 +445,10 @@ fun NovaApp(
                         onTonightClick = { backStack.add(NovaRoute.Tonight) },
                         onProfileClick = { backStack.add(NovaRoute.Profile) },
                     )
+                }
+
+                NovaRoute.Care -> NavEntry(route) {
+                    PlantupiaCareHub()
                 }
 
                 NovaRoute.Orbit -> NavEntry(route) {
