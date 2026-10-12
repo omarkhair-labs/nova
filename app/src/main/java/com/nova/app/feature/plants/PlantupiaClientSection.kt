@@ -83,6 +83,7 @@ fun PlantupiaClientSection(
     var openDetailMode by remember { mutableStateOf<PlantupiaCreateMode?>(null) }
     var showNameEditor by remember { mutableStateOf(false) }
     var showCareEditor by remember { mutableStateOf(false) }
+    var showAssistant by remember { mutableStateOf(false) }
     var expandedSpaceId by remember { mutableStateOf<String?>(null) }
     var plantSearch by remember { mutableStateOf("") }
     var visiblePlantCount by remember { mutableStateOf(8) }
@@ -161,6 +162,7 @@ fun PlantupiaClientSection(
     }
 
     fun closePlant() {
+        showAssistant = false
         currentPlantId = null
         openDetailMode = null
         error = null
@@ -470,6 +472,19 @@ fun PlantupiaClientSection(
             val meta = listOf(selectedPlant.species, selectedPlant.placement).filter(String::isNotBlank).joinToString(" · ")
             if (meta.isNotBlank()) Text(meta, fontSize = 13.sp, color = muted)
 
+            OutlinedButton(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = { showAssistant = true },
+                shape = RoundedCornerShape(15.dp),
+            ) {
+                com.nova.app.ui.icons.NovaIcon(
+                    asset = com.nova.app.ui.icons.NovaIconAsset.Info,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = 8.dp),
+                    tint = deepGreen,
+                )
+                Text("اسأل مساعد Plantupia عن النبات", color = deepGreen)
+            }
             if (openDetailMode == PlantupiaCreateMode.QUESTION) {
                 PlantupiaQuestionsPanel(
                     plantId = selectedPlant.id,
@@ -847,6 +862,15 @@ fun PlantupiaClientSection(
                 color = muted,
                 fontSize = 11.sp,
                 lineHeight = 18.sp,
+            )
+        }
+    }
+    if (showAssistant) {
+        selectedPlant?.let { plant ->
+            PlantupiaAssistantSheet(
+                plant = plant,
+                repository = repository,
+                onDismiss = { showAssistant = false },
             )
         }
     }
