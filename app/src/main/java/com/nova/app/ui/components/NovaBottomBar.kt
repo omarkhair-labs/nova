@@ -96,7 +96,12 @@ fun NovaBottomBar(
                     NovaRootNavigationSignal.requestAssistant(null)
                 }
                 HorizontalDivider(color = NovaMuted.copy(alpha = 0.2f))
-                QuickCreateAction("Story، فيديو، أو منشور", "استخدم أدوات Nova الاجتماعية", NovaIconAsset.Story) {
+                QuickCreateAction("Story مؤقتة", "صورة أو فيديو أو نص للناس، مش سجل الرعاية", NovaIconAsset.Story) {
+                    showQuickCreate = false
+                    PlantupiaCreateIntent.requestSocialFormat("story")
+                    onCreateClick()
+                }
+                QuickCreateAction("منشور أو فيديو", "محرك النشر والميديا الموجود في Nova", NovaIconAsset.Reels) {
                     showQuickCreate = false
                     onCreateClick()
                 }

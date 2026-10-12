@@ -70,6 +70,15 @@ class PlantCareAssistantTests(TestCase):
         self.assertEqual(response.status_code, 404)
         provider.assert_not_called()
 
+    @patch.dict("os.environ", {"PLANTUPIA_AI_API_KEY": "mock-only"})
+    @patch("plants.assistant._provider_answer")
+    def test_invalid_plant_id_does_not_call_provider(self, provider):
+        self.client.force_authenticate(user=self.owner)
+        r = self.client.post(self.url, {"message": "hello",
+            "include_plant_context": True, "plant_id": "not-a-uuid"}, format="json")
+        self.assertEqual(r.status_code, 400)
+        provider.assert_not_called()
+
     @patch.dict("os.environ", {"PLANTUPIA_AI_API_KEY": ""})
     def test_disabled_without_server_secret(self):
         self.client.force_authenticate(user=self.owner)

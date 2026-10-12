@@ -17,6 +17,8 @@ object PlantupiaCreateIntent {
         private set
     var pendingAddPlant by mutableStateOf(false)
         private set
+    var pendingSocialFormat by mutableStateOf<String?>(null)
+        private set
 
     fun request(mode: PlantupiaCreateMode) {
         pendingPlantId = null
@@ -37,6 +39,13 @@ object PlantupiaCreateIntent {
     }
 
     fun consumeAddPlant() { pendingAddPlant = false }
+
+    fun requestSocialFormat(format: String) {
+        if (format == "story" || format == "pulse" || format == "gathering" || format == "memory") {
+            pendingSocialFormat = format
+        }
+    }
+    fun consumeSocialFormat() { pendingSocialFormat = null }
 
     fun clear() {
         pending = null

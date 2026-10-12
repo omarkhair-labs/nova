@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -79,7 +78,7 @@ fun PlantupiaAssistantScreen(plantId: String?, onBack: () -> Unit) {
                         Checkbox(checked = includeContext, onCheckedChange = { includeContext = it })
                         Column(Modifier.weight(1f)) {
                             Text("استخدم سجل ${plantName.orEmpty()}؟", color = NovaAccent)
-                            Text("اسم النبات وملاحظاتك الأخيرة فقط، من غير صور أو عنوان.", color = NovaMuted, style = NovaType.meta)
+                            Text("الاسم والنوع ومكان النبات وملاحظاتك الأخيرة، من غير صور أو بيانات حساب.", color = NovaMuted, style = NovaType.meta)
                         }
                     }
                 }

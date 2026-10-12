@@ -3,6 +3,7 @@ import json
 import os
 import urllib.error
 import urllib.request
+from uuid import UUID
 
 from django.shortcuts import get_object_or_404
 from rest_framework import status
@@ -95,6 +96,10 @@ class PlantCareAssistantView(APIView):
         if include_context:
             if not isinstance(plant_id, str) or not plant_id:
                 return Response({"detail": "اختار نبات أو الغِ استخدام بياناته."}, status=400)
+            try:
+                UUID(plant_id)
+            except (ValueError, TypeError, AttributeError):
+                return Response({"detail": "Invalid plant ID."}, status=400)
             plant = get_object_or_404(accessible_plants(request.user), pk=plant_id)
             # Minimal facts; send no private media, office/address or other residents.
             entries = list(plant.events.order_by("-observed_at")[:5])

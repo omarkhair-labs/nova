@@ -87,6 +87,13 @@ fun CreateHubScreen(
     // Nova engines remain functional; secondary formats are opened on demand.
     var activeFormat by remember { mutableStateOf<String?>(null) }
     var showOtherFormats by remember { mutableStateOf(false) }
+    LaunchedEffect(PlantupiaCreateIntent.pendingSocialFormat) {
+        PlantupiaCreateIntent.pendingSocialFormat?.let { requested ->
+            activeFormat = requested
+            showOtherFormats = true
+            PlantupiaCreateIntent.consumeSocialFormat()
+        }
+    }
 
     val context = LocalContext.current
     val plantRepository = remember(context) { PlantupiaRepository(context.applicationContext) }
