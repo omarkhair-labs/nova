@@ -116,12 +116,21 @@ fun CreateHubScreen(
             NovaIconAsset.Create,
             onCreatePost,
         ),
+        CreateHubAction(
+            "Story · ستوري",
+            "صورة أو فيديو أو نص لمدة 24 ساعة — نشر عام باختيارك",
+            NovaIconAsset.Story,
+        ) { activeFormat = "story" },
+        CreateHubAction(
+            "فيديو",
+            "ارفع فيديو حقيقي عبر محرك Nova الموجود",
+            NovaIconAsset.Reels,
+            onOpenReels,
+        ),
     )
     val otherFormats = listOf(
         // Retain Nova's engines, but do not turn every format into a separate
         // Plantupia destination until its role in a living-space journey is clear.
-        CreateHubAction("فيديو عام", "محرك الفيديو الموجود في Nova؛ مش بديل عن سجل النبات", NovaIconAsset.Reels, onOpenReels),
-        CreateHubAction("Story", "لحظة مؤقتة لمدة 24 ساعة", NovaIconAsset.Story) { activeFormat = "story" },
         CreateHubAction("Pulse", "لحظة قصيرة مع الناس", NovaIconAsset.Orbit) { activeFormat = "pulse" },
         CreateHubAction("Gathering", "تجمّع اجتماعي حول اهتمام مشترك", NovaIconAsset.Room) { activeFormat = "gathering" },
         CreateHubAction("Memory", "ارجع للحظات عبر الزمن", NovaIconAsset.Memory) { activeFormat = "memory" },
@@ -237,7 +246,7 @@ fun CreateHubScreen(
                     }
                 }
             }
-            if (showOtherFormats && activeFormat != null) {
+            if (activeFormat != null) {
                 item(key = "living-create-format") {
                     when (activeFormat) {
                         "story" -> {
