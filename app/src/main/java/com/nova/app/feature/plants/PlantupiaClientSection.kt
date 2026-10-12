@@ -421,29 +421,11 @@ fun PlantupiaClientSection(
                         Text("مفيش نباتات مطابقة للبحث. جرّب اسم تاني.", color = muted, fontSize = 12.sp)
                     }
                     matchingPlants.take(visiblePlantCount).forEach { plant ->
-                        Surface(
-                            modifier = Modifier.fillMaxWidth().clickable { scope.launch { openPlant(plant) } },
-                            color = white,
-                            shape = RoundedCornerShape(14.dp),
-                        ) {
-                            Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                if (plant.coverPhoto.isNotBlank()) {
-                                    AsyncImage(model = plant.coverPhoto, contentDescription = "صورة ${plant.name}", modifier = Modifier.fillMaxWidth().height(166.dp).clip(RoundedCornerShape(10.dp)), contentScale = ContentScale.Crop)
-                                }
-                                Text(plant.name, color = forestText, fontSize = 17.sp, fontWeight = FontWeight.Medium)
-                                val subtitle = listOf(plant.species, plant.placement).filter(String::isNotBlank).joinToString(" · ")
-                                if (subtitle.isNotBlank()) Text(subtitle, color = muted, fontSize = 12.sp)
-                                if (plant.lastEventAt.isNotBlank()) {
-                                    Text(
-                                        "آخر سجل: ${plant.lastEventAt.take(10)} · ${eventLabel(plant.lastEventKind)}",
-                                        color = muted, fontSize = 12.sp,
-                                    )
-                                } else {
-                                    Text("لم يُسجَّل تاريخ لهذا النبات بعد", color = muted, fontSize = 12.sp)
-                                }
-                                Text("شوف تاريخ النبات ←", color = deepGreen, fontSize = 12.sp)
-                            }
-                        }
+                        PlantupiaPlantInventoryCard(
+                            plant = plant,
+                            eventLabel = eventLabel(plant.lastEventKind),
+                            onClick = { scope.launch { openPlant(plant) } },
+                        )
                     }
                     if (matchingPlants.size > visiblePlantCount) {
                         TextButton(onClick = { visiblePlantCount += 8 }) {
@@ -620,26 +602,23 @@ fun PlantupiaClientSection(
                 }
             if (showCareEditor) PlantupiaPanel {
                 Text("لو عملت رعاية، اختار اللي حصل فعلًا:", color = forestText, fontWeight = FontWeight.Medium, fontSize = 13.sp)
-                PlantupiaCareAction.entries.chunked(2).forEach { pair ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        pair.forEach { action ->
-                            OutlinedButton(
-                                modifier = Modifier.weight(1f),
+                PlantupiaCareAction.entries.chunked(3).forEach { group ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(9.dp),
+                    ) {
+                        group.forEach { action ->
+                            PlantupiaCareActionTile(
+                                action = action,
+                                selected = selectedCareAction == action,
                                 enabled = !saving,
+                                modifier = Modifier.weight(1f),
                                 onClick = {
-                                    selectedCareAction = if (selectedCareAction == action) null else action
+                                    selectedCareAction =
+                                        if (selectedCareAction == action) null else action
                                 },
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    containerColor = if (selectedCareAction == action) sage else white,
-                                ),
-                            ) {
-                                Text(
-                                    (if (selectedCareAction == action) "✓ " else "") + action.label,
-                                    color = deepGreen, fontSize = 12.sp,
-                                )
-                            }
+                            )
                         }
-                        if (pair.size == 1) Spacer(modifier = Modifier.weight(1f))
                     }
                 }
                 Text("الأفعال دي للتوثيق فقط، مش توصيات بمواعيد الري.", color = muted, fontSize = 11.sp)
