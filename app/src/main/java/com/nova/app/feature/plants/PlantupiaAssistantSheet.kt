@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.plants.data.PlantupiaPlant
+import com.nova.app.feature.plants.data.PlantupiaAssistantTurn
 import com.nova.app.feature.plants.data.PlantupiaRepository
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
@@ -112,7 +113,16 @@ internal fun PlantupiaAssistantSheet(
                             color = muted, fontSize = 11.sp, lineHeight = 17.sp,
                         )
                     }
-                    Switch(checked = includeContext, onCheckedChange = { includeContext = it })
+                    Switch(
+                        checked = includeContext,
+                        onCheckedChange = {
+                            includeContext = it
+                            // Do not replay a previous AI answer containing plant details
+                            // when this person changes their context-sharing preference.
+                            bubbles = emptyList()
+                            error = null
+                        },
+                    )
                 }
             }
             LazyColumn(
@@ -181,6 +191,12 @@ internal fun PlantupiaAssistantSheet(
                         input = ""
                         error = null
                         val consent = includeContext
+                        val dialogue = bubbles.takeLast(8).map {
+                            PlantupiaAssistantTurn(
+                                role = if (it.fromUser) "user" else "assistant",
+                                content = it.text.take(1200),
+                            )
+                        }
                         bubbles = bubbles + CareChatBubble(question, fromUser = true)
                         pending = true
                         scope.launch {
@@ -188,6 +204,7 @@ internal fun PlantupiaAssistantSheet(
                                 message = question,
                                 plantId = plant.id,
                                 includeContext = consent,
+                                conversation = dialogue,
                             )) {
                                 is ApiResult.Success -> {
                                     bubbles = bubbles + CareChatBubble(
