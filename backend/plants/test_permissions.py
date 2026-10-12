@@ -168,6 +168,41 @@ class PlantupiaPermissionTests(TestCase):
         self.client.force_authenticate(user=self.stranger)
         self.assertEqual(self.client.get(path, {"offset": "20"}).status_code, 404)
 
+    def test_pending_care_checkins_support_older_pages_and_private_scoping(self):
+        now = timezone.now()
+        for i in range(23):
+            PlantEvent.objects.create(
+                plant=self.plant, actor=self.owner,
+                kind=PlantEvent.Kind.OBSERVATION,
+                evidence_type=PlantEvent.Evidence.OBSERVED,
+                note=f"Check-in {i}",
+                observed_at=now,
+                follow_up_on=timezone.localdate() + timedelta(days=i + 1),
+            )
+        path = reverse("plantupia-events", args=[self.plant.pk])
+        self.client.force_authenticate(user=self.owner)
+        first = self.client.get(path, {"pending_followups": "1"})
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(len(first.json()["results"]), 20)
+        self.assertEqual(first.json()["next_offset"], 20)
+        second = self.client.get(
+            path, {"pending_followups": "1", "offset": 20}
+        )
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(len(second.json()["results"]), 3)
+        self.assertIsNone(second.json()["next_offset"])
+        identifiers = [
+            row["id"] for row in first.json()["results"] + second.json()["results"]
+        ]
+        self.assertEqual(len(set(identifiers)), 23)
+        self.client.force_authenticate(user=self.stranger)
+        self.assertEqual(
+            self.client.get(
+                path, {"pending_followups": "1", "offset": 20}
+            ).status_code,
+            404,
+        )
+
     def test_public_image_sanitizes_camera_location_and_preserves_private_record(self):
         # A photo may be consented for public viewing, but its GPS EXIF data
         # and the customer's private plant IDs must remain private.
