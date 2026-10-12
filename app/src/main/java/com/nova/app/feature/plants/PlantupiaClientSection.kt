@@ -788,23 +788,11 @@ fun PlantupiaClientSection(
                 }
             }
             events.sortedByDescending { it.observedAt }.forEach { event ->
-                PlantupiaPanel {
-                    Text(
-                        "${eventLabel(event.kind)} · ${event.observedAt.take(10)}",
-                        color = deepGreen, fontSize = 12.sp,
-                    )
-                    if (event.photoUrl.isNotBlank()) {
-                        AsyncImage(model = event.photoUrl, contentDescription = "صورة من تاريخ النبات", modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(10.dp)), contentScale = ContentScale.Crop)
-                    }
-                    Text(event.note.ifBlank { "حدث رعاية مسجل" }, color = forestText, fontSize = 13.sp, lineHeight = 20.sp)
-                    Text("مصدر المعلومة: ${evidenceLabel(event.evidence)}", color = muted, fontSize = 11.sp)
-                    if (event.followUpOn.isNotBlank()) {
-                        Text(
-                            if (event.followUpCompletedAt.isNotBlank()) "تمت المتابعة · ${event.followUpOn}" else "متابعة محددة يوم ${event.followUpOn}",
-                            color = muted, fontSize = 11.sp,
-                        )
-                    }
-                }
+                PlantupiaHistoryEventCard(
+                    event = event,
+                    title = eventLabel(event.kind),
+                    evidenceLabel = evidenceLabel(event.evidence),
+                )
             }
             if (nextHistoryOffset != null) {
                 OutlinedButton(
