@@ -3,7 +3,7 @@ name: Nova CI
 on:
   pull_request:
   push:
-    branches: [master]
+    branches: [master, experiment/plantupia-care-create-native-20261012]
 
 permissions:
   contents: read
