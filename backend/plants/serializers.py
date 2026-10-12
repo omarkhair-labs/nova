@@ -1,12 +1,28 @@
 from rest_framework import serializers
 from django.utils import timezone
-from .models import PlantEvent, PlantUnit, Space
+from .models import PlantEvent, PlantUnit, Space, SpaceMember
 
 
 class SpaceSerializer(serializers.ModelSerializer):
+    # Create permission is distinct from read access and from recording care.
+    can_add_plant = serializers.SerializerMethodField()
+
     class Meta:
         model = Space
-        fields = ("id", "name", "description", "location_note")
+        fields = ("id", "name", "description", "location_note", "can_add_plant")
+
+    def get_can_add_plant(self, space):
+        request = self.context.get("request")
+        if request is None or not request.user.is_authenticated:
+            return False
+        if space.owner_id == request.user.pk:
+            return True
+        manager_ids = self.context.get("manager_space_ids")
+        if manager_ids is not None:
+            return space.pk in manager_ids
+        return SpaceMember.objects.filter(
+            space=space, user=request.user, role=SpaceMember.Role.MANAGER,
+        ).exists()
 
 
 class PlantSerializer(serializers.ModelSerializer):
