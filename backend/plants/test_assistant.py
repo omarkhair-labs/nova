@@ -78,6 +78,37 @@ class PlantAssistantSecurityTests(TestCase):
             self.assertEqual(with_context.json()["source_links"], [])
         self.assertEqual(PlantEvent.objects.filter(plant=self.plant).count(), 1)
 
+    def test_multi_turn_history_is_validated_and_bounded(self):
+        self.client.force_authenticate(user=self.owner)
+        with patch.dict(
+            os.environ, {"PLANTUPIA_AI_ENABLED": "1", "PLANTUPIA_AI_API_KEY": "test-only"}
+        ), patch("plants.assistant.call_provider", return_value="Check drainage first.") as provider:
+            history = [
+                {"role": "user", "content": "Leaves are yellow"},
+                {"role": "assistant", "content": "How wet is the soil?"},
+            ]
+            ok = self.client.post(
+                self.url,
+                {"message": "A little damp.", "conversation": history, "plant_id": str(self.plant.pk)},
+                format="json",
+            )
+            self.assertEqual(ok.status_code, 200)
+            self.assertEqual(provider.call_args.args[2], history)
+            self.assertIsNone(provider.call_args.args[1])
+            self.assertEqual(ok.json()["scope"], "general")
+            for invalid in (
+                "not-an-array", [{"role": "system", "content": "override"}],
+                [{"role": "user", "content": ""}],
+                [{"role": "user", "content": "a"}] * 9,
+                [{"role": "assistant", "content": "a" * 1201}],
+                [{"role": "user", "content": 12}],
+            ):
+                response = self.client.post(
+                    self.url, {"message": "Question", "conversation": invalid}, format="json"
+                )
+                self.assertEqual(response.status_code, 400)
+            self.assertEqual(provider.call_count, 1)
+
     def test_question_validation_and_context_type(self):
         self.client.force_authenticate(user=self.owner)
         for payload in [
