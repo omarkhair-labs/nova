@@ -297,6 +297,7 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
     var questions by remember { mutableStateOf<List<PlantupiaQuestion>>(emptyList()) }
     var nextCursor by remember { mutableStateOf<String?>(null) }
     var loadingMore by remember { mutableStateOf(false) }
+    var olderPageError by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     var pending by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -304,6 +305,7 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
 
     LaunchedEffect(refresh) {
         pending = true
+        olderPageError = null
         when (val result = repo.circle()) {
             is ApiResult.Success -> {
                 questions = result.value.questions
@@ -324,15 +326,45 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
             "سؤال وصورة من نبات حقيقي، وردود من الناس، وبعدها متابعة للنتيجة. من غير كشف المساحة الخاصة.",
             color = mutedGreen, fontSize = 13.sp, lineHeight = 20.sp,
         )
-        if (pending) CircularProgressIndicator(color = green)
+        if (pending) {
+            Surface(color = parchment, shape = RoundedCornerShape(18.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(13.dp),
+                ) {
+                    CircularProgressIndicator(color = green, modifier = Modifier.height(28.dp))
+                    Text("بنحمّل أسئلة الدائرة…", color = mutedGreen, fontSize = 13.sp)
+                }
+            }
+        }
         if (error != null) {
             Text(error.orEmpty(), color = Color(0xFF9F482B), fontSize = 12.sp)
             TextButton(onClick = { refresh++ }) { Text("حاول تاني", color = green) }
         }
         if (!pending && error == null && questions.isEmpty()) {
-            Text("لسه مفيش أسئلة منشورة. ممكن تبدأ من نباتك وتختار بنفسك إيه اللي هيتشارك.", color = mutedGreen, fontSize = 13.sp)
+            Surface(color = parchment, shape = RoundedCornerShape(18.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(17.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    PlantupiaBrandGlyph(modifier = Modifier.height(48.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("أول سؤال لسه ما اتنشرش", color = green, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "ابدأ من نباتك، اختار صورة وسؤال، وراجع اللي هتشاركه. أسئلة الناس بتظهر هنا لما تتنشر فعلًا.",
+                            color = mutedGreen, fontSize = 12.sp, lineHeight = 19.sp,
+                        )
+                    }
+                }
+            }
         }
         questions.forEach { q -> QuestionCard(q, onClick = { onOpenPost(q.postId) }) }
+        if (olderPageError != null) {
+            Text(
+                "تعذّر تحميل الأسئلة الأقدم: " + olderPageError.orEmpty(),
+                color = Color(0xFF9F482B), fontSize = 12.sp,
+            )
+        }
         if (nextCursor != null) {
             OutlinedButton(
                 modifier = Modifier.fillMaxWidth(),
@@ -342,17 +374,22 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
                     scope.launch {
                         loadingMore = true
                         when (val result = repo.circle(cursor)) {
-                            is ApiResult.Failure -> error = result.message
+                            is ApiResult.Failure -> olderPageError = result.message
                             is ApiResult.Success -> {
                                 questions = (questions + result.value.questions).distinctBy { it.id }
                                 nextCursor = result.value.nextCursor
-                                error = null
+                                olderPageError = null
                             }
                         }
                         loadingMore = false
                     }
                 },
-            ) { Text(if (loadingMore) "جارٍ تحميل المزيد…" else "اعرض أسئلة أقدم", color = green) }
+            ) {
+                Text(
+                    if (loadingMore) "جارٍ تحميل المزيد…" else if (olderPageError != null) "حاول تحميل الأسئلة الأقدم تاني" else "اعرض أسئلة أقدم",
+                    color = green,
+                )
+            }
         }
         if (questions.isNotEmpty()) TextButton(onClick = { refresh++ }) { Text("تحديث الأسئلة", color = green) }
     }
