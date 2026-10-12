@@ -40,6 +40,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.nova.app.ui.theme.NovaAccent
+import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaElevation
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSpacing
