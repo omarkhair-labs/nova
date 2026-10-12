@@ -319,8 +319,8 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(text = "From the circle", color = NovaInk, style = NovaType.title)
-                        Text(text = "Community", color = NovaMuted, style = NovaType.micro)
+                        Text(text = "من الدائرة", color = NovaInk, style = NovaType.title)
+                        Text(text = "لحظات عامة", color = NovaMuted, style = NovaType.micro)
                     }
                 }
 
@@ -349,7 +349,7 @@ fun HomeScreen(
                 } else if (isLoading) {
                     item {
                         NovaLoadingState(
-                            message = "Loading your feed…",
+                            message = "بنحمّل لحظات الدائرة…",
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }

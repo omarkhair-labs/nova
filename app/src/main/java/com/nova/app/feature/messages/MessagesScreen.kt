@@ -221,16 +221,16 @@ fun MessagesScreen(
                 conversations.isEmpty() -> {
                     NovaEmptyState(
                         title = when {
-                            query.isNotBlank() -> "No matches"
-                            state.filter == InboxFilter.Unread -> "You're caught up"
-                            state.filter == InboxFilter.Mentions -> "No mentions yet"
-                            else -> "No conversations yet"
+                            query.isNotBlank() -> "مفيش نتائج"
+                            state.filter == InboxFilter.Unread -> "مفيش رسائل غير مقروءة"
+                            state.filter == InboxFilter.Mentions -> "مفيش إشارات ليك لسه"
+                            else -> "مفيش محادثات لسه"
                         },
                         message = when {
-                            query.isNotBlank() -> "Try another name, username, or group name."
-                            state.filter == InboxFilter.Unread -> "New unread conversations will appear here."
-                            state.filter == InboxFilter.Mentions -> "Conversations that mention your username will appear here."
-                            else -> "Start a private message or create a group when you want to connect."
+                            query.isNotBlank() -> "جرّب اسم شخص أو مجموعة تانية."
+                            state.filter == InboxFilter.Unread -> "أول ما توصلك رسالة جديدة هتظهر هنا."
+                            state.filter == InboxFilter.Mentions -> "المحادثات اللي حد أشار لك فيها هتظهر هنا."
+                            else -> "محادثاتك مع الناس هتظهر هنا أول ما تبدأ الكلام."
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -261,7 +261,7 @@ fun MessagesScreen(
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(0.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         items(conversations, key = { it.id }) { conversation ->
                             ConversationRow(
@@ -282,7 +282,7 @@ fun MessagesScreen(
                         }
                         if (isLoadingMore) {
                             item {
-                                NovaInlineLoading(message = "Loading older conversations…")
+                                NovaInlineLoading(message = "بنحمّل محادثات أقدم…")
                             }
                         }
                         item { Spacer(modifier = Modifier.height(12.dp)) }
@@ -378,7 +378,7 @@ private fun InboxSearchField(
                     Box(contentAlignment = Alignment.Center) {
                         NovaIcon(
                             asset = NovaIconAsset.Close,
-                            contentDescription = "Clear search",
+                            contentDescription = "امسح البحث",
                             modifier = Modifier.size(18.dp),
                             tint = NovaAccent,
                         )
@@ -398,23 +398,23 @@ private fun ConversationRow(
     val last = conversation.lastMessage
     val hasUnread = conversation.unreadCount > 0
     val preview = when {
-        last == null -> if (conversation.isGroup) "Start the group conversation" else "Start the conversation"
-        last.isMine -> "You: ${last.body}"
+        last == null -> if (conversation.isGroup) "ابدأ الكلام في المجموعة" else "ابدأ المحادثة"
+        last.isMine -> "أنت: ${last.body}"
         conversation.isGroup -> "${last.sender.name.ifBlank { last.sender.username }}: ${last.body}"
         else -> last.body
     }.ifBlank {
         when {
             last?.imageUrl?.isNotBlank() == true -> when {
-                last.isMine -> "You sent a photo"
-                conversation.isGroup -> "${last.sender.name.ifBlank { last.sender.username }} sent a photo"
-                else -> "Sent a photo"
+                last.isMine -> "بعتّ صورة"
+                conversation.isGroup -> "${last.sender.name.ifBlank { last.sender.username }} بعت صورة"
+                else -> "صورة"
             }
             last?.audioUrl?.isNotBlank() == true -> when {
-                last.isMine -> "You sent a voice note"
-                conversation.isGroup -> "${last.sender.name.ifBlank { last.sender.username }} sent a voice note"
-                else -> "Sent a voice note"
+                last.isMine -> "بعتّ تسجيل صوتي"
+                conversation.isGroup -> "${last.sender.name.ifBlank { last.sender.username }} بعت تسجيل صوتي"
+                else -> "تسجيل صوتي"
             }
-            else -> "Open conversation"
+            else -> "افتح المحادثة"
         }
     }
     val avatarSource = if (conversation.isGroup) {
@@ -429,13 +429,13 @@ private fun ConversationRow(
             .fillMaxWidth()
             .semantics {
                 stateDescription = if (hasUnread) {
-                    "${conversation.unreadCount} unread"
+                    "${conversation.unreadCount} غير مقروءة"
                 } else {
-                    "Read"
+                    "مقروءة"
                 }
             },
-        shape = RoundedCornerShape(0.dp),
-        color = if (hasUnread) NovaAccentSoft.copy(alpha = 0.56f) else NovaBackground,
+        shape = RoundedCornerShape(18.dp),
+        color = if (hasUnread) NovaAccentSoft.copy(alpha = 0.70f) else NovaSurface,
     ) {
         Column {
             Row(
@@ -469,7 +469,7 @@ private fun ConversationRow(
                         if (conversation.isGroup) {
                             NovaIcon(
                                 asset = NovaIconAsset.Group,
-                                contentDescription = "Group conversation",
+                                contentDescription = "محادثة جماعية",
                                 modifier = Modifier.size(16.dp),
                                 tint = NovaMuted,
                             )
@@ -511,7 +511,6 @@ private fun ConversationRow(
                     }
                 }
             }
-            HorizontalDivider(color = NovaBorder.copy(alpha = 0.72f))
         }
     }
 }

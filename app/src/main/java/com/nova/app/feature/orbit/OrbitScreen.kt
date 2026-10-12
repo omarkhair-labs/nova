@@ -82,10 +82,10 @@ private enum class CircleSection(val label: String) {
 }
 
 private enum class OrbitFilter(val label: String) {
-    All("All"),
-    Posts("Posts"),
-    People("People"),
-    Pulse("Pulse"),
+    All("الكل"),
+    Posts("المنشورات"),
+    People("الناس"),
+    Pulse("اللحظات"),
 }
 
 
@@ -154,7 +154,7 @@ fun OrbitScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("CIRCLE / الدائرة", color = NovaAccent, style = NovaType.micro)
+                        Text("PEOPLE × PLANTS / الدائرة", color = NovaAccent, style = NovaType.micro)
                         Text("اللي بين الناس والنباتات", color = NovaInk, style = NovaType.pageTitle)
                         Text(
                             "أسئلة حقيقية، لحظات موثّقة، وناس بتشارك خبرتها.",
@@ -303,27 +303,27 @@ fun OrbitScreen(
 
             when {
                 state.loading && state.events.isEmpty() -> item {
-                    NovaLoadingState(message = "Waking your orbit…")
+                    NovaLoadingState(message = "بنجهّز لحظات الناس…")
                 }
 
                 state.events.isEmpty() -> item {
                     NovaEmptyState(
-                        title = "Your circle is quiet",
-                        message = "Discover people and their real activity will gather here.",
-                        actionLabel = "Discover people",
+                        title = "الدائرة لسه هادية",
+                        message = "اكتشف ناس جديدة، ولما يشاركوا حاجة هتظهر هنا.",
+                        actionLabel = "اكتشف الناس",
                         onAction = onDiscoveryClick,
                     )
                 }
 
                 filteredEvents.isEmpty() && state.nextCursor != null -> item {
                     LaunchedEffect(selectedFilter, state.nextCursor) { owner.loadMore() }
-                    NovaInlineLoading(message = "Looking deeper in your orbit…")
+                    NovaInlineLoading(message = "بندور على لحظات أقدم…")
                 }
 
                 filteredEvents.isEmpty() -> item {
                     NovaEmptyState(
-                        title = "Nothing in ${selectedFilter.label.lowercase()} yet",
-                        message = "Your relationship activity will gather here as it happens.",
+                        title = "مفيش نشاط في ${selectedFilter.label} لسه",
+                        message = "أي لحظات حقيقية من الناس اللي بتتابعهم هتظهر هنا.",
                     )
                 }
 
@@ -334,9 +334,9 @@ fun OrbitScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("People in your circle", color = NovaInk, style = NovaType.sectionTitle)
+                            Text("ناس في دايرتك", color = NovaInk, style = NovaType.sectionTitle)
                             Text(
-                                if (state.loading) "Refreshing…" else "${filteredEvents.size} moments",
+                                if (state.loading) "تحديث…" else "${filteredEvents.size} لحظة",
                                 color = NovaMuted,
                                 style = NovaType.micro,
                             )
@@ -360,7 +360,7 @@ fun OrbitScreen(
                     if (state.nextCursor != null) {
                         item(key = "orbit-next-${state.nextCursor}") {
                             LaunchedEffect(state.nextCursor) { owner.loadMore() }
-                            NovaInlineLoading(message = "Loading more orbit activity…")
+                            NovaInlineLoading(message = "بنحمّل لحظات أقدم…")
                         }
                     }
                 }
@@ -409,8 +409,8 @@ private fun OrbitPersonDetailDialog(
     onDismiss: () -> Unit,
     onOpenProfile: () -> Unit,
 ) {
-    val night = Color(0xFF080B17)
-    val panel = Color(0xFF12172A)
+    val night = Color(0xFF102E24)
+    val panel = Color(0xFF204838)
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -424,13 +424,13 @@ private fun OrbitPersonDetailDialog(
                 Surface(onClick = onDismiss, shape = CircleShape, color = panel) {
                     NovaIcon(
                         asset = NovaIconAsset.Back,
-                        contentDescription = "Back",
+                        contentDescription = "رجوع",
                         modifier = Modifier.padding(10.dp).size(22.dp),
                         tint = Color.White,
                     )
                 }
                 Spacer(modifier = Modifier.weight(1f))
-                Text("Circle Activity", color = Color.White, style = NovaType.sectionTitle)
+                Text("نشاط الدائرة", color = Color.White, style = NovaType.sectionTitle)
                 Spacer(modifier = Modifier.weight(1f))
                 Spacer(modifier = Modifier.size(42.dp))
             }
@@ -438,7 +438,7 @@ private fun OrbitPersonDetailDialog(
                 NovaAvatar(source = avatarUrl, fallbackText = name, size = 92.dp)
             }
             Text(name, color = Color.White, style = NovaType.pageTitle)
-            Text("@$username · ${events.size} shared moments", color = Color(0xFFB8C0D8), style = NovaType.bodyCompact)
+            Text("@$username · ${events.size} لحظة مشتركة", color = Color(0xFFC8DCCF), style = NovaType.bodyCompact)
             Surface(
                 onClick = onOpenProfile,
                 modifier = Modifier.fillMaxWidth(),
@@ -446,7 +446,7 @@ private fun OrbitPersonDetailDialog(
                 color = NovaAccent,
             ) {
                 Text(
-                    "Open profile · message or call",
+                    "افتح البروفايل والتواصل",
                     modifier = Modifier.padding(13.dp),
                     color = Color.White,
                     style = NovaType.label,
@@ -460,9 +460,9 @@ private fun OrbitPersonDetailDialog(
                     Surface(modifier = Modifier.fillMaxWidth(), shape = androidx.compose.material3.MaterialTheme.shapes.medium, color = panel) {
                         Column(Modifier.padding(14.dp)) {
                             Text(orbitActionText(event), color = Color.White, style = NovaType.bodyCompact)
-                            orbitContextText(event)?.let { Text(it, color = Color(0xFF9AA5C4), style = NovaType.micro) }
+                            orbitContextText(event)?.let { Text(it, color = Color(0xFFC8DCCF), style = NovaType.micro) }
                             if (event.pulse != null) {
-                                Text("LIVE IN YOUR ORBIT", color = Color(0xFF22D3EE), style = NovaType.badge)
+                                Text("لحظة جارية", color = Color(0xFFACD4B5), style = NovaType.badge)
                             }
                         }
                     }
@@ -611,7 +611,7 @@ private fun OrbitActivityRow(
                 NovaMediaImage(
                     source = preview,
                     modifier = Modifier.size(54.dp),
-                    contentDescription = "Open Circle activity media",
+                    contentDescription = "صورة نشاط من الدائرة",
                 )
             } else {
                 NovaIcon(
