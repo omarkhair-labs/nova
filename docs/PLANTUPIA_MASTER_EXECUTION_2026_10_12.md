@@ -2,7 +2,7 @@
 
 **Prepared:** 2026-10-12
 **Branch:** `experiment/plantupia-care-create-native-20261012` based on the unchanged draft Plantupia PR #240 (`bf26a05`).
-**Status:** Implementation in progress / source committed / **CI + device QA NOT RUN**.
+**Status:** Native source committed; **isolated GitHub Actions run 38195855956 SUCCESS** on commit `1844651d51f59f72923da637142763cee8a42a45` (Backend tests + Android unit tests + lint + QA APK + release/App Bundle). **Real-device QA, production/preview deployment isolation and live AI activation still NOT verified.**
 **Truth:** No production, Play or main branch deployment is authorized. *Do not merge or preview-deploy until backend environment/database/media isolation has been verified.*
 
 ## 1. Why this approach exists
@@ -104,3 +104,16 @@ Writing a branch is not delivering a verified APK. The user asked for the entire
 - Source company-approved service, brand/photography facts before B2B and company-specific AI answers; design website as a separate workstream.
 
 **Status snapshot**: Source committed; no production or release action; CI and APK test outstanding at time of writing.
+
+
+## 8. Automated verification performed 2026-10-12
+
+- **CI run:** https://github.com/omarkhair-labs/nova/actions/runs/38195855956
+- **Backend job:** SUCCESS (Django checks, no pending migrations, all backend tests including AI privacy and forbidden user context).
+- **Android job:** SUCCESS (design and network architecture checks, Kotlin unit tests, release lint, debug and separate QA APK, instrumentation APK assembly, release APK and bundle assembly).
+- **QA artifact:** GitHub artifact `plantupia-qa-pr240-apk`, id `11723278215`, size of raw `app-qa.apk` 69,837,276 bytes (QA application id remains separate from original Nova).
+- **Artifact integrity checked locally:** ZIP archive validated; `AndroidManifest.xml` and 21 dex files present; SHA256 `d7b1eb9daa6078c48452494c35bd9340b492dc0d5b9372078d0e4f17784aad13`.
+- **Not tested:** real Android install, authentication against real isolated preview, functional Stories/Inbox and data persistence on-device, actual AI inference (the existing PR #240 backend preview does not contain the new AI endpoint or its API key), approved visual/brand review.
+- **Deployment safety:** no new preview, no database migration and no Play deployment performed. Before test-enabling AI in Coolify, verify preview DB/media/environment isolation.
+
+A successful CI **does not** close the full product or authorize release. Product owner still needs to review integrated native feel against the HTML design study and original Nova.
