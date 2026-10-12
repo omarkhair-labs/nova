@@ -112,7 +112,11 @@ class NovaApiClient(
             connection = (URL(baseUrl + path).openConnection() as HttpURLConnection).apply {
                 requestMethod = method
                 connectTimeout = 10_000
-                readTimeout = readTimeoutMillis.coerceIn(1_000, 30_000)
+                // Preserve Nova's established 10s JSON behavior by default.
+                readTimeout = 10_000
+                if (readTimeoutMillis != 10_000) {
+                    readTimeout = readTimeoutMillis.coerceIn(10_000, 30_000)
+                }
                 setRequestProperty("Accept", "application/json")
                 bearerToken?.let { setRequestProperty("Authorization", "Bearer $it") }
 
