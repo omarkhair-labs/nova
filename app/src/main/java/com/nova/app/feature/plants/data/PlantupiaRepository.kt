@@ -100,6 +100,7 @@ class PlantupiaRepository(context: Context) {
             method = "POST",
             body = payload,
             bearerToken = token,
+            readTimeoutMillis = 26_000,
         )) {
             is ApiResult.Failure -> response
             is ApiResult.Success -> {
