@@ -1,6 +1,8 @@
 package com.nova.app.feature.plants
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -24,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -74,6 +78,10 @@ internal fun PlantupiaAssistantSheet(
     var error by remember { mutableStateOf<String?>(null) }
     var bubbles by remember(plant.id) { mutableStateOf(emptyList<CareChatBubble>()) }
     val scope = rememberCoroutineScope()
+    val chatListState = rememberLazyListState()
+    LaunchedEffect(bubbles.size) {
+        if (bubbles.isNotEmpty()) chatListState.animateScrollToItem(bubbles.lastIndex)
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -81,7 +89,7 @@ internal fun PlantupiaAssistantSheet(
         containerColor = paper,
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().imePadding().padding(horizontal = 20.dp),
+            modifier = Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(13.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -115,6 +123,7 @@ internal fun PlantupiaAssistantSheet(
                     }
                     Switch(
                         checked = includeContext,
+                        enabled = !pending,
                         onCheckedChange = {
                             includeContext = it
                             // Do not replay a previous AI answer containing plant details
@@ -126,6 +135,7 @@ internal fun PlantupiaAssistantSheet(
                 }
             }
             LazyColumn(
+                state = chatListState,
                 modifier = Modifier.fillMaxWidth().height(215.dp),
                 verticalArrangement = Arrangement.spacedBy(9.dp),
                 reverseLayout = false,
