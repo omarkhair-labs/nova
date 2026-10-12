@@ -67,6 +67,7 @@ import com.nova.app.ui.theme.NovaType
 import com.nova.app.feature.plants.PlantupiaCirclePanel
 import com.nova.app.feature.plants.PlantupiaCreateIntent
 import com.nova.app.feature.plants.PlantupiaCreateMode
+import com.nova.app.feature.stories.StoriesRail
 import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.ui.components.NovaUnreadDot
@@ -255,6 +256,17 @@ fun OrbitScreen(
                     }
                 }
             } else {
+            // Real Nova Stories are rendered through their existing authenticated
+            // StoriesRepository, upload/viewer/audience/media engine, not demo content.
+            // A Story is public and temporary; it never becomes a private care event.
+            item(key = "plantupia-real-stories") {
+                StoriesRail(
+                    displayName = displayName,
+                    username = username,
+                    avatarUrl = avatarUrl,
+                    onSessionExpired = onSessionExpired,
+                )
+            }
             item {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm)) {
                     items(OrbitFilter.entries) { filter ->
