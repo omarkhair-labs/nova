@@ -46,6 +46,26 @@ object NovaRootNavigationSignal {
     var pendingTonight by mutableStateOf(false)
         private set
 
+    var assistantRequestVersion by mutableIntStateOf(0)
+        private set
+
+    var pendingAssistant by mutableStateOf(false)
+        private set
+
+    var pendingAssistantPlantId by mutableStateOf<String?>(null)
+        private set
+
+    fun requestAssistant(plantId: String?) {
+        pendingAssistantPlantId = plantId
+        pendingAssistant = true
+        assistantRequestVersion += 1
+    }
+
+    fun consumeAssistant() {
+        pendingAssistant = false
+        pendingAssistantPlantId = null
+    }
+
     var personRequestVersion by mutableIntStateOf(0)
         private set
 

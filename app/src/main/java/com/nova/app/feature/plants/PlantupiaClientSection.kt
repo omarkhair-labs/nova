@@ -495,6 +495,10 @@ fun PlantupiaClientSection(
             Text(selectedPlant.name, fontFamily = FontFamily.Serif, fontSize = 35.sp, color = deepGreen)
             val meta = listOf(selectedPlant.species, selectedPlant.placement).filter(String::isNotBlank).joinToString(" · ")
             if (meta.isNotBlank()) Text(meta, fontSize = 13.sp, color = muted)
+            OutlinedButton(
+                onClick = { com.nova.app.navigation.NovaRootNavigationSignal.requestAssistant(selectedPlant.id) },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("✦ اسأل مساعد Plantupia عن النبات", color = deepGreen) }
 
             if (openDetailMode == PlantupiaCreateMode.QUESTION) {
                 PlantupiaQuestionsPanel(

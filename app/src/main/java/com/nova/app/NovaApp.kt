@@ -37,6 +37,7 @@ import com.nova.app.feature.create.CreateHubScreen
 import com.nova.app.feature.feed.FeedStateOwner
 import com.nova.app.feature.home.HomeScreen
 import com.nova.app.feature.plants.PlantupiaCareHub
+import com.nova.app.feature.plants.PlantupiaAssistantScreen
 import com.nova.app.feature.legal.PrivacyScreen
 import com.nova.app.feature.legal.TermsScreen
 import com.nova.app.feature.onboarding.ProfileSetupScreen
@@ -96,6 +97,7 @@ fun NovaApp(
     val rootRequestVersion = NovaRootNavigationSignal.requestVersion
     val tonightRequestVersion = NovaRootNavigationSignal.tonightRequestVersion
     val personRequestVersion = NovaRootNavigationSignal.personRequestVersion
+    val assistantRequestVersion = NovaRootNavigationSignal.assistantRequestVersion
 
     var pendingEmail by remember { mutableStateOf("") }
     var pendingPassword by remember { mutableStateOf("") }
@@ -158,6 +160,13 @@ fun NovaApp(
         if (appState.currentUser == null) return@LaunchedEffect
         openRoot(requested)
         NovaRootNavigationSignal.consume(requested)
+    }
+
+    LaunchedEffect(assistantRequestVersion, appState.currentUser?.id) {
+        if (NovaRootNavigationSignal.pendingAssistant && appState.currentUser != null) {
+            backStack.add(NovaRoute.Assistant(NovaRootNavigationSignal.pendingAssistantPlantId))
+            NovaRootNavigationSignal.consumeAssistant()
+        }
     }
 
     LaunchedEffect(tonightRequestVersion, appState.currentUser?.id) {
@@ -449,6 +458,13 @@ fun NovaApp(
 
                 NovaRoute.Care -> NavEntry(route) {
                     PlantupiaCareHub()
+                }
+
+                is NovaRoute.Assistant -> NavEntry(route) {
+                    PlantupiaAssistantScreen(
+                        plantId = route.plantId,
+                        onBack = { backStack.removeLastOrNull() },
+                    )
                 }
 
                 NovaRoute.Orbit -> NavEntry(route) {

@@ -9,6 +9,7 @@ sealed interface NovaRoute {
     data object ProfileSetup : NovaRoute
     data object Home : NovaRoute
     data object Care : NovaRoute
+    data class Assistant(val plantId: String?) : NovaRoute
     data object Orbit : NovaRoute
     data object Create : NovaRoute
     data object Pulse : NovaRoute

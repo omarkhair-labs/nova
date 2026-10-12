@@ -443,6 +443,28 @@ class PlantupiaRepository(context: Context) {
             }
         }
 
+    /** Server-side model only: no AI API key or private plant cache in the APK. */
+    suspend fun askAssistant(
+        question: String,
+        plantId: String?,
+        includePlantContext: Boolean,
+    ): ApiResult<String> = authorized { token ->
+        when (val result = api.requestJson(
+            path = "plantupia/assistant/ask/",
+            method = "POST",
+            body = JSONObject()
+                .put("message", question.take(1200))
+                .put("include_plant_context", includePlantContext && plantId != null)
+                .put("plant_id", plantId ?: ""),
+            bearerToken = token,
+        )) {
+            is ApiResult.Failure -> result
+            is ApiResult.Success -> result.value.optString("answer").takeIf(String::isNotBlank)
+                ?.let { ApiResult.Success(it) }
+                ?: ApiResult.Failure("المساعد لم يُرجع إجابة واضحة. حاول تاني.")
+        }
+    }
+
     private suspend fun <T> parseList(
         path: String,
         bearer: String,

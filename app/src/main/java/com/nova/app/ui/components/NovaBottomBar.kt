@@ -91,6 +91,10 @@ fun NovaBottomBar(
                     PlantupiaCreateIntent.request(PlantupiaCreateMode.QUESTION)
                     onHomeClick()
                 }
+                QuickCreateAction("اسأل مساعد Plantupia", "إرشاد عام؛ اختار نباتك لسياق أدق", NovaIconAsset.Info) {
+                    showQuickCreate = false
+                    NovaRootNavigationSignal.requestAssistant(null)
+                }
                 HorizontalDivider(color = NovaMuted.copy(alpha = 0.2f))
                 QuickCreateAction("Story، فيديو، أو منشور", "استخدم أدوات Nova الاجتماعية", NovaIconAsset.Story) {
                     showQuickCreate = false
