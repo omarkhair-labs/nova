@@ -180,7 +180,7 @@ fun PlantupiaClientSection(
 
     LaunchedEffect(Unit) { refresh() }
     LaunchedEffect(PlantupiaCreateIntent.pending, plants, loading) {
-        if (!loading && PlantupiaCreateIntent.pending != null) {
+        if (!loading && PlantupiaCreateIntent.pending.needsPlantSelection()) {
             val available = plants.filter { it.active }
             if (available.size == 1) openPlant(available.first())
         }
@@ -202,7 +202,7 @@ fun PlantupiaClientSection(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         if (selectedPlant == null) {
-            if (PlantupiaCreateIntent.pending != null) {
+            if (PlantupiaCreateIntent.pending.needsPlantSelection()) {
                 PlantupiaPanel {
                     Text(
                         if (PlantupiaCreateIntent.pending == PlantupiaCreateMode.QUESTION)
@@ -250,6 +250,9 @@ fun PlantupiaClientSection(
                 spaces = spaces,
                 repository = repository,
                 onCreated = { scope.launch { refresh() } },
+                enabled = !loading && error == null,
+                creationRequest = PlantupiaCreateIntent.pending,
+                onRequestConsumed = { PlantupiaCreateIntent.clear() },
             )
             if (loading) {
                 Text("جارٍ تحميل مساحتك…", color = muted, fontSize = 13.sp)
