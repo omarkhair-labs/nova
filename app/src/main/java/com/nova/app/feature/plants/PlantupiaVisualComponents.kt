@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.nova.app.feature.plants.data.PlantupiaCareAction
+import com.nova.app.feature.plants.data.PlantupiaCareEvent
 import com.nova.app.feature.plants.data.PlantupiaPlant
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
@@ -233,6 +234,81 @@ internal fun PlantupiaPlantInventoryCard(
                 modifier = Modifier.size(20.dp),
                 tint = ink,
             )
+        }
+    }
+}
+
+
+/**
+ * A genuine dated record, not an AI health score. Photo, note, and source are
+ * taken from the authenticated PlantEvent response. Used by the real history UI.
+ */
+@Composable
+internal fun PlantupiaHistoryEventCard(
+    event: PlantupiaCareEvent,
+    title: String,
+    evidenceLabel: String,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = paper,
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, border),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(13.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(9.dp),
+            ) {
+                Surface(shape = RoundedCornerShape(8.dp), color = soft) {
+                    NovaIcon(
+                        asset = when (event.kind) {
+                            "care" -> NovaIconAsset.Check
+                            "issue" -> NovaIconAsset.Info
+                            "outcome" -> NovaIconAsset.Refresh
+                            else -> NovaIconAsset.Photo
+                        },
+                        contentDescription = null,
+                        modifier = Modifier.padding(8.dp).size(19.dp),
+                        tint = ink,
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(title, color = ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text(event.observedAt.take(10), color = muted, fontSize = 11.sp)
+                }
+            }
+            if (event.photoUrl.isNotBlank()) {
+                AsyncImage(
+                    model = event.photoUrl,
+                    contentDescription = "الصورة الحقيقية المرفوعة مع هذا الحدث",
+                    modifier = Modifier.fillMaxWidth()
+                        .height(198.dp),
+                    contentScale = ContentScale.Crop,
+                )
+            }
+            if (event.note.isNotBlank()) {
+                Text(event.note, color = ink, fontSize = 13.sp, lineHeight = 20.sp)
+            } else {
+                Text("حدث رعاية مسجل", color = muted, fontSize = 12.sp)
+            }
+            Text(
+                "المصدر: " + evidenceLabel,
+                color = muted, fontSize = 11.sp,
+            )
+            if (event.followUpOn.isNotBlank()) {
+                Surface(color = soft, shape = RoundedCornerShape(9.dp)) {
+                    Text(
+                        if (event.followUpCompletedAt.isNotBlank()) "تمت المراجعة · " + event.followUpOn
+                        else "راجع النتيجة يوم " + event.followUpOn,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        color = ink, fontWeight = FontWeight.Medium, fontSize = 11.sp,
+                    )
+                }
+            }
         }
     }
 }
