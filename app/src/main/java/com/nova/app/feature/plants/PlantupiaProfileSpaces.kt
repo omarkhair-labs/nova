@@ -59,55 +59,45 @@ fun PlantupiaProfileSpaces(onOpenSpaces: () -> Unit) {
     // misleading demo space, fabricated count, or raw HTML error.
     if (!available || spaces.isEmpty()) return
 
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(
-            "PRIVATE / مساحاتك الخاصة",
-            color = pine,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = 1.4.sp,
+    val live = plants.filter { it.active }
+    val featured = spaces.first()
+    val portrait = live.firstOrNull {
+        it.spaceId == featured.id && it.coverPhoto.isNotBlank()
+    }?.coverPhoto.orEmpty()
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        PlantupiaSectionHeader(
+            eyebrow = "PRIVATE / YOUR SPACES",
+            title = "مساحاتك الخاصة",
+            description = "تاريخ النباتات والرعاية ظاهر ليك وللناس المصرّح لهم فقط.",
         )
-        Surface(
-            onClick = onOpenSpaces,
-            color = sage,
-            shape = RoundedCornerShape(20.dp),
-            border = BorderStroke(1.dp, Color(0xFFC6D4C5)),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    "المكان اللي بتشارك في رعايته",
-                    color = pine,
-                    fontFamily = FontFamily.Serif,
-                    fontSize = 24.sp,
-                    lineHeight = 29.sp,
-                )
-                val live = plants.filter { it.active }
-                Text(
-                    "${spaces.size} مساحة · ${live.size} وحدة نباتية",
-                    color = Color(0xFF4D6654),
-                    fontSize = 12.sp,
-                )
-                val image = live.firstOrNull { it.coverPhoto.isNotBlank() }?.coverPhoto
-                if (image != null) {
-                    AsyncImage(
-                        model = image,
-                        contentDescription = "صورة من نباتات مساحاتك",
-                        modifier = Modifier.fillMaxWidth().height(150.dp),
-                        contentScale = ContentScale.Crop,
-                    )
+        PlantupiaSpaceHero(
+            name = featured.name,
+            plantCount = live.count { it.spaceId == featured.id },
+            imageUrl = portrait,
+            location = featured.location,
+            onOpen = onOpenSpaces,
+        )
+        Row(modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            Surface(color = PlantupiaVisual.mint, shape = RoundedCornerShape(15.dp),
+                modifier = Modifier.weight(1f), onClick = onOpenSpaces) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text("${spaces.size}", color = PlantupiaVisual.ink,
+                        fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                    Text("مساحات", color = PlantupiaVisual.muted, fontSize = 12.sp)
                 }
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(spaces.first().name, color = pine, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                    Text("افتح مساحاتك ←", color = pine, fontSize = 13.sp)
+            }
+            Surface(color = PlantupiaVisual.mint, shape = RoundedCornerShape(15.dp),
+                modifier = Modifier.weight(1f), onClick = onOpenSpaces) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text("${live.size}", color = PlantupiaVisual.ink,
+                        fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                    Text("نباتات", color = PlantupiaVisual.muted, fontSize = 12.sp)
                 }
             }
         }
-        Text(
-            "السجل والرعاية خاصين بأعضاء المساحة المصرح لهم، مش جزء من البروفايل العام.",
-            color = Color(0xFF62736A),
-            fontSize = 11.sp,
-            lineHeight = 17.sp,
-        )
+        Text("البروفايل العام ومنشورات الدائرة مش بيعرضوا الصور أو الملاحظات الخاصة تلقائيًا.",
+            color = PlantupiaVisual.muted, fontSize = 12.sp, lineHeight = 18.sp)
     }
+
 }
