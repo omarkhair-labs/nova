@@ -68,15 +68,15 @@ private data class CareChatBubble(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PlantupiaAssistantSheet(
-    plant: PlantupiaPlant,
+    plant: PlantupiaPlant?,
     repository: PlantupiaRepository,
     onDismiss: () -> Unit,
 ) {
-    var input by remember(plant.id) { mutableStateOf("") }
-    var includeContext by remember(plant.id) { mutableStateOf(false) }
+    var input by remember(plant?.id) { mutableStateOf("") }
+    var includeContext by remember(plant?.id) { mutableStateOf(false) }
     var pending by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    var bubbles by remember(plant.id) { mutableStateOf(emptyList<CareChatBubble>()) }
+    var bubbles by remember(plant?.id) { mutableStateOf(emptyList<CareChatBubble>()) }
     val scope = rememberCoroutineScope()
     val chatListState = rememberLazyListState()
     LaunchedEffect(bubbles.size) {
@@ -98,13 +98,13 @@ internal fun PlantupiaAssistantSheet(
                     contentDescription = null,
                     tint = forest,
                 )
-                Text("اسأل عن " + plant.name, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = forest)
+                Text(if (plant == null) "اسأل مساعد Plantupia" else "اسأل عن " + plant.name, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = forest)
             }
             Text(
                 "مساعد نباتات بالذكاء الاصطناعي. بيقترح أسئلة وفحوصات، مش تشخيص مؤكد أو خدمة دعم من الشركة.",
                 fontSize = 12.sp, color = muted, lineHeight = 20.sp,
             )
-            Surface(
+            if (plant != null) Surface(
                 color = mist,
                 shape = RoundedCornerShape(15.dp),
                 border = BorderStroke(1.dp, Color(0xFFD4DFD1)),
@@ -177,7 +177,7 @@ internal fun PlantupiaAssistantSheet(
             OutlinedTextField(
                 value = input,
                 onValueChange = { input = it.take(1000) },
-                label = { Text("اسأل عن النبات…") },
+                label = { Text(if (plant == null) "اسأل عن أي نبات…" else "اسأل عن النبات…") },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !pending,
                 minLines = 2,
@@ -212,8 +212,8 @@ internal fun PlantupiaAssistantSheet(
                         scope.launch {
                             when (val result = repository.askAssistant(
                                 message = question,
-                                plantId = plant.id,
-                                includeContext = consent,
+                                plantId = plant?.id,
+                                includeContext = consent && plant != null,
                                 conversation = dialogue,
                             )) {
                                 is ApiResult.Success -> {
