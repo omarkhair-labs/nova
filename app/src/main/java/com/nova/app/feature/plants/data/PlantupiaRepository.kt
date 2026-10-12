@@ -36,6 +36,14 @@ data class PlantupiaPlant(
     val nextFollowUpOn: String = "",
 )
 
+/** An actual server-generated answer. No scripted/mock reply is used in the UI. */
+data class PlantupiaAssistantReply(
+    val answer: String,
+    val scope: String,
+    val uncertainty: String,
+    val sourceLinks: List<String>,
+)
+
 data class PlantupiaHistoryPage(val events: List<PlantupiaCareEvent>, val nextOffset: Int?)
 
 data class PlantupiaCareEvent(
@@ -76,6 +84,48 @@ class PlantupiaRepository(context: Context) {
     private val appContext = context.applicationContext
     private val sessionStore = NovaSessionStore(appContext)
     private val api = NovaApiClient(NovaMessagingRepository.PRODUCTION_API_URL)
+
+    /** The AI key lives server-side; private plant context is opt-in per request. */
+    suspend fun askAssistant(
+        message: String,
+        plantId: String? = null,
+        includeContext: Boolean = false,
+    ): ApiResult<PlantupiaAssistantReply> = authorized { token ->
+        val payload = JSONObject()
+            .put("message", message.trim())
+            .put("include_my_plant_context", includeContext)
+        if (!plantId.isNullOrBlank()) payload.put("plant_id", plantId)
+        when (val response = api.requestJson(
+            path = "plantupia/assistant/ask/",
+            method = "POST",
+            body = payload,
+            bearerToken = token,
+        )) {
+            is ApiResult.Failure -> response
+            is ApiResult.Success -> {
+                val json = response.value
+                val answer = json.optString("answer").trim()
+                if (answer.isEmpty()) {
+                    ApiResult.Failure("المساعد رجّع رد غير مكتمل. حاول تاني.")
+                } else {
+                    val sources = json.optJSONArray("source_links")
+                    ApiResult.Success(
+                        PlantupiaAssistantReply(
+                            answer = answer,
+                            scope = json.optString("scope", "general"),
+                            uncertainty = json.optString("uncertainty"),
+                            sourceLinks = buildList {
+                                if (sources != null) for (i in 0 until sources.length()) {
+                                    val url = sources.optString(i)
+                                    if (url.startsWith("https://")) add(url)
+                                }
+                            },
+                        )
+                    )
+                }
+            }
+        }
+    }
 
     /** A new user's first space is owned by that user, not a company admin. */
     suspend fun createSpace(name: String, description: String, location: String): ApiResult<String> =
