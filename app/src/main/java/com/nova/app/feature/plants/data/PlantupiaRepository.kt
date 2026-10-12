@@ -19,6 +19,7 @@ data class PlantupiaSpace(
     val name: String,
     val description: String,
     val location: String,
+    val canAddPlant: Boolean = false,
 )
 
 data class PlantupiaPlant(
@@ -239,6 +240,7 @@ class PlantupiaRepository(context: Context) {
                     name = raw.optString("name"),
                     description = raw.optString("description"),
                     location = raw.optString("location_note"),
+                    canAddPlant = raw.optBoolean("can_add_plant", false),
                 )
             }
         }
