@@ -104,6 +104,7 @@ class NovaApiClient(
         method: String = "GET",
         body: JSONObject? = null,
         bearerToken: String? = null,
+        readTimeoutMillis: Int = 10_000,
     ): ApiResult<JSONObject> = withContext(Dispatchers.IO) {
         var connection: HttpURLConnection? = null
 
@@ -111,7 +112,7 @@ class NovaApiClient(
             connection = (URL(baseUrl + path).openConnection() as HttpURLConnection).apply {
                 requestMethod = method
                 connectTimeout = 10_000
-                readTimeout = 10_000
+                readTimeout = readTimeoutMillis.coerceIn(1_000, 30_000)
                 setRequestProperty("Accept", "application/json")
                 bearerToken?.let { setRequestProperty("Authorization", "Bearer $it") }
 
