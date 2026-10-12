@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -138,8 +137,8 @@ internal fun PlantupiaAssistantSheet(
                     ) {
                         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                             Text(
-                                if (item.fromUser) "سؤالك" else "إجابة AI · " +
-                                    if (item.scope == "plant_context") "مع بيانات النبات" else "معلومات عامة",
+                                text = if (item.fromUser) "سؤالك" else
+                                    "إجابة AI · " + (if (item.scope == "plant_context") "مع بيانات النبات" else "معلومات عامة"),
                                 color = forest, fontSize = 11.sp, fontWeight = FontWeight.Bold,
                             )
                             Text(item.text, color = forest, fontSize = 13.sp, lineHeight = 21.sp)
