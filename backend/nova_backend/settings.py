@@ -179,6 +179,10 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "accounts.User"
 
 REST_FRAMEWORK = {
+    "DEFAULT_THROTTLE_RATES": {
+        "plantupia_ai_burst": os.getenv("PLANTUPIA_AI_BURST_LIMIT", "8/min"),
+        "plantupia_ai_daily": os.getenv("PLANTUPIA_AI_DAILY_LIMIT", "50/day"),
+    },
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "accounts.auth.jwt_auth.NovaJWTAuthentication",
     ),
