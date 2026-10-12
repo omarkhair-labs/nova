@@ -65,6 +65,8 @@ fun PlantupiaSelfServiceForms(
     var species by remember { mutableStateOf("") }
     var placement by remember { mutableStateOf("") }
     var selectedSpaceId by remember { mutableStateOf<String?>(null) }
+    // The newly returned UUID is authorized, but may precede the refreshing list.
+    var justCreatedSpace by remember { mutableStateOf<Pair<String, String>?>(null) }
     var spaceMenuOpen by remember { mutableStateOf(false) }
     var plantPhoto by remember { mutableStateOf<Uri?>(null) }
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {
@@ -72,11 +74,16 @@ fun PlantupiaSelfServiceForms(
     }
 
     LaunchedEffect(spaces) {
-        if (spaces.any { it.id == selectedSpaceId } &&
+        if (justCreatedSpace != null &&
+            writableSpaces.any { it.id == justCreatedSpace?.first }
+        ) {
+            justCreatedSpace = null
+        }
+        // Do not keep a revoked/stale space selection. The only temporary
+        // exception is the UUID from a just-successful createSpace response.
+        if (selectedSpaceId != justCreatedSpace?.first &&
             writableSpaces.none { it.id == selectedSpaceId }
         ) {
-            selectedSpaceId = writableSpaces.firstOrNull()?.id
-        } else if (selectedSpaceId == null) {
             selectedSpaceId = writableSpaces.firstOrNull()?.id
         }
     }
@@ -173,6 +180,7 @@ fun PlantupiaSelfServiceForms(
                                         is ApiResult.Failure -> error = result.message
                                         is ApiResult.Success -> {
                                             selectedSpaceId = result.value
+                                            justCreatedSpace = result.value to spaceName.trim()
                                             spaceOpen = false
                                             plantOpen = true
                                             spaceName = ""
@@ -205,7 +213,8 @@ fun PlantupiaSelfServiceForms(
                     ) {
                         Text(
                             writableSpaces.firstOrNull { it.id == selectedSpaceId }?.name
-                                ?: if (selectedSpaceId != null) "المساحة الجديدة" else "اختار المساحة",
+                                ?: justCreatedSpace?.takeIf { it.first == selectedSpaceId }?.second
+                                ?: "اختار المساحة",
                             color = ink,
                         )
                     }
@@ -213,6 +222,7 @@ fun PlantupiaSelfServiceForms(
                         writableSpaces.forEach { space ->
                             DropdownMenuItem(text = { Text(space.name) }, onClick = {
                                 selectedSpaceId = space.id
+                                justCreatedSpace = null
                                 spaceMenuOpen = false
                             })
                         }
