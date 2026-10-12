@@ -34,7 +34,19 @@ class SpacesView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response({"results": SpaceSerializer(accessible_spaces(request.user), many=True).data})
+        # Return create permissions in one lookup instead of one query per space.
+        # A carer can log care but cannot necessarily add a planting unit.
+        manager_space_ids = set(
+            SpaceMember.objects.filter(
+                user=request.user, role=SpaceMember.Role.MANAGER,
+            ).values_list("space_id", flat=True)
+        )
+        return Response({
+            "results": SpaceSerializer(
+                accessible_spaces(request.user), many=True,
+                context={"request": request, "manager_space_ids": manager_space_ids},
+            ).data
+        })
 
     @transaction.atomic
     def post(self, request):
@@ -43,7 +55,10 @@ class SpacesView(APIView):
         serializer = SpaceCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         space = serializer.save(owner=request.user)
-        return Response(SpaceSerializer(space).data, status=status.HTTP_201_CREATED)
+        return Response(
+            SpaceSerializer(space, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class PlantsView(APIView):
