@@ -92,6 +92,8 @@ fun PlantupiaClientSection(
     var visiblePlantCount by remember { mutableStateOf(8) }
     var events by remember { mutableStateOf<List<PlantupiaCareEvent>>(emptyList()) }
     var pendingFollowUps by remember { mutableStateOf<List<PlantupiaCareEvent>>(emptyList()) }
+    var nextPendingOffset by remember { mutableStateOf<Int?>(null) }
+    var pendingPageLoading by remember { mutableStateOf(false) }
     var followUpTarget by remember { mutableStateOf<PlantupiaCareEvent?>(null) }
     var followUpResult by remember { mutableStateOf("") }
     var checkAgainInDays by remember { mutableStateOf<Int?>(null) }
@@ -147,6 +149,7 @@ fun PlantupiaClientSection(
         followUpTarget = null
         followUpResult = ""
         pendingFollowUps = emptyList()
+        nextPendingOffset = null
         detailLoading = true
         error = null
         nextHistoryOffset = null
@@ -158,7 +161,10 @@ fun PlantupiaClientSection(
             is ApiResult.Failure -> { events = emptyList(); error = response.message }
         }
         when (val response = repository.historyPage(plant.id, pendingOnly = true)) {
-            is ApiResult.Success -> pendingFollowUps = response.value.events
+            is ApiResult.Success -> {
+                pendingFollowUps = response.value.events
+                nextPendingOffset = response.value.nextOffset
+            }
             is ApiResult.Failure -> if (error == null) error = response.message
         }
         detailLoading = false
@@ -180,7 +186,7 @@ fun PlantupiaClientSection(
 
     LaunchedEffect(Unit) { refresh() }
     LaunchedEffect(PlantupiaCreateIntent.pending, plants, loading) {
-        if (!loading && PlantupiaCreateIntent.pending.needsPlantSelection()) {
+        if (!loading && error == null && PlantupiaCreateIntent.pending.needsPlantSelection()) {
             val available = plants.filter { it.active }
             if (available.size == 1) openPlant(available.first())
         }
@@ -623,6 +629,35 @@ fun PlantupiaClientSection(
                                 Text(if (followUpTarget?.id == check.id) "إلغاء" else "سجّل نتيجة المراجعة", color = deepGreen)
                             }
                         }
+                    }
+                }
+                if (nextPendingOffset != null) {
+                    OutlinedButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !pendingPageLoading,
+                        onClick = {
+                            val offset = nextPendingOffset ?: return@OutlinedButton
+                            scope.launch {
+                                pendingPageLoading = true
+                                when (val response = repository.historyPage(
+                                    selectedPlant.id, offset = offset, pendingOnly = true,
+                                )) {
+                                    is ApiResult.Success -> {
+                                        pendingFollowUps = (pendingFollowUps + response.value.events)
+                                            .distinctBy { it.id }
+                                        nextPendingOffset = response.value.nextOffset
+                                        error = null
+                                    }
+                                    is ApiResult.Failure -> error = response.message
+                                }
+                                pendingPageLoading = false
+                            }
+                        },
+                    ) {
+                        Text(
+                            if (pendingPageLoading) "جارٍ تحميل متابعات أقدم…" else "اعرض متابعات أقدم",
+                            color = deepGreen,
+                        )
                     }
                 }
             }
