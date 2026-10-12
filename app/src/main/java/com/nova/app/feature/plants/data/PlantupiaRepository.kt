@@ -44,6 +44,8 @@ data class PlantupiaAssistantReply(
     val sourceLinks: List<String>,
 )
 
+data class PlantupiaAssistantTurn(val role: String, val content: String)
+
 data class PlantupiaHistoryPage(val events: List<PlantupiaCareEvent>, val nextOffset: Int?)
 
 data class PlantupiaCareEvent(
@@ -90,11 +92,21 @@ class PlantupiaRepository(context: Context) {
         message: String,
         plantId: String? = null,
         includeContext: Boolean = false,
+        conversation: List<PlantupiaAssistantTurn> = emptyList(),
     ): ApiResult<PlantupiaAssistantReply> = authorized { token ->
         val payload = JSONObject()
             .put("message", message.trim())
             .put("include_my_plant_context", includeContext)
         if (!plantId.isNullOrBlank()) payload.put("plant_id", plantId)
+        if (conversation.isNotEmpty()) {
+            payload.put("conversation", JSONArray().apply {
+                conversation.takeLast(8).forEach { turn ->
+                    put(JSONObject()
+                        .put("role", turn.role)
+                        .put("content", turn.content.take(1200)))
+                }
+            })
+        }
         when (val response = api.requestJson(
             path = "plantupia/assistant/ask/",
             method = "POST",
