@@ -48,6 +48,9 @@ fun PlantupiaSelfServiceForms(
     spaces: List<PlantupiaSpace>,
     repository: PlantupiaRepository,
     onCreated: () -> Unit,
+    enabled: Boolean = true,
+    creationRequest: PlantupiaCreateMode? = null,
+    onRequestConsumed: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     var spaceOpen by remember { mutableStateOf(false) }
@@ -68,8 +71,36 @@ fun PlantupiaSelfServiceForms(
     }
 
     LaunchedEffect(spaces) {
-        if (selectedSpaceId == null && spaces.isNotEmpty()) selectedSpaceId = spaces.first().id
+        if (spaces.isNotEmpty() && spaces.none { it.id == selectedSpaceId }) {
+            selectedSpaceId = spaces.first().id
+        }
     }
+
+    // On a Create → Home handoff open the real server-backed form, not a
+    // separate mock composer. A first plant requires creating a space first.
+    LaunchedEffect(creationRequest, enabled) {
+        if (enabled) {
+            when (creationRequest.creationForm(spaces.isNotEmpty())) {
+                PlantupiaCreationForm.SPACE -> {
+                    spaceOpen = true
+                    plantOpen = false
+                    error = null
+                    onRequestConsumed()
+                }
+                PlantupiaCreationForm.PLANT -> {
+                    plantOpen = true
+                    spaceOpen = false
+                    error = null
+                    onRequestConsumed()
+                }
+                PlantupiaCreationForm.NONE -> Unit
+            }
+        }
+    }
+
+    // A failed or loading API is not an empty account. Keep composable state
+    // across reloads so a newly-created space can lead into its plant editor.
+    if (!enabled) return
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (spaces.isEmpty() && !spaceOpen && !plantOpen) {
