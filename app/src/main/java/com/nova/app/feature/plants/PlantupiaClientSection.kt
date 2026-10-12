@@ -819,7 +819,8 @@ fun PlantupiaClientSection(
                                     AsyncImage(
                                         model = event.photoUrl,
                                         contentDescription = if (index == 0) "أقدم صورة مسجلة" else "أحدث صورة مسجلة",
-                                        modifier = Modifier.fillMaxWidth().height(135.dp),
+                                        modifier = Modifier.fillMaxWidth().height(135.dp)
+                                            .clickable { photoToView = event.photoUrl to selectedPlant.name },
                                         contentScale = ContentScale.Crop,
                                     )
                                     Text(
@@ -840,6 +841,11 @@ fun PlantupiaClientSection(
                     event = event,
                     title = eventLabel(event.kind),
                     evidenceLabel = evidenceLabel(event.evidence),
+                    onPhotoClick = {
+                        if (event.photoUrl.isNotBlank()) {
+                            photoToView = event.photoUrl to selectedPlant.name
+                        }
+                    },
                 )
             }
             if (nextHistoryOffset != null) {
