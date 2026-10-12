@@ -86,6 +86,7 @@ fun PlantupiaClientSection(
     var showNameEditor by remember { mutableStateOf(false) }
     var showCareEditor by remember { mutableStateOf(false) }
     var showAssistant by remember { mutableStateOf(false) }
+    var photoToView by remember { mutableStateOf<Pair<String, String>?>(null) }
     var expandedSpaceId by remember { mutableStateOf<String?>(null) }
     var plantSearch by remember { mutableStateOf("") }
     var visiblePlantCount by remember { mutableStateOf(8) }
@@ -492,7 +493,15 @@ fun PlantupiaClientSection(
                 )
             }
             if (selectedPlant.coverPhoto.isNotBlank()) {
-                AsyncImage(model = selectedPlant.coverPhoto, contentDescription = "صورة النبات", modifier = Modifier.fillMaxWidth().height(236.dp).clip(RoundedCornerShape(16.dp)), contentScale = ContentScale.Crop)
+                AsyncImage(
+                    model = selectedPlant.coverPhoto,
+                    contentDescription = "الصورة الفعلية للنبات، اضغط للتكبير",
+                    modifier = Modifier.fillMaxWidth()
+                        .height(236.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { photoToView = selectedPlant.coverPhoto to selectedPlant.name },
+                    contentScale = ContentScale.Crop,
+                )
             }
             Text(selectedPlant.name, fontFamily = FontFamily.Serif, fontSize = 35.sp, color = deepGreen)
             val meta = listOf(selectedPlant.species, selectedPlant.placement).filter(String::isNotBlank).joinToString(" · ")
@@ -878,6 +887,13 @@ fun PlantupiaClientSection(
                 lineHeight = 18.sp,
             )
         }
+    }
+    photoToView?.let { (url, plantName) ->
+        PlantupiaPhotoViewer(
+            photoUrl = url,
+            plantName = plantName,
+            onClose = { photoToView = null },
+        )
     }
     if (showAssistant) {
         selectedPlant?.let { plant ->
