@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -249,6 +250,7 @@ internal fun PlantupiaHistoryEventCard(
     event: PlantupiaCareEvent,
     title: String,
     evidenceLabel: String,
+    onPhotoClick: () -> Unit,
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -285,9 +287,10 @@ internal fun PlantupiaHistoryEventCard(
             if (event.photoUrl.isNotBlank()) {
                 AsyncImage(
                     model = event.photoUrl,
-                    contentDescription = "الصورة الحقيقية المرفوعة مع هذا الحدث",
+                    contentDescription = "الصورة الحقيقية المرفوعة مع هذا الحدث، اضغط للتكبير",
                     modifier = Modifier.fillMaxWidth()
-                        .height(198.dp),
+                        .height(198.dp)
+                        .clickable(onClick = onPhotoClick),
                     contentScale = ContentScale.Crop,
                 )
             }
