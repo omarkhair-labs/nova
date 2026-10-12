@@ -214,6 +214,15 @@ fun CreateHubScreen(
                     }
                 }
             }
+            item(key = "living-create-new-plant") {
+                CreateActionCard(
+                    CreateHubAction(
+                        title = "أضف نبات لمساحتك",
+                        subtitle = "نبات حقيقي بصورته ومكانه. لو لسه مفيش مساحة، هنبدأ بإنشائها.",
+                        icon = NovaIconAsset.Create,
+                    ) { enterPlant(PlantupiaCreateMode.ADD_PLANT) },
+                )
+            }
             item(key = "living-create-public") {
                 Column(verticalArrangement = Arrangement.spacedBy(NovaSpacing.sm)) {
                     Text("02 / THE CIRCLE · المشاركة اختيارك", color = NovaAccent, style = NovaType.micro)
