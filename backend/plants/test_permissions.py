@@ -69,6 +69,23 @@ class PlantupiaPermissionTests(TestCase):
         self.assertIn("results", response.json())
         self.assertEqual(len(response.json()["results"]), 1)
 
+    def test_space_create_permission_distinguishes_owner_manager_and_carer(self):
+        path = reverse("plantupia-spaces")
+        self.client.force_authenticate(user=self.owner)
+        owner_space = self.client.get(path).json()["results"][0]
+        self.assertTrue(owner_space["can_add_plant"])
+        membership = SpaceMember.objects.create(
+            space=self.space, user=self.stranger, role=SpaceMember.Role.VIEWER,
+        )
+        self.client.force_authenticate(user=self.stranger)
+        self.assertFalse(self.client.get(path).json()["results"][0]["can_add_plant"])
+        membership.role = SpaceMember.Role.CARER
+        membership.save(update_fields=("role",))
+        self.assertFalse(self.client.get(path).json()["results"][0]["can_add_plant"])
+        membership.role = SpaceMember.Role.MANAGER
+        membership.save(update_fields=("role",))
+        self.assertTrue(self.client.get(path).json()["results"][0]["can_add_plant"])
+
     def test_plant_list_exposes_real_latest_activity_not_predicted_health(self):
         event = PlantEvent.objects.create(
             plant=self.plant, actor=self.owner, kind=PlantEvent.Kind.ISSUE,
