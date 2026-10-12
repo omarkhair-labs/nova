@@ -156,16 +156,16 @@ fun MessagesScreen(
                     .padding(top = 22.dp),
             ) {
                 Text(
-                    text = "Inbox",
+                    text = "الرسائل",
                     color = NovaInk,
                     style = com.nova.app.ui.theme.NovaType.pageTitle,
                 )
                 Spacer(Modifier.height(3.dp))
                 Text(
                     text = when {
-                        unreadCount > 0 -> "$unreadCount unread ${if (unreadCount == 1) "conversation" else "conversations"}"
-                        conversations.isNotEmpty() -> "Pick up where you left off."
-                        else -> "All your conversations, together."
+                        unreadCount > 0 -> "عندك $unreadCount محادثات غير مقروءة"
+                        conversations.isNotEmpty() -> "كمل كلامك من آخر مرة."
+                        else -> "محادثاتك الخاصة مع الناس في مكان واحد."
                     },
                     color = NovaMuted,
                     fontSize = 13.sp,
@@ -201,14 +201,14 @@ fun MessagesScreen(
             when {
                 isLoading && conversations.isEmpty() -> {
                     NovaLoadingState(
-                        message = "Loading conversations…",
+                        message = "جارٍ تحميل المحادثات…",
                         modifier = Modifier.weight(1f),
                     )
                 }
 
                 errorMessage != null && conversations.isEmpty() -> {
                     NovaErrorState(
-                        title = "Couldn't load messages",
+                        title = "تعذّر تحميل الرسائل",
                         message = errorMessage.orEmpty(),
                         onRetry = inboxViewModel::retry,
                         modifier = Modifier
@@ -245,14 +245,14 @@ fun MessagesScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = if (query.isBlank()) "Recent" else "Results",
+                            text = if (query.isBlank()) "آخر المحادثات" else "نتائج البحث",
                             color = NovaInk,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                         )
                         Spacer(Modifier.weight(1f))
                         Text(
-                            text = "${conversations.size} loaded",
+                            text = "${conversations.size} محادثة",
                             color = NovaMuted,
                             fontSize = 11.sp,
                         )
@@ -359,7 +359,7 @@ private fun InboxSearchField(
                     Box(contentAlignment = Alignment.CenterStart) {
                         if (value.isBlank()) {
                             Text(
-                                text = "Search conversations or groups",
+                                text = "ابحث في المحادثات والمجموعات",
                                 color = NovaMuted,
                                 fontSize = 13.sp,
                             )

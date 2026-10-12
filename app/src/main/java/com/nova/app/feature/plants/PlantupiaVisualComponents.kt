@@ -104,10 +104,11 @@ internal fun PlantupiaSpaceHero(
     imageUrl: String,
     location: String,
     onOpen: () -> Unit,
+    heroHeight: androidx.compose.ui.unit.Dp = 304.dp,
 ) {
     Surface(onClick = onOpen, shape = RoundedCornerShape(27.dp),
         color = PlantupiaVisual.mint, modifier = Modifier.fillMaxWidth()) {
-        Box(Modifier.fillMaxWidth().height(304.dp)) {
+        Box(Modifier.fillMaxWidth().height(heroHeight)) {
             if (imageUrl.isNotBlank()) {
                 AsyncImage(model = imageUrl, contentDescription = "نبات حقيقي من مساحة $name",
                     modifier = Modifier.matchParentSize(), contentScale = ContentScale.Crop)

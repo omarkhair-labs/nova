@@ -3,6 +3,7 @@ package com.nova.app.feature.profile
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -18,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -26,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaOrbitRing
 import com.nova.app.ui.icons.NovaIcon
@@ -50,7 +54,7 @@ internal fun novaProfileThemePalette(theme: String): NovaProfileThemePalette = w
     "slate" -> NovaProfileThemePalette(Color(0xFF5C6875), Color(0xFFEDF0F3))
     "ink" -> NovaProfileThemePalette(Color(0xFF39343E), Color(0xFFF0EEF1))
     "black" -> NovaProfileThemePalette(Color(0xFF18171C), Color(0xFFECEBED))
-    else -> NovaProfileThemePalette(Color(0xFF6554E8), Color(0xFFF0EDFF))
+    else -> NovaProfileThemePalette(Color(0xFF153B2E), Color(0xFFE6EDE3))
 }
 
 
@@ -89,108 +93,135 @@ internal fun NovaProfileIdentity(
 
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = palette.soft,
-        shape = androidx.compose.material3.MaterialTheme.shapes.extraLarge,
+        color = Color(0xFFFFFEFA),
+        shape = RoundedCornerShape(27.dp),
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = NovaSpacing.xl, vertical = NovaSpacing.xl),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            if (showOrbit) {
-                NovaOrbitRing(
-                    modifier = Modifier.size(116.dp),
-                    color = palette.accent,
-                    rings = 2,
-                    showLivePoint = false,
-                ) {
-                    NovaAvatar(
-                        source = avatarUrl,
-                        fallbackText = displayName.ifBlank { username },
-                        size = 88.dp,
-                    )
-                }
-            } else {
-                Surface(shape = CircleShape, color = Color.Transparent) {
-                    NovaAvatar(
-                        source = avatarUrl,
-                        fallbackText = displayName.ifBlank { username },
-                        size = 88.dp,
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(NovaSpacing.md))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(NovaSpacing.xs),
+        Column {
+            // Art-directed paper/green header. Real avatar from Nova; no invented client cover.
+            Box(
+                modifier = Modifier.fillMaxWidth().height(104.dp)
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(Color(0xFFC5D9C6), Color(0xFFE6EDE3), Color(0xFFF1EEE3))
+                        )
+                    ),
             ) {
                 Text(
-                    text = displayName.ifBlank { username },
-                    color = NovaInk,
-                    style = NovaType.sectionTitle,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center,
+                    text = "PERSON / YOUR OWN WORLD",
+                    modifier = Modifier.align(Alignment.TopStart)
+                        .padding(horizontal = 20.dp, vertical = 17.dp),
+                    color = Color(0xFF365F49),
+                    style = NovaType.micro.copy(
+                        fontWeight = FontWeight.SemiBold, letterSpacing = 1.1.sp
+                    ),
                 )
-                if (isVerified) {
-                    NovaIcon(
-                        asset = NovaIconAsset.Verified,
-                        contentDescription = "Verified account",
-                        modifier = Modifier.size(18.dp),
-                        tint = palette.accent,
+                Text(
+                    text = "plantupia",
+                    modifier = Modifier.align(Alignment.BottomEnd)
+                        .padding(horizontal = 19.dp, vertical = 12.dp),
+                    style = NovaType.sectionTitle.copy(
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Serif
+                    ),
+                    color = Color(0xFF153B2E).copy(alpha = .62f),
+                )
+            }
+            Column(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
+                verticalArrangement = Arrangement.spacedBy(11.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(15.dp),
+                ) {
+                    if (showOrbit) {
+                        NovaOrbitRing(
+                            modifier = Modifier.size(91.dp),
+                            color = palette.accent,
+                            rings = 2,
+                            showLivePoint = false,
+                        ) {
+                            NovaAvatar(
+                                source = avatarUrl,
+                                fallbackText = displayName.ifBlank { username },
+                                size = 72.dp,
+                            )
+                        }
+                    } else {
+                        Surface(shape = CircleShape, color = palette.soft) {
+                            NovaAvatar(
+                                source = avatarUrl,
+                                fallbackText = displayName.ifBlank { username },
+                                size = 78.dp,
+                            )
+                        }
+                    }
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        ) {
+                            Text(
+                                text = displayName.ifBlank { username },
+                                color = Color(0xFF153B2E),
+                                style = NovaType.sectionTitle,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            if (isVerified) {
+                                NovaIcon(
+                                    asset = NovaIconAsset.Verified,
+                                    contentDescription = "حساب موثّق",
+                                    modifier = Modifier.size(18.dp),
+                                    tint = palette.accent,
+                                )
+                            }
+                        }
+                        Text(
+                            text = "@$username",
+                            color = Color(0xFF64796C),
+                            style = NovaType.bodyCompact,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = "هويتك العامة · مشاركتك باختيارك",
+                            color = Color(0xFF799A83),
+                            style = NovaType.micro,
+                        )
+                    }
+                }
+                if (bio.isNotBlank()) {
+                    Text(bio, color = Color(0xFF153B2E),
+                        style = NovaType.bodyCompact, maxLines = 5,
+                        overflow = TextOverflow.Ellipsis)
+                }
+                if (location.isNotBlank()) {
+                    ProfileMetadataRow(icon = NovaIconAsset.Location,
+                        text = location, tint = Color(0xFF64796C))
+                }
+                if (link.isNotBlank()) {
+                    ProfileMetadataRow(
+                        icon = NovaIconAsset.Link,
+                        text = link.trim(),
+                        tint = if (externalUrl != null) palette.accent else Color(0xFF64796C),
+                        modifier = if (externalUrl != null) {
+                            Modifier.sizeIn(minHeight = 48.dp)
+                                .semantics { role = Role.Button }
+                                .clickable {
+                                    runCatching { uriHandler.openUri(externalUrl) }
+                                }
+                        } else Modifier,
                     )
                 }
-            }
-            Text(
-                text = "@$username",
-                color = NovaMuted,
-                style = NovaType.bodyCompact.copy(fontWeight = FontWeight.Medium),
-            )
-
-            if (bio.isNotBlank()) {
-                Spacer(modifier = Modifier.height(NovaSpacing.sm))
-                Text(
-                    text = bio,
-                    color = NovaInk,
-                    style = NovaType.bodyCompact,
-                    textAlign = TextAlign.Center,
-                )
-            }
-
-            if (location.isNotBlank()) {
-                Spacer(modifier = Modifier.height(NovaSpacing.sm))
-                ProfileMetadataRow(
-                    icon = NovaIconAsset.Location,
-                    text = location,
-                    tint = NovaMuted,
-                )
-            }
-
-            if (link.isNotBlank()) {
-                Spacer(modifier = Modifier.height(NovaSpacing.xs))
-                ProfileMetadataRow(
-                    icon = NovaIconAsset.Link,
-                    text = link.trim(),
-                    tint = if (externalUrl != null) palette.accent else NovaMuted,
-                    modifier = if (externalUrl != null) {
-                        Modifier
-                            .sizeIn(minHeight = 48.dp)
-                            .semantics { role = Role.Button }
-                            .clickable { runCatching { uriHandler.openUri(externalUrl) } }
-                    } else {
-                        Modifier
-                    },
-                )
-            }
-
-            if (interests.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(NovaSpacing.sm))
-                Text(
-                    text = interests.joinToString("  ·  "),
-                    color = palette.accent,
-                    style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
-                    textAlign = TextAlign.Center,
-                )
+                if (interests.isNotEmpty()) {
+                    Text(interests.joinToString("  ·  "), color = palette.accent,
+                        style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
+                        maxLines = 3, overflow = TextOverflow.Ellipsis)
+                }
             }
         }
     }

@@ -5,17 +5,17 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-val NovaBrandDeepSpace = Color(0xFF123B2E)
-val NovaBrandPurple = Color(0xFF123B2E)
-val NovaBrandElectricBlue = Color(0xFF7E9C87)
-val NovaBrandSunrisePeach = Color(0xFF9FB79A)
-val NovaBrandSoftLight = Color(0xFFEAEADD)
+val NovaBrandDeepSpace = Color(0xFF153B2E)
+val NovaBrandPurple = Color(0xFF153B2E)
+val NovaBrandElectricBlue = Color(0xFF799A83)
+val NovaBrandSunrisePeach = Color(0xFF799A83)
+val NovaBrandSoftLight = Color(0xFFE6EDE3)
 
-val NovaBaseBackground = Color(0xFFF3EEDE)
-val NovaBaseSurface = Color(0xFFFFFDF7)
-val NovaBaseInk = Color(0xFF16302A)
-val NovaBaseMuted = Color(0xFF4A5A50)
-val NovaBaseBorder = Color(0xFFD7D2C1)
+val NovaBaseBackground = Color(0xFFF7F6F0)
+val NovaBaseSurface = Color(0xFFFFFEFA)
+val NovaBaseInk = Color(0xFF153B2E)
+val NovaBaseMuted = Color(0xFF64796C)
+val NovaBaseBorder = Color(0xFFD5DED3)
 val NovaBaseAccent = NovaBrandPurple
 val NovaBaseAccentSoft = NovaBrandSoftLight
 val NovaBaseLive = NovaBrandElectricBlue

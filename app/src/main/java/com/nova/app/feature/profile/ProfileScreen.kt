@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -25,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import com.nova.app.SettingsActivity
 import com.nova.app.SocialGraphActivity
 import com.nova.app.feature.plants.PlantupiaProfileSpaces
+import com.nova.app.feature.plants.PlantupiaBrandGlyph
 import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.ui.components.NovaUnreadDot
@@ -43,6 +46,8 @@ import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSpacing
 import com.nova.app.ui.theme.NovaType
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
 
 @Composable
 fun ProfileScreen(
@@ -102,10 +107,23 @@ fun ProfileScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column {
-                    Text(text = "YOU / PLANTUPIA", color = NovaMuted, style = NovaType.micro)
-                    Text(text = "أنت، ومساحتك", color = NovaInk, style = NovaType.pageTitle)
-                    Text(text = "هويتك مع الناس مختلفة عن تاريخ نباتاتك الخاص.", color = NovaMuted, style = NovaType.meta)
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(5.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(9.dp),
+                    ) {
+                        PlantupiaBrandGlyph(modifier = Modifier.size(25.dp))
+                        Text("plantupia", color = NovaInk,
+                            style = NovaType.sectionTitle.copy(
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Serif
+                            ))
+                    }
+                    Text("أنت، ومساحتك.", color = NovaInk, style = NovaType.pageTitle)
+                    Text("حياتك الخاصة هنا، ووجودك مع الناس باختيارك.",
+                        color = NovaMuted, style = NovaType.meta)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box {
@@ -148,10 +166,12 @@ fun ProfileScreen(
             // or another user's PersonScreen.
             PlantupiaProfileSpaces(onOpenSpaces = onHomeClick)
 
-            Spacer(modifier = Modifier.height(NovaSpacing.xxl))
+            Spacer(modifier = Modifier.height(NovaSpacing.xl))
+            Text("اللي بتشاركه مع الناس", color = NovaInk, style = NovaType.sectionTitle)
+            Spacer(modifier = Modifier.height(NovaSpacing.sm))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 ProfileStat(
                     postsCount.toString(),
@@ -175,7 +195,7 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(NovaSpacing.md))
             NovaSecondaryButton(
-                text = "Edit public profile",
+                text = "عدّل بروفايلك العام",
                 onClick = onEditProfile,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -184,8 +204,8 @@ fun ProfileScreen(
                 username = username,
                 owner = profileContentOwner,
                 onPostClick = onPostClick,
-                emptyTitle = "Share your first moment",
-                emptyMessage = "Your posts will build a visual history here.",
+                emptyTitle = "شارك أول لحظة",
+                emptyMessage = "منشوراتك العامة هتظهر هنا. صور نباتاتك الخاصة هتفضل في مساحتها.",
             )
             Spacer(modifier = Modifier.height(NovaSpacing.xl))
         }
@@ -199,18 +219,27 @@ private fun ProfileStat(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
 ) {
-    Column(
-        modifier = modifier
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(vertical = NovaSpacing.xs),
-        horizontalAlignment = Alignment.CenterHorizontally,
+    Surface(
+        modifier = modifier.then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+        color = Color(0xFFFFFEFA),
+        shape = RoundedCornerShape(17.dp),
     ) {
-        Text(
-            text = value,
-            color = NovaInk,
-            style = NovaType.title.copy(fontWeight = FontWeight.Bold),
-        )
-        Spacer(modifier = Modifier.height(NovaSpacing.xxs))
-        Text(text = label, color = NovaMuted, style = NovaType.micro)
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp, horizontal = 5.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Text(value, color = Color(0xFF153B2E),
+                style = NovaType.title.copy(fontWeight = FontWeight.Bold))
+            Text(
+                when (label) {
+                    "Moments" -> "منشورات"
+                    "Followers" -> "متابعون"
+                    "Following" -> "بتتابع"
+                    else -> label
+                },
+                color = Color(0xFF64796C), style = NovaType.micro
+            )
+        }
     }
 }

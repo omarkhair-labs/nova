@@ -68,7 +68,7 @@ fun PlantupiaProfileSpaces(onOpenSpaces: () -> Unit) {
         PlantupiaSectionHeader(
             eyebrow = "PRIVATE / YOUR SPACES",
             title = "مساحاتك الخاصة",
-            description = "تاريخ النباتات والرعاية ظاهر ليك وللناس المصرّح لهم فقط.",
+            description = "مساحاتك ونباتاتك الحقيقية؛ سجل الرعاية مش جزء من منشوراتك العامة.",
         )
         PlantupiaSpaceHero(
             name = featured.name,
@@ -76,6 +76,7 @@ fun PlantupiaProfileSpaces(onOpenSpaces: () -> Unit) {
             imageUrl = portrait,
             location = featured.location,
             onOpen = onOpenSpaces,
+            heroHeight = 218.dp,
         )
         Row(modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(9.dp)) {
