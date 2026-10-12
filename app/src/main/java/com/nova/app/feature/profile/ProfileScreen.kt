@@ -104,8 +104,8 @@ fun ProfileScreen(
             ) {
                 Column {
                     Text(text = "YOU / PLANTUPIA", color = NovaMuted, style = NovaType.micro)
-                    Text(text = "حكايتك مع المكان", color = NovaInk, style = NovaType.pageTitle)
-                    Text(text = "هويتك في المجتمع ومساحاتك الخاصة — كل حاجة في مكانها.", color = NovaMuted, style = NovaType.meta)
+                    Text(text = "أنت، ومساحتك", color = NovaInk, style = NovaType.pageTitle)
+                    Text(text = "هويتك مع الناس مختلفة عن تاريخ نباتاتك الخاص.", color = NovaMuted, style = NovaType.meta)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box {

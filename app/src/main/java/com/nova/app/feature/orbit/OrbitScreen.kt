@@ -67,6 +67,7 @@ import com.nova.app.ui.theme.NovaType
 import com.nova.app.feature.plants.PlantupiaCirclePanel
 import com.nova.app.feature.plants.PlantupiaCreateIntent
 import com.nova.app.feature.plants.PlantupiaCreateMode
+import com.nova.app.feature.stories.StoriesRail
 import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.ui.components.NovaUnreadDot
@@ -255,6 +256,15 @@ fun OrbitScreen(
                     }
                 }
             } else {
+            item(key = "real-nova-stories") {
+                Column(verticalArrangement = Arrangement.spacedBy(NovaSpacing.sm)) {
+                    Text("قصص الناس", color = NovaInk, style = NovaType.sectionTitle)
+                    Text("لحظات مؤقتة بتتشارك باختيار أصحابها، منفصلة عن سجل نباتك الخاص.",
+                        color = NovaMuted, style = NovaType.meta)
+                    StoriesRail(displayName = displayName, username = username,
+                        avatarUrl = avatarUrl, onSessionExpired = onSessionExpired)
+                }
+            }
             item {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm)) {
                     items(OrbitFilter.entries) { filter ->

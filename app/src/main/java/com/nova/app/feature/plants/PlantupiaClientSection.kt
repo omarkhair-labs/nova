@@ -57,7 +57,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 private val deepGreen = Color(0xFF123B2E)
-private val cream = Color(0xFFF3EEDE)
+private val cream = Color(0xFFF7F6F0)
 private val sage = Color(0xFF9FB79A)
 private val forestText = Color(0xFF16302A)
 private val muted = Color(0xFF4A5A50)
@@ -221,26 +221,19 @@ fun PlantupiaClientSection(
                     }
                 }
             }
-            BrandEyebrow("YOUR LIVING SPACE / مساحتك")
-            Text(
-                "المكان بيتغيّر مع الوقت.",
-                fontFamily = FontFamily.Serif,
-                fontSize = 26.sp,
-                color = deepGreen,
-                lineHeight = 33.sp,
-            )
-            Text(
-                "لكل نبات مكان وحكاية ورعاية حقيقية. هنا بنحتفظ باللي حصل، مش بنخمن صحته.",
-                color = muted,
-                fontSize = 13.sp,
-                lineHeight = 21.sp,
-            )
+            if (spaces.isEmpty()) {
+                PlantupiaSectionHeader("YOUR LIVING WORLD", "مساحتك بتبدأ من هنا",
+                    "أنشئ مساحة، ثم أضف نباتًا حقيقيًا بصورته ومكانه.")
             PlantupiaSelfServiceForms(
                 openPlantOnEntry = PlantupiaCreateIntent.pendingAddPlant,
                 spaces = spaces,
                 repository = repository,
                 onCreated = { scope.launch { refresh() } },
             )
+            } else {
+                PlantupiaSectionHeader("YOUR LIVING WORLD / 01", "نباتاتك في مكانها",
+                    "كل نبات له حكاية، وكل تغيير سجل حقيقي.")
+            }
             if (loading) {
                 Text("جارٍ تحميل مساحتك…", color = muted, fontSize = 13.sp)
             } else {
@@ -256,71 +249,19 @@ fun PlantupiaClientSection(
                     val heroPhoto = plants.firstOrNull {
                         it.spaceId == featured.id && it.active && it.coverPhoto.isNotBlank()
                     }?.coverPhoto
-                    val photoHero = heroPhoto != null
-                    val heroInk = if (photoHero) white else deepGreen
-                    val heroMuted = if (photoHero) Color(0xFFE0E7DD) else muted
-                    Surface(
-                        color = Color(0xFFD6E2D4),
-                        shape = RoundedCornerShape(22.dp),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(if (photoHero) 244.dp else 202.dp),
-                        ) {
-                            if (photoHero) {
-                                AsyncImage(
-                                    model = heroPhoto,
-                                    contentDescription = "صورة حقيقية لنبات ضمن مساحة ${featured.name}",
-                                    modifier = Modifier.matchParentSize(),
-                                    contentScale = ContentScale.Crop,
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .matchParentSize()
-                                        .background(
-                                            Brush.verticalGradient(
-                                                0f to Color(0x22112317),
-                                                0.35f to Color(0x66112317),
-                                                1f to Color(0xE6112317),
-                                            )
-                                        )
-                                )
-                            }
-                            Column(
-                                modifier = Modifier
-                                    .align(Alignment.BottomStart)
-                                    .padding(19.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                Text(
-                                    "LIVING SPACE / مساحة حيّة",
-                                    color = heroInk,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    letterSpacing = 1.2.sp,
-                                )
-                                Text(
-                                    featured.name,
-                                    color = heroInk,
-                                    fontFamily = FontFamily.Serif,
-                                    fontSize = 27.sp,
-                                )
-                                if (featured.location.isNotBlank()) {
-                                    Text(featured.location, color = heroMuted, fontSize = 12.sp)
-                                }
-                                Text(
-                                    "$featuredCount وحدة نباتية · ملاحظات حقيقية عبر الوقت",
-                                    color = heroMuted,
-                                    fontSize = 12.sp,
-                                )
-                                TextButton(onClick = { expandedSpaceId = featured.id }) {
-                                    Text("اكتشف نباتات المساحة ←", color = heroInk)
-                                }
-                            }
-                        }
-                    }
+                    PlantupiaSpaceHero(
+                        name = featured.name,
+                        plantCount = featuredCount,
+                        imageUrl = heroPhoto.orEmpty(),
+                        location = featured.location,
+                        onOpen = { expandedSpaceId = featured.id },
+                    )
+                    PlantupiaSelfServiceForms(
+                        openPlantOnEntry = PlantupiaCreateIntent.pendingAddPlant,
+                        spaces = spaces,
+                        repository = repository,
+                        onCreated = { scope.launch { refresh() } },
+                    )
 
                     val recent = plants
                         .filter { it.active && it.lastEventAt.isNotBlank() }
@@ -392,7 +333,7 @@ fun PlantupiaClientSection(
                             }
                         }
                     }
-                    BrandEyebrow("YOUR PLANTS / نباتاتك")
+                    PlantupiaSectionHeader("YOUR PLANTS / 02", "نباتاتك")
                 }
                 spaces.forEach { space ->
                     PlantupiaPanel {
@@ -429,29 +370,8 @@ fun PlantupiaClientSection(
                         Text("مفيش نباتات مطابقة للبحث. جرّب اسم تاني.", color = muted, fontSize = 12.sp)
                     }
                     matchingPlants.take(visiblePlantCount).forEach { plant ->
-                        Surface(
-                            modifier = Modifier.fillMaxWidth().clickable { scope.launch { openPlant(plant) } },
-                            color = white,
-                            shape = RoundedCornerShape(14.dp),
-                        ) {
-                            Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                if (plant.coverPhoto.isNotBlank()) {
-                                    AsyncImage(model = plant.coverPhoto, contentDescription = "صورة ${plant.name}", modifier = Modifier.fillMaxWidth().height(166.dp).clip(RoundedCornerShape(10.dp)), contentScale = ContentScale.Crop)
-                                }
-                                Text(plant.name, color = forestText, fontSize = 17.sp, fontWeight = FontWeight.Medium)
-                                val subtitle = listOf(plant.species, plant.placement).filter(String::isNotBlank).joinToString(" · ")
-                                if (subtitle.isNotBlank()) Text(subtitle, color = muted, fontSize = 12.sp)
-                                if (plant.lastEventAt.isNotBlank()) {
-                                    Text(
-                                        "آخر سجل: ${plant.lastEventAt.take(10)} · ${eventLabel(plant.lastEventKind)}",
-                                        color = muted, fontSize = 12.sp,
-                                    )
-                                } else {
-                                    Text("لم يُسجَّل تاريخ لهذا النبات بعد", color = muted, fontSize = 12.sp)
-                                }
-                                Text("شوف تاريخ النبات ←", color = deepGreen, fontSize = 12.sp)
-                            }
-                        }
+                        PlantupiaPlantPortrait(plant = plant,
+                            onClick = { scope.launch { openPlant(plant) } })
                     }
                     if (matchingPlants.size > visiblePlantCount) {
                         TextButton(onClick = { visiblePlantCount += 8 }) {
@@ -489,12 +409,7 @@ fun PlantupiaClientSection(
                     color = muted, fontSize = 13.sp,
                 )
             }
-            if (selectedPlant.coverPhoto.isNotBlank()) {
-                AsyncImage(model = selectedPlant.coverPhoto, contentDescription = "صورة النبات", modifier = Modifier.fillMaxWidth().height(236.dp).clip(RoundedCornerShape(16.dp)), contentScale = ContentScale.Crop)
-            }
-            Text(selectedPlant.name, fontFamily = FontFamily.Serif, fontSize = 35.sp, color = deepGreen)
-            val meta = listOf(selectedPlant.species, selectedPlant.placement).filter(String::isNotBlank).joinToString(" · ")
-            if (meta.isNotBlank()) Text(meta, fontSize = 13.sp, color = muted)
+            PlantupiaPlantIdentityHero(selectedPlant)
             OutlinedButton(
                 onClick = { com.nova.app.navigation.NovaRootNavigationSignal.requestAssistant(selectedPlant.id) },
                 modifier = Modifier.fillMaxWidth(),
