@@ -7,6 +7,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -333,30 +335,55 @@ fun PlantupiaClientSection(
                             }
                         }
                         BrandEyebrow("RECENT MOMENTS / لحظات موثّقة")
-                        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                            recent.take(4).forEach { plant ->
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            items(recent.take(12).size) { index ->
+                                val plant = recent[index]
                                 Surface(
-                                    modifier = Modifier.weight(1f).clickable { scope.launch { openPlant(plant) } },
-                                    shape = RoundedCornerShape(12.dp),
+                                    onClick = { scope.launch { openPlant(plant) } },
+                                    modifier = Modifier.width(158.dp),
                                     color = white,
+                                    shape = RoundedCornerShape(15.dp),
                                 ) {
                                     Column(
-                                        modifier = Modifier.padding(7.dp),
-                                        verticalArrangement = Arrangement.spacedBy(5.dp),
+                                        modifier = Modifier.padding(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(7.dp),
                                     ) {
                                         if (plant.coverPhoto.isNotBlank()) {
                                             AsyncImage(
                                                 model = plant.coverPhoto,
-                                                contentDescription = plant.name,
-                                                modifier = Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(7.dp)),
+                                                contentDescription = "صورة " + plant.name,
+                                                modifier = Modifier.fillMaxWidth()
+                                                    .height(106.dp)
+                                                    .clip(RoundedCornerShape(10.dp)),
                                                 contentScale = ContentScale.Crop,
                                             )
+                                        } else {
+                                            Box(
+                                                modifier = Modifier.fillMaxWidth()
+                                                    .height(106.dp)
+                                                    .background(sage.copy(alpha = 0.23f), RoundedCornerShape(10.dp)),
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                PlantupiaBrandGlyph(modifier = Modifier.height(46.dp).width(46.dp))
+                                            }
                                         }
-                                        Text(plant.name, color = forestText, fontSize = 11.sp, maxLines = 1)
+                                        Text(
+                                            plant.name, color = forestText,
+                                            fontSize = 13.sp, fontWeight = FontWeight.Medium,
+                                            maxLines = 1,
+                                        )
+                                        Text(
+                                            eventLabel(plant.lastEventKind) + " · " + plant.lastEventAt.take(10),
+                                            color = muted, fontSize = 10.sp, maxLines = 1,
+                                        )
                                     }
                                 }
                             }
                         }
+                    }
                     } else {
                         Text(
                             "أول صورة أو ملاحظة هتبدأ حكاية المكان هنا، من غير بيانات وهمية.",
