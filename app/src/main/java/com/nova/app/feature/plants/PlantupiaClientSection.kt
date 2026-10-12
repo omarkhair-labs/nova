@@ -233,6 +233,19 @@ fun PlantupiaClientSection(
                 fontSize = 13.sp,
                 lineHeight = 21.sp,
             )
+            OutlinedButton(
+                onClick = { showAssistant = true },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(15.dp),
+            ) {
+                com.nova.app.ui.icons.NovaIcon(
+                    asset = com.nova.app.ui.icons.NovaIconAsset.Info,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = 10.dp),
+                    tint = deepGreen,
+                )
+                Text("اسأل مساعد Plantupia عن النباتات", color = deepGreen)
+            }
             PlantupiaSelfServiceForms(
                 spaces = spaces,
                 repository = repository,
@@ -896,13 +909,11 @@ fun PlantupiaClientSection(
         )
     }
     if (showAssistant) {
-        selectedPlant?.let { plant ->
-            PlantupiaAssistantSheet(
-                plant = plant,
-                repository = repository,
-                onDismiss = { showAssistant = false },
-            )
-        }
+        PlantupiaAssistantSheet(
+            plant = selectedPlant,
+            repository = repository,
+            onDismiss = { showAssistant = false },
+        )
     }
 }
 
