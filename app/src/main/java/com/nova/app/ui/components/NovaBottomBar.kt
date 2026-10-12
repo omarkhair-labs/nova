@@ -72,41 +72,76 @@ fun NovaBottomBar(
             containerColor = NovaSurface,
         ) {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp).padding(bottom = 28.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxWidth()
+                    .padding(horizontal = 19.dp).padding(bottom = 26.dp),
+                verticalArrangement = Arrangement.spacedBy(15.dp),
             ) {
-                Text("إنشاء", color = NovaAccent, style = NovaType.screenTitle)
-                Text("اختار الفعل، والخاص هيفضل خاص لحد ما تختار تنشر.", color = NovaMuted, style = NovaType.bodyCompact)
-                QuickCreateAction("سجّل رعاية أو ملاحظة", "في سجل نباتك الخاص", NovaIconAsset.Edit) {
-                    showQuickCreate = false
-                    PlantupiaCreateIntent.request(PlantupiaCreateMode.OBSERVATION)
-                    onHomeClick()
+                Text("CREATE / PLANTUPIA", color = NovaMuted, style = NovaType.micro)
+                Text("عايز تعمل إيه؟", color = NovaAccent, style = NovaType.screenTitle)
+                Surface(
+                    onClick = {
+                        showQuickCreate = false
+                        PlantupiaCreateIntent.request(PlantupiaCreateMode.OBSERVATION)
+                        onHomeClick()
+                    },
+                    color = NovaAccent,
+                    shape = RoundedCornerShape(22.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(19.dp),
+                        horizontalArrangement = Arrangement.spacedBy(15.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        NovaIcon(asset = NovaIconAsset.Care, contentDescription = null,
+                            tint = Color.White, modifier = Modifier.size(32.dp))
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("سجّل لحظة رعاية", color = Color.White, style = NovaType.sectionTitle)
+                            Text("صورة أو ملاحظة أو حاجة عملتها لنباتك. سجل خاص.",
+                                color = Color(0xFFE1EDE2), style = NovaType.meta)
+                        }
+                        NovaIcon(asset = NovaIconAsset.Create, contentDescription = null,
+                            tint = Color.White, modifier = Modifier.size(20.dp))
+                    }
                 }
-                QuickCreateAction("أضف نبات", "اسم، مكان، صورة", NovaIconAsset.Photo) {
-                    showQuickCreate = false
-                    PlantupiaCreateIntent.requestAddPlant()
-                    onHomeClick()
+                Text("مساحتك", color = NovaAccent, style = NovaType.label)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    QuickCreateTile(
+                        title = "نبات جديد", subtitle = "اسم، مكان، صورة",
+                        icon = NovaIconAsset.Photo, modifier = Modifier.weight(1f),
+                    ) {
+                        showQuickCreate = false
+                        PlantupiaCreateIntent.requestAddPlant()
+                        onHomeClick()
+                    }
+                    QuickCreateTile(
+                        title = "اسأل الدائرة", subtitle = "سؤال تختار نشره",
+                        icon = NovaIconAsset.Orbit, modifier = Modifier.weight(1f),
+                    ) {
+                        showQuickCreate = false
+                        PlantupiaCreateIntent.request(PlantupiaCreateMode.QUESTION)
+                        onHomeClick()
+                    }
                 }
-                QuickCreateAction("اسأل الناس عن نبات", "سؤال عام بموافقتك", NovaIconAsset.Orbit) {
-                    showQuickCreate = false
-                    PlantupiaCreateIntent.request(PlantupiaCreateMode.QUESTION)
-                    onHomeClick()
+                Text("شارك مع الناس", color = NovaAccent, style = NovaType.label)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    QuickCreateTile(
+                        title = "Story", subtitle = "صورة أو فيديو مؤقت",
+                        icon = NovaIconAsset.Story, modifier = Modifier.weight(1f),
+                    ) {
+                        showQuickCreate = false
+                        PlantupiaCreateIntent.requestSocialFormat("story")
+                        onCreateClick()
+                    }
+                    QuickCreateTile(
+                        title = "منشور أو فيديو", subtitle = "الأدوات الأصلية",
+                        icon = NovaIconAsset.Reels, modifier = Modifier.weight(1f),
+                    ) {
+                        showQuickCreate = false
+                        onCreateClick()
+                    }
                 }
-                QuickCreateAction("اسأل مساعد Plantupia", "إرشاد عام؛ اختار نباتك لسياق أدق", NovaIconAsset.Info) {
-                    showQuickCreate = false
-                    NovaRootNavigationSignal.requestAssistant(null)
-                }
-                HorizontalDivider(color = NovaMuted.copy(alpha = 0.2f))
-                QuickCreateAction("Story مؤقتة", "صورة أو فيديو أو نص للناس، مش سجل الرعاية", NovaIconAsset.Story) {
-                    showQuickCreate = false
-                    PlantupiaCreateIntent.requestSocialFormat("story")
-                    onCreateClick()
-                }
-                QuickCreateAction("منشور أو فيديو", "محرك النشر والميديا الموجود في Nova", NovaIconAsset.Reels) {
-                    showQuickCreate = false
-                    onCreateClick()
-                }
-                TextButton(onClick = { showQuickCreate = false; onCreateClick() }) {
+                TextButton(onClick = { showQuickCreate = false; onCreateClick() },
+                    modifier = Modifier.fillMaxWidth()) {
                     Text("كل أدوات الإنشاء ←", color = NovaAccent, fontWeight = FontWeight.SemiBold)
                 }
             }
@@ -136,7 +171,7 @@ fun NovaBottomBar(
             NovaTabItem(
                 label = "Care",
                 displayLabel = "الرعاية",
-                icon = NovaIconAsset.Like,
+                icon = NovaIconAsset.Care,
                 selected = selected == NovaTab.Care,
                 inactiveContentColor = inactiveContentColor,
                 onClick = { NovaRootNavigationSignal.request(NovaRootTab.Care) },
@@ -299,4 +334,23 @@ enum class NovaTab {
     Create,
     Inbox,
     Profile,
+}
+
+@Composable
+private fun QuickCreateTile(
+    title: String,
+    subtitle: String,
+    icon: NovaIconAsset,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Surface(onClick = onClick, modifier = modifier, color = NovaBackground,
+        shape = RoundedCornerShape(18.dp)) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            NovaIcon(asset = icon, contentDescription = null, tint = NovaAccent,
+                modifier = Modifier.size(27.dp))
+            Text(title, color = NovaAccent, style = NovaType.label)
+            Text(subtitle, color = NovaMuted, style = NovaType.meta)
+        }
+    }
 }

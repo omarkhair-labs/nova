@@ -87,7 +87,7 @@ fun PlantupiaCareHub() {
     val recent = plants.filter { it.lastEventAt.isNotBlank() }.sortedByDescending { it.lastEventAt }.take(8)
 
     Scaffold(
-        containerColor = NovaBackground,
+        containerColor = PlantupiaVisual.paper,
         bottomBar = {
             NovaBottomBar(
                 selected = NovaTab.Care,
@@ -100,63 +100,118 @@ fun PlantupiaCareHub() {
     ) { inner ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(inner),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 20.dp),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            item {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    NovaIcon(NovaIconAsset.Like, "الرعاية", modifier = Modifier.size(28.dp), tint = NovaAccent)
-                    Text("الرعاية", color = NovaAccent, style = NovaType.screenTitle)
-                }
-                Text("هنا المواعيد اللي اخترتها وإيه اللي وثّقته فعلًا. مش توقعات عن عطش النبات.", color = NovaMuted, style = NovaType.bodyCompact)
+            item(key = "care-heading") {
+                PlantupiaSectionHeader(
+                    eyebrow = "CARE / YOUR LIVING WORLD",
+                    title = "رعايتك، على مهل.",
+                    description = "اللي عملته فعلًا، واللي اخترت ترجع تراجعه.",
+                )
             }
-            if (loading) item { CircularProgressIndicator(color = NovaAccent) }
+            if (loading) item {
+                CircularProgressIndicator(color = PlantupiaVisual.ink)
+            }
             if (error != null) item {
-                Surface(color = NovaSurface, shape = RoundedCornerShape(18.dp)) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(error.orEmpty(), color = NovaMuted, fontSize = 13.sp)
-                        OutlinedButton(onClick = { refresh() }) { Text("جرّب تاني") }
+                Surface(color = PlantupiaVisual.white, shape = RoundedCornerShape(20.dp)) {
+                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Text(error.orEmpty(), color = PlantupiaVisual.muted, fontSize = 13.sp)
+                        OutlinedButton(onClick = { refresh() }) { Text("حاول تاني") }
                     }
                 }
             }
             if (!loading && error == null && plants.isEmpty()) item {
-                Surface(color = NovaSurface, shape = RoundedCornerShape(20.dp)) {
-                    Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("ابدأ بنباتك الأول", style = NovaType.sectionTitle, color = NovaAccent)
-                        Text("سجّل النبات والمكان، وبعد أول رعاية هيبقى ليه تاريخ هنا.", color = NovaMuted)
-                        Button(onClick = { PlantupiaCreateIntent.requestAddPlant(); NovaRootNavigationSignal.request(NovaRootTab.Home) },
-                            colors = ButtonDefaults.buttonColors(containerColor = NovaAccent)) { Text("أضف نبات") }
+                Surface(color = PlantupiaVisual.mint, shape = RoundedCornerShape(23.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(22.dp),
+                        verticalArrangement = Arrangement.spacedBy(13.dp)) {
+                        NovaIcon(NovaIconAsset.Care, "الرعاية", tint = PlantupiaVisual.ink,
+                            modifier = Modifier.size(36.dp))
+                        Text("ابدأ من نباتك الأول", style = NovaType.sectionTitle,
+                            color = PlantupiaVisual.ink)
+                        Text("سجّل اسم النبات ومكانه. كل خطوة رعاية تضيفها هتبقى جزءًا من تاريخه.",
+                            color = PlantupiaVisual.muted, style = NovaType.bodyCompact)
+                        Button(onClick = {
+                            PlantupiaCreateIntent.requestAddPlant()
+                            NovaRootNavigationSignal.request(NovaRootTab.Home)
+                        }, colors = ButtonDefaults.buttonColors(containerColor = PlantupiaVisual.ink)) {
+                            Text("أضف نباتك")
+                        }
                     }
                 }
             }
-            if (!loading && plants.isNotEmpty()) {
-                item {
-                    Text("مراجعاتك", color = NovaAccent, style = NovaType.sectionTitle)
-                    Text(
-                        if (upcoming.isEmpty()) "مفيش متابعة مجدولة بإيدك لسه."
-                        else if (due.isNotEmpty()) "${due.size} متابعة وصلت لمعادها"
-                        else "${upcoming.size} متابعة جاية اخترتها بنفسك",
-                        color = NovaMuted, style = NovaType.bodyCompact,
+            if (!loading && error == null && plants.isNotEmpty()) {
+                item(key = "care-overview") {
+                    Surface(color = PlantupiaVisual.ink, shape = RoundedCornerShape(25.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(20.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(18.dp),
+                        ) {
+                            NovaIcon(NovaIconAsset.Care, "الرعاية", tint = PlantupiaVisual.white,
+                                modifier = Modifier.size(43.dp))
+                            Column(Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("${due.size} مراجعة تستحق انتباهك",
+                                    style = NovaType.sectionTitle, color = PlantupiaVisual.white)
+                                Text(
+                                    if (due.isNotEmpty()) "دي مواعيد متابعة اخترتها. افتح النبات وشوف النتيجة."
+                                    else if (upcoming.isNotEmpty()) "عندك ${upcoming.size} متابعة جاية، ومفيش حاجة متأخرة."
+                                    else "مفيش متابعة محددة لسه. تقدر تختار واحدة بعد أي رعاية.",
+                                    color = Color(0xFFD3E3D5), style = NovaType.bodyCompact,
+                                )
+                            }
+                        }
+                    }
+                }
+                item(key = "followup-header") {
+                    PlantupiaSectionHeader(
+                        eyebrow = "CHECK IN / 01",
+                        title = "راجع اللي اتغيّر",
+                        description = "المتابعة مش أمر بالسقي؛ افتح نباتك وقارن باللي سجلته قبل كده.",
                     )
                 }
-                items(upcoming, key = { "due-${it.id}" }) { plant ->
-                    CarePlantCard(plant, if (plant in due) "وقت مراجعة التغيير" else "راجع يوم ${plant.nextFollowUpOn}") {
-                        openPlant(plant)
+                if (upcoming.isEmpty()) {
+                    item(key = "no-followup") {
+                        Surface(color = PlantupiaVisual.white, shape = RoundedCornerShape(18.dp)) {
+                            Text("لسه مفيش موعد متابعة اختارته.",
+                                modifier = Modifier.padding(18.dp), color = PlantupiaVisual.muted,
+                                style = NovaType.bodyCompact)
+                        }
                     }
+                } else items(upcoming, key = { "due-${it.id}" }) { plant ->
+                    PlantupiaPlantPortrait(
+                        plant = plant,
+                        subtitle = if (plant in due) "موعد المراجعة وصل · ${plant.nextFollowUpOn}"
+                                   else "متابعة اخترتها · ${plant.nextFollowUpOn}",
+                        onClick = { openPlant(plant) },
+                    )
                 }
-                item {
-                    Text("سجّل رعاية", style = NovaType.sectionTitle, color = NovaAccent)
-                    Text("اختار نباتك، وبعدها اللي عملته فعلًا.", color = NovaMuted, style = NovaType.bodyCompact)
+                item(key = "care-record-header") {
+                    PlantupiaSectionHeader(
+                        eyebrow = "YOUR PLANTS / 02",
+                        title = "سجّل رعاية",
+                        description = "اختار النبات اللي عملت له حاجة. تسجيل الرعاية خاص بيك.",
+                    )
                 }
-                items(plants, key = { "plant-${it.id}" }) { plant ->
-                    CarePlantCard(plant, plant.placement.ifBlank { "نبات في مساحتك" }) {
-                        openPlant(plant, record = true)
-                    }
+                items(plants, key = { "record-${it.id}" }) { plant ->
+                    PlantupiaPlantPortrait(
+                        plant = plant,
+                        subtitle = if (plant.canRecord) plant.placement.ifBlank { "افتح لتسجيل رعاية أو ملاحظة" }
+                            else "تقدر تشوف السجل لكن مش تعدّله",
+                        onClick = { openPlant(plant, record = true) },
+                    )
                 }
                 if (recent.isNotEmpty()) {
-                    item { Text("آخر أحداث مسجّلة", style = NovaType.sectionTitle, color = NovaAccent) }
-                    items(recent, key = { "recent-${it.id}" }) { plant ->
-                        CarePlantCard(plant, "آخر تغيير: ${plant.lastEventAt.take(10)}") { openPlant(plant) }
+                    item(key = "care-history-head") {
+                        PlantupiaSectionHeader(
+                            eyebrow = "LIVING HISTORY / 03",
+                            title = "آخر التغييرات",
+                            description = "دي أفعال وملاحظات سجّلها ناس، مش قياسات أو تشخيصات تلقائية.",
+                        )
+                    }
+                    items(recent, key = { "history-${it.id}" }) { plant ->
+                        PlantupiaPlantPortrait(plant = plant, onClick = { openPlant(plant) })
                     }
                 }
             }
@@ -164,30 +219,3 @@ fun PlantupiaCareHub() {
     }
 }
 
-@Composable
-private fun CarePlantCard(plant: PlantupiaPlant, supporting: String, onClick: () -> Unit) {
-    Surface(onClick = onClick, color = NovaSurface, shape = RoundedCornerShape(18.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            if (plant.coverPhoto.isNotBlank()) {
-                AsyncImage(model = plant.coverPhoto, contentDescription = plant.name,
-                    modifier = Modifier.size(68.dp).clip(RoundedCornerShape(12.dp)),
-                    contentScale = ContentScale.Crop)
-            } else {
-                Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFFE9EDE4)) {
-                    NovaIcon(NovaIconAsset.Photo, contentDescription = null, tint = NovaAccent,
-                        modifier = Modifier.padding(18.dp).size(32.dp))
-                }
-            }
-            Column(Modifier.weight(1f)) {
-                Text(plant.name, style = NovaType.label, color = NovaAccent)
-                Text(supporting, style = NovaType.meta, color = NovaMuted)
-            }
-            NovaIcon(NovaIconAsset.Back, contentDescription = "افتح النبات",
-                tint = NovaAccent, modifier = Modifier.size(18.dp))
-        }
-    }
-}

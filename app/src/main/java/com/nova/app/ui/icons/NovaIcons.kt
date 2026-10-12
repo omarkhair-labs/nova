@@ -58,6 +58,7 @@ enum class NovaIconAsset(@param:DrawableRes val drawableRes: Int) {
     AccountDeletion(R.drawable.ic_nova_account_deletion),
     Logout(R.drawable.ic_nova_logout),
     Like(R.drawable.ic_nova_like),
+    Care(R.drawable.ic_plantupia_care),
     LikeFilled(R.drawable.ic_nova_like_filled),
     Comment(R.drawable.ic_nova_comment),
     Repost(R.drawable.ic_nova_repost),
