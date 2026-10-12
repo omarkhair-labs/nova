@@ -11,9 +11,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -63,17 +67,20 @@ fun PlantupiaQuestionsPanel(
     var topic by remember(plantId) { mutableStateOf("") }
     var imageUri by remember(plantId) { mutableStateOf<Uri?>(null) }
     var consent by remember(plantId) { mutableStateOf(false) }
+    var reviewOpen by remember(plantId) { mutableStateOf(false) }
     var submitting by remember(plantId) { mutableStateOf(false) }
     var loading by remember(plantId) { mutableStateOf(true) }
     var error by remember(plantId) { mutableStateOf<String?>(null) }
     var linkedPosts by remember(plantId) { mutableStateOf<List<PlantupiaQuestion>>(emptyList()) }
     var respondingTo by remember(plantId) { mutableStateOf<String?>(null) }
     var outcome by remember(plantId) { mutableStateOf("") }
+    val publicDraft = PlantupiaPublicShareDraft(topic, question, imageUri != null)
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
             imageUri = uri
             // Selecting a different file must require renewed public consent.
             consent = false
+            reviewOpen = false
         }
     }
 
@@ -99,7 +106,7 @@ fun PlantupiaQuestionsPanel(
         OutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
             value = topic,
-            onValueChange = { topic = it.take(80); consent = false },
+            onValueChange = { topic = it.take(80); consent = false; reviewOpen = false },
             label = { Text("عنوان عام للسؤال — بدون اسم الكافيه أو عنوانه") },
             singleLine = true,
             enabled = !submitting,
@@ -107,7 +114,7 @@ fun PlantupiaQuestionsPanel(
         OutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
             value = question,
-            onValueChange = { question = it.take(500); consent = false },
+            onValueChange = { question = it.take(500); consent = false; reviewOpen = false },
             label = { Text("إيه اللي حصل؟ وإيه اللي جربته؟") },
             minLines = 2,
             enabled = !submitting,
@@ -117,7 +124,7 @@ fun PlantupiaQuestionsPanel(
             enabled = !submitting,
             onClick = { picker.launch("image/*") },
         ) {
-            Text(if (imageUri == null) "أضف صورة السؤال" else "غيّر الصورة اللي هتظهر للناس", color = green)
+            Text(if (imageUri == null) "أضف صورة للنشر العام (مطلوبة حاليًا)" else "غيّر الصورة اللي هتظهر للناس", color = green)
         }
         if (imageUri != null) {
             Surface(color = card, shape = RoundedCornerShape(15.dp)) {
@@ -137,38 +144,109 @@ fun PlantupiaQuestionsPanel(
                 }
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Checkbox(checked = consent, enabled = !submitting && imageUri != null, onCheckedChange = { consent = it })
-            Text(
-                "راجعت الصورة والعنوان والسؤال، وأوافق على نشرهم للعامة. لا أنشر عنوان المساحة أو سجل الرعاية الخاص.",
-                modifier = Modifier.weight(1f).padding(top = 9.dp),
-                color = mutedGreen, fontSize = 12.sp, lineHeight = 18.sp,
-            )
-        }
+        Text(
+            "صورتك وعنوان السؤال والنص المكتوب هيظهروا للناس. راجع بعناية أي تفاصيل تكشف عنوانك أو مكانك داخل الصورة نفسها.",
+            color = mutedGreen, fontSize = 12.sp, lineHeight = 19.sp,
+        )
         Button(
             modifier = Modifier.fillMaxWidth(),
-            enabled = !submitting && consent && imageUri != null && topic.trim().isNotBlank() && question.trim().isNotBlank(),
+            enabled = !submitting && publicDraft.canReview,
             colors = ButtonDefaults.buttonColors(containerColor = green),
-            onClick = {
-                val selected = imageUri ?: return@Button
-                scope.launch {
-                    submitting = true
-                    when (val r = repository.askWithPhoto(plantId, topic, question, selected)) {
-                        is ApiResult.Failure -> error = r.message
-                        is ApiResult.Success -> {
-                            question = ""; topic = ""; imageUri = null; consent = false
-                            refreshQuestions()
-                            if (r.value > 0) onOpenPost(r.value)
-                        }
-                    }
-                    submitting = false
-                }
-            },
-        ) { Text(if (submitting) "جارٍ نشر السؤال…" else "انشر في الدائرة", color = card) }
+            onClick = { consent = false; error = null; reviewOpen = true },
+        ) { Text("راجع المحتوى قبل النشر ←", color = card) }
         } else {
             Text("يمكنك قراءة الأسئلة والردود. النشر مرتبط بصلاحية الرعاية لهذه المساحة.", color = mutedGreen, fontSize = 12.sp)
         }
-        if (error != null) Text(error.orEmpty(), color = Color(0xFF9F482B), fontSize = 12.sp)
+        if (canPublish && reviewOpen) {
+            AlertDialog(
+                onDismissRequest = {
+                    if (!submitting) { reviewOpen = false; consent = false }
+                },
+                title = {
+                    Text("قبل النشر في الدائرة", color = green, fontFamily = FontFamily.Serif, fontSize = 23.sp)
+                },
+                text = {
+                    Column(
+                        modifier = Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text(
+                            "ده محتوى عام، مش إضافة لسجل الرعاية الخاص.",
+                            color = mutedGreen, fontSize = 12.sp,
+                        )
+                        imageUri?.let { selected ->
+                            AsyncImage(
+                                model = selected,
+                                contentDescription = "الصورة المختارة للنشر العام، راجع محتواها بعناية",
+                                modifier = Modifier.fillMaxWidth().height(196.dp)
+                                    .clip(RoundedCornerShape(12.dp)),
+                                contentScale = ContentScale.Fit,
+                            )
+                        }
+                        Text(publicDraft.cleanTopic, color = green, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                        Text(publicDraft.cleanQuestion, color = mutedGreen, fontSize = 14.sp, lineHeight = 21.sp)
+                        Text(
+                            "قد يظهر مكانك من تفاصيل الصورة أو الكلام. بيانات المساحة وسجلها لا تُضاف تلقائيًا، والصورة العامة تُزال منها بيانات EXIF على السيرفر.",
+                            color = mutedGreen, fontSize = 12.sp, lineHeight = 19.sp,
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Checkbox(
+                                checked = consent,
+                                onCheckedChange = { consent = it },
+                                enabled = !submitting,
+                            )
+                            Text(
+                                "راجعت الصورة والعنوان والسؤال وأوافق على نشر المحتوى الظاهر للناس.",
+                                color = green, fontSize = 12.sp,
+                                lineHeight = 19.sp,
+                                modifier = Modifier.weight(1f).padding(top = 10.dp),
+                            )
+                        }
+                        if (error != null) {
+                            Text(error.orEmpty(), color = Color(0xFF9F482B), fontSize = 12.sp)
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        enabled = !submitting && consent && publicDraft.canReview && imageUri != null,
+                        colors = ButtonDefaults.buttonColors(containerColor = green),
+                        onClick = {
+                            val selected = imageUri ?: return@Button
+                            scope.launch {
+                                submitting = true
+                                error = null
+                                when (val result = repository.askWithPhoto(
+                                    plantId, publicDraft.cleanTopic, publicDraft.cleanQuestion, selected,
+                                )) {
+                                    is ApiResult.Failure -> error = result.message
+                                    is ApiResult.Success -> {
+                                        question = ""
+                                        topic = ""
+                                        imageUri = null
+                                        consent = false
+                                        reviewOpen = false
+                                        refreshQuestions()
+                                        if (result.value > 0) onOpenPost(result.value)
+                                    }
+                                }
+                                submitting = false
+                            }
+                        },
+                    ) { Text(if (submitting) "جارٍ النشر…" else "أوافق وأنشر", color = card) }
+                },
+                dismissButton = {
+                    TextButton(
+                        enabled = !submitting,
+                        onClick = { reviewOpen = false; consent = false },
+                    ) { Text("ارجع وعدّل", color = green) }
+                },
+                containerColor = card,
+            )
+        }
+        if (error != null && !reviewOpen) {
+            Text(error.orEmpty(), color = Color(0xFF9F482B), fontSize = 12.sp)
+        }
         HorizontalDivider(color = Color(0xFF9FB79A))
         Text("أسئلة مرتبطة بالنبات", color = green, fontSize = 17.sp, fontWeight = FontWeight.Medium)
         if (loading) CircularProgressIndicator(color = green)
