@@ -39,23 +39,29 @@ BASE_INSTRUCTIONS = (
 )
 
 
-def call_provider(message, plant_context):
+def call_provider(message, plant_context, conversation=None):
     """OpenAI Responses API; no retained response, bounded output and hard timeout."""
     key = os.getenv("PLANTUPIA_AI_API_KEY", "").strip()
     model = os.getenv("PLANTUPIA_AI_MODEL", "gpt-5.4-mini").strip()
     if not key or not model:
         raise RuntimeError("provider_not_configured")
-    prompt = (
-        message if not plant_context else
-        "User-opted-in plant data (reported observations, NOT verified measurements):\n"
-        + json.dumps(plant_context, ensure_ascii=False)
-        + "\n\nUser question:\n" + message
-    )
+    # Context is supplied only with per-request consent. Conversation turns are
+    # untrusted client-supplied text; neither can alter the system instructions.
+    turns = []
+    if plant_context:
+        turns.append({
+            "role": "user",
+            "content": "User-approved plant record; reported facts, NOT live measurements:\n"
+            + json.dumps(plant_context, ensure_ascii=False),
+        })
+    for item in conversation or []:
+        turns.append({"role": item["role"], "content": item["content"]})
+    turns.append({"role": "user", "content": message})
     payload = {
         "model": model,
         "instructions": BASE_INSTRUCTIONS,
-        "input": prompt,
-        "max_output_tokens": 650,
+        "input": turns,
+        "max_output_tokens": 850,
         "store": False,
     }
     request = Request(
@@ -96,6 +102,7 @@ class PlantAssistantView(APIView):
         message = raw.get("message")
         plant_id = raw.get("plant_id")
         include_context = raw.get("include_my_plant_context", False)
+        conversation = raw.get("conversation", [])
 
         if not isinstance(message, str) or not message.strip() or len(message) > 1000:
             return Response({"detail": "Provide a question of 1–1000 characters."}, status=400)
@@ -103,6 +110,18 @@ class PlantAssistantView(APIView):
             return Response({"detail": "Context consent must be a boolean."}, status=400)
         if plant_id is not None and not isinstance(plant_id, str):
             return Response({"detail": "Invalid plant ID."}, status=400)
+
+        if not isinstance(conversation, list) or len(conversation) > 8:
+            return Response({"detail": "Conversation must have up to 8 turns."}, status=400)
+        for turn in conversation:
+            if (
+                not isinstance(turn, dict)
+                or turn.get("role") not in ("user", "assistant")
+                or not isinstance(turn.get("content"), str)
+                or not turn["content"].strip()
+                or len(turn["content"]) > 1200
+            ):
+                return Response({"detail": "Invalid conversation turn."}, status=400)
 
         plant = None
         if plant_id:
@@ -171,7 +190,7 @@ class PlantAssistantView(APIView):
             }
 
         try:
-            answer = call_provider(message.strip(), context)
+            answer = call_provider(message.strip(), context, conversation)
         except RuntimeError:
             return Response(
                 {"detail": "The assistant is temporarily unavailable. Your care history was not changed.", "code": "unavailable"},
