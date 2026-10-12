@@ -630,8 +630,35 @@ fun PlantupiaClientSection(
                     minLines = 2,
                     enabled = !saving,
                 )
-                OutlinedButton(onClick = { carePhotoPicker.launch("image/*") }) {
-                    Text(if (carePhotoUri == null) "أضف صورة للملاحظة" else "الصورة جاهزة — غيّرها لو حابب", color = deepGreen)
+                OutlinedButton(
+                    onClick = { carePhotoPicker.launch("image/*") },
+                    enabled = !saving,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    com.nova.app.ui.icons.NovaIcon(
+                        asset = com.nova.app.ui.icons.NovaIconAsset.Photo,
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = 9.dp),
+                        tint = deepGreen,
+                    )
+                    Text(
+                        if (carePhotoUri == null) "أضف صورة حقيقية للملاحظة" else "غيّر الصورة المختارة",
+                        color = deepGreen,
+                    )
+                }
+                carePhotoUri?.let { selectedPhoto ->
+                    AsyncImage(
+                        model = selectedPhoto,
+                        contentDescription = "معاينة الصورة الفعلية قبل حفظها في سجل النبات",
+                        modifier = Modifier.fillMaxWidth().height(196.dp).clip(RoundedCornerShape(14.dp)),
+                        contentScale = ContentScale.Crop,
+                    )
+                    TextButton(
+                        onClick = { carePhotoUri = null },
+                        enabled = !saving,
+                    ) {
+                        Text("إزالة الصورة المختارة", color = muted)
+                    }
                 }
                 Text("تحب ترجع تراجع نتيجة اللي حصل إمتى؟", color = forestText, fontSize = 12.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
