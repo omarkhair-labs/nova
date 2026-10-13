@@ -65,6 +65,7 @@ import com.nova.app.feature.plants.data.resolveFocusedSpace
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.ZonedDateTime
 
 private val deepGreen = Color(0xFF123B2E)
 private val cream = Color(0xFFF3EEDE)
@@ -108,9 +109,22 @@ fun PlantupiaClientSection(
     var customFollowUpDate by remember { mutableStateOf<LocalDate?>(null) }
     var reminderOptIn by remember { mutableStateOf(false) }
     var reminderRevision by remember { mutableStateOf(0) }
+    var requestedExistingReminder by remember { mutableStateOf<PlantupiaCareEvent?>(null) }
     val reminderPermissionPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { granted -> reminderOptIn = granted }
+    ) { granted ->
+        val existing = requestedExistingReminder
+        requestedExistingReminder = null
+        if (existing == null) {
+            reminderOptIn = granted
+        } else {
+            val scheduled = granted && PlantupiaCareReminderScheduler.schedule(
+                context, existing.id, existing.followUpOn,
+            )
+            reminderRevision += 1
+            error = if (scheduled) null else "إشعار المراجعة ما اتفعلش. راجع إذن التنبيهات والموعد."
+        }
+    }
     var nextHistoryOffset by remember { mutableStateOf<Int?>(null) }
     var olderEventsLoading by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(true) }
@@ -162,6 +176,7 @@ fun PlantupiaClientSection(
         checkAgainInDays = null
         customFollowUpDate = null
         reminderOptIn = false
+        requestedExistingReminder = null
         followUpTarget = null
         followUpResult = ""
         pendingFollowUps = emptyList()
@@ -872,14 +887,35 @@ fun PlantupiaClientSection(
                                 Text(if (followUpTarget?.id == check.id) "إلغاء" else "سجّل نتيجة المراجعة", color = deepGreen)
                             }
                         }
-                        if (reminderRevision >= 0 &&
+                        val reminderIsActive = remember(check.id, reminderRevision) {
                             PlantupiaCareReminderScheduler.isScheduled(context, check.id)
-                        ) {
+                        }
+                        if (reminderIsActive) {
                             TextButton(onClick = {
                                 PlantupiaCareReminderScheduler.cancel(context, check.id)
                                 reminderRevision += 1
                             }) {
-                                Text("ألغِ التنبيه المحلي (المتابعة هتفضل محفوظة)", color = muted)
+                                Text("ألغِ التنبيه (من غير مسح المتابعة)", color = muted)
+                            }
+                        } else if (checkInDelayMillis(check.followUpOn, ZonedDateTime.now()) != null) {
+                            TextButton(onClick = {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                    ContextCompat.checkSelfPermission(
+                                        context, Manifest.permission.POST_NOTIFICATIONS,
+                                    ) != PackageManager.PERMISSION_GRANTED
+                                ) {
+                                    requestedExistingReminder = check
+                                    reminderPermissionPicker.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                } else {
+                                    val scheduled = PlantupiaCareReminderScheduler.schedule(
+                                        context, check.id, check.followUpOn,
+                                    )
+                                    reminderRevision += 1
+                                    error = if (scheduled) null
+                                        else "مش قادرين نفعّل التنبيه للموعد ده حاليًا."
+                                }
+                            }) {
+                                Text("فكّرني بإشعار في يوم المتابعة", color = deepGreen)
                             }
                         }
                     }
