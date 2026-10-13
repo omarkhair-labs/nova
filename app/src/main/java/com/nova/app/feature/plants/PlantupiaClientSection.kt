@@ -64,6 +64,7 @@ import com.nova.app.feature.plants.data.findSpacePlants
 import com.nova.app.feature.plants.data.resolveFocusedSpace
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.ZoneId
 
 private val deepGreen = Color(0xFF123B2E)
 private val cream = Color(0xFFF3EEDE)
@@ -104,6 +105,7 @@ fun PlantupiaClientSection(
     var followUpTarget by remember { mutableStateOf<PlantupiaCareEvent?>(null) }
     var followUpResult by remember { mutableStateOf("") }
     var checkAgainInDays by remember { mutableStateOf<Int?>(null) }
+    var customFollowUpDate by remember { mutableStateOf<LocalDate?>(null) }
     var reminderOptIn by remember { mutableStateOf(false) }
     var reminderRevision by remember { mutableStateOf(0) }
     val reminderPermissionPicker = rememberLauncherForActivityResult(
@@ -158,6 +160,7 @@ fun PlantupiaClientSection(
         selectedCareAction = null
         carePhotoUri = null
         checkAgainInDays = null
+        customFollowUpDate = null
         reminderOptIn = false
         followUpTarget = null
         followUpResult = ""
@@ -186,9 +189,7 @@ fun PlantupiaClientSection(
     suspend fun finishSavedMoment(eventId: String, plant: PlantupiaPlant) {
         // Check-in dates are persisted by Django whether or not notification
         // is opted into. Never schedule without a successful server event.
-        val remindDate = checkAgainInDays?.let {
-            LocalDate.now().plusDays(it.toLong()).toString()
-        }
+        val remindDate = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now())
         val requestedReminder = reminderOptIn && remindDate != null
         val reminderScheduled = !requestedReminder ||
             PlantupiaCareReminderScheduler.schedule(context, eventId, remindDate.orEmpty())
@@ -636,22 +637,56 @@ fun PlantupiaClientSection(
                             OutlinedButton(
                                 enabled = !saving,
                                 onClick = {
-                                checkAgainInDays = if (checkAgainInDays == days) null else days
-                                if (checkAgainInDays == null) reminderOptIn = false
-                            },
+                                    checkAgainInDays = if (checkAgainInDays == days && customFollowUpDate == null) null else days
+                                    customFollowUpDate = null
+                                    if (checkAgainInDays == null) reminderOptIn = false
+                                },
                                 modifier = Modifier.weight(1f),
                             ) { Text(if (checkAgainInDays == days) "✓ بعد $days يوم" else "بعد $days يوم", color = deepGreen, fontSize = 12.sp) }
                         }
                     }
-                    if (checkAgainInDays != null) {
+                    OutlinedButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !saving,
+                        onClick = {
+                            val today = LocalDate.now()
+                            val current = customFollowUpDate
+                                ?: checkAgainInDays?.let { today.plusDays(it.toLong()) }
+                                ?: today.plusDays(7)
+                            android.app.DatePickerDialog(
+                                context,
+                                { _, year, month, day ->
+                                    val picked = LocalDate.of(year, month + 1, day)
+                                    if (!picked.isBefore(LocalDate.now())) {
+                                        customFollowUpDate = picked
+                                        checkAgainInDays = null
+                                    }
+                                },
+                                current.year, current.monthValue - 1, current.dayOfMonth,
+                            ).apply {
+                                datePicker.minDate = today.atStartOfDay(ZoneId.systemDefault())
+                                    .toInstant().toEpochMilli()
+                            }.show()
+                        },
+                    ) { Text("اختار يوم من التقويم", color = deepGreen) }
+                    val actualFollowUpDate = selectedFollowUpDate(
+                        customFollowUpDate, checkAgainInDays, LocalDate.now(),
+                    )
+                    if (actualFollowUpDate != null) {
+                        Text("موعد المراجعة: $actualFollowUpDate", color = deepGreen, fontSize = 12.sp)
                         TextButton(onClick = {
                             checkAgainInDays = null
+                            customFollowUpDate = null
                             reminderOptIn = false
                         }, enabled = !saving) {
                             Text("بدون موعد متابعة", color = muted, fontSize = 12.sp)
                         }
                     }
-                    if (checkAgainInDays != null) {
+                    val validFollowUpDate = isValidCheckInDate(customFollowUpDate, LocalDate.now())
+                    if (!validFollowUpDate) {
+                        Text("الموعد المختار فات. اختار موعد جديد.", color = Color(0xFF9A4A31), fontSize = 12.sp)
+                    }
+                    if (actualFollowUpDate != null && validFollowUpDate) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Checkbox(
                                 checked = reminderOptIn,
@@ -683,11 +718,11 @@ fun PlantupiaClientSection(
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
-                            enabled = !saving && (note.isNotBlank() || carePhotoUri != null),
+                            enabled = !saving && validFollowUpDate && (note.isNotBlank() || carePhotoUri != null),
                             onClick = {
                                 scope.launch {
                                     saving = true
-                                    when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "observation", note, it, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() }) } ?: repository.record(selectedPlant.id, "observation", note, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() })) {
+                                    when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "observation", note, it, followUpOn = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now())) } ?: repository.record(selectedPlant.id, "observation", note, followUpOn = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now()))) {
                                         is ApiResult.Failure -> error = r.message
                                         is ApiResult.Success -> finishSavedMoment(r.value, selectedPlant)
                                     }
@@ -696,12 +731,12 @@ fun PlantupiaClientSection(
                             },
                         ) { Text("ملاحظة", color = deepGreen) }
                         Button(
-                            enabled = !saving && (selectedCareAction != null || note.isNotBlank() || carePhotoUri != null),
+                            enabled = !saving && validFollowUpDate && (selectedCareAction != null || note.isNotBlank() || carePhotoUri != null),
                             onClick = {
                                 val careDetails = buildPlantupiaCareNote(selectedCareAction, note)
                                 scope.launch {
                                     saving = true
-                                    when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "care", careDetails, it, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() }) } ?: repository.record(selectedPlant.id, "care", careDetails, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() })) {
+                                    when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "care", careDetails, it, followUpOn = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now())) } ?: repository.record(selectedPlant.id, "care", careDetails, followUpOn = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now()))) {
                                         is ApiResult.Failure -> error = r.message
                                         is ApiResult.Success -> finishSavedMoment(r.value, selectedPlant)
                                     }
@@ -711,13 +746,13 @@ fun PlantupiaClientSection(
                             colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
                         ) { Text("رعاية", color = white) }
                         OutlinedButton(
-                            enabled = !saving && (note.isNotBlank() || carePhotoUri != null),
+                            enabled = !saving && validFollowUpDate && (note.isNotBlank() || carePhotoUri != null),
                             onClick = {
                                 scope.launch {
                                     saving = true
                                     when (val result = carePhotoUri?.let {
-                                        repository.recordWithPhoto(selectedPlant.id, "issue", note, it, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() })
-                                    } ?: repository.record(selectedPlant.id, "issue", note, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() })) {
+                                        repository.recordWithPhoto(selectedPlant.id, "issue", note, it, followUpOn = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now()))
+                                    } ?: repository.record(selectedPlant.id, "issue", note, followUpOn = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now()))) {
                                         is ApiResult.Failure -> error = result.message
                                         is ApiResult.Success -> finishSavedMoment(result.value, selectedPlant)
                                     }
