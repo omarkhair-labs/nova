@@ -108,7 +108,7 @@ class SettingsActivity : ComponentActivity() {
                         )
                     },
                     onHelpSupport = {
-                        startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$SUPPORT_EMAIL?subject=Nova%20support")))
+                        startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$SUPPORT_EMAIL?subject=Plantupia%20support")))
                     },
                     onTonight = {
                         NovaRootNavigationSignal.requestTonight()
@@ -177,7 +177,7 @@ private fun SettingsScreen(
             Spacer(modifier = Modifier.size(NovaSpacing.md))
             Column {
                 Text(
-                    text = "Settings",
+                    text = "الإعدادات",
                     color = NovaInk,
                     style = NovaType.screenTitle,
                 )
@@ -192,62 +192,62 @@ private fun SettingsScreen(
         }
 
         Spacer(modifier = Modifier.size(NovaSpacing.xxl))
-        SettingsSectionLabel("Account")
+        SettingsSectionLabel("الحساب")
 
         NovaCard(modifier = Modifier.fillMaxWidth()) {
             Column {
                 SettingsRow(
                     icon = NovaIconAsset.Security,
-                    title = "Security",
-                    subtitle = "Password, sessions and account protection",
+                    title = "الأمان",
+                    subtitle = "كلمة السر والجلسات وحماية الحساب",
                     onClick = onSecurity,
                 )
                 SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.Privacy,
-                    title = "Privacy",
-                    subtitle = "Private account, requests and Close Friends",
+                    title = "الخصوصية",
+                    subtitle = "خصوصية حسابك وطلبات المتابعة والأصدقاء المقربون",
                     onClick = onPrivacy,
                 )
                 SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.Notifications,
-                    title = "Notifications",
-                    subtitle = "Activity, messages and live sessions",
+                    title = "الإشعارات",
+                    subtitle = "نشاط المجتمع والرسائل؛ تنبيهات الرعاية مستقلة",
                     onClick = onNotifications,
                 )
                 SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.Blocked,
-                    title = "Blocked accounts",
-                    subtitle = "Review people you've blocked",
+                    title = "الحسابات المحظورة",
+                    subtitle = "مراجعة الأشخاص اللي حظرتهم",
                     onClick = onBlockedAccounts,
                 )
             }
         }
 
         Spacer(modifier = Modifier.size(NovaSpacing.xxl))
-        SettingsSectionLabel("Plantupia & device")
+        SettingsSectionLabel("Plantupia والجهاز")
 
         NovaCard(modifier = Modifier.fillMaxWidth()) {
             Column {
                 SettingsRow(
                     icon = NovaIconAsset.Orbit,
-                    title = "Live together",
-                    subtitle = "Open the existing community live experience",
+                    title = "تجمعات المجتمع",
+                    subtitle = "افتح المساحات الاجتماعية المباشرة (اختياري)",
                     onClick = onTonight,
                 )
                 SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.AccountDeletion,
-                    title = "Android app settings",
-                    subtitle = "Manage Plantupia permissions and storage in Android",
+                    title = "إعدادات Android",
+                    subtitle = "الصلاحيات والتنبيهات والتخزين من إعدادات الجهاز",
                     onClick = onDataStorage,
                 )
                 SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.Info,
-                    title = "About Plantupia",
+                    title = "عن Plantupia",
                     subtitle = "Version $appVersion",
                     onClick = { showAbout = true },
                 )
@@ -255,35 +255,35 @@ private fun SettingsScreen(
         }
 
         Spacer(modifier = Modifier.size(NovaSpacing.xxl))
-        SettingsSectionLabel("Legal & support")
+        SettingsSectionLabel("المساعدة والخصوصية")
 
         NovaCard(modifier = Modifier.fillMaxWidth()) {
             Column {
                 SettingsRow(
                     icon = NovaIconAsset.Inbox,
-                    title = "Help & support",
+                    title = "المساعدة والدعم",
                     subtitle = SUPPORT_EMAIL,
                     onClick = onHelpSupport,
                 )
                 SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.Policy,
-                    title = "Privacy policy",
-                    subtitle = "Review data and account privacy information",
+                    title = "سياسة الخصوصية",
+                    subtitle = "اعرف إزاي بنستخدم بيانات الحساب",
                     onClick = onPrivacyPolicy,
                 )
                 SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.AccountDeletion,
-                    title = "Account deletion help",
-                    subtitle = "Web instructions; delete directly from Security",
+                    title = "حذف الحساب",
+                    subtitle = "تعليمات الحذف؛ أو من قسم الأمان",
                     onClick = onAccountDeletion,
                 )
             }
         }
 
         Spacer(modifier = Modifier.size(NovaSpacing.xxl))
-        SettingsSectionLabel("Session")
+        SettingsSectionLabel("الجلسة")
 
         NovaCard(
             onClick = onLogout,
