@@ -268,6 +268,17 @@ fun PlantupiaClientSection(
                 spaces = spaces,
                 repository = repository,
                 onCreated = { scope.launch { refresh() } },
+                onPlantCreated = { plantId, spaceId ->
+                    // Completing onboarding opens the real new plant, rather
+                    // than dropping a first-time owner back into a generic list.
+                    focusedSpaceId = spaceId
+                    plantSearch = ""
+                    scope.launch {
+                        refresh()
+                        plants.firstOrNull { it.id == plantId }?.let { openPlant(it) }
+                    }
+                },
+                preferredSpaceId = focusedSpaceId,
                 enabled = !loading && error == null,
                 creationRequest = PlantupiaCreateIntent.pending,
                 onRequestConsumed = { PlantupiaCreateIntent.clear() },

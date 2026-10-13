@@ -36,6 +36,7 @@ import coil3.compose.AsyncImage
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.plants.data.PlantupiaRepository
 import com.nova.app.feature.plants.data.PlantupiaSpace
+import com.nova.app.feature.plants.data.chooseWritableSpaceId
 import kotlinx.coroutines.launch
 
 private val ink = Color(0xFF123B2E)
@@ -48,6 +49,8 @@ fun PlantupiaSelfServiceForms(
     spaces: List<PlantupiaSpace>,
     repository: PlantupiaRepository,
     onCreated: () -> Unit,
+    onPlantCreated: (plantId: String, spaceId: String) -> Unit,
+    preferredSpaceId: String? = null,
     enabled: Boolean = true,
     creationRequest: PlantupiaCreateMode? = null,
     onRequestConsumed: () -> Unit = {},
@@ -100,6 +103,10 @@ fun PlantupiaSelfServiceForms(
                     onRequestConsumed()
                 }
                 PlantupiaCreationForm.PLANT -> {
+                    selectedSpaceId = chooseWritableSpaceId(
+                        writableSpaces, preferredSpaceId, selectedSpaceId,
+                        justCreatedSpace?.first,
+                    )
                     plantOpen = true
                     spaceOpen = false
                     error = null
@@ -135,7 +142,13 @@ fun PlantupiaSelfServiceForms(
                     Text("+ مساحة جديدة", color = ink, fontSize = 12.sp)
                 }
                 Button(
-                    onClick = { error = null; plantOpen = true },
+                    onClick = {
+                        error = null
+                        selectedSpaceId = chooseWritableSpaceId(
+                            writableSpaces, preferredSpaceId, selectedSpaceId, justCreatedSpace?.first,
+                        )
+                        plantOpen = true
+                    },
                     enabled = writableSpaces.isNotEmpty(),
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(containerColor = ink),
@@ -274,7 +287,7 @@ fun PlantupiaSelfServiceForms(
                                             placement = ""
                                             plantPhoto = null
                                             plantOpen = false
-                                            onCreated()
+                                            onPlantCreated(result.value, targetSpace)
                                         }
                                     }
                                     saving = false

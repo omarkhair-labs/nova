@@ -31,4 +31,18 @@ class PlantupiaSpaceFocusTest {
         assertEquals(listOf("p-home"), findSpacePlants(entries, first.id, "").map { it.id })
         assertEquals(listOf("p-office"), findSpacePlants(entries, second.id, "").map { it.id })
     }
+    @Test fun newPlantDefaultsToCurrentlyFocusedAuthorizedSpace() {
+        assertEquals(second.id, chooseWritableSpaceId(listOf(first, second), second.id, first.id))
+    }
+
+    @Test fun deniedOrStalePreferredSpaceCannotBeAssignedToNewPlant() {
+        assertEquals(first.id, chooseWritableSpaceId(listOf(first), second.id, first.id))
+        assertNull(chooseWritableSpaceId(emptyList(), second.id, null))
+    }
+
+    @Test fun justCreatedServerSpaceIsValidUntilRefresh() {
+        assertEquals("new-id", chooseWritableSpaceId(emptyList(), second.id, "new-id", "new-id"))
+        assertNull(chooseWritableSpaceId(emptyList(), second.id, "revoked", "new-id"))
+    }
+
 }
