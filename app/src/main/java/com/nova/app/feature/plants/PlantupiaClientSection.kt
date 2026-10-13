@@ -93,6 +93,10 @@ fun PlantupiaClientSection(
     var currentPlantId by remember { mutableStateOf<String?>(null) }
     var openDetailMode by remember { mutableStateOf<PlantupiaCreateMode?>(null) }
     var showNameEditor by remember { mutableStateOf(false) }
+    var showSharedDetailsEditor by remember { mutableStateOf(false) }
+    var sharedPlantLabel by remember { mutableStateOf("") }
+    var sharedSpecies by remember { mutableStateOf("") }
+    var sharedPlacement by remember { mutableStateOf("") }
     var showCareEditor by remember { mutableStateOf(false) }
     var showAssistant by remember { mutableStateOf(false) }
     var photoToView by remember { mutableStateOf<Pair<String, String>?>(null) }
@@ -166,6 +170,10 @@ fun PlantupiaClientSection(
     suspend fun openPlant(plant: PlantupiaPlant) {
         openDetailMode = PlantupiaCreateIntent.pending
         showNameEditor = false
+        showSharedDetailsEditor = false
+        sharedPlantLabel = plant.label
+        sharedSpecies = plant.species
+        sharedPlacement = plant.placement
         showCareEditor = openDetailMode == PlantupiaCreateMode.OBSERVATION
         PlantupiaCreateIntent.clear()
         currentPlantId = plant.id
@@ -863,6 +871,92 @@ fun PlantupiaClientSection(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
                 ) { Text("Save name", color = white) }
+                }
+            }
+
+            if (spaces.any { it.id == selectedPlant.spaceId && it.canAddPlant }) {
+                PlantupiaPanel {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("SHARED PLANT CONTEXT", color = muted, fontSize = 11.sp)
+                            Text(
+                                listOf(
+                                    selectedPlant.species.ifBlank { "Species not specified" },
+                                    selectedPlant.placement.ifBlank { "Placement not specified" },
+                                ).joinToString(" · "),
+                                color = forestText, fontSize = 13.sp,
+                            )
+                        }
+                        TextButton(
+                            onClick = {
+                                showSharedDetailsEditor = !showSharedDetailsEditor
+                                if (showSharedDetailsEditor) {
+                                    sharedPlantLabel = selectedPlant.label
+                                    sharedSpecies = selectedPlant.species
+                                    sharedPlacement = selectedPlant.placement
+                                }
+                            },
+                        ) {
+                            Text(if (showSharedDetailsEditor) "Cancel" else "Edit", color = deepGreen)
+                        }
+                    }
+                    if (showSharedDetailsEditor) {
+                        Text(
+                            "Changes here are visible to authorized space members and recorded in the plant's private history. Your personal nickname remains separate.",
+                            color = muted, fontSize = 12.sp, lineHeight = 18.sp,
+                        )
+                        OutlinedTextField(
+                            value = sharedPlantLabel,
+                            onValueChange = { sharedPlantLabel = it.take(120) },
+                            label = { Text("Shared plant name") },
+                            modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !saving,
+                        )
+                        OutlinedTextField(
+                            value = sharedSpecies,
+                            onValueChange = { sharedSpecies = it.take(180) },
+                            label = { Text("Species (if known)") },
+                            modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !saving,
+                        )
+                        OutlinedTextField(
+                            value = sharedPlacement,
+                            onValueChange = { sharedPlacement = it.take(180) },
+                            label = { Text("Placement in this space") },
+                            modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !saving,
+                        )
+                        Button(
+                            enabled = !saving && sharedPlantLabel.isNotBlank() &&
+                                (sharedPlantLabel.trim() != selectedPlant.label ||
+                                 sharedSpecies.trim() != selectedPlant.species ||
+                                 sharedPlacement.trim() != selectedPlant.placement),
+                            onClick = {
+                                scope.launch {
+                                    saving = true
+                                    when (val result = repository.updatePlantDetails(
+                                        selectedPlant.id, sharedPlantLabel, sharedSpecies, sharedPlacement,
+                                    )) {
+                                        is ApiResult.Failure -> error = result.message
+                                        is ApiResult.Success -> {
+                                            showSharedDetailsEditor = false
+                                            refresh()
+                                            when (val reloaded = repository.historyPage(selectedPlant.id)) {
+                                                is ApiResult.Success -> {
+                                                    events = reloaded.value.events
+                                                    nextHistoryOffset = reloaded.value.nextOffset
+                                                }
+                                                is ApiResult.Failure -> error = reloaded.message
+                                            }
+                                        }
+                                    }
+                                    saving = false
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
+                        ) { Text(if (saving) "Saving…" else "Save shared details", color = white) }
+                    }
                 }
             }
 

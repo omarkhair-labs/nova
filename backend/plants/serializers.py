@@ -90,6 +90,25 @@ class PlantCreateSerializer(serializers.ModelSerializer):
         return clean
 
 
+class PlantUpdateSerializer(serializers.ModelSerializer):
+    """Human-corrected shared metadata, never an inferred plant diagnosis."""
+
+    class Meta:
+        model = PlantUnit
+        fields = ("label", "species_label", "placement_note")
+        extra_kwargs = {
+            "label": {"required": False},
+            "species_label": {"required": False},
+            "placement_note": {"required": False},
+        }
+
+    def validate_label(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Give the shared plant a name.")
+        return value
+
+
 class PlantEventSerializer(serializers.ModelSerializer):
     class Meta:
         model = PlantEvent

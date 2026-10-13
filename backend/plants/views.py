@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import PlantDiscussion, PlantEvent, PlantNickname, PlantUnit, Space, SpaceMember
-from .serializers import (PlantCreateSerializer, PlantEventSerializer, PlantSerializer, SpaceCreateSerializer, SpaceSerializer)
+from .serializers import (PlantCreateSerializer, PlantEventSerializer, PlantSerializer, PlantUpdateSerializer, SpaceCreateSerializer, SpaceSerializer)
 from .media import sanitize_public_plant_photo
 
 
@@ -125,6 +125,49 @@ class PlantsView(APIView):
             ).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+class PlantDetailView(APIView):
+    """Owner/manager only. A shared identity edit must retain its audit trail."""
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def patch(self, request, plant_id):
+        writable_spaces = Space.objects.filter(
+            Q(owner=request.user) |
+            Q(memberships__user=request.user, memberships__role=SpaceMember.Role.MANAGER)
+        ).distinct()
+        plant = get_object_or_404(
+            PlantUnit.objects.select_related("space").filter(space__in=writable_spaces),
+            pk=plant_id,
+        )
+        serializer = PlantUpdateSerializer(plant, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        submitted = serializer.validated_data
+        if not submitted:
+            return Response({"detail": "Choose a plant detail to update."}, status=400)
+
+        changes = []
+        labels = {"label": "Shared name", "species_label": "Species label", "placement_note": "Placement"}
+        for key, new_value in submitted.items():
+            previous = getattr(plant, key)
+            if new_value != previous:
+                changes.append(f"{labels[key]}: {previous or '(none)'} → {new_value or '(none)'}")
+
+        if changes:
+            serializer.save()
+            PlantEvent.objects.create(
+                plant=plant,
+                actor=request.user,
+                kind=PlantEvent.Kind.OBSERVATION,
+                evidence_type=PlantEvent.Evidence.OBSERVED,
+                observed_at=timezone.now(),
+                note="User-edited plant context (not a biological diagnosis): " + "; ".join(changes),
+            )
+
+        return Response(PlantSerializer(
+            plant, context={"request": request, "editable_space_ids": {plant.space_id}},
+        ).data)
 
 
 class PlantEventsView(APIView):

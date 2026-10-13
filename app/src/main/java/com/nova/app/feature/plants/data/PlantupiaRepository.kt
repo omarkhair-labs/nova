@@ -206,6 +206,27 @@ class PlantupiaRepository(context: Context) {
         }
     }
 
+    /** Changes shared plant context only for owners/managers on the server. */
+    suspend fun updatePlantDetails(
+        plantId: String,
+        sharedName: String,
+        species: String,
+        placement: String,
+    ): ApiResult<Unit> = authorized { token ->
+        when (val response = api.requestJson(
+            path = "plantupia/plants/$plantId/",
+            method = "PATCH",
+            body = JSONObject()
+                .put("label", sharedName.trim())
+                .put("species_label", species.trim())
+                .put("placement_note", placement.trim()),
+            bearerToken = token,
+        )) {
+            is ApiResult.Failure -> response
+            is ApiResult.Success -> ApiResult.Success(Unit)
+        }
+    }
+
     private suspend fun loadPrivatePhoto(uri: Uri): ApiResult<UploadFile> {
         val mimeType = appContext.contentResolver.getType(uri)
             ?.takeIf { it == "image/jpeg" || it == "image/png" || it == "image/webp" }

@@ -445,3 +445,56 @@ class PlantupiaPermissionTests(TestCase):
         self.assertEqual(result.status_code, 400)
         first.refresh_from_db()
         self.assertIsNone(first.follow_up_completed_at)
+
+    def test_owner_edits_shared_context_with_observed_audit_event(self):
+        self.client.force_authenticate(user=self.owner)
+        url = reverse("plantupia-plant-detail", args=[self.plant.pk])
+        before = PlantEvent.objects.filter(plant=self.plant).count()
+        response = self.client.patch(url, {
+            "label": "Window plant",
+            "species_label": "Species unconfirmed",
+            "placement_note": "East window, away from AC",
+        }, format="json")
+        self.assertEqual(response.status_code, 200, response.content)
+        self.plant.refresh_from_db()
+        self.assertEqual(self.plant.label, "Window plant")
+        self.assertEqual(self.plant.placement_note, "East window, away from AC")
+        self.assertEqual(PlantEvent.objects.filter(plant=self.plant).count(), before + 1)
+        event = PlantEvent.objects.filter(plant=self.plant).latest("created_at")
+        self.assertEqual(event.actor, self.owner)
+        self.assertEqual(event.kind, PlantEvent.Kind.OBSERVATION)
+        self.assertIn("Reception planting", event.note)
+        self.assertIn("East window", event.note)
+        self.assertIn("not a biological diagnosis", event.note)
+
+        repeat = self.client.patch(url, {"label": "Window plant"}, format="json")
+        self.assertEqual(repeat.status_code, 200, repeat.content)
+        self.assertEqual(PlantEvent.objects.filter(plant=self.plant).count(), before + 1)
+
+    def test_shared_metadata_edits_require_owner_or_manager_not_just_carer(self):
+        url = reverse("plantupia-plant-detail", args=[self.plant.pk])
+        self.client.force_authenticate(user=self.stranger)
+        self.assertEqual(self.client.patch(url, {"label": "Unauthorized"}, format="json").status_code, 404)
+        membership = SpaceMember.objects.create(
+            space=self.space, user=self.stranger, role=SpaceMember.Role.VIEWER,
+        )
+        self.assertEqual(self.client.patch(url, {"label": "Viewer"}, format="json").status_code, 404)
+        membership.role = SpaceMember.Role.CARER
+        membership.save(update_fields=("role",))
+        self.assertEqual(self.client.patch(url, {"label": "Carer"}, format="json").status_code, 404)
+        membership.role = SpaceMember.Role.MANAGER
+        membership.save(update_fields=("role",))
+        response = self.client.patch(url, {"placement_note": "Manager-confirmed corner"}, format="json")
+        self.assertEqual(response.status_code, 200, response.content)
+        self.plant.refresh_from_db()
+        self.assertEqual(self.plant.placement_note, "Manager-confirmed corner")
+
+    def test_plant_edit_rejects_blank_shared_name(self):
+        self.client.force_authenticate(user=self.owner)
+        response = self.client.patch(
+            reverse("plantupia-plant-detail", args=[self.plant.pk]),
+            {"label": "   "}, format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.plant.refresh_from_db()
+        self.assertEqual(self.plant.label, "Reception planting")
