@@ -123,7 +123,7 @@ fun PlantupiaClientSection(
                 context, existing.id, existing.followUpOn,
             )
             reminderRevision += 1
-            error = if (scheduled) null else "إشعار المراجعة ما اتفعلش. راجع إذن التنبيهات والموعد."
+            error = if (scheduled) null else "The check-in reminder couldn't be enabled. Check notification permission and the review date."
         }
     }
     var nextHistoryOffset by remember { mutableStateOf<Int?>(null) }
@@ -148,7 +148,7 @@ fun PlantupiaClientSection(
         ) {
             spaces = emptyList()
             plants = emptyList()
-            error = "خدمة المساحات والنباتات مش متاحة على السيرفر الحالي. دي نسخة تجربة، وبيانات نباتاتك مش هتظهر قبل تفعيل Plantupia Backend."
+            error = "The Plantupia service isn't available on this server. Your plant records will appear when the Plantupia backend is ready."
         } else {
             when (spaceResult) {
                 is ApiResult.Failure -> { spaces = emptyList(); error = spaceResult.message }
@@ -211,7 +211,7 @@ fun PlantupiaClientSection(
         note = ""
         openPlant(plant)
         if (!reminderScheduled) {
-            error = "اللحظة اتحفظت، لكن إشعار المراجعة ما اتجدولش. راجع صلاحية التنبيهات."
+            error = "Your entry was saved, but the reminder couldn't be scheduled. Check notification permissions."
         }
     }
 
@@ -264,29 +264,29 @@ fun PlantupiaClientSection(
                 PlantupiaPanel {
                     Text(
                         if (PlantupiaCreateIntent.pending == PlantupiaCreateMode.QUESTION)
-                            "اختار النبات اللي عايز تسأل الناس عنه"
-                        else "اختار النبات اللي عايز توثّق لحظة من حياته",
+                            "Choose a plant to ask the community about"
+                        else "Choose a plant to record a moment",
                         color = deepGreen, fontWeight = FontWeight.SemiBold, fontSize = 16.sp,
                     )
                     Text(
-                        "اللحظات الخاصة بتفضل في سجل النبات. النشر العام محتاج موافقتك.",
+                        "Private care records stay private. Public sharing requires your consent.",
                         color = muted, fontSize = 12.sp,
                     )
                     TextButton(onClick = { PlantupiaCreateIntent.clear() }) {
-                        Text("إلغاء", color = deepGreen)
+                        Text("Cancel", color = deepGreen)
                     }
                 }
             }
-            BrandEyebrow("YOUR LIVING SPACE / مساحتك")
+            BrandEyebrow("YOUR LIVING SPACE")
             Text(
-                "المكان بيتغيّر مع الوقت.",
+                "A living space changes over time.",
                 fontFamily = FontFamily.Serif,
                 fontSize = 26.sp,
                 color = deepGreen,
                 lineHeight = 33.sp,
             )
             Text(
-                "لكل نبات مكان وحكاية ورعاية حقيقية. هنا بنحتفظ باللي حصل، مش بنخمن صحته.",
+                "Every plant has a place, a story and real care. Record what happened, not a guessed health score.",
                 color = muted,
                 fontSize = 13.sp,
                 lineHeight = 21.sp,
@@ -308,7 +308,7 @@ fun PlantupiaClientSection(
                     modifier = Modifier.padding(end = 10.dp),
                     tint = deepGreen,
                 )
-                Text("اسأل مساعد Plantupia عن النباتات", color = deepGreen)
+                Text("Ask the Plantupia assistant", color = deepGreen)
             }
             PlantupiaSelfServiceForms(
                 spaces = spaces,
@@ -330,12 +330,12 @@ fun PlantupiaClientSection(
                 onRequestConsumed = { PlantupiaCreateIntent.clear() },
             )
             if (loading) {
-                Text("جارٍ تحميل مساحتك…", color = muted, fontSize = 13.sp)
+                Text("Loading your spaces…", color = muted, fontSize = 13.sp)
             } else {
                 if (spaces.isEmpty() && error == null) {
                     PlantupiaPanel {
-                        Text("لسه ما عندكش مساحات.", color = forestText, fontWeight = FontWeight.Medium)
-                        Text("ابدأ بمساحة صغيرة، وبعدها أضف أول نبات وصورته وسجّل حكايته.", color = muted, fontSize = 13.sp, lineHeight = 19.sp)
+                        Text("No spaces yet.", color = forestText, fontWeight = FontWeight.Medium)
+                        Text("Create your first space, add a plant and its photo, and start its living record.", color = muted, fontSize = 13.sp, lineHeight = 19.sp)
                     }
                 }
                 if (spaces.isNotEmpty()) {
@@ -370,7 +370,7 @@ fun PlantupiaClientSection(
                             if (photoHero) {
                                 AsyncImage(
                                     model = heroPhoto,
-                                    contentDescription = "صورة حقيقية لنبات ضمن مساحة ${featured.name}",
+                                    contentDescription = "Actual plant photo from ${featured.name}",
                                     modifier = Modifier.matchParentSize(),
                                     contentScale = ContentScale.Crop,
                                 )
@@ -393,7 +393,7 @@ fun PlantupiaClientSection(
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 Text(
-                                    "LIVING SPACE / مساحة حيّة",
+                                    "LIVING SPACE",
                                     color = heroInk,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.SemiBold,
@@ -409,11 +409,11 @@ fun PlantupiaClientSection(
                                     Text(featured.location, color = heroMuted, fontSize = 12.sp)
                                 }
                                 Text(
-                                    "$featuredCount وحدة نباتية · ملاحظات حقيقية عبر الوقت",
+                                    "$featuredCount plants · real observations over time",
                                     color = heroMuted,
                                     fontSize = 12.sp,
                                 )
-                                Text("نباتات المساحة وتاريخها تحت الصورة ↓", color = heroMuted, fontSize = 12.sp)
+                                Text("Explore this space's plants and history below ↓", color = heroMuted, fontSize = 12.sp)
                             }
                         }
                     }
@@ -423,7 +423,7 @@ fun PlantupiaClientSection(
                         .sortedByDescending { it.lastEventAt }
                     if (recent.isNotEmpty()) {
                         val latest = recent.first()
-                        BrandEyebrow("LATEST OBSERVATION / آخر تغيير موثّق")
+                        BrandEyebrow("LATEST OBSERVATION")
                         PlantupiaPanel {
                             Text(latest.name, color = deepGreen, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                             Text(
@@ -431,10 +431,10 @@ fun PlantupiaClientSection(
                                 color = muted, fontSize = 12.sp,
                             )
                             TextButton(onClick = { scope.launch { openPlant(latest) } }) {
-                                Text("شوف تاريخها ←", color = deepGreen)
+                                Text("View history →", color = deepGreen)
                             }
                         }
-                        BrandEyebrow("RECENT MOMENTS / لحظات موثّقة")
+                        BrandEyebrow("RECENT MOMENTS")
                         LazyRow(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -454,7 +454,7 @@ fun PlantupiaClientSection(
                                         if (plant.coverPhoto.isNotBlank()) {
                                             AsyncImage(
                                                 model = plant.coverPhoto,
-                                                contentDescription = "صورة " + plant.name,
+                                                contentDescription = "Photo of " + plant.name,
                                                 modifier = Modifier.fillMaxWidth()
                                                     .height(106.dp)
                                                     .clip(RoundedCornerShape(10.dp)),
@@ -485,25 +485,25 @@ fun PlantupiaClientSection(
                         }
                     } else {
                         Text(
-                            "أول صورة أو ملاحظة هتبدأ حكاية المكان هنا، من غير بيانات وهمية.",
+                            "Your first plant photo or observation will appear here. No sample records.",
                             color = muted, fontSize = 12.sp,
                         )
                     }
-                    BrandEyebrow("YOUR PLANTS / نباتاتك")
+                    BrandEyebrow("YOUR PLANTS")
                 }
                 val focused = resolveFocusedSpace(spaces, focusedSpaceId)
                 if (focused != null) {
                     val sitePlants = plants.filter { it.spaceId == focused.id && it.active }
                     if (sitePlants.isEmpty()) {
                         PlantupiaPanel {
-                            Text("المساحة دي مستنية أول نبات", color = forestText, fontWeight = FontWeight.Medium)
+                            Text("Your space is waiting for its first plant", color = forestText, fontWeight = FontWeight.Medium)
                             Text(
-                                "لما تضيف نبات هنا بصورته ومكانه، هيظهر تاريخه ومواعيد متابعته في مساحتك.",
+                                "Add a plant with a photo and placement. Its history and check-ins will appear here.",
                                 color = muted, fontSize = 13.sp, lineHeight = 19.sp,
                             )
                             if (focused.canAddPlant) {
                                 TextButton(onClick = { PlantupiaCreateIntent.request(PlantupiaCreateMode.ADD_PLANT) }) {
-                                    Text("أضف أول نبات للمساحة ←", color = deepGreen)
+                                    Text("Add your first plant →", color = deepGreen)
                                 }
                             }
                         }
@@ -513,13 +513,13 @@ fun PlantupiaClientSection(
                                 value = plantSearch,
                                 onValueChange = { plantSearch = it.take(80) },
                                 modifier = Modifier.fillMaxWidth(),
-                                label = { Text("ابحث عن نبات في " + focused.name) },
+                                label = { Text("Search plants in " + focused.name) },
                                 singleLine = true,
                             )
                         }
                         val matchingPlants = findSpacePlants(plants, focused.id, plantSearch)
                         if (matchingPlants.isEmpty()) {
-                            Text("مفيش نباتات مطابقة للبحث في المساحة دي.", color = muted, fontSize = 12.sp)
+                            Text("No plants in this space match your search.", color = muted, fontSize = 12.sp)
                         }
                         matchingPlants.take(visiblePlantCount).forEach { plant ->
                             PlantupiaPlantInventoryCard(
@@ -530,7 +530,7 @@ fun PlantupiaClientSection(
                         }
                         if (matchingPlants.size > visiblePlantCount) {
                             TextButton(onClick = { visiblePlantCount += 8 }) {
-                                Text("شوف نباتات أكتر · ${visiblePlantCount} من ${matchingPlants.size}", color = deepGreen)
+                                Text("Load more plants · ${visiblePlantCount} of ${matchingPlants.size}", color = deepGreen)
                             }
                         }
                     }
@@ -538,30 +538,30 @@ fun PlantupiaClientSection(
             }
             if (error != null) Text(error.orEmpty(), color = Color(0xFF9A4A31), fontSize = 12.sp)
             TextButton(onClick = { scope.launch { refresh() } }) {
-                Text("تحديث البيانات", color = deepGreen)
+                Text("Refresh records", color = deepGreen)
             }
         } else {
             TextButton(onClick = { closePlant() }) {
-                Text("← الرجوع للمساحة", color = deepGreen)
+                Text("← Back to space", color = deepGreen)
             }
-            BrandEyebrow("LIVING RECORD / تاريخ النبات")
+            BrandEyebrow("LIVING RECORD")
             if (openDetailMode != null) {
                 BrandEyebrow(
                     if (openDetailMode == PlantupiaCreateMode.QUESTION)
-                        "ASK ABOUT THIS PLANT / اسأل عن نباتك"
-                    else "RECORD A MOMENT / لحظة جديدة"
+                        "ASK ABOUT THIS PLANT"
+                    else "RECORD A MOMENT"
                 )
                 Text(
                     if (openDetailMode == PlantupiaCreateMode.QUESTION)
-                        "اسأل عن النبات ده من غير ما تشارك سجله الخاص."
-                    else "سجّل اللي لاحظته أو عملته؛ اللحظة هتفضل في تاريخه.",
+                        "Ask about this plant without publishing its private care records."
+                    else "Record what you observed or did. This stays in the plant's private history.",
                     color = muted, fontSize = 13.sp,
                 )
             }
             if (selectedPlant.coverPhoto.isNotBlank()) {
                 AsyncImage(
                     model = selectedPlant.coverPhoto,
-                    contentDescription = "الصورة الفعلية للنبات، اضغط للتكبير",
+                    contentDescription = "Actual plant photo. Tap to enlarge.",
                     modifier = Modifier.fillMaxWidth()
                         .height(236.dp)
                         .clip(RoundedCornerShape(16.dp))
@@ -577,17 +577,17 @@ fun PlantupiaClientSection(
             // record-action composer near the identity, not after
             // rename + pending results + lengthy timeline.
             if (openDetailMode != PlantupiaCreateMode.QUESTION) {
-                BrandEyebrow("CARE & OBSERVATIONS / الرعاية والملاحظة")
+                BrandEyebrow("CARE & OBSERVATIONS")
                 if (selectedPlant.canRecord) {
                     Button(
                         onClick = { showCareEditor = !showCareEditor },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
                     ) {
-                        Text(if (showCareEditor) "اخفِ تسجيل اللحظة ↑" else "+ سجّل لحظة جديدة للنبات", color = white)
+                        Text(if (showCareEditor) "Hide record form ↑" else "+ Record a plant moment", color = white)
                     }
                 if (showCareEditor) PlantupiaPanel {
-                    Text("لو عملت رعاية، اختار اللي حصل فعلًا:", color = forestText, fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                    Text("Which care action did you actually perform?", color = forestText, fontWeight = FontWeight.Medium, fontSize = 13.sp)
                     PlantupiaCareAction.entries.chunked(3).forEach { group ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -607,11 +607,11 @@ fun PlantupiaClientSection(
                             }
                         }
                     }
-                    Text("الأفعال دي للتوثيق فقط، مش توصيات بمواعيد الري.", color = muted, fontSize = 11.sp)
+                    Text("These record actual actions, not watering recommendations.", color = muted, fontSize = 11.sp)
                     OutlinedTextField(
                         value = note,
                         onValueChange = { note = it.take(1500) },
-                        label = { Text("إيه اللي لاحظته أو عملته؟") },
+                        label = { Text("What did you observe or do?") },
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 2,
                         enabled = !saving,
@@ -628,14 +628,14 @@ fun PlantupiaClientSection(
                             tint = deepGreen,
                         )
                         Text(
-                            if (carePhotoUri == null) "أضف صورة حقيقية للملاحظة" else "غيّر الصورة المختارة",
+                            if (carePhotoUri == null) "Add a photo of your observation" else "Change selected photo",
                             color = deepGreen,
                         )
                     }
                     carePhotoUri?.let { selectedPhoto ->
                         AsyncImage(
                             model = selectedPhoto,
-                            contentDescription = "معاينة الصورة الفعلية قبل حفظها في سجل النبات",
+                            contentDescription = "Preview the photo before saving it to the plant's private history",
                             modifier = Modifier.fillMaxWidth().height(196.dp).clip(RoundedCornerShape(14.dp)),
                             contentScale = ContentScale.Crop,
                         )
@@ -643,10 +643,10 @@ fun PlantupiaClientSection(
                             onClick = { carePhotoUri = null },
                             enabled = !saving,
                         ) {
-                            Text("إزالة الصورة المختارة", color = muted)
+                            Text("Remove selected photo", color = muted)
                         }
                     }
-                    Text("تحب ترجع تراجع نتيجة اللي حصل إمتى؟", color = forestText, fontSize = 12.sp)
+                    Text("When would you like to check this plant again?", color = forestText, fontSize = 12.sp)
                     Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         listOf(7, 14).forEach { days ->
                             OutlinedButton(
@@ -657,7 +657,7 @@ fun PlantupiaClientSection(
                                     if (checkAgainInDays == null) reminderOptIn = false
                                 },
                                 modifier = Modifier.weight(1f),
-                            ) { Text(if (checkAgainInDays == days) "✓ بعد $days يوم" else "بعد $days يوم", color = deepGreen, fontSize = 12.sp) }
+                            ) { Text(if (checkAgainInDays == days) "✓ In $days days" else "In $days days", color = deepGreen, fontSize = 12.sp) }
                         }
                     }
                     OutlinedButton(
@@ -683,23 +683,23 @@ fun PlantupiaClientSection(
                                     .toInstant().toEpochMilli()
                             }.show()
                         },
-                    ) { Text("اختار يوم من التقويم", color = deepGreen) }
+                    ) { Text("Choose a date", color = deepGreen) }
                     val actualFollowUpDate = selectedFollowUpDate(
                         customFollowUpDate, checkAgainInDays, LocalDate.now(),
                     )
                     if (actualFollowUpDate != null) {
-                        Text("موعد المراجعة: $actualFollowUpDate", color = deepGreen, fontSize = 12.sp)
+                        Text("Check-in date: $actualFollowUpDate", color = deepGreen, fontSize = 12.sp)
                         TextButton(onClick = {
                             checkAgainInDays = null
                             customFollowUpDate = null
                             reminderOptIn = false
                         }, enabled = !saving) {
-                            Text("بدون موعد متابعة", color = muted, fontSize = 12.sp)
+                            Text("No check-in date", color = muted, fontSize = 12.sp)
                         }
                     }
                     val validFollowUpDate = isValidCheckInDate(customFollowUpDate, LocalDate.now())
                     if (!validFollowUpDate) {
-                        Text("الموعد المختار فات. اختار موعد جديد.", color = Color(0xFF9A4A31), fontSize = 12.sp)
+                        Text("That date has passed. Choose another check-in date.", color = Color(0xFF9A4A31), fontSize = 12.sp)
                     }
                     if (actualFollowUpDate != null && validFollowUpDate) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -722,12 +722,12 @@ fun PlantupiaClientSection(
                                 },
                             )
                             Text(
-                                "فكّرني بإشعار صباح يوم المراجعة (حسب سماح الجهاز)",
+                                "Remind me on the check-in morning (subject to device settings)",
                                 color = muted, fontSize = 12.sp, lineHeight = 19.sp,
                             )
                         }
                         Text(
-                            "ده تنبيه اختياري للفحص، مش تعليمات ري. ممكن يتأخر بسبب توفير البطارية.",
+                            "Optional reminder to inspect your plant, not an instruction to water. Battery settings may delay it.",
                             color = muted, fontSize = 11.sp,
                         )
                     }
@@ -744,7 +744,7 @@ fun PlantupiaClientSection(
                                     saving = false
                                 }
                             },
-                        ) { Text("ملاحظة", color = deepGreen) }
+                        ) { Text("Observation", color = deepGreen) }
                         Button(
                             enabled = !saving && validFollowUpDate && (selectedCareAction != null || note.isNotBlank() || carePhotoUri != null),
                             onClick = {
@@ -759,7 +759,7 @@ fun PlantupiaClientSection(
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
-                        ) { Text("رعاية", color = white) }
+                        ) { Text("Care", color = white) }
                         OutlinedButton(
                             enabled = !saving && validFollowUpDate && (note.isNotBlank() || carePhotoUri != null),
                             onClick = {
@@ -774,15 +774,15 @@ fun PlantupiaClientSection(
                                     saving = false
                                 }
                             },
-                        ) { Text("تغيّر مقلق", color = deepGreen) }
+                        ) { Text("Concerning change", color = deepGreen) }
                     }
                     Text(
-                        "سجل اللي شفته زي ما هو. مش لازم تشخّص سبب التغيّر.",
+                        "Record what you actually noticed. You don't need to diagnose the cause.",
                         color = muted, fontSize = 11.sp,
                     )
                 }
                 } else {
-                    Text("لديك صلاحية مشاهدة سجل الرعاية فقط. يمكن للمسؤول منحك صلاحية التوثيق.", color = muted, fontSize = 12.sp)
+                    Text("You have read-only access to this plant's history. Ask a space manager for recording permission.", color = muted, fontSize = 12.sp)
                 }
                 if (error != null) Text(error.orEmpty(), color = Color(0xFF9A4A31), fontSize = 12.sp)
             }
@@ -798,7 +798,7 @@ fun PlantupiaClientSection(
                     modifier = Modifier.padding(end = 8.dp),
                     tint = deepGreen,
                 )
-                Text("اسأل مساعد Plantupia عن النبات", color = deepGreen)
+                Text("Ask about this plant", color = deepGreen)
             }
             if (openDetailMode == PlantupiaCreateMode.QUESTION) {
                 PlantupiaQuestionsPanel(
@@ -826,11 +826,11 @@ fun PlantupiaClientSection(
                     verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text("الاسم اللي اخترته", color = muted, fontSize = 11.sp)
+                        Text("YOUR PLANT NAME", color = muted, fontSize = 11.sp)
                         Text(selectedPlant.name, color = deepGreen, fontWeight = FontWeight.Medium, fontSize = 19.sp)
                     }
                     TextButton(onClick = { showNameEditor = !showNameEditor }) {
-                        Text(if (showNameEditor) "إلغاء" else "غيّر الاسم", color = deepGreen)
+                        Text(if (showNameEditor) "Cancel" else "Rename", color = deepGreen)
                     }
                 }
                 if (showNameEditor) {
@@ -838,7 +838,7 @@ fun PlantupiaClientSection(
                     value = plantName,
                     onValueChange = { plantName = it.take(80) },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("اسم النبات") },
+                    label = { Text("Plant name") },
                     singleLine = true,
                     enabled = !saving,
                 )
@@ -861,30 +861,30 @@ fun PlantupiaClientSection(
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
-                ) { Text("احفظ الاسم", color = white) }
+                ) { Text("Save name", color = white) }
                 }
             }
 
-            BrandEyebrow("CHECK BACK / راجع اللي حصل")
+            BrandEyebrow("CHECK BACK")
             if (detailLoading) {
-                Text("جارٍ تحميل مواعيد متابعتك…", color = muted, fontSize = 12.sp)
+                Text("Loading check-ins…", color = muted, fontSize = 12.sp)
             } else if (pendingFollowUps.isEmpty()) {
-                Text("لما تسجّل رعاية أو تغيّر، تقدر تختار بنفسك إمتى ترجع تراجع النتيجة.", color = muted, fontSize = 12.sp)
+                Text("When you record care or a change, you can choose when to check its outcome.", color = muted, fontSize = 12.sp)
             } else {
                 pendingFollowUps.forEach { check ->
                     PlantupiaPanel {
                         Text(
-                            "متابعة ${check.followUpOn} · ${eventLabel(check.kind)}",
+                            "Check-in ${check.followUpOn} · ${eventLabel(check.kind)}",
                             color = deepGreen, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
                         )
                         if (check.note.isNotBlank()) Text(check.note, color = muted, fontSize = 12.sp)
-                        Text("راجع اللي حصل فعلًا للنبات قبل ما تسجّل نتيجة. الميعاد مش أمر بالري.", color = muted, fontSize = 11.sp)
+                        Text("Observe the plant before saving an outcome. Check-in dates are not watering orders.", color = muted, fontSize = 11.sp)
                         if (selectedPlant.canRecord) {
                             OutlinedButton(onClick = {
                                 followUpTarget = if (followUpTarget?.id == check.id) null else check
                                 followUpResult = ""
                             }) {
-                                Text(if (followUpTarget?.id == check.id) "إلغاء" else "سجّل نتيجة المراجعة", color = deepGreen)
+                                Text(if (followUpTarget?.id == check.id) "Cancel" else "Record check-in outcome", color = deepGreen)
                             }
                         }
                         val reminderIsActive = remember(check.id, reminderRevision) {
@@ -895,7 +895,7 @@ fun PlantupiaClientSection(
                                 PlantupiaCareReminderScheduler.cancel(context, check.id)
                                 reminderRevision += 1
                             }) {
-                                Text("ألغِ التنبيه (من غير مسح المتابعة)", color = muted)
+                                Text("Cancel reminder (keep check-in)", color = muted)
                             }
                         } else if (checkInDelayMillis(check.followUpOn, ZonedDateTime.now()) != null) {
                             TextButton(onClick = {
@@ -912,10 +912,10 @@ fun PlantupiaClientSection(
                                     )
                                     reminderRevision += 1
                                     error = if (scheduled) null
-                                        else "مش قادرين نفعّل التنبيه للموعد ده حاليًا."
+                                        else "Couldn't enable a reminder for this date."
                                 }
                             }) {
-                                Text("فكّرني بإشعار في يوم المتابعة", color = deepGreen)
+                                Text("Remind me on check-in day", color = deepGreen)
                             }
                         }
                     }
@@ -944,7 +944,7 @@ fun PlantupiaClientSection(
                         },
                     ) {
                         Text(
-                            if (pendingPageLoading) "جارٍ تحميل متابعات أقدم…" else "اعرض متابعات أقدم",
+                            if (pendingPageLoading) "Loading older check-ins…" else "Load older check-ins",
                             color = deepGreen,
                         )
                     }
@@ -952,13 +952,13 @@ fun PlantupiaClientSection(
             }
             if (followUpTarget != null && selectedPlant.canRecord) {
                 PlantupiaPanel {
-                    Text("إيه اللي لاحظته لما رجعت للنبات؟", color = deepGreen, fontSize = 15.sp)
+                    Text("What changed when you checked the plant again?", color = deepGreen, fontSize = 15.sp)
                     OutlinedTextField(
                         value = followUpResult,
                         onValueChange = { followUpResult = it.take(1500) },
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 2,
-                        label = { Text("النتيجة اللي شفتها فعلًا *") },
+                        label = { Text("What you actually observed *") },
                         enabled = !saving,
                     )
                     Button(
@@ -982,16 +982,16 @@ fun PlantupiaClientSection(
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
-                    ) { Text(if (saving) "جارٍ تسجيل النتيجة…" else "احفظ النتيجة وأغلق المتابعة", color = white) }
+                    ) { Text(if (saving) "Saving outcome…" else "Save outcome and close check-in", color = white) }
                 }
             }
-            BrandEyebrow("LIVING TIME / من أول صورة لآخر تغيير")
+            BrandEyebrow("LIVING HISTORY")
             if (detailLoading) {
-                Text("جارٍ تحميل التاريخ…", color = muted, fontSize = 13.sp)
+                Text("Loading history…", color = muted, fontSize = 13.sp)
             } else if (events.isEmpty()) {
-                Text("أول ملاحظة منك هتبدأ تاريخ النبات هنا.", color = muted, fontSize = 13.sp)
+                Text("Your first observation starts this plant's history.", color = muted, fontSize = 13.sp)
             } else {
-                Text("${events.size} لحظات معروضة · من ملاحظات حقيقية، مش تقييم صحة تلقائي", color = muted, fontSize = 12.sp)
+                Text("${events.size} recorded moments · actual observations, not automatic health scores", color = muted, fontSize = 12.sp)
                 val photos = events
                     .filter { it.photoUrl.isNotBlank() }
                     .sortedBy { it.observedAt }
@@ -1008,14 +1008,14 @@ fun PlantupiaClientSection(
                                 Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
                                     AsyncImage(
                                         model = event.photoUrl,
-                                        contentDescription = if (index == 0) "أقدم صورة مسجلة" else "أحدث صورة مسجلة",
+                                        contentDescription = if (index == 0) "Oldest recorded photo" else "Most recent recorded photo",
                                         modifier = Modifier.fillMaxWidth().height(135.dp)
                                             .clickable { photoToView = event.photoUrl to selectedPlant.name },
                                         contentScale = ContentScale.Crop,
                                     )
                                     Text(
-                                        if (index == 0) "أقدم صورة معروضة · ${event.observedAt.take(10)}"
-                                        else "أحدث صورة · ${event.observedAt.take(10)}",
+                                        if (index == 0) "Oldest loaded photo · ${event.observedAt.take(10)}"
+                                        else "Most recent photo · ${event.observedAt.take(10)}",
                                         modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
                                         color = muted,
                                         fontSize = 11.sp,
@@ -1060,7 +1060,7 @@ fun PlantupiaClientSection(
                     },
                 ) {
                     Text(
-                        if (olderEventsLoading) "جارٍ تحميل لحظات أقدم…" else "شوف لحظات أقدم ←",
+                        if (olderEventsLoading) "Loading older moments…" else "Load older moments →",
                         color = deepGreen,
                     )
                 }
@@ -1083,15 +1083,15 @@ fun PlantupiaClientSection(
                 },
             )
             HorizontalDivider(color = sage)
-            Text("أو شارك لحظة عامة مع الناس", color = forestText, fontSize = 14.sp)
+            Text("Or share a public moment", color = forestText, fontSize = 14.sp)
             OutlinedButton(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = onCommunityCreateClick,
             ) {
-                Text("منشور عام مستقل", color = deepGreen)
+                Text("Separate public post", color = deepGreen)
             }
             Text(
-                "المنشورات والستوريز العامة اختيارية؛ أي سؤال عام عن النبات مش هينقل سجل رعايته الخاص من غير موافقتك.",
+                "Public posts and stories are optional. Asking about a plant never shares private care history without consent.",
                 color = muted,
                 fontSize = 11.sp,
                 lineHeight = 18.sp,
@@ -1115,17 +1115,17 @@ fun PlantupiaClientSection(
 }
 
 private fun eventLabel(kind: String): String = when (kind) {
-    "care" -> "رعاية مسجلة"
-    "issue" -> "ملاحظة تحتاج متابعة"
-    "outcome" -> "نتيجة موثقة"
-    else -> "ملاحظة مسجلة"
+    "care" -> "Care recorded"
+    "issue" -> "Observation needs attention"
+    "outcome" -> "Documented outcome"
+    else -> "Observation recorded"
 }
 
 private fun evidenceLabel(kind: String): String = when (kind) {
-    "measured" -> "قياس"
-    "reported" -> "نقلًا عن شخص آخر"
-    "inferred" -> "استنتاج غير مؤكّد"
-    else -> "ملاحظة مباشرة"
+    "measured" -> "Measurement"
+    "reported" -> "Reported by someone else"
+    "inferred" -> "Unverified inference"
+    else -> "Direct observation"
 }
 
 @Composable
