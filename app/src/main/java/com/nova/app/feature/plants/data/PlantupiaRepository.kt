@@ -58,6 +58,8 @@ data class PlantupiaCareEvent(
     val photoUrl: String,
     val followUpOn: String,
     val followUpCompletedAt: String,
+    // UUID of the original private care/observation event closed by an outcome.
+    val followUpFor: String = "",
 )
 
 
@@ -289,6 +291,7 @@ class PlantupiaRepository(context: Context) {
                                     photoUrl = api.resolveMediaUrl(raw.optString("photo")),
                                     followUpOn = raw.optString("follow_up_on").takeUnless { it == "null" }.orEmpty(),
                                     followUpCompletedAt = raw.optString("follow_up_completed_at").takeUnless { it == "null" }.orEmpty(),
+                                    followUpFor = raw.optString("follow_up_for").takeUnless { it == "null" }.orEmpty(),
                                 ))
                             }
                         }

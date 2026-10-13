@@ -1026,14 +1026,15 @@ fun PlantupiaClientSection(
                     }
                 }
             }
-            events.sortedByDescending { it.observedAt }.forEach { event ->
+            groupPlantupiaHistory(events).forEach { moment ->
                 PlantupiaHistoryEventCard(
-                    event = event,
-                    title = eventLabel(event.kind),
-                    evidenceLabel = evidenceLabel(event.evidence),
+                    event = moment.event,
+                    title = eventLabel(moment.event.kind),
+                    evidenceLabel = evidenceLabel(moment.event.evidence),
+                    linkedOutcomes = moment.outcomes,
                     onPhotoClick = {
-                        if (event.photoUrl.isNotBlank()) {
-                            photoToView = event.photoUrl to selectedPlant.name
+                        if (moment.event.photoUrl.isNotBlank()) {
+                            photoToView = moment.event.photoUrl to selectedPlant.name
                         }
                     },
                 )

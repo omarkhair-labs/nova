@@ -251,6 +251,7 @@ internal fun PlantupiaHistoryEventCard(
     title: String,
     evidenceLabel: String,
     onPhotoClick: () -> Unit,
+    linkedOutcomes: List<PlantupiaCareEvent> = emptyList(),
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -311,6 +312,26 @@ internal fun PlantupiaHistoryEventCard(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
                         color = ink, fontWeight = FontWeight.Medium, fontSize = 11.sp,
                     )
+                }
+            }
+            if (linkedOutcomes.isNotEmpty()) {
+                Surface(color = soft, shape = RoundedCornerShape(13.dp)) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(11.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(
+                            "النتيجة اللي اتسجلت بعد المتابعة",
+                            color = ink, fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
+                        )
+                        linkedOutcomes.forEach { outcome ->
+                            Text(outcome.observedAt.take(10), color = muted, fontSize = 11.sp)
+                            Text(
+                                outcome.note.ifBlank { "اتسجلت نتيجة المتابعة بدون تفاصيل." },
+                                color = ink, fontSize = 13.sp, lineHeight = 19.sp,
+                            )
+                        }
+                    }
                 }
             }
         }
