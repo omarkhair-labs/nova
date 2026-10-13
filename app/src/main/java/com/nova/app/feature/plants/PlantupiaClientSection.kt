@@ -100,6 +100,7 @@ fun PlantupiaClientSection(
     var plantSearch by remember { mutableStateOf("") }
     var visiblePlantCount by remember { mutableStateOf(8) }
     var events by remember { mutableStateOf<List<PlantupiaCareEvent>>(emptyList()) }
+    var historyFilter by remember(currentPlantId) { mutableStateOf(PlantupiaHistoryFilter.ALL) }
     var pendingFollowUps by remember { mutableStateOf<List<PlantupiaCareEvent>>(emptyList()) }
     var nextPendingOffset by remember { mutableStateOf<Int?>(null) }
     var pendingPageLoading by remember { mutableStateOf(false) }
@@ -1026,7 +1027,38 @@ fun PlantupiaClientSection(
                     }
                 }
             }
-            groupPlantupiaHistory(events).forEach { moment ->
+            if (events.isNotEmpty()) {
+                Text(
+                    "EXPLORE HISTORY",
+                    color = muted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                )
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(PlantupiaHistoryFilter.entries.size) { index ->
+                        val filter = PlantupiaHistoryFilter.entries[index]
+                        OutlinedButton(
+                            onClick = { historyFilter = filter },
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp, if (historyFilter == filter) deepGreen else sage,
+                            ),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = if (historyFilter == filter) deepGreen else white,
+                                contentColor = if (historyFilter == filter) white else deepGreen,
+                            ),
+                        ) {
+                            Text(filter.label, fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+            val visibleHistory = filteredPlantupiaHistory(events, historyFilter)
+            if (events.isNotEmpty() && visibleHistory.isEmpty()) {
+                Text(
+                    "No ${historyFilter.label.lowercase()} in the loaded history. " +
+                        "Load older moments to explore earlier records.",
+                    color = muted, fontSize = 12.sp, lineHeight = 19.sp,
+                )
+            }
+            visibleHistory.forEach { moment ->
                 PlantupiaHistoryEventCard(
                     event = moment.event,
                     title = eventLabel(moment.event.kind),

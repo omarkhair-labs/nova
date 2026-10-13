@@ -46,3 +46,37 @@ internal fun groupPlantupiaHistory(events: List<PlantupiaCareEvent>): List<Plant
             }.thenByDescending { it.event.id },
         ).toList()
 }
+
+/**
+ * A human can inspect separate types of events without losing provenance.
+ * "Outcomes" intentionally shows each recorded result, even if All usually
+ * attaches that result to its source care card.
+ */
+internal enum class PlantupiaHistoryFilter(val label: String) {
+    ALL("All"),
+    CARE("Care"),
+    OBSERVATIONS("Notes"),
+    CONCERNS("Concerns"),
+    OUTCOMES("Outcomes"),
+    PHOTOS("Photos"),
+}
+
+internal fun filteredPlantupiaHistory(
+    events: List<PlantupiaCareEvent>,
+    filter: PlantupiaHistoryFilter,
+): List<PlantupiaHistoryMoment> {
+    if (filter == PlantupiaHistoryFilter.ALL) return groupPlantupiaHistory(events)
+    val selected = events.distinctBy { it.id }.filter { event ->
+        when (filter) {
+            PlantupiaHistoryFilter.ALL -> true
+            PlantupiaHistoryFilter.CARE -> event.kind == "care"
+            PlantupiaHistoryFilter.OBSERVATIONS -> event.kind == "observation"
+            PlantupiaHistoryFilter.CONCERNS -> event.kind == "issue"
+            PlantupiaHistoryFilter.OUTCOMES -> event.kind == "outcome"
+            PlantupiaHistoryFilter.PHOTOS -> event.photoUrl.isNotBlank()
+        }
+    }
+    return selected.sortedWith(
+        compareByDescending<PlantupiaCareEvent> { it.observedAt }.thenByDescending { it.id },
+    ).map { PlantupiaHistoryMoment(event = it, outcomes = emptyList()) }
+}

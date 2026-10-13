@@ -62,4 +62,37 @@ class PlantupiaHistoryTimelineTest {
         val moments = groupPlantupiaHistory(listOf(old, recent))
         assertEquals(listOf("recent", "old"), moments.map { it.event.id })
     }
+    @Test fun historyFiltersKeepLinkedOutcomesVisibleInTheirOwnCategory() {
+        val care = event("care", "care", "2026-10-01T08:00:00Z")
+        val outcome = event("outcome", "outcome", "2026-10-05T09:00:00Z", parent = care.id)
+        val issue = event("issue", "issue", "2026-10-02T08:00:00Z")
+        val notes = event("note", "observation", "2026-10-03T08:00:00Z")
+        val entries = listOf(care, outcome, issue, notes)
+        assertEquals(1, filteredPlantupiaHistory(entries, PlantupiaHistoryFilter.ALL).count {
+            it.event.id == "care"
+        })
+        assertEquals(listOf("care"),
+            filteredPlantupiaHistory(entries, PlantupiaHistoryFilter.CARE).map { it.event.id })
+        assertEquals(listOf("outcome"),
+            filteredPlantupiaHistory(entries, PlantupiaHistoryFilter.OUTCOMES).map { it.event.id })
+        assertEquals(listOf("issue"),
+            filteredPlantupiaHistory(entries, PlantupiaHistoryFilter.CONCERNS).map { it.event.id })
+        assertEquals(listOf("note"),
+            filteredPlantupiaHistory(entries, PlantupiaHistoryFilter.OBSERVATIONS).map { it.event.id })
+    }
+
+    @Test fun photoFilterNeverClaimsOrHidesAUserUploadedImage() {
+        val withPhoto = event("actual-photo", "issue", "2026-10-04T09:00:00Z", photo = "https://qa.invalid/real.jpg")
+        val withoutPhoto = event("plain", "observation", "2026-10-05T09:00:00Z")
+        val result = filteredPlantupiaHistory(listOf(withoutPhoto, withPhoto), PlantupiaHistoryFilter.PHOTOS)
+        assertEquals(listOf("actual-photo"), result.map { it.event.id })
+        assertTrue(result.single().outcomes.isEmpty())
+    }
+
+    @Test fun pagingFilterDoesNotInventContentForNoMatches() {
+        val care = event("care", "care", "2026-10-01T08:00:00Z")
+        assertTrue(filteredPlantupiaHistory(listOf(care), PlantupiaHistoryFilter.CONCERNS).isEmpty())
+        assertTrue(filteredPlantupiaHistory(emptyList(), PlantupiaHistoryFilter.ALL).isEmpty())
+    }
+
 }
