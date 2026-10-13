@@ -106,24 +106,24 @@ fun CreateHubScreen(
 
     val publicActions = listOf(
         CreateHubAction(
-            "اسأل عن نباتك",
-            "اختار النبات والسؤال والصورة اللي توافق تنشرها",
+            "Ask about your plant",
+            "Choose a plant, a question and the photo you approve for publishing",
             NovaIconAsset.Orbit,
         ) { enterPlant(PlantupiaCreateMode.QUESTION) },
         CreateHubAction(
-            "شارك تجربة",
-            "صورة أو حكاية عامة، من غير مشاركة سجل نباتك الخاص",
+            "Share an experience",
+            "A public photo or story, without sharing your private plant history",
             NovaIconAsset.Create,
             onCreatePost,
         ),
         CreateHubAction(
-            "Story · ستوري",
-            "صورة أو فيديو أو نص لمدة 24 ساعة — نشر عام باختيارك",
+            "Story",
+            "Photo, video or text for 24 hours — public only if you choose",
             NovaIconAsset.Story,
         ) { activeFormat = "story" },
         CreateHubAction(
-            "فيديو",
-            "ارفع فيديو حقيقي عبر محرك Nova الموجود",
+            "Video",
+            "Upload your own video",
             NovaIconAsset.Reels,
             onOpenReels,
         ),
@@ -131,9 +131,9 @@ fun CreateHubScreen(
     val otherFormats = listOf(
         // Retain Nova's engines, but do not turn every format into a separate
         // Plantupia destination until its role in a living-space journey is clear.
-        CreateHubAction("Pulse", "لحظة قصيرة مع الناس", NovaIconAsset.Orbit) { activeFormat = "pulse" },
-        CreateHubAction("Gathering", "تجمّع اجتماعي حول اهتمام مشترك", NovaIconAsset.Room) { activeFormat = "gathering" },
-        CreateHubAction("Memory", "ارجع للحظات عبر الزمن", NovaIconAsset.Memory) { activeFormat = "memory" },
+        CreateHubAction("Pulse", "A short update for your community", NovaIconAsset.Orbit) { activeFormat = "pulse" },
+        CreateHubAction("Gathering", "Meet around shared interests", NovaIconAsset.Room) { activeFormat = "gathering" },
+        CreateHubAction("Memory", "Revisit moments over time", NovaIconAsset.Memory) { activeFormat = "memory" },
     )
 
     Scaffold(
@@ -168,8 +168,8 @@ fun CreateHubScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(NovaSpacing.xs)) {
-                        Text("A LIVING RECORD / لحظاتك", color = NovaAccent, style = NovaType.micro)
-                        Text("اللي بيحصل النهارده، يبقى له تاريخ.", color = NovaInk, style = NovaType.screenTitle)
+                        Text("A LIVING RECORD", color = NovaAccent, style = NovaType.micro)
+                        Text("Today's moments become tomorrow's history.", color = NovaInk, style = NovaType.screenTitle)
                     }
                     Surface(onClick = onProfileClick, shape = CircleShape, color = NovaAccentSoft) {
                         NovaAvatar(
@@ -193,46 +193,46 @@ fun CreateHubScreen(
                     ) {
                         Text("01 / PRIVATE · YOUR PLANT", color = Color(0xFFBDD4BD), style = NovaType.micro)
                         Text(
-                            "وثّق لحظة من حياة نباتك",
+                            "Record a moment in your plant's life",
                             color = Color(0xFFF3EEDE),
                             style = NovaType.screenTitle,
                         )
                         Text(
-                            "ملاحظة، صورة، أو رعاية. كل حاجة بتفضل في سجل النبات الخاص بيك.",
+                            "An observation, photo or care action. Everything stays in your private plant history.",
                             color = Color(0xFFD5E5D8),
                             style = NovaType.bodyCompact,
                         )
                         if (!livingCover.isNullOrBlank()) {
                             AsyncImage(
                                 model = livingCover,
-                                contentDescription = "صورة حقيقية من نباتاتك",
+                                contentDescription = "Real photo of your plants",
                                 modifier = Modifier.fillMaxWidth().height(174.dp).clip(RoundedCornerShape(15.dp)),
                                 contentScale = ContentScale.Crop,
                             )
                         }
-                        Text("اختار النبات وسجّل اللحظة ←", color = Color(0xFFF3EEDE), style = NovaType.label)
+                        Text("Choose a plant and record →", color = Color(0xFFF3EEDE), style = NovaType.label)
                     }
                 }
             }
             item(key = "living-create-new-plant") {
                 CreateActionCard(
                     CreateHubAction(
-                        title = "أضف نبات لمساحتك",
-                        subtitle = "نبات حقيقي بصورته ومكانه. لو لسه مفيش مساحة، هنبدأ بإنشائها.",
+                        title = "Add a plant to your space",
+                        subtitle = "A real plant with its photo and placement. If you're new, we'll create a space first.",
                         icon = NovaIconAsset.Create,
                     ) { enterPlant(PlantupiaCreateMode.ADD_PLANT) },
                 )
             }
             item(key = "living-create-public") {
                 Column(verticalArrangement = Arrangement.spacedBy(NovaSpacing.sm)) {
-                    Text("02 / THE CIRCLE · المشاركة اختيارك", color = NovaAccent, style = NovaType.micro)
+                    Text("02 / THE CIRCLE · SHARING IS OPTIONAL", color = NovaAccent, style = NovaType.micro)
                     Text(
-                        "من حياتك للناس",
+                        "From your space to your community",
                         color = NovaInk,
                         style = NovaType.sectionTitle,
                     )
                     Text(
-                        "السؤال والصورة والمنشور العام حاجة مختلفة عن سجلك الخاص.",
+                        "Your public question, photo or post is separate from your private plant history.",
                         color = NovaMuted,
                         style = NovaType.bodyCompact,
                     )
@@ -245,7 +245,7 @@ fun CreateHubScreen(
                     if (!showOtherFormats) activeFormat = null
                 }) {
                     Text(
-                        if (showOtherFormats) "إخفاء الأدوات الأخرى ↑" else "أدوات اجتماعية أخرى (اختيارية) ↓",
+                        if (showOtherFormats) "Hide other formats ↑" else "Other social formats (optional) ↓",
                         color = NovaAccent,
                     )
                 }
@@ -259,7 +259,7 @@ fun CreateHubScreen(
                 item(key = "living-create-format") {
                     when (activeFormat) {
                         "story" -> {
-                            CreateSectionLabel("Story", "صورة أو فيديو أو نص — لمدة 24 ساعة")
+                            CreateSectionLabel("Story", "Photo, video or text — 24 hours")
                             StoriesRail(
                                 displayName = displayName,
                                 username = username,
@@ -268,7 +268,7 @@ fun CreateHubScreen(
                             )
                         }
                         "pulse" -> {
-                            CreateSectionLabel("Pulse", "لحظات قصيرة")
+                            CreateSectionLabel("Pulse", "Short moments")
                             PulseRail(
                                 displayName = displayName,
                                 username = username,
@@ -277,11 +277,11 @@ fun CreateHubScreen(
                             )
                         }
                         "gathering" -> {
-                            CreateSectionLabel("Gathering", "تجمعات المجتمع")
+                            CreateSectionLabel("Gathering", "Community gatherings")
                             RoomsRail(onPersonClick = onPersonClick, onSessionExpired = onSessionExpired)
                         }
                         "memory" -> {
-                            CreateSectionLabel("Memory", "لحظاتك القديمة")
+                            CreateSectionLabel("Memory", "Your memories")
                             MemoriesRail(onPersonClick = onPersonClick, onSessionExpired = onSessionExpired)
                         }
                     }

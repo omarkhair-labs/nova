@@ -77,8 +77,8 @@ import java.time.OffsetDateTime
 
 
 private enum class CircleSection(val label: String) {
-    PlantQuestions("النباتات والأسئلة"),
-    PeopleActivity("الناس واللحظات"),
+    PlantQuestions("Plant questions"),
+    PeopleActivity("People & moments"),
 }
 
 private enum class OrbitFilter(val label: String) {
@@ -154,10 +154,10 @@ fun OrbitScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("CIRCLE / الدائرة", color = NovaAccent, style = NovaType.micro)
-                        Text("اللي بين الناس والنباتات", color = NovaInk, style = NovaType.pageTitle)
+                        Text("CIRCLE", color = NovaAccent, style = NovaType.micro)
+                        Text("Where people and plants meet", color = NovaInk, style = NovaType.pageTitle)
                         Text(
-                            "أسئلة حقيقية، لحظات موثّقة، وناس بتشارك خبرتها.",
+                            "Real questions, recorded moments and shared experience.",
                             color = NovaMuted,
                             style = NovaType.bodyCompact,
                         )
@@ -172,7 +172,7 @@ fun OrbitScreen(
                             ) {
                                 NovaIcon(
                                     asset = NovaIconAsset.Inbox,
-                                    contentDescription = "الرسائل",
+                                    contentDescription = "Messages",
                                     tint = NovaInk,
                                     modifier = Modifier.padding(NovaSpacing.md).size(21.dp),
                                 )
@@ -189,7 +189,7 @@ fun OrbitScreen(
                         ) {
                             NovaIcon(
                                 asset = NovaIconAsset.Search,
-                                contentDescription = "اكتشف الناس",
+                                contentDescription = "Explore people",
                                 tint = NovaInk,
                                 modifier = Modifier.padding(NovaSpacing.md).size(21.dp),
                             )
@@ -244,14 +244,14 @@ fun OrbitScreen(
                             modifier = Modifier.padding(NovaSpacing.lg),
                             verticalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
                         ) {
-                            Text("FROM YOUR SPACE / من مساحتك", color = NovaAccent, style = NovaType.micro)
-                            Text("عندك سؤال عن نباتك؟", color = NovaInk, style = NovaType.sectionTitle)
+                            Text("FROM YOUR SPACE", color = NovaAccent, style = NovaType.micro)
+                            Text("Have a question about your plant?", color = NovaInk, style = NovaType.sectionTitle)
                             Text(
-                                "اختار النبات الأول. إنت اللي تقرر إمتى تشارك سؤالك وصورته مع الناس.",
+                                "Choose a plant first. You decide when to share its question and photo.",
                                 color = NovaMuted,
                                 style = NovaType.bodyCompact,
                             )
-                            Text("اسأل من سجل النبات ←", color = NovaAccent, style = NovaType.label)
+                            Text("Ask from your plant's history →", color = NovaAccent, style = NovaType.label)
                         }
                     }
                 }

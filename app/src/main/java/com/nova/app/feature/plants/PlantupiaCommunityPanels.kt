@@ -98,9 +98,9 @@ fun PlantupiaQuestionsPanel(
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("PLANTUPIA CIRCLE", color = green, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 2.sp)
-        Text("اسأل الناس عن نباتك", color = green, fontFamily = FontFamily.Serif, fontSize = 22.sp)
+        Text("Ask the Circle about your plant", color = green, fontFamily = FontFamily.Serif, fontSize = 22.sp)
         Text(
-            "صوّر اللي لاحظته. الخبرة هنا مرتبطة بنبات حقيقي، وبعد الرد ارجع سجّل إيه اللي حصل.",
+            "Share what you noticed in your real plant. After getting replies, come back and record what actually changed.",
             color = mutedGreen, fontSize = 13.sp, lineHeight = 20.sp,
         )
         if (canPublish) {
@@ -108,7 +108,7 @@ fun PlantupiaQuestionsPanel(
             modifier = Modifier.fillMaxWidth(),
             value = topic,
             onValueChange = { topic = it.take(80); consent = false; reviewOpen = false },
-            label = { Text("عنوان عام للسؤال — بدون اسم الكافيه أو عنوانه") },
+            label = { Text("Public question title — leave out private locations") },
             singleLine = true,
             enabled = !submitting,
         )
@@ -116,7 +116,7 @@ fun PlantupiaQuestionsPanel(
             modifier = Modifier.fillMaxWidth(),
             value = question,
             onValueChange = { question = it.take(500); consent = false; reviewOpen = false },
-            label = { Text("إيه اللي حصل؟ وإيه اللي جربته؟") },
+            label = { Text("What happened, and what have you tried?") },
             minLines = 2,
             enabled = !submitting,
         )
@@ -125,7 +125,7 @@ fun PlantupiaQuestionsPanel(
             enabled = !submitting,
             onClick = { picker.launch("image/*") },
         ) {
-            Text(if (imageUri == null) "أضف صورة للنشر العام (مطلوبة حاليًا)" else "غيّر الصورة اللي هتظهر للناس", color = green)
+            Text(if (imageUri == null) "Choose a photo to publish (currently required)" else "Change the public photo", color = green)
         }
         if (imageUri != null) {
             Surface(color = card, shape = RoundedCornerShape(15.dp)) {
@@ -133,20 +133,20 @@ fun PlantupiaQuestionsPanel(
                     modifier = Modifier.padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text("معاينة النشر العام / PUBLIC PREVIEW", color = green, fontSize = 11.sp)
+                    Text("PUBLIC PREVIEW", color = green, fontSize = 11.sp)
                     AsyncImage(
                         model = imageUri,
-                        contentDescription = "معاينة الصورة التي ستنشر للعامة",
+                        contentDescription = "Preview of the exact photo that will be published",
                         modifier = Modifier.fillMaxWidth().height(205.dp).clip(RoundedCornerShape(10.dp)),
                         contentScale = ContentScale.Fit,
                     )
-                    Text(topic.ifBlank { "عنوان السؤال" }, color = green, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                    Text(question.ifBlank { "السؤال اللي هينشر" }, color = mutedGreen, fontSize = 12.sp)
+                    Text(topic.ifBlank { "Question title" }, color = green, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text(question.ifBlank { "Your public question" }, color = mutedGreen, fontSize = 12.sp)
                 }
             }
         }
         Text(
-            "صورتك وعنوان السؤال والنص المكتوب هيظهروا للناس. راجع بعناية أي تفاصيل تكشف عنوانك أو مكانك داخل الصورة نفسها.",
+            "The photo, title and question will be public. Check that neither your words nor the image reveals where you live or work.",
             color = mutedGreen, fontSize = 12.sp, lineHeight = 19.sp,
         )
         Button(
@@ -154,9 +154,9 @@ fun PlantupiaQuestionsPanel(
             enabled = !submitting && publicDraft.canReview,
             colors = ButtonDefaults.buttonColors(containerColor = green),
             onClick = { consent = false; error = null; reviewOpen = true },
-        ) { Text("راجع المحتوى قبل النشر ←", color = card) }
+        ) { Text("Review before publishing →", color = card) }
         } else {
-            Text("يمكنك قراءة الأسئلة والردود. النشر مرتبط بصلاحية الرعاية لهذه المساحة.", color = mutedGreen, fontSize = 12.sp)
+            Text("You can browse questions and replies. Publishing requires care permission for this space.", color = mutedGreen, fontSize = 12.sp)
         }
         if (canPublish && reviewOpen) {
             AlertDialog(
@@ -164,7 +164,7 @@ fun PlantupiaQuestionsPanel(
                     if (!submitting) { reviewOpen = false; consent = false }
                 },
                 title = {
-                    Text("قبل النشر في الدائرة", color = green, fontFamily = FontFamily.Serif, fontSize = 23.sp)
+                    Text("Before sharing to Circle", color = green, fontFamily = FontFamily.Serif, fontSize = 23.sp)
                 },
                 text = {
                     Column(
@@ -172,13 +172,13 @@ fun PlantupiaQuestionsPanel(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Text(
-                            "ده محتوى عام، مش إضافة لسجل الرعاية الخاص.",
+                            "This is public content, not an entry in your private care history.",
                             color = mutedGreen, fontSize = 12.sp,
                         )
                         imageUri?.let { selected ->
                             AsyncImage(
                                 model = selected,
-                                contentDescription = "الصورة المختارة للنشر العام، راجع محتواها بعناية",
+                                contentDescription = "Selected public photo. Check its contents carefully.",
                                 modifier = Modifier.fillMaxWidth().height(196.dp)
                                     .clip(RoundedCornerShape(12.dp)),
                                 contentScale = ContentScale.Fit,
@@ -187,7 +187,7 @@ fun PlantupiaQuestionsPanel(
                         Text(publicDraft.cleanTopic, color = green, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                         Text(publicDraft.cleanQuestion, color = mutedGreen, fontSize = 14.sp, lineHeight = 21.sp)
                         Text(
-                            "قد يظهر مكانك من تفاصيل الصورة أو الكلام. بيانات المساحة وسجلها لا تُضاف تلقائيًا، والصورة العامة تُزال منها بيانات EXIF على السيرفر.",
+                            "Your location may be visible in the image or text. Space details and private care history are never attached automatically; public photo EXIF is removed by the server.",
                             color = mutedGreen, fontSize = 12.sp, lineHeight = 19.sp,
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -197,7 +197,7 @@ fun PlantupiaQuestionsPanel(
                                 enabled = !submitting,
                             )
                             Text(
-                                "راجعت الصورة والعنوان والسؤال وأوافق على نشر المحتوى الظاهر للناس.",
+                                "I reviewed the photo, title and question, and agree to publish this content publicly.",
                                 color = green, fontSize = 12.sp,
                                 lineHeight = 19.sp,
                                 modifier = Modifier.weight(1f).padding(top = 10.dp),
@@ -234,13 +234,13 @@ fun PlantupiaQuestionsPanel(
                                 submitting = false
                             }
                         },
-                    ) { Text(if (submitting) "جارٍ النشر…" else "أوافق وأنشر", color = card) }
+                    ) { Text(if (submitting) "Publishing…" else "Agree and publish", color = card) }
                 },
                 dismissButton = {
                     TextButton(
                         enabled = !submitting,
                         onClick = { reviewOpen = false; consent = false },
-                    ) { Text("ارجع وعدّل", color = green) }
+                    ) { Text("Go back and edit", color = green) }
                 },
                 containerColor = card,
             )
@@ -249,9 +249,9 @@ fun PlantupiaQuestionsPanel(
             Text(error.orEmpty(), color = Color(0xFF9F482B), fontSize = 12.sp)
         }
         HorizontalDivider(color = Color(0xFF9FB79A))
-        Text("أسئلة مرتبطة بالنبات", color = green, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+        Text("Questions about this plant", color = green, fontSize = 17.sp, fontWeight = FontWeight.Medium)
         if (loading) CircularProgressIndicator(color = green)
-        if (!loading && linkedPosts.isEmpty()) Text("لما تسأل عن النبات، الأسئلة هتفضل محفوظة هنا.", color = mutedGreen, fontSize = 12.sp)
+        if (!loading && linkedPosts.isEmpty()) Text("Questions you share about this plant will appear here.", color = mutedGreen, fontSize = 12.sp)
         linkedPosts.forEach { entry ->
             QuestionCard(entry = entry, onClick = { onOpenPost(entry.postId) })
             if (canPublish && entry.isMine && !entry.resolved) {
@@ -260,7 +260,7 @@ fun PlantupiaQuestionsPanel(
                         value = outcome,
                         onValueChange = { outcome = it.take(1500) },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("إيه اللي حصل بعد النصيحة؟") },
+                        label = { Text("What actually happened after the advice?") },
                     )
                     Button(
                         enabled = outcome.isNotBlank() && !submitting,
@@ -280,10 +280,10 @@ fun PlantupiaQuestionsPanel(
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = green),
-                    ) { Text("احفظ النتيجة في تاريخ النبات", color = card) }
+                    ) { Text("Save outcome to plant history", color = card) }
                 } else {
                     TextButton(onClick = { respondingTo = entry.id; outcome = "" }) {
-                        Text("وثّق النتيجة بعد المساعدة", color = green)
+                        Text("Record the outcome after getting help", color = green)
                     }
                 }
             }
@@ -322,9 +322,9 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Text("PLANTUPIA / SHARED KNOWLEDGE", color = green, fontSize = 10.sp, letterSpacing = 1.7.sp)
-        Text("الخبرة اللي بتفضل.", fontFamily = FontFamily.Serif, fontSize = 27.sp, color = green)
+        Text("Advice worth keeping.", fontFamily = FontFamily.Serif, fontSize = 27.sp, color = green)
         Text(
-            "سؤال وصورة من نبات حقيقي، وردود من الناس، وبعدها متابعة للنتيجة. من غير كشف المساحة الخاصة.",
+            "Questions and photos from real plants, replies from people, and follow-up outcomes—without sharing private spaces.",
             color = mutedGreen, fontSize = 13.sp, lineHeight = 20.sp,
         )
         if (pending) {
@@ -334,13 +334,13 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(13.dp),
                 ) {
                     CircularProgressIndicator(color = green, modifier = Modifier.size(28.dp))
-                    Text("بنحمّل أسئلة الدائرة…", color = mutedGreen, fontSize = 13.sp)
+                    Text("Loading Circle questions…", color = mutedGreen, fontSize = 13.sp)
                 }
             }
         }
         if (error != null) {
             Text(error.orEmpty(), color = Color(0xFF9F482B), fontSize = 12.sp)
-            TextButton(onClick = { refresh++ }) { Text("حاول تاني", color = green) }
+            TextButton(onClick = { refresh++ }) { Text("Try again", color = green) }
         }
         if (!pending && error == null && questions.isEmpty()) {
             Surface(color = parchment, shape = RoundedCornerShape(18.dp)) {
@@ -350,9 +350,9 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
                 ) {
                     PlantupiaBrandGlyph(modifier = Modifier.size(48.dp))
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("أول سؤال لسه ما اتنشرش", color = green, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Text("No questions yet", color = green, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Text(
-                            "ابدأ من نباتك، اختار صورة وسؤال، وراجع اللي هتشاركه. أسئلة الناس بتظهر هنا لما تتنشر فعلًا.",
+                            "Start with a plant, choose a photo and question, then preview what will be public. Real questions will appear as they're published.",
                             color = mutedGreen, fontSize = 12.sp, lineHeight = 19.sp,
                         )
                     }
@@ -362,7 +362,7 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
         questions.forEach { q -> QuestionCard(q, onClick = { onOpenPost(q.postId) }) }
         if (olderPageError != null) {
             Text(
-                "تعذّر تحميل الأسئلة الأقدم: " + olderPageError.orEmpty(),
+                "Couldn't load older questions: " + olderPageError.orEmpty(),
                 color = Color(0xFF9F482B), fontSize = 12.sp,
             )
         }
@@ -387,12 +387,12 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
                 },
             ) {
                 Text(
-                    if (loadingMore) "جارٍ تحميل المزيد…" else if (olderPageError != null) "حاول تحميل الأسئلة الأقدم تاني" else "اعرض أسئلة أقدم",
+                    if (loadingMore) "Loading more…" else if (olderPageError != null) "Retry older questions" else "Load older questions",
                     color = green,
                 )
             }
         }
-        if (questions.isNotEmpty()) TextButton(onClick = { refresh++ }) { Text("تحديث الأسئلة", color = green) }
+        if (questions.isNotEmpty()) TextButton(onClick = { refresh++ }) { Text("Refresh questions", color = green) }
     }
 }
 
@@ -413,7 +413,7 @@ private fun QuestionCard(entry: PlantupiaQuestion, onClick: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
-                    "FROM REAL PLANTS / من تجربة حقيقية",
+                    "FROM REAL PLANTS",
                     color = green,
                     fontSize = 10.sp,
                     letterSpacing = 0.8.sp,
@@ -421,7 +421,7 @@ private fun QuestionCard(entry: PlantupiaQuestion, onClick: () -> Unit) {
                 )
                 if (entry.resolved) {
                     Text(
-                        "النتيجة اتوثّقت ✓",
+                        "Outcome documented ✓",
                         color = green,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -438,7 +438,7 @@ private fun QuestionCard(entry: PlantupiaQuestion, onClick: () -> Unit) {
             if (entry.imageUrl.isNotBlank()) {
                 AsyncImage(
                     model = entry.imageUrl,
-                    contentDescription = "صورة السؤال: ${entry.topic}",
+                    contentDescription = "Question photo: ${entry.topic}",
                     modifier = Modifier.fillMaxWidth().height(208.dp).clip(RoundedCornerShape(12.dp)),
                     contentScale = ContentScale.Crop,
                 )
@@ -458,11 +458,11 @@ private fun QuestionCard(entry: PlantupiaQuestion, onClick: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
-                    entry.authorName.ifBlank { "شخص من الدائرة" },
+                    entry.authorName.ifBlank { "Circle member" },
                     color = mutedGreen,
                     fontSize = 12.sp,
                 )
-                Text("${entry.comments} ردود · افتح النقاش ←", color = green, fontSize = 12.sp)
+                Text("${entry.comments} replies · Open discussion →", color = green, fontSize = 12.sp)
             }
         }
     }
