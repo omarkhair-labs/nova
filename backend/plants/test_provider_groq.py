@@ -43,6 +43,7 @@ class ProviderAdapterTests(SimpleTestCase):
         endpoint, payload, timeout = captured[0]
         self.assertEqual(endpoint, "https://api.groq.com/openai/v1/chat/completions")
         self.assertEqual(payload["model"], "openai/gpt-oss-20b")
+        self.assertEqual(payload["reasoning_effort"], "low")
         self.assertEqual(payload["messages"][0]["role"], "system")
         self.assertEqual(payload["messages"][-1], {"role": "user", "content": "When should I water?"})
         self.assertNotIn("personal_name", json.dumps(payload))

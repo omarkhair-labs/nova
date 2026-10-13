@@ -77,6 +77,10 @@ def call_provider(message, plant_context, conversation=None):
             "max_completion_tokens": 850,
             "stream": False,
         }
+        if model in ("openai/gpt-oss-20b", "openai/gpt-oss-120b"):
+            # Preserve output budget for the visible answer instead of
+            # consuming the entire free-tier completion on reasoning.
+            payload["reasoning_effort"] = "low"
     else:
         endpoint = "https://api.openai.com/v1/responses"
         payload = {
