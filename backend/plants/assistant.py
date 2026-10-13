@@ -40,32 +40,55 @@ BASE_INSTRUCTIONS = (
 
 
 def call_provider(message, plant_context, conversation=None):
-    """OpenAI Responses API; no retained response, bounded output and hard timeout."""
+    """Real provider call, never silently substitutes fake offline AI replies.
+
+    'groq' supports a capped free-tier experiment; paid plans have different
+    rules. Credentials and provider choice are server-side only. Private
+    context is forwarded only after the view has checked individual consent.
+    """
+    provider = os.getenv("PLANTUPIA_AI_PROVIDER", "openai").strip().lower()
     key = os.getenv("PLANTUPIA_AI_API_KEY", "").strip()
-    model = os.getenv("PLANTUPIA_AI_MODEL", "gpt-5.4-mini").strip()
-    if not key or not model:
+    if provider not in ("openai", "groq") or not key:
         raise RuntimeError("provider_not_configured")
-    # Context is supplied only with per-request consent. Conversation turns are
-    # untrusted client-supplied text; neither can alter the system instructions.
+
+    default_model = "openai/gpt-oss-20b" if provider == "groq" else "gpt-5.4-mini"
+    model = os.getenv("PLANTUPIA_AI_MODEL", default_model).strip()
+    if not model:
+        raise RuntimeError("provider_not_configured")
+
+    # Context is supplied only with per-request opt-in. Both previous turns and
+    # human observations are untrusted content; instructions remain system-owned.
     turns = []
     if plant_context:
         turns.append({
             "role": "user",
-            "content": "User-approved plant record; reported facts, NOT live measurements:\n"
+            "content": "User-approved plant record; reported facts, NOT live measurements:\\n"
             + json.dumps(plant_context, ensure_ascii=False),
         })
     for item in conversation or []:
         turns.append({"role": item["role"], "content": item["content"]})
     turns.append({"role": "user", "content": message})
-    payload = {
-        "model": model,
-        "instructions": BASE_INSTRUCTIONS,
-        "input": turns,
-        "max_output_tokens": 850,
-        "store": False,
-    }
+
+    if provider == "groq":
+        endpoint = "https://api.groq.com/openai/v1/chat/completions"
+        payload = {
+            "model": model,
+            "messages": [{"role": "system", "content": BASE_INSTRUCTIONS}] + turns,
+            "max_completion_tokens": 850,
+            "stream": False,
+        }
+    else:
+        endpoint = "https://api.openai.com/v1/responses"
+        payload = {
+            "model": model,
+            "instructions": BASE_INSTRUCTIONS,
+            "input": turns,
+            "max_output_tokens": 850,
+            "store": False,
+        }
+
     request = Request(
-        "https://api.openai.com/v1/responses",
+        endpoint,
         data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
         headers={
             "Authorization": "Bearer " + key,
@@ -76,20 +99,34 @@ def call_provider(message, plant_context, conversation=None):
     try:
         with urlopen(request, timeout=18) as response:
             result = json.loads(response.read(250_000).decode("utf-8"))
-    except (HTTPError, URLError, TimeoutError, ValueError) as exc:
-        # Never return exception bodies: some providers echo request or secrets.
+    except (HTTPError, URLError, TimeoutError, ValueError, OSError) as exc:
+        # Never return provider exception bodies: they may echo private content.
         raise RuntimeError("provider_unavailable") from exc
-    pieces = []
-    for item in result.get("output", []):
-        if item.get("type") != "message":
-            continue
-        for entry in item.get("content", []):
-            if entry.get("type") == "output_text" and isinstance(entry.get("text"), str):
-                pieces.append(entry["text"])
-    answer = "\n".join(pieces).strip()
-    if not answer or len(answer) > 10000:
+
+    if not isinstance(result, dict):
         raise RuntimeError("invalid_provider_response")
-    return answer
+
+    if provider == "groq":
+        choices = result.get("choices", [])
+        first = choices[0] if isinstance(choices, list) and choices else None
+        answer = (
+            first.get("message", {}).get("content", "")
+            if isinstance(first, dict) and isinstance(first.get("message"), dict)
+            else ""
+        )
+    else:
+        pieces = []
+        for item in result.get("output", []):
+            if not isinstance(item, dict) or item.get("type") != "message":
+                continue
+            for entry in item.get("content", []):
+                if isinstance(entry, dict) and entry.get("type") == "output_text" and isinstance(entry.get("text"), str):
+                    pieces.append(entry["text"])
+        answer = "\\n".join(pieces)
+
+    if not isinstance(answer, str) or not answer.strip() or len(answer) > 10000:
+        raise RuntimeError("invalid_provider_response")
+    return answer.strip()
 
 
 class PlantAssistantView(APIView):
