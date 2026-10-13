@@ -165,6 +165,9 @@ jobs:
       - name: Check alive feature design system
         run: python3 scripts/check_design_system_alive_features.py
 
+      - name: Check Plantupia English-first surfaces
+        run: python3 scripts/check_plantupia_english.py
+
       - name: Check whitespace errors
         run: git diff --check HEAD^1 HEAD
 

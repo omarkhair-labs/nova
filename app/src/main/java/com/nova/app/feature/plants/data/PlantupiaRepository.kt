@@ -122,7 +122,7 @@ class PlantupiaRepository(context: Context) {
                 val json = response.value
                 val answer = json.optString("answer").trim()
                 if (answer.isEmpty()) {
-                    ApiResult.Failure("المساعد رجّع رد غير مكتمل. حاول تاني.")
+                    ApiResult.Failure("The assistant returned an incomplete response. Please try again.")
                 } else {
                     val sources = json.optJSONArray("source_links")
                     ApiResult.Success(

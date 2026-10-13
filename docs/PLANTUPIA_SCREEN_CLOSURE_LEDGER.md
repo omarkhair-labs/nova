@@ -94,6 +94,16 @@ Language acceptance gates:
 
 **Scope discipline:** do not call this a new complete translation/i18n feature, a completed English build, or an approved localization design. First implement English V1 consistently; other interface locales are optional future work.
 
+## English-first implementation progress (2026-10-14)
+
+- English-first copy has now been **implemented** in the Plantupia-native Home, space switcher, add space/plant forms, plant record/care/check-ins, Today, living history/photo viewer, AI sheet, Circle/public consent preview, Create hub, Profile's private spaces, Welcome, and key Settings strings.
+- Care-action labels and new authored action descriptions are English. **Existing notes/nicknames/observations remain in their original language in storage**, untouched by this UI change; new care actions record English labels only when a user explicitly selects them.
+- Main Plantupia tab labels and create accessibility label are English. The Compose app host supplies LTR for product navigation, including devices with RTL system settings. User-authored content continues to support Unicode text input.
+- English-only generic local notification channel labels/body, session unlock wording and incomplete-assistant error.
+- A CI check, `scripts/check_plantupia_english.py`, guards these **specified newly converted source entrypoints** and the Plantupia feature module against Arabic-script hardcoded copy. It is **not proof the inherited Nova engine's entire surface is localized**.
+- **Still open:** all inherited Nova-authored visible UI (messages, post detail, followers, stories/reels, secondary tools, auth/legal/privacy system activities); network-sourced messages from Django/Nova; full user-journey language and accessibility checks, app-specific locale behavior outside Compose; approved brand typeface and final device QA.
+- C0/C1 implementation, true backend QA and free-tier AI activation remain separate gates. No final review until one integrated APK.
+
 ## Acceptance: what "close this screen" requires
 
 1. **Product contract:** understandable task; place within physical living experience; no phantom features.
