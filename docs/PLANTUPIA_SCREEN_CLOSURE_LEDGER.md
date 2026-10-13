@@ -1,6 +1,6 @@
 # PLANTUPIA — Native Screen-by-Screen Closure Ledger (2026-10-13)
 
-**Status: ACTIVE WORKING AUDIT — no screen is signed off yet.**
+**Status: ACTIVE BUILD LEDGER — user-facing final review is deferred until the complete integrated APK.**
 Branch: `feature/plantupia-native-experience-20261012`, stacked on `feature/plantupia-product-conversion-20261010` (PR #241 on #240).
 Android source is Kotlin/Jetpack Compose in `omarkhair-labs/nova`. Nova's network, authentication, social/messaging/media/player/publishing engine is an asset to preserve; legacy Nova *user-facing content* is not approved final Plantupia. Do not merge, migrate Production DB, change Play signing/package or promote stores from this ledger.
 
@@ -10,7 +10,7 @@ Android source is Kotlin/Jetpack Compose in `omarkhair-labs/nova`. Nova's networ
 - **HYBRID:** a Plantupia surface reuses a visible Nova screen or partially restyled feature.
 - **NOVA-INHERITED:** functional engine/screen exists, but its Plantupia role, wording and design still require review.
 - **GAP:** a necessary capability has no complete proven implementation.
-- **ACCEPTED:** forbidden without visual/product review AND passing current-commit CI AND physical QA with authenticated staged data, including errors/privacy.
+- **ACCEPTED:** reserved for the final integrated user review, after green current-commit CI and physical QA with authenticated staged data, including errors/privacy. Interim groups can be tagged BUILT or INTERNALLY TESTED, never owner-accepted.
 
 All entries below are **not accepted** pending the listed evidence. Legacy names in internal Kotlin classes may stay where removing them risks regression; app-facing names must be coherent. Do not substitute the HTML demo for runtime evidence.
 
@@ -83,9 +83,9 @@ All entries below are **not accepted** pending the listed evidence. Legacy names
 3. **Interactions:** taps/nav/Android Back, keyboard, motion, content, states (loading, empty, failed, populated, read-only), including 1/7/100+ plants where relevant.
 4. **Data & permission:** actual authenticated isolated QA, public/private boundaries, no unauthorized views, no fabricated customer/plant/sensor/AI statuses.
 5. **Quality:** tests for policy and state, green latest-head CI, screenshots and real-device walkthrough.
-6. **Owner review:** approve the screen/related journey; only then update this ledger's status to **ACCEPTED**.
+6. **Owner review (FINAL ONLY):** user reviews the complete cohesive Plantupia APK across all groups at the end, after internal engineering/CI checks. No per-screen user approval or repeated stop-and-wait checkpoints. Only then mark user-approved screens ACCEPTED.
 
-Screens are reviewed as **connected closure groups**, rather than polishing a single fragment:
+Build the following connected groups continuously, with developer-side testing/CI and fixes during implementation. **Defer the user's visual review and final QA walkthrough until all groups have an integrated candidate**:
 - G0 visual system, app shell, typography/icons/status-bars.
 - **G1 Living Home → Space navigation → inventory → Plant Profile** (CURRENT; first UX batch).
 - G2 care/check-ins/history/photos/consented reminders.
@@ -108,4 +108,6 @@ Screens are reviewed as **connected closure groups**, rather than polishing a si
 - 2026-10-13: code/PR-wide inventory performed. **No screen marked accepted.**
 - 2026-10-13 G1 iteration: selected-space navigation and scoped photo hero/inventory/recent moments; first plant creation defaults to the focused writable space and navigates to its real profile after save; moved recording care ahead of long timelines. Kotlin policy tests added. **All remain CODED, NOT ACCEPTED** pending exact-head CI and real-device QA.
 - CI diagnostic: initial G1 run found a trailing space in this ledger (not an Android compiler issue); this update strips it. Continue following Android/Django runs for actual build results.
-- Next: physical QA APK visual comparison with the user's captured screenshots, then G1 closure decisions.
+- Next: continue G1 implementation and then G2–G7 without pausing for user screen reviews. Collect internal test evidence and design notes as work proceeds; review the complete integrated APK together only at the end.
+
+- 2026-10-13 workflow decision from user: **final app-wide review only**, not one approval after every screen. CI, permission checks and regression fixes remain continuous internal engineering responsibilities; Production/Play safety gates still apply.
