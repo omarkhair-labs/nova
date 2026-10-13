@@ -530,6 +530,153 @@ fun PlantupiaClientSection(
             val meta = listOf(selectedPlant.species, selectedPlant.placement).filter(String::isNotBlank).joinToString(" · ")
             if (meta.isNotBlank()) Text(meta, fontSize = 13.sp, color = muted)
 
+            // Care is the primary reason to open a plant. Keep the
+            // record-action composer near the identity, not after
+            // rename + pending results + lengthy timeline.
+            if (openDetailMode != PlantupiaCreateMode.QUESTION) {
+                BrandEyebrow("CARE & OBSERVATIONS / الرعاية والملاحظة")
+                if (selectedPlant.canRecord) {
+                    Button(
+                        onClick = { showCareEditor = !showCareEditor },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
+                    ) {
+                        Text(if (showCareEditor) "اخفِ تسجيل اللحظة ↑" else "+ سجّل لحظة جديدة للنبات", color = white)
+                    }
+                if (showCareEditor) PlantupiaPanel {
+                    Text("لو عملت رعاية، اختار اللي حصل فعلًا:", color = forestText, fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                    PlantupiaCareAction.entries.chunked(3).forEach { group ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(9.dp),
+                        ) {
+                            group.forEach { action ->
+                                PlantupiaCareActionTile(
+                                    action = action,
+                                    selected = selectedCareAction == action,
+                                    enabled = !saving,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = {
+                                        selectedCareAction =
+                                            if (selectedCareAction == action) null else action
+                                    },
+                                )
+                            }
+                        }
+                    }
+                    Text("الأفعال دي للتوثيق فقط، مش توصيات بمواعيد الري.", color = muted, fontSize = 11.sp)
+                    OutlinedTextField(
+                        value = note,
+                        onValueChange = { note = it.take(1500) },
+                        label = { Text("إيه اللي لاحظته أو عملته؟") },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                        enabled = !saving,
+                    )
+                    OutlinedButton(
+                        onClick = { carePhotoPicker.launch("image/*") },
+                        enabled = !saving,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        com.nova.app.ui.icons.NovaIcon(
+                            asset = com.nova.app.ui.icons.NovaIconAsset.Photo,
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = 9.dp),
+                            tint = deepGreen,
+                        )
+                        Text(
+                            if (carePhotoUri == null) "أضف صورة حقيقية للملاحظة" else "غيّر الصورة المختارة",
+                            color = deepGreen,
+                        )
+                    }
+                    carePhotoUri?.let { selectedPhoto ->
+                        AsyncImage(
+                            model = selectedPhoto,
+                            contentDescription = "معاينة الصورة الفعلية قبل حفظها في سجل النبات",
+                            modifier = Modifier.fillMaxWidth().height(196.dp).clip(RoundedCornerShape(14.dp)),
+                            contentScale = ContentScale.Crop,
+                        )
+                        TextButton(
+                            onClick = { carePhotoUri = null },
+                            enabled = !saving,
+                        ) {
+                            Text("إزالة الصورة المختارة", color = muted)
+                        }
+                    }
+                    Text("تحب ترجع تراجع نتيجة اللي حصل إمتى؟", color = forestText, fontSize = 12.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                        listOf(7, 14).forEach { days ->
+                            OutlinedButton(
+                                enabled = !saving,
+                                onClick = { checkAgainInDays = if (checkAgainInDays == days) null else days },
+                                modifier = Modifier.weight(1f),
+                            ) { Text(if (checkAgainInDays == days) "✓ بعد $days يوم" else "بعد $days يوم", color = deepGreen, fontSize = 12.sp) }
+                        }
+                    }
+                    if (checkAgainInDays != null) {
+                        TextButton(onClick = { checkAgainInDays = null }, enabled = !saving) {
+                            Text("بدون موعد متابعة", color = muted, fontSize = 12.sp)
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            enabled = !saving && (note.isNotBlank() || carePhotoUri != null),
+                            onClick = {
+                                scope.launch {
+                                    saving = true
+                                    when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "observation", note, it, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() }) } ?: repository.record(selectedPlant.id, "observation", note, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() })) {
+                                        is ApiResult.Failure -> error = r.message
+                                        is ApiResult.Success -> { note = ""; openPlant(selectedPlant) }
+                                    }
+                                    saving = false
+                                }
+                            },
+                        ) { Text("ملاحظة", color = deepGreen) }
+                        Button(
+                            enabled = !saving && (selectedCareAction != null || note.isNotBlank() || carePhotoUri != null),
+                            onClick = {
+                                val careDetails = buildPlantupiaCareNote(selectedCareAction, note)
+                                scope.launch {
+                                    saving = true
+                                    when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "care", careDetails, it, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() }) } ?: repository.record(selectedPlant.id, "care", careDetails, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() })) {
+                                        is ApiResult.Failure -> error = r.message
+                                        is ApiResult.Success -> { note = ""; openPlant(selectedPlant) }
+                                    }
+                                    saving = false
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
+                        ) { Text("رعاية", color = white) }
+                        OutlinedButton(
+                            enabled = !saving && (note.isNotBlank() || carePhotoUri != null),
+                            onClick = {
+                                scope.launch {
+                                    saving = true
+                                    when (val result = carePhotoUri?.let {
+                                        repository.recordWithPhoto(selectedPlant.id, "issue", note, it, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() })
+                                    } ?: repository.record(selectedPlant.id, "issue", note, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() })) {
+                                        is ApiResult.Failure -> error = result.message
+                                        is ApiResult.Success -> {
+                                            note = ""
+                                            openPlant(selectedPlant)
+                                        }
+                                    }
+                                    saving = false
+                                }
+                            },
+                        ) { Text("تغيّر مقلق", color = deepGreen) }
+                    }
+                    Text(
+                        "سجل اللي شفته زي ما هو. مش لازم تشخّص سبب التغيّر.",
+                        color = muted, fontSize = 11.sp,
+                    )
+                }
+                } else {
+                    Text("لديك صلاحية مشاهدة سجل الرعاية فقط. يمكن للمسؤول منحك صلاحية التوثيق.", color = muted, fontSize = 12.sp)
+                }
+                if (error != null) Text(error.orEmpty(), color = Color(0xFF9A4A31), fontSize = 12.sp)
+            }
+
             OutlinedButton(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = { showAssistant = true },
@@ -693,147 +840,6 @@ fun PlantupiaClientSection(
                     ) { Text(if (saving) "جارٍ تسجيل النتيجة…" else "احفظ النتيجة وأغلق المتابعة", color = white) }
                 }
             }
-            BrandEyebrow("CARE & OBSERVATIONS / الرعاية والملاحظة")
-            if (selectedPlant.canRecord) {
-                Button(
-                    onClick = { showCareEditor = !showCareEditor },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
-                ) {
-                    Text(if (showCareEditor) "اخفِ تسجيل اللحظة ↑" else "+ سجّل لحظة جديدة للنبات", color = white)
-                }
-            if (showCareEditor) PlantupiaPanel {
-                Text("لو عملت رعاية، اختار اللي حصل فعلًا:", color = forestText, fontWeight = FontWeight.Medium, fontSize = 13.sp)
-                PlantupiaCareAction.entries.chunked(3).forEach { group ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(9.dp),
-                    ) {
-                        group.forEach { action ->
-                            PlantupiaCareActionTile(
-                                action = action,
-                                selected = selectedCareAction == action,
-                                enabled = !saving,
-                                modifier = Modifier.weight(1f),
-                                onClick = {
-                                    selectedCareAction =
-                                        if (selectedCareAction == action) null else action
-                                },
-                            )
-                        }
-                    }
-                }
-                Text("الأفعال دي للتوثيق فقط، مش توصيات بمواعيد الري.", color = muted, fontSize = 11.sp)
-                OutlinedTextField(
-                    value = note,
-                    onValueChange = { note = it.take(1500) },
-                    label = { Text("إيه اللي لاحظته أو عملته؟") },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 2,
-                    enabled = !saving,
-                )
-                OutlinedButton(
-                    onClick = { carePhotoPicker.launch("image/*") },
-                    enabled = !saving,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    com.nova.app.ui.icons.NovaIcon(
-                        asset = com.nova.app.ui.icons.NovaIconAsset.Photo,
-                        contentDescription = null,
-                        modifier = Modifier.padding(end = 9.dp),
-                        tint = deepGreen,
-                    )
-                    Text(
-                        if (carePhotoUri == null) "أضف صورة حقيقية للملاحظة" else "غيّر الصورة المختارة",
-                        color = deepGreen,
-                    )
-                }
-                carePhotoUri?.let { selectedPhoto ->
-                    AsyncImage(
-                        model = selectedPhoto,
-                        contentDescription = "معاينة الصورة الفعلية قبل حفظها في سجل النبات",
-                        modifier = Modifier.fillMaxWidth().height(196.dp).clip(RoundedCornerShape(14.dp)),
-                        contentScale = ContentScale.Crop,
-                    )
-                    TextButton(
-                        onClick = { carePhotoUri = null },
-                        enabled = !saving,
-                    ) {
-                        Text("إزالة الصورة المختارة", color = muted)
-                    }
-                }
-                Text("تحب ترجع تراجع نتيجة اللي حصل إمتى؟", color = forestText, fontSize = 12.sp)
-                Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    listOf(7, 14).forEach { days ->
-                        OutlinedButton(
-                            enabled = !saving,
-                            onClick = { checkAgainInDays = if (checkAgainInDays == days) null else days },
-                            modifier = Modifier.weight(1f),
-                        ) { Text(if (checkAgainInDays == days) "✓ بعد $days يوم" else "بعد $days يوم", color = deepGreen, fontSize = 12.sp) }
-                    }
-                }
-                if (checkAgainInDays != null) {
-                    TextButton(onClick = { checkAgainInDays = null }, enabled = !saving) {
-                        Text("بدون موعد متابعة", color = muted, fontSize = 12.sp)
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        enabled = !saving && (note.isNotBlank() || carePhotoUri != null),
-                        onClick = {
-                            scope.launch {
-                                saving = true
-                                when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "observation", note, it, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() }) } ?: repository.record(selectedPlant.id, "observation", note, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() })) {
-                                    is ApiResult.Failure -> error = r.message
-                                    is ApiResult.Success -> { note = ""; openPlant(selectedPlant) }
-                                }
-                                saving = false
-                            }
-                        },
-                    ) { Text("ملاحظة", color = deepGreen) }
-                    Button(
-                        enabled = !saving && (selectedCareAction != null || note.isNotBlank() || carePhotoUri != null),
-                        onClick = {
-                            val careDetails = buildPlantupiaCareNote(selectedCareAction, note)
-                            scope.launch {
-                                saving = true
-                                when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "care", careDetails, it, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() }) } ?: repository.record(selectedPlant.id, "care", careDetails, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() })) {
-                                    is ApiResult.Failure -> error = r.message
-                                    is ApiResult.Success -> { note = ""; openPlant(selectedPlant) }
-                                }
-                                saving = false
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
-                    ) { Text("رعاية", color = white) }
-                    OutlinedButton(
-                        enabled = !saving && (note.isNotBlank() || carePhotoUri != null),
-                        onClick = {
-                            scope.launch {
-                                saving = true
-                                when (val result = carePhotoUri?.let {
-                                    repository.recordWithPhoto(selectedPlant.id, "issue", note, it, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() })
-                                } ?: repository.record(selectedPlant.id, "issue", note, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() })) {
-                                    is ApiResult.Failure -> error = result.message
-                                    is ApiResult.Success -> {
-                                        note = ""
-                                        openPlant(selectedPlant)
-                                    }
-                                }
-                                saving = false
-                            }
-                        },
-                    ) { Text("تغيّر مقلق", color = deepGreen) }
-                }
-                Text(
-                    "سجل اللي شفته زي ما هو. مش لازم تشخّص سبب التغيّر.",
-                    color = muted, fontSize = 11.sp,
-                )
-            }
-            } else {
-                Text("لديك صلاحية مشاهدة سجل الرعاية فقط. يمكن للمسؤول منحك صلاحية التوثيق.", color = muted, fontSize = 12.sp)
-            }
-            if (error != null) Text(error.orEmpty(), color = Color(0xFF9A4A31), fontSize = 12.sp)
             BrandEyebrow("LIVING TIME / من أول صورة لآخر تغيير")
             if (detailLoading) {
                 Text("جارٍ تحميل التاريخ…", color = muted, fontSize = 13.sp)
@@ -939,7 +945,7 @@ fun PlantupiaClientSection(
                 Text("منشور عام مستقل", color = deepGreen)
             }
             Text(
-                "اللحظات العامة والستوريز من Nova متاحة؛ أسئلة النبات المنشورة أعلاه مرتبطة بتاريخ النبات فقط بعد موافقتك.",
+                "المنشورات والستوريز العامة اختيارية؛ أي سؤال عام عن النبات مش هينقل سجل رعايته الخاص من غير موافقتك.",
                 color = muted,
                 fontSize = 11.sp,
                 lineHeight = 18.sp,
