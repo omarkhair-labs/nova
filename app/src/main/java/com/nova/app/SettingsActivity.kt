@@ -203,14 +203,14 @@ private fun SettingsScreen(
             Column {
                 SettingsRow(
                     icon = NovaIconAsset.Security,
-                    title = "الأمان",
+                    title = "Security",
                     subtitle = "كلمة السر والجلسات وحماية الحساب",
                     onClick = onSecurity,
                 )
                 SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.Privacy,
-                    title = "الخصوصية",
+                    title = "Privacy",
                     subtitle = "خصوصية حسابك وطلبات المتابعة والأصدقاء المقربون",
                     onClick = onPrivacy,
                 )
@@ -224,7 +224,7 @@ private fun SettingsScreen(
                 SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.Blocked,
-                    title = "الحسابات المحظورة",
+                    title = "Blocked accounts",
                     subtitle = "مراجعة الأشخاص اللي حظرتهم",
                     onClick = onBlockedAccounts,
                 )
@@ -245,7 +245,7 @@ private fun SettingsScreen(
                 SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.AccountDeletion,
-                    title = "إعدادات Android",
+                    title = "Android app settings",
                     subtitle = "الصلاحيات والتنبيهات والتخزين من إعدادات الجهاز",
                     onClick = onDataStorage,
                 )
@@ -273,14 +273,14 @@ private fun SettingsScreen(
                 SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.Policy,
-                    title = "سياسة الخصوصية",
+                    title = "Privacy policy",
                     subtitle = "اعرف إزاي بنستخدم بيانات الحساب",
                     onClick = onPrivacyPolicy,
                 )
                 SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.AccountDeletion,
-                    title = "حذف الحساب",
+                    title = "Account deletion help",
                     subtitle = "تعليمات الحذف؛ أو من قسم الأمان",
                     onClick = onAccountDeletion,
                 )
