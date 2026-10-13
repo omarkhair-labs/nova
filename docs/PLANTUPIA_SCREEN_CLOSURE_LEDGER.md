@@ -77,6 +77,23 @@ All entries below are **not accepted** pending the listed evidence. Legacy names
 | Distribution | QA applicationId suffix `.qa`; original Play ID reserved | no signing, Production rollout or Play changes without explicit permission |
 | Local care reminders | WorkManager one-off scheduling after real saved Django event, explicit per-event opt-in, cancel button, user-id-scoped generic text, logout cancels all | no exact delivery promise; verify background limits, multiple accounts, app restarts, Android 13+ permission |
 
+## Release language — new stakeholder requirement (2026-10-14)
+
+**Decision: English-first user interface for the integrated Plantupia release.** A stakeholder has asked for the Android app to be in English. This supersedes the earlier Arabic-first prototype copy for the *shipping UI*, but does not change data contracts, navigation architecture, backend hosting, or the planned final-only user review.
+
+Language acceptance gates:
+1. **All product-owned UI strings in English:** Welcome, authentication, first-use, Home, space switcher, plants, care/check-ins, notifications, photo viewer, AI, Circle, Create, public preview, Profile, Inbox, Stories/Reels where exposed, Settings, privacy and error/offline/permission states. No English heading with an unexplained Arabic subtitle.
+2. **User-authored data is never auto-translated:** user-entered plant nicknames, space names, care notes, posts and messages remain in their original language and support Unicode/RTL input. Existing stored records are untouched.
+3. **English-aware layout:** LTR navigation labels, correctly mirrored directional arrows/back, meaningful locale-aware date/time/number presentation (not forced US formats), accessible TalkBack labels and clear 12/24h dates as appropriate.
+4. **Android resource strategy:** centralize new/modified app-visible strings in `strings.xml`/feature resource files where practical; avoid introducing new hardcoded Arabic strings. Preserve protected navigation/security architecture tests and update their contracts deliberately, never by bypassing safeguards.
+5. **AI provider:** assistant replies in the user's requested language (default product English); no system assumption that English only input is valid. Server errors and third-party outages present a consistent English UI; no invented answer on failure.
+6. **Privacy/device:** English user-facing notification channel names and generic privacy-safe content; no translation of private records by the background worker; permission rationale stays clear and optional.
+7. **Validation:** check every primary journey and all empty/loading/error/read-only states on a device, including mixed-direction user-generated text. Do not mark language work complete from grep/CI alone.
+
+**Evidence from sampled source files (not full-app exhaustive):** `PlantupiaClientSection.kt` still includes many Arabic literals, as do `PlantupiaTodayPanel.kt`, `PlantupiaSelfServiceForms.kt`, `PlantupiaCommunityPanels.kt`, `CreateHubScreen.kt`, `OrbitScreen.kt`, `ProfileScreen.kt`, `WelcomeScreen.kt`, `SettingsActivity.kt`, and `PlantupiaCareReminderScheduler.kt`. The existing `app/src/main/res/values/strings.xml` is tiny; broad cleanup remains. Inherited Nova screens require a separate app-facing copy check.
+
+**Scope discipline:** do not call this a new complete translation/i18n feature, a completed English build, or an approved localization design. First implement English V1 consistently; other interface locales are optional future work.
+
 ## Acceptance: what "close this screen" requires
 
 1. **Product contract:** understandable task; place within physical living experience; no phantom features.
@@ -117,3 +134,5 @@ Build the following connected groups continuously, with developer-side testing/C
 - 2026-10-13 G0 increment: readable dark status-bar glyphs on the cream/native account and messaging surfaces; Plantupia labels for activity/DM notification channels, settings copy and onboarding without claiming a company installation is compulsory. Must check dark video/overlay exceptions during final E2E.
 
 - 2026-10-13 G2 follow-up increment: user chooses an arbitrary future check-in date with Android native calendar (existing 7/14-day shortcuts remain); explicit consent can be added **after** a previously saved review. Same Django data and exact review event ID are used; dates are validated and a past custom date blocks save. Tests cover optional/future/past/custom date precedence. A WorkManager failure cannot block logout or crash local reminder cancellation: its synchronous privacy gate clears independently.
+
+- 2026-10-14: stakeholder language requirement changed to **English-first release UI**. Recorded as G0/G7 cross-cutting work; implementation has **not** yet been performed, and final user review remains deferred until integrated APK.
