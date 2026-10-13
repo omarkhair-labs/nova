@@ -116,7 +116,7 @@ class MainActivity : ComponentActivity() {
         if (!appLock.requiresUnlock() || appLockPromptOpen) return
         val keyguard = getSystemService(KeyguardManager::class.java)
         val prompt = keyguard.createConfirmDeviceCredentialIntent(
-            "فتح Plantupia",
+            "Unlock Plantupia",
             "Confirm your device screen lock to continue.",
         )
         if (prompt == null) {
