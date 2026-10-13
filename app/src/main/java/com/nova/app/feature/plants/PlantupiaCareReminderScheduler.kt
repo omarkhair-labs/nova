@@ -79,7 +79,11 @@ object PlantupiaCareReminderScheduler {
         val app = context.applicationContext
         app.getSharedPreferences(REMINDER_PREFS, Context.MODE_PRIVATE)
             .edit().remove(eventId).apply()
-        WorkManager.getInstance(app).cancelUniqueWork(REMINDER_TAG + ":" + eventId)
+        // Preference removal alone prevents the worker from displaying a
+        // notification, even if WorkManager is unavailable at this moment.
+        runCatching {
+            WorkManager.getInstance(app).cancelUniqueWork(REMINDER_TAG + ":" + eventId)
+        }
     }
 
     fun isScheduled(context: Context, eventId: String): Boolean {
@@ -90,8 +94,10 @@ object PlantupiaCareReminderScheduler {
 
     fun clearForLogout(context: Context) {
         val app = context.applicationContext
-        WorkManager.getInstance(app).cancelAllWorkByTag(REMINDER_TAG)
+        // Clear the account authorization gate synchronously before stopping
+        // workers. A pending callback may never surface private app context.
         app.getSharedPreferences(REMINDER_PREFS, Context.MODE_PRIVATE).edit().clear().commit()
+        runCatching { WorkManager.getInstance(app).cancelAllWorkByTag(REMINDER_TAG) }
     }
 
     internal fun consumeIfAuthorized(context: Context, eventId: String, userId: Long): Boolean {
@@ -125,13 +131,6 @@ class PlantupiaCareReminderWorker(
 
         val manager = applicationContext.getSystemService(NotificationManager::class.java)
             ?: return Result.success()
-        manager.createNotificationChannel(
-            NotificationChannel(
-                REMINDER_CHANNEL,
-                "Plantupia · متابعة نباتاتك",
-                NotificationManager.IMPORTANCE_DEFAULT,
-            ).apply { description = "مواعيد الفحص اللي اخترتها بنفسك، مش تنبؤات ري" }
-        )
         val open = PendingIntent.getActivity(
             applicationContext,
             eventId.hashCode(),
@@ -140,6 +139,13 @@ class PlantupiaCareReminderWorker(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         return runCatching {
+            manager.createNotificationChannel(
+                NotificationChannel(
+                    REMINDER_CHANNEL,
+                    "Plantupia · متابعة نباتاتك",
+                    NotificationManager.IMPORTANCE_DEFAULT,
+                ).apply { description = "مواعيد الفحص اللي اخترتها بنفسك، مش تنبؤات ري" }
+            )
             manager.notify(
                 eventId.hashCode(),
                 NotificationCompat.Builder(applicationContext, REMINDER_CHANNEL)
