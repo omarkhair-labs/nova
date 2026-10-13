@@ -78,7 +78,7 @@ fun PlantupiaProfileSpaces(onOpenSpaces: () -> Unit) {
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
-            "PRIVATE / مساحاتك الخاصة",
+            "PRIVATE SPACES",
             style = PlantupiaText.sectionLabel,
         )
         when (val current = state) {
@@ -98,7 +98,7 @@ fun PlantupiaProfileSpaces(onOpenSpaces: () -> Unit) {
                             strokeWidth = 2.dp,
                             modifier = Modifier.size(22.dp),
                         )
-                        Text("بنحمّل مساحاتك الخاصة…", style = PlantupiaText.body)
+                        Text("Loading your private spaces…", style = PlantupiaText.body)
                     }
                 }
             }
@@ -113,13 +113,13 @@ fun PlantupiaProfileSpaces(onOpenSpaces: () -> Unit) {
                         modifier = Modifier.padding(18.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        Text("مساحاتك مش ظاهرة دلوقتي", style = PlantupiaText.editorialHeading)
+                        Text("Your spaces are unavailable", style = PlantupiaText.editorialHeading)
                         Text(
-                            "مش هنعرِض أرقام أو صور تجريبية مكان بياناتك. جرّب تحميلها تاني لما الخدمة تبقى متاحة.",
+                            "We won't substitute sample photos or counts for your real data. Try again when the service is available.",
                             style = PlantupiaText.supporting,
                         )
                         TextButton(onClick = { retry++ }) {
-                            Text("إعادة المحاولة", color = PlantupiaColors.forest)
+                            Text("Retry", color = PlantupiaColors.forest)
                         }
                     }
                 }
@@ -144,19 +144,19 @@ fun PlantupiaProfileSpaces(onOpenSpaces: () -> Unit) {
                         verticalArrangement = Arrangement.spacedBy(13.dp),
                     ) {
                         Text(
-                            if (current.spaces.isEmpty()) "مكان للحياة اللي هتوثّقها"
-                            else "المكان اللي بتشارك في رعايته",
+                            if (current.spaces.isEmpty()) "A place for your living records"
+                            else "The spaces you help care for",
                             style = PlantupiaText.editorialHeading,
                         )
                         if (current.spaces.isEmpty()) {
                             Text(
-                                "لسه مفيش مساحات مسجلة. ابدأ بمساحة خاصة، وبعدها ضيف نباتاتك وصورها وسجلّها.",
+                                "No spaces yet. Create a private space, then add plants, photos and care records.",
                                 style = PlantupiaText.body,
                             )
                             EmptySpacesIllustration()
                         } else {
                             Text(
-                                "${current.spaces.size} مساحة · ${activePlants.size} وحدة نباتية",
+                                "${current.spaces.size} spaces · ${activePlants.size} plants",
                                 style = PlantupiaText.supporting,
                             )
                             if (photos.isNotEmpty()) {
@@ -170,7 +170,7 @@ fun PlantupiaProfileSpaces(onOpenSpaces: () -> Unit) {
                                             Box(contentAlignment = Alignment.BottomStart) {
                                                 AsyncImage(
                                                     model = plant.coverPhoto,
-                                                    contentDescription = "صورة خاصة للنبات ${plant.name}",
+                                                    contentDescription = "Private photo of ${plant.name}",
                                                     modifier = Modifier.fillMaxWidth().height(144.dp),
                                                     contentScale = ContentScale.Crop,
                                                 )
@@ -195,7 +195,7 @@ fun PlantupiaProfileSpaces(onOpenSpaces: () -> Unit) {
                             } else {
                                 EmptySpacesIllustration()
                                 Text(
-                                    "أضف صورة حقيقية لنباتك علشان تبدأ حكاية مساحتك البصرية.",
+                                    "Add a real photo of your plant to begin its visual history.",
                                     style = PlantupiaText.supporting,
                                 )
                             }
@@ -213,7 +213,7 @@ fun PlantupiaProfileSpaces(onOpenSpaces: () -> Unit) {
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                if (current.spaces.isEmpty()) "أنشئ أول مساحة" else "استكشف مساحاتك",
+                                if (current.spaces.isEmpty()) "Create first space" else "Explore your spaces",
                                 color = PlantupiaColors.forest,
                                 style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
                             )
@@ -229,7 +229,7 @@ fun PlantupiaProfileSpaces(onOpenSpaces: () -> Unit) {
             }
         }
         Text(
-            "المساحات والصور وسجل الرعاية خاصين بالأشخاص المصرّح لهم، ومش جزء من منشورات بروفايلك العام.",
+            "Spaces, photos and care records are only visible to authorized people—not on your public profile.",
             style = PlantupiaText.supporting,
         )
     }

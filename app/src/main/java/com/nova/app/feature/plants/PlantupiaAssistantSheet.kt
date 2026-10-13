@@ -98,10 +98,10 @@ internal fun PlantupiaAssistantSheet(
                     contentDescription = null,
                     tint = forest,
                 )
-                Text(if (plant == null) "اسأل مساعد Plantupia" else "اسأل عن " + plant.name, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = forest)
+                Text(if (plant == null) "Ask Plantupia Assistant" else "Ask about " + plant.name, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = forest)
             }
             Text(
-                "مساعد نباتات بالذكاء الاصطناعي. بيقترح أسئلة وفحوصات، مش تشخيص مؤكد أو خدمة دعم من الشركة.",
+                "An AI plant companion for observations and next checks—not a confirmed diagnosis or company support.",
                 fontSize = 12.sp, color = muted, lineHeight = 20.sp,
             )
             if (plant != null) Surface(
@@ -115,9 +115,9 @@ internal fun PlantupiaAssistantSheet(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("استخدم تاريخ نباتي في الإجابة", color = forest, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Text("Include my plant's history", color = forest, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                         Text(
-                            "اختياري لكل سؤال: الاسم والنوع والمكان وآخر ملاحظاتك فقط. صور النبات وموقع منزلك مش بيتبعتوا.",
+                            "Optional for each question: share the plant name, species, placement and recent notes. Plant photos and home address are not sent.",
                             color = muted, fontSize = 11.sp, lineHeight = 17.sp,
                         )
                     }
@@ -143,7 +143,7 @@ internal fun PlantupiaAssistantSheet(
                 if (bubbles.isEmpty()) {
                     item {
                         Text(
-                            "إيه التغيّر اللي لاحظته؟ احكي مثلًا عن لون الورق، الإضاءة، آخر ريّة، وهل التربة ناشفة أو رطبة.",
+                            "What changed? Describe leaf color, light, your last watering, and whether the soil feels dry or damp.",
                             color = muted, fontSize = 14.sp, lineHeight = 23.sp,
                         )
                     }
@@ -157,8 +157,8 @@ internal fun PlantupiaAssistantSheet(
                     ) {
                         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                             Text(
-                                text = if (item.fromUser) "سؤالك" else
-                                    "إجابة AI · " + (if (item.scope == "plant_context") "مع بيانات النبات" else "معلومات عامة"),
+                                text = if (item.fromUser) "Your question" else
+                                    "AI response · " + (if (item.scope == "plant_context") "plant context" else "general information"),
                                 color = forest, fontSize = 11.sp, fontWeight = FontWeight.Bold,
                             )
                             Text(item.text, color = forest, fontSize = 13.sp, lineHeight = 21.sp)
@@ -177,7 +177,7 @@ internal fun PlantupiaAssistantSheet(
             OutlinedTextField(
                 value = input,
                 onValueChange = { input = it.take(1000) },
-                label = { Text(if (plant == null) "اسأل عن أي نبات…" else "اسأل عن النبات…") },
+                label = { Text(if (plant == null) "Ask about plants…" else "Ask about this plant…") },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !pending,
                 minLines = 2,
@@ -189,7 +189,7 @@ internal fun PlantupiaAssistantSheet(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 TextButton(onClick = onDismiss, enabled = !pending) {
-                    Text("إغلاق", color = muted)
+                    Text("Close", color = muted)
                 }
                 Spacer(Modifier.weight(1f))
                 Button(
@@ -224,7 +224,7 @@ internal fun PlantupiaAssistantSheet(
                                 }
                                 is ApiResult.Failure -> {
                                     error = if (result.statusCode == 503)
-                                        "المساعد لسه مش مُفعّل على السيرفر أو غير متاح حاليًا. سؤالك ما اتحفظش في سجل النبات."
+                                        "The AI assistant is not enabled on this server or is temporarily unavailable. Your question wasn't saved to the plant's care record."
                                     else result.message
                                 }
                             }
@@ -232,11 +232,11 @@ internal fun PlantupiaAssistantSheet(
                         }
                     },
                 ) {
-                    Text(if (pending) "جارٍ السؤال…" else "إرسال السؤال", color = paper)
+                    Text(if (pending) "Thinking…" else "Send question", color = paper)
                 }
             }
             Text(
-                "الردود دي إرشادية ومش بتُسجّل رعاية تلقائيًا. المساعد مش بيقرأ Sensors لأن Plantupia مفيهاش حساسات نباتات.",
+                "Responses are informational and never automatically create care records. Plantupia has no plant sensors or live soil readings.",
                 color = muted, fontSize = 10.sp, lineHeight = 15.sp,
             )
             Spacer(Modifier.height(10.dp))

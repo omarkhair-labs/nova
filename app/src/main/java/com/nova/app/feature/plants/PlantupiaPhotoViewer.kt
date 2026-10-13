@@ -70,14 +70,14 @@ internal fun PlantupiaPhotoViewer(
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text(
-                        "صورة " + plantName,
+                        "Photo of " + plantName,
                         color = Color(0xFFFFFDF7),
                         fontSize = 15.sp,
                     )
                     IconButton(onClick = onClose) {
                         NovaIcon(
                             asset = NovaIconAsset.Close,
-                            contentDescription = "إغلاق الصورة",
+                            contentDescription = "Close photo",
                             modifier = Modifier.size(23.dp),
                             tint = Color.White,
                         )
@@ -90,7 +90,7 @@ internal fun PlantupiaPhotoViewer(
                 ) {
                     AsyncImage(
                         model = photoUrl,
-                        contentDescription = "الصورة الحقيقية لنبات " + plantName,
+                        contentDescription = "Actual photo of plant " + plantName,
                         modifier = Modifier.fillMaxSize().graphicsLayer {
                             scaleX = zoom
                             scaleY = zoom
@@ -101,7 +101,7 @@ internal fun PlantupiaPhotoViewer(
                     )
                     if (zoom <= 1f) {
                         Text(
-                            "كبّر الصورة بإصبعين",
+                            "Pinch to zoom",
                             modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
                             color = Color(0xFFE1E8DC),
                             fontSize = 12.sp,

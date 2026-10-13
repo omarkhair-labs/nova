@@ -192,14 +192,14 @@ internal fun PlantupiaPlantInventoryCard(
                 if (plant.coverPhoto.isNotBlank()) {
                     AsyncImage(
                         model = plant.coverPhoto,
-                        contentDescription = "صورة " + plant.name,
+                        contentDescription = "Photo of " + plant.name,
                         contentScale = ContentScale.Crop,
                     )
                 } else {
                     Box(contentAlignment = Alignment.Center) {
                         NovaIcon(
                             asset = NovaIconAsset.Photo,
-                            contentDescription = "لا توجد صورة",
+                            contentDescription = "No photo yet",
                             modifier = Modifier.size(26.dp),
                             tint = muted,
                         )
@@ -220,19 +220,19 @@ internal fun PlantupiaPlantInventoryCard(
                 }
                 Text(
                     if (plant.lastEventAt.isNotBlank()) eventLabel + " · " + plant.lastEventAt.take(10)
-                    else "ابدأ توثيق حياة النبات",
+                    else "Start recording this plant's life",
                     color = muted, fontSize = 11.sp, maxLines = 1,
                 )
                 if (plant.nextFollowUpOn.isNotBlank()) {
                     Text(
-                        "مراجعة اخترتها · " + plant.nextFollowUpOn,
+                        "Chosen check-in · " + plant.nextFollowUpOn,
                         color = ink, fontWeight = FontWeight.Medium, fontSize = 11.sp,
                     )
                 }
             }
             NovaIcon(
                 asset = NovaIconAsset.Back,
-                contentDescription = "افتح سجل " + plant.name,
+                contentDescription = "Open history for " + plant.name,
                 modifier = Modifier.size(20.dp),
                 tint = ink,
             )
@@ -288,7 +288,7 @@ internal fun PlantupiaHistoryEventCard(
             if (event.photoUrl.isNotBlank()) {
                 AsyncImage(
                     model = event.photoUrl,
-                    contentDescription = "الصورة الحقيقية المرفوعة مع هذا الحدث، اضغط للتكبير",
+                    contentDescription = "Actual photo recorded with this event. Tap to enlarge.",
                     modifier = Modifier.fillMaxWidth()
                         .height(198.dp)
                         .clickable(onClick = onPhotoClick),
@@ -298,17 +298,17 @@ internal fun PlantupiaHistoryEventCard(
             if (event.note.isNotBlank()) {
                 Text(event.note, color = ink, fontSize = 13.sp, lineHeight = 20.sp)
             } else {
-                Text("حدث رعاية مسجل", color = muted, fontSize = 12.sp)
+                Text("Care event recorded", color = muted, fontSize = 12.sp)
             }
             Text(
-                "المصدر: " + evidenceLabel,
+                "Evidence: " + evidenceLabel,
                 color = muted, fontSize = 11.sp,
             )
             if (event.followUpOn.isNotBlank()) {
                 Surface(color = soft, shape = RoundedCornerShape(9.dp)) {
                     Text(
-                        if (event.followUpCompletedAt.isNotBlank()) "تمت المراجعة · " + event.followUpOn
-                        else "راجع النتيجة يوم " + event.followUpOn,
+                        if (event.followUpCompletedAt.isNotBlank()) "Check-in completed · " + event.followUpOn
+                        else "Check again on " + event.followUpOn,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
                         color = ink, fontWeight = FontWeight.Medium, fontSize = 11.sp,
                     )
@@ -321,13 +321,13 @@ internal fun PlantupiaHistoryEventCard(
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         Text(
-                            "النتيجة اللي اتسجلت بعد المتابعة",
+                            "Observed check-in outcome",
                             color = ink, fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
                         )
                         linkedOutcomes.forEach { outcome ->
                             Text(outcome.observedAt.take(10), color = muted, fontSize = 11.sp)
                             Text(
-                                outcome.note.ifBlank { "اتسجلت نتيجة المتابعة بدون تفاصيل." },
+                                outcome.note.ifBlank { "Check-in outcome recorded without details." },
                                 color = ink, fontSize = 13.sp, lineHeight = 19.sp,
                             )
                         }
