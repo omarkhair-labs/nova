@@ -1,5 +1,8 @@
 package com.nova.app.feature.plants
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -21,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -46,6 +50,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.draw.clip
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.fillMaxSize
 import coil3.compose.AsyncImage
 import com.nova.app.core.network.ApiResult
@@ -99,6 +104,11 @@ fun PlantupiaClientSection(
     var followUpTarget by remember { mutableStateOf<PlantupiaCareEvent?>(null) }
     var followUpResult by remember { mutableStateOf("") }
     var checkAgainInDays by remember { mutableStateOf<Int?>(null) }
+    var reminderOptIn by remember { mutableStateOf(false) }
+    var reminderRevision by remember { mutableStateOf(0) }
+    val reminderPermissionPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted -> reminderOptIn = granted }
     var nextHistoryOffset by remember { mutableStateOf<Int?>(null) }
     var olderEventsLoading by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(true) }
@@ -148,6 +158,7 @@ fun PlantupiaClientSection(
         selectedCareAction = null
         carePhotoUri = null
         checkAgainInDays = null
+        reminderOptIn = false
         followUpTarget = null
         followUpResult = ""
         pendingFollowUps = emptyList()
@@ -170,6 +181,22 @@ fun PlantupiaClientSection(
             is ApiResult.Failure -> if (error == null) error = response.message
         }
         detailLoading = false
+    }
+
+    suspend fun finishSavedMoment(eventId: String, plant: PlantupiaPlant) {
+        // Check-in dates are persisted by Django whether or not notification
+        // is opted into. Never schedule without a successful server event.
+        val remindDate = checkAgainInDays?.let {
+            LocalDate.now().plusDays(it.toLong()).toString()
+        }
+        val requestedReminder = reminderOptIn && remindDate != null
+        val reminderScheduled = !requestedReminder ||
+            PlantupiaCareReminderScheduler.schedule(context, eventId, remindDate.orEmpty())
+        note = ""
+        openPlant(plant)
+        if (!reminderScheduled) {
+            error = "اللحظة اتحفظت، لكن إشعار المراجعة ما اتجدولش. راجع صلاحية التنبيهات."
+        }
     }
 
     fun closePlant() {
@@ -608,15 +635,51 @@ fun PlantupiaClientSection(
                         listOf(7, 14).forEach { days ->
                             OutlinedButton(
                                 enabled = !saving,
-                                onClick = { checkAgainInDays = if (checkAgainInDays == days) null else days },
+                                onClick = {
+                                checkAgainInDays = if (checkAgainInDays == days) null else days
+                                if (checkAgainInDays == null) reminderOptIn = false
+                            },
                                 modifier = Modifier.weight(1f),
                             ) { Text(if (checkAgainInDays == days) "✓ بعد $days يوم" else "بعد $days يوم", color = deepGreen, fontSize = 12.sp) }
                         }
                     }
                     if (checkAgainInDays != null) {
-                        TextButton(onClick = { checkAgainInDays = null }, enabled = !saving) {
+                        TextButton(onClick = {
+                            checkAgainInDays = null
+                            reminderOptIn = false
+                        }, enabled = !saving) {
                             Text("بدون موعد متابعة", color = muted, fontSize = 12.sp)
                         }
+                    }
+                    if (checkAgainInDays != null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = reminderOptIn,
+                                enabled = !saving,
+                                onCheckedChange = { checked ->
+                                    if (!checked) {
+                                        reminderOptIn = false
+                                    } else if (
+                                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                        ContextCompat.checkSelfPermission(
+                                            context, Manifest.permission.POST_NOTIFICATIONS,
+                                        ) != PackageManager.PERMISSION_GRANTED
+                                    ) {
+                                        reminderPermissionPicker.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                    } else {
+                                        reminderOptIn = true
+                                    }
+                                },
+                            )
+                            Text(
+                                "فكّرني بإشعار صباح يوم المراجعة (حسب سماح الجهاز)",
+                                color = muted, fontSize = 12.sp, lineHeight = 19.sp,
+                            )
+                        }
+                        Text(
+                            "ده تنبيه اختياري للفحص، مش تعليمات ري. ممكن يتأخر بسبب توفير البطارية.",
+                            color = muted, fontSize = 11.sp,
+                        )
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
@@ -626,7 +689,7 @@ fun PlantupiaClientSection(
                                     saving = true
                                     when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "observation", note, it, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() }) } ?: repository.record(selectedPlant.id, "observation", note, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() })) {
                                         is ApiResult.Failure -> error = r.message
-                                        is ApiResult.Success -> { note = ""; openPlant(selectedPlant) }
+                                        is ApiResult.Success -> finishSavedMoment(r.value, selectedPlant)
                                     }
                                     saving = false
                                 }
@@ -640,7 +703,7 @@ fun PlantupiaClientSection(
                                     saving = true
                                     when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "care", careDetails, it, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() }) } ?: repository.record(selectedPlant.id, "care", careDetails, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() })) {
                                         is ApiResult.Failure -> error = r.message
-                                        is ApiResult.Success -> { note = ""; openPlant(selectedPlant) }
+                                        is ApiResult.Success -> finishSavedMoment(r.value, selectedPlant)
                                     }
                                     saving = false
                                 }
@@ -656,10 +719,7 @@ fun PlantupiaClientSection(
                                         repository.recordWithPhoto(selectedPlant.id, "issue", note, it, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() })
                                     } ?: repository.record(selectedPlant.id, "issue", note, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() })) {
                                         is ApiResult.Failure -> error = result.message
-                                        is ApiResult.Success -> {
-                                            note = ""
-                                            openPlant(selectedPlant)
-                                        }
+                                        is ApiResult.Success -> finishSavedMoment(result.value, selectedPlant)
                                     }
                                     saving = false
                                 }
@@ -777,6 +837,16 @@ fun PlantupiaClientSection(
                                 Text(if (followUpTarget?.id == check.id) "إلغاء" else "سجّل نتيجة المراجعة", color = deepGreen)
                             }
                         }
+                        if (reminderRevision >= 0 &&
+                            PlantupiaCareReminderScheduler.isScheduled(context, check.id)
+                        ) {
+                            TextButton(onClick = {
+                                PlantupiaCareReminderScheduler.cancel(context, check.id)
+                                reminderRevision += 1
+                            }) {
+                                Text("ألغِ التنبيه المحلي (المتابعة هتفضل محفوظة)", color = muted)
+                            }
+                        }
                     }
                 }
                 if (nextPendingOffset != null) {
@@ -831,7 +901,11 @@ fun PlantupiaClientSection(
                                     followUpFor = source.id,
                                 )) {
                                     is ApiResult.Failure -> error = response.message
-                                    is ApiResult.Success -> openPlant(selectedPlant)
+                                    is ApiResult.Success -> {
+                                        PlantupiaCareReminderScheduler.cancel(context, source.id)
+                                        reminderRevision += 1
+                                        openPlant(selectedPlant)
+                                    }
                                 }
                                 saving = false
                             }
