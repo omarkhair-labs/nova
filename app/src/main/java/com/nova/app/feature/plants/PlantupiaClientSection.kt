@@ -239,6 +239,12 @@ fun PlantupiaClientSection(
                 fontSize = 13.sp,
                 lineHeight = 21.sp,
             )
+            if (!loading && error == null && plants.any { it.active }) {
+                PlantupiaTodayPanel(
+                    plants = plants,
+                    onOpenPlant = { plant -> scope.launch { openPlant(plant) } },
+                )
+            }
             OutlinedButton(
                 onClick = { showAssistant = true },
                 modifier = Modifier.fillMaxWidth(),
@@ -411,29 +417,6 @@ fun PlantupiaClientSection(
                             "أول صورة أو ملاحظة هتبدأ حكاية المكان هنا، من غير بيانات وهمية.",
                             color = muted, fontSize = 12.sp,
                         )
-                    }
-                    val checkIns = plants
-                        .filter { it.active && it.nextFollowUpOn.isNotBlank() }
-                        .sortedBy { it.nextFollowUpOn }
-                    if (checkIns.isNotEmpty()) {
-                        BrandEyebrow("CHECK-INS / مواعيد المتابعة اللي اخترتها")
-                        PlantupiaPanel {
-                            Text("دي مواعيد مراجعة أنت اخترتها بعد ملاحظة أو رعاية، مش تشخيص ولا ميعاد ري تلقائي.", color = muted, fontSize = 12.sp)
-                            checkIns.take(4).forEach { item ->
-                                val due = runCatching {
-                                    !LocalDate.parse(item.nextFollowUpOn).isAfter(LocalDate.now())
-                                }.getOrDefault(false)
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(item.name, color = deepGreen, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                                        Text(if (due) "وقت المراجعة · ${item.nextFollowUpOn}" else "راجعه يوم ${item.nextFollowUpOn}", color = muted, fontSize = 11.sp)
-                                    }
-                                    TextButton(onClick = { scope.launch { openPlant(item) } }) {
-                                        Text("افتح النبات ←", color = deepGreen, fontSize = 12.sp)
-                                    }
-                                }
-                            }
-                        }
                     }
                     BrandEyebrow("YOUR PLANTS / نباتاتك")
                 }
