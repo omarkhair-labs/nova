@@ -82,7 +82,7 @@ fun WelcomeScreen(
                 color = NovaAccentSoft,
             ) {
                 Text(
-                    text = "مساحة تتغير. وحكاية بتكمل.",
+                    text = "A living space. An unfolding story.",
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
                     color = NovaAccent,
                     fontSize = 13.sp,
@@ -93,7 +93,7 @@ fun WelcomeScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "كل نبات ليه حكاية.",
+                text = "Every plant has a story.",
                 color = NovaInk,
                 fontSize = 38.sp,
                 lineHeight = 44.sp,
@@ -105,7 +105,7 @@ fun WelcomeScreen(
             Spacer(modifier = Modifier.height(18.dp))
 
             Text(
-                text = "ابدأ بنباتك في أي مكان. صوّر لحظاته، سجّل رعايته، وارجع شوف إيه اللي اتغيّر مع الوقت. ومن اختيارك تقدر تشارك الناس وتسألهم.",
+                text = "Start with the plants around you. Capture their moments, record care, and see what changes over time. Share with others only if you choose.",
                 modifier = Modifier.fillMaxWidth(0.88f),
                 color = NovaMuted,
                 fontSize = 16.sp,
@@ -121,18 +121,18 @@ fun WelcomeScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             NovaPrimaryButton(
-                text = "ابدأ حسابك",
+                text = "Create account",
                 onClick = onCreateAccount,
             )
             NovaSecondaryButton(
-                text = "عندي حساب",
+                text = "Log in",
                 onClick = onLogin,
             )
 
             Spacer(modifier = Modifier.height(2.dp))
 
             Text(
-                text = "بالاستمرار أنت بتوافق على شروط استخدام Plantupia وسياسة الخصوصية.",
+                text = "By continuing, you agree to Plantupia's Terms of Use and Privacy Policy.",
                 modifier = Modifier.fillMaxWidth(),
                 color = NovaMuted,
                 fontSize = 11.sp,
@@ -147,7 +147,7 @@ fun WelcomeScreen(
             ) {
                 TextButton(onClick = onTerms) {
                     Text(
-                        text = "الشروط",
+                        text = "Terms",
                         color = NovaAccent,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -160,7 +160,7 @@ fun WelcomeScreen(
                 )
                 TextButton(onClick = onPrivacy) {
                     Text(
-                        text = "الخصوصية",
+                        text = "Privacy",
                         color = NovaAccent,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,

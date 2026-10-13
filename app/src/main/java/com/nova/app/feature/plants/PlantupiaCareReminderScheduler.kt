@@ -142,16 +142,16 @@ class PlantupiaCareReminderWorker(
             manager.createNotificationChannel(
                 NotificationChannel(
                     REMINDER_CHANNEL,
-                    "Plantupia · متابعة نباتاتك",
+                    "Plantupia · Plant check-ins",
                     NotificationManager.IMPORTANCE_DEFAULT,
-                ).apply { description = "مواعيد الفحص اللي اخترتها بنفسك، مش تنبؤات ري" }
+                ).apply { description = "Check-in dates you chose, not predicted watering times" }
             )
             manager.notify(
                 eventId.hashCode(),
                 NotificationCompat.Builder(applicationContext, REMINDER_CHANNEL)
                     .setSmallIcon(R.drawable.ic_nova_notification)
-                    .setContentTitle("Plantupia · موعد مراجعة")
-                    .setContentText("ده موعد متابعة اخترته بنفسك. افتح نباتك وشوف إيه اللي اتغيّر.")
+                    .setContentTitle("Plantupia · Check-in reminder")
+                    .setContentText("It's time for a check-in you chose. Open your plant and see what has changed.")
                     .setContentIntent(open)
                     .setAutoCancel(true)
                     .build(),

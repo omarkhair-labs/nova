@@ -104,14 +104,14 @@ fun ProfileScreen(
             ) {
                 Column {
                     Text(text = "YOU / PLANTUPIA", color = NovaMuted, style = NovaType.micro)
-                    Text(text = "حكايتك مع المكان", color = NovaInk, style = NovaType.pageTitle)
-                    Text(text = "هويتك في المجتمع ومساحاتك الخاصة — كل حاجة في مكانها.", color = NovaMuted, style = NovaType.meta)
+                    Text(text = "Your life with plants", color = NovaInk, style = NovaType.pageTitle)
+                    Text(text = "Your community identity and private spaces, each in its own place.", color = NovaMuted, style = NovaType.meta)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box {
                         NovaIconButton(
                             asset = NovaIconAsset.Inbox,
-                            contentDescription = "الرسائل",
+                            contentDescription = "Messages",
                             onClick = { NovaMessagingNavigator.openInbox(context = context) },
                             iconSize = 20.dp,
                         )
@@ -121,7 +121,7 @@ fun ProfileScreen(
                     }
                     NovaIconButton(
                         asset = NovaIconAsset.Settings,
-                        contentDescription = "الإعدادات",
+                        contentDescription = "Settings",
                         onClick = { context.startActivity(Intent(context, SettingsActivity::class.java)) },
                         iconSize = 20.dp,
                     )

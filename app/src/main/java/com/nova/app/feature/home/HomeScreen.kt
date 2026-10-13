@@ -306,7 +306,7 @@ fun HomeScreen(
                 item(key = "home-community-toggle") {
                     TextButton(onClick = { showCommunityFeed = !showCommunityFeed }) {
                         Text(
-                            if (showCommunityFeed) "اخفِ لحظات الناس ↑" else "لحظات الناس (اختياري) ↓",
+                            if (showCommunityFeed) "Hide community moments ↑" else "Community moments (optional) ↓",
                             color = NovaAccent,
                             style = NovaType.bodyCompact,
                         )
