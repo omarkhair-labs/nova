@@ -109,6 +109,7 @@ fun PlantupiaClientSection(
     var customFollowUpDate by remember { mutableStateOf<LocalDate?>(null) }
     var reminderOptIn by remember { mutableStateOf(false) }
     var reminderRevision by remember { mutableStateOf(0) }
+    var error by remember { mutableStateOf<String?>(null) }
     var requestedExistingReminder by remember { mutableStateOf<PlantupiaCareEvent?>(null) }
     val reminderPermissionPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -130,7 +131,6 @@ fun PlantupiaClientSection(
     var loading by remember { mutableStateOf(true) }
     var detailLoading by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
     var plantName by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
     var selectedCareAction by remember { mutableStateOf<PlantupiaCareAction?>(null) }
