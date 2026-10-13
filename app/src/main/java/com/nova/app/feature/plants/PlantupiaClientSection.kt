@@ -55,6 +55,7 @@ import com.nova.app.feature.plants.data.PlantupiaPlant
 import com.nova.app.feature.plants.data.PlantupiaRepository
 import com.nova.app.feature.plants.data.PlantupiaSpace
 import com.nova.app.feature.plants.data.findSpacePlants
+import com.nova.app.feature.plants.data.resolveFocusedSpace
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
@@ -87,7 +88,7 @@ fun PlantupiaClientSection(
     var showCareEditor by remember { mutableStateOf(false) }
     var showAssistant by remember { mutableStateOf(false) }
     var photoToView by remember { mutableStateOf<Pair<String, String>?>(null) }
-    var expandedSpaceId by remember { mutableStateOf<String?>(null) }
+    var focusedSpaceId by remember { mutableStateOf<String?>(null) }
     var plantSearch by remember { mutableStateOf("") }
     var visiblePlantCount by remember { mutableStateOf(8) }
     var events by remember { mutableStateOf<List<PlantupiaCareEvent>>(emptyList()) }
@@ -192,11 +193,16 @@ fun PlantupiaClientSection(
         }
     }
     LaunchedEffect(spaces) {
-        if (spaces.size == 1 && expandedSpaceId == null) expandedSpaceId = spaces.first().id
-        if (expandedSpaceId != null && spaces.none { it.id == expandedSpaceId }) expandedSpaceId = null
+        // Only the server-returned, permission-scoped set can be selected.
+        // Keep the user's explicit choice during refreshes.
+        val allowed = resolveFocusedSpace(spaces, focusedSpaceId)
+        if (focusedSpaceId != allowed?.id) {
+            focusedSpaceId = allowed?.id
+            plantSearch = ""
+        }
     }
-    LaunchedEffect(expandedSpaceId, plantSearch) {
-        // Do not compose 100+ client units at once just because a site expands.
+    LaunchedEffect(focusedSpaceId, plantSearch) {
+        // Reuse Nova's fast, progressive inventory; do not render 100+ units.
         visiblePlantCount = 8
     }
 
@@ -276,10 +282,20 @@ fun PlantupiaClientSection(
                     }
                 }
                 if (spaces.isNotEmpty()) {
-                    val featured = spaces.first()
-                    val featuredCount = plants.count { it.spaceId == featured.id && it.active }
-                    val heroPhoto = plants.firstOrNull {
-                        it.spaceId == featured.id && it.active && it.coverPhoto.isNotBlank()
+                    PlantupiaSpaceSwitcher(
+                        spaces = spaces,
+                        plants = plants,
+                        focusedSpaceId = focusedSpaceId,
+                        onSelectSpace = { id ->
+                            focusedSpaceId = id
+                            plantSearch = ""
+                        },
+                    )
+                    val featured = resolveFocusedSpace(spaces, focusedSpaceId) ?: spaces.first()
+                    val focusedPlants = plants.filter { it.spaceId == featured.id && it.active }
+                    val featuredCount = focusedPlants.size
+                    val heroPhoto = focusedPlants.firstOrNull {
+                        it.coverPhoto.isNotBlank()
                     }?.coverPhoto
                     val photoHero = heroPhoto != null
                     val heroInk = if (photoHero) white else deepGreen
@@ -340,15 +356,13 @@ fun PlantupiaClientSection(
                                     color = heroMuted,
                                     fontSize = 12.sp,
                                 )
-                                TextButton(onClick = { expandedSpaceId = featured.id }) {
-                                    Text("اكتشف نباتات المساحة ←", color = heroInk)
-                                }
+                                Text("نباتات المساحة وتاريخها تحت الصورة ↓", color = heroMuted, fontSize = 12.sp)
                             }
                         }
                     }
 
-                    val recent = plants
-                        .filter { it.active && it.lastEventAt.isNotBlank() }
+                    val recent = focusedPlants
+                        .filter { it.lastEventAt.isNotBlank() }
                         .sortedByDescending { it.lastEventAt }
                     if (recent.isNotEmpty()) {
                         val latest = recent.first()
@@ -420,59 +434,49 @@ fun PlantupiaClientSection(
                     }
                     BrandEyebrow("YOUR PLANTS / نباتاتك")
                 }
-                spaces.forEach { space ->
-                    PlantupiaPanel {
-                        Text(space.name, color = forestText, fontFamily = FontFamily.Serif, fontSize = 21.sp)
-                        if (space.location.isNotBlank()) Text(space.location, color = muted, fontSize = 12.sp)
-                        if (space.description.isNotBlank()) Text(space.description, color = muted, fontSize = 13.sp)
-                        Text(
-                            "${plants.count { it.spaceId == space.id && it.active }} living units",
-                            color = deepGreen,
-                            fontSize = 12.sp,
-                        )
-                        TextButton(onClick = {
-                            expandedSpaceId = if (expandedSpaceId == space.id) null else space.id
-                        }) {
+                val focused = resolveFocusedSpace(spaces, focusedSpaceId)
+                if (focused != null) {
+                    val sitePlants = plants.filter { it.spaceId == focused.id && it.active }
+                    if (sitePlants.isEmpty()) {
+                        PlantupiaPanel {
+                            Text("المساحة دي مستنية أول نبات", color = forestText, fontWeight = FontWeight.Medium)
                             Text(
-                                if (expandedSpaceId == space.id) "اخفِ نباتات المساحة ↑" else "استكشف نباتات المساحة ↓",
-                                color = deepGreen,
+                                "لما تضيف نبات هنا بصورته ومكانه، هيظهر تاريخه ومواعيد متابعته في مساحتك.",
+                                color = muted, fontSize = 13.sp, lineHeight = 19.sp,
+                            )
+                            if (focused.canAddPlant) {
+                                TextButton(onClick = { PlantupiaCreateIntent.request(PlantupiaCreateMode.ADD_PLANT) }) {
+                                    Text("أضف أول نبات للمساحة ←", color = deepGreen)
+                                }
+                            }
+                        }
+                    } else {
+                        if (sitePlants.size > 8) {
+                            OutlinedTextField(
+                                value = plantSearch,
+                                onValueChange = { plantSearch = it.take(80) },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text("ابحث عن نبات في " + focused.name) },
+                                singleLine = true,
                             )
                         }
-                    }
-                    if (expandedSpaceId == space.id) {
-                    val sitePlants = plants.filter { it.spaceId == space.id && it.active }
-                    if (sitePlants.size > 8) {
-                        OutlinedTextField(
-                            value = plantSearch,
-                            onValueChange = { plantSearch = it.take(80) },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("دوّر باسم النبات أو نوعه أو مكانه") },
-                            singleLine = true,
-                        )
-                    }
-                    val matchingPlants = findSpacePlants(plants, space.id, plantSearch)
-                    if (matchingPlants.isEmpty() && sitePlants.isNotEmpty()) {
-                        Text("مفيش نباتات مطابقة للبحث. جرّب اسم تاني.", color = muted, fontSize = 12.sp)
-                    }
-                    matchingPlants.take(visiblePlantCount).forEach { plant ->
-                        PlantupiaPlantInventoryCard(
-                            plant = plant,
-                            eventLabel = eventLabel(plant.lastEventKind),
-                            onClick = { scope.launch { openPlant(plant) } },
-                        )
-                    }
-                    if (matchingPlants.size > visiblePlantCount) {
-                        TextButton(onClick = { visiblePlantCount += 8 }) {
-                            Text(
-                                "عرض نباتات أكثر · ${visiblePlantCount} من ${matchingPlants.size}",
-                                color = deepGreen,
+                        val matchingPlants = findSpacePlants(plants, focused.id, plantSearch)
+                        if (matchingPlants.isEmpty()) {
+                            Text("مفيش نباتات مطابقة للبحث في المساحة دي.", color = muted, fontSize = 12.sp)
+                        }
+                        matchingPlants.take(visiblePlantCount).forEach { plant ->
+                            PlantupiaPlantInventoryCard(
+                                plant = plant,
+                                eventLabel = eventLabel(plant.lastEventKind),
+                                onClick = { scope.launch { openPlant(plant) } },
                             )
                         }
+                        if (matchingPlants.size > visiblePlantCount) {
+                            TextButton(onClick = { visiblePlantCount += 8 }) {
+                                Text("شوف نباتات أكتر · ${visiblePlantCount} من ${matchingPlants.size}", color = deepGreen)
+                            }
+                        }
                     }
-                    }
-                }
-                if (spaces.isNotEmpty() && plants.none { it.active }) {
-                    Text("مساحتك جاهزة! أضف أول نبات من الزر اللي فوق.", color = muted, fontSize = 12.sp)
                 }
             }
             if (error != null) Text(error.orEmpty(), color = Color(0xFF9A4A31), fontSize = 12.sp)
