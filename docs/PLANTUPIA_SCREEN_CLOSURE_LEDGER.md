@@ -40,7 +40,7 @@ All entries below are **not accepted** pending the listed evidence. Legacy names
 | C04 | Report concern | PLANTUPIA-CODED | event kind `issue` | easy next action without fake diagnosis |
 | C05 | Choose follow-up/complete outcome | PLANTUPIA-CODED | follow-up DB fields and transactions | own dates, pending pagination, no duplicate outcome |
 | C06 | Living chronology and photo comparison | PLANTUPIA-CODED | history paging, `PlantupiaPhotoViewer.kt` | visible timestamps, photo quality/zoom, long histories |
-| C07 | Local reminders / reschedule / cancel | GAP | existing Nova notifications do not implement care reminders | Android consented scheduling, privacy, boot/reinstall/sign-out behavior |
+| C07 | Opt-in local check-in reminders / cancel | PLANTUPIA-CODED, PARTIAL | `PlantupiaCareReminderScheduler.kt`, WorkManager, `PlantupiaClientSection.kt`; server-created event UUID, user opt-in, approx 9 AM, generic private notification | exact-device delivery, denied permission, battery/doze, re-schedule UI and cross-device outcome consistency unverified |
 | C08 | Sourced plant care guide | GAP | not an approved curated corpus | cite real sources; avoid invented biology |
 | AI01 | General & context-scoped care assistant | PLANTUPIA-CODED, DISABLED | `PlantupiaAssistantSheet.kt`, `backend/plants/assistant.py` | isolated QA provider key, actual reply/device QA, policy confirmation |
 | AI02 | AI photos, cited resources, answer-to-care action | GAP | text only, no RAG | optional C1, explicit user save |
@@ -75,6 +75,7 @@ All entries below are **not accepted** pending the listed evidence. Legacy names
 | Rate limits/Redis/cache | Django optional Redis throttling; safety caps | QA Redis in production-mode backend, quota and error tests |
 | CI | Android tests/lint/APK/AAB, Django tests/migration checks | green CI on exact HEAD + physical run + acceptable privacy |
 | Distribution | QA applicationId suffix `.qa`; original Play ID reserved | no signing, Production rollout or Play changes without explicit permission |
+| Local care reminders | WorkManager one-off scheduling after real saved Django event, explicit per-event opt-in, cancel button, user-id-scoped generic text, logout cancels all | no exact delivery promise; verify background limits, multiple accounts, app restarts, Android 13+ permission |
 
 ## Acceptance: what "close this screen" requires
 
@@ -111,3 +112,6 @@ Build the following connected groups continuously, with developer-side testing/C
 - Next: continue G1 implementation and then G2–G7 without pausing for user screen reviews. Collect internal test evidence and design notes as work proceeds; review the complete integrated APK together only at the end.
 
 - 2026-10-13 workflow decision from user: **final app-wide review only**, not one approval after every screen. CI, permission checks and regression fixes remain continuous internal engineering responsibilities; Production/Play safety gates still apply.
+
+- 2026-10-13 G2 increment (still not ACCEPTED): optional Android WorkManager check-in notifications for *user-chosen dates* only; event ID + owner ID scoped, one-time generic content, cancel without erasing the actual Django care record, session logout clears all local work. No moisture sensor, no automated watering instruction and no notification if the event POST failed. Free AI remains server-configurable but not live QA verified.
+- 2026-10-13 G0 increment: readable dark status-bar glyphs on the cream/native account and messaging surfaces; Plantupia labels for activity/DM notification channels, settings copy and onboarding without claiming a company installation is compulsory. Must check dark video/overlay exceptions during final E2E.
