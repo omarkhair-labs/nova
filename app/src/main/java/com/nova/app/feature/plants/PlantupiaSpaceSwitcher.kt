@@ -34,9 +34,9 @@ internal fun PlantupiaSpaceSwitcher(
     val selected = resolveFocusedSpace(spaces, focusedSpaceId)
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("YOUR SPACES / مساحاتك", style = PlantupiaText.sectionLabel)
+            Text("YOUR SPACES", style = PlantupiaText.sectionLabel)
             Text(
-                if (spaces.size == 1) "مساحة واحدة" else "${spaces.size} مساحات",
+                if (spaces.size == 1) "1 space" else "${spaces.size} spaces",
                 style = PlantupiaText.supporting,
             )
         }
@@ -59,7 +59,7 @@ internal fun PlantupiaSpaceSwitcher(
                                 maxLines = 1,
                             )
                             Text(
-                                "${activeCount} نبات",
+                                "${activeCount} plants",
                                 color = if (isSelected) PlantupiaColors.softSage else PlantupiaColors.secondaryText,
                                 style = PlantupiaText.supporting,
                             )
@@ -68,7 +68,7 @@ internal fun PlantupiaSpaceSwitcher(
                 }
             }
         } else {
-            Text("دي المساحة اللي بتتابعها دلوقتي.", style = PlantupiaText.supporting)
+            Text("This is the space you're tracking.", style = PlantupiaText.supporting)
         }
     }
 }

@@ -37,7 +37,7 @@ internal fun PlantupiaTodayPanel(
     val future = planned.filter { LocalDate.parse(it.nextFollowUpOn).isAfter(today) }
 
     Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-        Text("TODAY / النهارده مع نباتاتك", style = PlantupiaText.sectionLabel)
+        Text("TODAY WITH YOUR PLANTS", style = PlantupiaText.sectionLabel)
         Surface(
             color = PlantupiaColors.softSage,
             border = BorderStroke(1.dp, PlantupiaColors.border),
@@ -64,12 +64,12 @@ internal fun PlantupiaTodayPanel(
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(
-                            if (due.isNotEmpty()) "متابعات محتاجة نظرة منك"
-                            else "مفيش متابعة مستحقة النهارده",
+                            if (due.isNotEmpty()) "Check-ins need your attention"
+                            else "No check-ins due today",
                             style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
                         )
                         Text(
-                            "افحص التربة والورق بنفسك قبل قرار الري.",
+                            "Check the soil and leaves before deciding whether to water.",
                             style = PlantupiaText.supporting,
                         )
                     }
@@ -90,7 +90,7 @@ internal fun PlantupiaTodayPanel(
                                 if (plant.coverPhoto.isNotBlank()) {
                                     AsyncImage(
                                         model = plant.coverPhoto,
-                                        contentDescription = "صورة نبات " + plant.name,
+                                        contentDescription = "Photo of plant " + plant.name,
                                         modifier = Modifier.size(54.dp),
                                     )
                                 } else {
@@ -98,32 +98,32 @@ internal fun PlantupiaTodayPanel(
                                 }
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(plant.name, style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
-                                    Text("متابعة اخترتها: " + plant.nextFollowUpOn, style = PlantupiaText.supporting)
+                                    Text("Check-in you chose: " + plant.nextFollowUpOn, style = PlantupiaText.supporting)
                                 }
-                                Text("افتح ←", style = PlantupiaText.sectionLabel)
+                                Text("Open →", style = PlantupiaText.sectionLabel)
                             }
                         }
                     }
                     if (due.size > 3) {
-                        Text("وفيه " + (due.size - 3) + " متابعات تانية", style = PlantupiaText.supporting)
+                        Text("And " + (due.size - 3) + " more check-ins", style = PlantupiaText.supporting)
                     }
                 } else if (future.isNotEmpty()) {
                     val next = future.first()
                     Text(
-                        "المراجعة الجاية: " + next.name + " · " + next.nextFollowUpOn,
+                        "Next check-in: " + next.name + " · " + next.nextFollowUpOn,
                         style = PlantupiaText.supporting,
                     )
                     TextButton(onClick = { onOpenPlant(next) }) {
-                        Text("افتح النبات", color = PlantupiaColors.forest)
+                        Text("Open plant", color = PlantupiaColors.forest)
                     }
                 } else {
                     Text(
-                        "لسه ما اخترتش مواعيد متابعة. افتح أي نبات وسجّل رعاية أو ملاحظة وحدد إمتى تحب تراجعه.",
+                        "No check-ins planned yet. Open a plant, record care or an observation, and choose when to revisit.",
                         style = PlantupiaText.supporting,
                     )
                     plants.firstOrNull { it.active }?.let { plant ->
                         TextButton(onClick = { onOpenPlant(plant) }) {
-                            Text("ابدأ من " + plant.name + " ←", color = PlantupiaColors.forest)
+                            Text("Start with " + plant.name + " →", color = PlantupiaColors.forest)
                         }
                     }
                 }

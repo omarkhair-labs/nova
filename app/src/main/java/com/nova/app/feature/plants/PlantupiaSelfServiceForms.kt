@@ -125,21 +125,21 @@ fun PlantupiaSelfServiceForms(
         if (spaces.isEmpty() && !spaceOpen && !plantOpen) {
             Surface(color = paper, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                    Text("ابدأ من مكانك", color = ink, fontSize = 22.sp)
+                    Text("Start with your space", color = ink, fontSize = 22.sp)
                     Text(
-                        "بيتك، بلكونتك، مكتبك، أو أي مكان فيه حياة. سمّي المساحة الأول، وبعدها أضف نباتاتك واحدة واحدة.",
+                        "Home, balcony, office, or anywhere your plants live. Create a space, then add your plants.",
                         color = textMuted, fontSize = 13.sp,
                     )
                     Button(
                         onClick = { error = null; spaceOpen = true },
                         colors = ButtonDefaults.buttonColors(containerColor = ink),
-                    ) { Text("+ أنشئ مساحتي") }
+                    ) { Text("+ Create my space") }
                 }
             }
         } else if (!spaceOpen && !plantOpen) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { error = null; spaceOpen = true }, modifier = Modifier.weight(1f)) {
-                    Text("+ مساحة جديدة", color = ink, fontSize = 12.sp)
+                    Text("+ New space", color = ink, fontSize = 12.sp)
                 }
                 Button(
                     onClick = {
@@ -152,11 +152,11 @@ fun PlantupiaSelfServiceForms(
                     enabled = writableSpaces.isNotEmpty(),
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(containerColor = ink),
-                ) { Text("+ أضف نبات", fontSize = 12.sp) }
+                ) { Text("+ Add plant", fontSize = 12.sp) }
             }
             if (writableSpaces.isEmpty()) {
                 Text(
-                    "مفيش مساحة عندك بصلاحية إضافة نبات. تقدر تنشئ مساحة خاصة بيك من الزر الأول.",
+                    "You don't have permission to add plants to these spaces. Create your own private space first.",
                     color = textMuted, fontSize = 12.sp,
                 )
             }
@@ -165,21 +165,21 @@ fun PlantupiaSelfServiceForms(
         if (spaceOpen) {
             Surface(color = paper, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("مساحة جديدة", color = ink, fontSize = 22.sp)
-                    Text("المساحة خاصة بيك، ومش هتظهر على بروفايلك العام.", color = textMuted, fontSize = 12.sp)
+                    Text("New space", color = ink, fontSize = 22.sp)
+                    Text("Your space is private and won't appear on your public profile.", color = textMuted, fontSize = 12.sp)
                     OutlinedTextField(
                         value = spaceName, onValueChange = { spaceName = it.take(140) },
-                        label = { Text("اسم المكان *") }, singleLine = true,
+                        label = { Text("Space name *") }, singleLine = true,
                         modifier = Modifier.fillMaxWidth(), enabled = !saving,
                     )
                     OutlinedTextField(
                         value = spaceLocation, onValueChange = { spaceLocation = it.take(200) },
-                        label = { Text("مكانها (اختياري)") }, singleLine = true,
+                        label = { Text("Location (optional)") }, singleLine = true,
                         modifier = Modifier.fillMaxWidth(), enabled = !saving,
                     )
                     OutlinedTextField(
                         value = spaceDescription, onValueChange = { spaceDescription = it.take(1000) },
-                        label = { Text("عن المكان (اختياري)") },
+                        label = { Text("About this space (optional)") },
                         modifier = Modifier.fillMaxWidth(), enabled = !saving,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -206,9 +206,9 @@ fun PlantupiaSelfServiceForms(
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = ink),
-                        ) { Text(if (saving) "جارٍ الحفظ…" else "أنشئ وأضف نبات") }
+                        ) { Text(if (saving) "Saving…" else "Create and add a plant") }
                         TextButton(onClick = { spaceOpen = false; error = null }, enabled = !saving) {
-                            Text("إلغاء", color = ink)
+                            Text("Cancel", color = ink)
                         }
                     }
                 }
@@ -218,8 +218,8 @@ fun PlantupiaSelfServiceForms(
         if (plantOpen) {
             Surface(color = paper, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("نبات جديد", color = ink, fontSize = 22.sp)
-                    Text("كل نبات ليه اسم ومكان وتاريخ بيتكوّن مع الوقت.", color = textMuted, fontSize = 12.sp)
+                    Text("New plant", color = ink, fontSize = 22.sp)
+                    Text("Every plant has a name, a place, and a history that grows over time.", color = textMuted, fontSize = 12.sp)
                     OutlinedButton(
                         onClick = { spaceMenuOpen = true },
                         modifier = Modifier.fillMaxWidth(), enabled = !saving,
@@ -227,7 +227,7 @@ fun PlantupiaSelfServiceForms(
                         Text(
                             writableSpaces.firstOrNull { it.id == selectedSpaceId }?.name
                                 ?: justCreatedSpace?.takeIf { it.first == selectedSpaceId }?.second
-                                ?: "اختار المساحة",
+                                ?: "Choose a space",
                             color = ink,
                         )
                     }
@@ -242,31 +242,31 @@ fun PlantupiaSelfServiceForms(
                     }
                     OutlinedTextField(
                         value = plantName, onValueChange = { plantName = it.take(120) },
-                        label = { Text("اسم النبات *") }, singleLine = true,
+                        label = { Text("Plant name *") }, singleLine = true,
                         modifier = Modifier.fillMaxWidth(), enabled = !saving,
                     )
                     OutlinedTextField(
                         value = species, onValueChange = { species = it.take(180) },
-                        label = { Text("نوع النبات (لو تعرفه)") }, singleLine = true,
+                        label = { Text("Species (if known)") }, singleLine = true,
                         modifier = Modifier.fillMaxWidth(), enabled = !saving,
                     )
                     OutlinedTextField(
                         value = placement, onValueChange = { placement = it.take(180) },
-                        label = { Text("مكانه جوه المساحة") }, singleLine = true,
+                        label = { Text("Placement within the space") }, singleLine = true,
                         modifier = Modifier.fillMaxWidth(), enabled = !saving,
                     )
                     OutlinedButton(
                         onClick = { photoPicker.launch("image/*") }, enabled = !saving,
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text(if (plantPhoto == null) "+ صورة حقيقية (اختيارية)" else "تغيير الصورة", color = ink) }
+                    ) { Text(if (plantPhoto == null) "+ Real plant photo (optional)" else "Change photo", color = ink) }
                     plantPhoto?.let { uri ->
                         AsyncImage(
-                            model = uri, contentDescription = "صورة النبات المختارة",
+                            model = uri, contentDescription = "Selected plant photo",
                             modifier = Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(12.dp)),
                             contentScale = ContentScale.Crop,
                         )
                         TextButton(onClick = { plantPhoto = null }, enabled = !saving) {
-                            Text("إزالة الصورة", color = textMuted)
+                            Text("Remove photo", color = textMuted)
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -294,9 +294,9 @@ fun PlantupiaSelfServiceForms(
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = ink),
-                        ) { Text(if (saving) "جارٍ الحفظ…" else "أضف النبات") }
+                        ) { Text(if (saving) "Saving…" else "Add plant") }
                         TextButton(onClick = { plantOpen = false; error = null }, enabled = !saving) {
-                            Text("إلغاء", color = ink)
+                            Text("Cancel", color = ink)
                         }
                     }
                 }
