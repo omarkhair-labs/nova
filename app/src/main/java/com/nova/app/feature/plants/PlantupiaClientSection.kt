@@ -33,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
@@ -88,7 +89,7 @@ fun PlantupiaClientSection(
     var showCareEditor by remember { mutableStateOf(false) }
     var showAssistant by remember { mutableStateOf(false) }
     var photoToView by remember { mutableStateOf<Pair<String, String>?>(null) }
-    var focusedSpaceId by remember { mutableStateOf<String?>(null) }
+    var focusedSpaceId by rememberSaveable { mutableStateOf<String?>(null) }
     var plantSearch by remember { mutableStateOf("") }
     var visiblePlantCount by remember { mutableStateOf(8) }
     var events by remember { mutableStateOf<List<PlantupiaCareEvent>>(emptyList()) }
@@ -192,9 +193,11 @@ fun PlantupiaClientSection(
             if (available.size == 1) openPlant(available.first())
         }
     }
-    LaunchedEffect(spaces) {
-        // Only the server-returned, permission-scoped set can be selected.
-        // Keep the user's explicit choice during refreshes.
+    LaunchedEffect(spaces, loading, error) {
+        // Never reset a saved user choice during the initial empty/loading
+        // frame or an unavailable API. Validate only against a successful,
+        // authenticated server response.
+        if (loading || error != null) return@LaunchedEffect
         val allowed = resolveFocusedSpace(spaces, focusedSpaceId)
         if (focusedSpaceId != allowed?.id) {
             focusedSpaceId = allowed?.id
