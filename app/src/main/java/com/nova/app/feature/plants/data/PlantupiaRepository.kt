@@ -308,7 +308,7 @@ class PlantupiaRepository(context: Context) {
         photoUri: Uri,
         followUpOn: String? = null,
         followUpFor: String? = null,
-    ): ApiResult<Unit> = authorized { token ->
+    ): ApiResult<String> = authorized { token ->
         val data = withContext(Dispatchers.IO) {
             runCatching {
                 val input = appContext.contentResolver.openInputStream(photoUri)
@@ -350,7 +350,7 @@ class PlantupiaRepository(context: Context) {
             file = UploadFile(bytes = data, fileName = "plant-event.$ext", mimeType = mimeType),
             bearerToken = token,
         )) {
-            is ApiResult.Success -> ApiResult.Success(Unit)
+            is ApiResult.Success -> ApiResult.Success(result.value.optString("id"))
             is ApiResult.Failure -> result
         }
     }
@@ -374,7 +374,7 @@ class PlantupiaRepository(context: Context) {
         note: String,
         followUpOn: String? = null,
         followUpFor: String? = null,
-    ): ApiResult<Unit> =
+    ): ApiResult<String> =
         authorized { token ->
             when (val result = api.requestJson(
                 path = "plantupia/plants/$plantId/events/",
@@ -390,7 +390,7 @@ class PlantupiaRepository(context: Context) {
                     },
                 bearerToken = token,
             )) {
-                is ApiResult.Success -> ApiResult.Success(Unit)
+                is ApiResult.Success -> ApiResult.Success(result.value.optString("id"))
                 is ApiResult.Failure -> result
             }
         }

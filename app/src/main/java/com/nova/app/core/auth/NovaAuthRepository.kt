@@ -7,6 +7,7 @@ import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.UploadFile
 import com.nova.app.core.push.NovaPushRegistration
+import com.nova.app.feature.plants.PlantupiaCareReminderScheduler
 import com.nova.app.feature.auth.data.remote.AuthRemoteDataSource
 import com.nova.app.feature.auth.domain.model.AuthSession
 import com.nova.app.feature.auth.domain.model.NovaUser
@@ -151,6 +152,9 @@ class NovaAuthRepository(
     }
 
     fun logout() {
+        // Explicit local check-in reminders belong to the signed-in person.
+        // Remove pending work before another account can use this device.
+        PlantupiaCareReminderScheduler.clearForLogout(appContext)
         NovaPendingRegistrationPhoto.clear()
         val accessToken = sessionStore.load()?.accessToken
         NovaPushRegistration.logout(
