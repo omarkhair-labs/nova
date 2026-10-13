@@ -62,7 +62,7 @@ def call_provider(message, plant_context, conversation=None):
     if plant_context:
         turns.append({
             "role": "user",
-            "content": "User-approved plant record; reported facts, NOT live measurements:\\n"
+            "content": "User-approved plant record; reported facts, NOT live measurements:\n"
             + json.dumps(plant_context, ensure_ascii=False),
         })
     for item in conversation or []:
@@ -122,7 +122,7 @@ def call_provider(message, plant_context, conversation=None):
             for entry in item.get("content", []):
                 if isinstance(entry, dict) and entry.get("type") == "output_text" and isinstance(entry.get("text"), str):
                     pieces.append(entry["text"])
-        answer = "\\n".join(pieces)
+        answer = "\n".join(pieces)
 
     if not isinstance(answer, str) or not answer.strip() or len(answer) > 10000:
         raise RuntimeError("invalid_provider_response")

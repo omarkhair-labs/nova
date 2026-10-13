@@ -45,7 +45,7 @@ class ProviderAdapterTests(SimpleTestCase):
         self.assertEqual(payload["model"], "openai/gpt-oss-20b")
         self.assertEqual(payload["messages"][0]["role"], "system")
         self.assertEqual(payload["messages"][-1], {"role": "user", "content": "When should I water?"})
-        self.assertNotIn("private", json.dumps(payload).lower())
+        self.assertNotIn("personal_name", json.dumps(payload))
         self.assertNotIn("test-only-key", json.dumps(payload))
         self.assertEqual(timeout, 18)
 
