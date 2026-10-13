@@ -14,9 +14,9 @@ import kotlinx.coroutines.launch
 
 object NovaPushRegistration {
     const val CHANNEL_ID = "nova_activity"
-    const val CHANNEL_NAME = "Nova activity"
+    const val CHANNEL_NAME = "Plantupia · نشاط المجتمع"
     const val MESSAGE_CHANNEL_ID = "nova_messages"
-    const val MESSAGE_CHANNEL_NAME = "Nova messages"
+    const val MESSAGE_CHANNEL_NAME = "Plantupia · الرسائل"
 
     private val backgroundScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -76,14 +76,14 @@ object NovaPushRegistration {
             CHANNEL_NAME,
             NotificationManager.IMPORTANCE_DEFAULT,
         ).apply {
-            description = "Likes, comments, follows and other Nova activity"
+            description = "تفاعلات المجتمع والتعليقات والمتابعات في Plantupia"
         }
         val messageChannel = NotificationChannel(
             MESSAGE_CHANNEL_ID,
             MESSAGE_CHANNEL_NAME,
             NotificationManager.IMPORTANCE_HIGH,
         ).apply {
-            description = "Direct messages on Nova"
+            description = "الرسائل المباشرة في Plantupia"
         }
         manager.createNotificationChannel(activityChannel)
         manager.createNotificationChannel(messageChannel)
