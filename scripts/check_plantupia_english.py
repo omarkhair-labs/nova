@@ -19,6 +19,8 @@ ENTRYPOINTS = [
     JAVA / "feature/create/CreateHubScreen.kt",
     JAVA / "feature/orbit/OrbitScreen.kt",
     JAVA / "feature/profile/ProfileScreen.kt",
+    JAVA / "feature/people/PeopleScreen.kt",
+    JAVA / "feature/post/CreatePostScreen.kt",
     JAVA / "SettingsActivity.kt",
     JAVA / "MainActivity.kt",
 ]
