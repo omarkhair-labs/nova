@@ -47,6 +47,15 @@ class PlantupiaHistoryTimelineTest {
         assertEquals(1, moments.first().outcomes.size)
     }
 
+    @Test fun newReviewOutcomeBringsItsCareMomentToTopOfTimeline() {
+        val care = event("old-care", "care", "2026-09-01T08:00:00Z")
+        val mid = event("later-observation", "observation", "2026-10-01T08:00:00Z")
+        val outcome = event("just-reviewed", "outcome", "2026-10-13T08:00:00Z", parent = care.id)
+        val moments = groupPlantupiaHistory(listOf(care, mid, outcome))
+        assertEquals(listOf("old-care", "later-observation"), moments.map { it.event.id })
+        assertEquals(listOf("just-reviewed"), moments.first().outcomes.map { it.id })
+    }
+
     @Test fun unrelatedHistoryRemainsSortedByObservedDate() {
         val old = event("old", "observation", "2025-09-01T11:00:00Z")
         val recent = event("recent", "issue", "2026-10-02T11:00:00Z")

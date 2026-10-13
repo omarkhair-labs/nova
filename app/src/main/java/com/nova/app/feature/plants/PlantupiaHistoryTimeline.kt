@@ -31,11 +31,18 @@ internal fun groupPlantupiaHistory(events: List<PlantupiaCareEvent>): List<Plant
     return unique
         .asSequence()
         .filterNot { it.id in attachedIds }
-        .sortedWith(compareByDescending<PlantupiaCareEvent> { it.observedAt }.thenByDescending { it.id })
         .map { event ->
             PlantupiaHistoryMoment(
                 event = event,
                 outcomes = outcomesByParent[event.id].orEmpty().sortedBy { it.observedAt },
             )
-        }.toList()
+        }
+        // A completed check-in is a *new* moment. Surface the original
+        // care + its outcome at the latest recorded activity date instead
+        // of burying today's answer beneath months of later observations.
+        .sortedWith(
+            compareByDescending<PlantupiaHistoryMoment> {
+                maxOf(it.event.observedAt, it.outcomes.lastOrNull()?.observedAt.orEmpty())
+            }.thenByDescending { it.event.id },
+        ).toList()
 }
