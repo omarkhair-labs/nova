@@ -33,7 +33,7 @@ All entries below are **not accepted** pending the listed evidence. Legacy names
 | P01 | Add a plant | PLANTUPIA-CODED | forms, `PlantupiaRepository`, Django API | create with/without photo, rollback, open new plant |
 | P02 | Plant profile/identity | PLANTUPIA-CODED | `PlantupiaClientSection.kt` selected plant | action hierarchy, typography/photo, offline/retry |
 | P03 | Private personal nickname | PLANTUPIA-CODED | nickname endpoint | separate botanical vs user nickname, edit/retry |
-| P04 | Edit place/species, retire/replace | GAP | no proved end-to-end UI | C1 user confirmation, retained past history |
+| P04 | Edit shared label/species/placement; retire/replace | PLANTUPIA-CODED PARTIAL, AWAITING QA | `PlantDetailView`, `PlantUpdateSerializer`, native details editor, private change event | lifecycle archive/replace still missing; verify manager role and device state |
 | C01 | Daily check-ins overview | PLANTUPIA-CODED | `PlantupiaTodayPanel.kt` | date/rules, empty/due/upcoming, UX QA |
 | C02 | Record actual care action | PLANTUPIA-CODED | care tiles/events/typed history | icon-based compact composer, no watering inference |
 | C03 | Record observation/photo | PLANTUPIA-CODED | events and photo upload | image retry/upload states, permissions |
@@ -146,3 +146,5 @@ Build the following connected groups continuously, with developer-side testing/C
 - 2026-10-13 G2 follow-up increment: user chooses an arbitrary future check-in date with Android native calendar (existing 7/14-day shortcuts remain); explicit consent can be added **after** a previously saved review. Same Django data and exact review event ID are used; dates are validated and a past custom date blocks save. Tests cover optional/future/past/custom date precedence. A WorkManager failure cannot block logout or crash local reminder cancellation: its synchronous privacy gate clears independently.
 
 - 2026-10-14: stakeholder language requirement changed to **English-first release UI**. Recorded as G0/G7 cross-cutting work; implementation has **not** yet been performed, and final user review remains deferred until integrated APK.
+
+- 2026-10-14 C1 increment: role-guarded shared plant name/species/placement editor and private change event implemented, with Django tests pending latest-head CI. Personal nickname stays separate. Retirement/replacement and site management remain open.

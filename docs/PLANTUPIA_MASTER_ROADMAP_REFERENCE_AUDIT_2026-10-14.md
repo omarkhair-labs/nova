@@ -1,7 +1,7 @@
 # PLANTUPIA — Master Roadmap, Research, References & Native Product Audit
-**Date:** 2026-10-14  
-**Scope:** Original research repository and interactive design studies versus stacked Nova → Plantupia Android native implementation.  
-**Verdict:** **C0 MOSTLY CODED, NOT END-TO-END VERIFIED. C1 PARTIAL. B1 COMPANY-GATED. R&D IS NOT A SHIP COMMITMENT.**  
+**Date:** 2026-10-14
+**Scope:** Original research repository and interactive design studies versus stacked Nova → Plantupia Android native implementation.
+**Verdict:** **C0 MOSTLY CODED, NOT END-TO-END VERIFIED. C1 PARTIAL. B1 COMPANY-GATED. R&D IS NOT A SHIP COMMITMENT.**
 **Review cadence:** Continue internal engineering/CI while building; user visual sign-off only at the final integrated QA APK. Do not merge/deploy to Oracle Production/Play without explicit approval.
 
 ## 1. Source truth, not wishful product scope
@@ -45,7 +45,7 @@ Private founder briefs, customer photos, contracts and operational SOPs are **no
 | User posts, Stories, Reels and Inbox | original Nova social/media/messaging engines reachable from Circle/Create/Profile | **NOVA-INHERITED, UX audit open** | actual user-visible journey, identity coherence, permissions, performance, content safety |
 | English-first UI | core Plantupia screens and root navigation translated; CI guard for selected modules | **PARTIAL C1, NOT ALL-APP CERTIFIED** | all inherited Nova routes, errors/API/legal/privacy, talkback, dates and mixed-language user data on real device |
 | App theming/iconography/motion | brand colors, Compose token layer, Canvas care icons, original Nova animated/media patterns | **PARTIAL VISUAL** | official type/logo/license and real plant photo art direction; device parity and jank |
-| Space/plant edit, move, replace/archive | mostly creation/detail rather than full change contract | **GAP C1** | define history-preserving edits, safe role constraints, proper backend audit |
+| Space/plant edit, move, replace/archive | newly added role-scoped shared plant name/species/placement PATCH with private history event; other lifecycle actions still absent | **PARTIAL C1 (new code awaits CI)** | space edit/archive, plant retirement/replacement, broader role UX and device QA |
 | Sourced plant guides/species discovery | no approved licensed corpus or specialist species integration | **GAP C1** | source review, licensing and uncertainty; no fabricated generic catalog |
 | Household/helper management UI | backend membership concept and authorization exist | **GAP C1 UI** | invite/revoke and handoff with auditable permissions; potential danger if shipped incomplete |
 | Company-installed site / real team handoff | research hypotheses; generic Django Admin | **B1 GATED** | actual Plantupia service responsibilities, photos, rights, SLA, approved roles and user journeys |
@@ -116,3 +116,7 @@ Private founder briefs, customer photos, contracts and operational SOPs are **no
 4. Keep optional research worlds (living furniture, sensor objects, materials) as possible strategic R&D. They aren't overdue Android features.
 
 **Official signoff state as of audit creation: NOT FINAL / NOT READY TO MERGE OR PUBLISH.**
+
+## New C1 implementation checkpoint (2026-10-14)
+
+The working branch now includes a **human-verified shared plant context editor** (shared label, species label and placement) separate from the personal nickname. New Django `PATCH /plantupia/plants/{uuid}/` is scoped to the space owner or manager, with authorization returning 404 for unauthorized users and a private dated observation noting real changes. The original private plant history is never overwritten. Django permission tests cover owner, manager, carer/viewer/stranger, no-op update and invalid blank label. **Code only; Android/device/QA proof still pending**. Space edit/archive, plant retirement/replacement and company service controls remain out of scope until explicitly developed/approved.
