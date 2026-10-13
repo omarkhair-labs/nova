@@ -24,7 +24,7 @@ All entries below are **not accepted** pending the listed evidence. Legacy names
 | A03 | Profile setup | NOVA-INHERITED | `feature/onboarding/ProfileSetupScreen.kt` | lead into first actual space and plant |
 | A04 | First-run create space → first plant | PLANTUPIA-CODED | `PlantupiaSelfServiceForms.kt`, `PlantupiaCreateIntent.kt` | empty user, save failure/retry, photo, return to created plant |
 | S01 | Living Home / Today | HYBRID | `HomeScreen.kt`, `PlantupiaClientSection.kt`, `PlantupiaTodayPanel.kt` | plant/attention first, selected-space focus, no inherited feed dominance |
-| S02 | Space switcher | GAP (previously implicit expansion) | `PlantupiaClientSection.kt` | switcher must respect allowed spaces, retain selection, no cross-site mixing |
+| S02 | Space switcher | PLANTUPIA-CODED, AWAITING QA | `PlantupiaSpaceSwitcher.kt`, `PlantupiaSpaceFocus.kt` | chosen authorized site, saved rotation state, scoped hero/recent/inventory; test device |
 | S03 | Create a private space | PLANTUPIA-CODED | `PlantupiaSelfServiceForms.kt`, Django spaces | shorten form, explicit ownership, zero-data UX |
 | S04 | Space overview / plants | HYBRID | `PlantupiaClientSection.kt` | dedicated active space; nonduplicate hierarchy, camera-first |
 | S05 | Plants inventory, search, many units | PLANTUPIA-CODED | `PlantupiaSpaceBrowser.kt` | scoped search; 1/7/100+ QA, list performance |
@@ -85,7 +85,7 @@ All entries below are **not accepted** pending the listed evidence. Legacy names
 5. **Quality:** tests for policy and state, green latest-head CI, screenshots and real-device walkthrough.
 6. **Owner review:** approve the screen/related journey; only then update this ledger's status to **ACCEPTED**.
 
-Screens are reviewed as **connected closure groups**, rather than polishing a single fragment: 
+Screens are reviewed as **connected closure groups**, rather than polishing a single fragment:
 - G0 visual system, app shell, typography/icons/status-bars.
 - **G1 Living Home → Space navigation → inventory → Plant Profile** (CURRENT; first UX batch).
 - G2 care/check-ins/history/photos/consented reminders.
@@ -106,4 +106,6 @@ Screens are reviewed as **connected closure groups**, rather than polishing a si
 
 ### Progress log
 - 2026-10-13: code/PR-wide inventory performed. **No screen marked accepted.**
-- Next unit: G1 space switcher and selected-space filtering, followed by an actual QA APK visual comparison with the user's captured screenshots.
+- 2026-10-13 G1 iteration: selected-space navigation and scoped photo hero/inventory/recent moments; first plant creation defaults to the focused writable space and navigates to its real profile after save; moved recording care ahead of long timelines. Kotlin policy tests added. **All remain CODED, NOT ACCEPTED** pending exact-head CI and real-device QA.
+- CI diagnostic: initial G1 run found a trailing space in this ledger (not an Android compiler issue); this update strips it. Continue following Android/Django runs for actual build results.
+- Next: physical QA APK visual comparison with the user's captured screenshots, then G1 closure decisions.
