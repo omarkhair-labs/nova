@@ -2,7 +2,7 @@
 from datetime import date
 
 from django.db import transaction
-from django.db.models import OuterRef, Q, Subquery
+from django.db.models import Case, DateField, OuterRef, Q, Subquery, Value, When
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
@@ -103,7 +103,10 @@ class PlantsView(APIView):
         qs = qs.annotate(
             last_event_kind=Subquery(latest.values("kind")[:1]),
             last_event_at=Subquery(latest.values("observed_at")[:1]),
-            next_follow_up_on=Subquery(pending.values("follow_up_on")[:1]),
+            next_follow_up_on=Case(
+                When(is_active=True, then=Subquery(pending.values("follow_up_on")[:1])),
+                default=Value(None), output_field=DateField(),
+            ),
         )
         editable_space_ids = set(
             Space.objects.filter(
@@ -173,7 +176,13 @@ class PlantDetailView(APIView):
         for key, new_value in submitted.items():
             previous = getattr(plant, key)
             if new_value != previous:
-                changes.append(f"{labels[key]}: {previous or '(none)'} → {new_value or '(none)'}")
+                if key == "is_active":
+                    changes.append(
+                        "Plant restored to active care" if new_value else
+                        "Plant archived; private history and photos retained, no care recorded"
+                    )
+                else:
+                    changes.append(f"{labels[key]}: {previous or '(none)'} → {new_value or '(none)'}")
 
         if changes:
             serializer.save()
@@ -183,7 +192,7 @@ class PlantDetailView(APIView):
                 kind=PlantEvent.Kind.OBSERVATION,
                 evidence_type=PlantEvent.Evidence.OBSERVED,
                 observed_at=timezone.now(),
-                note="User-edited plant context (not a biological diagnosis): " + "; ".join(changes),
+                note="Authorized plant record update (not a biological diagnosis or a care action): " + "; ".join(changes),
             )
 
         return Response(PlantSerializer(
@@ -212,7 +221,7 @@ class PlantEventsView(APIView):
         if request.query_params.get("pending_followups") == "1":
             events_qs = events_qs.filter(
                 follow_up_on__isnull=False, follow_up_completed_at__isnull=True,
-            ).order_by("follow_up_on", "created_at")
+            ).order_by("follow_up_on", "created_at") if plant.is_active else events_qs.none()
         else:
             events_qs = events_qs.order_by("-observed_at", "-created_at", "-pk")
         rows = list(events_qs[offset:offset + size + 1])
@@ -223,6 +232,8 @@ class PlantEventsView(APIView):
 
     def post(self, request, plant_id):
         plant = self.get_plant(request, plant_id)
+        if not plant.is_active:
+            return Response({"detail": "Restore this archived plant before recording a new event."}, status=409)
         if not can_record(request.user, plant):
             return Response({"detail": "Read-only space membership."}, status=status.HTTP_403_FORBIDDEN)
         with transaction.atomic():
@@ -251,6 +262,8 @@ class PlantFollowUpDateView(APIView):
     @transaction.atomic
     def patch(self, request, plant_id, event_id):
         plant = get_object_or_404(accessible_plants(request.user), pk=plant_id)
+        if not plant.is_active:
+            return Response({"detail": "Archived plants have no active check-in schedule."}, status=409)
         if not can_record(request.user, plant):
             return Response({"detail": "Read-only space membership."}, status=403)
 
@@ -336,6 +349,8 @@ class PlantQuestionsView(APIView):
         from accounts.serializers import PostSerializer
 
         plant = get_object_or_404(accessible_plants(request.user), pk=plant_id)
+        if not plant.is_active:
+            return Response({"detail": "Restore this archived plant before asking a new question."}, status=409)
         if not can_record(request.user, plant):
             return Response({"detail": "Read-only space membership."}, status=403)
         if request.data.get("public_share_consent") not in ("true", "True", True):
@@ -377,6 +392,8 @@ class PlantQuestionResolveView(APIView):
     @transaction.atomic
     def post(self, request, plant_id, discussion_id):
         plant = get_object_or_404(accessible_plants(request.user), pk=plant_id)
+        if not plant.is_active:
+            return Response({"detail": "Restore this archived plant before recording an outcome."}, status=409)
         link = get_object_or_404(
             PlantDiscussion.objects.select_for_update().select_related("post"),
             pk=discussion_id, plant=plant,
