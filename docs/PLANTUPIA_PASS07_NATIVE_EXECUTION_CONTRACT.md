@@ -40,3 +40,7 @@ Current branch has working Compose/Django implementations for My Space, plants, 
 5. **Final owner review**: one integrated Plantupia QA APK. No screen-by-screen checkpoints, no merge into main/Production/Play/signing unless explicitly approved.
 
 **Status now:** This is a traceable implementation contract, **not** implementation or final sign-off of the four-world design.
+
+## Implementation increment 01 — Quiet Care attention priority (2026-10-14)
+
+Native `PlantupiaTodayPanel.kt` was updated in commit `ed050963`: when no human-selected check-in is actually due, it no longer displays an oversized zero-count urgency panel. The next future check-in remains actionable in a compact row, and a user with no planned check-ins sees one calm sentence. Genuine due items retain the previous high-priority card. This is a **small reversible UX refinement**, not acceptance of the experimental four-world navigation. Android CI and device checks are still required; the real user review remains only at the final integrated APK.
