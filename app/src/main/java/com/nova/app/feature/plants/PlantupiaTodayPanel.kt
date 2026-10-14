@@ -36,6 +36,49 @@ internal fun PlantupiaTodayPanel(
     val due = planned.filter { !LocalDate.parse(it.nextFollowUpOn).isAfter(today) }
     val future = planned.filter { LocalDate.parse(it.nextFollowUpOn).isAfter(today) }
 
+    // Quiet-care composition: a giant zero-count attention card implies urgency
+    // when no human-selected check-in is due. Preserve the real next review
+    // without taking visual priority away from the living space.
+    if (due.isEmpty()) {
+        if (future.isNotEmpty()) {
+            val next = future.first()
+            Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Text("NEXT CHECK-IN", style = PlantupiaText.sectionLabel)
+                Surface(
+                    onClick = { onOpenPlant(next) },
+                    color = PlantupiaColors.paper,
+                    border = BorderStroke(1.dp, PlantupiaColors.border),
+                    shape = PlantupiaShapes.inset,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 15.dp, vertical = 13.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(11.dp),
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                next.name,
+                                style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
+                            )
+                            Text(
+                                "You chose to check again on " + next.nextFollowUpOn,
+                                style = PlantupiaText.supporting,
+                            )
+                        }
+                        Text("Open →", style = PlantupiaText.sectionLabel)
+                    }
+                }
+            }
+        } else if (plants.any { it.active }) {
+            Text(
+                "No check-ins planned. Record what you notice when you visit your plants.",
+                style = PlantupiaText.supporting,
+            )
+        }
+        return
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
         Text("TODAY WITH YOUR PLANTS", style = PlantupiaText.sectionLabel)
         Surface(
