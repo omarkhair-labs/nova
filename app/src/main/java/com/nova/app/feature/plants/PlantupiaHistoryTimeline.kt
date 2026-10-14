@@ -80,3 +80,9 @@ internal fun filteredPlantupiaHistory(
         compareByDescending<PlantupiaCareEvent> { it.observedAt }.thenByDescending { it.id },
     ).map { PlantupiaHistoryMoment(event = it, outcomes = emptyList()) }
 }
+
+/** Actual loaded event photos only, sorted newest first. Never interpolate missing images. */
+internal fun recordedPlantPhotos(events: List<PlantupiaCareEvent>): List<PlantupiaCareEvent> =
+    events.distinctBy { it.id }
+        .filter { it.photoUrl.isNotBlank() }
+        .sortedWith(compareByDescending<PlantupiaCareEvent> { it.observedAt }.thenByDescending { it.id })

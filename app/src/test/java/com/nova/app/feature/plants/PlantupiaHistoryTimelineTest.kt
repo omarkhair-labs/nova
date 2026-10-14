@@ -95,4 +95,21 @@ class PlantupiaHistoryTimelineTest {
         assertTrue(filteredPlantupiaHistory(emptyList(), PlantupiaHistoryFilter.ALL).isEmpty())
     }
 
+    @Test fun photoIndexShowsOnlyLoadedRealImagesNewestFirst() {
+        val older = event("older", "observation", "2026-01-01T11:00:00Z", photo = "https://qa.invalid/older.jpg")
+        val newer = event("newer", "care", "2026-10-01T09:00:00Z", photo = "https://qa.invalid/newer.jpg")
+        val note = event("note", "observation", "2026-10-02T09:00:00Z")
+        assertEquals(
+            listOf("newer", "older"),
+            recordedPlantPhotos(listOf(older, newer, note, newer)).map { it.id },
+        )
+    }
+
+    @Test fun photoIndexCanTruthfullyBeEmptyOrHaveOnlyOnePhoto() {
+        val noPhoto = event("text", "care", "2026-10-02T09:00:00Z")
+        val image = event("photo", "care", "2026-10-03T09:00:00Z", photo = "https://qa.invalid/photo.jpg")
+        assertTrue(recordedPlantPhotos(listOf(noPhoto)).isEmpty())
+        assertEquals(1, recordedPlantPhotos(listOf(noPhoto, image)).size)
+    }
+
 }

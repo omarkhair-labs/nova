@@ -33,6 +33,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import coil3.compose.AsyncImage
 import com.nova.app.feature.plants.data.PlantupiaCareAction
 import com.nova.app.feature.plants.data.PlantupiaCareEvent
@@ -71,10 +73,12 @@ internal fun PlantupiaCareActionTile(
     Surface(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.graphicsLayer {
-            scaleX = scale
-            scaleY = scale
-        },
+        modifier = modifier
+            .semantics { this.selected = selected }
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            },
         shape = RoundedCornerShape(17.dp),
         color = background,
         border = BorderStroke(1.dp, if (selected) ink else border),
@@ -230,11 +234,11 @@ internal fun PlantupiaPlantInventoryCard(
                     )
                 }
             }
-            NovaIcon(
-                asset = NovaIconAsset.Back,
-                contentDescription = "Open history for " + plant.name,
-                modifier = Modifier.size(20.dp),
-                tint = ink,
+            Text(
+                "View →",
+                color = ink,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 11.sp,
             )
         }
     }

@@ -288,17 +288,11 @@ fun PlantupiaClientSection(
             }
             BrandEyebrow("YOUR LIVING SPACE")
             Text(
-                "A living space changes over time.",
+                "Your plants, in their place.",
                 fontFamily = FontFamily.Serif,
                 fontSize = 26.sp,
                 color = deepGreen,
                 lineHeight = 33.sp,
-            )
-            Text(
-                "Every plant has a place, a story and real care. Record what happened, not a guessed health score.",
-                color = muted,
-                fontSize = 13.sp,
-                lineHeight = 21.sp,
             )
             if (!loading && error == null && plants.any { it.active }) {
                 PlantupiaTodayPanel(
@@ -1087,39 +1081,13 @@ fun PlantupiaClientSection(
                 Text("Your first observation starts this plant's history.", color = muted, fontSize = 13.sp)
             } else {
                 Text("${events.size} recorded moments · actual observations, not automatic health scores", color = muted, fontSize = 12.sp)
-                val photos = events
-                    .filter { it.photoUrl.isNotBlank() }
-                    .sortedBy { it.observedAt }
-                if (photos.size >= 2) {
-                    // Compare actual dated photographs, without asserting
-                    // growth, recovery or a causal improvement from appearance.
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        listOf(photos.first(), photos.last()).forEachIndexed { index, event ->
-                            Surface(
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(14.dp),
-                                color = white,
-                            ) {
-                                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                                    AsyncImage(
-                                        model = event.photoUrl,
-                                        contentDescription = if (index == 0) "Oldest recorded photo" else "Most recent recorded photo",
-                                        modifier = Modifier.fillMaxWidth().height(135.dp)
-                                            .clickable { photoToView = event.photoUrl to selectedPlant.name },
-                                        contentScale = ContentScale.Crop,
-                                    )
-                                    Text(
-                                        if (index == 0) "Oldest loaded photo · ${event.observedAt.take(10)}"
-                                        else "Most recent photo · ${event.observedAt.take(10)}",
-                                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
-                                        color = muted,
-                                        fontSize = 11.sp,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+                PlantupiaPhotoIndex(
+                    events = events,
+                    hasOlderPages = nextHistoryOffset != null,
+                    onOpenPhoto = { photo ->
+                        photoToView = photo.photoUrl to selectedPlant.name
+                    },
+                )
             }
             if (events.isNotEmpty()) {
                 Text(
