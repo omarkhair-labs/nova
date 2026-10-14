@@ -499,6 +499,72 @@ class PlantupiaPermissionTests(TestCase):
         self.plant.refresh_from_db()
         self.assertEqual(self.plant.label, "Reception planting")
 
+    def test_archive_is_reversible_and_retains_private_care_photos_and_pending_dates(self):
+        self.client.force_authenticate(user=self.owner)
+        events_url = reverse("plantupia-events", args=[self.plant.pk])
+        detail_url = reverse("plantupia-plant-detail", args=[self.plant.pk])
+        review_date = timezone.localdate() + timedelta(days=7)
+        recorded = self.client.post(
+            events_url,
+            {"kind": "observation", "note": "Leaves photographed in the room",
+             "observed_at": timezone.now().isoformat(), "follow_up_on": review_date.isoformat()},
+            format="json",
+        )
+        self.assertEqual(recorded.status_code, 201, recorded.content)
+        source_id = recorded.json()["id"]
+        before = PlantEvent.objects.filter(plant=self.plant).count()
+
+        archived = self.client.patch(detail_url, {"is_active": False}, format="json")
+        self.assertEqual(archived.status_code, 200, archived.content)
+        self.assertFalse(archived.json()["is_active"])
+        self.assertFalse(archived.json()["can_record"])
+        self.plant.refresh_from_db()
+        self.assertFalse(self.plant.is_active)
+        self.assertEqual(self.client.get(events_url, {"pending_followups": "1"}).json()["results"], [])
+        self.assertIsNone(self.client.get(reverse("plantupia-plants")).json()["results"][0]["next_follow_up_on"])
+        history = self.client.get(events_url).json()["results"]
+        self.assertTrue(any(row["id"] == source_id for row in history))
+        self.assertEqual(PlantEvent.objects.get(pk=source_id).follow_up_on, review_date)
+        self.assertIsNone(PlantEvent.objects.get(pk=source_id).follow_up_completed_at)
+        self.assertEqual(PlantEvent.objects.filter(plant=self.plant).count(), before + 1)
+        self.assertIn("archived", history[0]["note"])
+        self.assertEqual(self.client.post(events_url, {
+            "kind": "care", "observed_at": timezone.now().isoformat(),
+        }, format="json").status_code, 409)
+        self.assertEqual(self.client.patch(
+            reverse("plantupia-follow-up-date", args=[self.plant.pk, source_id]),
+            {"follow_up_on": (review_date + timedelta(days=1)).isoformat()}, format="json",
+        ).status_code, 409)
+        self.assertEqual(self.client.post(
+            reverse("plantupia-questions", args=[self.plant.pk]), {}, format="json",
+        ).status_code, 409)
+        self.client.patch(detail_url, {"is_active": False}, format="json")
+        self.assertEqual(PlantEvent.objects.filter(plant=self.plant).count(), before + 1)
+
+        restored = self.client.patch(detail_url, {"is_active": True}, format="json")
+        self.assertEqual(restored.status_code, 200, restored.content)
+        self.assertTrue(restored.json()["is_active"])
+        self.assertEqual(PlantEvent.objects.filter(plant=self.plant).count(), before + 2)
+        self.assertEqual(self.client.get(events_url, {"pending_followups": "1"}).json()["results"][0]["id"], source_id)
+        self.assertTrue(PlantEvent.objects.filter(plant=self.plant, kind="observation").exists())
+
+    def test_only_owner_or_manager_can_change_archive_state(self):
+        url = reverse("plantupia-plant-detail", args=[self.plant.pk])
+        self.client.force_authenticate(user=self.stranger)
+        self.assertEqual(self.client.patch(url, {"is_active": False}, format="json").status_code, 404)
+        member = SpaceMember.objects.create(
+            space=self.space, user=self.stranger, role=SpaceMember.Role.VIEWER,
+        )
+        self.assertEqual(self.client.patch(url, {"is_active": False}, format="json").status_code, 404)
+        member.role = SpaceMember.Role.CARER
+        member.save(update_fields=("role",))
+        self.assertEqual(self.client.patch(url, {"is_active": False}, format="json").status_code, 404)
+        member.role = SpaceMember.Role.MANAGER
+        member.save(update_fields=("role",))
+        self.assertEqual(self.client.patch(url, {"is_active": False}, format="json").status_code, 200)
+        self.client.force_authenticate(user=self.owner)
+        self.assertFalse(self.client.get(reverse("plantupia-plants")).json()["results"][0]["is_active"])
+
     def test_postpone_pending_check_in_is_audited_without_faking_care(self):
         self.client.force_authenticate(user=self.owner)
         original = timezone.localdate() + timedelta(days=2)
