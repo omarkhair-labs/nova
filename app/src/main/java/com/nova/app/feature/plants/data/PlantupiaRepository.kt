@@ -248,6 +248,20 @@ class PlantupiaRepository(context: Context) {
         }
     }
 
+    /** Reversible server-authorized archive; private photos and events remain intact. */
+    suspend fun setPlantArchived(plantId: String, archived: Boolean): ApiResult<Unit> =
+        authorized { token ->
+            when (val response = api.requestJson(
+                path = "plantupia/plants/$plantId/",
+                method = "PATCH",
+                body = JSONObject().put("is_active", !archived),
+                bearerToken = token,
+            )) {
+                is ApiResult.Failure -> response
+                is ApiResult.Success -> ApiResult.Success(Unit)
+            }
+        }
+
     private suspend fun loadPrivatePhoto(uri: Uri): ApiResult<UploadFile> {
         val mimeType = appContext.contentResolver.getType(uri)
             ?.takeIf { it == "image/jpeg" || it == "image/png" || it == "image/webp" }
