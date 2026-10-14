@@ -325,6 +325,20 @@ class PlantupiaRepository(context: Context) {
         }
 
 
+    /** Postpone a human-chosen review; the server records the change in private history. */
+    suspend fun moveCheckIn(plantId: String, eventId: String, newDate: String): ApiResult<Unit> =
+        authorized { token ->
+            when (val response = api.requestJson(
+                path = "plantupia/plants/$plantId/events/$eventId/follow-up/",
+                method = "PATCH",
+                body = JSONObject().put("follow_up_on", newDate),
+                bearerToken = token,
+            )) {
+                is ApiResult.Success -> ApiResult.Success(Unit)
+                is ApiResult.Failure -> response
+            }
+        }
+
     suspend fun recordWithPhoto(
         plantId: String,
         kind: String,

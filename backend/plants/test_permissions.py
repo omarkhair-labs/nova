@@ -498,3 +498,61 @@ class PlantupiaPermissionTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.plant.refresh_from_db()
         self.assertEqual(self.plant.label, "Reception planting")
+
+    def test_postpone_pending_check_in_is_audited_without_faking_care(self):
+        self.client.force_authenticate(user=self.owner)
+        original = timezone.localdate() + timedelta(days=2)
+        later = original + timedelta(days=5)
+        source = PlantEvent.objects.create(
+            plant=self.plant, actor=self.owner, kind=PlantEvent.Kind.CARE,
+            note="Checked soil, did not water", observed_at=timezone.now(),
+            follow_up_on=original,
+        )
+        url = reverse("plantupia-follow-up-date", args=[self.plant.pk, source.pk])
+        before = PlantEvent.objects.filter(plant=self.plant).count()
+        moved = self.client.patch(url, {"follow_up_on": later.isoformat()}, format="json")
+        self.assertEqual(moved.status_code, 200, moved.content)
+        self.assertEqual(moved.json()["follow_up_on"], later.isoformat())
+        source.refresh_from_db()
+        self.assertEqual(source.follow_up_on, later)
+        self.assertIsNone(source.follow_up_completed_at)
+        self.assertEqual(PlantEvent.objects.filter(plant=self.plant).count(), before + 1)
+        audit = PlantEvent.objects.filter(plant=self.plant).latest("created_at")
+        self.assertEqual(audit.kind, PlantEvent.Kind.OBSERVATION)
+        self.assertIn("scheduling change, not observed plant care", audit.note)
+        self.assertEqual(audit.actor, self.owner)
+        pending = self.client.get(
+            reverse("plantupia-events", args=[self.plant.pk]),
+            {"pending_followups": "1"},
+        ).json()["results"]
+        self.assertEqual(len(pending), 1)
+        self.assertEqual(pending[0]["follow_up_on"], later.isoformat())
+
+        same = self.client.patch(url, {"follow_up_on": later.isoformat()}, format="json")
+        self.assertEqual(same.status_code, 400)
+        yesterday = timezone.localdate() - timedelta(days=1)
+        self.assertEqual(self.client.patch(url, {"follow_up_on": yesterday.isoformat()}, format="json").status_code, 400)
+        self.assertEqual(self.client.patch(url, {"follow_up_on": "tomorrow"}, format="json").status_code, 400)
+        self.assertEqual(PlantEvent.objects.filter(plant=self.plant).count(), before + 1)
+
+    def test_postpone_is_private_and_cannot_reopen_closed_reviews(self):
+        self.client.force_authenticate(user=self.owner)
+        original = timezone.localdate() + timedelta(days=4)
+        source = PlantEvent.objects.create(
+            plant=self.plant, actor=self.owner, kind=PlantEvent.Kind.CARE,
+            observed_at=timezone.now(), follow_up_on=original,
+        )
+        url = reverse("plantupia-follow-up-date", args=[self.plant.pk, source.pk])
+        value = {"follow_up_on": (original + timedelta(days=7)).isoformat()}
+        self.client.force_authenticate(user=self.stranger)
+        self.assertEqual(self.client.patch(url, value, format="json").status_code, 404)
+        m = SpaceMember.objects.create(
+            space=self.space, user=self.stranger, role=SpaceMember.Role.VIEWER,
+        )
+        self.assertEqual(self.client.patch(url, value, format="json").status_code, 403)
+        m.role = SpaceMember.Role.CARER
+        m.save(update_fields=("role",))
+        self.assertEqual(self.client.patch(url, value, format="json").status_code, 200)
+        source.follow_up_completed_at = timezone.now()
+        source.save(update_fields=("follow_up_completed_at",))
+        self.assertEqual(self.client.patch(url, value, format="json").status_code, 409)

@@ -1,4 +1,6 @@
 """Account-scoped API; possession of a plant ID never grants access."""
+from datetime import date
+
 from django.db import transaction
 from django.db.models import OuterRef, Q, Subquery
 from django.shortcuts import get_object_or_404
@@ -220,6 +222,55 @@ class PlantEventsView(APIView):
                     return Response({"detail": "This check-in was already completed."}, status=409)
             event = s.save(plant=plant, actor=request.user)
         return Response(PlantEventSerializer(event, context={"request": request}).data, status=status.HTTP_201_CREATED)
+
+
+
+class PlantFollowUpDateView(APIView):
+    """Move a pending human-selected review without claiming the plant was checked."""
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def patch(self, request, plant_id, event_id):
+        plant = get_object_or_404(accessible_plants(request.user), pk=plant_id)
+        if not can_record(request.user, plant):
+            return Response({"detail": "Read-only space membership."}, status=403)
+
+        event = get_object_or_404(
+            PlantEvent.objects.select_for_update(),
+            pk=event_id, plant=plant,
+        )
+        if event.follow_up_on is None or event.follow_up_completed_at is not None:
+            return Response({"detail": "This review is no longer pending."}, status=409)
+
+        requested = request.data.get("follow_up_on")
+        if not isinstance(requested, str):
+            return Response({"follow_up_on": "Choose a future check-in date."}, status=400)
+        try:
+            target = date.fromisoformat(requested)
+        except ValueError:
+            return Response({"follow_up_on": "Use a valid YYYY-MM-DD date."}, status=400)
+        if target <= timezone.localdate():
+            return Response({"follow_up_on": "Choose a date after today."}, status=400)
+        if event.follow_up_on == target:
+            return Response({"follow_up_on": "Choose a different date."}, status=400)
+
+        previous = event.follow_up_on
+        event.follow_up_on = target
+        event.save(update_fields=("follow_up_on",))
+        PlantEvent.objects.create(
+            plant=plant,
+            actor=request.user,
+            kind=PlantEvent.Kind.OBSERVATION,
+            evidence_type=PlantEvent.Evidence.OBSERVED,
+            note=f"Check-in date changed by a person from {previous} to {target}. "
+                 "This is a scheduling change, not observed plant care or a watering instruction.",
+            observed_at=timezone.now(),
+        )
+        return Response({
+            "id": str(event.pk),
+            "follow_up_on": target.isoformat(),
+            "pending": True,
+        })
 
 
 class PlantNicknameView(APIView):

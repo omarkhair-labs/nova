@@ -110,6 +110,8 @@ fun PlantupiaClientSection(
     var pendingPageLoading by remember { mutableStateOf(false) }
     var followUpTarget by remember { mutableStateOf<PlantupiaCareEvent?>(null) }
     var followUpResult by remember { mutableStateOf("") }
+    var movingCheckIn by remember { mutableStateOf<PlantupiaCareEvent?>(null) }
+    var movedCheckInDate by remember { mutableStateOf<LocalDate?>(null) }
     var checkAgainInDays by remember { mutableStateOf<Int?>(null) }
     var customFollowUpDate by remember { mutableStateOf<LocalDate?>(null) }
     var reminderOptIn by remember { mutableStateOf(false) }
@@ -188,6 +190,8 @@ fun PlantupiaClientSection(
         requestedExistingReminder = null
         followUpTarget = null
         followUpResult = ""
+        movingCheckIn = null
+        movedCheckInDate = null
         pendingFollowUps = emptyList()
         nextPendingOffset = null
         detailLoading = true
@@ -972,8 +976,83 @@ fun PlantupiaClientSection(
                             OutlinedButton(onClick = {
                                 followUpTarget = if (followUpTarget?.id == check.id) null else check
                                 followUpResult = ""
-                            }) {
+                                movingCheckIn = null
+                                movedCheckInDate = null
+                            }, enabled = !saving) {
                                 Text(if (followUpTarget?.id == check.id) "Cancel" else "Record check-in outcome", color = deepGreen)
+                            }
+                            TextButton(
+                                enabled = !saving,
+                                onClick = {
+                                    movingCheckIn = if (movingCheckIn?.id == check.id) null else check
+                                    movedCheckInDate = null
+                                    followUpTarget = null
+                                },
+                            ) {
+                                Text(
+                                    if (movingCheckIn?.id == check.id) "Cancel date change" else "Choose another check-in day",
+                                    color = deepGreen,
+                                )
+                            }
+                            if (movingCheckIn?.id == check.id) {
+                                Text(
+                                    "Change this check-in date without recording a watering or plant-health result.",
+                                    color = muted, fontSize = 11.sp,
+                                )
+                                OutlinedButton(
+                                    enabled = !saving,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    onClick = {
+                                        val tomorrow = LocalDate.now().plusDays(1)
+                                        val selected = movedCheckInDate ?: runCatching {
+                                            LocalDate.parse(check.followUpOn)
+                                        }.getOrNull()?.takeIf { it.isAfter(LocalDate.now()) } ?: tomorrow
+                                        android.app.DatePickerDialog(
+                                            context,
+                                            { _, year, month, day ->
+                                                movedCheckInDate = LocalDate.of(year, month + 1, day)
+                                            },
+                                            selected.year, selected.monthValue - 1, selected.dayOfMonth,
+                                        ).apply {
+                                            datePicker.minDate = tomorrow.atStartOfDay(ZoneId.systemDefault())
+                                                .toInstant().toEpochMilli()
+                                        }.show()
+                                    },
+                                ) {
+                                    Text(
+                                        movedCheckInDate?.let { "New date: $it" } ?: "Choose a future date",
+                                        color = deepGreen,
+                                    )
+                                }
+                                Button(
+                                    enabled = !saving && movedCheckInDate?.isAfter(LocalDate.now()) == true &&
+                                        movedCheckInDate.toString() != check.followUpOn,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
+                                    onClick = {
+                                        val target = movingCheckIn ?: return@Button
+                                        val newDate = movedCheckInDate?.toString() ?: return@Button
+                                        scope.launch {
+                                            saving = true
+                                            val hadReminder = PlantupiaCareReminderScheduler.isScheduled(context, target.id)
+                                            when (val response = repository.moveCheckIn(
+                                                selectedPlant.id, target.id, newDate,
+                                            )) {
+                                                is ApiResult.Failure -> error = response.message
+                                                is ApiResult.Success -> {
+                                                    PlantupiaCareReminderScheduler.cancel(context, target.id)
+                                                    val scheduled = !hadReminder ||
+                                                        PlantupiaCareReminderScheduler.schedule(context, target.id, newDate)
+                                                    openPlant(selectedPlant)
+                                                    if (!scheduled) {
+                                                        error = "Check-in date was saved, but the local reminder could not be moved."
+                                                    }
+                                                }
+                                            }
+                                            saving = false
+                                        }
+                                    },
+                                ) { Text(if (saving) "Saving…" else "Save new check-in date", color = white) }
                             }
                         }
                         val reminderIsActive = remember(check.id, reminderRevision) {
