@@ -515,9 +515,13 @@ fun PlantupiaClientSection(
                     val sitePlants = plants.filter { it.spaceId == focused.id && it.active }
                     if (sitePlants.isEmpty()) {
                         PlantupiaPanel {
-                            Text("Your space is waiting for its first plant", color = forestText, fontWeight = FontWeight.Medium)
+                            val hasArchived = plants.any { it.spaceId == focused.id && !it.active }
                             Text(
-                                "Add a plant with a photo and placement. Its history and check-ins will appear here.",
+                                if (hasArchived) "No active plants in this space" else "Your space is waiting for its first plant",
+                                color = forestText, fontWeight = FontWeight.Medium,
+                            )
+                            Text(
+                                if (hasArchived) "Archived records are available below. Restore a plant or add a new one." else "Add a plant with a photo and placement. Its history and check-ins will appear here.",
                                 color = muted, fontSize = 13.sp, lineHeight = 19.sp,
                             )
                             if (focused.canAddPlant) {
@@ -551,6 +555,52 @@ fun PlantupiaClientSection(
                             TextButton(onClick = { visiblePlantCount += 8 }) {
                                 Text("Load more plants · ${visiblePlantCount} of ${matchingPlants.size}", color = deepGreen)
                             }
+                        }
+                    }
+                }
+            }
+            val archiveSpace = resolveFocusedSpace(spaces, focusedSpaceId)
+            val archivedUnits = plants.filter { !it.active && it.spaceId == archiveSpace?.id }
+            if (archivedUnits.isNotEmpty() && archiveSpace != null) {
+                TextButton(onClick = {
+                    showArchived = !showArchived
+                    archiveSearch = ""
+                    visibleArchivedCount = 8
+                }) {
+                    Text(
+                        if (showArchived) "Hide archived plants ↑"
+                        else "Archived plants · ${archivedUnits.size} ↓",
+                        color = deepGreen,
+                    )
+                }
+                if (showArchived) {
+                    Text(
+                        "Archived plants keep their private photos and history. They do not appear in active care.",
+                        color = muted, fontSize = 12.sp,
+                    )
+                    if (archivedUnits.size > 8) {
+                        OutlinedTextField(
+                            value = archiveSearch,
+                            onValueChange = { archiveSearch = it.take(80); visibleArchivedCount = 8 },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Search archived plants") },
+                            singleLine = true,
+                        )
+                    }
+                    val archivedMatches = findArchivedPlants(plants, archiveSpace.id, archiveSearch)
+                    if (archivedMatches.isEmpty()) {
+                        Text("No archived records match your search.", color = muted, fontSize = 12.sp)
+                    }
+                    archivedMatches.take(visibleArchivedCount).forEach { plant ->
+                        PlantupiaPlantInventoryCard(
+                            plant = plant,
+                            eventLabel = "Archived record",
+                            onClick = { scope.launch { openPlant(plant) } },
+                        )
+                    }
+                    if (archivedMatches.size > visibleArchivedCount) {
+                        TextButton(onClick = { visibleArchivedCount += 8 }) {
+                            Text("Load more archived plants", color = deepGreen)
                         }
                     }
                 }
@@ -972,6 +1022,27 @@ fun PlantupiaClientSection(
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
                         ) { Text(if (saving) "Saving…" else "Save shared details", color = white) }
+                    }
+                }
+            }
+
+            if (spaces.any { it.id == selectedPlant.spaceId && it.canAddPlant }) {
+                PlantupiaPanel {
+                    Text("RECORD STATUS", color = muted, fontSize = 11.sp)
+                    Text(
+                        if (selectedPlant.active) "Keep a plant's history if it leaves your active space."
+                        else "Restore this plant to resume new care and optional check-ins.",
+                        color = forestText, fontSize = 12.sp,
+                    )
+                    OutlinedButton(
+                        onClick = { pendingArchiveAction = selectedPlant.active },
+                        enabled = !saving,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            if (selectedPlant.active) "Archive plant" else "Restore plant",
+                            color = deepGreen,
+                        )
                     }
                 }
             }
