@@ -1367,6 +1367,60 @@ fun PlantupiaClientSection(
             onClose = { photoToView = null },
         )
     }
+    pendingArchiveAction?.let { archived ->
+        selectedPlant?.let { plant ->
+            AlertDialog(
+                onDismissRequest = { if (!saving) pendingArchiveAction = null },
+                title = {
+                    Text(if (archived) "Archive ${plant.name}?" else "Restore ${plant.name}?")
+                },
+                text = {
+                    Text(
+                        if (archived) "This removes the plant from active care and stops its local reminders on this device. Private history, photos and original check-in dates remain. Nothing is deleted or marked watered."
+                        else "The plant returns to active care. Historical check-in dates remain as recorded; review them before scheduling reminders.",
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        enabled = !saving,
+                        onClick = {
+                            pendingArchiveAction = null
+                            scope.launch {
+                                saving = true
+                                when (val result = repository.setPlantArchived(plant.id, archived)) {
+                                    is ApiResult.Failure -> error = result.message
+                                    is ApiResult.Success -> {
+                                        if (archived) {
+                                            PlantupiaCareReminderScheduler.cancelForPlant(context, plant.id)
+                                            pendingFollowUps.forEach {
+                                                PlantupiaCareReminderScheduler.cancel(context, it.id)
+                                            }
+                                            pendingFollowUps = emptyList()
+                                            nextPendingOffset = null
+                                            showCareEditor = false
+                                            followUpTarget = null
+                                        }
+                                        refresh()
+                                        when (val history = repository.historyPage(plant.id)) {
+                                            is ApiResult.Success -> {
+                                                events = history.value.events
+                                                nextHistoryOffset = history.value.nextOffset
+                                            }
+                                            is ApiResult.Failure -> error = history.message
+                                        }
+                                    }
+                                }
+                                saving = false
+                            }
+                        },
+                    ) { Text(if (archived) "Archive" else "Restore") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingArchiveAction = null }) { Text("Cancel") }
+                },
+            )
+        }
+    }
     if (showAssistant) {
         PlantupiaAssistantSheet(
             plant = selectedPlant,
