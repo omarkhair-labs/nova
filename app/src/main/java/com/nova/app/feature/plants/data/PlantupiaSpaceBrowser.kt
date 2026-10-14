@@ -30,3 +30,21 @@ internal fun findSpacePlants(
         )
         .toList()
 }
+
+/** Archived records remain discoverable but never enter active care or Today. */
+internal fun findArchivedPlants(
+    plants: List<PlantupiaPlant>,
+    spaceId: String,
+    search: String,
+): List<PlantupiaPlant> {
+    val phrase = search.trim()
+    return plants.asSequence()
+        .filter { !it.active && it.spaceId == spaceId }
+        .filter { plant ->
+            phrase.isEmpty() || sequenceOf(
+                plant.name, plant.label, plant.species, plant.placement,
+            ).any { it.contains(phrase, ignoreCase = true) }
+        }
+        .sortedWith(compareBy<PlantupiaPlant> { it.name.lowercase() }.thenBy { it.id })
+        .toList()
+}
