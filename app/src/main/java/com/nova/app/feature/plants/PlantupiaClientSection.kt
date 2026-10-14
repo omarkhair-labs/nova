@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -61,6 +62,7 @@ import com.nova.app.feature.plants.data.PlantupiaPlant
 import com.nova.app.feature.plants.data.PlantupiaRepository
 import com.nova.app.feature.plants.data.PlantupiaSpace
 import com.nova.app.feature.plants.data.findSpacePlants
+import com.nova.app.feature.plants.data.findArchivedPlants
 import com.nova.app.feature.plants.data.resolveFocusedSpace
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -102,6 +104,10 @@ fun PlantupiaClientSection(
     var photoToView by remember { mutableStateOf<Pair<String, String>?>(null) }
     var focusedSpaceId by rememberSaveable { mutableStateOf<String?>(null) }
     var plantSearch by remember { mutableStateOf("") }
+    var archiveSearch by remember { mutableStateOf("") }
+    var showArchived by remember { mutableStateOf(false) }
+    var visibleArchivedCount by remember { mutableStateOf(8) }
+    var pendingArchiveAction by remember { mutableStateOf<Boolean?>(null) }
     var visiblePlantCount by remember { mutableStateOf(8) }
     var events by remember { mutableStateOf<List<PlantupiaCareEvent>>(emptyList()) }
     var historyFilter by remember(currentPlantId) { mutableStateOf(PlantupiaHistoryFilter.ALL) }
@@ -118,6 +124,7 @@ fun PlantupiaClientSection(
     var reminderRevision by remember { mutableStateOf(0) }
     var error by remember { mutableStateOf<String?>(null) }
     var requestedExistingReminder by remember { mutableStateOf<PlantupiaCareEvent?>(null) }
+    val selectedPlant = plants.firstOrNull { it.id == currentPlantId }
     val reminderPermissionPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -127,7 +134,7 @@ fun PlantupiaClientSection(
             reminderOptIn = granted
         } else {
             val scheduled = granted && PlantupiaCareReminderScheduler.schedule(
-                context, existing.id, existing.followUpOn,
+                context, existing.id, existing.followUpOn, selectedPlant?.id.orEmpty(),
             )
             reminderRevision += 1
             error = if (scheduled) null else "The check-in reminder couldn't be enabled. Check notification permission and the review date."
@@ -143,7 +150,6 @@ fun PlantupiaClientSection(
     var selectedCareAction by remember { mutableStateOf<PlantupiaCareAction?>(null) }
     var carePhotoUri by remember { mutableStateOf<Uri?>(null) }
     val carePhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> carePhotoUri = uri }
-    val selectedPlant = plants.firstOrNull { it.id == currentPlantId }
 
     suspend fun refresh() {
         loading = true
@@ -170,7 +176,7 @@ fun PlantupiaClientSection(
     }
 
     suspend fun openPlant(plant: PlantupiaPlant) {
-        openDetailMode = PlantupiaCreateIntent.pending
+        openDetailMode = PlantupiaCreateIntent.pending.takeIf { plant.active }
         showNameEditor = false
         showSharedDetailsEditor = false
         sharedPlantLabel = plant.label
@@ -220,7 +226,7 @@ fun PlantupiaClientSection(
         val remindDate = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now())
         val requestedReminder = reminderOptIn && remindDate != null
         val reminderScheduled = !requestedReminder ||
-            PlantupiaCareReminderScheduler.schedule(context, eventId, remindDate.orEmpty())
+            PlantupiaCareReminderScheduler.schedule(context, eventId, remindDate.orEmpty(), plant.id)
         note = ""
         openPlant(plant)
         if (!reminderScheduled) {
@@ -263,6 +269,7 @@ fun PlantupiaClientSection(
     LaunchedEffect(focusedSpaceId, plantSearch) {
         // Reuse Nova's fast, progressive inventory; do not render 100+ units.
         visiblePlantCount = 8
+        visibleArchivedCount = 8
     }
 
     Column(
@@ -582,6 +589,12 @@ fun PlantupiaClientSection(
                 )
             }
             Text(selectedPlant.name, fontFamily = FontFamily.Serif, fontSize = 35.sp, color = deepGreen)
+            if (!selectedPlant.active) {
+                Text(
+                    "ARCHIVED · Read-only living record. Photos, notes and history are retained.",
+                    color = muted, fontSize = 12.sp,
+                )
+            }
             val meta = listOf(selectedPlant.species, selectedPlant.placement).filter(String::isNotBlank).joinToString(" · ")
             if (meta.isNotBlank()) Text(meta, fontSize = 13.sp, color = muted)
 
@@ -1047,7 +1060,7 @@ fun PlantupiaClientSection(
                                                 is ApiResult.Success -> {
                                                     PlantupiaCareReminderScheduler.cancel(context, target.id)
                                                     val scheduled = !hadReminder ||
-                                                        PlantupiaCareReminderScheduler.schedule(context, target.id, newDate)
+                                                        PlantupiaCareReminderScheduler.schedule(context, target.id, newDate, selectedPlant.id)
                                                     openPlant(selectedPlant)
                                                     if (!scheduled) {
                                                         error = "Check-in date was saved, but the local reminder could not be moved."
@@ -1081,7 +1094,7 @@ fun PlantupiaClientSection(
                                     reminderPermissionPicker.launch(Manifest.permission.POST_NOTIFICATIONS)
                                 } else {
                                     val scheduled = PlantupiaCareReminderScheduler.schedule(
-                                        context, check.id, check.followUpOn,
+                                        context, check.id, check.followUpOn, selectedPlant.id,
                                     )
                                     reminderRevision += 1
                                     error = if (scheduled) null
