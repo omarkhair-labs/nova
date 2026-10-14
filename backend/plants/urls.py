@@ -1,9 +1,10 @@
 from django.urls import path
 from .assistant import PlantAssistantView
-from .views import PlantDetailView, PlantEventsView, PlantFollowUpDateView, PlantNicknameView, PlantsView, SpacesView, PlantQuestionsView, PlantQuestionResolveView, PlantCircleView
+from .views import SpaceDetailView, PlantDetailView, PlantEventsView, PlantFollowUpDateView, PlantNicknameView, PlantsView, SpacesView, PlantQuestionsView, PlantQuestionResolveView, PlantCircleView
 
 urlpatterns = [
     path("spaces/", SpacesView.as_view(), name="plantupia-spaces"),
+    path("spaces/<uuid:space_id>/", SpaceDetailView.as_view(), name="plantupia-space-detail"),
     path("plants/", PlantsView.as_view(), name="plantupia-plants"),
     path("plants/<uuid:plant_id>/", PlantDetailView.as_view(), name="plantupia-plant-detail"),
     path("plants/<uuid:plant_id>/events/", PlantEventsView.as_view(), name="plantupia-events"),

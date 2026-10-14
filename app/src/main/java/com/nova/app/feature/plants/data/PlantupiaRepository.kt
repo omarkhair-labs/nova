@@ -162,6 +162,27 @@ class PlantupiaRepository(context: Context) {
             }
         }
 
+    /** Authorized private space metadata only, never its ownership or memberships. */
+    suspend fun updateSpaceDetails(
+        spaceId: String,
+        name: String,
+        description: String,
+        location: String,
+    ): ApiResult<Unit> = authorized { token ->
+        when (val response = api.requestJson(
+            path = "plantupia/spaces/$spaceId/",
+            method = "PATCH",
+            body = JSONObject()
+                .put("name", name.trim())
+                .put("description", description.trim())
+                .put("location_note", location.trim()),
+            bearerToken = token,
+        )) {
+            is ApiResult.Success -> ApiResult.Success(Unit)
+            is ApiResult.Failure -> response
+        }
+    }
+
     /** Uploading a cover photo is private; it never creates a public post. */
     suspend fun createPlant(
         spaceId: String,

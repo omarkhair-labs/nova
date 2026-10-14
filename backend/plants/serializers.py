@@ -25,6 +25,25 @@ class SpaceSerializer(serializers.ModelSerializer):
         ).exists()
 
 
+class SpaceUpdateSerializer(serializers.ModelSerializer):
+    """Edit actual private space metadata; ownership and membership never come from the client."""
+
+    class Meta:
+        model = Space
+        fields = ("name", "description", "location_note")
+        extra_kwargs = {
+            "name": {"required": False},
+            "description": {"required": False},
+            "location_note": {"required": False},
+        }
+
+    def validate_name(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Give your space a name.")
+        return value
+
+
 class PlantSerializer(serializers.ModelSerializer):
     my_name = serializers.SerializerMethodField()
     can_record = serializers.SerializerMethodField()

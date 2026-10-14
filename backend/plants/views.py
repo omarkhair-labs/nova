@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import PlantDiscussion, PlantEvent, PlantNickname, PlantUnit, Space, SpaceMember
-from .serializers import (PlantCreateSerializer, PlantEventSerializer, PlantSerializer, PlantUpdateSerializer, SpaceCreateSerializer, SpaceSerializer)
+from .serializers import (PlantCreateSerializer, PlantEventSerializer, PlantSerializer, PlantUpdateSerializer, SpaceCreateSerializer, SpaceSerializer, SpaceUpdateSerializer)
 from .media import sanitize_public_plant_photo
 
 
@@ -61,6 +61,25 @@ class SpacesView(APIView):
             SpaceSerializer(space, context={"request": request}).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+class SpaceDetailView(APIView):
+    """Owner/manager metadata only; plants and their private records are untouched."""
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def patch(self, request, space_id):
+        writable_spaces = Space.objects.filter(
+            Q(owner=request.user) |
+            Q(memberships__user=request.user, memberships__role=SpaceMember.Role.MANAGER)
+        ).distinct()
+        space = get_object_or_404(writable_spaces, pk=space_id)
+        serializer = SpaceUpdateSerializer(space, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        if not serializer.validated_data:
+            return Response({"detail": "Choose a space detail to update."}, status=400)
+        serializer.save()
+        return Response(SpaceSerializer(space, context={"request": request}).data)
 
 
 class PlantsView(APIView):

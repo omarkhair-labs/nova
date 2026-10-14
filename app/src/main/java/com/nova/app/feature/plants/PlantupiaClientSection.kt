@@ -355,6 +355,11 @@ fun PlantupiaClientSection(
                             plantSearch = ""
                         },
                     )
+                    PlantupiaSpaceDetailsEditor(
+                        space = resolveFocusedSpace(spaces, focusedSpaceId),
+                        repository = repository,
+                        onSaved = { scope.launch { refresh() } },
+                    )
                     val featured = resolveFocusedSpace(spaces, focusedSpaceId) ?: spaces.first()
                     val focusedPlants = plants.filter { it.spaceId == featured.id && it.active }
                     val featuredCount = focusedPlants.size

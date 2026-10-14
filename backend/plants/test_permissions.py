@@ -556,3 +556,39 @@ class PlantupiaPermissionTests(TestCase):
         source.follow_up_completed_at = timezone.now()
         source.save(update_fields=("follow_up_completed_at",))
         self.assertEqual(self.client.patch(url, value, format="json").status_code, 409)
+
+    def test_space_private_metadata_edit_preserves_plant_records(self):
+        self.client.force_authenticate(user=self.owner)
+        history = PlantEvent.objects.create(
+            plant=self.plant, actor=self.owner,
+            kind=PlantEvent.Kind.OBSERVATION, observed_at=timezone.now(),
+            note="Leaves observed near window",
+        )
+        url = reverse("plantupia-space-detail", args=[self.space.pk])
+        response = self.client.patch(url, {
+            "name": "Sunlit office", "location_note": "Private east wall",
+            "description": "Every plant in a real space", "owner": self.stranger.pk,
+        }, format="json")
+        self.assertEqual(response.status_code, 200, response.content)
+        self.space.refresh_from_db()
+        self.assertEqual(self.space.name, "Sunlit office")
+        self.assertEqual(self.space.owner, self.owner)
+        self.assertEqual(self.plant.space_id, self.space.pk)
+        self.assertTrue(PlantEvent.objects.filter(pk=history.pk).exists())
+        self.assertEqual(self.client.patch(url, {"name": "  "}, format="json").status_code, 400)
+
+    def test_only_space_owner_or_manager_can_change_shared_space(self):
+        url = reverse("plantupia-space-detail", args=[self.space.pk])
+        self.client.force_authenticate(user=self.stranger)
+        self.assertEqual(self.client.patch(url, {"name": "Other"}, format="json").status_code, 404)
+        member = SpaceMember.objects.create(space=self.space, user=self.stranger, role=SpaceMember.Role.VIEWER)
+        self.assertEqual(self.client.patch(url, {"name": "Viewer"}, format="json").status_code, 404)
+        member.role = SpaceMember.Role.CARER
+        member.save(update_fields=("role",))
+        self.assertEqual(self.client.patch(url, {"name": "Carer"}, format="json").status_code, 404)
+        member.role = SpaceMember.Role.MANAGER
+        member.save(update_fields=("role",))
+        ok = self.client.patch(url, {"name": "Manager edit"}, format="json")
+        self.assertEqual(ok.status_code, 200, ok.content)
+        self.space.refresh_from_db()
+        self.assertEqual(self.space.name, "Manager edit")
