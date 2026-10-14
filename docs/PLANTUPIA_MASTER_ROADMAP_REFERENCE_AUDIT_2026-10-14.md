@@ -4,6 +4,8 @@
 **Verdict:** **C0 MOSTLY CODED, NOT END-TO-END VERIFIED. C1 PARTIAL. B1 COMPANY-GATED. R&D IS NOT A SHIP COMMITMENT.**
 **Review cadence:** Continue internal engineering/CI while building; user visual sign-off only at the final integrated QA APK. Do not merge/deploy to Oracle Production/Play without explicit approval.
 
+> **Later execution source (2026-10-15):** [Finite Integrated Delivery Roadmap](./PLANTUPIA_FINITE_INTEGRATED_DELIVERY_ROADMAP_2026-10-15.md) reconciles the complete research history, Post-Pass-07 Native work and bounded G0–G6 completion gates. This 2026-10-14 document is retained as a dated audit, not a permanently updated sign-off. Later work includes reversible **plant** archive, but not space archive/replacement.
+
 ## 1. Source truth, not wishful product scope
 
 | Source | Evidence inspected | What it establishes |
