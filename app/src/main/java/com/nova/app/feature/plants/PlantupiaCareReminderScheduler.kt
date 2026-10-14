@@ -27,6 +27,7 @@ private const val REMINDER_TAG = "plantupia-consented-checkin"
 private const val REMINDER_CHANNEL = "plantupia_care"
 private const val REMINDER_PREFS = "plantupia_local_checkins"
 private const val EVENT_KEY = "event_id"
+private const val PLANT_PREFIX = "plant:"
 private const val USER_KEY = "user_id"
 
 /**
@@ -44,9 +45,17 @@ internal fun checkInDelayMillis(
     java.time.Duration.between(now, target).toMillis().takeIf { it > 0L }
 }.getOrNull()
 
+internal fun reminderIdsForPlant(prefs: Map<String, *>, plantId: String): List<String> {
+    if (plantId.isBlank()) return emptyList()
+    return prefs.entries.mapNotNull { (key, value) ->
+        if (key.startsWith(PLANT_PREFIX) && value == plantId) key.removePrefix(PLANT_PREFIX)
+        else null
+    }
+}
+
 object PlantupiaCareReminderScheduler {
-    fun schedule(context: Context, eventId: String, checkInDate: String): Boolean {
-        if (eventId.isBlank() || !hasNotificationPermission(context)) return false
+    fun schedule(context: Context, eventId: String, checkInDate: String, plantId: String): Boolean {
+        if (eventId.isBlank() || plantId.isBlank() || !hasNotificationPermission(context)) return false
         val userId = NovaSessionStore(context).load()?.cachedUser?.id?.takeIf { it > 0L }
             ?: return false
         val delay = checkInDelayMillis(checkInDate, ZonedDateTime.now()) ?: return false
@@ -62,14 +71,14 @@ object PlantupiaCareReminderScheduler {
             .build()
         return runCatching {
             app.getSharedPreferences(REMINDER_PREFS, Context.MODE_PRIVATE)
-                .edit().putLong(eventId, userId).apply()
+                .edit().putLong(eventId, userId).putString(PLANT_PREFIX + eventId, plantId).apply()
             WorkManager.getInstance(app).enqueueUniqueWork(
                 REMINDER_TAG + ":" + eventId, ExistingWorkPolicy.REPLACE, task,
             )
             true
         }.getOrElse {
             app.getSharedPreferences(REMINDER_PREFS, Context.MODE_PRIVATE)
-                .edit().remove(eventId).apply()
+                .edit().remove(eventId).remove(PLANT_PREFIX + eventId).apply()
             false
         }
     }
@@ -78,12 +87,19 @@ object PlantupiaCareReminderScheduler {
         if (eventId.isBlank()) return
         val app = context.applicationContext
         app.getSharedPreferences(REMINDER_PREFS, Context.MODE_PRIVATE)
-            .edit().remove(eventId).apply()
+            .edit().remove(eventId).remove(PLANT_PREFIX + eventId).apply()
         // Preference removal alone prevents the worker from displaying a
         // notification, even if WorkManager is unavailable at this moment.
         runCatching {
             WorkManager.getInstance(app).cancelUniqueWork(REMINDER_TAG + ":" + eventId)
         }
+    }
+
+    /** Cancel only the archived plant's consented reminders, never other spaces'. */
+    fun cancelForPlant(context: Context, plantId: String) {
+        val app = context.applicationContext
+        val prefs = app.getSharedPreferences(REMINDER_PREFS, Context.MODE_PRIVATE)
+        reminderIdsForPlant(prefs.all, plantId).forEach { eventId -> cancel(app, eventId) }
     }
 
     fun isScheduled(context: Context, eventId: String): Boolean {
@@ -106,7 +122,7 @@ object PlantupiaCareReminderScheduler {
         if (saved.getLong(eventId, -1L) != userId) return false
         if (NovaSessionStore(app).load()?.cachedUser?.id != userId) return false
         // Once-only delivery, also prevents cross-account notification leakage.
-        saved.edit().remove(eventId).commit()
+        saved.edit().remove(eventId).remove(PLANT_PREFIX + eventId).commit()
         return hasNotificationPermission(app)
     }
 
