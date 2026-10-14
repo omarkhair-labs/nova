@@ -23,6 +23,24 @@ class PlantupiaCareReminderScheduleTest {
         assertNull(checkInDelayMillis("2026-10-01", time))
     }
 
+    @Test fun archivingOnePlantOnlyCancelsItsAssociatedReminders() {
+        val prefs = mapOf<String, Any>(
+            "event-a" to 2L,
+            "plant:event-a" to "plant-one",
+            "event-b" to 2L,
+            "plant:event-b" to "plant-two",
+            "event-c" to 5L,
+            "plant:event-c" to "plant-one",
+        )
+        assertEquals(
+            listOf("event-a", "event-c"),
+            reminderIdsForPlant(prefs, "plant-one"),
+        )
+        assertEquals(listOf("event-b"), reminderIdsForPlant(prefs, "plant-two"))
+        assertTrue(reminderIdsForPlant(prefs, "other-plant").isEmpty())
+        assertTrue(reminderIdsForPlant(prefs, "").isEmpty())
+    }
+
     @Test fun futureDateInLocalTimezoneCalculatesRemainingDelay() {
         val morning = time.withHour(8).withMinute(30)
         assertEquals(30L * 60 * 1000, checkInDelayMillis("2026-10-13", morning))
