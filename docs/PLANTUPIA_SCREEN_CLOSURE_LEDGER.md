@@ -28,12 +28,12 @@ All entries below are **not accepted** pending the listed evidence. Legacy names
 | S03 | Create a private space | PLANTUPIA-CODED | `PlantupiaSelfServiceForms.kt`, Django spaces | shorten form, explicit ownership, zero-data UX |
 | S04 | Space overview / plants | HYBRID | `PlantupiaClientSection.kt` | dedicated active space; nonduplicate hierarchy, camera-first |
 | S05 | Plants inventory, search, many units | PLANTUPIA-CODED | `PlantupiaSpaceBrowser.kt` | scoped search; 1/7/100+ QA, list performance |
-| S06 | Space edit/archive, zones, site observations | GAP | no approved mature contract | C1; explicit decision, no phantom controls |
+| S06 | Space metadata editing; space archive, zones and site observations separately | PARTIAL C1 CODED (edit), ARCHIVE/ZONES GAP | `PlantupiaSpaceDetailsEditor.kt`, scoped Django `SpaceDetailView` PATCH; no space archive model yet | real owner/manager change + authorization/device QA; **do not** mark space archive or zones done |
 | S07 | Space members/role management UI | GAP | backend `SpaceMember` read permission exists | user/admin workflows, invites and revocation require approval |
 | P01 | Add a plant | PLANTUPIA-CODED | forms, `PlantupiaRepository`, Django API | create with/without photo, rollback, open new plant |
 | P02 | Plant profile/identity | PLANTUPIA-CODED | `PlantupiaClientSection.kt` selected plant | action hierarchy, typography/photo, offline/retry |
 | P03 | Private personal nickname | PLANTUPIA-CODED | nickname endpoint | separate botanical vs user nickname, edit/retry |
-| P04 | Edit shared label/species/placement; retire/replace | PLANTUPIA-CODED PARTIAL, AWAITING QA | `PlantDetailView`, `PlantUpdateSerializer`, native details editor, private change event | lifecycle archive/replace still missing; verify manager role and device state |
+| P04 | Shared context edit; reversible plant archive/restore; replacement separate | C1 CODED (edit + archive) / QA OPEN; REPLACEMENT GAP | `PlantDetailView`, `PlantUpdateSerializer` using existing `PlantUnit.is_active`, `PlantupiaClientSection.kt` archive controls; private administrative event retains history | Verify archived/history permissions, old reminders, on-device persistence. **Replacement/new biological identity is not implemented** |
 | C01 | Daily check-ins overview | PLANTUPIA-CODED | `PlantupiaTodayPanel.kt` | date/rules, empty/due/upcoming, UX QA |
 | C02 | Record actual care action | PLANTUPIA-CODED | care tiles/events/typed history | icon-based compact composer, no watering inference |
 | C03 | Record observation/photo | PLANTUPIA-CODED | events and photo upload | image retry/upload states, permissions |
@@ -148,3 +148,9 @@ Build the following connected groups continuously, with developer-side testing/C
 - 2026-10-14: stakeholder language requirement changed to **English-first release UI**. Recorded as G0/G7 cross-cutting work; implementation has **not** yet been performed, and final user review remains deferred until integrated APK.
 
 - 2026-10-14 C1 increment: role-guarded shared plant name/species/placement editor and private change event implemented, with Django tests pending latest-head CI. Personal nickname stays separate. Retirement/replacement and site management remain open.
+
+## 2026-10-15 — reconciliation after research-to-native handoff
+- The [finite integrated roadmap](./PLANTUPIA_FINITE_INTEGRATED_DELIVERY_ROADMAP_2026-10-15.md) now traces the full research-to-native history and defines closure gates G0–G6, including a separate website and conditional B1 company delivery.
+- Plant archive/restore and real space metadata edits **are coded**, not device accepted. Restoring an archived plant preserves event history; it is not the same as replacing a biological individual. Space archive and space zones are **still gaps**.
+- For original native head `18cadf3e32486484735e7438d4b02d4f0eec420d`, [Android and backend run 38641919445](https://github.com/omarkhair-labs/nova/actions/runs/38641919445) completed successfully. Later documentation commits require their own head status check; branch CI does not represent real-device or QA-backend proof.
+- No screen is marked OWNER ACCEPTED; final visual review remains the single complete QA APK.
