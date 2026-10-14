@@ -56,7 +56,7 @@ class PlantSerializer(serializers.ModelSerializer):
         fields = ("id", "space", "unit_type", "label", "cover_photo", "my_name", "species_label", "placement_note", "is_active", "can_record", "last_event_kind", "last_event_at", "next_follow_up_on")
 
     def get_can_record(self, obj):
-        return obj.space_id in self.context.get("editable_space_ids", set())
+        return obj.is_active and obj.space_id in self.context.get("editable_space_ids", set())
 
     def get_my_name(self, obj):
         user = self.context["request"].user
@@ -110,11 +110,11 @@ class PlantCreateSerializer(serializers.ModelSerializer):
 
 
 class PlantUpdateSerializer(serializers.ModelSerializer):
-    """Human-corrected shared metadata, never an inferred plant diagnosis."""
+    """Human-corrected shared metadata and reversible archiving; no hard deletion."""
 
     class Meta:
         model = PlantUnit
-        fields = ("label", "species_label", "placement_note")
+        fields = ("label", "species_label", "placement_note", "is_active")
         extra_kwargs = {
             "label": {"required": False},
             "species_label": {"required": False},
