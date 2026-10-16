@@ -12,6 +12,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -26,6 +30,10 @@ internal fun scheduledPlantCheckIns(plants: List<PlantupiaPlant>): List<Plantupi
         plant.active && runCatching { LocalDate.parse(plant.nextFollowUpOn) }.isSuccess
     }.sortedBy { it.nextFollowUpOn }
 
+/** Incrementally reveal every real due record even in large client spaces. */
+internal fun visibleDueCheckInCount(total: Int, requested: Int): Int =
+    requested.coerceAtLeast(3).coerceAtMost(total.coerceAtLeast(0))
+
 @Composable
 internal fun PlantupiaTodayPanel(
     plants: List<PlantupiaPlant>,
@@ -35,6 +43,7 @@ internal fun PlantupiaTodayPanel(
     val planned = scheduledPlantCheckIns(plants)
     val due = planned.filter { !LocalDate.parse(it.nextFollowUpOn).isAfter(today) }
     val future = planned.filter { LocalDate.parse(it.nextFollowUpOn).isAfter(today) }
+    var dueVisibleCount by rememberSaveable { mutableIntStateOf(3) }
 
     // Quiet-care composition: a giant zero-count attention card implies urgency
     // when no human-selected check-in is due. Preserve the real next review
@@ -118,7 +127,7 @@ internal fun PlantupiaTodayPanel(
                     }
                 }
                 if (due.isNotEmpty()) {
-                    due.take(3).forEach { plant ->
+                    due.take(visibleDueCheckInCount(due.size, dueVisibleCount)).forEach { plant ->
                         Surface(
                             onClick = { onOpenPlant(plant) },
                             color = PlantupiaColors.paper,
@@ -147,8 +156,17 @@ internal fun PlantupiaTodayPanel(
                             }
                         }
                     }
-                    if (due.size > 3) {
-                        Text("And " + (due.size - 3) + " more check-ins", style = PlantupiaText.supporting)
+                    if (due.size > dueVisibleCount) {
+                        val remaining = due.size - dueVisibleCount
+                        TextButton(
+                            onClick = { dueVisibleCount += 8 },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                "Show ${minOf(8, remaining)} more check-ins · $remaining remaining",
+                                color = PlantupiaColors.forest,
+                            )
+                        }
                     }
                 } else if (future.isNotEmpty()) {
                     val next = future.first()
