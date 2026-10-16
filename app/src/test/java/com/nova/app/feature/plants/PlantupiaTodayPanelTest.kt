@@ -27,4 +27,21 @@ class PlantupiaTodayPanelTest {
     @Test fun noSyntheticScheduleWhenNoFollowupsExist() {
         assertTrue(scheduledPlantCheckIns(listOf(plant("new", ""))).isEmpty())
     }
+
+    @Test fun dueCheckInsCanBeRevealedBeyondTheFirstThreeInLargeSpaces() {
+        val records = (1..100).map { plant("plant-$it", "2026-10-13") }
+        val due = scheduledPlantCheckIns(records)
+        assertEquals(100, due.size)
+        assertEquals(3, visibleDueCheckInCount(due.size, 3))
+        assertEquals(11, visibleDueCheckInCount(due.size, 11))
+        assertEquals(100, visibleDueCheckInCount(due.size, 107))
+        assertEquals(100, due.take(visibleDueCheckInCount(due.size, 107)).distinctBy { it.id }.size)
+    }
+
+    @Test fun dueCountClampsEmptyAndSmallInventories() {
+        assertEquals(0, visibleDueCheckInCount(0, 3))
+        assertEquals(1, visibleDueCheckInCount(1, 3))
+        assertEquals(2, visibleDueCheckInCount(2, -20))
+    }
+
 }
