@@ -64,6 +64,7 @@ import com.nova.app.feature.plants.data.PlantupiaSpace
 import com.nova.app.feature.plants.data.findSpacePlants
 import com.nova.app.feature.plants.data.findArchivedPlants
 import com.nova.app.feature.plants.data.resolveFocusedSpace
+import com.nova.app.feature.plants.data.spacePlantCountSummary
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
@@ -311,6 +312,88 @@ fun PlantupiaClientSection(
                     onOpenPlant = { plant -> scope.launch { openPlant(plant) } },
                 )
             }
+            // Pass 07: show the authentic place before AI and creation controls.
+            // An empty or failed API must never display stock customer imagery.
+            if (!loading && error == null && spaces.isNotEmpty()) {
+                PlantupiaSpaceSwitcher(
+                    spaces = spaces,
+                    plants = plants,
+                    focusedSpaceId = focusedSpaceId,
+                    onSelectSpace = { id ->
+                        focusedSpaceId = id
+                        plantSearch = ""
+                    },
+                )
+                val featured = resolveFocusedSpace(spaces, focusedSpaceId) ?: spaces.first()
+                val focusedPlants = plants.filter { it.spaceId == featured.id && it.active }
+                val featuredCount = focusedPlants.size
+                val heroPhoto = focusedPlants.firstOrNull {
+                    it.coverPhoto.isNotBlank()
+                }?.coverPhoto
+                val photoHero = heroPhoto != null
+                val heroInk = if (photoHero) white else deepGreen
+                val heroMuted = if (photoHero) Color(0xFFE0E7DD) else muted
+                Surface(
+                    color = Color(0xFFD6E2D4),
+                    shape = RoundedCornerShape(22.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(if (photoHero) 244.dp else 202.dp),
+                    ) {
+                        if (photoHero) {
+                            AsyncImage(
+                                model = heroPhoto,
+                                contentDescription = "Actual plant photo from ${featured.name}",
+                                modifier = Modifier.matchParentSize(),
+                                contentScale = ContentScale.Crop,
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .background(
+                                        Brush.verticalGradient(
+                                            0f to Color(0x22112317),
+                                            0.35f to Color(0x66112317),
+                                            1f to Color(0xE6112317),
+                                        )
+                                    )
+                            )
+                        }
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(19.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                "LIVING SPACE",
+                                color = heroInk,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 1.2.sp,
+                            )
+                            Text(
+                                featured.name,
+                                color = heroInk,
+                                fontFamily = FontFamily.Serif,
+                                fontSize = 27.sp,
+                            )
+                            if (featured.location.isNotBlank()) {
+                                Text(featured.location, color = heroMuted, fontSize = 12.sp)
+                            }
+                            Text(
+                                spacePlantCountSummary(featuredCount),
+                                color = heroMuted,
+                                fontSize = 12.sp,
+                            )
+                        }
+                    }
+                }
+
+            }
             OutlinedButton(
                 onClick = { showAssistant = true },
                 modifier = Modifier.fillMaxWidth(),
@@ -346,97 +429,15 @@ fun PlantupiaClientSection(
             if (loading) {
                 Text("Loading your spaces…", color = muted, fontSize = 13.sp)
             } else {
-                if (spaces.isEmpty() && error == null) {
-                    PlantupiaPanel {
-                        Text("No spaces yet.", color = forestText, fontWeight = FontWeight.Medium)
-                        Text("Create your first space, add a plant and its photo, and start its living record.", color = muted, fontSize = 13.sp, lineHeight = 19.sp)
-                    }
-                }
                 if (spaces.isNotEmpty()) {
-                    PlantupiaSpaceSwitcher(
-                        spaces = spaces,
-                        plants = plants,
-                        focusedSpaceId = focusedSpaceId,
-                        onSelectSpace = { id ->
-                            focusedSpaceId = id
-                            plantSearch = ""
-                        },
-                    )
                     PlantupiaSpaceDetailsEditor(
                         space = resolveFocusedSpace(spaces, focusedSpaceId),
                         repository = repository,
                         onSaved = { scope.launch { refresh() } },
                     )
+                    // Recent events remain scoped to the currently focused site.
                     val featured = resolveFocusedSpace(spaces, focusedSpaceId) ?: spaces.first()
                     val focusedPlants = plants.filter { it.spaceId == featured.id && it.active }
-                    val featuredCount = focusedPlants.size
-                    val heroPhoto = focusedPlants.firstOrNull {
-                        it.coverPhoto.isNotBlank()
-                    }?.coverPhoto
-                    val photoHero = heroPhoto != null
-                    val heroInk = if (photoHero) white else deepGreen
-                    val heroMuted = if (photoHero) Color(0xFFE0E7DD) else muted
-                    Surface(
-                        color = Color(0xFFD6E2D4),
-                        shape = RoundedCornerShape(22.dp),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(if (photoHero) 244.dp else 202.dp),
-                        ) {
-                            if (photoHero) {
-                                AsyncImage(
-                                    model = heroPhoto,
-                                    contentDescription = "Actual plant photo from ${featured.name}",
-                                    modifier = Modifier.matchParentSize(),
-                                    contentScale = ContentScale.Crop,
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .matchParentSize()
-                                        .background(
-                                            Brush.verticalGradient(
-                                                0f to Color(0x22112317),
-                                                0.35f to Color(0x66112317),
-                                                1f to Color(0xE6112317),
-                                            )
-                                        )
-                                )
-                            }
-                            Column(
-                                modifier = Modifier
-                                    .align(Alignment.BottomStart)
-                                    .padding(19.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                Text(
-                                    "LIVING SPACE",
-                                    color = heroInk,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    letterSpacing = 1.2.sp,
-                                )
-                                Text(
-                                    featured.name,
-                                    color = heroInk,
-                                    fontFamily = FontFamily.Serif,
-                                    fontSize = 27.sp,
-                                )
-                                if (featured.location.isNotBlank()) {
-                                    Text(featured.location, color = heroMuted, fontSize = 12.sp)
-                                }
-                                Text(
-                                    "$featuredCount plants · real observations over time",
-                                    color = heroMuted,
-                                    fontSize = 12.sp,
-                                )
-                                Text("Explore this space's plants and history below ↓", color = heroMuted, fontSize = 12.sp)
-                            }
-                        }
-                    }
-
                     val recent = focusedPlants
                         .filter { it.lastEventAt.isNotBlank() }
                         .sortedByDescending { it.lastEventAt }
