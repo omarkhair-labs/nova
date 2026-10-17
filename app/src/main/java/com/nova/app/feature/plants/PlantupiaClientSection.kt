@@ -416,7 +416,13 @@ fun PlantupiaClientSection(
                         }
                     }
                 }
-
+                // Editing site context belongs with its actual chosen space,
+                // not beneath unrelated AI/Create controls and the social feed.
+                PlantupiaSpaceDetailsEditor(
+                    space = featured,
+                    repository = repository,
+                    onSaved = { scope.launch { refresh() } },
+                )
             }
             OutlinedButton(
                 onClick = { showAssistant = true },
@@ -454,11 +460,6 @@ fun PlantupiaClientSection(
                 Text("Loading your spaces…", color = muted, fontSize = 13.sp)
             } else {
                 if (spaces.isNotEmpty()) {
-                    PlantupiaSpaceDetailsEditor(
-                        space = resolveFocusedSpace(spaces, focusedSpaceId),
-                        repository = repository,
-                        onSaved = { scope.launch { refresh() } },
-                    )
                     // Recent events remain scoped to the currently focused site.
                     val featured = resolveFocusedSpace(spaces, focusedSpaceId) ?: spaces.first()
                     val focusedPlants = plants.filter { it.spaceId == featured.id && it.active }
