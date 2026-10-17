@@ -45,4 +45,11 @@ class PlantupiaSpaceFocusTest {
         assertNull(chooseWritableSpaceId(emptyList(), second.id, "revoked", "new-id"))
     }
 
+    @Test fun spaceHeroDoesNotInventPlantActivity() {
+        assertEquals("No plants added yet", spacePlantCountSummary(0))
+        assertEquals("1 plant in this space", spacePlantCountSummary(1))
+        assertEquals("7 plants in this space", spacePlantCountSummary(7))
+        assertEquals("100 plants in this space", spacePlantCountSummary(100))
+    }
+
 }
