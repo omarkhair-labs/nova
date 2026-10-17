@@ -66,6 +66,7 @@ fun PlantupiaQuestionsPanel(
     canPublish: Boolean,
     onOpenPost: (Long) -> Unit,
     onOutcomeSaved: suspend () -> Unit,
+    compactHeader: Boolean = false,
 ) {
     val scope = rememberCoroutineScope()
     var question by remember(plantId) { mutableStateOf("") }
@@ -101,12 +102,14 @@ fun PlantupiaQuestionsPanel(
     LaunchedEffect(plantId) { refreshQuestions() }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("PLANTUPIA CIRCLE", color = green, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 2.sp)
-        Text("Ask the Circle about your plant", color = green, fontFamily = FontFamily.Serif, fontSize = 22.sp)
-        Text(
-            "Share what you noticed in your real plant. After getting replies, come back and record what actually changed.",
-            color = mutedGreen, fontSize = 13.sp, lineHeight = 20.sp,
-        )
+        if (!compactHeader) {
+            Text("PLANTUPIA CIRCLE", color = green, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 2.sp)
+            Text("Ask the Circle about your plant", color = green, fontFamily = FontFamily.Serif, fontSize = 22.sp)
+            Text(
+                "Share a specific question. Review the exact text and image before it becomes public.",
+                color = mutedGreen, fontSize = 12.sp, lineHeight = 18.sp,
+            )
+        }
         if (canPublish) {
         OutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
@@ -287,7 +290,7 @@ fun PlantupiaQuestionsPanel(
                     ) { Text("Save outcome to plant history", color = card) }
                 } else {
                     TextButton(onClick = { respondingTo = entry.id; outcome = "" }) {
-                        Text("Record the outcome after getting help", color = green)
+                        Text(if (entry.comments == 0) "Record what changed later" else "Record the outcome after getting help", color = green)
                     }
                 }
             }
