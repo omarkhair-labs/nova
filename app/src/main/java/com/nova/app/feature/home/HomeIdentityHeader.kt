@@ -35,6 +35,8 @@ internal fun HomeIdentityHeader(
     displayName: String,
     username: String,
     avatarUrl: String,
+    userId: Long = 0L,
+    avatarVariant: Int = -1,
     unreadCount: Int,
     onSearchClick: () -> Unit,
     onActivityClick: () -> Unit,
@@ -57,6 +59,8 @@ internal fun HomeIdentityHeader(
                         source = avatarUrl,
                         fallbackText = displayName.ifBlank { username }.ifBlank { "Plantupia" },
                         size = 42.dp,
+                        plantupiaUserId = userId.takeIf { it > 0L },
+                        plantupiaAvatarVariant = avatarVariant,
                     )
                 }
             }

@@ -262,3 +262,5 @@ Build the following connected groups continuously, with developer-side testing/C
 - Migration `0037` and Django authenticated/API validation tests cover save/restore/out-of-range. No production migration run or real account mutation. Android reading, selection, and all social author projections remain a separate gating part of this increment until tested on QA.
 
 - **W2 Stories propagation CODED (CI/device pending):** Stories API author payload now includes the public saved `plantupia_avatar_variant`; Android story author model/parser and story rail/viewer lists use it. Current user's add-story affordance and messaging/conversation peer payloads still require preference-aware wiring. No social ACL or published media visibility changed.
+
+- **2026-10-17 W2 Home + Activity person identity CODED:** logged-in user's Home top-right profile shortcut and social post composer, activity/notification actors, pending follow requester rows now reuse the same selected Plantupia character via NovaAvatar's opt-in identity seam; real photos still override. No change to notifications, follows, feed authorization or payloads. Await exact-head CI + real-device validation.

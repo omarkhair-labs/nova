@@ -69,6 +69,8 @@ fun HomeScreen(
     displayName: String,
     username: String,
     avatarUrl: String,
+    userId: Long = 0L,
+    avatarVariant: Int = -1,
     posts: List<NovaPost>,
     isLoading: Boolean,
     isRefreshing: Boolean,
@@ -265,6 +267,8 @@ fun HomeScreen(
                         displayName = displayName,
                         username = username,
                         avatarUrl = avatarUrl,
+                        userId = userId,
+                        avatarVariant = avatarVariant,
                         unreadCount = notificationUnreadCount,
                         onSearchClick = onPeopleClick,
                         onActivityClick = { showActivity = true },
@@ -428,6 +432,8 @@ fun HomeScreen(
                                 source = avatarUrl,
                                 fallbackText = displayName.ifBlank { username },
                                 size = 40.dp,
+                                plantupiaUserId = userId.takeIf { it > 0L },
+                                plantupiaAvatarVariant = avatarVariant,
                             )
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(

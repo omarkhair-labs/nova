@@ -338,6 +338,8 @@ private fun FollowRequestRow(
                         source = request.requester.avatarUrl,
                         fallbackText = request.requester.name.ifBlank { request.requester.username },
                         size = 46.dp,
+                        plantupiaUserId = request.requester.id.takeIf { it > 0L },
+                        plantupiaAvatarVariant = request.requester.plantupiaAvatarVariant,
                     )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
@@ -435,6 +437,8 @@ private fun NotificationRow(
                     source = notification.actor.avatarUrl,
                     fallbackText = notification.actor.name.ifBlank { notification.actor.username },
                     size = 42.dp,
+                    plantupiaUserId = notification.actor.id.takeIf { it > 0L },
+                    plantupiaAvatarVariant = notification.actor.plantupiaAvatarVariant,
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
