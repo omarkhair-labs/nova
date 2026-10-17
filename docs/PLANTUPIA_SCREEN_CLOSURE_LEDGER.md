@@ -26,20 +26,20 @@ All entries below are **not accepted** pending the listed evidence. Legacy names
 | S01 | Living Home / Today | HYBRID / PASS 07 ORDER CODED | `HomeScreen.kt`, `PlantupiaClientSection.kt`, `PlantupiaTodayPanel.kt`; real selected-space hero now appears before optional AI/create controls; Today explicitly cross-space | on-device 360/390dp, owner/manager/viewer, empty/account-error, real photos, keyboard and gesture audit; no inherited feed dominance |
 | S02 | Space switcher | PLANTUPIA-CODED, AWAITING QA | `PlantupiaSpaceSwitcher.kt`, `PlantupiaSpaceFocus.kt` | chosen authorized site, saved rotation state, scoped hero/recent/inventory; test device |
 | S03 | Create a private space | PLANTUPIA-CODED | `PlantupiaSelfServiceForms.kt`, Django spaces | shorten form, explicit ownership, zero-data UX |
-| S04 | Space overview / plants | HYBRID | `PlantupiaClientSection.kt` | dedicated active space; nonduplicate hierarchy, camera-first |
+| S04 | Space overview / plants | HYBRID / MEDIA PROVENANCE CODED | `PlantupiaClientSection.kt`; private space metadata editor positioned next to selected authentic hero; plant-cover photo explicitly labeled as plant-in-space, not a fabricated architectural site photo | real staged 0/1/7/100 device screenshots, responsive layout, missing photo/empty/edit failures |
 | S05 | Plants inventory, search, many units | PLANTUPIA-CODED | `PlantupiaSpaceBrowser.kt` | scoped search; 1/7/100+ QA, list performance |
 | S06 | Space metadata editing; space archive, zones and site observations separately | PARTIAL C1 CODED (edit), ARCHIVE/ZONES GAP | `PlantupiaSpaceDetailsEditor.kt`, scoped Django `SpaceDetailView` PATCH; no space archive model yet | real owner/manager change + authorization/device QA; **do not** mark space archive or zones done |
 | S07 | Space members/role management UI | GAP | backend `SpaceMember` read permission exists | user/admin workflows, invites and revocation require approval |
 | P01 | Add a plant | PLANTUPIA-CODED | forms, `PlantupiaRepository`, Django API | create with/without photo, rollback, open new plant |
-| P02 | Plant profile/identity | PLANTUPIA-CODED | `PlantupiaClientSection.kt` selected plant | action hierarchy, typography/photo, offline/retry |
+| P02 | Plant profile/identity | PLANTUPIA-CODED / STALE DATA GUARD | `PlantupiaClientSection.kt` selected plant; truthful no-cover card and request-generation isolation on opening/Back | real 360/390dp device evidence, focus/scroll, long species names, offline/retry and photo state |
 | P03 | Private personal nickname | PLANTUPIA-CODED | nickname endpoint | separate botanical vs user nickname, edit/retry |
 | P04 | Shared context edit; reversible plant archive/restore; replacement separate | C1 CODED (edit + archive) / QA OPEN; REPLACEMENT GAP | `PlantDetailView`, `PlantUpdateSerializer` using existing `PlantUnit.is_active`, `PlantupiaClientSection.kt` archive controls; private administrative event retains history | Verify archived/history permissions, old reminders, on-device persistence. **Replacement/new biological identity is not implemented** |
 | C01 | Daily check-ins overview | PLANTUPIA-CODED / LARGE INVENTORY PASS | `PlantupiaTodayPanel.kt`; cross-space label and progressively reveal all actual due check-ins, 0/1/100 tests | date/rules, state reset, on-device UX QA |
-| C02 | Record actual care action | PLANTUPIA-CODED | care tiles/events/typed history | icon-based compact composer, no watering inference |
+| C02 | Record actual care action | PLANTUPIA-CODED / POST-SAVE NAV GUARD | real private care/observation/issue composer; delayed save does not reopen prior plant after Android Back or overwrite another plant's error | photo+note upload, opt-in notification, rapid Back/save, offline/retry on device |
 | C03 | Record observation/photo | PLANTUPIA-CODED | events and photo upload | image retry/upload states, permissions |
 | C04 | Report concern | PLANTUPIA-CODED | event kind `issue` | easy next action without fake diagnosis |
 | C05 | Choose follow-up/complete outcome | PLANTUPIA-CODED | follow-up DB fields and transactions | own dates, pending pagination, no duplicate outcome |
-| C06 | Living chronology and photo comparison | PLANTUPIA-CODED | history paging, `PlantupiaPhotoViewer.kt` | visible timestamps, photo quality/zoom, long histories |
+| C06 | Living chronology and photo comparison | PLANTUPIA-CODED / REQUEST-ISOLATED | paginated history, photo viewer and question outcome refresh; `PlantupiaDetailRequestPolicy.kt` + JVM tests reject late responses for prior plant/reopened same plant | device/network slow-response QA, older pages, zoom, 1 photo truth |
 | C07 | Opt-in local check-in reminders / cancel | PLANTUPIA-CODED, PARTIAL | `PlantupiaCareReminderScheduler.kt`, WorkManager, `PlantupiaClientSection.kt`; server-created event UUID, user opt-in, approx 9 AM, calendar-date choice, generic private notification and optional re-enable from pending review | exact-device delivery, denied permission, battery/doze, full server-side rescheduling and cross-device outcome consistency unverified |
 | C08 | Sourced plant care guide | GAP | not an approved curated corpus | cite real sources; avoid invented biology |
 | AI01 | General & context-scoped care assistant | PLANTUPIA-CODED, DISABLED | `PlantupiaAssistantSheet.kt`, `backend/plants/assistant.py` | isolated QA provider key, actual reply/device QA, policy confirmation |
@@ -68,6 +68,14 @@ All entries below are **not accepted** pending the listed evidence. Legacy names
 - **Care overview:** previous 3-item cap no longer strands further real due check-ins; 8-at-a-time expansion and JVM tests for 0/1/2/100. Actual notification schedule unchanged.
 - **Truthful display:** hero's count now describes 0, 1, or multiple active plants in the selected space without claiming fabricated observations or care; unit tests cover 0/1/7/100.
 - **Proof:** code pushed only on stacked draft PR #241. Exact-final-HEAD Android/backend CI and staged/on-device QA must be checked separately; this update is *code-complete incremental work*, not screen approval or store readiness.
+
+### 2026-10-17 Native screen closure increment 2: Spaces → Plant Profile → Care/History
+
+- **S04 site context:** move the owner/manager space editor beside the selected site hero rather than after secondary Create/AI. A plant's uploaded cover image is labeled `PLANT PHOTO · IN THIS SPACE`; no fake architectural space photography. No-cover space retains abstract background and honest active count.
+- **P02 no-cover profile:** show a small native no-cover state, not a broken image or sample photo. Dated observation imagery is still kept separately in private history.
+- **P02/C06 request isolation:** every plant-detail open increments an ephemeral generation; opening a different plant, reopening the same plant, or Back invalidates prior network results. Clear previous private history synchronously. Guard initial events, pending check-ins, subsequent history pages, and Circle question outcome refresh before updating visible state. JVM tests reject old plant, same-plant prior generation, and null selection.
+- **C02 save navigation:** capture chosen check-in/reminder parameters for the actual save; if user navigates away before the API returns, keep the authoritative server save/optional scheduled local reminder but **do not forcibly reopen the old plant**, alter new plant notes, or show another plant's save error.
+- **Still unverified:** physical-device transitions, TalkBack focus, poor/slow network, actual Oracle-hosted QA service revision/media permissions and full preview-user signoff. No merged changes, Oracle migration or Play uploads.
 
 ## Backend / invisible engine ledger
 
