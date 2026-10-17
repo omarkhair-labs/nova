@@ -67,7 +67,8 @@ class NovaReelsRepository(
         onProgress: (Int?) -> Unit,
         expectedUserId: Long?,
     ): ApiResult<NovaReel> {
-        if (!reelPublishAccountMatches(expectedUserId, sessionStore.load()?.cachedUser?.id)) {
+        val origin = sessionStore.load() ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
+        if (!reelPublishAccountMatches(expectedUserId, origin.cachedUser?.id)) {
             return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)
         }
         resolveVideoMimeType(videoUri)
@@ -84,7 +85,7 @@ class NovaReelsRepository(
             is ApiResult.Failure -> return result
         }
         return try {
-            authenticatedCall(expectedUserId) { token ->
+            authenticatedCall(expectedUserId, origin = origin) { token ->
                 when (
                     val response = authApi.requestMultipart(
                         path = "reels/",
@@ -367,9 +368,10 @@ class NovaReelsRepository(
 
     private suspend fun <T> authenticatedCall(
         expectedUserId: Long? = null,
+        origin: NovaSessionStore.StoredSession? = sessionStore.load(),
         call: suspend (String) -> ApiResult<T>,
     ): ApiResult<T> {
-        val stored = sessionStore.load()
+        val stored = origin
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
         if (!reelPublishAccountMatches(expectedUserId, stored.cachedUser?.id)) {
             return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)

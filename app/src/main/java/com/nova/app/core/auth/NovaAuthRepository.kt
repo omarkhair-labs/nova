@@ -22,6 +22,7 @@ class NovaAuthRepository(
     private val remote: AuthRemoteDataSource = AuthRemoteDataSource(
         NovaApiClient(com.nova.app.core.network.NovaServerConfig.API_URL),
     ),
+    private val activatePush: (Context) -> Unit = NovaPushRegistration::activate,
 ) {
     private val appContext = context.applicationContext
     private val sessionStore = NovaSessionStore(appContext)
@@ -32,6 +33,8 @@ class NovaAuthRepository(
      */
     fun cachedUser(): NovaUser? = sessionStore.load()?.cachedUser
 
+    fun hasStoredSession(): Boolean = sessionStore.load() != null
+
     suspend fun register(email: String, password: String, username: String, name: String): ApiResult<NovaUser> {
         val pendingAvatarUri = NovaPendingRegistrationPhoto.consume()
         val owner = sessionStore.beginLogin()
@@ -41,7 +44,7 @@ class NovaAuthRepository(
         if (result is ApiResult.Failure) return result
         val session = (result as ApiResult.Success).value
         if (!sessionStore.save(owner, session)) return changedSession()
-        NovaPushRegistration.activate(appContext)
+        activatePush(appContext)
         if (pendingAvatarUri == null) return ApiResult.Success(session.user)
         val prepared = prepareAvatar(pendingAvatarUri)
         if (!sessionStore.isCurrent(owner)) return changedSession()
@@ -70,7 +73,7 @@ class NovaAuthRepository(
         return when (result) {
             is ApiResult.Success -> {
                 if (!sessionStore.save(owner, result.value)) return changedSession()
-                NovaPushRegistration.activate(appContext)
+                activatePush(appContext)
                 ApiResult.Success(result.value.user)
             }
             is ApiResult.Failure -> result
@@ -86,7 +89,7 @@ class NovaAuthRepository(
         return when (result) {
             is ApiResult.Success -> {
                 if (!sessionStore.updateUser(stored.identity, result.value)) return changedSession()
-                NovaPushRegistration.activate(appContext)
+                activatePush(appContext)
                 ApiResult.Success(result.value)
             }
             is ApiResult.Failure -> when {

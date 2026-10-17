@@ -106,6 +106,7 @@ class RoomRemoteRepository(
         mediaUri: Uri?,
         onProgress: (Int?) -> Unit,
     ): ApiResult<RoomItem> {
+        val origin = sessionStore.load() ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
         val cleanKind = kind.trim().lowercase()
         if (cleanKind !in ROOM_ITEM_KINDS) return ApiResult.Failure("Choose a valid Room item type.")
         val cleanTitle = title.trim()
@@ -153,7 +154,7 @@ class RoomRemoteRepository(
                 }
             }
             return try {
-                authenticatedCall { token ->
+                authenticatedCall(origin = origin) { token ->
                     when (
                         val response = api.requestMultipart(
                             path = path,
@@ -181,7 +182,7 @@ class RoomRemoteRepository(
             }
         }
 
-        return authenticatedCall { token ->
+        return authenticatedCall(origin = origin) { token ->
             val payload = JSONObject()
                 .put("kind", cleanKind)
                 .put("title", cleanTitle)
@@ -376,9 +377,10 @@ class RoomRemoteRepository(
     }.getOrNull()
 
     private suspend fun <T> authenticatedCall(
+        origin: NovaSessionStore.StoredSession? = sessionStore.load(),
         call: suspend (String) -> ApiResult<T>,
     ): ApiResult<T> {
-        val stored = sessionStore.load()
+        val stored = origin
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
         return sessionStore.authenticatedRequest(
             stored = stored,

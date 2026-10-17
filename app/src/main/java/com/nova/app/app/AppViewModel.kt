@@ -17,7 +17,7 @@ import com.nova.app.navigation.NovaRootTab
 class AppViewModel internal constructor(
     private val restoreCachedUser: () -> NovaUser?,
     private val restoreSession: suspend () -> ApiResult<NovaUser?>,
-    private val logout: () -> Unit,
+    private val hasStoredSession: () -> Boolean,
     private val requestSocialRoot: (NovaRootTab) -> Unit,
 ) : ViewModel(), AppNavigator {
     var state by mutableStateOf(AppState())
@@ -65,8 +65,7 @@ class AppViewModel internal constructor(
         return when (refreshed) {
             is ApiResult.Success -> {
                 if (refreshed.value == null) {
-                    expireSession()
-                    false
+                    !expireSession()
                 } else {
                     sessionGeneration += 1
                     state = state.copy(currentUser = refreshed.value)
@@ -76,8 +75,7 @@ class AppViewModel internal constructor(
 
             is ApiResult.Failure -> {
                 if (refreshed.statusCode == 401) {
-                    expireSession()
-                    false
+                    !expireSession()
                 } else {
                     true
                 }
@@ -90,10 +88,12 @@ class AppViewModel internal constructor(
         state = state.copy(currentUser = user, isBootstrapping = false)
     }
 
-    fun expireSession() {
+    /** Transport already invalidated its originating login. An old UI event cannot log out B. */
+    fun expireSession(): Boolean {
+        if (hasStoredSession()) return false
         sessionGeneration += 1
-        logout()
         state = state.copy(primaryOverlay = null, currentUser = null)
+        return true
     }
 
     fun clearPrimaryOverlay() {
@@ -126,7 +126,7 @@ class AppViewModel internal constructor(
                     return AppViewModel(
                         restoreCachedUser = container.authRepository::cachedUser,
                         restoreSession = container.authRepository::restoreSession,
-                        logout = container.authRepository::logout,
+                        hasStoredSession = container.authRepository::hasStoredSession,
                         requestSocialRoot = NovaRootNavigationSignal::request,
                     ) as T
                 }

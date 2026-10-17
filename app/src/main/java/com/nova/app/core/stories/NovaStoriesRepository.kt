@@ -82,7 +82,8 @@ class NovaStoriesRepository(
         onProgress: (Int?) -> Unit,
         expectedUserId: Long?,
     ): ApiResult<NovaStory> {
-        if (!storyPublishAccountMatches(expectedUserId, sessionStore.load()?.cachedUser?.id)) {
+        val origin = sessionStore.load() ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
+        if (!storyPublishAccountMatches(expectedUserId, origin.cachedUser?.id)) {
             return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)
         }
         val cleanAudience = audience.takeIf { it == "followers" || it == "close_friends" }
@@ -118,6 +119,7 @@ class NovaStoriesRepository(
                     audience = cleanAudience,
                     clientPublishId = clientPublishId,
                     expectedUserId = expectedUserId,
+                    origin = origin,
                     onUploadProgress = onProgress,
                 )
             } finally {
@@ -142,6 +144,7 @@ class NovaStoriesRepository(
                     audience = cleanAudience,
                     clientPublishId = clientPublishId,
                     expectedUserId = expectedUserId,
+                    origin = origin,
                     onUploadProgress = onProgress,
                 )
             } finally {
@@ -382,8 +385,9 @@ class NovaStoriesRepository(
         audience: String,
         clientPublishId: String,
         expectedUserId: Long?,
+        origin: NovaSessionStore.StoredSession,
         onUploadProgress: ((Int?) -> Unit)? = null,
-    ): ApiResult<NovaStory> = authenticatedCall(expectedUserId) { token ->
+    ): ApiResult<NovaStory> = authenticatedCall(expectedUserId, origin = origin) { token ->
         when (
             val response = authApi.requestMultipart(
                 path = "stories/",
@@ -464,9 +468,10 @@ class NovaStoriesRepository(
 
     private suspend fun <T> authenticatedCall(
         expectedUserId: Long? = null,
+        origin: NovaSessionStore.StoredSession? = sessionStore.load(),
         call: suspend (String) -> ApiResult<T>,
     ): ApiResult<T> {
-        val stored = sessionStore.load()
+        val stored = origin
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
         if (!storyPublishAccountMatches(expectedUserId, stored.cachedUser?.id)) {
             return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)

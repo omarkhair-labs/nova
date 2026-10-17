@@ -38,8 +38,7 @@ fun NovaAppHost() {
     val appState = appViewModel.state
 
     fun expireOverlaySession() {
-        appViewModel.expireSession()
-        (context as? Activity)?.recreate()
+        if (appViewModel.expireSession()) (context as? Activity)?.recreate()
     }
 
     fun openReelAuthor(username: String) {

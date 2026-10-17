@@ -240,7 +240,8 @@ class PulseRemoteRepository(
         onProgress: (Int?) -> Unit = {},
         expectedUserId: Long? = null,
     ): ApiResult<NovaPulse> {
-        if (!pulsePublishAccountMatches(expectedUserId, sessionStore.load()?.cachedUser?.id)) {
+        val origin = sessionStore.load() ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
+        if (!pulsePublishAccountMatches(expectedUserId, origin.cachedUser?.id)) {
             return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)
         }
         val cleanNote = note.trim()
@@ -253,7 +254,7 @@ class PulseRemoteRepository(
         }
 
         return try {
-            authenticatedCall(expectedUserId) { token ->
+            authenticatedCall(expectedUserId, origin = origin) { token ->
                 when (
                     val response = api.requestMultipart(
                         path = path,
@@ -429,9 +430,10 @@ class PulseRemoteRepository(
 
     private suspend fun <T> authenticatedCall(
         expectedUserId: Long? = null,
+        origin: NovaSessionStore.StoredSession? = sessionStore.load(),
         call: suspend (String) -> ApiResult<T>,
     ): ApiResult<T> {
-        val stored = sessionStore.load()
+        val stored = origin
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
         if (!pulsePublishAccountMatches(expectedUserId, stored.cachedUser?.id)) {
             return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)

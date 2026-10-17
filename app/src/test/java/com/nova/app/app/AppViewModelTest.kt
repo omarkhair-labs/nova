@@ -101,44 +101,65 @@ class AppViewModelTest {
     }
 
     @Test
-    fun sessionExpiryLogsOutAndClearsSessionAndOverlay() {
-        var logoutCount = 0
-        val viewModel = viewModel(logout = { logoutCount += 1 })
+    fun confirmedSessionExpiryClearsUiAndOverlay() {
+        val viewModel = viewModel()
         viewModel.onAuthenticated(user("maya"))
         viewModel.navigate(AppDestination.Reels)
 
         viewModel.expireSession()
 
-        assertEquals(1, logoutCount)
         assertNull(viewModel.state.currentUser)
         assertNull(viewModel.state.primaryOverlay)
     }
 
     @Test
-    fun unauthorizedRefreshUsesTheSingleExpiryCoordinator() = runBlocking {
-        var logoutCount = 0
+    fun unauthorizedRefreshUpdatesUiAfterTransportHasInvalidatedSession() = runBlocking {
         val viewModel = viewModel(
             restore = { ApiResult.Failure("expired", statusCode = 401) },
-            logout = { logoutCount += 1 },
         )
         viewModel.onAuthenticated(user("maya"))
 
         val sessionActive = viewModel.refreshSession()
 
         assertFalse(sessionActive)
-        assertEquals(1, logoutCount)
         assertNull(viewModel.state.currentUser)
+    }
+
+    @Test
+    fun refreshCompletionCannotReplaceOrExpireALaterAuthenticatedUser() = runBlocking {
+        for (response in listOf(ApiResult.Success(user("old")), ApiResult.Success(null), ApiResult.Failure("old", 401))) {
+            val reply = CompletableDeferred<ApiResult<NovaUser?>>()
+            val model = viewModel(restore = { reply.await() })
+            model.onAuthenticated(user("old"))
+            val refresh = launch(start = CoroutineStart.UNDISPATCHED) { model.refreshSession() }
+            val current = user("new")
+            model.onAuthenticated(current)
+            reply.complete(response)
+            refresh.join()
+            assertEquals(current, model.state.currentUser)
+        }
+    }
+
+    @Test
+    fun delayedFeatureExpiryCannotClearANewStoredLoginOrItsUi() {
+        val model = viewModel(hasStoredSession = { true })
+        val current = user("new")
+        model.onAuthenticated(current)
+        model.navigate(AppDestination.Inbox)
+        assertFalse(model.expireSession())
+        assertEquals(current, model.state.currentUser)
+        assertEquals(AppDestination.Inbox, model.state.primaryOverlay)
     }
 
     private fun viewModel(
         cachedUser: () -> NovaUser? = { null },
         restore: suspend () -> ApiResult<NovaUser?> = { ApiResult.Success(null) },
-        logout: () -> Unit = {},
+        hasStoredSession: () -> Boolean = { false },
         requestRoot: (NovaRootTab) -> Unit = {},
     ) = AppViewModel(
         restoreCachedUser = cachedUser,
         restoreSession = restore,
-        logout = logout,
+        hasStoredSession = hasStoredSession,
         requestSocialRoot = requestRoot,
     )
 

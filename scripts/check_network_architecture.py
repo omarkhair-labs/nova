@@ -417,6 +417,24 @@ for repository in (ROOT / "app/src/main/java").rglob("*.kt"):
     if 'sessionStore = NovaSessionStore(' in text and '.refresh(' in text:
         require_all(text, f"{repository.name} shared login coordination", ('sessionStore.authenticatedRequest(',))
 
+app_owner = read(ROOT / "app/src/main/java/com/nova/app/app/AppViewModel.kt")
+require_all(app_owner, "stale UI expiry protection", (
+    'if (hasStoredSession()) return false',
+    'if (expectedGeneration != sessionGeneration) return state.currentUser != null',
+))
+forbid_all(app_owner, "unconditional UI session clearing", ('logout()', 'authRepository.logout('))
+for relative in (
+    'core/feed/NovaFeedRepository.kt', 'core/messaging/NovaMessagingRepository.kt',
+    'core/stories/NovaStoriesRepository.kt', 'core/reels/NovaReelsRepository.kt',
+    'feature/pulse/data/remote/PulseRemoteRepository.kt',
+    'feature/memories/data/remote/MemoryRemoteRepository.kt',
+    'feature/rooms/data/remote/RoomRemoteRepository.kt',
+):
+    media_owner = read(ROOT / "app/src/main/java/com/nova/app" / relative)
+    require_all(media_owner, f"{relative} media preparation login capture", (
+        'val origin = sessionStore.load()', 'origin = origin', 'val stored = origin',
+    ))
+
 if errors:
     print("Network architecture exit check failed:")
     for error in errors:

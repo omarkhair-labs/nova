@@ -12,6 +12,15 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.cancelAndJoin
 import com.nova.app.core.network.ApiResult
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.Dispatchers
+import com.nova.app.feature.auth.data.remote.AuthRemoteDataSource
+import com.nova.app.core.messaging.NovaMessagingApiClient
+import com.nova.app.core.messaging.NovaMessagingRepository
+import com.nova.app.core.calls.NovaCallRepository
+import com.nova.app.core.push.NovaPushRepository
+import java.io.File
 import org.junit.Assert.*
 import org.junit.Test
 import org.mockito.Mockito
@@ -28,7 +37,7 @@ import javax.crypto.KeyGenerator
 
 /** F01 security regressions: delayed work must leave the replacing login untouched. */
 class NovaSessionStoreRefreshRaceTest {
-    @Test fun delayedARefreshLeavesBsSessionUnchanged() = runBlocking {
+    @Test(timeout = 20_000) fun delayedARefreshLeavesBsSessionUnchanged() = runBlocking {
         withRealSessionStore { store, _ ->
             store.save(store.beginLogin(), session(1, "access-A", "refresh-A"))
             val original = requireNotNull(store.load())
@@ -48,7 +57,7 @@ class NovaSessionStoreRefreshRaceTest {
         }
     }
 
-    @Test fun plantupiaRepositoryRejectsBAndSameAccountNewLogin() {
+    @Test(timeout = 20_000) fun plantupiaRepositoryRejectsBAndSameAccountNewLogin() {
         for (replacement in listOf(session(2, "access-B", "refresh-B"), session(1, "new-access-A", "new-refresh-A"))) {
             withRealSessionStore { store, context ->
                 store.save(store.beginLogin(), session(1, "access-A", "refresh-A"))
@@ -62,7 +71,7 @@ class NovaSessionStoreRefreshRaceTest {
         }
     }
 
-    @Test fun everyStaleWriteIsRejectedAcrossStoresAfterSwitchLogoutOrSameUserLogin() {
+    @Test(timeout = 20_000) fun everyStaleWriteIsRejectedAcrossStoresAfterSwitchLogoutOrSameUserLogin() {
         for (target in listOf("B", "logout", "new-A")) withRealSessionStore { store, context ->
             store.save(store.beginLogin(), session(1, "access-A", "refresh-A"))
             val old = requireNotNull(store.load())
@@ -83,7 +92,7 @@ class NovaSessionStoreRefreshRaceTest {
         }
     }
 
-    @Test fun concurrentRefreshAcrossRepositoriesSharesOneRequestAndOneToken() = runBlocking {
+    @Test(timeout = 20_000) fun concurrentRefreshAcrossRepositoriesSharesOneRequestAndOneToken() = runBlocking {
         withRealSessionStore { store, context ->
             store.save(store.beginLogin(), session(1, "access-A", "refresh-A"))
             val origin = requireNotNull(store.load())
@@ -108,7 +117,7 @@ class NovaSessionStoreRefreshRaceTest {
         }
     }
 
-    @Test fun switchingDuringBackgroundRefreshImmediatelyInvalidatesAllWaiters() = runBlocking {
+    @Test(timeout = 20_000) fun switchingDuringBackgroundRefreshImmediatelyInvalidatesAllWaiters() = runBlocking {
         for (target in listOf("B", "logout", "new-A")) withRealSessionStore { store, context ->
             store.save(store.beginLogin(), session(1, "access-A", "refresh-A"))
             val origin = requireNotNull(store.load())
@@ -129,7 +138,7 @@ class NovaSessionStoreRefreshRaceTest {
         }
     }
 
-    @Test fun failedRefreshIsCoalescedAndTransientFailureRetainsCurrentCredentials() = runBlocking {
+    @Test(timeout = 20_000) fun failedRefreshIsCoalescedAndTransientFailureRetainsCurrentCredentials() = runBlocking {
         for (status in listOf(503, 401, 400)) withRealSessionStore { store, context ->
             store.save(store.beginLogin(), session(1, "access-A", "refresh-A"))
             val original = requireNotNull(store.load())
@@ -152,7 +161,7 @@ class NovaSessionStoreRefreshRaceTest {
         }
     }
 
-    @Test fun cancellingOneWaiterDoesNotCancelAnotherRepositorysRefresh() = runBlocking {
+    @Test(timeout = 20_000) fun cancellingOneWaiterDoesNotCancelAnotherRepositorysRefresh() = runBlocking {
         withRealSessionStore { store, context ->
             store.save(store.beginLogin(), session(1, "access-A", "refresh-A"))
             val origin = requireNotNull(store.load())
@@ -171,7 +180,7 @@ class NovaSessionStoreRefreshRaceTest {
         }
     }
 
-    @Test fun delayedMeProfileAndFailureResponsesCannotChangeBOrRetryAsB() = runBlocking {
+    @Test(timeout = 20_000) fun delayedMeProfileAndFailureResponsesCannotChangeBOrRetryAsB() = runBlocking {
         for (response in listOf(ApiResult.Success(session(1, "", "").user), ApiResult.Failure("Expired", 401))) {
             withRealSessionStore { store, context ->
                 store.save(store.beginLogin(), session(1, "access-A", "refresh-A"))
@@ -194,7 +203,7 @@ class NovaSessionStoreRefreshRaceTest {
         }
     }
 
-    @Test fun credentialReplacementInvalidatesOldWorkAndRejectsDifferentUserProfiles() = runBlocking {
+    @Test(timeout = 20_000) fun credentialReplacementInvalidatesOldWorkAndRejectsDifferentUserProfiles() = runBlocking {
         withRealSessionStore { store, _ ->
             store.save(store.beginLogin(), session(1, "access-A", "refresh-A"))
             val before = requireNotNull(store.load())
@@ -207,7 +216,7 @@ class NovaSessionStoreRefreshRaceTest {
         }
     }
 
-    @Test fun legacyEncryptedSessionUpgradesWithoutChangingCredentialsOrProfile() {
+    @Test(timeout = 20_000) fun legacyEncryptedSessionUpgradesWithoutChangingCredentialsOrProfile() {
         withRealSessionStore { store, context ->
             store.save(store.beginLogin(), session(1, "access-A", "refresh-A"))
             val prefs = context.getSharedPreferences("nova_session", Context.MODE_PRIVATE)
@@ -220,6 +229,169 @@ class NovaSessionStoreRefreshRaceTest {
             assertEquals(1L, restored.cachedUser?.id)
             assertEquals(encrypted, prefs.getString("token_ciphertext", null))
             assertEquals(restored.identity, NovaSessionStore(context).load()?.identity)
+        }
+    }
+
+    @Test(timeout = 20_000) fun actualRestoreAndProfileRepositoriesRejectDelayedAResponses() = runBlocking {
+        for (profile in listOf(false, true)) withRealSessionStore { store, context ->
+            store.save(store.beginLogin(), session(1, "access-A", "refresh-A"))
+            val entered = CountDownLatch(1)
+            val release = CountDownLatch(1)
+            val remote = Mockito.mock(AuthRemoteDataSource::class.java)
+            val response = ApiResult.Success(session(1, "", "").user.copy(name = "Late A"))
+            if (profile) Mockito.`when`(remote.updateProfile("access-A", "Changed A", "user1"))
+                .thenAnswer { entered.countDown(); check(release.await(10, TimeUnit.SECONDS)); response }
+            else Mockito.`when`(remote.me("access-A"))
+                .thenAnswer { entered.countDown(); check(release.await(10, TimeUnit.SECONDS)); response }
+            val repository = NovaAuthRepository(context, remote, activatePush = {})
+            val pending = async(Dispatchers.IO) {
+                if (profile) repository.updateProfile("Changed A", "user1", null, "", "", "", emptyList(), "violet", true)
+                else repository.restoreSession()
+            }
+            try {
+                check(entered.await(10, TimeUnit.SECONDS))
+                val other = NovaSessionStore(context)
+                other.save(other.beginLogin(), session(2, "access-B", "refresh-B"))
+                val expected = other.load()
+                release.countDown()
+                assertEquals(409, (pending.await() as ApiResult.Failure).statusCode)
+                assertEquals(expected, other.load())
+            } finally { release.countDown() }
+        }
+    }
+
+    @Test(timeout = 20_000) fun actualLoginRepositoryRejectsEarlierLoginAndNeverOverwritesB() = runBlocking {
+        withRealSessionStore { store, context ->
+            val entered = CountDownLatch(1)
+            val release = CountDownLatch(1)
+            val remote = Mockito.mock(AuthRemoteDataSource::class.java)
+            Mockito.`when`(remote.login("a@example.test", "pw"))
+                .thenAnswer { entered.countDown(); check(release.await(10, TimeUnit.SECONDS)); ApiResult.Success(session(1, "access-A", "refresh-A")) }
+            Mockito.`when`(remote.login("b@example.test", "pw"))
+                .thenReturn(ApiResult.Success(session(2, "access-B", "refresh-B")))
+            val first = async(Dispatchers.IO) { NovaAuthRepository(context, remote, activatePush = {}).login("a@example.test", "pw") }
+            try {
+                check(entered.await(10, TimeUnit.SECONDS))
+                assertTrue(NovaAuthRepository(context, remote, activatePush = {}).login("b@example.test", "pw") is ApiResult.Success)
+                val expected = store.load()
+                release.countDown()
+                assertEquals(409, (first.await() as ApiResult.Failure).statusCode)
+                assertEquals(expected, store.load())
+            } finally { release.countDown() }
+        }
+    }
+
+    @Test(timeout = 20_000) fun actualRestoreAfterRefreshUpdatesProfileWithoutCreatingANewLogin() = runBlocking {
+        withRealSessionStore { store, context ->
+            store.save(store.beginLogin(), session(1, "access-A", "refresh-A"))
+            val owner = store.identity()
+            val remote = Mockito.mock(AuthRemoteDataSource::class.java)
+            Mockito.`when`(remote.me("access-A")).thenReturn(ApiResult.Failure("Expired", 401))
+            Mockito.`when`(remote.refresh("refresh-A")).thenReturn(ApiResult.Success("fresh-A"))
+            val user = session(1, "", "").user.copy(name = "Current profile", plantupiaAvatarVariant = 4)
+            Mockito.`when`(remote.me("fresh-A")).thenReturn(ApiResult.Success(user))
+            assertEquals(ApiResult.Success(user), NovaAuthRepository(context, remote, activatePush = {}).restoreSession())
+            assertEquals(owner, store.identity())
+            assertEquals("fresh-A", store.load()?.accessToken)
+            assertEquals("refresh-A", store.load()?.refreshToken)
+            assertEquals(user, store.load()?.cachedUser)
+        }
+    }
+
+    @Test(timeout = 20_000) fun delayedRetryFailureAndSuccessCannotClearOrReturnBsData() = runBlocking {
+        for (response in listOf(ApiResult.Success("private A reply"), ApiResult.Failure("Old rejection", 401))) {
+            withRealSessionStore { store, context ->
+                store.save(store.beginLogin(), session(1, "access-A", "refresh-A"))
+                val origin = requireNotNull(store.load())
+                val retried = CompletableDeferred<Unit>()
+                val reply = CompletableDeferred<ApiResult<String>>()
+                val request = async(start = CoroutineStart.UNDISPATCHED) {
+                    store.authenticatedRequest(origin, refresh = { ApiResult.Success("fresh-A") }) { token ->
+                        if (token == "access-A") ApiResult.Failure("Expired", 401)
+                        else { retried.complete(Unit); reply.await() }
+                    }
+                }
+                retried.await()
+                val other = NovaSessionStore(context)
+                other.save(other.beginLogin(), session(2, "access-B", "refresh-B"))
+                val expected = other.load()
+                reply.complete(response)
+                assertEquals(409, (request.await() as ApiResult.Failure).statusCode)
+                assertEquals(expected, other.load())
+            }
+        }
+    }
+
+    @Test(timeout = 20_000) fun backgroundCallAndPushRepositoriesCannotResumeUnderAnotherLogin() = runBlocking {
+        withRealSessionStore { store, context ->
+            store.save(store.beginLogin(), session(1, "access-A", "refresh-A"))
+            val owner = store.identity()
+            val call = NovaCallRepository(context, expectedLogin = owner)
+            val push = NovaPushRepository(context, expectedLogin = owner)
+            store.save(store.beginLogin(), session(2, "access-B", "refresh-B"))
+            val expected = store.load()
+            assertEquals(409, (call.callAction("old-A-call", "decline") as ApiResult.Failure).statusCode)
+            assertEquals(409, (push.register("old-A-installation") as ApiResult.Failure).statusCode)
+            assertEquals(expected, store.load())
+        }
+    }
+
+    @Test(timeout = 20_000) fun messageMediaPreparationCannotSendUsingTheNextAccountsToken() = runBlocking {
+        withRealSessionStore { store, context ->
+            store.save(store.beginLogin(), session(1, "access-A", "refresh-A"))
+            val api = Mockito.mock(NovaMessagingApiClient::class.java)
+            val entered = CountDownLatch(1)
+            val release = CountDownLatch(1)
+            val temporary = File.createTempFile("nova-session-regression-", ".m4a").apply { writeBytes(byteArrayOf(1, 2, 3)) }
+            val audio = object : File(temporary.path) {
+                override fun exists(): Boolean {
+                    entered.countDown()
+                    check(release.await(10, TimeUnit.SECONDS))
+                    return super.exists()
+                }
+            }
+            val repository = NovaMessagingRepository(context, api = api)
+            val pending = async(Dispatchers.IO) { repository.sendMessage(11, "Private A", "client-A", null, null, audio, 1_000L) }
+            try {
+                check(entered.await(10, TimeUnit.SECONDS))
+                store.save(store.beginLogin(), session(2, "access-B", "refresh-B"))
+                val expected = store.load()
+                release.countDown()
+                assertEquals(409, (pending.await() as ApiResult.Failure).statusCode)
+                Mockito.verifyNoInteractions(api)
+                assertEquals(expected, store.load())
+            } finally { release.countDown(); temporary.delete() }
+        }
+    }
+
+    @Test(timeout = 20_000) fun plantupiaKeepsItsLoginAcrossAccessRotation() {
+        withRealSessionStore { store, context ->
+            store.save(store.beginLogin(), session(1, "access-A", "refresh-A"))
+            val repository = PlantupiaRepository(context)
+            val owner = store.identity()
+            assertTrue(store.updateAccessToken(owner, "fresh-A"))
+            assertTrue(repository.isCurrentSession())
+            assertEquals(owner, store.identity())
+        }
+    }
+
+    @Test(timeout = 20_000) fun throwingRefreshCannotStrandWaitersOrClearTheCurrentLogin() = runBlocking {
+        withRealSessionStore { store, _ ->
+            store.save(store.beginLogin(), session(1, "access-A", "refresh-A"))
+            val origin = requireNotNull(store.load())
+            val entered = CompletableDeferred<Unit>()
+            val release = CompletableDeferred<Unit>()
+            val first = async(start = CoroutineStart.UNDISPATCHED) {
+                store.refreshAccessToken(origin) { entered.complete(Unit); release.await(); error("Transport failed") }
+            }
+            entered.await()
+            val second = async(start = CoroutineStart.UNDISPATCHED) {
+                store.refreshAccessToken(origin) { error("Duplicate transport") }
+            }
+            release.complete(Unit)
+            assertTrue(first.await() is ApiResult.Failure)
+            assertEquals(first.await(), second.await())
+            assertEquals(origin, store.load())
         }
     }
 

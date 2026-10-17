@@ -139,8 +139,7 @@ fun NovaApp(
     }
 
     fun expireSession() {
-        appViewModel.expireSession()
-        clearSessionUi()
+        if (appViewModel.expireSession()) clearSessionUi()
     }
 
     fun refreshCurrentUser() {

@@ -70,6 +70,7 @@ class NovaMessagingRepository(
         audioFile: File?,
         audioDurationMs: Long?,
     ): ApiResult<NovaMessage> {
+        val origin = sessionStore.load() ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
         if (imageUri != null && audioFile != null) {
             return ApiResult.Failure("Send either a photo or a voice message, not both at once.")
         }
@@ -95,7 +96,7 @@ class NovaMessagingRepository(
             null
         }
 
-        return authenticatedCall { accessToken ->
+        return authenticatedCall(origin = origin) { accessToken ->
             api.sendMessage(
                 accessToken = accessToken,
                 conversationId = conversationId,
@@ -196,9 +197,10 @@ class NovaMessagingRepository(
     }
 
     private suspend fun <T> authenticatedCall(
+        origin: NovaSessionStore.StoredSession? = sessionStore.load(),
         call: suspend (String) -> ApiResult<T>,
     ): ApiResult<T> {
-        val stored = sessionStore.load()
+        val stored = origin
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
         return sessionStore.authenticatedRequest(
             stored = stored,

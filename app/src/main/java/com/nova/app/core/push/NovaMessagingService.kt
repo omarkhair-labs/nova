@@ -10,6 +10,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.MainActivity
 import com.nova.app.R
 import com.nova.app.core.calls.NovaCallNotification
@@ -29,18 +30,22 @@ class NovaMessagingService : FirebaseMessagingService() {
         super.onRegistered(installationId)
         NovaPushStore(applicationContext).saveInstallationId(installationId)
 
+        val owner = NovaSessionStore(applicationContext).load()?.identity ?: return
         serviceScope.launch {
-            NovaPushRepository(applicationContext).register(installationId)
+            NovaPushRepository(applicationContext, expectedLogin = owner).register(installationId)
         }
     }
 
     override fun onUnregistered(installationId: String) {
         super.onUnregistered(installationId)
 
-        serviceScope.launch {
-            NovaPushRepository(applicationContext).remove(installationId)
+        // Explicit logout removes using its captured old token. A delayed device callback
+        // must never issue that removal using a subsequently signed-in account.
+        if (NovaSessionStore(applicationContext).load() != null) {
+            NovaPushRegistration.activate(applicationContext)
+        } else if (NovaPushStore(applicationContext).installationId() == installationId) {
+            NovaPushStore(applicationContext).clear()
         }
-        NovaPushStore(applicationContext).clear()
     }
 
     override fun onMessageReceived(message: RemoteMessage) {

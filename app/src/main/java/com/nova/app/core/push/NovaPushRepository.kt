@@ -16,6 +16,7 @@ class NovaPushRepository(
     context: Context,
     private val api: NovaPushApiClient = NovaPushApiClient(PRODUCTION_API_URL),
     private val authApi: NovaApiClient = NovaApiClient(PRODUCTION_API_URL),
+    private val expectedLogin: NovaSessionStore.LoginIdentity? = null,
 ) {
     private val sessionStore = NovaSessionStore(context.applicationContext)
 
@@ -36,6 +37,7 @@ class NovaPushRepository(
     ): ApiResult<T> {
         val stored = sessionStore.load()
             ?: return ApiResult.Failure("No signed-in Nova session.", 401)
+        if (expectedLogin != null && stored.identity != expectedLogin) return com.nova.app.core.auth.changedSession()
         return sessionStore.authenticatedRequest(
             stored = stored,
             refresh = { authApi.refresh(stored.refreshToken) },
