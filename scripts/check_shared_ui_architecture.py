@@ -238,9 +238,20 @@ for file_name, surface_text in (
         errors.append(f"Plantupia contextual messages entry missing from {file_name}")
     if "NovaIconAsset.Inbox" not in surface_text:
         errors.append(f"Inbox icon missing from contextual entry {file_name}")
-for seam in ("NovaProfileIdentity(", "NovaPagedProfilePostsGrid(", "NovaType.pageTitle", "NovaSpacing.xxl"):
+# Plantupia Me intentionally replaces the legacy violet Nova identity slab while
+# keeping the real authenticated avatar, profile content, follow graph and UI tokens.
+# Protect the NEW owning component and native composition, not an obsolete look.
+for seam in ("PlantupiaMeIdentity(", "PlantupiaProfileSpaces(", "NovaPagedProfilePostsGrid(", "NovaType.sectionTitle", "NovaSpacing.lg"):
     if seam not in profile_text:
-        errors.append(f"Profile bypassed Nova identity/content/type/spacing seam: {seam}")
+        errors.append(f"Profile bypassed Plantupia Me/privacy/community composition: {seam}")
+new_identity = MAIN / "com/nova/app/feature/profile/PlantupiaMeIdentity.kt"
+if not new_identity.is_file():
+    errors.append("missing Plantupia Me identity owner")
+else:
+    identity_text = new_identity.read_text(encoding="utf-8")
+    for seam in ("NovaAvatar(", "normalizedProfileExternalUrl(", "NovaIconAsset.Verified", "NovaType.sectionTitle"):
+        if seam not in identity_text:
+            errors.append(f"Plantupia Me lost real identity or safe profile metadata: {seam}")
 
 home_text = HOME_SCREEN.read_text(encoding="utf-8")
 for seam in (
@@ -260,19 +271,21 @@ if not HOME_IDENTITY_HEADER.is_file():
     errors.append("missing Home identity header owner")
 else:
     home_identity_text = HOME_IDENTITY_HEADER.read_text(encoding="utf-8")
+    # Brand-led, compact Plantupia header supersedes Nova's animated Orbit halo
+    # and the two-paragraph marketing header; keep search, activity, real avatar.
     for seam in (
+        "PlantupiaBrandGlyph(",
         "NovaType.display",
-        "NovaType.screenTitle",
-        "NovaType.subtitle",
+        "NovaType.meta",
         "NovaIconAsset.Search",
         "NovaIconAsset.Notifications",
-        "NovaOrbitRing(",
+        "NovaAvatar(",
         "NovaUnreadDot(",
         "NovaSpacing.",
-        "Modifier.size(48.dp)",
+        "size = 42.dp",
     ):
         if seam not in home_identity_text:
-            errors.append(f"Home identity header bypassed approved visual-identity seam: {seam}")
+            errors.append(f"Home header bypassed Plantupia brand/actions/accessibility seam: {seam}")
 
 if not CREATE_HUB.is_file():
     errors.append("missing truthful central Create destination")
