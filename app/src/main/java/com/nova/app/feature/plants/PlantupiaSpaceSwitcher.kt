@@ -59,7 +59,7 @@ internal fun PlantupiaSpaceSwitcher(
                                 maxLines = 1,
                             )
                             Text(
-                                "${activeCount} plants",
+                                spacePlantCountLabel(activeCount),
                                 color = if (isSelected) PlantupiaColors.softSage else PlantupiaColors.secondaryText,
                                 style = PlantupiaText.supporting,
                             )
@@ -72,3 +72,7 @@ internal fun PlantupiaSpaceSwitcher(
         }
     }
 }
+
+/** Product copy shared by single-space and 100+ inventory UI states. */
+internal fun spacePlantCountLabel(count: Int): String =
+    if (count == 1) "1 plant" else "${count.coerceAtLeast(0)} plants"
