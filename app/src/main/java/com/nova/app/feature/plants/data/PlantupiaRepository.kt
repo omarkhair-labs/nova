@@ -20,6 +20,9 @@ data class PlantupiaSpace(
     val description: String,
     val location: String,
     val canAddPlant: Boolean = false,
+    // A missing flag on an older deployed preview is NOT proof of denied access.
+    // Creation stays disabled until authority is confirmed by the server.
+    val canAddPlantPermissionReported: Boolean = true,
 )
 
 data class PlantupiaPlant(
@@ -299,6 +302,7 @@ class PlantupiaRepository(context: Context) {
                     description = raw.optString("description"),
                     location = raw.optString("location_note"),
                     canAddPlant = raw.optBoolean("can_add_plant", false),
+                    canAddPlantPermissionReported = raw.has("can_add_plant"),
                 )
             }
         }
