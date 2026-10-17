@@ -334,11 +334,10 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text("PLANTUPIA / SHARED KNOWLEDGE", color = green, fontSize = 10.sp, letterSpacing = 1.7.sp)
-        Text("Advice worth keeping.", fontFamily = FontFamily.Serif, fontSize = 27.sp, color = green)
+        Text("PLANT QUESTIONS · REAL EXPERIENCES", color = green, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
         Text(
-            "Questions and photos from real plants, replies from people, and follow-up outcomes—without sharing private spaces.",
-            color = mutedGreen, fontSize = 13.sp, lineHeight = 20.sp,
+            "Questions people chose to share. Your private plant records stay private.",
+            color = mutedGreen, fontSize = 12.sp, lineHeight = 18.sp,
         )
         if (pending) {
             Surface(color = parchment, shape = RoundedCornerShape(18.dp)) {
@@ -417,70 +416,95 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
 @Composable
 private fun QuestionCard(entry: PlantupiaQuestion, onClick: () -> Unit) {
     Surface(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        modifier = Modifier./**
+ * Compact question-first content: the public image is optional supporting evidence,
+ * not a full-width feed hero. A documented outcome is shown only when the API says
+ * it has been deliberately recorded by the plant's author.
+ */
+internal fun circleReplyLabel(count: Int): String = when (count.coerceAtLeast(0)) {
+    1 -> "1 reply"
+    else -> "${count.coerceAtLeast(0)} replies"
+}
+
+@Composable
+private fun QuestionCard(entry: PlantupiaQuestion, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
         color = card,
         border = BorderStroke(1.dp, Color(0xFFD8E1D5)),
-        shape = RoundedCornerShape(19.dp),
+        shape = RoundedCornerShape(16.dp),
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(11.dp),
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
                 Text(
-                    "FROM REAL PLANTS",
-                    color = green,
-                    fontSize = 10.sp,
-                    letterSpacing = 0.8.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    entry.authorName.ifBlank { "Circle member" },
+                    color = mutedGreen,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
                 )
                 if (entry.resolved) {
                     Text(
-                        "Outcome documented ✓",
+                        "Outcome recorded ✓",
                         color = green,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
             }
-            Text(
-                entry.topic,
-                color = green,
-                fontFamily = FontFamily.Serif,
-                fontSize = 22.sp,
-                lineHeight = 28.sp,
-            )
-            if (entry.imageUrl.isNotBlank()) {
-                AsyncImage(
-                    model = entry.imageUrl,
-                    contentDescription = "Question photo: ${entry.topic}",
-                    modifier = Modifier.fillMaxWidth().height(208.dp).clip(RoundedCornerShape(12.dp)),
-                    contentScale = ContentScale.Crop,
-                )
-            }
-            if (entry.caption.isNotBlank()) {
-                Text(
-                    entry.caption,
-                    color = mutedGreen,
-                    fontSize = 13.sp,
-                    lineHeight = 20.sp,
-                    maxLines = 4,
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = androidx.compose.ui.Alignment.Top,
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        entry.topic,
+                        color = green,
+                        fontFamily = FontFamily.Serif,
+                        fontSize = 20.sp,
+                        lineHeight = 25.sp,
+                        maxLines = 3,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    )
+                    if (entry.caption.isNotBlank()) {
+                        Text(
+                            entry.caption,
+                            color = mutedGreen,
+                            fontSize = 12.sp,
+                            lineHeight = 18.sp,
+                            maxLines = 3,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                if (entry.imageUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = entry.imageUrl,
+                        contentDescription = "Photo shared for question: ${entry.topic}",
+                        modifier = Modifier.size(96.dp).clip(RoundedCornerShape(12.dp)),
+                        contentScale = ContentScale.Crop,
+                    )
+                }
             }
             HorizontalDivider(color = Color(0xFFD8E1D5))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
-                Text(
-                    entry.authorName.ifBlank { "Circle member" },
-                    color = mutedGreen,
-                    fontSize = 12.sp,
-                )
-                Text("${entry.comments} replies · Open discussion →", color = green, fontSize = 12.sp)
+                Text(circleReplyLabel(entry.comments), color = green, fontSize = 12.sp)
+                Text("Read discussion →", color = green, fontSize = 12.sp, fontWeight = FontWeight.Medium)
             }
         }
     }
