@@ -109,6 +109,7 @@ dependencies {
     testImplementation(libs.junit)
     // Exercise the real response parser on the JVM rather than Android's JSON stubs.
     testImplementation("org.json:json:20250517")
+    testImplementation("org.mockito:mockito-core:5.23.0")
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)

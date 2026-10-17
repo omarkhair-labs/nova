@@ -282,3 +282,7 @@ This Markdown file is the *maintainable working source*, not a claim that these 
 Every relevant change must update: **the PR commit → affected screen ledger row → decision/rationale if behavior changes → actual QA evidence → release notes once approved**. Use this document as a navigable executive story; keep the repo/source files and test results as the auditable source of truth.
 
 **Document footer —** v0.1 / 2026-10-17 / prepared for integrated user-and-client review, **not an announcement of launch**.
+
+### 2026-10-18 maintenance increment — Integrity Sprint 01
+
+Audit F06/F07/F12 now have scoped native implementation and JVM regression coverage: immutable/account-scoped mutation callbacks, independent pending check-in failure/retry states, and strict successful-response contracts with retained Nova no-content compatibility. F01 was deterministically reproduced; shared authentication remains unchanged and open. See [versioned sprint evidence and proposed F01 repair](./PLANTUPIA_INTEGRITY_SPRINT_01_2026-10-18.md). Source/CI increments do not mark any screen device-verified or owner-accepted.

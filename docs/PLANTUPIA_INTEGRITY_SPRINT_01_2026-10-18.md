@@ -21,3 +21,18 @@ F01 investigation and final sprint evidence are recorded in the next increment. 
 ### F06 callback follow-through
 
 Photo-picker, notification-permission and date-dialog returns are also tied to the originating detail/login. A delayed platform callback cannot attach a photo or date to a subsequently selected plant. Final sprint CI includes these source changes; physical picker/permission-dialog transitions still need device QA.
+
+## F01 deterministic investigation — shared authentication NOT changed
+
+`NovaSessionStoreRefreshRaceTest.delayedARefreshCanMixItsAccessTokenWithBsSession` runs the actual NovaSessionStore save/load/updateAccessToken methods with JVM AES/GCM, in-memory Android preferences and a test-only keystore/Base64 adapter. A CompletableDeferred barrier holds A's refresh while B is saved, then releases the old callback. The test confirms the current defect: B's user ID and refresh token coexist with refreshed A access. This is a characterization test asserting the known unsafe state, not a fixed-security regression or device proof.
+
+A second test exercises the actual PlantupiaRepository login guard: both account B and a fresh login by account A invalidate the original repository. Neither test calls the hosted API. Focused run: 2 tests passed. No NovaSessionStore/NovaAuthRepository source was modified.
+
+Safest proposed shared repair (requires separate approval):
+
+1. One shared session owner must atomically compare an immutable originating login generation and identity before applying token, cached-user, clear or restore writes. Save token/profile state consistently; per-instance locks are insufficient because repositories create separate stores.
+2. A delayed refresh/Me success or stale 401 failure must never replace, clear or resurrect a later login. Guard restoreWithRefresh/save and updateUser as well as updateAccessToken; a fix limited to one token setter is incomplete.
+3. Coalesce refreshes per originating login. A new login/logout invalidates that flight; do not treat rotating access tokens as login identity.
+4. Promote the characterization into a B-remains-unchanged regression when repaired; cover A->B, A->logout, A->new-A, reversed replies, late failures and cached-user updates.
+
+F01 remains OPEN and remains a release risk in inherited Nova callers. The Plantupia-local guard is bounded protection, not a substitute for the shared repair. Uncertain-acknowledgement duplicate writes (F05), hosted QA isolation, physical device/permissions testing and the other audit findings remain outside this sprint. Circle consent/resolution behavior and account-deletion policy are unchanged.

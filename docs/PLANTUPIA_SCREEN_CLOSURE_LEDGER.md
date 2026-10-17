@@ -294,3 +294,9 @@ Build the following connected groups continuously, with developer-side testing/C
 - Audited shared JSONObject callers before tightening successful HTTP parsing; Nova no-content delete/session responses and non-2xx error behavior remain compatible. No architecture guard was weakened.
 - Plantupia collection envelopes, row identities, pagination and mutation acknowledgements now fail explicitly when malformed. Valid empty lists and missing legacy can_add_plant compatibility remain distinct from unavailable data.
 - Local Android suite: 375 tests passed. See `PLANTUPIA_INTEGRITY_SPRINT_01_2026-10-18.md` for caller audit and bounded validation. Exact-final-head CI and physical device verification remain pending.
+
+### 2026-10-18 Integrity Sprint 01 — F01 investigation only
+
+- Deterministic JVM test executes the real session-store primitive and reproduces an old A refresh mixing with B's current cached user/refresh token. A second test verifies the actual Plantupia-local repository rejects account/new-login changes.
+- Shared Nova authentication source is unchanged. F01 remains OPEN; the proposed atomic session-generation repair and full required regression matrix are recorded in `PLANTUPIA_INTEGRITY_SPRINT_01_2026-10-18.md` for review before implementation.
+- No device verification, hosted migration/deployment, consent-policy or deletion-policy change is implied by this sprint.
