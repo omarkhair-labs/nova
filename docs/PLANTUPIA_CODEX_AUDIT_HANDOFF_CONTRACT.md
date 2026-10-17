@@ -38,7 +38,7 @@ Inspect:
 
 Deliver a **ranked P0/P1/P2 report**: file/line, observed or reproducible failure, matching product law, scope of fix, tests, security/UX risk and expected sign-off. Avoid overhauls not traceable to a bug or accepted direction.
 
-**Extra review requirement from Pass 08:** audit actual Android `NovaType` vs `PlantupiaText` vs generic `FontFamily.Serif`, care Canvas glyph legibility, remaining legacy `ic_nova_*` icons, real/photo vs custom authored empty illustrations, whole-product motion / reduced-motion, and three competing Me/Profile compositions. Audit 0/1/7/100 plants, English/mixed Arabic names and physical 320–430dp font scaling before claiming success. **Codex may propose an original fourth direction** and explain why it beats our existing three.
+**Extra review requirement from Pass 08:** audit actual Android `NovaType` vs `PlantupiaText` vs generic `FontFamily.Serif`, care Canvas glyph legibility, remaining legacy `ic_nova_*` icons, real/photo vs custom authored empty illustrations, whole-product motion / reduced-motion, and the one adopted human-and-living-places Me/Profile art direction. Audit 0/1/7/100 plants, English/mixed Arabic names and physical 320–430dp font scaling before claiming success. **Codex can propose creative improvements or challenge the chosen direction when it has concrete evidence; it must not spawn three HTML redesigns or restart visual discovery by default.**
 
 ## Creative judgment: permission to improve, not permission to erase research
 
