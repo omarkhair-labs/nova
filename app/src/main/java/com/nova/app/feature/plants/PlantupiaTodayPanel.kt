@@ -52,7 +52,7 @@ internal fun PlantupiaTodayPanel(
         if (future.isNotEmpty()) {
             val next = future.first()
             Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                Text("NEXT CHECK-IN", style = PlantupiaText.sectionLabel)
+                Text("NEXT CHECK-IN · ALL SPACES", style = PlantupiaText.sectionLabel)
                 Surface(
                     onClick = { onOpenPlant(next) },
                     color = PlantupiaColors.paper,
@@ -89,7 +89,7 @@ internal fun PlantupiaTodayPanel(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-        Text("TODAY WITH YOUR PLANTS", style = PlantupiaText.sectionLabel)
+        Text("CHECK-INS ACROSS YOUR SPACES", style = PlantupiaText.sectionLabel)
         Surface(
             color = PlantupiaColors.softSage,
             border = BorderStroke(1.dp, PlantupiaColors.border),
