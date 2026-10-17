@@ -3,6 +3,7 @@ package com.nova.app.feature.plants
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.nova.app.feature.plants.data.PlantupiaPlant
 
 /**
  * UI-only navigation intent between Nova Create and the real authenticated
@@ -26,6 +27,10 @@ internal fun PlantupiaCreateMode?.creationForm(hasSpaces: Boolean): PlantupiaCre
 
 internal fun PlantupiaCreateMode?.needsPlantSelection(): Boolean =
     this == PlantupiaCreateMode.OBSERVATION || this == PlantupiaCreateMode.QUESTION
+
+/** Only plants with actual write access can fulfill a care or public-question intent. */
+internal fun actionablePlantChoices(plants: List<PlantupiaPlant>): List<PlantupiaPlant> =
+    plants.filter { it.active && it.canRecord }
 
 object PlantupiaCreateIntent {
     var pending by mutableStateOf<PlantupiaCreateMode?>(null)
