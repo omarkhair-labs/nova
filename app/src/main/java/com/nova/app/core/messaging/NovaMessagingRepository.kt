@@ -463,7 +463,8 @@ class NovaMessagingApiClient(
                         id = item.optLong("id"),
                         username = item.optString("username"),
                         name = item.optString("name"),
-                        avatarUrl = resolveMediaUrl(item.optString("avatar_url")),                        plantupiaAvatarVariant = item.optInt("plantupia_avatar_variant", -1),
+                        avatarUrl = resolveMediaUrl(item.optString("avatar_url")),
+                        plantupiaAvatarVariant = item.optInt("plantupia_avatar_variant", -1),
                     )
                 )
             }
@@ -474,7 +475,8 @@ class NovaMessagingApiClient(
                 id = user.optLong("id"),
                 username = user.optString("username"),
                 name = user.optString("name"),
-                avatarUrl = resolveMediaUrl(user.optString("avatar_url")),                plantupiaAvatarVariant = user.optInt("plantupia_avatar_variant", -1),
+                avatarUrl = resolveMediaUrl(user.optString("avatar_url")),
+                plantupiaAvatarVariant = user.optInt("plantupia_avatar_variant", -1),
             )
         } else {
             NovaPostAuthor(
@@ -513,7 +515,8 @@ class NovaMessagingApiClient(
                     id = replySender.optLong("id"),
                     username = replySender.optString("username"),
                     name = replySender.optString("name"),
-                    avatarUrl = resolveMediaUrl(replySender.optString("avatar_url")),                    plantupiaAvatarVariant = replySender.optInt("plantupia_avatar_variant", -1),
+                    avatarUrl = resolveMediaUrl(replySender.optString("avatar_url")),
+                    plantupiaAvatarVariant = replySender.optInt("plantupia_avatar_variant", -1),
                 ),
                 body = it.optString("body"),
                 imageUrl = resolveMediaUrl(it.optString("image_url")),
@@ -530,7 +533,8 @@ class NovaMessagingApiClient(
                 id = sender.optLong("id"),
                 username = sender.optString("username"),
                 name = sender.optString("name"),
-                avatarUrl = resolveMediaUrl(sender.optString("avatar_url")),                plantupiaAvatarVariant = sender.optInt("plantupia_avatar_variant", -1),
+                avatarUrl = resolveMediaUrl(sender.optString("avatar_url")),
+                plantupiaAvatarVariant = sender.optInt("plantupia_avatar_variant", -1),
             ),
             body = json.optString("body"),
             imageUrl = resolveMediaUrl(json.optString("image_url")),
@@ -565,7 +569,8 @@ class NovaMessagingApiClient(
                     id = author.optLong("id"),
                     username = author.optString("username"),
                     name = author.optString("name"),
-                    avatarUrl = resolveMediaUrl(author.optString("avatar_url")),                    plantupiaAvatarVariant = author.optInt("plantupia_avatar_variant", -1),
+                    avatarUrl = resolveMediaUrl(author.optString("avatar_url")),
+                    plantupiaAvatarVariant = author.optInt("plantupia_avatar_variant", -1),
                 ),
                 imageUrl = resolveMediaUrl(item.optString("image_url")),
                 caption = item.optString("caption"),
@@ -579,7 +584,8 @@ class NovaMessagingApiClient(
                 id = item.optLong("id"),
                 username = item.optString("username"),
                 name = item.optString("name"),
-                avatarUrl = resolveMediaUrl(item.optString("avatar_url")),                plantupiaAvatarVariant = item.optInt("plantupia_avatar_variant", -1),
+                avatarUrl = resolveMediaUrl(item.optString("avatar_url")),
+                plantupiaAvatarVariant = item.optInt("plantupia_avatar_variant", -1),
             )
         }
         val reel = json.optJSONObject("reel")?.let { item ->
@@ -590,7 +596,8 @@ class NovaMessagingApiClient(
                     id = author.optLong("id"),
                     username = author.optString("username"),
                     name = author.optString("name"),
-                    avatarUrl = resolveMediaUrl(author.optString("avatar_url")),                    plantupiaAvatarVariant = author.optInt("plantupia_avatar_variant", -1),
+                    avatarUrl = resolveMediaUrl(author.optString("avatar_url")),
+                    plantupiaAvatarVariant = author.optInt("plantupia_avatar_variant", -1),
                 ),
                 videoUrl = resolveMediaUrl(item.optString("video_url")),
                 caption = item.optString("caption"),
