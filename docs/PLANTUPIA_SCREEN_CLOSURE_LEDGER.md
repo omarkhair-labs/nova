@@ -135,6 +135,12 @@ All entries below are **not accepted** pending the listed evidence. Legacy names
 - **Creative reviewer:** [deferred Codex handoff](./PLANTUPIA_CODEX_AUDIT_HANDOFF_CONTRACT.md) must consider Pass08 and can challenge specific weak UX decisions with reversible evidence-based proof, not unilaterally restart the product.
 - **Design gate:** evaluate actual first useful action, 0/1/7/100 plant inventory, no-image states, real photos, brand fonts/licensing, Arabic/English fallback, profile self/stranger privacy, media+Inbox, 320–430dp with font scaling, reduced motion and material interaction. Do not confuse concept art with verified client installations.
 
+### 2026-10-17 Pass 09 / integrated avatar identity and art system execution plan — PLANNED, NOT YET CODED
+
+- [Pass 09 one-system Android plan](./PLANTUPIA_PASS09_ONE_SYSTEM_VISUAL_EXECUTION_MAP_2026-10-17.md) consolidates *everything remaining* into W0–W5: QA truth; visual grammar; unique illustrated no-photo **human** avatars and Me; original botanical/architectural empties and real plant photos; Circle/social/motion; later Codex and release.
+- **New actual gap:** `NovaAvatar.kt` currently emits an initial (including a possible “0”), which does **not** satisfy user's designed illustrated person identity. The future implementation must be Plantupia-scoped, stable per immutable account, consistent in own/other profiles, posts, comments, Stories and messages, and overridden by user upload. Original icon/character art still needs to be authored; don't call it delivered.
+- No 3 HTML alternative product designs, no new app shell/research restart and no invented social/photo/health evidence. Same private/public boundary and a single integrated user-facing QA device review.
+
 ## Backend / invisible engine ledger
 
 | Layer | Exists | Next evidence gate |
