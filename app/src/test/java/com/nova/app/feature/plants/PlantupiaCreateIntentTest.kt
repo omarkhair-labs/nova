@@ -21,6 +21,20 @@ class PlantupiaCreateIntentTest {
         lastEventAt = "",
     )
 
+    @Test fun quickPlantPickerFiltersOnlyWritableActiveAndMatchesMultilingualNames() {
+        val plants = listOf(
+            plant("editable", true, true).copy(name = "Monstera", species = "Deliciosa"),
+            plant("arabic", true, true).copy(name = "نعناع", placement = "الشرفة"),
+            plant("viewer", true, false).copy(name = "Monstera read-only"),
+            plant("archived", false, true).copy(name = "Monstera archived"),
+        )
+        assertEquals(listOf("editable"), filterIntentPlants(plants, "MONSTER").map { it.id })
+        assertEquals(listOf("arabic"), filterIntentPlants(plants, "نعناع").map { it.id })
+        assertEquals(listOf("arabic"), filterIntentPlants(plants, "الشرفة").map { it.id })
+        assertEquals(listOf("editable", "arabic"), filterIntentPlants(plants, "").map { it.id })
+        assertTrue(filterIntentPlants(plants, "does not exist").isEmpty())
+    }
+
     @Test fun careAndQuestionTargetOnlyAuthorizedActivePlants() {
         val result = actionablePlantChoices(
             listOf(
