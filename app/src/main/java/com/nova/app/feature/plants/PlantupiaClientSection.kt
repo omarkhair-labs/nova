@@ -237,13 +237,19 @@ fun PlantupiaClientSection(
         detailLoading = false
     }
 
-    suspend fun finishSavedMoment(eventId: String, plant: PlantupiaPlant) {
-        // Check-in dates are persisted by Django whether or not notification
-        // is opted into. Never schedule without a successful server event.
-        val remindDate = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now())
-        val requestedReminder = reminderOptIn && remindDate != null
+    suspend fun finishSavedMoment(
+        eventId: String,
+        plant: PlantupiaPlant,
+        requestGeneration: Int,
+        chosenFollowUpDate: String?,
+        optedInToReminder: Boolean,
+    ) {
+        // Server confirmation is authoritative. An optional reminder belongs to
+        // the saved event even if the user pressed Android Back while it uploaded.
+        val requestedReminder = optedInToReminder && chosenFollowUpDate != null
         val reminderScheduled = !requestedReminder ||
-            PlantupiaCareReminderScheduler.schedule(context, eventId, remindDate.orEmpty(), plant.id)
+            PlantupiaCareReminderScheduler.schedule(context, eventId, chosenFollowUpDate.orEmpty(), plant.id)
+        if (!isCurrentPlantDetailRequest(plant.id, requestGeneration, currentPlantId, detailRequestGeneration)) return
         note = ""
         openPlant(plant)
         if (!reminderScheduled) {
@@ -861,9 +867,12 @@ fun PlantupiaClientSection(
                             onClick = {
                                 scope.launch {
                                     saving = true
-                                    when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "observation", note, it, followUpOn = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now())) } ?: repository.record(selectedPlant.id, "observation", note, followUpOn = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now()))) {
+                                    val requestGeneration = detailRequestGeneration
+                                    val followUpDate = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now())
+                                    val optedInToReminder = reminderOptIn
+                                    when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "observation", note, it, followUpOn = followUpDate) } ?: repository.record(selectedPlant.id, "observation", note, followUpOn = followUpDate)) {
                                         is ApiResult.Failure -> error = r.message
-                                        is ApiResult.Success -> finishSavedMoment(r.value, selectedPlant)
+                                        is ApiResult.Success -> finishSavedMoment(r.value, selectedPlant, requestGeneration, followUpDate, optedInToReminder)
                                     }
                                     saving = false
                                 }
@@ -875,9 +884,12 @@ fun PlantupiaClientSection(
                                 val careDetails = buildPlantupiaCareNote(selectedCareAction, note)
                                 scope.launch {
                                     saving = true
-                                    when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "care", careDetails, it, followUpOn = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now())) } ?: repository.record(selectedPlant.id, "care", careDetails, followUpOn = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now()))) {
+                                    val requestGeneration = detailRequestGeneration
+                                    val followUpDate = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now())
+                                    val optedInToReminder = reminderOptIn
+                                    when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "care", careDetails, it, followUpOn = followUpDate) } ?: repository.record(selectedPlant.id, "care", careDetails, followUpOn = followUpDate)) {
                                         is ApiResult.Failure -> error = r.message
-                                        is ApiResult.Success -> finishSavedMoment(r.value, selectedPlant)
+                                        is ApiResult.Success -> finishSavedMoment(r.value, selectedPlant, requestGeneration, followUpDate, optedInToReminder)
                                     }
                                     saving = false
                                 }
@@ -889,11 +901,14 @@ fun PlantupiaClientSection(
                             onClick = {
                                 scope.launch {
                                     saving = true
+                                    val requestGeneration = detailRequestGeneration
+                                    val followUpDate = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now())
+                                    val optedInToReminder = reminderOptIn
                                     when (val result = carePhotoUri?.let {
-                                        repository.recordWithPhoto(selectedPlant.id, "issue", note, it, followUpOn = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now()))
-                                    } ?: repository.record(selectedPlant.id, "issue", note, followUpOn = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now()))) {
+                                        repository.recordWithPhoto(selectedPlant.id, "issue", note, it, followUpOn = followUpDate)
+                                    } ?: repository.record(selectedPlant.id, "issue", note, followUpOn = followUpDate)) {
                                         is ApiResult.Failure -> error = result.message
-                                        is ApiResult.Success -> finishSavedMoment(result.value, selectedPlant)
+                                        is ApiResult.Success -> finishSavedMoment(result.value, selectedPlant, requestGeneration, followUpDate, optedInToReminder)
                                     }
                                     saving = false
                                 }
