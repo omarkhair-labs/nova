@@ -167,9 +167,7 @@ class PlantupiaRepository(context: Context) {
                 bearerToken = token,
             )) {
                 is ApiResult.Failure -> response
-                is ApiResult.Success -> response.value.optString("id")
-                    .takeIf(String::isNotBlank)?.let { ApiResult.Success(it) }
-                    ?: ApiResult.Failure("The new space was not returned. Try refreshing.")
+                is ApiResult.Success -> parsePlantupiaResponse(response.value) { requiredPlantupiaId(it) }
             }
         }
 
@@ -189,7 +187,7 @@ class PlantupiaRepository(context: Context) {
                 .put("location_note", location.trim()),
             bearerToken = token,
         )) {
-            is ApiResult.Success -> ApiResult.Success(Unit)
+            is ApiResult.Success -> parsePlantupiaResponse(response.value) { requiredPlantupiaId(it, spaceId); Unit }
             is ApiResult.Failure -> response
         }
     }
@@ -232,9 +230,7 @@ class PlantupiaRepository(context: Context) {
         }
         when (response) {
             is ApiResult.Failure -> response
-            is ApiResult.Success -> response.value.optString("id")
-                .takeIf(String::isNotBlank)?.let { ApiResult.Success(it) }
-                ?: ApiResult.Failure("The new plant was not returned. Try refreshing.")
+            is ApiResult.Success -> parsePlantupiaResponse(response.value) { requiredPlantupiaId(it) }
         }
     }
 
@@ -255,7 +251,7 @@ class PlantupiaRepository(context: Context) {
             bearerToken = token,
         )) {
             is ApiResult.Failure -> response
-            is ApiResult.Success -> ApiResult.Success(Unit)
+            is ApiResult.Success -> parsePlantupiaResponse(response.value) { requiredPlantupiaId(it, plantId); Unit }
         }
     }
 
@@ -269,7 +265,7 @@ class PlantupiaRepository(context: Context) {
                 bearerToken = token,
             )) {
                 is ApiResult.Failure -> response
-                is ApiResult.Success -> ApiResult.Success(Unit)
+                is ApiResult.Success -> parsePlantupiaResponse(response.value) { requiredPlantupiaId(it, plantId); Unit }
             }
         }
 
@@ -306,7 +302,7 @@ class PlantupiaRepository(context: Context) {
             parseList("plantupia/spaces/", token) { raw ->
                 PlantupiaSpace(
                     id = raw.optString("id"),
-                    name = raw.optString("name"),
+                    name = requiredPlantupiaString(raw, "name"),
                     description = raw.optString("description"),
                     location = raw.optString("location_note"),
                     canAddPlant = raw.optBoolean("can_add_plant", false),
@@ -320,8 +316,8 @@ class PlantupiaRepository(context: Context) {
             parseList("plantupia/plants/", token) { raw ->
                 PlantupiaPlant(
                     id = raw.optString("id"),
-                    spaceId = raw.optString("space"),
-                    label = raw.optString("label"),
+                    spaceId = requiredPlantupiaString(raw, "space"),
+                    label = requiredPlantupiaString(raw, "label"),
                     name = raw.optString("my_name").ifBlank { raw.optString("label") },
                     species = raw.optString("species_label"),
                     placement = raw.optString("placement_note"),
@@ -344,29 +340,23 @@ class PlantupiaRepository(context: Context) {
                 bearerToken = token,
             )) {
                 is ApiResult.Failure -> response
-                is ApiResult.Success -> {
-                    val body = response.value
-                    val rows = body.optJSONArray("results") ?: JSONArray()
-                    val events = buildList {
-                        repeat(rows.length()) { index ->
-                            rows.optJSONObject(index)?.let { raw ->
-                                add(PlantupiaCareEvent(
-                                    id = raw.optString("id"),
-                                    kind = raw.optString("kind"),
-                                    note = raw.optString("note"),
-                                    evidence = raw.optString("evidence_type"),
-                                    observedAt = raw.optString("observed_at"),
-                                    photoUrl = api.resolveMediaUrl(raw.optString("photo")),
-                                    followUpOn = raw.optString("follow_up_on").takeUnless { it == "null" }.orEmpty(),
-                                    followUpCompletedAt = raw.optString("follow_up_completed_at").takeUnless { it == "null" }.orEmpty(),
-                                    followUpFor = raw.optString("follow_up_for").takeUnless { it == "null" }.orEmpty(),
-                                ))
-                            }
-                        }
+                is ApiResult.Success -> parsePlantupiaResponse(response.value) { body ->
+                    val events = plantupiaRows(body).map { raw ->
+                        PlantupiaCareEvent(
+                            id = requiredPlantupiaId(raw),
+                            kind = requiredPlantupiaString(raw, "kind"),
+                            note = raw.optString("note"),
+                            evidence = raw.optString("evidence_type"),
+                            observedAt = requiredPlantupiaString(raw, "observed_at"),
+                            photoUrl = api.resolveMediaUrl(raw.optString("photo")),
+                            followUpOn = raw.optString("follow_up_on").takeUnless { it == "null" }.orEmpty(),
+                            followUpCompletedAt = raw.optString("follow_up_completed_at").takeUnless { it == "null" }.orEmpty(),
+                            followUpFor = raw.optString("follow_up_for").takeUnless { it == "null" }.orEmpty(),
+                        )
                     }
-                    val next = if (body.isNull("next_offset")) null
-                        else body.optInt("next_offset").takeIf { it > pageOffset }
-                    ApiResult.Success(PlantupiaHistoryPage(events, next))
+                    val next = plantupiaNextOffset(body, pageOffset)
+                    require(events.isNotEmpty() || next == null)
+                    PlantupiaHistoryPage(events, next)
                 }
             }
         }
@@ -381,7 +371,11 @@ class PlantupiaRepository(context: Context) {
                 body = JSONObject().put("follow_up_on", newDate),
                 bearerToken = token,
             )) {
-                is ApiResult.Success -> ApiResult.Success(Unit)
+                is ApiResult.Success -> parsePlantupiaResponse(response.value) {
+                    requiredPlantupiaId(it, eventId)
+                    require(it.opt("follow_up_on") == newDate && it.opt("pending") == true)
+                    Unit
+                }
                 is ApiResult.Failure -> response
             }
         }
@@ -435,7 +429,7 @@ class PlantupiaRepository(context: Context) {
             file = UploadFile(bytes = data, fileName = "plant-event.$ext", mimeType = mimeType),
             bearerToken = token,
         )) {
-            is ApiResult.Success -> ApiResult.Success(result.value.optString("id"))
+            is ApiResult.Success -> parsePlantupiaResponse(result.value) { requiredPlantupiaId(it) }
             is ApiResult.Failure -> result
         }
     }
@@ -448,7 +442,11 @@ class PlantupiaRepository(context: Context) {
                 body = JSONObject().put("nickname", value.trim()),
                 bearerToken = token,
             )) {
-                is ApiResult.Success -> ApiResult.Success(Unit)
+                is ApiResult.Success -> parsePlantupiaResponse(result.value) {
+                    requiredPlantupiaId(it, plantId)
+                    requiredPlantupiaString(it, "my_name")
+                    Unit
+                }
                 is ApiResult.Failure -> result
             }
         }
@@ -475,7 +473,7 @@ class PlantupiaRepository(context: Context) {
                     },
                 bearerToken = token,
             )) {
-                is ApiResult.Success -> ApiResult.Success(result.value.optString("id"))
+                is ApiResult.Success -> parsePlantupiaResponse(result.value) { requiredPlantupiaId(it) }
                 is ApiResult.Failure -> result
             }
         }
@@ -489,16 +487,11 @@ class PlantupiaRepository(context: Context) {
                 path = "plantupia/circle/$suffix", bearerToken = token,
             )) {
                 is ApiResult.Failure -> response
-                is ApiResult.Success -> {
-                    val rows = response.value.optJSONArray("results") ?: JSONArray()
-                    val questions = buildList {
-                        repeat(rows.length()) { index ->
-                            rows.optJSONObject(index)?.let { add(parseQuestion(it)) }
-                        }
-                    }
-                    val next = response.value.optString("next_cursor")
-                        .takeUnless { it.isBlank() || it == "null" }
-                    ApiResult.Success(PlantupiaCirclePage(questions, next))
+                is ApiResult.Success -> parsePlantupiaResponse(response.value) { body ->
+                    val questions = plantupiaRows(body).map(::parseQuestion)
+                    val next = plantupiaNextCursor(body)
+                    require(questions.isNotEmpty() || next == null)
+                    PlantupiaCirclePage(questions, next)
                 }
             }
         }
@@ -510,12 +503,13 @@ class PlantupiaRepository(context: Context) {
         parseList(path, token, ::parseQuestion)
 
     private fun parseQuestion(raw: JSONObject): PlantupiaQuestion {
-        val post = raw.optJSONObject("post") ?: JSONObject()
-        val author = post.optJSONObject("author") ?: JSONObject()
+        val post = raw.getJSONObject("post")
+        val author = post.getJSONObject("author")
+        requiredPlantupiaLong(author, "id")
         return PlantupiaQuestion(
             id = raw.optString("id"),
-            postId = post.optLong("id"),
-            topic = raw.optString("topic"),
+            postId = requiredPlantupiaLong(post, "id"),
+            topic = requiredPlantupiaString(raw, "topic"),
             caption = post.optString("caption"),
             imageUrl = api.resolveMediaUrl(
                 post.optString("thumbnail_url").ifBlank { post.optString("image_url") }
@@ -576,7 +570,10 @@ class PlantupiaRepository(context: Context) {
             bearerToken = token,
         )) {
             is ApiResult.Failure -> response
-            is ApiResult.Success -> ApiResult.Success(response.value.optLong("post_id"))
+            is ApiResult.Success -> parsePlantupiaResponse(response.value) {
+                requiredPlantupiaId(it)
+                requiredPlantupiaLong(it, "post_id")
+            }
         }
     }
 
@@ -588,7 +585,12 @@ class PlantupiaRepository(context: Context) {
                 body = JSONObject().put("note", outcome.trim()),
                 bearerToken = token,
             )) {
-                is ApiResult.Success -> ApiResult.Success(Unit)
+                is ApiResult.Success -> parsePlantupiaResponse(result.value) {
+                    requiredPlantupiaId(it, discussionId)
+                    requiredPlantupiaString(it, "event_id")
+                    require(it.opt("resolved") == true)
+                    Unit
+                }
                 is ApiResult.Failure -> result
             }
         }
@@ -600,16 +602,7 @@ class PlantupiaRepository(context: Context) {
     ): ApiResult<List<T>> =
         when (val result = api.requestJson(path = path, bearerToken = bearer)) {
             is ApiResult.Failure -> result
-            is ApiResult.Success -> {
-                val rows = result.value.optJSONArray("results") ?: JSONArray()
-                ApiResult.Success(
-                    buildList {
-                        repeat(rows.length()) { index ->
-                            rows.optJSONObject(index)?.let { add(parseItem(it)) }
-                        }
-                    },
-                )
-            }
+            is ApiResult.Success -> parsePlantupiaList(result.value, parseItem)
         }
 
     private fun changedSession() = ApiResult.Failure("Your account changed. Reopen your Plantupia space.", 401)

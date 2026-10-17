@@ -107,6 +107,8 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.10.1")
     implementation("io.github.webrtc-sdk:android:144.7559.08")
     testImplementation(libs.junit)
+    // Exercise the real response parser on the JVM rather than Android's JSON stubs.
+    testImplementation("org.json:json:20250517")
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)

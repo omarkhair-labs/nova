@@ -288,3 +288,9 @@ Build the following connected groups continuously, with developer-side testing/C
 - Pending reviews have independent Loading / Unavailable / Empty / Loaded states. Only a successful empty response renders the no-check-ins message. History can finish independently of pending loading.
 - Retry loading check-ins requests only the current plant's pending endpoint and keeps history, selected plant, care note/photo/action/date untouched. Older-page failures retain loaded reviews and expose their own retry error.
 - Local JVM run: 17 focused tests passed, including five pending-state/load regressions and the F06/request-isolation tests. Local Django check, migration-drift check and 43 plants tests passed using disposable SQLite/storage; PostgreSQL CI and device evidence remain separate gates.
+
+### 2026-10-18 Integrity Sprint 01 — F12 response contracts
+
+- Audited shared JSONObject callers before tightening successful HTTP parsing; Nova no-content delete/session responses and non-2xx error behavior remain compatible. No architecture guard was weakened.
+- Plantupia collection envelopes, row identities, pagination and mutation acknowledgements now fail explicitly when malformed. Valid empty lists and missing legacy can_add_plant compatibility remain distinct from unavailable data.
+- Local Android suite: 375 tests passed. See `PLANTUPIA_INTEGRITY_SPRINT_01_2026-10-18.md` for caller audit and bounded validation. Exact-final-head CI and physical device verification remain pending.
