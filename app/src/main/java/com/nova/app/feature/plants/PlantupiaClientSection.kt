@@ -67,6 +67,7 @@ import com.nova.app.feature.plants.data.findArchivedPlants
 import com.nova.app.feature.plants.data.resolveFocusedSpace
 import com.nova.app.feature.plants.data.isCurrentPlantDetailRequest
 import com.nova.app.feature.plants.data.spacePlantCountSummary
+import com.nova.app.feature.plants.data.spaceHeroMediaEyebrow
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
@@ -351,9 +352,9 @@ fun PlantupiaClientSection(
                 val featured = resolveFocusedSpace(spaces, focusedSpaceId) ?: spaces.first()
                 val focusedPlants = plants.filter { it.spaceId == featured.id && it.active }
                 val featuredCount = focusedPlants.size
-                val heroPhoto = focusedPlants.firstOrNull {
-                    it.coverPhoto.isNotBlank()
-                }?.coverPhoto
+                // A plant cover is evidence of that plant, NOT an architectural site photo.
+                val heroPlant = focusedPlants.firstOrNull { it.coverPhoto.isNotBlank() }
+                val heroPhoto = heroPlant?.coverPhoto
                 val photoHero = heroPhoto != null
                 val heroInk = if (photoHero) white else deepGreen
                 val heroMuted = if (photoHero) Color(0xFFE0E7DD) else muted
@@ -370,7 +371,7 @@ fun PlantupiaClientSection(
                         if (photoHero) {
                             AsyncImage(
                                 model = heroPhoto,
-                                contentDescription = "Actual plant photo from ${featured.name}",
+                                contentDescription = "Actual photo of ${heroPlant?.name.orEmpty()}, a plant in ${featured.name}",
                                 modifier = Modifier.matchParentSize(),
                                 contentScale = ContentScale.Crop,
                             )
@@ -393,7 +394,7 @@ fun PlantupiaClientSection(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             Text(
-                                "LIVING SPACE",
+                                spaceHeroMediaEyebrow(photoHero),
                                 color = heroInk,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.SemiBold,
@@ -663,6 +664,28 @@ fun PlantupiaClientSection(
                         .clickable { photoToView = selectedPlant.coverPhoto to selectedPlant.name },
                     contentScale = ContentScale.Crop,
                 )
+             else {
+                // No cover photo is not a missing plant or invented photographic evidence.
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = PlantupiaColors.softSage,
+                    shape = RoundedCornerShape(16.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(15.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        PlantupiaBrandGlyph(modifier = Modifier.height(44.dp).width(44.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("NO COVER PHOTO YET", style = PlantupiaText.sectionLabel)
+                            Text(
+                                "Photos from recorded observations, if any, appear in the private history below.",
+                                style = PlantupiaText.supporting,
+                            )
+                        }
+                    }
+                }
             }
             Text(selectedPlant.name, fontFamily = FontFamily.Serif, fontSize = 35.sp, color = deepGreen)
             if (!selectedPlant.active) {
