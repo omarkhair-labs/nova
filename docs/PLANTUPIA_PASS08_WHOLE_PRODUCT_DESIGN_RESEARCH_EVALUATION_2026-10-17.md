@@ -191,6 +191,10 @@ One personal portrait node and actual spaces as adjacent photo tokens, private/s
 
 **P2 — after core acceptance:** before/after with actual 2+ dated photos; semantic motion refinements, nuanced profile identity, material textures only where UI performance/accessibility survives; evidence-backed professional/B1 concept interviews if company approves.
 
+### Pass 09 implementation clarification — designed human identity, not a letter
+
+The builder explicitly requested a Reddit-*behavior*-inspired **distinct original illustrated default person avatar** for every account that hasn't chosen a photo. This is **not implemented** in the present native avatar component: `NovaAvatar.kt` currently falls back to the initial of the name. See [Pass 09 / one-system execution map](./PLANTUPIA_PASS09_ONE_SYSTEM_VISUAL_EXECUTION_MAP_2026-10-17.md) for a stable privacy-safe, persistent, human-centered illustration system, shared across Me, another person's profile, Circle/comments/DM/people/Stories; selected photo overrides it. No Snoo copy, no inferred demographic features, no random character change on each render. Reuse the existing Art Direction and Native Compose implementation; **no three HTML designs**.
+
 ## 08. Codex creative brief — give it a voice and a responsibility
 
 Future Codex is authorized to **challenge our visual decisions**, inspect every screen and repo/source brief, generate alternative icon/type/illustration/motion/profile compositions, propose new behaviors and prototype *reversible* ideas **on an isolated review branch**. It must explain what human task improves, what evidence motivated it, which alternatives it compared, how privacy/data provenance is preserved, and how to test on real Android. It must **not** rubber-stamp our taste, claim unsupported QA, overwrite Nova production/default branch, invent official branding, ship confidential photos, fabricate sensors or silently replace the company's product direction.
