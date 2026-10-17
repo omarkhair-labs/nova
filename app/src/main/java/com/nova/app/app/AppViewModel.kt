@@ -19,6 +19,7 @@ class AppViewModel internal constructor(
     private val restoreSession: suspend () -> ApiResult<NovaUser?>,
     private val hasStoredSession: () -> Boolean,
     private val requestSocialRoot: (NovaRootTab) -> Unit,
+    private val cleanupExpiredSession: () -> Boolean = { true },
 ) : ViewModel(), AppNavigator {
     var state by mutableStateOf(AppState())
         private set
@@ -91,6 +92,7 @@ class AppViewModel internal constructor(
     /** Transport already invalidated its originating login. An old UI event cannot log out B. */
     fun expireSession(): Boolean {
         if (hasStoredSession()) return false
+        if (!cleanupExpiredSession()) return false
         sessionGeneration += 1
         state = state.copy(primaryOverlay = null, currentUser = null)
         return true
@@ -127,6 +129,7 @@ class AppViewModel internal constructor(
                         restoreCachedUser = container.authRepository::cachedUser,
                         restoreSession = container.authRepository::restoreSession,
                         hasStoredSession = container.authRepository::hasStoredSession,
+                        cleanupExpiredSession = container.authRepository::cleanupExpiredSession,
                         requestSocialRoot = NovaRootNavigationSignal::request,
                     ) as T
                 }

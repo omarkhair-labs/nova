@@ -55,6 +55,13 @@ class NovaSessionStore(context: Context) {
         return cleared
     }
 
+    /** Local expiry cleanup must not race a newly installed credential pair. */
+    internal fun ifSignedOut(action: (LoginIdentity) -> Unit): Boolean = synchronized(NovaSessionCoordinator.lock) {
+        if (loadLocked() != null) return false
+        action(identityLocked())
+        true
+    }
+
     /** Login response and security credential replacement use one atomic preference edit. */
     fun save(owner: LoginIdentity, session: AuthSession): Boolean = synchronized(NovaSessionCoordinator.lock) {
         if (identityLocked() != owner) return false

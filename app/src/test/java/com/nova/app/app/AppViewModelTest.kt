@@ -151,16 +151,27 @@ class AppViewModelTest {
         assertEquals(AppDestination.Inbox, model.state.primaryOverlay)
     }
 
+    @Test
+    fun loginInstalledBetweenExpiryCheckAndCleanupPreventsUiExpiry() {
+        val model = viewModel(cleanupExpiredSession = { false })
+        val current = user("new")
+        model.onAuthenticated(current)
+        assertFalse(model.expireSession())
+        assertEquals(current, model.state.currentUser)
+    }
+
     private fun viewModel(
         cachedUser: () -> NovaUser? = { null },
         restore: suspend () -> ApiResult<NovaUser?> = { ApiResult.Success(null) },
         hasStoredSession: () -> Boolean = { false },
         requestRoot: (NovaRootTab) -> Unit = {},
+        cleanupExpiredSession: () -> Boolean = { true },
     ) = AppViewModel(
         restoreCachedUser = cachedUser,
         restoreSession = restore,
         hasStoredSession = hasStoredSession,
         requestSocialRoot = requestRoot,
+        cleanupExpiredSession = cleanupExpiredSession,
     )
 
     private fun user(username: String) = NovaUser(

@@ -21,6 +21,7 @@ import com.nova.app.core.messaging.NovaMessagingRepository
 import com.nova.app.core.calls.NovaCallRepository
 import com.nova.app.core.push.NovaPushRepository
 import java.io.File
+import android.net.Uri
 import org.junit.Assert.*
 import org.junit.Test
 import org.mockito.Mockito
@@ -393,6 +394,75 @@ class NovaSessionStoreRefreshRaceTest {
             assertEquals(first.await(), second.await())
             assertEquals(origin, store.load())
         }
+    }
+
+    @Test(timeout = 20_000) fun failedRegistrationRetainsItsOptionalPhotoForRetry() = runBlocking {
+        withRealSessionStore { store, context ->
+            val photo = Mockito.mock(Uri::class.java)
+            NovaPendingRegistrationPhoto.set(photo)
+            try {
+                val remote = Mockito.mock(AuthRemoteDataSource::class.java)
+                Mockito.`when`(remote.register("a@example.test", "pw", "user1", "User 1"))
+                    .thenReturn(ApiResult.Failure("Try again", 503))
+                assertTrue(NovaAuthRepository(context, remote, activatePush = {}).register("a@example.test", "pw", "user1", "User 1") is ApiResult.Failure)
+                assertSame(photo, NovaPendingRegistrationPhoto.snapshot().uri)
+                assertNull(store.load())
+            } finally { NovaPendingRegistrationPhoto.clear() }
+        }
+    }
+
+    @Test(timeout = 20_000) fun supersededRegistrationCannotConsumeANewerFlowsPhoto() = runBlocking {
+        withRealSessionStore { store, context ->
+            NovaPendingRegistrationPhoto.set(Mockito.mock(Uri::class.java))
+            val entered = CountDownLatch(1)
+            val release = CountDownLatch(1)
+            val remote = Mockito.mock(AuthRemoteDataSource::class.java)
+            Mockito.`when`(remote.register("a@example.test", "pw", "user1", "User 1"))
+                .thenAnswer { entered.countDown(); check(release.await(10, TimeUnit.SECONDS)); ApiResult.Success(session(1, "access-A", "refresh-A")) }
+            val pending = async(Dispatchers.IO) { NovaAuthRepository(context, remote, activatePush = {}).register("a@example.test", "pw", "user1", "User 1") }
+            try {
+                check(entered.await(10, TimeUnit.SECONDS))
+                val newPhoto = Mockito.mock(Uri::class.java)
+                NovaPendingRegistrationPhoto.set(newPhoto)
+                store.save(store.beginLogin(), session(2, "access-B", "refresh-B"))
+                val expected = store.load()
+                release.countDown()
+                assertEquals(409, (pending.await() as ApiResult.Failure).statusCode)
+                assertEquals(expected, store.load())
+                assertSame(newPhoto, NovaPendingRegistrationPhoto.snapshot().uri)
+            } finally { release.countDown(); NovaPendingRegistrationPhoto.clear() }
+        }
+    }
+
+    @Test(timeout = 20_000) fun expiryCleanupCannotRunAgainstANewerStoredLogin() {
+        withRealSessionStore { store, context ->
+            store.save(store.beginLogin(), session(1, "access-A", "refresh-A"))
+            val owner = store.identity()
+            assertTrue(store.clear(owner))
+            val signedOut = store.identity()
+            var cleanups = 0
+            assertTrue(store.ifSignedOut { cleanups += 1 })
+            assertEquals(signedOut, store.identity()) // Cleanup does not manufacture another logout.
+            NovaSessionStore(context).save(store.beginLogin(), session(2, "access-B", "refresh-B"))
+            val expected = store.load()
+            assertFalse(store.ifSignedOut { cleanups += 1 })
+            assertEquals(1, cleanups)
+            assertEquals(expected, store.load())
+        }
+    }
+
+    @Test(timeout = 20_000) fun replacingOrClearingRegistrationPhotoInvalidatesOldConsumption() {
+        val photo = Mockito.mock(Uri::class.java)
+        try {
+            NovaPendingRegistrationPhoto.set(photo)
+            val old = NovaPendingRegistrationPhoto.snapshot()
+            NovaPendingRegistrationPhoto.set(photo) // Same URI selected in a new flow is still new intent.
+            assertNull(NovaPendingRegistrationPhoto.consume(old))
+            assertSame(photo, NovaPendingRegistrationPhoto.snapshot().uri)
+            val current = NovaPendingRegistrationPhoto.snapshot()
+            NovaPendingRegistrationPhoto.clear()
+            assertNull(NovaPendingRegistrationPhoto.consume(current))
+        } finally { NovaPendingRegistrationPhoto.clear() }
     }
 
     private fun session(id: Long, access: String, refresh: String) = AuthSession(

@@ -35,7 +35,7 @@ object NovaPushRegistration {
         } else {
             backgroundScope.launch {
                 lifecycleMutex.withLock {
-                    if (store.isCurrent(owner)) FirebaseMessaging.getInstance().setAutoInitEnabled(false)
+                    if (store.isCurrent(owner) && store.load() == null) FirebaseMessaging.getInstance().setAutoInitEnabled(false)
                 }
             }
         }
@@ -77,10 +77,10 @@ object NovaPushRegistration {
 
             lifecycleMutex.withLock {
                 val store = NovaSessionStore(appContext)
-                if (!store.isCurrent(signedOut)) return@withLock
+                if (!store.isCurrent(signedOut) || store.load() != null) return@withLock
                 FirebaseMessaging.getInstance().setAutoInitEnabled(false)
                 FirebaseMessaging.getInstance().unregister()
-                if (store.isCurrent(signedOut)) pushStore.clear()
+                if (store.isCurrent(signedOut) && store.load() == null) pushStore.clear()
             }
         }
     }

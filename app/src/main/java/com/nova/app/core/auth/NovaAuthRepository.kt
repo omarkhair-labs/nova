@@ -35,8 +35,14 @@ class NovaAuthRepository(
 
     fun hasStoredSession(): Boolean = sessionStore.load() != null
 
+    /** Expiry already cleared its owner. Preserve local cleanup without another credential clear. */
+    fun cleanupExpiredSession(): Boolean = sessionStore.ifSignedOut { signedOut ->
+        PlantupiaCareReminderScheduler.clearForLogout(appContext)
+        NovaPushRegistration.logout(appContext, accessToken = null, signedOut = signedOut)
+    }
+
     suspend fun register(email: String, password: String, username: String, name: String): ApiResult<NovaUser> {
-        val pendingAvatarUri = NovaPendingRegistrationPhoto.consume()
+        val pendingAvatar = NovaPendingRegistrationPhoto.snapshot()
         val owner = sessionStore.beginLogin()
         val result = remote.register(email.trim().lowercase(), password, username.trim().lowercase(), name.trim())
         currentCoroutineContext().ensureActive()
@@ -45,6 +51,7 @@ class NovaAuthRepository(
         val session = (result as ApiResult.Success).value
         if (!sessionStore.save(owner, session)) return changedSession()
         activatePush(appContext)
+        val pendingAvatarUri = NovaPendingRegistrationPhoto.consume(pendingAvatar)
         if (pendingAvatarUri == null) return ApiResult.Success(session.user)
         val prepared = prepareAvatar(pendingAvatarUri)
         if (!sessionStore.isCurrent(owner)) return changedSession()
