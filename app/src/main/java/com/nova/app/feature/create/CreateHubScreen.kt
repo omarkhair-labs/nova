@@ -177,13 +177,13 @@ fun CreateHubScreen(
             }
             item(key = "living-create-private") {
                 CreateIntentGroup(
-                    title = "PRIVATE · ONLY YOU & AUTHORIZED CARERS",
+                    title = "PRIVATE · AUTHORIZED SPACE MEMBERS",
                     hint = "Saved to your plant's private living record.",
                     actions = listOf(
                         CreateHubAction(
                             "Record care or observation",
                             "Choose a plant and record what happened",
-                            NovaIconAsset.Home,
+                            NovaIconAsset.Edit,
                         ) { enterPlant(PlantupiaCreateMode.OBSERVATION) },
                         CreateHubAction(
                             "Add a plant",
