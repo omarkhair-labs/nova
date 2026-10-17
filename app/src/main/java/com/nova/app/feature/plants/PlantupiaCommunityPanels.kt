@@ -89,7 +89,7 @@ fun PlantupiaQuestionsPanel(
     var outcome by remember(plantId, requestGeneration) { mutableStateOf("") }
     val publicDraft = PlantupiaPublicShareDraft(topic, question, imageUri != null)
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) {
+        if (lifetime.isCurrent() && uri != null) {
             imageUri = uri
             // Selecting a different file must require renewed public consent.
             consent = false

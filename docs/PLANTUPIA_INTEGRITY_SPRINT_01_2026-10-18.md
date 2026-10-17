@@ -17,3 +17,7 @@ Mutation validation checks returned identities (including matching edited IDs), 
 Local Android unit suite: 375 tests passed after F06/F07/F12 additions. Local Django check and migration drift check passed; all 43 plant-domain tests passed against explicitly disposable in-memory SQLite/caches/storage with external service credentials overridden. Final PostgreSQL/Redis CI, release lint/build and physical device cases are tracked separately. No device acceptance is inferred from these tests.
 
 F01 investigation and final sprint evidence are recorded in the next increment. Required manual regressions: delayed mutations after Back/plant/account changes; independent pending failure/retry with an unsaved care draft; malformed 2xx and valid empty data/no-content responses. No private screenshots are committed.
+
+### F06 callback follow-through
+
+Photo-picker, notification-permission and date-dialog returns are also tied to the originating detail/login. A delayed platform callback cannot attach a photo or date to a subsequently selected plant. Final sprint CI includes these source changes; physical picker/permission-dialog transitions still need device QA.

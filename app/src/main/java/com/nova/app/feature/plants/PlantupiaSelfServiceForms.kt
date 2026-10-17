@@ -83,7 +83,7 @@ fun PlantupiaSelfServiceForms(
     var spaceMenuOpen by remember { mutableStateOf(false) }
     var plantPhoto by remember { mutableStateOf<Uri?>(null) }
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {
-        plantPhoto = it
+        if (repository.isCurrentSession()) plantPhoto = it
     }
 
     LaunchedEffect(spaces) {

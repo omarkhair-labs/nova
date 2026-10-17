@@ -185,7 +185,11 @@ private fun PlantupiaAccountClientSection(
     var note by remember { mutableStateOf("") }
     var selectedCareAction by remember { mutableStateOf<PlantupiaCareAction?>(null) }
     var carePhotoUri by remember { mutableStateOf<Uri?>(null) }
-    val carePhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> carePhotoUri = uri }
+    var carePhotoRequestGeneration by remember { mutableStateOf<Int?>(null) }
+    val carePhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (lifetime.isCurrent() && carePhotoRequestGeneration == detailRequestGeneration) carePhotoUri = uri
+        carePhotoRequestGeneration = null
+    }
 
     fun isCurrentRequest(plantId: String, generation: Int): Boolean =
         lifetime.isCurrent() && isCurrentPlantDetailRequest(
@@ -259,6 +263,7 @@ private fun PlantupiaAccountClientSection(
         note = ""
         selectedCareAction = null
         carePhotoUri = null
+        carePhotoRequestGeneration = null
         checkAgainInDays = null
         customFollowUpDate = null
         reminderOptIn = false
@@ -337,6 +342,7 @@ private fun PlantupiaAccountClientSection(
         pendingArchiveAction = null
         requestedExistingReminder = null
         reminderPermissionGeneration = null
+        carePhotoRequestGeneration = null
         openDetailMode = null
         photoToView = null
         events = emptyList()
@@ -873,7 +879,10 @@ private fun PlantupiaAccountClientSection(
                         enabled = !saving,
                     )
                     OutlinedButton(
-                        onClick = { carePhotoPicker.launch("image/*") },
+                        onClick = {
+                            carePhotoRequestGeneration = detailRequestGeneration
+                            carePhotoPicker.launch("image/*")
+                        },
                         enabled = !saving,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
@@ -920,6 +929,7 @@ private fun PlantupiaAccountClientSection(
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !saving,
                         onClick = {
+                            val generation = detailRequestGeneration
                             val today = LocalDate.now()
                             val current = customFollowUpDate
                                 ?: checkAgainInDays?.let { today.plusDays(it.toLong()) }
@@ -928,7 +938,7 @@ private fun PlantupiaAccountClientSection(
                                 context,
                                 { _, year, month, day ->
                                     val picked = LocalDate.of(year, month + 1, day)
-                                    if (!picked.isBefore(LocalDate.now())) {
+                                    if (isCurrentRequest(selectedPlant.id, generation) && !picked.isBefore(LocalDate.now())) {
                                         customFollowUpDate = picked
                                         checkAgainInDays = null
                                     }
@@ -1133,6 +1143,7 @@ private fun PlantupiaAccountClientSection(
                                     enabled = !saving,
                                     modifier = Modifier.fillMaxWidth(),
                                     onClick = {
+                                        val generation = detailRequestGeneration
                                         val tomorrow = LocalDate.now().plusDays(1)
                                         val selected = movedCheckInDate ?: runCatching {
                                             LocalDate.parse(check.followUpOn)
@@ -1140,7 +1151,9 @@ private fun PlantupiaAccountClientSection(
                                         android.app.DatePickerDialog(
                                             context,
                                             { _, year, month, day ->
-                                                movedCheckInDate = LocalDate.of(year, month + 1, day)
+                                                if (isCurrentRequest(selectedPlant.id, generation)) {
+                                                    movedCheckInDate = LocalDate.of(year, month + 1, day)
+                                                }
                                             },
                                             selected.year, selected.monthValue - 1, selected.dayOfMonth,
                                         ).apply {
