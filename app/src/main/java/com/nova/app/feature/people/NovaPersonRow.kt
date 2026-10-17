@@ -26,7 +26,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nova.app.feature.people.domain.model.NovaPerson
 import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState
-import com.nova.app.ui.components.PlantupiaAvatar
+import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaPresenceIndicator
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
@@ -65,11 +65,11 @@ internal fun NovaPersonRow(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(NovaSpacing.md),
             ) {
-                PlantupiaAvatar(
-                    userId = person.id,
-                    displayName = person.name.ifBlank { person.username },
-                    photoUrl = person.avatarUrl,
+                NovaAvatar(
+                    source = person.avatarUrl,
+                    fallbackText = person.name.ifBlank { person.username },
                     size = 48.dp,
+                    plantupiaUserId = person.id,
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Row(
