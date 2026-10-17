@@ -130,4 +130,3 @@ class NovaSessionStoreRefreshRaceTest {
         companion object { private val key = KeyGenerator.getInstance("AES").apply { init(128) }.generateKey() }
     }
 }
-
