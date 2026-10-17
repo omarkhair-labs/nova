@@ -2,10 +2,12 @@ package com.nova.app
 
 import android.content.Intent
 import android.net.Uri
+import android.graphics.Color
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -60,7 +62,10 @@ private const val SUPPORT_EMAIL = "omar.khair70@gmail.com"
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+        )
 
         val appContainer = applicationContext.appContainer
         val username = appContainer.currentCachedUsername()
@@ -108,7 +113,7 @@ class SettingsActivity : ComponentActivity() {
                         )
                     },
                     onHelpSupport = {
-                        startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$SUPPORT_EMAIL?subject=Nova%20support")))
+                        startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$SUPPORT_EMAIL?subject=Plantupia%20support")))
                     },
                     onTonight = {
                         NovaRootNavigationSignal.requestTonight()
@@ -206,21 +211,21 @@ private fun SettingsScreen(
                 SettingsRow(
                     icon = NovaIconAsset.Privacy,
                     title = "Privacy",
-                    subtitle = "Private account, requests and Close Friends",
+                    subtitle = "Account privacy, follow requests and Close Friends",
                     onClick = onPrivacy,
                 )
                 SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.Notifications,
                     title = "Notifications",
-                    subtitle = "Activity, messages and live sessions",
+                    subtitle = "Community activity and messages; care reminders are separate",
                     onClick = onNotifications,
                 )
                 SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.Blocked,
                     title = "Blocked accounts",
-                    subtitle = "Review people you've blocked",
+                    subtitle = "Review blocked accounts",
                     onClick = onBlockedAccounts,
                 )
             }
@@ -233,15 +238,15 @@ private fun SettingsScreen(
             Column {
                 SettingsRow(
                     icon = NovaIconAsset.Orbit,
-                    title = "Live together",
-                    subtitle = "Open the existing community live experience",
+                    title = "Community gatherings",
+                    subtitle = "Open live community spaces (optional)",
                     onClick = onTonight,
                 )
                 SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.AccountDeletion,
                     title = "Android app settings",
-                    subtitle = "Manage Plantupia permissions and storage in Android",
+                    subtitle = "Manage app permissions, notifications and storage in Android",
                     onClick = onDataStorage,
                 )
                 SettingsDivider()
@@ -255,7 +260,7 @@ private fun SettingsScreen(
         }
 
         Spacer(modifier = Modifier.size(NovaSpacing.xxl))
-        SettingsSectionLabel("Legal & support")
+        SettingsSectionLabel("Help & privacy")
 
         NovaCard(modifier = Modifier.fillMaxWidth()) {
             Column {
@@ -269,14 +274,14 @@ private fun SettingsScreen(
                 SettingsRow(
                     icon = NovaIconAsset.Policy,
                     title = "Privacy policy",
-                    subtitle = "Review data and account privacy information",
+                    subtitle = "Learn how account information is handled",
                     onClick = onPrivacyPolicy,
                 )
                 SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.AccountDeletion,
                     title = "Account deletion help",
-                    subtitle = "Web instructions; delete directly from Security",
+                    subtitle = "Deletion instructions; or delete directly from Security",
                     onClick = onAccountDeletion,
                 )
             }

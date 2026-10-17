@@ -19,6 +19,10 @@ data class PlantupiaSpace(
     val name: String,
     val description: String,
     val location: String,
+    val canAddPlant: Boolean = false,
+    // A missing flag on an older deployed preview is NOT proof of denied access.
+    // Creation stays disabled until authority is confirmed by the server.
+    val canAddPlantPermissionReported: Boolean = true,
 )
 
 data class PlantupiaPlant(
@@ -36,6 +40,16 @@ data class PlantupiaPlant(
     val nextFollowUpOn: String = "",
 )
 
+/** An actual server-generated answer. No scripted/mock reply is used in the UI. */
+data class PlantupiaAssistantReply(
+    val answer: String,
+    val scope: String,
+    val uncertainty: String,
+    val sourceLinks: List<String>,
+)
+
+data class PlantupiaAssistantTurn(val role: String, val content: String)
+
 data class PlantupiaHistoryPage(val events: List<PlantupiaCareEvent>, val nextOffset: Int?)
 
 data class PlantupiaCareEvent(
@@ -47,6 +61,8 @@ data class PlantupiaCareEvent(
     val photoUrl: String,
     val followUpOn: String,
     val followUpCompletedAt: String,
+    // UUID of the original private care/observation event closed by an outcome.
+    val followUpFor: String = "",
 )
 
 
@@ -77,6 +93,59 @@ class PlantupiaRepository(context: Context) {
     private val sessionStore = NovaSessionStore(appContext)
     private val api = NovaApiClient(NovaMessagingRepository.PRODUCTION_API_URL)
 
+    /** The AI key lives server-side; private plant context is opt-in per request. */
+    suspend fun askAssistant(
+        message: String,
+        plantId: String? = null,
+        includeContext: Boolean = false,
+        conversation: List<PlantupiaAssistantTurn> = emptyList(),
+    ): ApiResult<PlantupiaAssistantReply> = authorized { token ->
+        val payload = JSONObject()
+            .put("message", message.trim())
+            .put("include_my_plant_context", includeContext)
+        if (!plantId.isNullOrBlank()) payload.put("plant_id", plantId)
+        if (conversation.isNotEmpty()) {
+            payload.put("conversation", JSONArray().apply {
+                conversation.takeLast(8).forEach { turn ->
+                    put(JSONObject()
+                        .put("role", turn.role)
+                        .put("content", turn.content.take(1200)))
+                }
+            })
+        }
+        when (val response = api.requestJson(
+            path = "plantupia/assistant/ask/",
+            method = "POST",
+            body = payload,
+            bearerToken = token,
+            readTimeoutMillis = 26_000,
+        )) {
+            is ApiResult.Failure -> response
+            is ApiResult.Success -> {
+                val json = response.value
+                val answer = json.optString("answer").trim()
+                if (answer.isEmpty()) {
+                    ApiResult.Failure("The assistant returned an incomplete response. Please try again.")
+                } else {
+                    val sources = json.optJSONArray("source_links")
+                    ApiResult.Success(
+                        PlantupiaAssistantReply(
+                            answer = answer,
+                            scope = json.optString("scope", "general"),
+                            uncertainty = json.optString("uncertainty"),
+                            sourceLinks = buildList {
+                                if (sources != null) for (i in 0 until sources.length()) {
+                                    val url = sources.optString(i)
+                                    if (url.startsWith("https://")) add(url)
+                                }
+                            },
+                        )
+                    )
+                }
+            }
+        }
+    }
+
     /** A new user's first space is owned by that user, not a company admin. */
     suspend fun createSpace(name: String, description: String, location: String): ApiResult<String> =
         authorized { token ->
@@ -95,6 +164,27 @@ class PlantupiaRepository(context: Context) {
                     ?: ApiResult.Failure("The new space was not returned. Try refreshing.")
             }
         }
+
+    /** Authorized private space metadata only, never its ownership or memberships. */
+    suspend fun updateSpaceDetails(
+        spaceId: String,
+        name: String,
+        description: String,
+        location: String,
+    ): ApiResult<Unit> = authorized { token ->
+        when (val response = api.requestJson(
+            path = "plantupia/spaces/$spaceId/",
+            method = "PATCH",
+            body = JSONObject()
+                .put("name", name.trim())
+                .put("description", description.trim())
+                .put("location_note", location.trim()),
+            bearerToken = token,
+        )) {
+            is ApiResult.Success -> ApiResult.Success(Unit)
+            is ApiResult.Failure -> response
+        }
+    }
 
     /** Uploading a cover photo is private; it never creates a public post. */
     suspend fun createPlant(
@@ -140,6 +230,41 @@ class PlantupiaRepository(context: Context) {
         }
     }
 
+    /** Changes shared plant context only for owners/managers on the server. */
+    suspend fun updatePlantDetails(
+        plantId: String,
+        sharedName: String,
+        species: String,
+        placement: String,
+    ): ApiResult<Unit> = authorized { token ->
+        when (val response = api.requestJson(
+            path = "plantupia/plants/$plantId/",
+            method = "PATCH",
+            body = JSONObject()
+                .put("label", sharedName.trim())
+                .put("species_label", species.trim())
+                .put("placement_note", placement.trim()),
+            bearerToken = token,
+        )) {
+            is ApiResult.Failure -> response
+            is ApiResult.Success -> ApiResult.Success(Unit)
+        }
+    }
+
+    /** Reversible server-authorized archive; private photos and events remain intact. */
+    suspend fun setPlantArchived(plantId: String, archived: Boolean): ApiResult<Unit> =
+        authorized { token ->
+            when (val response = api.requestJson(
+                path = "plantupia/plants/$plantId/",
+                method = "PATCH",
+                body = JSONObject().put("is_active", !archived),
+                bearerToken = token,
+            )) {
+                is ApiResult.Failure -> response
+                is ApiResult.Success -> ApiResult.Success(Unit)
+            }
+        }
+
     private suspend fun loadPrivatePhoto(uri: Uri): ApiResult<UploadFile> {
         val mimeType = appContext.contentResolver.getType(uri)
             ?.takeIf { it == "image/jpeg" || it == "image/png" || it == "image/webp" }
@@ -176,6 +301,8 @@ class PlantupiaRepository(context: Context) {
                     name = raw.optString("name"),
                     description = raw.optString("description"),
                     location = raw.optString("location_note"),
+                    canAddPlant = raw.optBoolean("can_add_plant", false),
+                    canAddPlantPermissionReported = raw.has("can_add_plant"),
                 )
             }
         }
@@ -224,6 +351,7 @@ class PlantupiaRepository(context: Context) {
                                     photoUrl = api.resolveMediaUrl(raw.optString("photo")),
                                     followUpOn = raw.optString("follow_up_on").takeUnless { it == "null" }.orEmpty(),
                                     followUpCompletedAt = raw.optString("follow_up_completed_at").takeUnless { it == "null" }.orEmpty(),
+                                    followUpFor = raw.optString("follow_up_for").takeUnless { it == "null" }.orEmpty(),
                                 ))
                             }
                         }
@@ -236,6 +364,20 @@ class PlantupiaRepository(context: Context) {
         }
 
 
+    /** Postpone a human-chosen review; the server records the change in private history. */
+    suspend fun moveCheckIn(plantId: String, eventId: String, newDate: String): ApiResult<Unit> =
+        authorized { token ->
+            when (val response = api.requestJson(
+                path = "plantupia/plants/$plantId/events/$eventId/follow-up/",
+                method = "PATCH",
+                body = JSONObject().put("follow_up_on", newDate),
+                bearerToken = token,
+            )) {
+                is ApiResult.Success -> ApiResult.Success(Unit)
+                is ApiResult.Failure -> response
+            }
+        }
+
     suspend fun recordWithPhoto(
         plantId: String,
         kind: String,
@@ -243,7 +385,7 @@ class PlantupiaRepository(context: Context) {
         photoUri: Uri,
         followUpOn: String? = null,
         followUpFor: String? = null,
-    ): ApiResult<Unit> = authorized { token ->
+    ): ApiResult<String> = authorized { token ->
         val data = withContext(Dispatchers.IO) {
             runCatching {
                 val input = appContext.contentResolver.openInputStream(photoUri)
@@ -285,7 +427,7 @@ class PlantupiaRepository(context: Context) {
             file = UploadFile(bytes = data, fileName = "plant-event.$ext", mimeType = mimeType),
             bearerToken = token,
         )) {
-            is ApiResult.Success -> ApiResult.Success(Unit)
+            is ApiResult.Success -> ApiResult.Success(result.value.optString("id"))
             is ApiResult.Failure -> result
         }
     }
@@ -309,7 +451,7 @@ class PlantupiaRepository(context: Context) {
         note: String,
         followUpOn: String? = null,
         followUpFor: String? = null,
-    ): ApiResult<Unit> =
+    ): ApiResult<String> =
         authorized { token ->
             when (val result = api.requestJson(
                 path = "plantupia/plants/$plantId/events/",
@@ -325,7 +467,7 @@ class PlantupiaRepository(context: Context) {
                     },
                 bearerToken = token,
             )) {
-                is ApiResult.Success -> ApiResult.Success(Unit)
+                is ApiResult.Success -> ApiResult.Success(result.value.optString("id"))
                 is ApiResult.Failure -> result
             }
         }

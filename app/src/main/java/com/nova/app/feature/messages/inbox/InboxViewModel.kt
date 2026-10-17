@@ -35,14 +35,31 @@ class InboxViewModel internal constructor(
     }
 
     fun onQueryChanged(value: String) {
-        state = state.copy(query = value.take(MAX_QUERY_LENGTH))
+        val limited = value.take(MAX_QUERY_LENGTH)
+        if (state.query == limited) return
+        invalidateResultsForNewCriteria()
+        state = state.copy(query = limited)
         scheduleSearch()
     }
 
     fun onFilterChanged(value: InboxFilter) {
         if (state.filter == value) return
+        invalidateResultsForNewCriteria()
         state = state.copy(filter = value)
         scheduleSearch()
+    }
+
+    private fun invalidateResultsForNewCriteria() {
+        // The prior filter/query must not masquerade as the new inbox,
+        // even during debounce, and its in-flight response must be ignored.
+        requestVersion += 1
+        state = state.copy(
+            conversations = emptyList(),
+            nextCursor = null,
+            isLoading = true,
+            isLoadingMore = false,
+            errorMessage = null,
+        )
     }
 
     fun retry() {

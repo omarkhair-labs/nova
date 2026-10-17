@@ -1,5 +1,8 @@
 package com.nova.app.feature.plants
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -7,18 +10,24 @@ import androidx.activity.result.contract.ActivityResultContracts
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -28,11 +37,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
@@ -43,6 +55,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.draw.clip
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.fillMaxSize
 import coil3.compose.AsyncImage
 import com.nova.app.core.network.ApiResult
@@ -53,8 +66,15 @@ import com.nova.app.feature.plants.data.PlantupiaPlant
 import com.nova.app.feature.plants.data.PlantupiaRepository
 import com.nova.app.feature.plants.data.PlantupiaSpace
 import com.nova.app.feature.plants.data.findSpacePlants
+import com.nova.app.feature.plants.data.findArchivedPlants
+import com.nova.app.feature.plants.data.resolveFocusedSpace
+import com.nova.app.feature.plants.data.isCurrentPlantDetailRequest
+import com.nova.app.feature.plants.data.spacePlantCountSummary
+import com.nova.app.feature.plants.data.spaceHeroMediaEyebrow
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.ZoneId
+import java.time.ZonedDateTime
 
 private val deepGreen = Color(0xFF123B2E)
 private val cream = Color(0xFFF3EEDE)
@@ -80,29 +100,70 @@ fun PlantupiaClientSection(
     var spaces by remember { mutableStateOf<List<PlantupiaSpace>>(emptyList()) }
     var plants by remember { mutableStateOf<List<PlantupiaPlant>>(emptyList()) }
     var currentPlantId by remember { mutableStateOf<String?>(null) }
+    // Invalidate slower in-flight history calls when a user opens another plant or goes Back.
+    var detailRequestGeneration by remember { mutableIntStateOf(0) }
     var openDetailMode by remember { mutableStateOf<PlantupiaCreateMode?>(null) }
     var showNameEditor by remember { mutableStateOf(false) }
+    var showSharedDetailsEditor by remember { mutableStateOf(false) }
+    var sharedPlantLabel by remember { mutableStateOf("") }
+    var sharedSpecies by remember { mutableStateOf("") }
+    var sharedPlacement by remember { mutableStateOf("") }
     var showCareEditor by remember { mutableStateOf(false) }
-    var expandedSpaceId by remember { mutableStateOf<String?>(null) }
+    var creationAccessNotice by remember { mutableStateOf<String?>(null) }
+    var showPlantManagement by remember(currentPlantId) { mutableStateOf(false) }
+    var showPlantSharing by remember(currentPlantId) { mutableStateOf(false) }
+    var showAssistant by remember { mutableStateOf(false) }
+    var photoToView by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var focusedSpaceId by rememberSaveable { mutableStateOf<String?>(null) }
     var plantSearch by remember { mutableStateOf("") }
+    var archiveSearch by remember { mutableStateOf("") }
+    var showArchived by remember { mutableStateOf(false) }
+    var visibleArchivedCount by remember { mutableStateOf(8) }
+    var pendingArchiveAction by remember { mutableStateOf<Boolean?>(null) }
     var visiblePlantCount by remember { mutableStateOf(8) }
     var events by remember { mutableStateOf<List<PlantupiaCareEvent>>(emptyList()) }
+    var historyFilter by remember(currentPlantId) { mutableStateOf(PlantupiaHistoryFilter.ALL) }
     var pendingFollowUps by remember { mutableStateOf<List<PlantupiaCareEvent>>(emptyList()) }
+    var nextPendingOffset by remember { mutableStateOf<Int?>(null) }
+    var pendingPageLoading by remember { mutableStateOf(false) }
     var followUpTarget by remember { mutableStateOf<PlantupiaCareEvent?>(null) }
     var followUpResult by remember { mutableStateOf("") }
+    var movingCheckIn by remember { mutableStateOf<PlantupiaCareEvent?>(null) }
+    var movedCheckInDate by remember { mutableStateOf<LocalDate?>(null) }
     var checkAgainInDays by remember { mutableStateOf<Int?>(null) }
+    var customFollowUpDate by remember { mutableStateOf<LocalDate?>(null) }
+    var reminderOptIn by remember { mutableStateOf(false) }
+    var reminderRevision by remember { mutableStateOf(0) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var requestedExistingReminder by remember { mutableStateOf<PlantupiaCareEvent?>(null) }
+    val selectedPlant = plants.firstOrNull { it.id == currentPlantId }
+    val reminderPermissionPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        val existing = requestedExistingReminder
+        requestedExistingReminder = null
+        if (existing == null) {
+            reminderOptIn = granted
+        } else {
+            val scheduled = granted && PlantupiaCareReminderScheduler.schedule(
+                context, existing.id, existing.followUpOn, selectedPlant?.id.orEmpty(),
+            )
+            reminderRevision += 1
+            error = if (scheduled) null else "The check-in reminder couldn't be enabled. Check notification permission and the review date."
+        }
+    }
     var nextHistoryOffset by remember { mutableStateOf<Int?>(null) }
     var olderEventsLoading by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(true) }
     var detailLoading by remember { mutableStateOf(false) }
+    var historyRetryLoading by remember { mutableStateOf(false) }
+    var historyLoadFailed by remember(currentPlantId) { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
     var plantName by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
     var selectedCareAction by remember { mutableStateOf<PlantupiaCareAction?>(null) }
     var carePhotoUri by remember { mutableStateOf<Uri?>(null) }
     val carePhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> carePhotoUri = uri }
-    val selectedPlant = plants.firstOrNull { it.id == currentPlantId }
 
     suspend fun refresh() {
         loading = true
@@ -114,7 +175,7 @@ fun PlantupiaClientSection(
         ) {
             spaces = emptyList()
             plants = emptyList()
-            error = "خدمة المساحات والنباتات مش متاحة على السيرفر الحالي. دي نسخة تجربة، وبيانات نباتاتك مش هتظهر قبل تفعيل Plantupia Backend."
+            error = "The Plantupia service isn't available on this server. Your plant records will appear when the Plantupia backend is ready."
         } else {
             when (spaceResult) {
                 is ApiResult.Failure -> { spaces = emptyList(); error = spaceResult.message }
@@ -129,40 +190,110 @@ fun PlantupiaClientSection(
     }
 
     suspend fun openPlant(plant: PlantupiaPlant) {
-        openDetailMode = PlantupiaCreateIntent.pending
+        if (PlantupiaCreateIntent.pending.needsPlantSelection() &&
+            plant !in actionablePlantChoices(plants)
+        ) {
+            creationAccessNotice = "This plant is read-only. Choose a plant you can care for, or create your own."
+            return
+        }
+        creationAccessNotice = null
+        detailRequestGeneration += 1
+        val requestGeneration = detailRequestGeneration
+        openDetailMode = PlantupiaCreateIntent.pending.takeIf { plant.active }
         showNameEditor = false
+        showSharedDetailsEditor = false
+        sharedPlantLabel = plant.label
+        sharedSpecies = plant.species
+        sharedPlacement = plant.placement
         showCareEditor = openDetailMode == PlantupiaCreateMode.OBSERVATION
         PlantupiaCreateIntent.clear()
         currentPlantId = plant.id
+        // Never let another plant's private history flash while the new detail loads.
+        events = emptyList()
+        photoToView = null
         onOpenPlant()
         plantName = plant.name
         note = ""
         selectedCareAction = null
         carePhotoUri = null
         checkAgainInDays = null
+        customFollowUpDate = null
+        reminderOptIn = false
+        requestedExistingReminder = null
         followUpTarget = null
         followUpResult = ""
+        movingCheckIn = null
+        movedCheckInDate = null
         pendingFollowUps = emptyList()
+        nextPendingOffset = null
+        pendingPageLoading = false
+        olderEventsLoading = false
+        historyRetryLoading = false
+        historyLoadFailed = false
         detailLoading = true
         error = null
         nextHistoryOffset = null
-        when (val response = repository.historyPage(plant.id)) {
+        val historyResponse = repository.historyPage(plant.id)
+        if (!isCurrentPlantDetailRequest(plant.id, requestGeneration, currentPlantId, detailRequestGeneration)) return
+        when (val response = historyResponse) {
             is ApiResult.Success -> {
                 events = response.value.events
                 nextHistoryOffset = response.value.nextOffset
+                historyLoadFailed = false
             }
-            is ApiResult.Failure -> { events = emptyList(); error = response.message }
+            is ApiResult.Failure -> {
+                events = emptyList()
+                historyLoadFailed = true
+                error = response.message
+            }
         }
-        when (val response = repository.historyPage(plant.id, pendingOnly = true)) {
-            is ApiResult.Success -> pendingFollowUps = response.value.events
+        val pendingResponse = repository.historyPage(plant.id, pendingOnly = true)
+        if (!isCurrentPlantDetailRequest(plant.id, requestGeneration, currentPlantId, detailRequestGeneration)) return
+        when (val response = pendingResponse) {
+            is ApiResult.Success -> {
+                pendingFollowUps = response.value.events
+                nextPendingOffset = response.value.nextOffset
+            }
             is ApiResult.Failure -> if (error == null) error = response.message
         }
         detailLoading = false
     }
 
+    suspend fun finishSavedMoment(
+        eventId: String,
+        plant: PlantupiaPlant,
+        requestGeneration: Int,
+        chosenFollowUpDate: String?,
+        optedInToReminder: Boolean,
+    ) {
+        // Server confirmation is authoritative. An optional reminder belongs to
+        // the saved event even if the user pressed Android Back while it uploaded.
+        val requestedReminder = optedInToReminder && chosenFollowUpDate != null
+        val reminderScheduled = !requestedReminder ||
+            PlantupiaCareReminderScheduler.schedule(context, eventId, chosenFollowUpDate.orEmpty(), plant.id)
+        if (!isCurrentPlantDetailRequest(plant.id, requestGeneration, currentPlantId, detailRequestGeneration)) return
+        note = ""
+        openPlant(plant)
+        if (!reminderScheduled) {
+            error = "Your entry was saved, but the reminder couldn't be scheduled. Check notification permissions."
+        }
+    }
+
     fun closePlant() {
+        detailRequestGeneration += 1
+        showAssistant = false
         currentPlantId = null
         openDetailMode = null
+        photoToView = null
+        events = emptyList()
+        pendingFollowUps = emptyList()
+        nextHistoryOffset = null
+        nextPendingOffset = null
+        pendingPageLoading = false
+        olderEventsLoading = false
+        historyRetryLoading = false
+        historyLoadFailed = false
+        detailLoading = false
         error = null
         scope.launch { refresh() }
     }
@@ -175,18 +306,26 @@ fun PlantupiaClientSection(
 
     LaunchedEffect(Unit) { refresh() }
     LaunchedEffect(PlantupiaCreateIntent.pending, plants, loading) {
-        if (!loading && PlantupiaCreateIntent.pending != null) {
-            val available = plants.filter { it.active }
+        if (!loading && error == null && PlantupiaCreateIntent.pending.needsPlantSelection()) {
+            val available = actionablePlantChoices(plants)
             if (available.size == 1) openPlant(available.first())
         }
     }
-    LaunchedEffect(spaces) {
-        if (spaces.size == 1 && expandedSpaceId == null) expandedSpaceId = spaces.first().id
-        if (expandedSpaceId != null && spaces.none { it.id == expandedSpaceId }) expandedSpaceId = null
+    LaunchedEffect(spaces, loading, error) {
+        // Never reset a saved user choice during the initial empty/loading
+        // frame or an unavailable API. Validate only against a successful,
+        // authenticated server response.
+        if (loading || error != null) return@LaunchedEffect
+        val allowed = resolveFocusedSpace(spaces, focusedSpaceId)
+        if (focusedSpaceId != allowed?.id) {
+            focusedSpaceId = allowed?.id
+            plantSearch = ""
+        }
     }
-    LaunchedEffect(expandedSpaceId, plantSearch) {
-        // Do not compose 100+ client units at once just because a site expands.
+    LaunchedEffect(focusedSpaceId, plantSearch) {
+        // Reuse Nova's fast, progressive inventory; do not render 100+ units.
         visiblePlantCount = 8
+        visibleArchivedCount = 8
     }
 
     Column(
@@ -197,129 +336,208 @@ fun PlantupiaClientSection(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         if (selectedPlant == null) {
-            if (PlantupiaCreateIntent.pending != null) {
+            if (PlantupiaCreateIntent.pending.needsPlantSelection()) {
                 PlantupiaPanel {
                     Text(
                         if (PlantupiaCreateIntent.pending == PlantupiaCreateMode.QUESTION)
-                            "اختار النبات اللي عايز تسأل الناس عنه"
-                        else "اختار النبات اللي عايز توثّق لحظة من حياته",
+                            "Choose a plant to ask the community about"
+                        else "Choose a plant to record a moment",
                         color = deepGreen, fontWeight = FontWeight.SemiBold, fontSize = 16.sp,
                     )
                     Text(
-                        "اللحظات الخاصة بتفضل في سجل النبات. النشر العام محتاج موافقتك.",
+                        "Private care records stay private. Public sharing requires your consent.",
                         color = muted, fontSize = 12.sp,
                     )
-                    TextButton(onClick = { PlantupiaCreateIntent.clear() }) {
-                        Text("إلغاء", color = deepGreen)
+                    if (actionablePlantChoices(plants).isEmpty()) {
+                        Text(
+                            "None of your active plants allow care or questions yet. You can create your own private space and plant.",
+                            color = muted, fontSize = 12.sp,
+                        )
+                        TextButton(onClick = {
+                            creationAccessNotice = null
+                            PlantupiaCreateIntent.request(PlantupiaCreateMode.ADD_PLANT)
+                        }) {
+                            Text("+ Add your own plant", color = deepGreen)
+                        }
+                    }
+                    if (creationAccessNotice != null) {
+                        Text(creationAccessNotice.orEmpty(), color = Color(0xFF9A4A31), fontSize = 12.sp)
+                    }
+                    // Show an immediate, bounded picker instead of making the
+                    // user scroll past the space hero and old inventory to act.
+                    PlantupiaIntentPlantPicker(
+                        plants = plants,
+                        onChoosePlant = { plant -> scope.launch { openPlant(plant) } },
+                    )
+                    TextButton(onClick = {
+                        creationAccessNotice = null
+                        PlantupiaCreateIntent.clear()
+                    }) {
+                        Text("Cancel", color = deepGreen)
                     }
                 }
             }
-            BrandEyebrow("YOUR LIVING SPACE / مساحتك")
-            Text(
-                "المكان بيتغيّر مع الوقت.",
-                fontFamily = FontFamily.Serif,
-                fontSize = 26.sp,
-                color = deepGreen,
-                lineHeight = 33.sp,
-            )
-            Text(
-                "لكل نبات مكان وحكاية ورعاية حقيقية. هنا بنحتفظ باللي حصل، مش بنخمن صحته.",
-                color = muted,
-                fontSize = 13.sp,
-                lineHeight = 21.sp,
-            )
+            // Quiet Care: a small, real next step before hero and AI.
+            if (!loading && error == null) {
+                PlantupiaTodayPanel(
+                    plants = plants,
+                    onOpenPlant = { plant -> scope.launch { openPlant(plant) } },
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(9.dp),
+                ) {
+                    if (plants.any { it.active && it.canRecord }) {
+                        Button(
+                            onClick = { PlantupiaCreateIntent.request(PlantupiaCreateMode.OBSERVATION) },
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
+                        ) {
+                            Text("Record care", color = white)
+                        }
+                    }
+                    OutlinedButton(
+                        onClick = { PlantupiaCreateIntent.request(PlantupiaCreateMode.ADD_PLANT) },
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    ) {
+                        Text("+ Add plant", color = deepGreen)
+                    }
+                }
+            }
+            // Pass 07: show the authentic place before AI and creation controls.
+            // An empty or failed API must never display stock customer imagery.
+            if (!loading && error == null && spaces.isNotEmpty()) {
+                PlantupiaSpaceSwitcher(
+                    spaces = spaces,
+                    plants = plants,
+                    focusedSpaceId = focusedSpaceId,
+                    onSelectSpace = { id ->
+                        focusedSpaceId = id
+                        plantSearch = ""
+                    },
+                )
+                val featured = resolveFocusedSpace(spaces, focusedSpaceId) ?: spaces.first()
+                val focusedPlants = plants.filter { it.spaceId == featured.id && it.active }
+                val featuredCount = focusedPlants.size
+                // A plant cover is evidence of that plant, NOT an architectural site photo.
+                val heroPlant = focusedPlants.firstOrNull { it.coverPhoto.isNotBlank() }
+                val heroPhoto = heroPlant?.coverPhoto
+                val photoHero = heroPhoto != null
+                val heroInk = if (photoHero) white else deepGreen
+                val heroMuted = if (photoHero) Color(0xFFE0E7DD) else muted
+                Surface(
+                    color = Color(0xFFD6E2D4),
+                    shape = RoundedCornerShape(22.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(if (photoHero) 196.dp else 154.dp),
+                    ) {
+                        if (photoHero) {
+                            AsyncImage(
+                                model = heroPhoto,
+                                contentDescription = "Photo uploaded for ${heroPlant?.name.orEmpty()} in ${featured.name}",
+                                modifier = Modifier.matchParentSize(),
+                                contentScale = ContentScale.Crop,
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .background(
+                                        Brush.verticalGradient(
+                                            0f to Color(0x22112317),
+                                            0.35f to Color(0x66112317),
+                                            1f to Color(0xE6112317),
+                                        )
+                                    )
+                            )
+                        }
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(19.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                spaceHeroMediaEyebrow(photoHero),
+                                color = heroInk,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 1.2.sp,
+                            )
+                            Text(
+                                featured.name,
+                                color = heroInk,
+                                fontFamily = FontFamily.Serif,
+                                fontSize = 27.sp,
+                            )
+                            if (featured.location.isNotBlank()) {
+                                Text(featured.location, color = heroMuted, fontSize = 12.sp)
+                            }
+                            Text(
+                                spacePlantCountSummary(featuredCount),
+                                color = heroMuted,
+                                fontSize = 12.sp,
+                            )
+                        }
+                    }
+                }
+                // Editing site context belongs with its actual chosen space,
+                // not beneath unrelated AI/Create controls and the social feed.
+                PlantupiaSpaceDetailsEditor(
+                    space = featured,
+                    repository = repository,
+                    onSaved = { scope.launch { refresh() } },
+                )
+            }
             PlantupiaSelfServiceForms(
                 spaces = spaces,
                 repository = repository,
                 onCreated = { scope.launch { refresh() } },
+                onRefreshSpaces = { scope.launch { refresh() } },
+                onPlantCreated = { plantId, spaceId ->
+                    // Completing onboarding opens the real new plant, rather
+                    // than dropping a first-time owner back into a generic list.
+                    focusedSpaceId = spaceId
+                    plantSearch = ""
+                    scope.launch {
+                        refresh()
+                        plants.firstOrNull { it.id == plantId }?.let { openPlant(it) }
+                    }
+                },
+                preferredSpaceId = focusedSpaceId,
+                enabled = !loading && error == null,
+                creationRequest = PlantupiaCreateIntent.pending,
+                onRequestConsumed = { PlantupiaCreateIntent.clear() },
             )
+            OutlinedButton(
+                onClick = { showAssistant = true },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(15.dp),
+            ) {
+                com.nova.app.ui.icons.NovaIcon(
+                    asset = com.nova.app.ui.icons.NovaIconAsset.Info,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = 10.dp),
+                    tint = deepGreen,
+                )
+                Text("Ask the Plantupia assistant", color = deepGreen)
+            }
             if (loading) {
-                Text("جارٍ تحميل مساحتك…", color = muted, fontSize = 13.sp)
+                Text("Loading your spaces…", color = muted, fontSize = 13.sp)
             } else {
-                if (spaces.isEmpty() && error == null) {
-                    PlantupiaPanel {
-                        Text("لسه ما عندكش مساحات.", color = forestText, fontWeight = FontWeight.Medium)
-                        Text("ابدأ بمساحة صغيرة، وبعدها أضف أول نبات وصورته وسجّل حكايته.", color = muted, fontSize = 13.sp, lineHeight = 19.sp)
-                    }
-                }
                 if (spaces.isNotEmpty()) {
-                    val featured = spaces.first()
-                    val featuredCount = plants.count { it.spaceId == featured.id && it.active }
-                    val heroPhoto = plants.firstOrNull {
-                        it.spaceId == featured.id && it.active && it.coverPhoto.isNotBlank()
-                    }?.coverPhoto
-                    val photoHero = heroPhoto != null
-                    val heroInk = if (photoHero) white else deepGreen
-                    val heroMuted = if (photoHero) Color(0xFFE0E7DD) else muted
-                    Surface(
-                        color = Color(0xFFD6E2D4),
-                        shape = RoundedCornerShape(22.dp),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(if (photoHero) 244.dp else 202.dp),
-                        ) {
-                            if (photoHero) {
-                                AsyncImage(
-                                    model = heroPhoto,
-                                    contentDescription = "صورة حقيقية لنبات ضمن مساحة ${featured.name}",
-                                    modifier = Modifier.matchParentSize(),
-                                    contentScale = ContentScale.Crop,
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .matchParentSize()
-                                        .background(
-                                            Brush.verticalGradient(
-                                                0f to Color(0x22112317),
-                                                0.35f to Color(0x66112317),
-                                                1f to Color(0xE6112317),
-                                            )
-                                        )
-                                )
-                            }
-                            Column(
-                                modifier = Modifier
-                                    .align(Alignment.BottomStart)
-                                    .padding(19.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                Text(
-                                    "LIVING SPACE / مساحة حيّة",
-                                    color = heroInk,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    letterSpacing = 1.2.sp,
-                                )
-                                Text(
-                                    featured.name,
-                                    color = heroInk,
-                                    fontFamily = FontFamily.Serif,
-                                    fontSize = 27.sp,
-                                )
-                                if (featured.location.isNotBlank()) {
-                                    Text(featured.location, color = heroMuted, fontSize = 12.sp)
-                                }
-                                Text(
-                                    "$featuredCount وحدة نباتية · ملاحظات حقيقية عبر الوقت",
-                                    color = heroMuted,
-                                    fontSize = 12.sp,
-                                )
-                                TextButton(onClick = { expandedSpaceId = featured.id }) {
-                                    Text("اكتشف نباتات المساحة ←", color = heroInk)
-                                }
-                            }
-                        }
-                    }
-
-                    val recent = plants
-                        .filter { it.active && it.lastEventAt.isNotBlank() }
+                    // Recent events remain scoped to the currently focused site.
+                    val featured = resolveFocusedSpace(spaces, focusedSpaceId) ?: spaces.first()
+                    val focusedPlants = plants.filter { it.spaceId == featured.id && it.active }
+                    val recent = focusedPlants
+                        .filter { it.lastEventAt.isNotBlank() }
                         .sortedByDescending { it.lastEventAt }
                     if (recent.isNotEmpty()) {
                         val latest = recent.first()
-                        BrandEyebrow("LATEST OBSERVATION / آخر تغيير موثّق")
+                        BrandEyebrow("LATEST OBSERVATION")
                         PlantupiaPanel {
                             Text(latest.name, color = deepGreen, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                             Text(
@@ -327,266 +545,696 @@ fun PlantupiaClientSection(
                                 color = muted, fontSize = 12.sp,
                             )
                             TextButton(onClick = { scope.launch { openPlant(latest) } }) {
-                                Text("شوف تاريخها ←", color = deepGreen)
+                                Text("View history →", color = deepGreen)
                             }
                         }
-                        BrandEyebrow("RECENT MOMENTS / لحظات موثّقة")
-                        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                            recent.take(4).forEach { plant ->
+                        BrandEyebrow("RECENT MOMENTS")
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            items(recent.take(12).size) { index ->
+                                val plant = recent[index]
                                 Surface(
-                                    modifier = Modifier.weight(1f).clickable { scope.launch { openPlant(plant) } },
-                                    shape = RoundedCornerShape(12.dp),
+                                    onClick = { scope.launch { openPlant(plant) } },
+                                    modifier = Modifier.width(158.dp),
                                     color = white,
+                                    shape = RoundedCornerShape(15.dp),
                                 ) {
                                     Column(
-                                        modifier = Modifier.padding(7.dp),
-                                        verticalArrangement = Arrangement.spacedBy(5.dp),
+                                        modifier = Modifier.padding(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(7.dp),
                                     ) {
                                         if (plant.coverPhoto.isNotBlank()) {
                                             AsyncImage(
                                                 model = plant.coverPhoto,
-                                                contentDescription = plant.name,
-                                                modifier = Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(7.dp)),
+                                                contentDescription = "Photo of " + plant.name,
+                                                modifier = Modifier.fillMaxWidth()
+                                                    .height(106.dp)
+                                                    .clip(RoundedCornerShape(10.dp)),
                                                 contentScale = ContentScale.Crop,
                                             )
+                                        } else {
+                                            Box(
+                                                modifier = Modifier.fillMaxWidth()
+                                                    .height(106.dp)
+                                                    .background(sage.copy(alpha = 0.23f), RoundedCornerShape(10.dp)),
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                PlantupiaBrandGlyph(modifier = Modifier.height(46.dp).width(46.dp))
+                                            }
                                         }
-                                        Text(plant.name, color = forestText, fontSize = 11.sp, maxLines = 1)
+                                        Text(
+                                            plant.name, color = forestText,
+                                            fontSize = 13.sp, fontWeight = FontWeight.Medium,
+                                            maxLines = 1,
+                                        )
+                                        Text(
+                                            eventLabel(plant.lastEventKind) + " · " + plant.lastEventAt.take(10),
+                                            color = muted, fontSize = 10.sp, maxLines = 1,
+                                        )
                                     }
                                 }
                             }
                         }
                     } else {
                         Text(
-                            "أول صورة أو ملاحظة هتبدأ حكاية المكان هنا، من غير بيانات وهمية.",
+                            "Your first plant photo or observation will appear here. No sample records.",
                             color = muted, fontSize = 12.sp,
                         )
                     }
-                    val checkIns = plants
-                        .filter { it.active && it.nextFollowUpOn.isNotBlank() }
-                        .sortedBy { it.nextFollowUpOn }
-                    if (checkIns.isNotEmpty()) {
-                        BrandEyebrow("CHECK-INS / مواعيد المتابعة اللي اخترتها")
+                    BrandEyebrow("YOUR PLANTS")
+                }
+                val focused = resolveFocusedSpace(spaces, focusedSpaceId)
+                if (focused != null) {
+                    val sitePlants = plants.filter { it.spaceId == focused.id && it.active }
+                    if (sitePlants.isEmpty()) {
                         PlantupiaPanel {
-                            Text("دي مواعيد مراجعة أنت اخترتها بعد ملاحظة أو رعاية، مش تشخيص ولا ميعاد ري تلقائي.", color = muted, fontSize = 12.sp)
-                            checkIns.take(4).forEach { item ->
-                                val due = runCatching {
-                                    !LocalDate.parse(item.nextFollowUpOn).isAfter(LocalDate.now())
-                                }.getOrDefault(false)
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(item.name, color = deepGreen, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                                        Text(if (due) "وقت المراجعة · ${item.nextFollowUpOn}" else "راجعه يوم ${item.nextFollowUpOn}", color = muted, fontSize = 11.sp)
-                                    }
-                                    TextButton(onClick = { scope.launch { openPlant(item) } }) {
-                                        Text("افتح النبات ←", color = deepGreen, fontSize = 12.sp)
-                                    }
+                            val hasArchived = plants.any { it.spaceId == focused.id && !it.active }
+                            Text(
+                                if (hasArchived) "No active plants in this space" else "Your space is waiting for its first plant",
+                                color = forestText, fontWeight = FontWeight.Medium,
+                            )
+                            Text(
+                                if (hasArchived) "Archived records are available below. Restore a plant or add a new one." else "Add a plant with a photo and placement. Its history and check-ins will appear here.",
+                                color = muted, fontSize = 13.sp, lineHeight = 19.sp,
+                            )
+                            if (focused.canAddPlant) {
+                                TextButton(onClick = { PlantupiaCreateIntent.request(PlantupiaCreateMode.ADD_PLANT) }) {
+                                    Text("Add your first plant →", color = deepGreen)
                                 }
                             }
                         }
-                    }
-                    BrandEyebrow("YOUR PLANTS / نباتاتك")
-                }
-                spaces.forEach { space ->
-                    PlantupiaPanel {
-                        Text(space.name, color = forestText, fontFamily = FontFamily.Serif, fontSize = 21.sp)
-                        if (space.location.isNotBlank()) Text(space.location, color = muted, fontSize = 12.sp)
-                        if (space.description.isNotBlank()) Text(space.description, color = muted, fontSize = 13.sp)
-                        Text(
-                            "${plants.count { it.spaceId == space.id && it.active }} living units",
-                            color = deepGreen,
-                            fontSize = 12.sp,
-                        )
-                        TextButton(onClick = {
-                            expandedSpaceId = if (expandedSpaceId == space.id) null else space.id
-                        }) {
-                            Text(
-                                if (expandedSpaceId == space.id) "اخفِ نباتات المساحة ↑" else "استكشف نباتات المساحة ↓",
-                                color = deepGreen,
+                    } else {
+                        if (sitePlants.size > 8) {
+                            OutlinedTextField(
+                                value = plantSearch,
+                                onValueChange = { plantSearch = it.take(80) },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text("Search plants in " + focused.name) },
+                                singleLine = true,
                             )
                         }
+                        val matchingPlants = findSpacePlants(plants, focused.id, plantSearch)
+                        if (matchingPlants.isEmpty()) {
+                            Text("No plants in this space match your search.", color = muted, fontSize = 12.sp)
+                        }
+                        matchingPlants.take(visiblePlantCount).forEach { plant ->
+                            PlantupiaPlantInventoryCard(
+                                plant = plant,
+                                eventLabel = eventLabel(plant.lastEventKind),
+                                onClick = { scope.launch { openPlant(plant) } },
+                            )
+                        }
+                        if (matchingPlants.size > visiblePlantCount) {
+                            TextButton(onClick = { visiblePlantCount += 8 }) {
+                                Text("Load more plants · ${visiblePlantCount} of ${matchingPlants.size}", color = deepGreen)
+                            }
+                        }
                     }
-                    if (expandedSpaceId == space.id) {
-                    val sitePlants = plants.filter { it.spaceId == space.id && it.active }
-                    if (sitePlants.size > 8) {
+                }
+            }
+            val archiveSpace = resolveFocusedSpace(spaces, focusedSpaceId)
+            val archivedUnits = plants.filter { !it.active && it.spaceId == archiveSpace?.id }
+            if (archivedUnits.isNotEmpty() && archiveSpace != null) {
+                TextButton(onClick = {
+                    showArchived = !showArchived
+                    archiveSearch = ""
+                    visibleArchivedCount = 8
+                }) {
+                    Text(
+                        if (showArchived) "Hide archived plants ↑"
+                        else "Archived plants · ${archivedUnits.size} ↓",
+                        color = deepGreen,
+                    )
+                }
+                if (showArchived) {
+                    Text(
+                        "Archived plants keep their private photos and history. They do not appear in active care.",
+                        color = muted, fontSize = 12.sp,
+                    )
+                    if (archivedUnits.size > 8) {
                         OutlinedTextField(
-                            value = plantSearch,
-                            onValueChange = { plantSearch = it.take(80) },
+                            value = archiveSearch,
+                            onValueChange = { archiveSearch = it.take(80); visibleArchivedCount = 8 },
                             modifier = Modifier.fillMaxWidth(),
-                            label = { Text("دوّر باسم النبات أو نوعه أو مكانه") },
+                            label = { Text("Search archived plants") },
                             singleLine = true,
                         )
                     }
-                    val matchingPlants = findSpacePlants(plants, space.id, plantSearch)
-                    if (matchingPlants.isEmpty() && sitePlants.isNotEmpty()) {
-                        Text("مفيش نباتات مطابقة للبحث. جرّب اسم تاني.", color = muted, fontSize = 12.sp)
+                    val archivedMatches = findArchivedPlants(plants, archiveSpace.id, archiveSearch)
+                    if (archivedMatches.isEmpty()) {
+                        Text("No archived records match your search.", color = muted, fontSize = 12.sp)
                     }
-                    matchingPlants.take(visiblePlantCount).forEach { plant ->
-                        Surface(
-                            modifier = Modifier.fillMaxWidth().clickable { scope.launch { openPlant(plant) } },
-                            color = white,
-                            shape = RoundedCornerShape(14.dp),
-                        ) {
-                            Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                if (plant.coverPhoto.isNotBlank()) {
-                                    AsyncImage(model = plant.coverPhoto, contentDescription = "صورة ${plant.name}", modifier = Modifier.fillMaxWidth().height(166.dp).clip(RoundedCornerShape(10.dp)), contentScale = ContentScale.Crop)
-                                }
-                                Text(plant.name, color = forestText, fontSize = 17.sp, fontWeight = FontWeight.Medium)
-                                val subtitle = listOf(plant.species, plant.placement).filter(String::isNotBlank).joinToString(" · ")
-                                if (subtitle.isNotBlank()) Text(subtitle, color = muted, fontSize = 12.sp)
-                                if (plant.lastEventAt.isNotBlank()) {
-                                    Text(
-                                        "آخر سجل: ${plant.lastEventAt.take(10)} · ${eventLabel(plant.lastEventKind)}",
-                                        color = muted, fontSize = 12.sp,
-                                    )
-                                } else {
-                                    Text("لم يُسجَّل تاريخ لهذا النبات بعد", color = muted, fontSize = 12.sp)
-                                }
-                                Text("شوف تاريخ النبات ←", color = deepGreen, fontSize = 12.sp)
-                            }
+                    archivedMatches.take(visibleArchivedCount).forEach { plant ->
+                        PlantupiaPlantInventoryCard(
+                            plant = plant,
+                            eventLabel = "Archived record",
+                            onClick = { scope.launch { openPlant(plant) } },
+                        )
+                    }
+                    if (archivedMatches.size > visibleArchivedCount) {
+                        TextButton(onClick = { visibleArchivedCount += 8 }) {
+                            Text("Load more archived plants", color = deepGreen)
                         }
                     }
-                    if (matchingPlants.size > visiblePlantCount) {
-                        TextButton(onClick = { visiblePlantCount += 8 }) {
-                            Text(
-                                "عرض نباتات أكثر · ${visiblePlantCount} من ${matchingPlants.size}",
-                                color = deepGreen,
-                            )
-                        }
-                    }
-                    }
-                }
-                if (spaces.isNotEmpty() && plants.none { it.active }) {
-                    Text("مساحتك جاهزة! أضف أول نبات من الزر اللي فوق.", color = muted, fontSize = 12.sp)
                 }
             }
             if (error != null) Text(error.orEmpty(), color = Color(0xFF9A4A31), fontSize = 12.sp)
             TextButton(onClick = { scope.launch { refresh() } }) {
-                Text("تحديث البيانات", color = deepGreen)
+                Text("Refresh records", color = deepGreen)
             }
         } else {
             TextButton(onClick = { closePlant() }) {
-                Text("← الرجوع للمساحة", color = deepGreen)
+                Text("← Back to space", color = deepGreen)
             }
-            BrandEyebrow("LIVING RECORD / تاريخ النبات")
-            if (openDetailMode != null) {
-                BrandEyebrow(
-                    if (openDetailMode == PlantupiaCreateMode.QUESTION)
-                        "ASK ABOUT THIS PLANT / اسأل عن نباتك"
-                    else "RECORD A MOMENT / لحظة جديدة"
-                )
+            BrandEyebrow(
+                if (openDetailMode == PlantupiaCreateMode.QUESTION) "ASK THE CIRCLE"
+                else "YOUR PLANT · PRIVATE RECORD"
+            )
+            if (openDetailMode == PlantupiaCreateMode.QUESTION) {
                 Text(
-                    if (openDetailMode == PlantupiaCreateMode.QUESTION)
-                        "اسأل عن النبات ده من غير ما تشارك سجله الخاص."
-                    else "سجّل اللي لاحظته أو عملته؛ اللحظة هتفضل في تاريخه.",
-                    color = muted, fontSize = 13.sp,
+                    "Choose what to share. Your care records and place stay private.",
+                    color = muted, fontSize = 12.sp,
                 )
             }
-            if (selectedPlant.coverPhoto.isNotBlank()) {
-                AsyncImage(model = selectedPlant.coverPhoto, contentDescription = "صورة النبات", modifier = Modifier.fillMaxWidth().height(236.dp).clip(RoundedCornerShape(16.dp)), contentScale = ContentScale.Crop)
-            }
+            // Identify the *actual selected plant* before showing its photo or controls.
             Text(selectedPlant.name, fontFamily = FontFamily.Serif, fontSize = 35.sp, color = deepGreen)
+            if (!selectedPlant.active) {
+                Text(
+                    "ARCHIVED · Read-only living record. Photos, notes and history are retained.",
+                    color = muted, fontSize = 12.sp,
+                )
+            }
             val meta = listOf(selectedPlant.species, selectedPlant.placement).filter(String::isNotBlank).joinToString(" · ")
             if (meta.isNotBlank()) Text(meta, fontSize = 13.sp, color = muted)
+            if (selectedPlant.coverPhoto.isNotBlank()) {
+                AsyncImage(
+                    model = selectedPlant.coverPhoto,
+                    contentDescription = "Photo uploaded for this plant. Tap to enlarge.",
+                    modifier = Modifier.fillMaxWidth()
+                        .height(160.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { photoToView = selectedPlant.coverPhoto to selectedPlant.name },
+                    contentScale = ContentScale.Crop,
+                )
+            } else {
+                // No cover photo is not a missing plant or invented photographic evidence.
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = PlantupiaColors.softSage,
+                    shape = RoundedCornerShape(16.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(15.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        PlantupiaBrandGlyph(modifier = Modifier.height(44.dp).width(44.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("NO COVER PHOTO YET", style = PlantupiaText.sectionLabel)
+                            Text(
+                                "Photos from recorded observations, if any, appear in the private history below.",
+                                style = PlantupiaText.supporting,
+                            )
+                        }
+                    }
+                }
+            }
 
+            // Care is the primary reason to open a plant. Keep the
+            // record-action composer near the identity, not after
+            // rename + pending results + lengthy timeline.
+            if (openDetailMode != PlantupiaCreateMode.QUESTION) {
+                BrandEyebrow("CARE & OBSERVATIONS")
+                if (selectedPlant.canRecord) {
+                    Button(
+                        onClick = { showCareEditor = !showCareEditor },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
+                    ) {
+                        Text(if (showCareEditor) "Close care form ↑" else "+ Record care or observation", color = white)
+                    }
+                if (showCareEditor) PlantupiaPanel {
+                    Text("What did you do?", color = forestText, fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                    // Respect the true editor width and fontScale, not only device pixels.
+                    // Each readable action still retains its authored native pictogram.
+                    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                        val columns = plantupiaCareActionColumns(
+                            availableWidthDp = maxWidth.value,
+                            fontScale = LocalDensity.current.fontScale,
+                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                            PlantupiaCareAction.entries.chunked(columns).forEach { group ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(9.dp),
+                                ) {
+                                    group.forEach { action ->
+                                        PlantupiaCareActionTile(
+                                            action = action,
+                                            selected = selectedCareAction == action,
+                                            enabled = !saving,
+                                            modifier = Modifier.weight(1f),
+                                            onClick = {
+                                                selectedCareAction =
+                                                    if (selectedCareAction == action) null else action
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Text("These record actual actions, not watering recommendations.", color = muted, fontSize = 11.sp)
+                    OutlinedTextField(
+                        value = note,
+                        onValueChange = { note = it.take(1500) },
+                        label = { Text("What did you observe or do?") },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                        enabled = !saving,
+                    )
+                    OutlinedButton(
+                        onClick = { carePhotoPicker.launch("image/*") },
+                        enabled = !saving,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        com.nova.app.ui.icons.NovaIcon(
+                            asset = com.nova.app.ui.icons.NovaIconAsset.Photo,
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = 9.dp),
+                            tint = deepGreen,
+                        )
+                        Text(
+                            if (carePhotoUri == null) "Add a photo of your observation" else "Change selected photo",
+                            color = deepGreen,
+                        )
+                    }
+                    carePhotoUri?.let { selectedPhoto ->
+                        AsyncImage(
+                            model = selectedPhoto,
+                            contentDescription = "Preview the photo before saving it to the plant's private history",
+                            modifier = Modifier.fillMaxWidth().height(196.dp).clip(RoundedCornerShape(14.dp)),
+                            contentScale = ContentScale.Crop,
+                        )
+                        TextButton(
+                            onClick = { carePhotoUri = null },
+                            enabled = !saving,
+                        ) {
+                            Text("Remove selected photo", color = muted)
+                        }
+                    }
+                    Text("When would you like to check this plant again?", color = forestText, fontSize = 12.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                        listOf(7, 14).forEach { days ->
+                            OutlinedButton(
+                                enabled = !saving,
+                                onClick = {
+                                    checkAgainInDays = if (checkAgainInDays == days && customFollowUpDate == null) null else days
+                                    customFollowUpDate = null
+                                    if (checkAgainInDays == null) reminderOptIn = false
+                                },
+                                modifier = Modifier.weight(1f),
+                            ) { Text(if (checkAgainInDays == days) "✓ In $days days" else "In $days days", color = deepGreen, fontSize = 12.sp) }
+                        }
+                    }
+                    OutlinedButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !saving,
+                        onClick = {
+                            val today = LocalDate.now()
+                            val current = customFollowUpDate
+                                ?: checkAgainInDays?.let { today.plusDays(it.toLong()) }
+                                ?: today.plusDays(7)
+                            android.app.DatePickerDialog(
+                                context,
+                                { _, year, month, day ->
+                                    val picked = LocalDate.of(year, month + 1, day)
+                                    if (!picked.isBefore(LocalDate.now())) {
+                                        customFollowUpDate = picked
+                                        checkAgainInDays = null
+                                    }
+                                },
+                                current.year, current.monthValue - 1, current.dayOfMonth,
+                            ).apply {
+                                datePicker.minDate = today.atStartOfDay(ZoneId.systemDefault())
+                                    .toInstant().toEpochMilli()
+                            }.show()
+                        },
+                    ) { Text("Choose a date", color = deepGreen) }
+                    val actualFollowUpDate = selectedFollowUpDate(
+                        customFollowUpDate, checkAgainInDays, LocalDate.now(),
+                    )
+                    if (actualFollowUpDate != null) {
+                        Text("Check-in date: $actualFollowUpDate", color = deepGreen, fontSize = 12.sp)
+                        TextButton(onClick = {
+                            checkAgainInDays = null
+                            customFollowUpDate = null
+                            reminderOptIn = false
+                        }, enabled = !saving) {
+                            Text("No check-in date", color = muted, fontSize = 12.sp)
+                        }
+                    }
+                    val validFollowUpDate = isValidCheckInDate(customFollowUpDate, LocalDate.now())
+                    if (!validFollowUpDate) {
+                        Text("That date has passed. Choose another check-in date.", color = Color(0xFF9A4A31), fontSize = 12.sp)
+                    }
+                    if (actualFollowUpDate != null && validFollowUpDate) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = reminderOptIn,
+                                enabled = !saving,
+                                onCheckedChange = { checked ->
+                                    if (!checked) {
+                                        reminderOptIn = false
+                                    } else if (
+                                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                        ContextCompat.checkSelfPermission(
+                                            context, Manifest.permission.POST_NOTIFICATIONS,
+                                        ) != PackageManager.PERMISSION_GRANTED
+                                    ) {
+                                        reminderPermissionPicker.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                    } else {
+                                        reminderOptIn = true
+                                    }
+                                },
+                            )
+                            Text(
+                                "Remind me on the check-in morning (subject to device settings)",
+                                color = muted, fontSize = 12.sp, lineHeight = 19.sp,
+                            )
+                        }
+                        Text(
+                            "Optional reminder to inspect your plant, not an instruction to water. Battery settings may delay it.",
+                            color = muted, fontSize = 11.sp,
+                        )
+                    }
+                    // Each save action has its own full-width touch target.
+                    // Never force three unequal labels into a single weighted row:
+                    // large fonts made "Concerning change" render letter-by-letter.
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        OutlinedButton(
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            enabled = !saving && validFollowUpDate && (note.isNotBlank() || carePhotoUri != null),
+                            onClick = {
+                                scope.launch {
+                                    saving = true
+                                    val requestGeneration = detailRequestGeneration
+                                    val followUpDate = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now())
+                                    val optedInToReminder = reminderOptIn
+                                    when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "observation", note, it, followUpOn = followUpDate) } ?: repository.record(selectedPlant.id, "observation", note, followUpOn = followUpDate)) {
+                                        is ApiResult.Failure -> {
+                                            if (isCurrentPlantDetailRequest(selectedPlant.id, requestGeneration, currentPlantId, detailRequestGeneration)) {
+                                                error = r.message
+                                            }
+                                        }
+                                        is ApiResult.Success -> finishSavedMoment(r.value, selectedPlant, requestGeneration, followUpDate, optedInToReminder)
+                                    }
+                                    saving = false
+                                }
+                            },
+                        ) { Text("Save observation", color = deepGreen) }
+                        Button(
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            enabled = !saving && validFollowUpDate && (selectedCareAction != null || note.isNotBlank() || carePhotoUri != null),
+                            onClick = {
+                                val careDetails = buildPlantupiaCareNote(selectedCareAction, note)
+                                scope.launch {
+                                    saving = true
+                                    val requestGeneration = detailRequestGeneration
+                                    val followUpDate = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now())
+                                    val optedInToReminder = reminderOptIn
+                                    when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "care", careDetails, it, followUpOn = followUpDate) } ?: repository.record(selectedPlant.id, "care", careDetails, followUpOn = followUpDate)) {
+                                        is ApiResult.Failure -> {
+                                            if (isCurrentPlantDetailRequest(selectedPlant.id, requestGeneration, currentPlantId, detailRequestGeneration)) {
+                                                error = r.message
+                                            }
+                                        }
+                                        is ApiResult.Success -> finishSavedMoment(r.value, selectedPlant, requestGeneration, followUpDate, optedInToReminder)
+                                    }
+                                    saving = false
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
+                        ) { Text("Save care", color = white) }
+                        OutlinedButton(
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            enabled = !saving && validFollowUpDate && (note.isNotBlank() || carePhotoUri != null),
+                            onClick = {
+                                scope.launch {
+                                    saving = true
+                                    val requestGeneration = detailRequestGeneration
+                                    val followUpDate = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now())
+                                    val optedInToReminder = reminderOptIn
+                                    when (val result = carePhotoUri?.let {
+                                        repository.recordWithPhoto(selectedPlant.id, "issue", note, it, followUpOn = followUpDate)
+                                    } ?: repository.record(selectedPlant.id, "issue", note, followUpOn = followUpDate)) {
+                                        is ApiResult.Failure -> {
+                                            if (isCurrentPlantDetailRequest(selectedPlant.id, requestGeneration, currentPlantId, detailRequestGeneration)) {
+                                                error = result.message
+                                            }
+                                        }
+                                        is ApiResult.Success -> finishSavedMoment(result.value, selectedPlant, requestGeneration, followUpDate, optedInToReminder)
+                                    }
+                                    saving = false
+                                }
+                            },
+                        ) { Text("Record a concern", color = deepGreen) }
+                    }
+                    Text(
+                        "Record what you actually noticed. You don't need to diagnose the cause.",
+                        color = muted, fontSize = 11.sp,
+                    )
+                }
+                } else {
+                    Text("You have read-only access to this plant's history. Ask a space manager for recording permission.", color = muted, fontSize = 12.sp)
+                }
+                if (error != null) Text(error.orEmpty(), color = Color(0xFF9A4A31), fontSize = 12.sp)
+            }
+
+            if (openDetailMode != PlantupiaCreateMode.QUESTION) {
+                OutlinedButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { showAssistant = true },
+                    shape = RoundedCornerShape(15.dp),
+                ) {
+                    com.nova.app.ui.icons.NovaIcon(
+                        asset = com.nova.app.ui.icons.NovaIconAsset.Info,
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = 8.dp),
+                        tint = deepGreen,
+                    )
+                    Text("Plantupia assistant (optional)", color = deepGreen)
+                }
+            }
             if (openDetailMode == PlantupiaCreateMode.QUESTION) {
                 PlantupiaQuestionsPanel(
                     plantId = selectedPlant.id,
                     repository = repository,
+                    compactHeader = true,
                     canPublish = selectedPlant.canRecord,
                     onOpenPost = onOpenLinkedPost,
                     onOutcomeSaved = {
-                        when (val response = repository.historyPage(selectedPlant.id)) {
+                        val plantId = selectedPlant.id
+                        val generation = detailRequestGeneration
+                        val response = repository.historyPage(plantId)
+                        if (!isCurrentPlantDetailRequest(plantId, generation, currentPlantId, detailRequestGeneration)) return@PlantupiaQuestionsPanel
+                        when (response) {
                             is ApiResult.Success -> {
                                 events = response.value.events
                                 nextHistoryOffset = response.value.nextOffset
+                                historyLoadFailed = false
                                 error = null
                             }
-                            is ApiResult.Failure -> error = response.message
-                        }
-                    },
-                )
-            }
-
-            PlantupiaPanel {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text("الاسم اللي اخترته", color = muted, fontSize = 11.sp)
-                        Text(selectedPlant.name, color = deepGreen, fontWeight = FontWeight.Medium, fontSize = 19.sp)
-                    }
-                    TextButton(onClick = { showNameEditor = !showNameEditor }) {
-                        Text(if (showNameEditor) "إلغاء" else "غيّر الاسم", color = deepGreen)
-                    }
-                }
-                if (showNameEditor) {
-                OutlinedTextField(
-                    value = plantName,
-                    onValueChange = { plantName = it.take(80) },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("اسم النبات") },
-                    singleLine = true,
-                    enabled = !saving,
-                )
-                Button(
-                    enabled = !saving && plantName.trim().isNotBlank(),
-                    onClick = {
-                        scope.launch {
-                            saving = true
-                            when (val result = repository.nickname(selectedPlant.id, plantName)) {
-                                is ApiResult.Failure -> error = result.message
-                                is ApiResult.Success -> {
-                                    plants = plants.map {
-                                        if (it.id == selectedPlant.id) it.copy(name = plantName.trim()) else it
-                                    }
-                                    error = null
-                                    showNameEditor = false
-                                }
+                            is ApiResult.Failure -> {
+                                historyLoadFailed = true
+                                error = response.message
                             }
-                            saving = false
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
-                ) { Text("احفظ الاسم", color = white) }
-                }
+                )
             }
 
-            BrandEyebrow("CHECK BACK / راجع اللي حصل")
+            // Asking the Circle is a focused public workflow. Private check-ins,
+            // history and record administration belong to the normal plant detail.
+            if (openDetailMode != PlantupiaCreateMode.QUESTION) {
+            BrandEyebrow("CHECK BACK")
             if (detailLoading) {
-                Text("جارٍ تحميل مواعيد متابعتك…", color = muted, fontSize = 12.sp)
+                Text("Loading check-ins…", color = muted, fontSize = 12.sp)
             } else if (pendingFollowUps.isEmpty()) {
-                Text("لما تسجّل رعاية أو تغيّر، تقدر تختار بنفسك إمتى ترجع تراجع النتيجة.", color = muted, fontSize = 12.sp)
+                Text("When you record care or a change, you can choose when to check its outcome.", color = muted, fontSize = 12.sp)
             } else {
                 pendingFollowUps.forEach { check ->
                     PlantupiaPanel {
                         Text(
-                            "متابعة ${check.followUpOn} · ${eventLabel(check.kind)}",
+                            "Check-in ${check.followUpOn} · ${eventLabel(check.kind)}",
                             color = deepGreen, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
                         )
                         if (check.note.isNotBlank()) Text(check.note, color = muted, fontSize = 12.sp)
-                        Text("راجع اللي حصل فعلًا للنبات قبل ما تسجّل نتيجة. الميعاد مش أمر بالري.", color = muted, fontSize = 11.sp)
+                        Text("Observe the plant before saving an outcome. Check-in dates are not watering orders.", color = muted, fontSize = 11.sp)
                         if (selectedPlant.canRecord) {
                             OutlinedButton(onClick = {
                                 followUpTarget = if (followUpTarget?.id == check.id) null else check
                                 followUpResult = ""
-                            }) {
-                                Text(if (followUpTarget?.id == check.id) "إلغاء" else "سجّل نتيجة المراجعة", color = deepGreen)
+                                movingCheckIn = null
+                                movedCheckInDate = null
+                            }, enabled = !saving) {
+                                Text(if (followUpTarget?.id == check.id) "Cancel" else "Record check-in outcome", color = deepGreen)
+                            }
+                            TextButton(
+                                enabled = !saving,
+                                onClick = {
+                                    movingCheckIn = if (movingCheckIn?.id == check.id) null else check
+                                    movedCheckInDate = null
+                                    followUpTarget = null
+                                },
+                            ) {
+                                Text(
+                                    if (movingCheckIn?.id == check.id) "Cancel date change" else "Choose another check-in day",
+                                    color = deepGreen,
+                                )
+                            }
+                            if (movingCheckIn?.id == check.id) {
+                                Text(
+                                    "Change this check-in date without recording a watering or plant-health result.",
+                                    color = muted, fontSize = 11.sp,
+                                )
+                                OutlinedButton(
+                                    enabled = !saving,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    onClick = {
+                                        val tomorrow = LocalDate.now().plusDays(1)
+                                        val selected = movedCheckInDate ?: runCatching {
+                                            LocalDate.parse(check.followUpOn)
+                                        }.getOrNull()?.takeIf { it.isAfter(LocalDate.now()) } ?: tomorrow
+                                        android.app.DatePickerDialog(
+                                            context,
+                                            { _, year, month, day ->
+                                                movedCheckInDate = LocalDate.of(year, month + 1, day)
+                                            },
+                                            selected.year, selected.monthValue - 1, selected.dayOfMonth,
+                                        ).apply {
+                                            datePicker.minDate = tomorrow.atStartOfDay(ZoneId.systemDefault())
+                                                .toInstant().toEpochMilli()
+                                        }.show()
+                                    },
+                                ) {
+                                    Text(
+                                        movedCheckInDate?.let { "New date: $it" } ?: "Choose a future date",
+                                        color = deepGreen,
+                                    )
+                                }
+                                Button(
+                                    enabled = !saving && movedCheckInDate?.isAfter(LocalDate.now()) == true &&
+                                        movedCheckInDate.toString() != check.followUpOn,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
+                                    onClick = {
+                                        val target = movingCheckIn ?: return@Button
+                                        val newDate = movedCheckInDate?.toString() ?: return@Button
+                                        scope.launch {
+                                            saving = true
+                                            val hadReminder = PlantupiaCareReminderScheduler.isScheduled(context, target.id)
+                                            when (val response = repository.moveCheckIn(
+                                                selectedPlant.id, target.id, newDate,
+                                            )) {
+                                                is ApiResult.Failure -> error = response.message
+                                                is ApiResult.Success -> {
+                                                    PlantupiaCareReminderScheduler.cancel(context, target.id)
+                                                    val scheduled = !hadReminder ||
+                                                        PlantupiaCareReminderScheduler.schedule(context, target.id, newDate, selectedPlant.id)
+                                                    openPlant(selectedPlant)
+                                                    if (!scheduled) {
+                                                        error = "Check-in date was saved, but the local reminder could not be moved."
+                                                    }
+                                                }
+                                            }
+                                            saving = false
+                                        }
+                                    },
+                                ) { Text(if (saving) "Saving…" else "Save new check-in date", color = white) }
                             }
                         }
+                        val reminderIsActive = remember(check.id, reminderRevision) {
+                            PlantupiaCareReminderScheduler.isScheduled(context, check.id)
+                        }
+                        if (reminderIsActive) {
+                            TextButton(onClick = {
+                                PlantupiaCareReminderScheduler.cancel(context, check.id)
+                                reminderRevision += 1
+                            }) {
+                                Text("Cancel reminder (keep check-in)", color = muted)
+                            }
+                        } else if (checkInDelayMillis(check.followUpOn, ZonedDateTime.now()) != null) {
+                            TextButton(onClick = {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                    ContextCompat.checkSelfPermission(
+                                        context, Manifest.permission.POST_NOTIFICATIONS,
+                                    ) != PackageManager.PERMISSION_GRANTED
+                                ) {
+                                    requestedExistingReminder = check
+                                    reminderPermissionPicker.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                } else {
+                                    val scheduled = PlantupiaCareReminderScheduler.schedule(
+                                        context, check.id, check.followUpOn, selectedPlant.id,
+                                    )
+                                    reminderRevision += 1
+                                    error = if (scheduled) null
+                                        else "Couldn't enable a reminder for this date."
+                                }
+                            }) {
+                                Text("Remind me on check-in day", color = deepGreen)
+                            }
+                        }
+                    }
+                }
+                if (nextPendingOffset != null) {
+                    OutlinedButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !pendingPageLoading,
+                        onClick = {
+                            val offset = nextPendingOffset ?: return@OutlinedButton
+                            val plantId = selectedPlant.id
+                            val generation = detailRequestGeneration
+                            scope.launch {
+                                pendingPageLoading = true
+                                val response = repository.historyPage(
+                                    plantId, offset = offset, pendingOnly = true,
+                                )
+                                if (!isCurrentPlantDetailRequest(plantId, generation, currentPlantId, detailRequestGeneration)) return@launch
+                                when (response) {
+                                    is ApiResult.Success -> {
+                                        pendingFollowUps = (pendingFollowUps + response.value.events)
+                                            .distinctBy { it.id }
+                                        nextPendingOffset = response.value.nextOffset
+                                        error = null
+                                    }
+                                    is ApiResult.Failure -> error = response.message
+                                }
+                                pendingPageLoading = false
+                            }
+                        },
+                    ) {
+                        Text(
+                            if (pendingPageLoading) "Loading older check-ins…" else "Load older check-ins",
+                            color = deepGreen,
+                        )
                     }
                 }
             }
             if (followUpTarget != null && selectedPlant.canRecord) {
                 PlantupiaPanel {
-                    Text("إيه اللي لاحظته لما رجعت للنبات؟", color = deepGreen, fontSize = 15.sp)
+                    Text("What changed when you checked the plant again?", color = deepGreen, fontSize = 15.sp)
                     OutlinedTextField(
                         value = followUpResult,
                         onValueChange = { followUpResult = it.take(1500) },
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 2,
-                        label = { Text("النتيجة اللي شفتها فعلًا *") },
+                        label = { Text("What you actually observed *") },
                         enabled = !saving,
                     )
                     Button(
@@ -600,200 +1248,170 @@ fun PlantupiaClientSection(
                                     followUpFor = source.id,
                                 )) {
                                     is ApiResult.Failure -> error = response.message
-                                    is ApiResult.Success -> openPlant(selectedPlant)
-                                }
-                                saving = false
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
-                    ) { Text(if (saving) "جارٍ تسجيل النتيجة…" else "احفظ النتيجة وأغلق المتابعة", color = white) }
-                }
-            }
-            BrandEyebrow("CARE & OBSERVATIONS / الرعاية والملاحظة")
-            if (selectedPlant.canRecord) {
-                Button(
-                    onClick = { showCareEditor = !showCareEditor },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
-                ) {
-                    Text(if (showCareEditor) "اخفِ تسجيل اللحظة ↑" else "+ سجّل لحظة جديدة للنبات", color = white)
-                }
-            if (showCareEditor) PlantupiaPanel {
-                Text("لو عملت رعاية، اختار اللي حصل فعلًا:", color = forestText, fontWeight = FontWeight.Medium, fontSize = 13.sp)
-                PlantupiaCareAction.entries.chunked(2).forEach { pair ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        pair.forEach { action ->
-                            OutlinedButton(
-                                modifier = Modifier.weight(1f),
-                                enabled = !saving,
-                                onClick = {
-                                    selectedCareAction = if (selectedCareAction == action) null else action
-                                },
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    containerColor = if (selectedCareAction == action) sage else white,
-                                ),
-                            ) {
-                                Text(
-                                    (if (selectedCareAction == action) "✓ " else "") + action.label,
-                                    color = deepGreen, fontSize = 12.sp,
-                                )
-                            }
-                        }
-                        if (pair.size == 1) Spacer(modifier = Modifier.weight(1f))
-                    }
-                }
-                Text("الأفعال دي للتوثيق فقط، مش توصيات بمواعيد الري.", color = muted, fontSize = 11.sp)
-                OutlinedTextField(
-                    value = note,
-                    onValueChange = { note = it.take(1500) },
-                    label = { Text("إيه اللي لاحظته أو عملته؟") },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 2,
-                    enabled = !saving,
-                )
-                OutlinedButton(onClick = { carePhotoPicker.launch("image/*") }) {
-                    Text(if (carePhotoUri == null) "أضف صورة للملاحظة" else "الصورة جاهزة — غيّرها لو حابب", color = deepGreen)
-                }
-                Text("تحب ترجع تراجع نتيجة اللي حصل إمتى؟", color = forestText, fontSize = 12.sp)
-                Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    listOf(7, 14).forEach { days ->
-                        OutlinedButton(
-                            enabled = !saving,
-                            onClick = { checkAgainInDays = if (checkAgainInDays == days) null else days },
-                            modifier = Modifier.weight(1f),
-                        ) { Text(if (checkAgainInDays == days) "✓ بعد $days يوم" else "بعد $days يوم", color = deepGreen, fontSize = 12.sp) }
-                    }
-                }
-                if (checkAgainInDays != null) {
-                    TextButton(onClick = { checkAgainInDays = null }, enabled = !saving) {
-                        Text("بدون موعد متابعة", color = muted, fontSize = 12.sp)
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        enabled = !saving && (note.isNotBlank() || carePhotoUri != null),
-                        onClick = {
-                            scope.launch {
-                                saving = true
-                                when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "observation", note, it, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() }) } ?: repository.record(selectedPlant.id, "observation", note, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() })) {
-                                    is ApiResult.Failure -> error = r.message
-                                    is ApiResult.Success -> { note = ""; openPlant(selectedPlant) }
-                                }
-                                saving = false
-                            }
-                        },
-                    ) { Text("ملاحظة", color = deepGreen) }
-                    Button(
-                        enabled = !saving && (selectedCareAction != null || note.isNotBlank() || carePhotoUri != null),
-                        onClick = {
-                            val careDetails = buildPlantupiaCareNote(selectedCareAction, note)
-                            scope.launch {
-                                saving = true
-                                when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "care", careDetails, it, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() }) } ?: repository.record(selectedPlant.id, "care", careDetails, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() })) {
-                                    is ApiResult.Failure -> error = r.message
-                                    is ApiResult.Success -> { note = ""; openPlant(selectedPlant) }
-                                }
-                                saving = false
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
-                    ) { Text("رعاية", color = white) }
-                    OutlinedButton(
-                        enabled = !saving && (note.isNotBlank() || carePhotoUri != null),
-                        onClick = {
-                            scope.launch {
-                                saving = true
-                                when (val result = carePhotoUri?.let {
-                                    repository.recordWithPhoto(selectedPlant.id, "issue", note, it, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() })
-                                } ?: repository.record(selectedPlant.id, "issue", note, followUpOn = checkAgainInDays?.let { days -> LocalDate.now().plusDays(days.toLong()).toString() })) {
-                                    is ApiResult.Failure -> error = result.message
                                     is ApiResult.Success -> {
-                                        note = ""
+                                        PlantupiaCareReminderScheduler.cancel(context, source.id)
+                                        reminderRevision += 1
                                         openPlant(selectedPlant)
                                     }
                                 }
                                 saving = false
                             }
                         },
-                    ) { Text("تغيّر مقلق", color = deepGreen) }
-                }
-                Text(
-                    "سجل اللي شفته زي ما هو. مش لازم تشخّص سبب التغيّر.",
-                    color = muted, fontSize = 11.sp,
-                )
-            }
-            } else {
-                Text("لديك صلاحية مشاهدة سجل الرعاية فقط. يمكن للمسؤول منحك صلاحية التوثيق.", color = muted, fontSize = 12.sp)
-            }
-            if (error != null) Text(error.orEmpty(), color = Color(0xFF9A4A31), fontSize = 12.sp)
-            BrandEyebrow("LIVING TIME / من أول صورة لآخر تغيير")
-            if (detailLoading) {
-                Text("جارٍ تحميل التاريخ…", color = muted, fontSize = 13.sp)
-            } else if (events.isEmpty()) {
-                Text("أول ملاحظة منك هتبدأ تاريخ النبات هنا.", color = muted, fontSize = 13.sp)
-            } else {
-                Text("${events.size} لحظات معروضة · من ملاحظات حقيقية، مش تقييم صحة تلقائي", color = muted, fontSize = 12.sp)
-                val photos = events
-                    .filter { it.photoUrl.isNotBlank() }
-                    .sortedBy { it.observedAt }
-                if (photos.size >= 2) {
-                    // Compare actual dated photographs, without asserting
-                    // growth, recovery or a causal improvement from appearance.
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        listOf(photos.first(), photos.last()).forEachIndexed { index, event ->
-                            Surface(
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(14.dp),
-                                color = white,
-                            ) {
-                                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                                    AsyncImage(
-                                        model = event.photoUrl,
-                                        contentDescription = if (index == 0) "أقدم صورة مسجلة" else "أحدث صورة مسجلة",
-                                        modifier = Modifier.fillMaxWidth().height(135.dp),
-                                        contentScale = ContentScale.Crop,
-                                    )
-                                    Text(
-                                        if (index == 0) "أقدم صورة معروضة · ${event.observedAt.take(10)}"
-                                        else "أحدث صورة · ${event.observedAt.take(10)}",
-                                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
-                                        color = muted,
-                                        fontSize = 11.sp,
-                                    )
-                                }
-                            }
-                        }
-                    }
+                        colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
+                    ) { Text(if (saving) "Saving outcome…" else "Save outcome and close check-in", color = white) }
                 }
             }
-            events.sortedByDescending { it.observedAt }.forEach { event ->
+            BrandEyebrow("LIVING HISTORY")
+            when (plantupiaHistoryDisplayState(
+                loading = detailLoading || historyRetryLoading,
+                failed = historyLoadFailed,
+                recordCount = events.size,
+            )) {
+            PlantupiaHistoryDisplayState.LOADING ->
+                Text("Loading history…", color = muted, fontSize = 13.sp)
+            PlantupiaHistoryDisplayState.UNAVAILABLE -> {
                 PlantupiaPanel {
                     Text(
-                        "${eventLabel(event.kind)} · ${event.observedAt.take(10)}",
-                        color = deepGreen, fontSize = 12.sp,
+                        "History couldn't be loaded",
+                        color = forestText,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
                     )
-                    if (event.photoUrl.isNotBlank()) {
-                        AsyncImage(model = event.photoUrl, contentDescription = "صورة من تاريخ النبات", modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(10.dp)), contentScale = ContentScale.Crop)
-                    }
-                    Text(event.note.ifBlank { "حدث رعاية مسجل" }, color = forestText, fontSize = 13.sp, lineHeight = 20.sp)
-                    Text("مصدر المعلومة: ${evidenceLabel(event.evidence)}", color = muted, fontSize = 11.sp)
-                    if (event.followUpOn.isNotBlank()) {
+                    Text(
+                        "We couldn't verify the saved records. Please retry when your connection is available.",
+                        color = muted,
+                        fontSize = 12.sp,
+                    )
+                    OutlinedButton(
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        enabled = !historyRetryLoading,
+                        onClick = {
+                            val plantId = selectedPlant.id
+                            val generation = detailRequestGeneration
+                            scope.launch {
+                                historyRetryLoading = true
+                                val response = repository.historyPage(plantId)
+                                if (!isCurrentPlantDetailRequest(
+                                    plantId, generation, currentPlantId, detailRequestGeneration,
+                                )) return@launch
+                                when (response) {
+                                    is ApiResult.Success -> {
+                                        events = response.value.events
+                                        nextHistoryOffset = response.value.nextOffset
+                                        historyLoadFailed = false
+                                        error = null
+                                    }
+                                    is ApiResult.Failure -> {
+                                        historyLoadFailed = true
+                                        error = response.message
+                                    }
+                                }
+                                historyRetryLoading = false
+                            }
+                        },
+                    ) { Text("Retry loading history", color = deepGreen) }
+                }
+            }
+            PlantupiaHistoryDisplayState.EMPTY -> {
+                // An original blank field-book motif is an empty-state cue,
+                // never a fabricated note/photo/event. Real records appear only
+                // after a successful API save and history refresh.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    PlantupiaEmptyFieldNotesArt(
+                        modifier = Modifier.width(104.dp).height(86.dp),
+                    )
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(5.dp),
+                    ) {
                         Text(
-                            if (event.followUpCompletedAt.isNotBlank()) "تمت المتابعة · ${event.followUpOn}" else "متابعة محددة يوم ${event.followUpOn}",
-                            color = muted, fontSize = 11.sp,
+                            "No field notes yet",
+                            style = PlantupiaText.body,
+                        )
+                        Text(
+                            "Your first saved care or observation will start this plant's history.",
+                            style = PlantupiaText.supporting,
                         )
                     }
                 }
             }
-            if (nextHistoryOffset != null) {
+            PlantupiaHistoryDisplayState.RECORDED -> {
+                Text("${events.size} recorded moments · actual observations, not automatic health scores", color = muted, fontSize = 12.sp)
+                PlantupiaPhotoIndex(
+                    events = events,
+                    hasOlderPages = nextHistoryOffset != null,
+                    onOpenPhoto = { photo ->
+                        photoToView = photo.photoUrl to selectedPlant.name
+                    },
+                )
+            }
+            }
+            val historyReady = !detailLoading && !historyRetryLoading && !historyLoadFailed
+            if (historyReady && events.isNotEmpty()) {
+                Text(
+                    "EXPLORE HISTORY",
+                    color = muted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                )
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(PlantupiaHistoryFilter.entries.size) { index ->
+                        val filter = PlantupiaHistoryFilter.entries[index]
+                        OutlinedButton(
+                            onClick = { historyFilter = filter },
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp, if (historyFilter == filter) deepGreen else sage,
+                            ),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = if (historyFilter == filter) deepGreen else white,
+                                contentColor = if (historyFilter == filter) white else deepGreen,
+                            ),
+                        ) {
+                            Text(filter.label, fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+            val visibleHistory = if (historyReady) {
+                filteredPlantupiaHistory(events, historyFilter)
+            } else {
+                emptyList()
+            }
+            if (historyReady && events.isNotEmpty() && visibleHistory.isEmpty()) {
+                Text(
+                    "No ${historyFilter.label.lowercase()} in the loaded history. " +
+                        "Load older moments to explore earlier records.",
+                    color = muted, fontSize = 12.sp, lineHeight = 19.sp,
+                )
+            }
+            visibleHistory.forEach { moment ->
+                PlantupiaHistoryEventCard(
+                    event = moment.event,
+                    title = eventLabel(moment.event.kind),
+                    evidenceLabel = evidenceLabel(moment.event.evidence),
+                    linkedOutcomes = moment.outcomes,
+                    onPhotoClick = {
+                        if (moment.event.photoUrl.isNotBlank()) {
+                            photoToView = moment.event.photoUrl to selectedPlant.name
+                        }
+                    },
+                )
+            }
+            if (historyReady && nextHistoryOffset != null) {
                 OutlinedButton(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !olderEventsLoading,
                     onClick = {
                         val offset = nextHistoryOffset ?: return@OutlinedButton
+                        val plantId = selectedPlant.id
+                        val generation = detailRequestGeneration
                         scope.launch {
                             olderEventsLoading = true
-                            when (val result = repository.historyPage(selectedPlant.id, offset)) {
+                            val result = repository.historyPage(plantId, offset)
+                            if (!isCurrentPlantDetailRequest(plantId, generation, currentPlantId, detailRequestGeneration)) return@launch
+                            when (result) {
                                 is ApiResult.Success -> {
                                     events = (events + result.value.events).distinctBy { it.id }
                                     nextHistoryOffset = result.value.nextOffset
@@ -806,58 +1424,316 @@ fun PlantupiaClientSection(
                     },
                 ) {
                     Text(
-                        if (olderEventsLoading) "جارٍ تحميل لحظات أقدم…" else "شوف لحظات أقدم ←",
+                        if (olderEventsLoading) "Loading older moments…" else "Load older moments →",
                         color = deepGreen,
                     )
                 }
             }
+            // Secondary record administration follows care, chosen check-ins and real history.
             HorizontalDivider(color = sage)
-            if (openDetailMode != PlantupiaCreateMode.QUESTION) PlantupiaQuestionsPanel(
-                plantId = selectedPlant.id,
-                repository = repository,
-                canPublish = selectedPlant.canRecord,
-                onOpenPost = onOpenLinkedPost,
-                onOutcomeSaved = {
-                    when (val response = repository.historyPage(selectedPlant.id)) {
+            OutlinedButton(
+                onClick = { showPlantManagement = !showPlantManagement },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    if (showPlantManagement) "Hide plant details & settings ↑"
+                    else "Plant details & settings ↓",
+                    color = deepGreen,
+                )
+            }
+            if (showPlantManagement) {
+                PlantupiaPanel {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text("YOUR PLANT NAME", color = muted, fontSize = 11.sp)
+                            Text(selectedPlant.name, color = deepGreen, fontWeight = FontWeight.Medium, fontSize = 19.sp)
+                        }
+                        TextButton(onClick = { showNameEditor = !showNameEditor }) {
+                            Text(if (showNameEditor) "Cancel" else "Rename", color = deepGreen)
+                        }
+                    }
+                    if (showNameEditor) {
+                    OutlinedTextField(
+                        value = plantName,
+                        onValueChange = { plantName = it.take(80) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Plant name") },
+                        singleLine = true,
+                        enabled = !saving,
+                    )
+                    Button(
+                        enabled = !saving && plantName.trim().isNotBlank(),
+                        onClick = {
+                            scope.launch {
+                                saving = true
+                                when (val result = repository.nickname(selectedPlant.id, plantName)) {
+                                    is ApiResult.Failure -> error = result.message
+                                    is ApiResult.Success -> {
+                                        plants = plants.map {
+                                            if (it.id == selectedPlant.id) it.copy(name = plantName.trim()) else it
+                                        }
+                                        error = null
+                                        showNameEditor = false
+                                    }
+                                }
+                                saving = false
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
+                    ) { Text("Save name", color = white) }
+                    }
+                }
+
+                if (spaces.any { it.id == selectedPlant.spaceId && it.canAddPlant }) {
+                    PlantupiaPanel {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("SHARED PLANT CONTEXT", color = muted, fontSize = 11.sp)
+                                Text(
+                                    listOf(
+                                        selectedPlant.species.ifBlank { "Species not specified" },
+                                        selectedPlant.placement.ifBlank { "Placement not specified" },
+                                    ).joinToString(" · "),
+                                    color = forestText, fontSize = 13.sp,
+                                )
+                            }
+                            TextButton(
+                                onClick = {
+                                    showSharedDetailsEditor = !showSharedDetailsEditor
+                                    if (showSharedDetailsEditor) {
+                                        sharedPlantLabel = selectedPlant.label
+                                        sharedSpecies = selectedPlant.species
+                                        sharedPlacement = selectedPlant.placement
+                                    }
+                                },
+                            ) {
+                                Text(if (showSharedDetailsEditor) "Cancel" else "Edit", color = deepGreen)
+                            }
+                        }
+                        if (showSharedDetailsEditor) {
+                            Text(
+                                "Changes here are visible to authorized space members and recorded in the plant's private history. Your personal nickname remains separate.",
+                                color = muted, fontSize = 12.sp, lineHeight = 18.sp,
+                            )
+                            OutlinedTextField(
+                                value = sharedPlantLabel,
+                                onValueChange = { sharedPlantLabel = it.take(120) },
+                                label = { Text("Shared plant name") },
+                                modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !saving,
+                            )
+                            OutlinedTextField(
+                                value = sharedSpecies,
+                                onValueChange = { sharedSpecies = it.take(180) },
+                                label = { Text("Species (if known)") },
+                                modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !saving,
+                            )
+                            OutlinedTextField(
+                                value = sharedPlacement,
+                                onValueChange = { sharedPlacement = it.take(180) },
+                                label = { Text("Placement in this space") },
+                                modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !saving,
+                            )
+                            Button(
+                                enabled = !saving && sharedPlantLabel.isNotBlank() &&
+                                    (sharedPlantLabel.trim() != selectedPlant.label ||
+                                     sharedSpecies.trim() != selectedPlant.species ||
+                                     sharedPlacement.trim() != selectedPlant.placement),
+                                onClick = {
+                                    scope.launch {
+                                        saving = true
+                                        when (val result = repository.updatePlantDetails(
+                                            selectedPlant.id, sharedPlantLabel, sharedSpecies, sharedPlacement,
+                                        )) {
+                                            is ApiResult.Failure -> error = result.message
+                                            is ApiResult.Success -> {
+                                                showSharedDetailsEditor = false
+                                                refresh()
+                                                when (val reloaded = repository.historyPage(selectedPlant.id)) {
+                                                    is ApiResult.Success -> {
+                                                        events = reloaded.value.events
+                                                        nextHistoryOffset = reloaded.value.nextOffset
+                                                        historyLoadFailed = false
+                                                    }
+                                                    is ApiResult.Failure -> {
+                                                        historyLoadFailed = true
+                                                        error = reloaded.message
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        saving = false
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
+                            ) { Text(if (saving) "Saving…" else "Save shared details", color = white) }
+                        }
+                    }
+                }
+
+                if (spaces.any { it.id == selectedPlant.spaceId && it.canAddPlant }) {
+                    PlantupiaPanel {
+                        Text("RECORD STATUS", color = muted, fontSize = 11.sp)
+                        Text(
+                            if (selectedPlant.active) "Keep a plant's history if it leaves your active space."
+                            else "Restore this plant to resume new care and optional check-ins.",
+                            color = forestText, fontSize = 12.sp,
+                        )
+                        OutlinedButton(
+                            onClick = { pendingArchiveAction = selectedPlant.active },
+                            enabled = !saving,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                if (selectedPlant.active) "Archive plant" else "Restore plant",
+                                color = deepGreen,
+                            )
+                        }
+                    }
+                }
+
+            }
+            // Keep optional public composition separate from everyday care.
+            OutlinedButton(
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                onClick = { showPlantSharing = !showPlantSharing },
+            ) {
+                Text(
+                    if (showPlantSharing) "Hide community options ↑" else "Community & sharing (optional) ↓",
+                    color = deepGreen,
+                )
+            }
+            if (showPlantSharing) {
+                PlantupiaQuestionsPanel(
+                    plantId = selectedPlant.id,
+                    repository = repository,
+                    compactHeader = true,
+                    canPublish = selectedPlant.canRecord,
+                    onOpenPost = onOpenLinkedPost,
+                    onOutcomeSaved = {
+                        val plantId = selectedPlant.id
+                        val generation = detailRequestGeneration
+                        val response = repository.historyPage(plantId)
+                        if (!isCurrentPlantDetailRequest(plantId, generation, currentPlantId, detailRequestGeneration)) return@PlantupiaQuestionsPanel
+                        when (response) {
                             is ApiResult.Success -> {
                                 events = response.value.events
                                 nextHistoryOffset = response.value.nextOffset
+                                historyLoadFailed = false
                                 error = null
                             }
-                            is ApiResult.Failure -> error = response.message
+                            is ApiResult.Failure -> {
+                                historyLoadFailed = true
+                                error = response.message
+                            }
                         }
+                    },
+                )
+                TextButton(onClick = onCommunityCreateClick) {
+                    Text("Create a separate public post →", color = deepGreen)
+                }
+                Text(
+                    "Only the question, text and photo you approve are shared publicly. Private history stays in this plant.",
+                    color = muted,
+                    fontSize = 11.sp,
+                )
+            }
+            } // End of the normal private plant detail (not the Ask Circle flow).
+        }
+    }
+    photoToView?.let { (url, plantName) ->
+        PlantupiaPhotoViewer(
+            photoUrl = url,
+            plantName = plantName,
+            onClose = { photoToView = null },
+        )
+    }
+    pendingArchiveAction?.let { archived ->
+        selectedPlant?.let { plant ->
+            AlertDialog(
+                onDismissRequest = { if (!saving) pendingArchiveAction = null },
+                title = {
+                    Text(if (archived) "Archive ${plant.name}?" else "Restore ${plant.name}?")
+                },
+                text = {
+                    Text(
+                        if (archived) "This removes the plant from active care and stops its local reminders on this device. Private history, photos and original check-in dates remain. Nothing is deleted or marked watered."
+                        else "The plant returns to active care. Historical check-in dates remain as recorded; review them before scheduling reminders.",
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        enabled = !saving,
+                        onClick = {
+                            pendingArchiveAction = null
+                            scope.launch {
+                                saving = true
+                                when (val result = repository.setPlantArchived(plant.id, archived)) {
+                                    is ApiResult.Failure -> error = result.message
+                                    is ApiResult.Success -> {
+                                        if (archived) {
+                                            PlantupiaCareReminderScheduler.cancelForPlant(context, plant.id)
+                                            pendingFollowUps.forEach {
+                                                PlantupiaCareReminderScheduler.cancel(context, it.id)
+                                            }
+                                            pendingFollowUps = emptyList()
+                                            nextPendingOffset = null
+                                            showCareEditor = false
+                                            followUpTarget = null
+                                        }
+                                        refresh()
+                                        when (val history = repository.historyPage(plant.id)) {
+                                            is ApiResult.Success -> {
+                                                events = history.value.events
+                                                nextHistoryOffset = history.value.nextOffset
+                                                historyLoadFailed = false
+                                            }
+                                            is ApiResult.Failure -> {
+                                                historyLoadFailed = true
+                                                error = history.message
+                                            }
+                                        }
+                                    }
+                                }
+                                saving = false
+                            }
+                        },
+                    ) { Text(if (archived) "Archive" else "Restore") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingArchiveAction = null }) { Text("Cancel") }
                 },
             )
-            HorizontalDivider(color = sage)
-            Text("أو شارك لحظة عامة مع الناس", color = forestText, fontSize = 14.sp)
-            OutlinedButton(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = onCommunityCreateClick,
-            ) {
-                Text("منشور عام مستقل", color = deepGreen)
-            }
-            Text(
-                "اللحظات العامة والستوريز من Nova متاحة؛ أسئلة النبات المنشورة أعلاه مرتبطة بتاريخ النبات فقط بعد موافقتك.",
-                color = muted,
-                fontSize = 11.sp,
-                lineHeight = 18.sp,
-            )
         }
+    }
+    if (showAssistant) {
+        PlantupiaAssistantSheet(
+            plant = selectedPlant,
+            repository = repository,
+            onDismiss = { showAssistant = false },
+        )
     }
 }
 
 private fun eventLabel(kind: String): String = when (kind) {
-    "care" -> "رعاية مسجلة"
-    "issue" -> "ملاحظة تحتاج متابعة"
-    "outcome" -> "نتيجة موثقة"
-    else -> "ملاحظة مسجلة"
+    "care" -> "Care recorded"
+    "issue" -> "Observation needs attention"
+    "outcome" -> "Documented outcome"
+    else -> "Observation recorded"
 }
 
 private fun evidenceLabel(kind: String): String = when (kind) {
-    "measured" -> "قياس"
-    "reported" -> "نقلًا عن شخص آخر"
-    "inferred" -> "استنتاج غير مؤكّد"
-    else -> "ملاحظة مباشرة"
+    "measured" -> "Measurement"
+    "reported" -> "Reported by someone else"
+    "inferred" -> "Unverified inference"
+    else -> "Direct observation"
 }
 
 @Composable

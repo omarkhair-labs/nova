@@ -185,6 +185,7 @@ fun StoriesRail(
                         symbol = "+",
                         avatarUrl = if (myGroup == null) avatarUrl else "",
                         fallback = displayName.ifBlank { username },
+                        userId = currentUserId,
                         onClick = { picker.launch(arrayOf("image/*", "video/*")) },
                     )
                 }
@@ -279,6 +280,7 @@ private fun StoryCreateRailItem(
     symbol: String,
     avatarUrl: String,
     fallback: String,
+    userId: Long? = null,
     onClick: () -> Unit,
 ) {
     Column(
@@ -292,8 +294,8 @@ private fun StoryCreateRailItem(
             border = BorderStroke(1.5.dp, NovaAccent.copy(alpha = 0.55f)),
         ) {
             Box(contentAlignment = Alignment.Center) {
-                if (avatarUrl.isNotBlank()) {
-                    NovaAvatar(source = avatarUrl, fallbackText = fallback, size = 52.dp)
+                if (avatarUrl.isNotBlank() || userId != null) {
+                    NovaAvatar(source = avatarUrl, fallbackText = fallback, size = 52.dp, plantupiaUserId = userId)
                     Surface(
                         modifier = Modifier.align(Alignment.BottomEnd).size(21.dp),
                         shape = CircleShape,
@@ -334,6 +336,8 @@ private fun StoryGroupRailItem(group: NovaStoryGroup, label: String, onClick: ()
                     source = group.author.avatarUrl,
                     fallbackText = group.author.displayName,
                     size = 50.dp,
+                    plantupiaUserId = group.author.id,
+                    plantupiaAvatarVariant = group.author.plantupiaAvatarVariant,
                 )
             }
         }
@@ -680,7 +684,7 @@ private fun StoryViewer(
                 }
                 Spacer(Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    NovaAvatar(source = story.author.avatarUrl, fallbackText = story.author.displayName, size = 38.dp)
+                    NovaAvatar(source = story.author.avatarUrl, fallbackText = story.author.displayName, size = 38.dp, plantupiaUserId = story.author.id, plantupiaAvatarVariant = story.author.plantupiaAvatarVariant)
                     Spacer(Modifier.width(9.dp))
                     Column(Modifier.weight(1f)) {
                         Text(story.author.displayName, color = StoryInk, fontSize = 13.sp, fontWeight = FontWeight.Bold)
@@ -1044,7 +1048,7 @@ private fun StoryViewersDialog(owner: StoryViewerStateOwner) {
                 ) {
                     items(state.viewers, key = { it.user.id }) { viewer ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            NovaAvatar(source = viewer.user.avatarUrl, fallbackText = viewer.user.displayName, size = 36.dp)
+                            NovaAvatar(source = viewer.user.avatarUrl, fallbackText = viewer.user.displayName, size = 36.dp, plantupiaUserId = viewer.user.id, plantupiaAvatarVariant = viewer.user.plantupiaAvatarVariant)
                             Spacer(Modifier.width(9.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(viewer.user.displayName, color = NovaInk, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)

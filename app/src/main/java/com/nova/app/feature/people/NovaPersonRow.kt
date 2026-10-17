@@ -69,6 +69,8 @@ internal fun NovaPersonRow(
                     source = person.avatarUrl,
                     fallbackText = person.name.ifBlank { person.username },
                     size = 48.dp,
+                    plantupiaUserId = person.id,
+                    plantupiaAvatarVariant = person.plantupiaAvatarVariant,
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Row(

@@ -100,14 +100,14 @@ fun PeopleScreen(
                 .padding(horizontal = NovaSpacing.xl),
         ) {
             Text(
-                text = "الناس",
+                text = "People",
                 color = NovaInk,
                 style = NovaType.pageTitle,
                 modifier = Modifier.padding(top = NovaSpacing.lg),
             )
             Spacer(modifier = Modifier.height(NovaSpacing.sm))
             Text(
-                text = "اكتشف أشخاصًا وتجارب من المجتمع. المتابعة اختيارك.",
+                text = "Discover people and experiences in the community. Following is always your choice.",
                 color = NovaMuted,
                 style = NovaType.bodyCompact,
             )

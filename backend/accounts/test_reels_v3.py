@@ -54,10 +54,13 @@ class ReelFlowTests(APITestCase):
         )
 
     def test_video_upload_returns_reel_and_feed(self):
+        self.me.plantupia_avatar_variant = 3
+        self.me.save(update_fields=["plantupia_avatar_variant"])
         created = self.create_reel_as(self.me, "First Nova Reel")
         self.assertEqual(created.status_code, status.HTTP_201_CREATED)
         self.assertEqual(created.data["caption"], "First Nova Reel")
         self.assertEqual(created.data["author"]["username"], self.me.username)
+        self.assertEqual(created.data["author"]["plantupia_avatar_variant"], 3)
         self.assertTrue(created.data["video_url"].endswith(".mp4"))
         self.assertTrue(Reel.objects.filter(pk=created.data["id"]).exists())
 
@@ -66,6 +69,7 @@ class ReelFlowTests(APITestCase):
         self.assertEqual(feed.status_code, status.HTTP_200_OK)
         self.assertEqual(len(feed.data["results"]), 1)
         self.assertEqual(feed.data["results"][0]["id"], created.data["id"])
+        self.assertEqual(feed.data["results"][0]["author"]["plantupia_avatar_variant"], 3)
 
     def test_reel_publish_identity_prevents_duplicate_retry(self):
         publish_id = str(uuid.uuid4())

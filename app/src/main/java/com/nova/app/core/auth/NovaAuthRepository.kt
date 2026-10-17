@@ -7,6 +7,7 @@ import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.UploadFile
 import com.nova.app.core.push.NovaPushRegistration
+import com.nova.app.feature.plants.PlantupiaCareReminderScheduler
 import com.nova.app.feature.auth.data.remote.AuthRemoteDataSource
 import com.nova.app.feature.auth.domain.model.AuthSession
 import com.nova.app.feature.auth.domain.model.NovaUser
@@ -127,6 +128,7 @@ class NovaAuthRepository(
         interests: List<String>,
         profileTheme: String,
         showOrbit: Boolean,
+        plantupiaAvatarVariant: Int = -1,
     ): ApiResult<NovaUser> {
         val stored = sessionStore.load()
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
@@ -147,10 +149,14 @@ class NovaAuthRepository(
             interests = interests.map(String::trim).filter(String::isNotBlank).distinct().take(8),
             profileTheme = profileTheme,
             showOrbit = showOrbit,
+            plantupiaAvatarVariant = plantupiaAvatarVariant,
         )
     }
 
     fun logout() {
+        // Explicit local check-in reminders belong to the signed-in person.
+        // Remove pending work before another account can use this device.
+        PlantupiaCareReminderScheduler.clearForLogout(appContext)
         NovaPendingRegistrationPhoto.clear()
         val accessToken = sessionStore.load()?.accessToken
         NovaPushRegistration.logout(
@@ -171,6 +177,7 @@ class NovaAuthRepository(
         interests: List<String>,
         profileTheme: String,
         showOrbit: Boolean,
+        plantupiaAvatarVariant: Int = -1,
     ): ApiResult<NovaUser> {
         when (
             val first = remote.updateProfile(
@@ -184,6 +191,7 @@ class NovaAuthRepository(
                 interests = interests,
                 profileTheme = profileTheme,
                 showOrbit = showOrbit,
+                plantupiaAvatarVariant = plantupiaAvatarVariant,
             )
         ) {
             is ApiResult.Success -> {
@@ -211,6 +219,7 @@ class NovaAuthRepository(
                         interests = interests,
                         profileTheme = profileTheme,
                         showOrbit = showOrbit,
+                        plantupiaAvatarVariant = plantupiaAvatarVariant,
                     )
                 ) {
                     is ApiResult.Success -> {

@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.dp
 import com.nova.app.SettingsActivity
 import com.nova.app.SocialGraphActivity
 import com.nova.app.feature.plants.PlantupiaProfileSpaces
+import com.nova.app.feature.plants.PlantupiaColors
+import com.nova.app.feature.plants.PlantupiaText
 import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.ui.components.NovaUnreadDot
@@ -47,6 +49,8 @@ import com.nova.app.ui.theme.NovaType
 @Composable
 fun ProfileScreen(
     displayName: String,
+    userId: Long = 0L,
+    avatarVariant: Int = -1,
     username: String,
     avatarUrl: String,
     bio: String,
@@ -77,7 +81,7 @@ fun ProfileScreen(
     }
 
     Scaffold(
-        containerColor = NovaBackground,
+        containerColor = PlantupiaColors.cream,
         bottomBar = {
             NovaBottomBar(
                 selected = NovaTab.Profile,
@@ -91,7 +95,7 @@ fun ProfileScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(NovaBackground)
+                .background(PlantupiaColors.cream)
                 .padding(innerPadding)
                 .statusBarsPadding()
                 .verticalScroll(rememberScrollState())
@@ -103,15 +107,14 @@ fun ProfileScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column {
-                    Text(text = "YOU / PLANTUPIA", color = NovaMuted, style = NovaType.micro)
-                    Text(text = "حكايتك مع المكان", color = NovaInk, style = NovaType.pageTitle)
-                    Text(text = "هويتك في المجتمع ومساحاتك الخاصة — كل حاجة في مكانها.", color = NovaMuted, style = NovaType.meta)
+                    Text(text = "PLANTUPIA / ME", style = PlantupiaText.sectionLabel)
+                    Text(text = "Your profile", style = NovaType.sectionTitle.copy(color = PlantupiaColors.forestText))
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box {
                         NovaIconButton(
                             asset = NovaIconAsset.Inbox,
-                            contentDescription = "الرسائل",
+                            contentDescription = "Messages",
                             onClick = { NovaMessagingNavigator.openInbox(context = context) },
                             iconSize = 20.dp,
                         )
@@ -121,7 +124,7 @@ fun ProfileScreen(
                     }
                     NovaIconButton(
                         asset = NovaIconAsset.Settings,
-                        contentDescription = "الإعدادات",
+                        contentDescription = "Settings",
                         onClick = { context.startActivity(Intent(context, SettingsActivity::class.java)) },
                         iconSize = 20.dp,
                     )
@@ -129,16 +132,16 @@ fun ProfileScreen(
             }
 
             Spacer(modifier = Modifier.height(NovaSpacing.xl))
-            NovaProfileIdentity(
+            PlantupiaMeIdentity(
                 displayName = displayName,
+                userId = userId,
+                avatarVariant = avatarVariant,
                 username = username,
                 avatarUrl = avatarUrl,
                 bio = bio,
                 location = location,
                 link = link,
                 interests = interests,
-                profileTheme = profileTheme,
-                showOrbit = showOrbit,
                 isVerified = isVerified,
             )
 
@@ -146,9 +149,11 @@ fun ProfileScreen(
             // The personal, authenticated view only. Plantupia sites and
             // care records must never be injected into public Nova posts
             // or another user's PersonScreen.
-            PlantupiaProfileSpaces(onOpenSpaces = onHomeClick)
+            PlantupiaProfileSpaces(accountId = userId, onOpenSpaces = onHomeClick)
 
-            Spacer(modifier = Modifier.height(NovaSpacing.xxl))
+            Spacer(modifier = Modifier.height(NovaSpacing.lg))
+            Text("COMMUNITY", style = PlantupiaText.sectionLabel)
+            Spacer(modifier = Modifier.height(NovaSpacing.sm))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
@@ -179,7 +184,7 @@ fun ProfileScreen(
                 onClick = onEditProfile,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Spacer(modifier = Modifier.height(NovaSpacing.xxl))
+            Spacer(modifier = Modifier.height(NovaSpacing.lg))
             NovaPagedProfilePostsGrid(
                 username = username,
                 owner = profileContentOwner,
