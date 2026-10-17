@@ -413,10 +413,7 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
     }
 }
 
-@Composable
-private fun QuestionCard(entry: PlantupiaQuestion, onClick: () -> Unit) {
-    Surface(
-        modifier = Modifier./**
+/**
  * Compact question-first content: the public image is optional supporting evidence,
  * not a full-width feed hero. A documented outcome is shown only when the API says
  * it has been deliberately recorded by the plant's author.
