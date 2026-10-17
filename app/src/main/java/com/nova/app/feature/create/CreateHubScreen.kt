@@ -87,6 +87,12 @@ fun CreateHubScreen(
     // Nova engines remain functional; secondary formats are opened on demand.
     var activeFormat by remember { mutableStateOf<String?>(null) }
     var showOtherFormats by remember { mutableStateOf(false) }
+    val createListState = rememberLazyListState()
+    // Secondary Nova formats render after the existing five primary sections.
+    // Bring the real composer into view rather than leaving it below the fold.
+    LaunchedEffect(activeFormat) {
+        if (activeFormat != null) createListState.animateScrollToItem(5)
+    }
 
     val context = LocalContext.current
     val plantRepository = remember(context) { PlantupiaRepository(context.applicationContext) }
@@ -149,6 +155,7 @@ fun CreateHubScreen(
         },
     ) { innerPadding ->
         LazyColumn(
+            state = createListState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
