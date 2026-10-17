@@ -2,13 +2,11 @@ package com.nova.app.feature.create
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -25,20 +23,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
-import com.nova.app.core.network.ApiResult
-import com.nova.app.feature.plants.data.PlantupiaRepository
 import com.nova.app.feature.plants.PlantupiaCreateIntent
 import com.nova.app.feature.plants.PlantupiaCreateMode
 import com.nova.app.feature.memories.MemoriesRail
@@ -47,7 +37,6 @@ import com.nova.app.feature.rooms.RoomsRail
 import com.nova.app.feature.stories.StoriesRail
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
-import com.nova.app.ui.components.NovaCard
 import com.nova.app.ui.components.NovaTab
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
@@ -59,8 +48,10 @@ import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSpacing
 import com.nova.app.ui.theme.NovaType
-import kotlinx.coroutines.launch
 
+
+// Four fixed top-level sections precede the optional native social media editor.
+internal const val CREATE_FORMAT_ITEM_INDEX = 4
 
 private data class CreateHubAction(
     val title: String,
@@ -94,23 +85,12 @@ fun CreateHubScreen(
     // Repeated taps also return to the live editor if the user has scrolled away.
     LaunchedEffect(formatOpenRevision) {
         if (formatOpenRevision > 0 && activeFormat != null) {
-            createListState.animateScrollToItem(5)
+            createListState.animateScrollToItem(CREATE_FORMAT_ITEM_INDEX)
         }
     }
     fun openFormat(format: String) {
         activeFormat = format
         formatOpenRevision += 1
-    }
-
-    val context = LocalContext.current
-    val plantRepository = remember(context) { PlantupiaRepository(context.applicationContext) }
-    var livingCover by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(plantRepository) {
-        when (val result = plantRepository.plants()) {
-            is ApiResult.Success ->
-                livingCover = result.value.firstOrNull { it.active && it.coverPhoto.isNotBlank() }?.coverPhoto
-            is ApiResult.Failure -> Unit
-        }
     }
 
     fun enterPlant(mode: PlantupiaCreateMode) {
@@ -121,18 +101,18 @@ fun CreateHubScreen(
     val publicActions = listOf(
         CreateHubAction(
             "Ask about your plant",
-            "Choose a plant, a question and the photo you approve for publishing",
+            "Review the exact question and photo before sharing",
             NovaIconAsset.Orbit,
         ) { enterPlant(PlantupiaCreateMode.QUESTION) },
         CreateHubAction(
             "Share an experience",
-            "A public photo or story, without sharing your private plant history",
+            "Publish an experience to your community",
             NovaIconAsset.Create,
             onCreatePost,
         ),
         CreateHubAction(
             "Story",
-            "Photo, video or text for 24 hours — public only if you choose",
+            "Temporary photo, video or text",
             NovaIconAsset.Story,
         ) { openFormat("story") },
         CreateHubAction(
@@ -182,90 +162,61 @@ fun CreateHubScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(NovaSpacing.xs)) {
-                        Text("A LIVING RECORD", color = NovaAccent, style = NovaType.micro)
-                        Text("Today's moments become tomorrow's history.", color = NovaInk, style = NovaType.screenTitle)
+                    Column(verticalArrangement = Arrangement.spacedBy(NovaSpacing.xxs)) {
+                        Text("PLANTUPIA / CREATE", color = NovaAccent, style = NovaType.micro)
+                        Text("What would you like to do?", color = NovaInk, style = NovaType.sectionTitle)
                     }
                     Surface(onClick = onProfileClick, shape = CircleShape, color = NovaAccentSoft) {
                         NovaAvatar(
                             source = avatarUrl,
-                            fallbackText = displayName.ifBlank { username },
-                            size = 44.dp,
+                            fallbackText = displayName.ifBlank { username }.ifBlank { "Plantupia" },
+                            size = 40.dp,
                         )
                     }
                 }
             }
             item(key = "living-create-private") {
-                Surface(
-                    onClick = { enterPlant(PlantupiaCreateMode.OBSERVATION) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
-                    color = NovaAccent,
-                ) {
-                    Column(
-                        modifier = Modifier.padding(22.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
-                    ) {
-                        Text("01 / PRIVATE · YOUR PLANT", color = Color(0xFFBDD4BD), style = NovaType.micro)
-                        Text(
-                            "Record a moment in your plant's life",
-                            color = Color(0xFFF3EEDE),
-                            style = NovaType.screenTitle,
-                        )
-                        Text(
-                            "An observation, photo or care action. Everything stays in your private plant history.",
-                            color = Color(0xFFD5E5D8),
-                            style = NovaType.bodyCompact,
-                        )
-                        if (!livingCover.isNullOrBlank()) {
-                            AsyncImage(
-                                model = livingCover,
-                                contentDescription = "Real photo of your plants",
-                                modifier = Modifier.fillMaxWidth().height(174.dp).clip(RoundedCornerShape(15.dp)),
-                                contentScale = ContentScale.Crop,
-                            )
-                        }
-                        Text("Choose a plant and record →", color = Color(0xFFF3EEDE), style = NovaType.label)
-                    }
-                }
-            }
-            item(key = "living-create-new-plant") {
-                CreateActionCard(
-                    CreateHubAction(
-                        title = "Add a plant to your space",
-                        subtitle = "A real plant with its photo and placement. If you're new, we'll create a space first.",
-                        icon = NovaIconAsset.Create,
-                    ) { enterPlant(PlantupiaCreateMode.ADD_PLANT) },
+                CreateIntentGroup(
+                    title = "PRIVATE · ONLY YOU & AUTHORIZED CARERS",
+                    hint = "Saved to your plant's private living record.",
+                    actions = listOf(
+                        CreateHubAction(
+                            "Record care or observation",
+                            "Choose a plant and record what happened",
+                            NovaIconAsset.Home,
+                        ) { enterPlant(PlantupiaCreateMode.OBSERVATION) },
+                        CreateHubAction(
+                            "Add a plant",
+                            "Create a real plant record in your space",
+                            NovaIconAsset.Create,
+                        ) { enterPlant(PlantupiaCreateMode.ADD_PLANT) },
+                        CreateHubAction(
+                            "New space",
+                            "Choose where your plants live",
+                            NovaIconAsset.Home,
+                        ) { enterPlant(PlantupiaCreateMode.ADD_SPACE) },
+                    ),
                 )
             }
             item(key = "living-create-public") {
-                Column(verticalArrangement = Arrangement.spacedBy(NovaSpacing.sm)) {
-                    Text("02 / THE CIRCLE · SHARING IS OPTIONAL", color = NovaAccent, style = NovaType.micro)
-                    Text(
-                        "From your space to your community",
-                        color = NovaInk,
-                        style = NovaType.sectionTitle,
-                    )
-                    Text(
-                        "Your public question, photo or post is separate from your private plant history.",
-                        color = NovaMuted,
-                        style = NovaType.bodyCompact,
-                    )
-                    publicActions.forEach { action -> CreateActionCard(action) }
-                }
+                CreateIntentGroup(
+                    title = "PUBLIC · SHARE ONLY WHAT YOU CHOOSE",
+                    hint = "Public sharing is separate from your private care history.",
+                    actions = publicActions,
+                )
             }
             item(key = "living-create-other") {
-                TextButton(onClick = {
-                    showOtherFormats = !showOtherFormats
-                    if (!showOtherFormats) activeFormat = null
-                }) {
-                    Text(
-                        if (showOtherFormats) "Hide other formats ↑" else "Other social formats (optional) ↓",
-                        color = NovaAccent,
-                    )
-                }
-                if (showOtherFormats) {
-                    Column(verticalArrangement = Arrangement.spacedBy(NovaSpacing.sm)) {
+                Column(verticalArrangement = Arrangement.spacedBy(NovaSpacing.xs)) {
+                    TextButton(onClick = {
+                        showOtherFormats = !showOtherFormats
+                        if (!showOtherFormats) activeFormat = null
+                    }) {
+                        Text(
+                            if (showOtherFormats) "Hide more formats ↑" else "More community formats ↓",
+                            color = NovaAccent,
+                        )
+                    }
+                    if (showOtherFormats) {
                         otherFormats.forEach { action -> CreateActionCard(action) }
                     }
                 }
@@ -308,12 +259,34 @@ fun CreateHubScreen(
 
 
 @Composable
+private fun CreateIntentGroup(
+    title: String,
+    hint: String,
+    actions: List<CreateHubAction>,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
+    ) {
+        Text(title, color = NovaAccent, style = NovaType.micro)
+        Text(hint, color = NovaMuted, style = NovaType.meta)
+        actions.forEach { action -> CreateActionCard(action) }
+    }
+}
+
+@Composable
 private fun CreateActionCard(action: CreateHubAction) {
-    NovaCard(onClick = action.onClick, modifier = Modifier.fillMaxWidth()) {
+    Surface(
+        onClick = action.onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = Color(0xFFFFFDF7),
+        border = BorderStroke(1.dp, NovaBorder),
+    ) {
         Row(
-            modifier = Modifier.padding(NovaSpacing.md),
+            modifier = Modifier.padding(horizontal = NovaSpacing.md, vertical = NovaSpacing.sm),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(NovaSpacing.md),
+            horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
         ) {
             Surface(
                 shape = CircleShape,
