@@ -52,4 +52,9 @@ class PlantupiaSpaceFocusTest {
         assertEquals("100 plants in this space", spacePlantCountSummary(100))
     }
 
+    @Test fun homeHeroNeverLabelsPlantPhotoAsSitePhotography() {
+        assertEquals("PLANT PHOTO · IN THIS SPACE", spaceHeroMediaEyebrow(true))
+        assertEquals("LIVING SPACE", spaceHeroMediaEyebrow(false))
+    }
+
 }
