@@ -73,3 +73,5 @@ Codex may challenge iconography, illustration composition, user identity and inf
 - Added pure JVM deterministic-style tests. **Still incomplete:** posts/comments/Stories/Reels/notifications, user-selectable avatar variant persisted to server, complete profile hierarchy, real-device screen sizes/TalkBack and cross-account visual signoff. No claim of an APK or owner acceptance.
 
 **Shared Nova UI architecture seam (CI follow-up):** Keep `NovaAvatar` as the actual Me/People call-site owner. These surfaces opt into the authored illustration via optional `plantupiaUserId`; all unmodified NovaAvatar callers retain the original behavior. No guard weakened or bypassed. Verify the native build and tests at the new exact SHA.
+
+**W2 social identity integration continuation:** Reused the same opt-in NovaAvatar seam for actual Post author, Comment/Reply author, Stories author/viewer and self Add Story rail (including a missing real photo). IDs come from Nova post and story models; group chat identity and anonymous text-story composer remain intentionally separate. Android/build and phone proof still required.

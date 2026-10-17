@@ -241,3 +241,5 @@ Build the following connected groups continuously, with developer-side testing/C
 - **CODED:** new original `PlantupiaAvatar`, deterministic by API numeric account ID, overrides with real authorized profile photo, with visual fallback when photo is missing/failed. Applied to self/public identity, People, Edit Profile preview, direct Inbox.
 - **PARTIAL:** remaining posts/comments/Stories/Reels/DM header/notifications, avatar selection visible across devices, unified public profile art direction.
 - **QA GATE:** Android JVM/lint/build on exact SHA; actual two-account continuity, large text, 24–96dp, offline and failed image cases. No owner acceptance, signed APK, Play or production changes.
+
+- **W2 social extension CODED:** authentic public Post author + comment/reply author, Story rail and Story viewer/person list use the exact same account-ID illustration fallback. Create-Story without real image shows the actual owner's illustrated identity; separate text-story symbol is not a person. Prior audience/media/reply behavior stays inherited. **NOT device accepted**; backend and Android CI must pass at final HEAD.
