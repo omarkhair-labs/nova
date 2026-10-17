@@ -647,18 +647,14 @@ fun PlantupiaClientSection(
             TextButton(onClick = { closePlant() }) {
                 Text("← Back to space", color = deepGreen)
             }
-            BrandEyebrow("LIVING RECORD")
-            if (openDetailMode != null) {
-                BrandEyebrow(
-                    if (openDetailMode == PlantupiaCreateMode.QUESTION)
-                        "ASK ABOUT THIS PLANT"
-                    else "RECORD A MOMENT"
-                )
+            BrandEyebrow(
+                if (openDetailMode == PlantupiaCreateMode.QUESTION) "ASK THE CIRCLE"
+                else "YOUR PLANT · PRIVATE RECORD"
+            )
+            if (openDetailMode == PlantupiaCreateMode.QUESTION) {
                 Text(
-                    if (openDetailMode == PlantupiaCreateMode.QUESTION)
-                        "Ask about this plant without publishing its private care records."
-                    else "Record what you observed or did. This stays in the plant's private history.",
-                    color = muted, fontSize = 13.sp,
+                    "Choose what to share. Your care records and place stay private.",
+                    color = muted, fontSize = 12.sp,
                 )
             }
             // Identify the *actual selected plant* before showing its photo or controls.
@@ -716,7 +712,7 @@ fun PlantupiaClientSection(
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
                     ) {
-                        Text(if (showCareEditor) "Hide record form ↑" else "+ Record a plant moment", color = white)
+                        Text(if (showCareEditor) "Close care form ↑" else "+ Record care or observation", color = white)
                     }
                 if (showCareEditor) PlantupiaPanel {
                     Text("Which care action did you actually perform?", color = forestText, fontWeight = FontWeight.Medium, fontSize = 13.sp)
