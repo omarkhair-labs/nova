@@ -156,6 +156,8 @@ fun PlantupiaClientSection(
     var olderEventsLoading by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(true) }
     var detailLoading by remember { mutableStateOf(false) }
+    var historyRetryLoading by remember { mutableStateOf(false) }
+    var historyLoadFailed by remember(currentPlantId) { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     var plantName by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
@@ -226,6 +228,8 @@ fun PlantupiaClientSection(
         nextPendingOffset = null
         pendingPageLoading = false
         olderEventsLoading = false
+        historyRetryLoading = false
+        historyLoadFailed = false
         detailLoading = true
         error = null
         nextHistoryOffset = null
@@ -235,8 +239,13 @@ fun PlantupiaClientSection(
             is ApiResult.Success -> {
                 events = response.value.events
                 nextHistoryOffset = response.value.nextOffset
+                historyLoadFailed = false
             }
-            is ApiResult.Failure -> { events = emptyList(); error = response.message }
+            is ApiResult.Failure -> {
+                events = emptyList()
+                historyLoadFailed = true
+                error = response.message
+            }
         }
         val pendingResponse = repository.historyPage(plant.id, pendingOnly = true)
         if (!isCurrentPlantDetailRequest(plant.id, requestGeneration, currentPlantId, detailRequestGeneration)) return
@@ -282,6 +291,8 @@ fun PlantupiaClientSection(
         nextPendingOffset = null
         pendingPageLoading = false
         olderEventsLoading = false
+        historyRetryLoading = false
+        historyLoadFailed = false
         detailLoading = false
         error = null
         scope.launch { refresh() }
@@ -1036,9 +1047,13 @@ fun PlantupiaClientSection(
                             is ApiResult.Success -> {
                                 events = response.value.events
                                 nextHistoryOffset = response.value.nextOffset
+                                historyLoadFailed = false
                                 error = null
                             }
-                            is ApiResult.Failure -> error = response.message
+                            is ApiResult.Failure -> {
+                                historyLoadFailed = true
+                                error = response.message
+                            }
                         }
                     },
                 )
@@ -1247,9 +1262,57 @@ fun PlantupiaClientSection(
                 }
             }
             BrandEyebrow("LIVING HISTORY")
-            if (detailLoading) {
+            when (plantupiaHistoryDisplayState(
+                loading = detailLoading || historyRetryLoading,
+                failed = historyLoadFailed,
+                recordCount = events.size,
+            )) {
+            PlantupiaHistoryDisplayState.LOADING ->
                 Text("Loading history…", color = muted, fontSize = 13.sp)
-            } else if (events.isEmpty()) {
+            PlantupiaHistoryDisplayState.UNAVAILABLE -> {
+                PlantupiaPanel {
+                    Text(
+                        "History couldn't be loaded",
+                        color = forestText,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        "We can't confirm whether this plant has saved records. Your data hasn't been erased.",
+                        color = muted,
+                        fontSize = 12.sp,
+                    )
+                    OutlinedButton(
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        enabled = !historyRetryLoading,
+                        onClick = {
+                            val plantId = selectedPlant.id
+                            val generation = detailRequestGeneration
+                            scope.launch {
+                                historyRetryLoading = true
+                                val response = repository.historyPage(plantId)
+                                if (!isCurrentPlantDetailRequest(
+                                    plantId, generation, currentPlantId, detailRequestGeneration,
+                                )) return@launch
+                                when (response) {
+                                    is ApiResult.Success -> {
+                                        events = response.value.events
+                                        nextHistoryOffset = response.value.nextOffset
+                                        historyLoadFailed = false
+                                        error = null
+                                    }
+                                    is ApiResult.Failure -> {
+                                        historyLoadFailed = true
+                                        error = response.message
+                                    }
+                                }
+                                historyRetryLoading = false
+                            }
+                        },
+                    ) { Text("Retry loading history", color = deepGreen) }
+                }
+            }
+            PlantupiaHistoryDisplayState.EMPTY -> {
                 // An original blank field-book motif is an empty-state cue,
                 // never a fabricated note/photo/event. Real records appear only
                 // after a successful API save and history refresh.
@@ -1275,7 +1338,8 @@ fun PlantupiaClientSection(
                         )
                     }
                 }
-            } else {
+            }
+            PlantupiaHistoryDisplayState.RECORDED -> {
                 Text("${events.size} recorded moments · actual observations, not automatic health scores", color = muted, fontSize = 12.sp)
                 PlantupiaPhotoIndex(
                     events = events,
@@ -1285,7 +1349,8 @@ fun PlantupiaClientSection(
                     },
                 )
             }
-            if (events.isNotEmpty()) {
+            }
+            if (events.isNotEmpty() && !historyLoadFailed) {
                 Text(
                     "EXPLORE HISTORY",
                     color = muted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
@@ -1490,8 +1555,12 @@ fun PlantupiaClientSection(
                                                     is ApiResult.Success -> {
                                                         events = reloaded.value.events
                                                         nextHistoryOffset = reloaded.value.nextOffset
+                                                        historyLoadFailed = false
                                                     }
-                                                    is ApiResult.Failure -> error = reloaded.message
+                                                    is ApiResult.Failure -> {
+                                                        historyLoadFailed = true
+                                                        error = reloaded.message
+                                                    }
                                                 }
                                             }
                                         }
@@ -1552,9 +1621,13 @@ fun PlantupiaClientSection(
                             is ApiResult.Success -> {
                                 events = response.value.events
                                 nextHistoryOffset = response.value.nextOffset
+                                historyLoadFailed = false
                                 error = null
                             }
-                            is ApiResult.Failure -> error = response.message
+                            is ApiResult.Failure -> {
+                                historyLoadFailed = true
+                                error = response.message
+                            }
                         }
                     },
                 )
@@ -1615,8 +1688,12 @@ fun PlantupiaClientSection(
                                             is ApiResult.Success -> {
                                                 events = history.value.events
                                                 nextHistoryOffset = history.value.nextOffset
+                                                historyLoadFailed = false
                                             }
-                                            is ApiResult.Failure -> error = history.message
+                                            is ApiResult.Failure -> {
+                                                historyLoadFailed = true
+                                                error = history.message
+                                            }
                                         }
                                     }
                                 }

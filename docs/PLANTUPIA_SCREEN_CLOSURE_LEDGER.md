@@ -270,3 +270,8 @@ Build the following connected groups continuously, with developer-side testing/C
 ### 2026-10-17 W0/W1 Care action text-scaling pass — CODED, PHONE QA PENDING
 - **CODED:** existing six native illustrated care actions now use a responsive Compose width+font-scale 2/3-column layout rather than forcing three narrow cells on a small device or 1.5–2× text. Captions center with each corresponding pictogram; backend event semantics and save/permission flows unchanged.
 - **UNIT TESTS:** 320/360/390/430 content widths, regular and enlarged font scales, no zero-width assumptions. **GATE:** physical Samsung at 1×, 1.5×, 2× font, long localized names, TalkBack, back/save and screenshot review. Do not mark a screen owner-accepted from compiler success alone.
+
+### 2026-10-17 W0 History unavailable-versus-empty truth — CODED, QA PENDING
+- **CODED:** a failed initial/private history request must never display the authored blank-fieldbook “No field notes yet” empty state. UI now distinguishes loading, unavailable, genuine empty, and recorded states.
+- **CODED:** a scoped **Retry loading history** action re-fetches only the selected plant’s authenticated history, with the existing request generation check. It does not reset/erase an unsaved care note, attached preview image, check-in choice or switch plants. Actual owner data remains in Django.
+- **JVM tests:** state boundaries 0/1/100 records, loading overriding a prior failure, and failed fetch overriding apparent emptiness. **PENDING:** exact-head green CI, offline/reconnect on device, rapid Back/switch during retry, cross-account authorization. No real history data was fabricated or deleted.
