@@ -151,7 +151,7 @@ for required in (
     "connectTimeout = 12_000",
     "readTimeout = 20_000",
     "authApi.refresh(stored.refreshToken)",
-    "if (retried.statusCode == 401) sessionStore.clear()",
+    "stored = stored,",
 ):
     if required not in core_repository:
         errors.append(f"Privacy transport-sensitive seam changed or disappeared: {required}")

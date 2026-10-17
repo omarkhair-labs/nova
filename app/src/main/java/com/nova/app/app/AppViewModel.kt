@@ -59,7 +59,10 @@ class AppViewModel internal constructor(
 
     /** Returns false only when refresh expired and cleared the active session. */
     suspend fun refreshSession(): Boolean {
-        return when (val refreshed = restoreSession()) {
+        val expectedGeneration = sessionGeneration
+        val refreshed = restoreSession()
+        if (expectedGeneration != sessionGeneration) return state.currentUser != null
+        return when (refreshed) {
             is ApiResult.Success -> {
                 if (refreshed.value == null) {
                     expireSession()

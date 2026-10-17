@@ -13,6 +13,8 @@ import com.nova.app.feature.auth.domain.model.AuthSession
 import com.nova.app.feature.auth.domain.model.NovaUser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 
 class NovaAuthRepository(
@@ -30,90 +32,68 @@ class NovaAuthRepository(
      */
     fun cachedUser(): NovaUser? = sessionStore.load()?.cachedUser
 
-    suspend fun register(
-        email: String,
-        password: String,
-        username: String,
-        name: String,
-    ): ApiResult<NovaUser> {
-        return when (
-            val result = remote.register(
-                email = email.trim().lowercase(),
-                password = password,
-                username = username.trim().lowercase(),
-                name = name.trim(),
-            )
-        ) {
-            is ApiResult.Success -> {
-                sessionStore.save(result.value)
-                NovaPushRegistration.activate(appContext)
-
-                val pendingAvatarUri = NovaPendingRegistrationPhoto.consume()
-                if (pendingAvatarUri == null) {
-                    ApiResult.Success(result.value.user)
-                } else {
-                    val prepared = prepareAvatar(pendingAvatarUri)
-                    if (prepared is ApiResult.Success && prepared.value != null) {
-                        when (
-                            val updated = remote.updateProfile(
-                                accessToken = result.value.accessToken,
-                                name = name.trim(),
-                                username = username.trim().lowercase(),
-                                avatar = prepared.value,
-                            )
-                        ) {
-                            is ApiResult.Success -> {
-                                sessionStore.updateUser(updated.value)
-                                ApiResult.Success(updated.value)
-                            }
-
-                            is ApiResult.Failure -> {
-                                // The account is already valid. Avatar upload is optional, so
-                                // do not strand a new user in onboarding if media upload fails.
-                                ApiResult.Success(result.value.user)
-                            }
-                        }
-                    } else {
-                        // The selected image is optional. Registration remains successful even
-                        // if the local picker URI becomes unreadable before the upload begins.
-                        ApiResult.Success(result.value.user)
-                    }
-                }
-            }
-
-            is ApiResult.Failure -> result
+    suspend fun register(email: String, password: String, username: String, name: String): ApiResult<NovaUser> {
+        val pendingAvatarUri = NovaPendingRegistrationPhoto.consume()
+        val owner = sessionStore.beginLogin()
+        val result = remote.register(email.trim().lowercase(), password, username.trim().lowercase(), name.trim())
+        currentCoroutineContext().ensureActive()
+        if (!sessionStore.isCurrent(owner)) return changedSession()
+        if (result is ApiResult.Failure) return result
+        val session = (result as ApiResult.Success).value
+        if (!sessionStore.save(owner, session)) return changedSession()
+        NovaPushRegistration.activate(appContext)
+        if (pendingAvatarUri == null) return ApiResult.Success(session.user)
+        val prepared = prepareAvatar(pendingAvatarUri)
+        if (!sessionStore.isCurrent(owner)) return changedSession()
+        if (prepared !is ApiResult.Success || prepared.value == null) return ApiResult.Success(session.user)
+        val stored = sessionStore.current(owner) ?: return changedSession()
+        val updated = sessionStore.authenticatedRequest(
+            stored, refresh = { remote.refresh(stored.refreshToken) },
+        ) { token ->
+            remote.updateProfile(token, name.trim(), username.trim().lowercase(), avatar = prepared.value)
+        }
+        currentCoroutineContext().ensureActive()
+        if (!sessionStore.isCurrent(owner)) return changedSession()
+        return when (updated) {
+            is ApiResult.Success -> if (sessionStore.updateUser(owner, updated.value)) updated else changedSession()
+            // Registration succeeded; an optional failed avatar upload must not strand onboarding.
+            is ApiResult.Failure -> ApiResult.Success(session.user)
         }
     }
 
     suspend fun login(email: String, password: String): ApiResult<NovaUser> {
         NovaPendingRegistrationPhoto.clear()
-        return when (val result = remote.login(email.trim().lowercase(), password)) {
+        val owner = sessionStore.beginLogin()
+        val result = remote.login(email.trim().lowercase(), password)
+        currentCoroutineContext().ensureActive()
+        if (!sessionStore.isCurrent(owner)) return changedSession()
+        return when (result) {
             is ApiResult.Success -> {
-                sessionStore.save(result.value)
+                if (!sessionStore.save(owner, result.value)) return changedSession()
                 NovaPushRegistration.activate(appContext)
                 ApiResult.Success(result.value.user)
             }
-
             is ApiResult.Failure -> result
         }
     }
 
     suspend fun restoreSession(): ApiResult<NovaUser?> {
         val stored = sessionStore.load() ?: return ApiResult.Success(null)
-
-        return when (val me = remote.me(stored.accessToken)) {
+        val result = sessionStore.authenticatedRequest(
+            stored, refresh = { remote.refresh(stored.refreshToken) }, request = { token -> remote.me(token) },
+        )
+        currentCoroutineContext().ensureActive()
+        return when (result) {
             is ApiResult.Success -> {
-                sessionStore.updateUser(me.value)
+                if (!sessionStore.updateUser(stored.identity, result.value)) return changedSession()
                 NovaPushRegistration.activate(appContext)
-                ApiResult.Success(me.value)
+                ApiResult.Success(result.value)
             }
-
-            is ApiResult.Failure -> {
-                if (me.statusCode != 401) {
-                    stored.cachedUser?.let { ApiResult.Success(it) } ?: me
-                } else {
-                    restoreWithRefresh(stored)
-                }
+            is ApiResult.Failure -> when {
+                result.statusCode == 409 -> result
+                result.statusCode == 401 -> ApiResult.Success(null)
+                else -> sessionStore.current(stored.identity)?.cachedUser?.let { ApiResult.Success(it) }
+                    ?: if (sessionStore.isCurrent(stored.identity)) result else changedSession()
             }
         }
     }
@@ -158,12 +138,12 @@ class NovaAuthRepository(
         // Remove pending work before another account can use this device.
         PlantupiaCareReminderScheduler.clearForLogout(appContext)
         NovaPendingRegistrationPhoto.clear()
-        val accessToken = sessionStore.load()?.accessToken
+        val (previous, signedOut) = sessionStore.logoutSession()
         NovaPushRegistration.logout(
             context = appContext,
-            accessToken = accessToken,
+            accessToken = previous?.accessToken,
+            signedOut = signedOut,
         )
-        sessionStore.clear()
     }
 
     private suspend fun updateProfileWithSession(
@@ -179,67 +159,20 @@ class NovaAuthRepository(
         showOrbit: Boolean,
         plantupiaAvatarVariant: Int = -1,
     ): ApiResult<NovaUser> {
-        when (
-            val first = remote.updateProfile(
-                accessToken = stored.accessToken,
-                name = name,
-                username = username,
-                avatar = avatar,
-                bio = bio,
-                location = location,
-                link = link,
-                interests = interests,
-                profileTheme = profileTheme,
-                showOrbit = showOrbit,
-                plantupiaAvatarVariant = plantupiaAvatarVariant,
+        if (!sessionStore.isCurrent(stored.identity)) return changedSession()
+        val result = sessionStore.authenticatedRequest(
+            stored, refresh = { remote.refresh(stored.refreshToken) },
+        ) { token ->
+            remote.updateProfile(
+                accessToken = token, name = name, username = username, avatar = avatar,
+                bio = bio, location = location, link = link, interests = interests,
+                profileTheme = profileTheme, showOrbit = showOrbit, plantupiaAvatarVariant = plantupiaAvatarVariant,
             )
-        ) {
-            is ApiResult.Success -> {
-                sessionStore.updateUser(first.value)
-                return first
-            }
-
-            is ApiResult.Failure -> {
-                if (first.statusCode != 401) return first
-            }
         }
-
-        return when (val refreshed = remote.refresh(stored.refreshToken)) {
-            is ApiResult.Success -> {
-                sessionStore.updateAccessToken(refreshed.value)
-                when (
-                    val retried = remote.updateProfile(
-                        accessToken = refreshed.value,
-                        name = name,
-                        username = username,
-                        avatar = avatar,
-                        bio = bio,
-                        location = location,
-                        link = link,
-                        interests = interests,
-                        profileTheme = profileTheme,
-                        showOrbit = showOrbit,
-                        plantupiaAvatarVariant = plantupiaAvatarVariant,
-                    )
-                ) {
-                    is ApiResult.Success -> {
-                        sessionStore.updateUser(retried.value)
-                        retried
-                    }
-
-                    is ApiResult.Failure -> {
-                        if (retried.statusCode == 401) sessionStore.clear()
-                        retried
-                    }
-                }
-            }
-
-            is ApiResult.Failure -> {
-                if (refreshed.statusCode == 400 || refreshed.statusCode == 401) {
-                    sessionStore.clear()
-                }
-                refreshed
-            }
+        currentCoroutineContext().ensureActive()
+        return when (result) {
+            is ApiResult.Success -> if (sessionStore.updateUser(stored.identity, result.value)) result else changedSession()
+            is ApiResult.Failure -> result
         }
     }
 
@@ -275,45 +208,4 @@ class NovaAuthRepository(
         }
     }
 
-    private suspend fun restoreWithRefresh(
-        stored: NovaSessionStore.StoredSession,
-    ): ApiResult<NovaUser?> {
-        return when (val refreshed = remote.refresh(stored.refreshToken)) {
-            is ApiResult.Success -> {
-                sessionStore.updateAccessToken(refreshed.value)
-
-                when (val me = remote.me(refreshed.value)) {
-                    is ApiResult.Success -> {
-                        sessionStore.save(
-                            AuthSession(
-                                accessToken = refreshed.value,
-                                refreshToken = stored.refreshToken,
-                                user = me.value,
-                            ),
-                        )
-                        NovaPushRegistration.activate(appContext)
-                        ApiResult.Success(me.value)
-                    }
-
-                    is ApiResult.Failure -> {
-                        if (me.statusCode == 401) {
-                            sessionStore.clear()
-                            ApiResult.Success(null)
-                        } else {
-                            stored.cachedUser?.let { ApiResult.Success(it) } ?: me
-                        }
-                    }
-                }
-            }
-
-            is ApiResult.Failure -> {
-                if (refreshed.statusCode == 400 || refreshed.statusCode == 401) {
-                    sessionStore.clear()
-                    ApiResult.Success(null)
-                } else {
-                    stored.cachedUser?.let { ApiResult.Success(it) } ?: refreshed
-                }
-            }
-        }
-    }
 }

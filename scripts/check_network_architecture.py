@@ -385,6 +385,38 @@ for text, name in (
 ):
     require_all(text, f"{name} variant-aware API base URL", (production_ctor,))
 
+# Integrity Sprint 02: repositories delegate ownership/refresh/retry to one session coordinator.
+session_store = read(ROOT / "app/src/main/java/com/nova/app/core/auth/NovaSessionStore.kt")
+coordinator = read(ROOT / "app/src/main/java/com/nova/app/core/auth/NovaSessionCoordinator.kt")
+require_all(session_store, "atomic encrypted session ownership", (
+    'data class LoginIdentity',
+    'synchronized(NovaSessionCoordinator.lock)',
+    'fun beginLogin(): LoginIdentity',
+    'fun logoutSession(): Pair<StoredSession?, LoginIdentity>',
+    'fun updateAccessToken(owner: LoginIdentity, accessToken: String)',
+    'fun updateUser(owner: LoginIdentity, user: NovaUser)',
+    'fun clear(owner: LoginIdentity)',
+    'fun save(owner: LoginIdentity, session: AuthSession)',
+    'fun replaceSession(owner: LoginIdentity, session: AuthSession)',
+    'const val KEY_GENERATION = "login_generation"',
+    'const val TRANSFORMATION = "AES/GCM/NoPadding"',
+))
+forbid_all(session_store, "unconditional asynchronous session writes", (
+    'fun updateAccessToken(accessToken:', 'fun updateUser(user:',
+    'fun clear()', 'fun save(session:',
+))
+require_all(coordinator, "shared refresh and response ownership", (
+    'internal object NovaSessionCoordinator', 'val lock = Any()',
+    'private val flights = mutableMapOf<NovaSessionStore.LoginIdentity, Flight>()',
+    'currentCoroutineContext().ensureActive()', 'store.updateAccessToken(owner, response.value)',
+    'if (!isCurrent(stored.identity)) return changedSession()',
+    'if (store.isCurrent(delivery.identity)) delivery.result else changedSession()',
+))
+for repository in (ROOT / "app/src/main/java").rglob("*.kt"):
+    text = repository.read_text(encoding="utf-8")
+    if 'sessionStore = NovaSessionStore(' in text and '.refresh(' in text:
+        require_all(text, f"{repository.name} shared login coordination", ('sessionStore.authenticatedRequest(',))
+
 if errors:
     print("Network architecture exit check failed:")
     for error in errors:

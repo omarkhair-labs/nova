@@ -2,6 +2,8 @@ package com.nova.app.core.calls
 
 import android.content.Context
 import com.nova.app.core.auth.NovaSessionStore
+import com.nova.app.core.auth.authenticatedRequest
+import com.nova.app.core.auth.realtimeToken
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.feature.calls.data.CallRepository
@@ -50,21 +52,7 @@ class NovaCallRepository(
     override suspend fun realtimeAccessToken(): ApiResult<String> {
         val stored = sessionStore.load()
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
-
-        return when (val refreshed = authApi.refresh(stored.refreshToken)) {
-            is ApiResult.Success -> {
-                sessionStore.updateAccessToken(refreshed.value)
-                ApiResult.Success(refreshed.value)
-            }
-            is ApiResult.Failure -> {
-                if (refreshed.statusCode == 400 || refreshed.statusCode == 401) {
-                    sessionStore.clear()
-                    ApiResult.Failure("Your session expired. Please log in again.", 401)
-                } else {
-                    ApiResult.Success(stored.accessToken)
-                }
-            }
-        }
+        return sessionStore.realtimeToken(stored) { authApi.refresh(stored.refreshToken) }
     }
 
     private suspend fun <T> authenticatedCall(
@@ -72,20 +60,11 @@ class NovaCallRepository(
     ): ApiResult<T> {
         val stored = sessionStore.load()
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
-
-        val first = block(stored.accessToken)
-        if (first !is ApiResult.Failure || first.statusCode != 401) return first
-
-        return when (val refreshed = authApi.refresh(stored.refreshToken)) {
-            is ApiResult.Success -> {
-                sessionStore.updateAccessToken(refreshed.value)
-                block(refreshed.value)
-            }
-            is ApiResult.Failure -> {
-                sessionStore.clear()
-                ApiResult.Failure("Your session expired. Please log in again.", 401)
-            }
-        }
+        return sessionStore.authenticatedRequest(
+            stored = stored,
+            refresh = { authApi.refresh(stored.refreshToken) },
+            request = block,
+        )
     }
 
     companion object {

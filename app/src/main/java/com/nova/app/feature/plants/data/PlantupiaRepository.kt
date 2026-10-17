@@ -3,6 +3,7 @@ package com.nova.app.feature.plants.data
 import android.content.Context
 import android.net.Uri
 import com.nova.app.core.auth.NovaSessionStore
+import com.nova.app.core.auth.authenticatedRequest
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.UploadFile
@@ -93,12 +94,8 @@ class PlantupiaRepository(context: Context) {
     private val sessionStore = NovaSessionStore(appContext)
     // A repository belongs to the login that created it, never a later account.
     private val initialSession = sessionStore.load()
-    fun isCurrentSession(): Boolean {
-        val initial = initialSession ?: return false
-        val current = sessionStore.load() ?: return false
-        return initial.cachedUser?.id?.let { it > 0L && it == current.cachedUser?.id } == true &&
-            initial.refreshToken == current.refreshToken
-    }
+    fun isCurrentSession(): Boolean = initialSession?.let { sessionStore.current(it.identity) != null } == true
+
     private val api = NovaApiClient(NovaMessagingRepository.PRODUCTION_API_URL)
 
     /** The AI key lives server-side; private plant context is opt-in per request. */
@@ -610,18 +607,10 @@ class PlantupiaRepository(context: Context) {
     private suspend fun <T> authorized(block: suspend (String) -> ApiResult<T>): ApiResult<T> {
         if (!isCurrentSession()) return changedSession()
         val session = sessionStore.load() ?: return changedSession()
-        val first = block(session.accessToken)
-        if (!isCurrentSession()) return changedSession()
-        if (first !is ApiResult.Failure || first.statusCode != 401) return first
-        return when (val refreshed = api.refresh(session.refreshToken)) {
-            is ApiResult.Failure -> refreshed
-            is ApiResult.Success -> {
-                // Feature-local protection; shared Nova authentication is unchanged.
-                if (!isCurrentSession()) return changedSession()
-                sessionStore.updateAccessToken(refreshed.value)
-                val result = block(refreshed.value)
-                if (isCurrentSession()) result else changedSession()
-            }
-        }
+        return sessionStore.authenticatedRequest(
+            stored = session,
+            refresh = { api.refresh(session.refreshToken) },
+            request = block,
+        )
     }
 }

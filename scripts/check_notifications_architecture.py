@@ -124,8 +124,8 @@ for required in (
     "connectTimeout = 10_000",
     "readTimeout = 10_000",
     "authApi.refresh(stored.refreshToken)",
-    "sessionStore.updateAccessToken(refreshed.value)",
-    "if (retried.statusCode == 401) sessionStore.clear()",
+    "sessionStore.authenticatedRequest(",
+    "stored = stored,",
 ):
     if required not in core_repository:
         errors.append(f"Notifications transport-sensitive seam changed or disappeared: {required}")

@@ -10,6 +10,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 
 object NovaPushRegistration {
@@ -20,15 +22,21 @@ object NovaPushRegistration {
 
     private val backgroundScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    private val lifecycleMutex = Mutex()
+
     fun syncForCurrentSession(context: Context) {
         val appContext = context.applicationContext
         ensureChannel(appContext)
 
-        if (NovaSessionStore(appContext).load() != null) {
+        val store = NovaSessionStore(appContext)
+        val owner = store.identity()
+        if (store.load() != null) {
             activate(appContext)
         } else {
             backgroundScope.launch {
-                FirebaseMessaging.getInstance().setAutoInitEnabled(false)
+                lifecycleMutex.withLock {
+                    if (store.isCurrent(owner)) FirebaseMessaging.getInstance().setAutoInitEnabled(false)
+                }
             }
         }
     }
@@ -39,15 +47,21 @@ object NovaPushRegistration {
 
         // Firebase's FID-backed registration path performs blocking task waits internally.
         // Keep the whole registration sequence off Android's main application thread.
+        val store = NovaSessionStore(appContext)
+        val owner = store.load()?.identity ?: return
         backgroundScope.launch {
-            FirebaseMessaging.getInstance().setAutoInitEnabled(true)
-            FirebaseMessaging.getInstance().register()
+            lifecycleMutex.withLock {
+                if (store.current(owner) == null) return@withLock
+                FirebaseMessaging.getInstance().setAutoInitEnabled(true)
+                FirebaseMessaging.getInstance().register()
+            }
         }
     }
 
     fun logout(
         context: Context,
         accessToken: String?,
+        signedOut: NovaSessionStore.LoginIdentity,
     ) {
         val appContext = context.applicationContext
         val pushStore = NovaPushStore(appContext)
@@ -61,9 +75,13 @@ object NovaPushRegistration {
                 )
             }
 
-            FirebaseMessaging.getInstance().setAutoInitEnabled(false)
-            FirebaseMessaging.getInstance().unregister()
-            pushStore.clear()
+            lifecycleMutex.withLock {
+                val store = NovaSessionStore(appContext)
+                if (!store.isCurrent(signedOut)) return@withLock
+                FirebaseMessaging.getInstance().setAutoInitEnabled(false)
+                FirebaseMessaging.getInstance().unregister()
+                if (store.isCurrent(signedOut)) pushStore.clear()
+            }
         }
     }
 
