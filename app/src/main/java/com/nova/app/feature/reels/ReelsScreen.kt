@@ -674,6 +674,8 @@ private fun ReelPage(
                     source = reel.author.avatarUrl,
                     fallbackText = reel.author.displayName,
                     size = 38.dp,
+                    plantupiaUserId = reel.author.id.takeIf { it > 0L },
+                    plantupiaAvatarVariant = reel.author.plantupiaAvatarVariant,
                 )
                 Text(
                     text = "@${reel.author.username}",
