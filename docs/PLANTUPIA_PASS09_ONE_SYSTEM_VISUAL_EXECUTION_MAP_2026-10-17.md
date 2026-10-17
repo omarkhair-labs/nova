@@ -95,3 +95,11 @@ Codex may challenge iconography, illustration composition, user identity and inf
 - Android Edit Profile has a preview row and user-picked choice, saved through existing authenticated API, cached session and restored profile. The preference propagates through Me, visited Person, people rows, Posts and Comments (no-photo fallback).
 - API unit tests protect persistence and out-of-range rejection. Story author/viewer, direct-message peer objects, Reels, notification payloads are **not yet wired to reflect an explicit preference**; they retain stable account-ID illustration and are part of the next continuity pass.
 - Keep code in draft PR only; no Oracle production schema migration or Play signing. Evidence remaining: exact-head green CI, isolated migrated QA server, two-account/photo/RTL/TalkBack + 320–430dp on-device visual QA, company/owner art signoff.
+
+## 2026-10-17 W2 identity propagation, native polish and source-level QA — CODED, EXACT-HEAD CI/DEVICE GATED
+
+- Updated user's illustrated identity in Home top-right self photo and composer, plus activity feed actors and incoming follow request rows. Notifications use existing public actor data; no private info emitted.
+- Extended Reel author API/model/JSON parser/Compose playback and threaded replies to the selected original human variant; actual photos still win and Nova group identity is unchanged.
+- Backend integration coverage now asserts a saved choice appears on Reel publish/feed, Story creation/feed/group author and direct-message peer. This validates API projection, not device rendering or QA-host migration.
+- Source-of-truth remains the authenticated account field `plantupia_avatar_variant` in migration 0037; no manual write to production.
+- **Not owner accepted:** illustration quality and character differentiation, short/large fonts, 320dp viewport, TalkBack, full profile composition, two-account privacy and QA device build must still be inspected. Keep real photo/image evidence separate from decorative artwork.
