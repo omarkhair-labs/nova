@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nova.app.ui.components.NovaAvatar
+import com.nova.app.ui.components.PlantupiaAvatar
 import com.nova.app.ui.components.NovaOrbitRing
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
@@ -81,6 +82,7 @@ internal fun NovaProfileIdentity(
     profileTheme: String,
     showOrbit: Boolean,
     isVerified: Boolean,
+    plantupiaIdentityId: Long? = null,
     modifier: Modifier = Modifier,
 ) {
     val palette = remember(profileTheme) { novaProfileThemePalette(profileTheme) }
@@ -103,19 +105,37 @@ internal fun NovaProfileIdentity(
                     rings = 2,
                     showLivePoint = false,
                 ) {
-                    NovaAvatar(
-                        source = avatarUrl,
-                        fallbackText = displayName.ifBlank { username },
-                        size = 88.dp,
-                    )
+                    if (plantupiaIdentityId != null) {
+                        PlantupiaAvatar(
+                            userId = plantupiaIdentityId,
+                            displayName = displayName.ifBlank { username },
+                            photoUrl = avatarUrl,
+                            size = 88.dp,
+                        )
+                    } else {
+                        NovaAvatar(
+                            source = avatarUrl,
+                            fallbackText = displayName.ifBlank { username },
+                            size = 88.dp,
+                        )
+                    }
                 }
             } else {
                 Surface(shape = CircleShape, color = Color.Transparent) {
-                    NovaAvatar(
-                        source = avatarUrl,
-                        fallbackText = displayName.ifBlank { username },
-                        size = 88.dp,
-                    )
+                    if (plantupiaIdentityId != null) {
+                        PlantupiaAvatar(
+                            userId = plantupiaIdentityId,
+                            displayName = displayName.ifBlank { username },
+                            photoUrl = avatarUrl,
+                            size = 88.dp,
+                        )
+                    } else {
+                        NovaAvatar(
+                            source = avatarUrl,
+                            fallbackText = displayName.ifBlank { username },
+                            size = 88.dp,
+                        )
+                    }
                 }
             }
 

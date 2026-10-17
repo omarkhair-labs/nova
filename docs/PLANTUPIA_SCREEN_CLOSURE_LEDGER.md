@@ -235,3 +235,9 @@ Build the following connected groups continuously, with developer-side testing/C
 - Plant archive/restore and real space metadata edits **are coded**, not device accepted. Restoring an archived plant preserves event history; it is not the same as replacing a biological individual. Space archive and space zones are **still gaps**.
 - For original native head `18cadf3e32486484735e7438d4b02d4f0eec420d`, [Android and backend run 38641919445](https://github.com/omarkhair-labs/nova/actions/runs/38641919445) completed successfully. Later documentation commits require their own head status check; branch CI does not represent real-device or QA-backend proof.
 - No screen is marked OWNER ACCEPTED; final visual review remains the single complete QA APK.
+
+### 2026-10-17 W2 illustrated avatar initial native integration — NOT ACCEPTED
+
+- **CODED:** new original `PlantupiaAvatar`, deterministic by API numeric account ID, overrides with real authorized profile photo, with visual fallback when photo is missing/failed. Applied to self/public identity, People, Edit Profile preview, direct Inbox.
+- **PARTIAL:** remaining posts/comments/Stories/Reels/DM header/notifications, avatar selection visible across devices, unified public profile art direction.
+- **QA GATE:** Android JVM/lint/build on exact SHA; actual two-account continuity, large text, 24–96dp, offline and failed image cases. No owner acceptance, signed APK, Play or production changes.

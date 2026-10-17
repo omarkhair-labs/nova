@@ -47,6 +47,7 @@ import com.nova.app.ui.theme.NovaType
 @Composable
 fun ProfileScreen(
     displayName: String,
+    userId: Long = 0L,
     username: String,
     avatarUrl: String,
     bio: String,
@@ -130,6 +131,7 @@ fun ProfileScreen(
             Spacer(modifier = Modifier.height(NovaSpacing.xl))
             PlantupiaMeIdentity(
                 displayName = displayName,
+                userId = userId,
                 username = username,
                 avatarUrl = avatarUrl,
                 bio = bio,

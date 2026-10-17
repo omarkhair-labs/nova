@@ -19,7 +19,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.nova.app.ui.components.NovaAvatar
+import com.nova.app.ui.components.PlantupiaAvatar
 import com.nova.app.feature.plants.PlantupiaColors
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
@@ -38,6 +38,7 @@ import com.nova.app.ui.theme.NovaType
 @Composable
 internal fun PlantupiaMeIdentity(
     displayName: String,
+    userId: Long = 0L,
     username: String,
     avatarUrl: String,
     bio: String,
@@ -61,9 +62,10 @@ internal fun PlantupiaMeIdentity(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                NovaAvatar(
-                    source = avatarUrl,
-                    fallbackText = displayName.ifBlank { username }.ifBlank { "Plantupia" },
+                PlantupiaAvatar(
+                    userId = userId,
+                    displayName = displayName.ifBlank { username }.ifBlank { "Plantupia" },
+                    photoUrl = avatarUrl,
                     size = 64.dp,
                 )
                 Column(

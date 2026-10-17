@@ -415,6 +415,7 @@ fun PersonScreen(
                     profileTheme = person.profileTheme,
                     showOrbit = person.showOrbit,
                     isVerified = person.isVerified,
+                    plantupiaIdentityId = person.id,
                 )
                 if (shouldShowPrivateProfileBadge(privacyState)) {
                     Spacer(modifier = Modifier.height(8.dp))

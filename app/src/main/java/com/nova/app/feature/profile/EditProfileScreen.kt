@@ -45,6 +45,7 @@ import com.nova.app.ui.theme.NovaBorder
 @Composable
 fun EditProfileScreen(
     displayName: String,
+    userId: Long = 0L,
     username: String,
     avatarUrl: String,
     bio: String,
@@ -136,6 +137,7 @@ fun EditProfileScreen(
             profileTheme = selectedTheme,
             showOrbit = orbitVisible,
             isVerified = isVerified,
+            plantupiaIdentityId = userId,
         )
 
         TextButton(

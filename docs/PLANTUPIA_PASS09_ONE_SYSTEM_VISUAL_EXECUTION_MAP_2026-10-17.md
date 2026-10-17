@@ -65,3 +65,9 @@
 Codex may challenge iconography, illustration composition, user identity and information architecture *with evidence*, offer an original stronger design solution, and execute small reversible trials **on Android Native** with permissions preserved. Not three new HTML websites or a full research restart. Deliver a ranked audit and then approved fixes.
 
 **Exit condition:** signed-in person can find actual space/plant, record what they did, see a dated story, optionally ask humans, navigate public/profile/inbox with **recognizable human identity even without photo**, with no broken small screens; owner accepts after physical phone review.
+
+## 2026-10-17 W2 first native illustrated-person increment — CODED, NOT DEVICE ACCEPTED
+
+- New `PlantupiaAvatar.kt` draws an original abstract person centered within botanical/architectural artwork (8 figure variants, 5 color palettes, 3 accents), using the existing **immutable numeric API person ID**. Names never assign looks. An actual uploaded photo takes priority, and a failed/offline image falls back to the same native illustration.
+- Integrated in owner Me, visited public profile, People rows, Edit Profile preview and one-to-one Inbox; group imagery retains Nova semantics. No schema, migrations, unlicensed fonts, permission change or production asset substitution.
+- Added pure JVM deterministic-style tests. **Still incomplete:** posts/comments/Stories/Reels/notifications, user-selectable avatar variant persisted to server, complete profile hierarchy, real-device screen sizes/TalkBack and cross-account visual signoff. No claim of an APK or owner acceptance.

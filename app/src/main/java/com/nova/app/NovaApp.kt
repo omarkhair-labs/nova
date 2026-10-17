@@ -795,6 +795,7 @@ fun NovaApp(
 
                     ProfileScreen(
                         displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
+                        userId = user?.id ?: 0L,
                         username = user?.username ?: "nova",
                         avatarUrl = user?.avatarUrl.orEmpty(),
                         bio = user?.bio.orEmpty(),
@@ -825,6 +826,7 @@ fun NovaApp(
                     val user = appState.currentUser
                     EditProfileScreen(
                         displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
+                        userId = user?.id ?: 0L,
                         username = user?.username ?: "nova",
                         avatarUrl = user?.avatarUrl.orEmpty(),
                         bio = user?.bio.orEmpty(),
