@@ -31,3 +31,7 @@ internal fun spacePlantCountSummary(count: Int): String = when (count.coerceAtLe
     1 -> "1 plant in this space"
     else -> "${count} plants in this space"
 }
+
+/** A plant's photo can represent a place, but must never be passed off as a site photo. */
+internal fun spaceHeroMediaEyebrow(isPlantPhoto: Boolean): String =
+    if (isPlantPhoto) "PLANT PHOTO · IN THIS SPACE" else "LIVING SPACE"
