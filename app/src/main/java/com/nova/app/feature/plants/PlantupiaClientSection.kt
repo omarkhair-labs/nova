@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -43,6 +44,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
@@ -764,22 +766,32 @@ fun PlantupiaClientSection(
                     }
                 if (showCareEditor) PlantupiaPanel {
                     Text("What did you do?", color = forestText, fontWeight = FontWeight.Medium, fontSize = 13.sp)
-                    PlantupiaCareAction.entries.chunked(3).forEach { group ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(9.dp),
-                        ) {
-                            group.forEach { action ->
-                                PlantupiaCareActionTile(
-                                    action = action,
-                                    selected = selectedCareAction == action,
-                                    enabled = !saving,
-                                    modifier = Modifier.weight(1f),
-                                    onClick = {
-                                        selectedCareAction =
-                                            if (selectedCareAction == action) null else action
-                                    },
-                                )
+                    // Respect the true editor width and fontScale, not only device pixels.
+                    // Each readable action still retains its authored native pictogram.
+                    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                        val columns = plantupiaCareActionColumns(
+                            availableWidthDp = maxWidth.value,
+                            fontScale = LocalDensity.current.fontScale,
+                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                            PlantupiaCareAction.entries.chunked(columns).forEach { group ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(9.dp),
+                                ) {
+                                    group.forEach { action ->
+                                        PlantupiaCareActionTile(
+                                            action = action,
+                                            selected = selectedCareAction == action,
+                                            enabled = !saving,
+                                            modifier = Modifier.weight(1f),
+                                            onClick = {
+                                                selectedCareAction =
+                                                    if (selectedCareAction == action) null else action
+                                            },
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

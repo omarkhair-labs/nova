@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -91,6 +92,8 @@ internal fun PlantupiaCareActionTile(
             Canvas(modifier = Modifier.size(40.dp)) { careIcon(action, foreground) }
             Text(
                 text = action.label,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
                 color = foreground,
                 fontSize = 11.sp,
                 lineHeight = 15.sp,
