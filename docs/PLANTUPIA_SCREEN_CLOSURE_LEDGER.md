@@ -31,7 +31,7 @@ All entries below are **not accepted** pending the listed evidence. Legacy names
 | S06 | Space metadata editing; space archive, zones and site observations separately | PARTIAL C1 CODED (edit), ARCHIVE/ZONES GAP | `PlantupiaSpaceDetailsEditor.kt`, scoped Django `SpaceDetailView` PATCH; no space archive model yet | real owner/manager change + authorization/device QA; **do not** mark space archive or zones done |
 | S07 | Space members/role management UI | GAP | backend `SpaceMember` read permission exists | user/admin workflows, invites and revocation require approval |
 | P01 | Add a plant | PLANTUPIA-CODED | forms, `PlantupiaRepository`, Django API | create with/without photo, rollback, open new plant |
-| P02 | Plant profile/identity | PLANTUPIA-CODED / STALE DATA GUARD | `PlantupiaClientSection.kt` selected plant; truthful no-cover card and request-generation isolation on opening/Back | real 360/390dp device evidence, focus/scroll, long species names, offline/retry and photo state |
+| P02 | Plant profile/identity | PLANTUPIA-CODED / DETAIL-FIRST REORDER | `PlantupiaClientSection.kt`; authentic selected name/species/placement now precede compact real photo, then one direct care action, check-ins and chronological evidence; maintenance/rename/archive are tucked behind optional details | real 360/390dp device evidence, Back/focus/scroll, archived/viewer behavior, full photo, offline/retry |
 | P03 | Private personal nickname | PLANTUPIA-CODED | nickname endpoint | separate botanical vs user nickname, edit/retry |
 | P04 | Shared context edit; reversible plant archive/restore; replacement separate | C1 CODED (edit + archive) / QA OPEN; REPLACEMENT GAP | `PlantDetailView`, `PlantUpdateSerializer` using existing `PlantUnit.is_active`, `PlantupiaClientSection.kt` archive controls; private administrative event retains history | Verify archived/history permissions, old reminders, on-device persistence. **Replacement/new biological identity is not implemented** |
 | C01 | Daily check-ins overview | PLANTUPIA-CODED / LARGE INVENTORY PASS | `PlantupiaTodayPanel.kt`; cross-space label and progressively reveal all actual due check-ins, 0/1/100 tests | date/rules, state reset, on-device UX QA |
@@ -99,6 +99,15 @@ All entries below are **not accepted** pending the listed evidence. Legacy names
 - **QA semantic distinction:** the `can_add_plant` field now tracks whether the QA API returned an authorization answer. Missing field shows server-revision warning, explicit denied access shows owner/manager role guidance; **client-side write remains disabled** until server authority is present. A live server-response check is still required; don't infer the owner has actually been granted or denied.
 - **Tests / acceptance:** source changed only on draft PR #241. Final exact-HEAD CI, 360/390/430dp physical screenshots, screen-reader focus, two-account public/private test and actual Add Plant create remain outstanding until proven.
 - **Later Codex audit (not started):** [Codex scoped audit contract](./PLANTUPIA_CODEX_AUDIT_HANDOFF_CONTRACT.md) preserves research hierarchy, avoids autonomous product redesign, and requires review before accepted code changes.
+
+### 2026-10-17 Native design consolidation: Plant Detail → Care → Check-in → History
+
+- **Plant-first hierarchy:** the selected **real** plant name, optional species and placement lead the detail before its authentic/empty photo; the photo hero is less vertically dominant (160dp). The primary label is `Record care or observation`, not an undefined “moment”.
+- **Living time/evidence:** selected human check-ins and real living-history timeline follow the care composer with no intervening rename/species/archive administrative cards. Original paginated history, actual photo viewer, opt-in reminder and outcome flows remain.
+- **Secondary management:** personal nickname, shared plant context and archive/restore actions now sit in a collapsible `Plant details & settings` area **after** the real history, preserving existing API permissions and functions. This is a UI hierarchy change only; no data migration.
+- **Create fix:** the compact private/public Create refactor initially failed Kotlin compile due to an accidentally removed `remember` import; restored explicitly on commit `38189395`. Do **not** cite the pre-fix build as green.
+- **Navigation scroll:** `HomeScreen` already scrolls to the Plantupia living-space item in `onOpenPlant` via the actual owning `LazyColumn`. Keep it and test device jump; don't duplicate a conflicting local scroll call.
+- **Upcoming real QA:** long names in Arabic/English, photo zoom, keyboard on care textarea, human-selected dates, fast plant switching, viewer/archived roles, visual 360/390/430dp and Add Plant stale server-permission mismatch. No full-screen sign-off or QA APK from these commits yet.
 
 ## Backend / invisible engine ledger
 
