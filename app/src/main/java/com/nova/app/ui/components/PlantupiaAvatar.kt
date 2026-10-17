@@ -106,6 +106,85 @@ fun PlantupiaAvatar(
                 topLeft = Offset(cx - headRadius * 0.64f, cy - headRadius * 0.80f),
                 size = Size(headRadius * 1.28f, headRadius * 1.72f),
             )
+            // Eight intentionally authored contour/garment combinations.
+            // Character differences are graphic choices, not inferred traits
+            // about anyone's face, age, gender or identity.
+            when (style.figure) {
+                0 -> {
+                    // Center-parted arc and a folded collar.
+                    drawLine(ink, Offset(cx, cy - h * 0.145f), Offset(cx - w * 0.11f, cy - h * 0.073f), strokeWidth = w * 0.034f)
+                    drawLine(ink, Offset(cx, cy - h * 0.145f), Offset(cx + w * 0.11f, cy - h * 0.073f), strokeWidth = w * 0.034f)
+                }
+                1 -> {
+                    // Rounded, cloud-like crown.
+                    for (dx in listOf(-0.10f, -0.045f, 0.025f, 0.095f)) {
+                        drawCircle(ink, radius = w * 0.040f, center = Offset(cx + dx * w, cy - h * 0.125f))
+                    }
+                }
+                2 -> {
+                    // A continuous low-brim arc.
+                    drawRoundRect(
+                        color = ink,
+                        topLeft = Offset(cx - w * 0.15f, cy - h * 0.12f),
+                        size = Size(w * 0.30f, h * 0.045f),
+                        cornerRadius = CornerRadius(w * 0.026f),
+                    )
+                    drawOval(
+                        color = ink,
+                        topLeft = Offset(cx - w * 0.112f, cy - h * 0.19f),
+                        size = Size(w * 0.224f, h * 0.095f),
+                    )
+                }
+                3 -> {
+                    // Angular side-swept geometry.
+                    drawLine(ink, Offset(cx - w * 0.12f, cy - h * 0.065f), Offset(cx + w * 0.12f, cy - h * 0.15f), strokeWidth = w * 0.045f)
+                    drawCircle(ink, radius = w * 0.039f, center = Offset(cx + w * 0.095f, cy - h * 0.13f))
+                }
+                4 -> {
+                    // Quiet frame/hood outline around the upper head.
+                    drawRoundRect(
+                        color = ink.copy(alpha = 0.9f),
+                        topLeft = Offset(cx - w * 0.148f, cy - h * 0.19f),
+                        size = Size(w * 0.296f, h * 0.31f),
+                        cornerRadius = CornerRadius(w * 0.12f),
+                        style = Stroke(width = w * 0.024f),
+                    )
+                }
+                5 -> {
+                    // Off-center raised crown.
+                    drawCircle(ink, radius = w * 0.067f, center = Offset(cx + w * 0.065f, cy - h * 0.193f))
+                    drawLine(ink, Offset(cx - w * 0.092f, cy - h * 0.102f), Offset(cx + w * 0.12f, cy - h * 0.116f), strokeWidth = w * 0.025f)
+                }
+                6 -> {
+                    // Horizontal band and rounded side contours.
+                    drawLine(ink, Offset(cx - w * 0.115f, cy - h * 0.125f), Offset(cx + w * 0.115f, cy - h * 0.125f), strokeWidth = w * 0.035f)
+                    drawCircle(ink, radius = w * 0.030f, center = Offset(cx - w * 0.105f, cy - h * 0.08f))
+                    drawCircle(ink, radius = w * 0.030f, center = Offset(cx + w * 0.105f, cy - h * 0.08f))
+                }
+                else -> {
+                    // Asymmetric arch-shaped silhouette at the face edge.
+                    drawOval(ink, topLeft = Offset(cx - w * 0.14f, cy - h * 0.185f), size = Size(w * 0.18f, h * 0.135f))
+                    drawLine(ink, Offset(cx + w * 0.045f, cy - h * 0.13f), Offset(cx + w * 0.12f, cy - h * 0.065f), strokeWidth = w * 0.036f)
+                }
+            }
+            // A second, readable difference below the face even at 32-48dp.
+            when (style.figure % 4) {
+                0 -> {
+                    drawLine(bg, Offset(cx - w * 0.12f, h * 0.75f), Offset(cx, h * 0.85f), strokeWidth = w * 0.017f)
+                    drawLine(bg, Offset(cx + w * 0.12f, h * 0.75f), Offset(cx, h * 0.85f), strokeWidth = w * 0.017f)
+                }
+                1 -> drawRoundRect(
+                    color = bg.copy(alpha = 0.9f),
+                    topLeft = Offset(cx - w * 0.095f, h * 0.75f),
+                    size = Size(w * 0.19f, h * 0.036f),
+                    cornerRadius = CornerRadius(w * 0.015f),
+                )
+                2 -> drawLine(bg, Offset(cx, h * 0.76f), Offset(cx, h * 0.97f), strokeWidth = w * 0.014f)
+                else -> {
+                    drawLine(bg, Offset(cx - w * 0.11f, h * 0.78f), Offset(cx + w * 0.11f, h * 0.78f), strokeWidth = w * 0.017f)
+                    drawCircle(bg, radius = w * 0.018f, center = Offset(cx, h * 0.835f))
+                }
+            }
             drawCircle(ink, radius = w * 0.011f, center = Offset(cx - w * 0.04f, cy))
             drawCircle(ink, radius = w * 0.011f, center = Offset(cx + w * 0.04f, cy))
             drawLine(

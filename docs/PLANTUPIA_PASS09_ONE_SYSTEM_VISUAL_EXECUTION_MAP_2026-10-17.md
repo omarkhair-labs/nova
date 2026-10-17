@@ -103,3 +103,7 @@ Codex may challenge iconography, illustration composition, user identity and inf
 - Backend integration coverage now asserts a saved choice appears on Reel publish/feed, Story creation/feed/group author and direct-message peer. This validates API projection, not device rendering or QA-host migration.
 - Source-of-truth remains the authenticated account field `plantupia_avatar_variant` in migration 0037; no manual write to production.
 - **Not owner accepted:** illustration quality and character differentiation, short/large fonts, 320dp viewport, TalkBack, full profile composition, two-account privacy and QA device build must still be inspected. Keep real photo/image evidence separate from decorative artwork.
+
+### W2 avatar artwork follow-through (native, not art-approved)
+- Introduced 8 distinct, author-controlled **graphic contour + garment treatments** inside the original Compose human-avatar family, preserving botanical/architectural framing, upload-photo priority, no demographic inference, and no copy of third-party avatar designs.
+- The selection Surface now exposes its chosen state through Compose accessibility semantics; larger font, 32/48dp legibility and full TalkBack reading-order still require real-device QA before acceptance. The art kit can still be revised from screenshots without replacing native implementation.

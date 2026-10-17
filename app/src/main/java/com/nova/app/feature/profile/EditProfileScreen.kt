@@ -28,6 +28,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -180,6 +182,9 @@ fun EditProfileScreen(
                 Surface(
                     onClick = { selectedAvatarVariant = variant },
                     enabled = !isLoading,
+                    modifier = Modifier.semantics {
+                        selected = chosen
+                    },
                     shape = RoundedCornerShape(14.dp),
                     color = if (chosen) PlantupiaColors.softSage else PlantupiaColors.paper,
                     border = BorderStroke(
