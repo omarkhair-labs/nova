@@ -116,6 +116,16 @@ All entries below are **not accepted** pending the listed evidence. Legacy names
 - **Preserved:** original Nova post/comment navigation, people/Stories/Inbox engine, Plantupia preview/photo explicit public consent and separate private observed outcome, account-scoped server privacy, paginated Circle refresh.
 - **Regression:** new `PlantupiaCirclePresentationTest` validates 0/1/2/100 and negative malformed reply counts. No physical/on-device or two-account signoff yet.
 
+### 2026-10-17 Integration pass: first real action, owned-space recovery, authorization-safe creation
+
+- **Briefs → native:** Pass 05 Focus Friend / Quiet Care (real human task before marketing), Pass 07 (place as context, care as immediate attention, dated evidence as proof, optional AI/social), and the original Nova Integration visual contract guided the change. This is **not** a device-accepted layout or a fake user-study result.
+- **Home:** after true scheduled check-ins, `Record care` appears **only** if an active recordable plant actually exists. `+ Add plant` opens the real existing Android/Django form; without an owner/manager-writable space, its sanctioned path starts by creating a private space first. Removed the repeated giant “Your plants, in their place” intro; reduced space hero height, kept authorized user photo/space metadata and honest empty state, moved optional assistant below real creation action.
+- **Data meaning:** media accessibility label now says `Photo uploaded for [plant]`, not that the app verified the image depicts an actual plant (e.g., the earlier user test contained book photos). No synthetic flora or care events inserted.
+- **Auth-safe private/public intent:** `actionablePlantChoices()` selects only active `canRecord` plants for Record Care or Ask Circle. A read-only plant cannot silently open a dead composer from an action intent; selection offers an owned private plant path and displays a precise explanation. A plant can still be opened normally as read-only when no write intent exists.
+- **Tests:** `PlantupiaCreateIntentTest` now verifies active+authorized selection, ignoring read-only and archived records; previous `PlantupiaSpacePermissionPolicyTest` differentiates a preview API missing the `can_add_plant` flag from a role that actually denies adding.
+- **P0 NOT RESOLVED REMOTELY:** the account screenshot's Add Plant button disabled despite existing spaces requires checking the actual QA `GET /api/v1/plantupia/spaces/` payload and deployed Django revision/owner vs manager membership. Don't default `can_add_plant` to true, force enable UI, or claim a confirmed staging-backend fix without the network evidence.
+- **QA:** inspect 360/390/430dp first useful viewport with 0/1/7/100 records and due/no-due states. Complete a real approved New Space → Add Plant → Care + date → History → Ask preview → actual reply/outcome → Inbox/Story flow and check Back/keyboard and two-account privacy.
+
 ## Backend / invisible engine ledger
 
 | Layer | Exists | Next evidence gate |
