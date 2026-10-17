@@ -15,12 +15,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nova.app.ui.components.NovaAvatar
+import com.nova.app.feature.plants.PlantupiaColors
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaInk
@@ -50,7 +50,7 @@ internal fun PlantupiaMeIdentity(
     val verifiedUrl = remember(link) { normalizedProfileExternalUrl(link) }
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = Color(0xFFE8EDE3),
+        color = PlantupiaColors.softSage,
         shape = RoundedCornerShape(20.dp),
     ) {
         Column(
@@ -87,7 +87,7 @@ internal fun PlantupiaMeIdentity(
                                 asset = NovaIconAsset.Verified,
                                 contentDescription = "Verified account",
                                 modifier = Modifier.size(17.dp),
-                                tint = Color(0xFF123B2E),
+                                tint = PlantupiaColors.forest,
                             )
                         }
                     }
@@ -126,13 +126,13 @@ internal fun PlantupiaMeIdentity(
                         asset = NovaIconAsset.Link,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
-                        tint = Color(0xFF123B2E),
+                        tint = PlantupiaColors.forest,
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
                         text = link.trim(),
                         style = NovaType.bodyCompact.copy(fontWeight = FontWeight.Medium),
-                        color = Color(0xFF123B2E),
+                        color = PlantupiaColors.forest,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -141,7 +141,7 @@ internal fun PlantupiaMeIdentity(
             if (interests.isNotEmpty()) {
                 Text(
                     text = interests.joinToString(" · "),
-                    color = Color(0xFF315D49),
+                    color = PlantupiaColors.forest,
                     style = NovaType.micro,
                     maxLines = 2,
                 )
