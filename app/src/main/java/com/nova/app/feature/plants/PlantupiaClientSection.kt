@@ -1278,7 +1278,7 @@ fun PlantupiaClientSection(
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
-                        "We can't confirm whether this plant has saved records. Your data hasn't been erased.",
+                        "We couldn't verify the saved records. Please retry when your connection is available.",
                         color = muted,
                         fontSize = 12.sp,
                     )
@@ -1350,7 +1350,8 @@ fun PlantupiaClientSection(
                 )
             }
             }
-            if (events.isNotEmpty() && !historyLoadFailed) {
+            val historyReady = !detailLoading && !historyRetryLoading && !historyLoadFailed
+            if (historyReady && events.isNotEmpty()) {
                 Text(
                     "EXPLORE HISTORY",
                     color = muted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
@@ -1373,8 +1374,12 @@ fun PlantupiaClientSection(
                     }
                 }
             }
-            val visibleHistory = filteredPlantupiaHistory(events, historyFilter)
-            if (events.isNotEmpty() && visibleHistory.isEmpty()) {
+            val visibleHistory = if (historyReady) {
+                filteredPlantupiaHistory(events, historyFilter)
+            } else {
+                emptyList()
+            }
+            if (historyReady && events.isNotEmpty() && visibleHistory.isEmpty()) {
                 Text(
                     "No ${historyFilter.label.lowercase()} in the loaded history. " +
                         "Load older moments to explore earlier records.",
@@ -1394,7 +1399,7 @@ fun PlantupiaClientSection(
                     },
                 )
             }
-            if (nextHistoryOffset != null) {
+            if (historyReady && nextHistoryOffset != null) {
                 OutlinedButton(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !olderEventsLoading,
