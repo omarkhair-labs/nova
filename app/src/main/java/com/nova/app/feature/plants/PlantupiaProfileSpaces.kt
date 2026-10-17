@@ -47,14 +47,13 @@ private sealed interface PrivateSpacesSummary {
     ) : PrivateSpacesSummary
 }
 
+internal fun mayFetchPrivateSpaces(accountId: Long): Boolean = accountId > 0L
+
 /**
  * Only used on the authenticated user's own ProfileScreen, NEVER PersonScreen.
  * The existing Nova social profile remains public; this separate section
  * fetches authorized private Plantupia records and never posts their photos.
  */
-@Composable
-internal fun mayFetchPrivateSpaces(accountId: Long): Boolean = accountId > 0L
-
 @Composable
 fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
     // A public/guest/unknown identity must never request or render private data.
