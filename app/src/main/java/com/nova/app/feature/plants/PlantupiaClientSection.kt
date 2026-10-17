@@ -1250,7 +1250,31 @@ fun PlantupiaClientSection(
             if (detailLoading) {
                 Text("Loading history…", color = muted, fontSize = 13.sp)
             } else if (events.isEmpty()) {
-                Text("Your first observation starts this plant's history.", color = muted, fontSize = 13.sp)
+                // An original blank field-book motif is an empty-state cue,
+                // never a fabricated note/photo/event. Real records appear only
+                // after a successful API save and history refresh.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    PlantupiaEmptyFieldNotesArt(
+                        modifier = Modifier.width(104.dp).height(86.dp),
+                    )
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(5.dp),
+                    ) {
+                        Text(
+                            "No field notes yet",
+                            style = PlantupiaText.body,
+                        )
+                        Text(
+                            "Your first saved care or observation will start this plant's history.",
+                            style = PlantupiaText.supporting,
+                        )
+                    }
+                }
             } else {
                 Text("${events.size} recorded moments · actual observations, not automatic health scores", color = muted, fontSize = 12.sp)
                 PlantupiaPhotoIndex(

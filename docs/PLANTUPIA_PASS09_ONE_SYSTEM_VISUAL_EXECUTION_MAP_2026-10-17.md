@@ -107,3 +107,8 @@ Codex may challenge iconography, illustration composition, user identity and inf
 ### W2 avatar artwork follow-through (native, not art-approved)
 - Introduced 8 distinct, author-controlled **graphic contour + garment treatments** inside the original Compose human-avatar family, preserving botanical/architectural framing, upload-photo priority, no demographic inference, and no copy of third-party avatar designs.
 - The selection Surface now exposes its chosen state through Compose accessibility semantics; larger font, 32/48dp legibility and full TalkBack reading-order still require real-device QA before acceptance. The art kit can still be revised from screenshots without replacing native implementation.
+
+## 2026-10-17 W3 illustrated first-history state — CODED, NOT DEVICE-APPROVED
+
+- Added a small original **blank architectural field-book** illustration for zero real recorded plant events. It has no fake handwriting, photos, dates or plant health claims; saves and history remain 100% real Django data. The decorative Canvas is hidden from TalkBack, while adjacent text communicates the state.
+- Replaces the single generic no-history sentence only when detail loading is finished and `events.isEmpty()`. Existing actual paginated history and photo index are unchanged. Layout still needs large-font/320–430dp real-device review alongside W0 care-grid reflow.

@@ -65,3 +65,68 @@ internal fun PlantupiaEmptyPlaceArt(modifier: Modifier = Modifier) {
         )
     }
 }
+
+/**
+ * Empty field-book silhouette only. No text, dates, photos, fake observations,
+ * verified conditions, or synthetic plant records are depicted.
+ */
+@Composable
+internal fun PlantupiaEmptyFieldNotesArt(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.clearAndSetSemantics { }) {
+        val w = size.width
+        val h = size.height
+        val ink = PlantupiaColors.forest
+        val sage = PlantupiaColors.mutedSage
+        val stroke = (size.minDimension * 0.018f).coerceAtLeast(1f)
+        // Open blank notebook leaf with a physical page spine.
+        drawRoundRect(
+            color = PlantupiaColors.paper,
+            topLeft = Offset(w * 0.15f, h * 0.07f),
+            size = Size(w * 0.71f, h * 0.84f),
+            cornerRadius = CornerRadius(w * 0.055f),
+        )
+        drawRoundRect(
+            color = ink.copy(alpha = 0.65f),
+            topLeft = Offset(w * 0.15f, h * 0.07f),
+            size = Size(w * 0.71f, h * 0.84f),
+            cornerRadius = CornerRadius(w * 0.055f),
+            style = Stroke(width = stroke),
+        )
+        drawLine(
+            color = ink.copy(alpha = 0.32f),
+            start = Offset(w * 0.30f, h * 0.14f),
+            end = Offset(w * 0.30f, h * 0.82f),
+            strokeWidth = stroke,
+        )
+        // Unwritten paper: only two corner registration marks and a leaf motif,
+        // not decorative pretend handwriting or a fabricated observation.
+        drawLine(
+            color = ink.copy(alpha = 0.30f),
+            start = Offset(w * 0.38f, h * 0.22f),
+            end = Offset(w * 0.46f, h * 0.22f),
+            strokeWidth = stroke,
+        )
+        drawLine(
+            color = ink.copy(alpha = 0.30f),
+            start = Offset(w * 0.38f, h * 0.75f),
+            end = Offset(w * 0.46f, h * 0.75f),
+            strokeWidth = stroke,
+        )
+        drawLine(
+            color = sage,
+            start = Offset(w * 0.62f, h * 0.67f),
+            end = Offset(w * 0.62f, h * 0.38f),
+            strokeWidth = stroke * 1.7f,
+        )
+        drawOval(
+            color = sage,
+            topLeft = Offset(w * 0.49f, h * 0.32f),
+            size = Size(w * 0.12f, h * 0.105f),
+        )
+        drawOval(
+            color = sage,
+            topLeft = Offset(w * 0.63f, h * 0.40f),
+            size = Size(w * 0.11f, h * 0.10f),
+        )
+    }
+}
