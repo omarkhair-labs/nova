@@ -37,3 +37,25 @@ internal class PlantupiaCallbackLifetime(private val accountCurrent: () -> Boole
     fun isCurrent(): Boolean = active && accountCurrent()
     fun dispose() { active = false }
 }
+
+/** Reload records without reopening/resetting an unrelated care composer. */
+internal suspend fun <T> reloadPlantupiaMutationRecords(
+    isCurrent: () -> Boolean,
+    refreshInventory: suspend () -> Unit,
+    loadHistory: suspend () -> T,
+    applyHistory: (T) -> Unit,
+    loadPending: suspend () -> Unit,
+    onFinished: () -> Unit,
+) {
+    if (!isCurrent()) return
+    try {
+        refreshInventory()
+        if (!isCurrent()) return
+        val history = loadHistory()
+        if (!isCurrent()) return
+        applyHistory(history)
+        loadPending()
+    } finally {
+        if (isCurrent()) onFinished()
+    }
+}

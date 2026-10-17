@@ -82,8 +82,10 @@ fun PlantupiaSelfServiceForms(
     var justCreatedSpace by remember { mutableStateOf<Pair<String, String>?>(null) }
     var spaceMenuOpen by remember { mutableStateOf(false) }
     var plantPhoto by remember { mutableStateOf<Uri?>(null) }
+    var photoPickerOrigin by remember { mutableStateOf<PlantupiaRepository?>(null) }
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {
-        if (repository.isCurrentSession()) plantPhoto = it
+        if (photoPickerOrigin === repository && repository.isCurrentSession()) plantPhoto = it
+        photoPickerOrigin = null
     }
 
     LaunchedEffect(spaces) {
@@ -319,7 +321,7 @@ fun PlantupiaSelfServiceForms(
                         modifier = Modifier.fillMaxWidth(), enabled = !saving,
                     )
                     OutlinedButton(
-                        onClick = { photoPicker.launch("image/*") }, enabled = !saving,
+                        onClick = { photoPickerOrigin = repository; photoPicker.launch("image/*") }, enabled = !saving,
                         modifier = Modifier.fillMaxWidth(),
                     ) { Text(if (plantPhoto == null) "+ Real plant photo (optional)" else "Change photo", color = ink) }
                     plantPhoto?.let { uri ->

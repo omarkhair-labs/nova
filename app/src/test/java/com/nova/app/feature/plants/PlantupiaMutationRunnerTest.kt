@@ -125,4 +125,46 @@ class PlantupiaMutationRunnerTest {
         )
         assertFalse(requested)
     }
+    @Test fun recordsReloadRejectsHistoryAfterSwitchAndDoesNotFinishNewBusyState() = runBlocking {
+        var current = true
+        var applied = false
+        var pendingRequested = false
+        var finished = false
+        val history = CompletableDeferred<String>()
+        val job = launch(start = CoroutineStart.UNDISPATCHED) {
+            reloadPlantupiaMutationRecords(
+                isCurrent = { current }, refreshInventory = {}, loadHistory = { history.await() },
+                applyHistory = { applied = true }, loadPending = { pendingRequested = true },
+                onFinished = { finished = true },
+            )
+        }
+        current = false
+        history.complete("A-private-history")
+        job.join()
+        assertFalse(applied)
+        assertFalse(pendingRequested)
+        assertFalse(finished)
+    }
+
+    @Test fun recordsReloadStopsAfterStaleInventoryBeforeRequestingHistory() = runBlocking {
+        var current = true
+        reloadPlantupiaMutationRecords(
+            isCurrent = { current }, refreshInventory = { current = false },
+            loadHistory = { fail("must not request old history") },
+            applyHistory = { fail("must not apply") }, loadPending = { fail("must not load") },
+            onFinished = { fail("must not clear a newer busy flag") },
+        )
+    }
+
+    @Test fun successfulRecordsReloadOnlyUpdatesRecordsAndFinishesAfterPending() = runBlocking {
+        val calls = mutableListOf<String>()
+        reloadPlantupiaMutationRecords(
+            isCurrent = { true }, refreshInventory = { calls += "inventory" },
+            loadHistory = { calls += "history"; "private-page" },
+            applyHistory = { calls += it }, loadPending = { calls += "pending" },
+            onFinished = { calls += "finished" },
+        )
+        assertEquals(listOf("inventory", "history", "private-page", "pending", "finished"), calls)
+    }
+
 }

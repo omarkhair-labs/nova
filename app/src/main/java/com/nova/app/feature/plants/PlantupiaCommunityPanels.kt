@@ -76,25 +76,27 @@ fun PlantupiaQuestionsPanel(
         PlantupiaCallbackLifetime { repository.isCurrentSession() && isParentCurrent() }
     }
     DisposableEffect(lifetime) { onDispose { lifetime.dispose() } }
-    var question by remember(plantId, requestGeneration) { mutableStateOf("") }
-    var topic by remember(plantId, requestGeneration) { mutableStateOf("") }
-    var imageUri by remember(plantId, requestGeneration) { mutableStateOf<Uri?>(null) }
-    var consent by remember(plantId, requestGeneration) { mutableStateOf(false) }
-    var reviewOpen by remember(plantId, requestGeneration) { mutableStateOf(false) }
+    var question by remember(plantId) { mutableStateOf("") }
+    var topic by remember(plantId) { mutableStateOf("") }
+    var imageUri by remember(plantId) { mutableStateOf<Uri?>(null) }
+    var consent by remember(plantId) { mutableStateOf(false) }
+    var reviewOpen by remember(plantId) { mutableStateOf(false) }
     var submitting by remember(plantId, requestGeneration) { mutableStateOf(false) }
     var loading by remember(plantId, requestGeneration) { mutableStateOf(true) }
     var error by remember(plantId, requestGeneration) { mutableStateOf<String?>(null) }
     var linkedPosts by remember(plantId, requestGeneration) { mutableStateOf<List<PlantupiaQuestion>>(emptyList()) }
-    var respondingTo by remember(plantId, requestGeneration) { mutableStateOf<String?>(null) }
-    var outcome by remember(plantId, requestGeneration) { mutableStateOf("") }
+    var respondingTo by remember(plantId) { mutableStateOf<String?>(null) }
+    var outcome by remember(plantId) { mutableStateOf("") }
     val publicDraft = PlantupiaPublicShareDraft(topic, question, imageUri != null)
+    var pickerGeneration by remember(plantId) { mutableStateOf<Int?>(null) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (lifetime.isCurrent() && uri != null) {
+        if (lifetime.isCurrent() && pickerGeneration == requestGeneration && uri != null) {
             imageUri = uri
             // Selecting a different file must require renewed public consent.
             consent = false
             reviewOpen = false
         }
+        pickerGeneration = null
     }
 
     suspend fun refreshQuestions() {
@@ -140,7 +142,7 @@ fun PlantupiaQuestionsPanel(
         OutlinedButton(
             modifier = Modifier.fillMaxWidth(),
             enabled = !submitting,
-            onClick = { picker.launch("image/*") },
+            onClick = { pickerGeneration = requestGeneration; picker.launch("image/*") },
         ) {
             Text(if (imageUri == null) "Choose a photo to publish (currently required)" else "Change the public photo", color = green)
         }

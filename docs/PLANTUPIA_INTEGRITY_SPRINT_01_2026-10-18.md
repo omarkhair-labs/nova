@@ -36,3 +36,7 @@ Safest proposed shared repair (requires separate approval):
 4. Promote the characterization into a B-remains-unchanged regression when repaired; cover A->B, A->logout, A->new-A, reversed replies, late failures and cached-user updates.
 
 F01 remains OPEN and remains a release risk in inherited Nova callers. The Plantupia-local guard is bounded protection, not a substitute for the shared repair. Uncertain-acknowledgement duplicate writes (F05), hosted QA isolation, physical device/permissions testing and the other audit findings remain outside this sprint. Circle consent/resolution behavior and account-deletion policy are unchanged.
+
+### F06 records-only reload regression follow-through
+
+Shared metadata/archive confirmations now refresh inventory, history and pending reviews through a new guarded reload epoch without reopening the plant or clearing the care note, photo, action or chosen date. The helper rejects a switch after either inventory or history returns and cannot clear a newer busy flag. Three additional JVM regressions pass (380 total local unit tests). Question drafts retain their existing plant-scoped state while callback lifetimes change; platform picker results retain the originating generation. Transient/contract refresh failures retain already-loaded same-login records with an error rather than discarding them.

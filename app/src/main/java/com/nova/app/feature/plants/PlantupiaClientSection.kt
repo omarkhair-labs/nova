@@ -212,11 +212,11 @@ private fun PlantupiaAccountClientSection(
             error = "The Plantupia service isn't available on this server. Your plant records will appear when the Plantupia backend is ready."
         } else {
             when (spaceResult) {
-                is ApiResult.Failure -> { spaces = emptyList(); error = spaceResult.message }
+                is ApiResult.Failure -> { error = spaceResult.message }
                 is ApiResult.Success -> spaces = spaceResult.value
             }
             when (plantResult) {
-                is ApiResult.Failure -> { plants = emptyList(); error = plantResult.message }
+                is ApiResult.Failure -> { error = plantResult.message }
                 is ApiResult.Success -> plants = plantResult.value
             }
         }
@@ -298,6 +298,37 @@ private fun PlantupiaAccountClientSection(
         }
         detailLoading = false
         loadPending(plant.id, requestGeneration)
+    }
+
+    suspend fun reloadPlantRecords(plantId: String) {
+        // Invalidate older history/pending/pagination, preserving note/photo/action/date.
+        detailRequestGeneration += 1
+        val generation = detailRequestGeneration
+        val current = { isCurrentRequest(plantId, generation) }
+        detailLoading = true
+        pendingState = PlantupiaPendingCheckInsState.Loading
+        pendingPageError = null
+        pendingPageLoading = false
+        olderEventsLoading = false
+        historyRetryLoading = false
+        reloadPlantupiaMutationRecords(
+            isCurrent = current,
+            refreshInventory = { refresh(current) },
+            loadHistory = { repository.historyPage(plantId) },
+            applyHistory = { history ->
+                when (history) {
+                    is ApiResult.Success -> {
+                        events = history.value.events
+                        nextHistoryOffset = history.value.nextOffset
+                        historyLoadFailed = false
+                    }
+                    is ApiResult.Failure -> { historyLoadFailed = true; error = history.message }
+                }
+                detailLoading = false
+            },
+            loadPending = { loadPending(plantId, generation) },
+            onFinished = { saving = false },
+        )
     }
 
     fun saveMoment(plant: PlantupiaPlant, kind: String, details: String) {
@@ -1610,8 +1641,8 @@ private fun PlantupiaAccountClientSection(
                                             request = { repository.updatePlantDetails(selectedPlant.id, submittedLabel, submittedSpecies, submittedPlacement) },
                                             onStarted = { saving = true },
                                             onSuccess = {
-                                                refresh(current)
-                                                if (current()) plants.firstOrNull { it.id == selectedPlant.id }?.let { openPlant(it) }
+                                                showSharedDetailsEditor = false
+                                                reloadPlantRecords(selectedPlant.id)
                                             },
                                             onFailure = { error = it.message },
                                             onFinished = { saving = false },
@@ -1737,8 +1768,8 @@ private fun PlantupiaAccountClientSection(
                                         if (archived) PlantupiaCareReminderScheduler.cancelForPlant(context, plant.id)
                                     },
                                     onSuccess = {
-                                        refresh(current)
-                                        if (current()) plants.firstOrNull { it.id == plant.id }?.let { openPlant(it) }
+                                        if (archived) { showCareEditor = false; followUpTarget = null }
+                                        reloadPlantRecords(plant.id)
                                     },
                                     onFailure = { error = it.message },
                                     onFinished = { saving = false },
