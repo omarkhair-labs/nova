@@ -20,7 +20,6 @@ import androidx.compose.ui.unit.sp
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.feature.plants.PlantupiaBrandGlyph
 import com.nova.app.ui.components.NovaIconButton
-import com.nova.app.ui.components.NovaOrbitRing
 import com.nova.app.ui.components.NovaUnreadDot
 import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaInk
@@ -54,22 +53,27 @@ internal fun HomeIdentityHeader(
                     if (unreadCount > 0) NovaUnreadDot(modifier = Modifier.align(Alignment.TopEnd).offset(x = (-2).dp, y = 2.dp))
                 }
                 Surface(onClick = onProfileClick, color = NovaSurface, shape = androidx.compose.foundation.shape.CircleShape) {
-                    NovaOrbitRing(modifier = Modifier.size(48.dp), rings = 1, showLivePoint = true) {
-                        NovaAvatar(source = avatarUrl, fallbackText = displayName.ifBlank { username }, size = 38.dp)
-                    }
+                    NovaAvatar(
+                        source = avatarUrl,
+                        fallbackText = displayName.ifBlank { username }.ifBlank { "Plantupia" },
+                        size = 42.dp,
+                    )
                 }
             }
         }
-        Column(verticalArrangement = Arrangement.spacedBy(NovaSpacing.xxs)) {
-            Text(text = "${currentGreeting()}، $firstName", color = NovaInk, style = NovaType.screenTitle)
-            Text(text = "كل مساحة ليها حياة، وذكريات بتتكتب مع الوقت.", color = NovaMuted, style = NovaType.subtitle)
+        if (firstName.isNotBlank()) {
+            Text(
+                text = "${currentGreeting()}, $firstName",
+                color = NovaMuted,
+                style = NovaType.meta,
+            )
         }
     }
 }
 
 private fun currentGreeting(): String = when (LocalTime.now().hour) {
-    in 0..4 -> "أهلًا"
-    in 5..11 -> "صباح الخير"
-    in 12..17 -> "نهارك سعيد"
-    else -> "مساء الخير"
+    in 0..4 -> "Hello"
+    in 5..11 -> "Good morning"
+    in 12..17 -> "Good afternoon"
+    else -> "Good evening"
 }
