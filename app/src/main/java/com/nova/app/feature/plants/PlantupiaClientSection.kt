@@ -109,6 +109,7 @@ fun PlantupiaClientSection(
     var showCareEditor by remember { mutableStateOf(false) }
     var creationAccessNotice by remember { mutableStateOf<String?>(null) }
     var showPlantManagement by remember(currentPlantId) { mutableStateOf(false) }
+    var showPlantSharing by remember(currentPlantId) { mutableStateOf(false) }
     var showAssistant by remember { mutableStateOf(false) }
     var photoToView by remember { mutableStateOf<Pair<String, String>?>(null) }
     var focusedSpaceId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -991,23 +992,26 @@ fun PlantupiaClientSection(
                 if (error != null) Text(error.orEmpty(), color = Color(0xFF9A4A31), fontSize = 12.sp)
             }
 
-            OutlinedButton(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = { showAssistant = true },
-                shape = RoundedCornerShape(15.dp),
-            ) {
-                com.nova.app.ui.icons.NovaIcon(
-                    asset = com.nova.app.ui.icons.NovaIconAsset.Info,
-                    contentDescription = null,
-                    modifier = Modifier.padding(end = 8.dp),
-                    tint = deepGreen,
-                )
-                Text("Ask about this plant", color = deepGreen)
+            if (openDetailMode != PlantupiaCreateMode.QUESTION) {
+                OutlinedButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { showAssistant = true },
+                    shape = RoundedCornerShape(15.dp),
+                ) {
+                    com.nova.app.ui.icons.NovaIcon(
+                        asset = com.nova.app.ui.icons.NovaIconAsset.Info,
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = 8.dp),
+                        tint = deepGreen,
+                    )
+                    Text("Plantupia assistant (optional)", color = deepGreen)
+                }
             }
             if (openDetailMode == PlantupiaCreateMode.QUESTION) {
                 PlantupiaQuestionsPanel(
                     plantId = selectedPlant.id,
                     repository = repository,
+                    compactHeader = true,
                     canPublish = selectedPlant.canRecord,
                     onOpenPost = onOpenLinkedPost,
                     onOutcomeSaved = {
@@ -1027,6 +1031,9 @@ fun PlantupiaClientSection(
                 )
             }
 
+            // Asking the Circle is a focused public workflow. Private check-ins,
+            // history and record administration belong to the normal plant detail.
+            if (openDetailMode != PlantupiaCreateMode.QUESTION) {
             BrandEyebrow("CHECK BACK")
             if (detailLoading) {
                 Text("Loading check-ins…", color = muted, fontSize = 12.sp)
@@ -1482,18 +1489,29 @@ fun PlantupiaClientSection(
                 }
 
             }
-            HorizontalDivider(color = sage)
-            if (openDetailMode != PlantupiaCreateMode.QUESTION) PlantupiaQuestionsPanel(
-                plantId = selectedPlant.id,
-                repository = repository,
-                canPublish = selectedPlant.canRecord,
-                onOpenPost = onOpenLinkedPost,
-                onOutcomeSaved = {
-                    val plantId = selectedPlant.id
-                    val generation = detailRequestGeneration
-                    val response = repository.historyPage(plantId)
-                    if (!isCurrentPlantDetailRequest(plantId, generation, currentPlantId, detailRequestGeneration)) return@PlantupiaQuestionsPanel
-                    when (response) {
+            // Keep optional public composition separate from everyday care.
+            OutlinedButton(
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                onClick = { showPlantSharing = !showPlantSharing },
+            ) {
+                Text(
+                    if (showPlantSharing) "Hide community options ↑" else "Community & sharing (optional) ↓",
+                    color = deepGreen,
+                )
+            }
+            if (showPlantSharing) {
+                PlantupiaQuestionsPanel(
+                    plantId = selectedPlant.id,
+                    repository = repository,
+                    compactHeader = true,
+                    canPublish = selectedPlant.canRecord,
+                    onOpenPost = onOpenLinkedPost,
+                    onOutcomeSaved = {
+                        val plantId = selectedPlant.id
+                        val generation = detailRequestGeneration
+                        val response = repository.historyPage(plantId)
+                        if (!isCurrentPlantDetailRequest(plantId, generation, currentPlantId, detailRequestGeneration)) return@PlantupiaQuestionsPanel
+                        when (response) {
                             is ApiResult.Success -> {
                                 events = response.value.events
                                 nextHistoryOffset = response.value.nextOffset
@@ -1501,22 +1519,18 @@ fun PlantupiaClientSection(
                             }
                             is ApiResult.Failure -> error = response.message
                         }
-                },
-            )
-            HorizontalDivider(color = sage)
-            Text("Or share a public moment", color = forestText, fontSize = 14.sp)
-            OutlinedButton(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = onCommunityCreateClick,
-            ) {
-                Text("Separate public post", color = deepGreen)
+                    },
+                )
+                TextButton(onClick = onCommunityCreateClick) {
+                    Text("Create a separate public post →", color = deepGreen)
+                }
+                Text(
+                    "Only the question, text and photo you approve are shared publicly. Private history stays in this plant.",
+                    color = muted,
+                    fontSize = 11.sp,
+                )
             }
-            Text(
-                "Public posts and stories are optional. Asking about a plant never shares private care history without consent.",
-                color = muted,
-                fontSize = 11.sp,
-                lineHeight = 18.sp,
-            )
+            } // End of the normal private plant detail (not the Ask Circle flow).
         }
     }
     photoToView?.let { (url, plantName) ->
