@@ -108,20 +108,22 @@ Design direction: **editorial natural material + field notes + architectural spa
 
 Numbers above are **design targets for prototyping**, not timings measured on device.
 
-## 04. Me/Profile — three DIFFERENT compositional worlds to A/B
+## 04. Me/Profile — settled visual direction and discarded explorations
 
 **Existing photographed state:** new sage own-account identity component still coexists with private-space mega-card, Moments/Followers/Following, Posts/Reels/Reposts. It's less visibly violet Nova, but still an overly tall collage of separate modules, and a number may be misread as avatar identity. Source `PlantupiaMeIdentity.kt` still styles text through some `NovaType` and imported Nova visual tokens.
 
-### Concept P-A — The Human & Living Places (recommended first experiment)
+**Builder clarification, same date:** We have **already decided Plantupia's core art direction**, have real native screens, and must now refine **one coherent design**. No three competing HTML files, no restart from first principles, and no mandatory three visual routes. The three concepts below are historical inspiration notes, NOT parallel design deliverables. Implement a unified **Human & Living Places** profile first, taking only useful archive/connection details from the other notes.
+
+### Adopted direction — The Human & Living Places (refinement of our native Plantupia design)
 Compact real person portrait/name/bio (not a stock illustrated person) → one horizontally navigable **actual** photographed place → small recognizable plant portraits/date → a **clear Community tab** for posts/reels/follows/messages. One subtle **connecting botanical line** transitions from human area to plant inventory, drawn with authored vector geometry; no fabricated graph/number. User's private place only on owner's profile.
 
-### Concept P-B — Personal Fieldbook
+### Optional inspiration only — Personal Fieldbook
 A physical notebook/archival aesthetic: short personal identity, dated latest *actual* field note as first photo, tiny tactile page/spine cues on chronological list; public posts are a distinct “shared pages” tab. Strong narrative continuity, but potentially too nostalgic/slow for quick care and 100+ plants.
 
-### Concept P-C — Living Atlas / Place × People
+### Optional inspiration only — Living Atlas / Place × People
 One personal portrait node and actual spaces as adjacent photo tokens, private/social separated by marked concentric areas. Select real place -> living plants; public node -> posts/stories/inbox. Novel animated transition only when underlying entities exist. Risk: metaphoric graph confuses navigation, accessibility, older phones and empty accounts.
 
-**Decision:** do not implement a random animated planet/tree avatar. A/B P-A vs P-B with identical **real** screenshot data, and test P-C only if task timing and TalkBack still hold. Other-person public profile must NEVER expose owner-only places, followers are public/social as allowed by privacy settings, DMs remain person-to-person. Me is *one* living identity, not a violet Nova slab plus green menu.
+**Decision clarified by builder:** **No A/B design multiplication or three HTML prototypes** at this stage. Refine the existing Android system into one authored Plantupia world. Own profile: real human identity → actual private places/plants and memories → a distinct optional public social section. Add subtle native photographic continuity / a botanical connective motif only when it expresses real entities. Other-person public profile must NEVER expose owner-only places; DMs stay person-to-person. Alternative archival ideas are available to improve this *single* direction, not competing products.
 
 ## 05. Feature inventory explained simply — CODE vs demonstrated vs not shipped
 
@@ -179,9 +181,9 @@ One personal portrait node and actual spaces as adjacent photo tokens, private/s
 **P0 now — trust and broken experience:** fix phone-exposed non-wrapping long care action; ensure normal vs QUESTION branch composition doesn't duplicate/private leak; verify exact-head Android, signing + QA backend `can_add_plant` roles; 360/390/430dp at 1×/1.5×/2× font; real second-account privacy and persistence.
 
 **P1 — identity system prototypes (one design family, not screen skinning):**
-1. Art-direct *three complete phone compositions* sharing same authorized sample content: **My Space/Today + Plant Detail/Care + Circle + Me/Profile + Create + Story/Inbox entry**, not just attractive isolated cover screens.
+1. Art-direct and refine **one integrated Android composition** — My Space/Today + Plant Detail/Care + Circle + Me/Profile + Create + Story/Inbox entry — based on the native app and original research. No triple HTML design set.
 2. Prepare a **component board**: Playfair-like licensed approved heading candidate vs current generic serif, consistent UI sans, 6 care glyphs, 4 tab glyphs + captions, paper/forest/sage roles, error/warning/disabled, touch and type scale.
-3. Test **Me P-A/P-B**, **Navigation A/B from Study 03**, and home-photo emphasis variants with the same tasks and true user photos. Measure taps and backtracking, not aesthetic voting alone.
+3. Validate the existing chosen navigation/profile and real-photo hierarchy against the actual phone tasks, tapping, backtracking and accessibility; test a small alternative **only** when real friction warrants it, not as a mandatory new visual direction.
 4. Authored botanical architecture **illustration kit** only for empty/onboarding/profile ambient, separate from actual user photo evidence. Get company/owner approval and rights before shipping assets.
 5. Implement an **interaction storyboard** for real image continuity, save success, reschedule, photo dates, explicit public transition, Profile tabs, Story/DM return and all failures.
 6. Remove repetitive “PLANTUPIA / CIRCLE”, “you may choose” and “private history” prose after initial explanation while keeping audience/privacy confirmation at the correct moment.
