@@ -39,6 +39,7 @@ import coil3.compose.AsyncImage
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.plants.data.PlantupiaRepository
 import com.nova.app.feature.plants.data.PlantupiaSpace
+import com.nova.app.feature.plants.data.addPlantAccessExplanation
 import com.nova.app.feature.plants.data.chooseWritableSpaceId
 import kotlinx.coroutines.launch
 
@@ -170,7 +171,7 @@ fun PlantupiaSelfServiceForms(
             }
             if (writableSpaces.isEmpty()) {
                 Text(
-                    "You don't have permission to add plants to these spaces. Create your own private space first.",
+                    addPlantAccessExplanation(spaces),
                     color = textMuted, fontSize = 12.sp,
                 )
             }
