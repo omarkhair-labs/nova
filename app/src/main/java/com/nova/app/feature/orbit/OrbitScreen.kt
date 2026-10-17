@@ -154,13 +154,9 @@ fun OrbitScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("CIRCLE", color = NovaAccent, style = NovaType.micro)
-                        Text("Where people and plants meet", color = NovaInk, style = NovaType.pageTitle)
-                        Text(
-                            "Real questions, recorded moments and shared experience.",
-                            color = NovaMuted,
-                            style = NovaType.bodyCompact,
-                        )
+                        Text("PLANTUPIA / CIRCLE", color = NovaAccent, style = NovaType.micro)
+                        Text("Circle", color = NovaInk, style = NovaType.screenTitle)
+                        Text("Questions, people and shared experience.", color = NovaMuted, style = NovaType.meta)
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(NovaSpacing.xs)) {
                         Box {
@@ -227,9 +223,8 @@ fun OrbitScreen(
             }
 
             if (selectedSection == CircleSection.PlantQuestions) {
-                item(key = "circle-real-plant-questions") {
-                    PlantupiaCirclePanel(onOpenPost = onPostClick)
-                }
+                // Human help starts at a real plant. No source care entry is
+                // shared until the owner previews exact public text and photo.
                 item(key = "circle-start-your-own-question") {
                     Surface(
                         onClick = {
@@ -238,22 +233,29 @@ fun OrbitScreen(
                         },
                         modifier = Modifier.fillMaxWidth(),
                         color = NovaAccentSoft,
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(22.dp),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
                     ) {
-                        Column(
-                            modifier = Modifier.padding(NovaSpacing.lg),
-                            verticalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
+                        Row(
+                            modifier = Modifier.padding(NovaSpacing.md),
+                            horizontalArrangement = Arrangement.spacedBy(NovaSpacing.md),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("FROM YOUR SPACE", color = NovaAccent, style = NovaType.micro)
-                            Text("Have a question about your plant?", color = NovaInk, style = NovaType.sectionTitle)
-                            Text(
-                                "Choose a plant first. You decide when to share its question and photo.",
-                                color = NovaMuted,
-                                style = NovaType.bodyCompact,
+                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text("ASK FROM A PLANT", color = NovaAccent, style = NovaType.micro)
+                                Text("Ask the Circle", color = NovaInk, style = NovaType.label)
+                                Text("Choose a plant, then review what you share.", color = NovaMuted, style = NovaType.meta)
+                            }
+                            NovaIcon(
+                                asset = NovaIconAsset.Create,
+                                contentDescription = null,
+                                tint = NovaAccent,
+                                modifier = Modifier.size(24.dp),
                             )
-                            Text("Ask from your plant's history →", color = NovaAccent, style = NovaType.label)
                         }
                     }
+                }
+                item(key = "circle-real-plant-questions") {
+                    PlantupiaCirclePanel(onOpenPost = onPostClick)
                 }
             } else {
             // Real Nova Stories are rendered through their existing authenticated
