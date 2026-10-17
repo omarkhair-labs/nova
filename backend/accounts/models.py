@@ -55,6 +55,9 @@ class User(AbstractUser):
     link = models.URLField(max_length=300, blank=True)
     interests = models.JSONField(default=list, blank=True)
     profile_theme = models.CharField(max_length=16, default="violet")
+    # Plantupia-specific, public illustrated-person choice. -1 = stable account default.
+    # This does not replace Nova's profile theme or the person's uploaded photo.
+    plantupia_avatar_variant = models.SmallIntegerField(default=-1)
     show_orbit = models.BooleanField(default=True)
     is_verified = models.BooleanField(default=False)
     last_seen_at = models.DateTimeField(null=True, blank=True)
