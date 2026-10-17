@@ -22,8 +22,8 @@ All entries below are **not accepted** pending the listed evidence. Legacy names
 | A01 | Welcome | HYBRID | `feature/welcome/WelcomeScreen.kt` | approved brand assets, concise benefit, sign-in path |
 | A02 | Login, signup, account errors | HYBRID | `feature/auth/AuthScreens.kt` | Plantupia copy, recovery and keyboard/accessibility |
 | A03 | Profile setup | NOVA-INHERITED | `feature/onboarding/ProfileSetupScreen.kt` | lead into first actual space and plant |
-| A04 | First-run create space → first plant | PLANTUPIA-CODED | `PlantupiaSelfServiceForms.kt`, `PlantupiaCreateIntent.kt` | empty user, save failure/retry, photo, return to created plant |
-| S01 | Living Home / Today | HYBRID | `HomeScreen.kt`, `PlantupiaClientSection.kt`, `PlantupiaTodayPanel.kt` | plant/attention first, selected-space focus, no inherited feed dominance |
+| A04 | First-run create space → first plant | PLANTUPIA-CODED / NATIVE NAV PASS | `PlantupiaSelfServiceForms.kt`, `PlantupiaCreateIntent.kt`; editor heading auto-scroll on Create → Home handoff | empty user, actual upload/save error/retry, post-create return on device |
+| S01 | Living Home / Today | HYBRID / PASS 07 ORDER CODED | `HomeScreen.kt`, `PlantupiaClientSection.kt`, `PlantupiaTodayPanel.kt`; real selected-space hero now appears before optional AI/create controls; Today explicitly cross-space | on-device 360/390dp, owner/manager/viewer, empty/account-error, real photos, keyboard and gesture audit; no inherited feed dominance |
 | S02 | Space switcher | PLANTUPIA-CODED, AWAITING QA | `PlantupiaSpaceSwitcher.kt`, `PlantupiaSpaceFocus.kt` | chosen authorized site, saved rotation state, scoped hero/recent/inventory; test device |
 | S03 | Create a private space | PLANTUPIA-CODED | `PlantupiaSelfServiceForms.kt`, Django spaces | shorten form, explicit ownership, zero-data UX |
 | S04 | Space overview / plants | HYBRID | `PlantupiaClientSection.kt` | dedicated active space; nonduplicate hierarchy, camera-first |
@@ -34,7 +34,7 @@ All entries below are **not accepted** pending the listed evidence. Legacy names
 | P02 | Plant profile/identity | PLANTUPIA-CODED | `PlantupiaClientSection.kt` selected plant | action hierarchy, typography/photo, offline/retry |
 | P03 | Private personal nickname | PLANTUPIA-CODED | nickname endpoint | separate botanical vs user nickname, edit/retry |
 | P04 | Shared context edit; reversible plant archive/restore; replacement separate | C1 CODED (edit + archive) / QA OPEN; REPLACEMENT GAP | `PlantDetailView`, `PlantUpdateSerializer` using existing `PlantUnit.is_active`, `PlantupiaClientSection.kt` archive controls; private administrative event retains history | Verify archived/history permissions, old reminders, on-device persistence. **Replacement/new biological identity is not implemented** |
-| C01 | Daily check-ins overview | PLANTUPIA-CODED | `PlantupiaTodayPanel.kt` | date/rules, empty/due/upcoming, UX QA |
+| C01 | Daily check-ins overview | PLANTUPIA-CODED / LARGE INVENTORY PASS | `PlantupiaTodayPanel.kt`; cross-space label and progressively reveal all actual due check-ins, 0/1/100 tests | date/rules, state reset, on-device UX QA |
 | C02 | Record actual care action | PLANTUPIA-CODED | care tiles/events/typed history | icon-based compact composer, no watering inference |
 | C03 | Record observation/photo | PLANTUPIA-CODED | events and photo upload | image retry/upload states, permissions |
 | C04 | Report concern | PLANTUPIA-CODED | event kind `issue` | easy next action without fake diagnosis |
@@ -59,6 +59,15 @@ All entries below are **not accepted** pending the listed evidence. Legacy names
 | U05 | Legal, support and account lifecycle | HYBRID | welcome/auth/settings and policy | approved URLs, data rights, contact channels |
 | B01 | Company installation → support/service journey | GAP / COMPANY-GATED | Django Admin is not an approved customer service contract | need real roster, responsibilities, SLA & entitlement data |
 | WEB | Public Plantupia creative website | SEPARATE PRODUCT | research repo scope | do not conflate with Android release |
+
+
+### 2026-10-17 actual Native screen closure increment (not client signoff)
+
+- **Home composition / Pass 07:** the selected authenticated space switcher and actual plant-photo hero now sit before the optional AI button and create editors. The next human-chosen check-ins remain cross-space so choosing an individual space cannot silently hide due work. No fake space covers or synthetic activity.
+- **First-time / Create handoff:** Create → Home editor retains one stateful form instance; the new space/plant editor heading requests native bring-into-view after opening, rather than being stranded below the photo-led hero. Still requires physical Android layout/keyboard verification.
+- **Care overview:** previous 3-item cap no longer strands further real due check-ins; 8-at-a-time expansion and JVM tests for 0/1/2/100. Actual notification schedule unchanged.
+- **Truthful display:** hero's count now describes 0, 1, or multiple active plants in the selected space without claiming fabricated observations or care; unit tests cover 0/1/7/100.
+- **Proof:** code pushed only on stacked draft PR #241. Exact-final-HEAD Android/backend CI and staged/on-device QA must be checked separately; this update is *code-complete incremental work*, not screen approval or store readiness.
 
 ## Backend / invisible engine ledger
 
