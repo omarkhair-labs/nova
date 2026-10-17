@@ -349,6 +349,12 @@ fun PlantupiaClientSection(
                     if (creationAccessNotice != null) {
                         Text(creationAccessNotice.orEmpty(), color = Color(0xFF9A4A31), fontSize = 12.sp)
                     }
+                    // Show an immediate, bounded picker instead of making the
+                    // user scroll past the space hero and old inventory to act.
+                    PlantupiaIntentPlantPicker(
+                        plants = plants,
+                        onChoosePlant = { plant -> scope.launch { openPlant(plant) } },
+                    )
                     TextButton(onClick = {
                         creationAccessNotice = null
                         PlantupiaCreateIntent.clear()
