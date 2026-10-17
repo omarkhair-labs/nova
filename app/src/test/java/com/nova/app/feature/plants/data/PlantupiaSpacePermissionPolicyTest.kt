@@ -16,6 +16,14 @@ class PlantupiaSpacePermissionPolicyTest {
         assertTrue(text.contains("preview API"))
     }
 
+    @Test fun mixedPermissionWithoutWritableSpaceExplainsUnknownBackendState() {
+        val text = addPlantAccessExplanation(listOf(
+            space("s1", permissionReported = true),
+            space("s2", permissionReported = false),
+        ))
+        assertTrue(text.contains("didn't confirm"))
+    }
+
     @Test fun confirmedReadOnlyPermissionShowsRealNextAction() {
         val text = addPlantAccessExplanation(listOf(space("s1", permissionReported = true)))
         assertTrue(text.contains("manager access"))

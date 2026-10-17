@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.relocation.BringIntoViewRequester
@@ -53,6 +54,7 @@ fun PlantupiaSelfServiceForms(
     spaces: List<PlantupiaSpace>,
     repository: PlantupiaRepository,
     onCreated: () -> Unit,
+    onRefreshSpaces: () -> Unit,
     onPlantCreated: (plantId: String, spaceId: String) -> Unit,
     preferredSpaceId: String? = null,
     enabled: Boolean = true,
@@ -66,6 +68,7 @@ fun PlantupiaSelfServiceForms(
     val writableSpaces = spaces.filter { it.canAddPlant }
     var spaceOpen by remember { mutableStateOf(false) }
     var plantOpen by remember { mutableStateOf(false) }
+    var accessNotice by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var spaceName by remember { mutableStateOf("") }
@@ -84,6 +87,7 @@ fun PlantupiaSelfServiceForms(
     }
 
     LaunchedEffect(spaces) {
+        if (writableSpaces.isNotEmpty()) accessNotice = false
         if (justCreatedSpace != null &&
             writableSpaces.any { it.id == justCreatedSpace?.first }
         ) {
@@ -102,10 +106,14 @@ fun PlantupiaSelfServiceForms(
     // separate mock composer. A first plant requires creating a space first.
     LaunchedEffect(creationRequest, enabled) {
         if (enabled) {
-            when (creationRequest.creationForm(writableSpaces.isNotEmpty())) {
+            when (creationRequest.creationForm(
+                hasSpaces = writableSpaces.isNotEmpty(),
+                hasVisibleSpaces = spaces.isNotEmpty(),
+            )) {
                 PlantupiaCreationForm.SPACE -> {
                     spaceOpen = true
                     plantOpen = false
+                    accessNotice = false
                     error = null
                     onRequestConsumed()
                 }
@@ -116,6 +124,16 @@ fun PlantupiaSelfServiceForms(
                     )
                     plantOpen = true
                     spaceOpen = false
+                    accessNotice = false
+                    error = null
+                    onRequestConsumed()
+                }
+                PlantupiaCreationForm.ACCESS -> {
+                    // A space the person can see is not necessarily editable.
+                    // Don't open a new-space form or bypass the API role gate.
+                    accessNotice = true
+                    spaceOpen = false
+                    plantOpen = false
                     error = null
                     onRequestConsumed()
                 }
@@ -124,8 +142,8 @@ fun PlantupiaSelfServiceForms(
         }
     }
 
-    LaunchedEffect(spaceOpen, plantOpen) {
-        if (spaceOpen || plantOpen) {
+    LaunchedEffect(spaceOpen, plantOpen, accessNotice) {
+        if (spaceOpen || plantOpen || accessNotice) {
             // Wait for the newly visible heading to enter composition/layout.
             withFrameNanos { }
             creationEditorHeading.bringIntoView()
@@ -152,28 +170,53 @@ fun PlantupiaSelfServiceForms(
                 }
             }
         } else if (!spaceOpen && !plantOpen) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { error = null; spaceOpen = true }, modifier = Modifier.weight(1f)) {
-                    Text("+ New space", color = ink, fontSize = 12.sp)
-                }
+            // Stack creation actions for 320dp screens and 2x system fonts.
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = {
                         error = null
+                        accessNotice = false
                         selectedSpaceId = chooseWritableSpaceId(
                             writableSpaces, preferredSpaceId, selectedSpaceId, justCreatedSpace?.first,
                         )
                         plantOpen = true
                     },
                     enabled = writableSpaces.isNotEmpty(),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = ink),
-                ) { Text("+ Add plant", fontSize = 12.sp) }
+                ) { Text("+ Add plant") }
+                OutlinedButton(
+                    onClick = { error = null; accessNotice = false; spaceOpen = true },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                ) { Text("+ New private space", color = ink) }
             }
             if (writableSpaces.isEmpty()) {
-                Text(
-                    addPlantAccessExplanation(spaces),
-                    color = textMuted, fontSize = 12.sp,
-                )
+                Surface(
+                    color = paper,
+                    shape = RoundedCornerShape(18.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            if (spaces.any { !it.canAddPlantPermissionReported }) "Access not confirmed"
+                            else "These spaces are read-only",
+                            modifier = Modifier.bringIntoViewRequester(creationEditorHeading),
+                            color = ink,
+                            fontSize = 18.sp,
+                        )
+                        Text(addPlantAccessExplanation(spaces), color = textMuted, fontSize = 13.sp)
+                        OutlinedButton(
+                            onClick = {
+                                error = null
+                                onRefreshSpaces()
+                            },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        ) { Text("Refresh access", color = ink) }
+                    }
+                }
             }
         }
 

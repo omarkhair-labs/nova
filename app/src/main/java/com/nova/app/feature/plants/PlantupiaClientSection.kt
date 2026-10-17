@@ -483,6 +483,7 @@ fun PlantupiaClientSection(
                 spaces = spaces,
                 repository = repository,
                 onCreated = { scope.launch { refresh() } },
+                onRefreshSpaces = { scope.launch { refresh() } },
                 onPlantCreated = { plantId, spaceId ->
                     // Completing onboarding opens the real new plant, rather
                     // than dropping a first-time owner back into a generic list.

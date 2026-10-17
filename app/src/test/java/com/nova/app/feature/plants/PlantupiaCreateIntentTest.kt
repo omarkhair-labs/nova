@@ -64,6 +64,24 @@ class PlantupiaCreateIntentTest {
         )
     }
 
+    @Test fun visibleReadOnlySpaceDoesNotSilentlyOpenNewSpaceEditor() {
+        assertEquals(
+            PlantupiaCreationForm.ACCESS,
+            PlantupiaCreateMode.ADD_PLANT.creationForm(
+                hasSpaces = false, hasVisibleSpaces = true,
+            ),
+        )
+    }
+
+    @Test fun writableSpaceTakesPriorityOverReadOnlySpaces() {
+        assertEquals(
+            PlantupiaCreationForm.PLANT,
+            PlantupiaCreateMode.ADD_PLANT.creationForm(
+                hasSpaces = true, hasVisibleSpaces = true,
+            ),
+        )
+    }
+
     @Test fun newSpaceAlwaysOpensSpaceForm() {
         assertEquals(
             PlantupiaCreationForm.SPACE,

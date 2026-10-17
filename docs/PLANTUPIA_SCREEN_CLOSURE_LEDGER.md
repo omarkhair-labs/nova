@@ -251,3 +251,8 @@ Build the following connected groups continuously, with developer-side testing/C
 - **PENDING:** two-account permission/device QA; small screens, accessibility and real photo variants. The separate QA backend's Add Plant role mismatch is **still unverified**, and a successful build is not a substitute for that check.
 
 - **W3 initial zero-content art CODED, NOT DEVICE ACCEPTED:** `PlantupiaEmptyPlaceArt` in the owner's empty/missing-photo private-spaces summary replaces a generic brand placeholder. It is explicitly decorative and never used as a real plant/space photo. Final appearance and coherence with onboarding and Care zero states still require physical review.
+
+### 2026-10-17 W0/P0 Add Plant access recovery & narrow-screen creation (CODED; HOSTED QA PENDING)
+- **CODED:** Create -> Add Plant with visible but non-writable spaces now reveals an ACCESS state rather than silently opening New Space. The explanation distinguishes server missing `can_add_plant` from verified read-only. A functional **Refresh access** action fetches the actual authenticated space list again.
+- **CODED:** main Add plant/New space controls stack at full width with >=48dp minimum height for small devices/large text; backend role checks remain authoritative and no denied write is forced.
+- **UNIT TESTS:** creation intent with read-only vs writable space and mixed missing/known permission. **NOT VERIFIED:** deployed preview API version, role response, isolated QA DB/media, on-device text scaling and real Add Plant success. These still require environment + two-account QA.
