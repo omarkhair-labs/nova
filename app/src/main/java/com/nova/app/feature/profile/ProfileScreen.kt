@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.dp
 import com.nova.app.SettingsActivity
 import com.nova.app.SocialGraphActivity
 import com.nova.app.feature.plants.PlantupiaProfileSpaces
+import com.nova.app.feature.plants.PlantupiaColors
+import com.nova.app.feature.plants.PlantupiaText
 import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.ui.components.NovaUnreadDot
@@ -78,7 +80,7 @@ fun ProfileScreen(
     }
 
     Scaffold(
-        containerColor = NovaBackground,
+        containerColor = PlantupiaColors.cream,
         bottomBar = {
             NovaBottomBar(
                 selected = NovaTab.Profile,
@@ -92,7 +94,7 @@ fun ProfileScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(NovaBackground)
+                .background(PlantupiaColors.cream)
                 .padding(innerPadding)
                 .statusBarsPadding()
                 .verticalScroll(rememberScrollState())
@@ -104,8 +106,8 @@ fun ProfileScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column {
-                    Text(text = "PLANTUPIA / ME", color = NovaMuted, style = NovaType.micro)
-                    Text(text = "Your profile", color = NovaInk, style = NovaType.sectionTitle)
+                    Text(text = "PLANTUPIA / ME", style = PlantupiaText.sectionLabel)
+                    Text(text = "Your profile", style = PlantupiaText.editorialHeading)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box {
@@ -145,10 +147,10 @@ fun ProfileScreen(
             // The personal, authenticated view only. Plantupia sites and
             // care records must never be injected into public Nova posts
             // or another user's PersonScreen.
-            PlantupiaProfileSpaces(onOpenSpaces = onHomeClick)
+            PlantupiaProfileSpaces(accountId = userId, onOpenSpaces = onHomeClick)
 
             Spacer(modifier = Modifier.height(NovaSpacing.lg))
-            Text("COMMUNITY", color = NovaMuted, style = NovaType.micro)
+            Text("COMMUNITY", style = PlantupiaText.sectionLabel)
             Spacer(modifier = Modifier.height(NovaSpacing.sm))
             Row(
                 modifier = Modifier.fillMaxWidth(),

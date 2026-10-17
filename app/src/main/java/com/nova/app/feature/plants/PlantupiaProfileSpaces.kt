@@ -53,15 +53,23 @@ private sealed interface PrivateSpacesSummary {
  * fetches authorized private Plantupia records and never posts their photos.
  */
 @Composable
-fun PlantupiaProfileSpaces(onOpenSpaces: () -> Unit) {
+internal fun mayFetchPrivateSpaces(accountId: Long): Boolean = accountId > 0L
+
+@Composable
+fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
+    // A public/guest/unknown identity must never request or render private data.
+    if (!mayFetchPrivateSpaces(accountId)) return
+
     val context = LocalContext.current
-    val repository = remember(context.applicationContext) {
+    // Each authenticated account owns a distinct repository and remembered UI state.
+    // Rapid logout/account switching invalidates the prior LaunchedEffect request.
+    val repository = remember(context.applicationContext, accountId) {
         PlantupiaRepository(context.applicationContext)
     }
-    var state by remember { mutableStateOf<PrivateSpacesSummary>(PrivateSpacesSummary.Loading) }
-    var retry by remember { mutableIntStateOf(0) }
+    var state by remember(accountId) { mutableStateOf<PrivateSpacesSummary>(PrivateSpacesSummary.Loading) }
+    var retry by remember(accountId) { mutableIntStateOf(0) }
 
-    LaunchedEffect(repository, retry) {
+    LaunchedEffect(repository, accountId, retry) {
         state = PrivateSpacesSummary.Loading
         val spaceResponse = repository.spaces()
         if (spaceResponse !is ApiResult.Success) {

@@ -1,5 +1,6 @@
 package com.nova.app.feature.profile
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,6 +22,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.feature.plants.PlantupiaColors
+import com.nova.app.feature.plants.PlantupiaText
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaInk
@@ -29,11 +31,10 @@ import com.nova.app.ui.theme.NovaSpacing
 import com.nova.app.ui.theme.NovaType
 
 /**
- * The owner's Plantupia identity: human first, then their private living places.
- * Does not use Nova's legacy profile-theme-colored orbit slab. The public social
- * posts/follow graph remain on the same screen, explicitly separated below.
- *
- * This is not used for visiting another person's public PersonScreen.
+ * Public-safe human-first identity for both the owner and a visited person.
+ * Contains ONLY public profile metadata; private living places belong exclusively
+ * in the separately authorized PlantupiaProfileSpaces shown by ProfileScreen.
+ * Retains the shared Nova social/profile engine without its violet identity slab.
  */
 @Composable
 internal fun PlantupiaMeIdentity(
@@ -51,8 +52,9 @@ internal fun PlantupiaMeIdentity(
     val verifiedUrl = remember(link) { normalizedProfileExternalUrl(link) }
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = PlantupiaColors.softSage,
+        color = PlantupiaColors.paper,
         shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(1.dp, PlantupiaColors.border),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -78,7 +80,7 @@ internal fun PlantupiaMeIdentity(
                     ) {
                         Text(
                             text = displayName.ifBlank { username }.ifBlank { "Your profile" },
-                            color = NovaInk,
+                            color = PlantupiaColors.forestText,
                             style = NovaType.sectionTitle,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -95,15 +97,15 @@ internal fun PlantupiaMeIdentity(
                     }
                     Text(
                         text = "@${username}",
-                        color = NovaMuted,
-                        style = NovaType.bodyCompact,
+                        color = PlantupiaColors.secondaryText,
+                        style = PlantupiaText.supporting,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
             if (bio.isNotBlank()) {
-                Text(text = bio, style = NovaType.bodyCompact, color = NovaInk)
+                Text(text = bio, style = PlantupiaText.body, color = PlantupiaColors.forestText)
             }
             if (location.isNotBlank()) {
                 Row(
@@ -116,7 +118,7 @@ internal fun PlantupiaMeIdentity(
                         modifier = Modifier.size(16.dp),
                         tint = NovaMuted,
                     )
-                    Text(text = location, color = NovaMuted, style = NovaType.meta, maxLines = 2)
+                    Text(text = location, color = PlantupiaColors.secondaryText, style = PlantupiaText.supporting, maxLines = 2)
                 }
             }
             if (verifiedUrl != null) {

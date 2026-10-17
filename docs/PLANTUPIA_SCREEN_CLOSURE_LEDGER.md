@@ -243,3 +243,9 @@ Build the following connected groups continuously, with developer-side testing/C
 - **QA GATE:** Android JVM/lint/build on exact SHA; actual two-account continuity, large text, 24–96dp, offline and failed image cases. No owner acceptance, signed APK, Play or production changes.
 
 - **W2 social extension CODED:** authentic public Post author + comment/reply author, Story rail and Story viewer/person list use the exact same account-ID illustration fallback. Create-Story without real image shows the actual owner's illustrated identity; separate text-story symbol is not a person. Prior audience/media/reply behavior stays inherited. **NOT device accepted**; backend and Android CI must pass at final HEAD.
+
+### 2026-10-17 W1/W2 cohesive people surfaces / private-profile gate (NOT ACCEPTED)
+
+- **CODED:** one Plantupia public metadata identity card for owner Me, public visitor profile, and Edit Profile preview; saved Nova public social posts/follows and profile links retained. Private spaces are still only included on owner `ProfileScreen`.
+- **CODED:** private space summaries gated on positive authenticated account ID; repository, load state, retry and request coroutine keyed per account to avoid old UI data persisting across account switches.
+- **PENDING:** two-account permission/device QA; small screens, accessibility and real photo variants. The separate QA backend's Add Plant role mismatch is **still unverified**, and a successful build is not a substitute for that check.

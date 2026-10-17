@@ -1,5 +1,5 @@
 # Plantupia — Pass 09 / One Integrated Native Visual System + Execution Map
-**Date:** 2026-10-17 | **Status:** Research synthesis + implementation backlog, NOT implemented/approved | **Source:** Product Bible, Pass04–08, native QA captures and user's current direction.
+**Date:** 2026-10-17 | **Status:** Active research-to-native execution ledger; historical planned items below are not all current (see implementation updates). No owner/device acceptance | **Source:** Product Bible, Pass04–08, native QA captures and user's current direction.
 
 ## Final direction (do not reopen three HTML design routes)
 **One coherent Android-native Plantupia**. Material language: warm paper/cream, forest/sage, quiet editorial serif for true plant/place identity, readable UI sans, real photographs when users supply them, authored botanical–architectural vector motifs, clear six-action care pictograms, restrained meaningful motion. Maintain existing Nova Android/Django functionality and privacy; visually integrate rather than recolor. Do not copy winner artwork or Reddit identity characters.
@@ -55,7 +55,7 @@
 - **Commissioned illustration:** person with no avatar, empty world, minimal onboarding, optional fieldbook accent. Do not use to fake an installed plant or verified condition.
 - **Motion:** after a genuine press, navigation or confirmed backend save, with no distracting loops, reduced motion and interrupted transitions respected.
 
-## What is not done or not promised
+## Original Pass 09 gaps at planning time (historical snapshot; see latest increments below)
 - **Not implemented yet:** illustrated default avatars across app; approved artwork asset kit; complete shared typography/font licensing; product-wide motion grammar; final Profile hierarchy.
 - **Coded, not completely verified:** care/history/check-in/public question private/outcome flow; community engine from Nova; launch of assistant adapter.
 - **Unproven / gated:** live QA backend isolation, role-based Add Plant fix, actual two-account media privacy, AI provider quality, final separate Android Play app, company-run visits, stable QA signing.
@@ -75,3 +75,10 @@ Codex may challenge iconography, illustration composition, user identity and inf
 **Shared Nova UI architecture seam (CI follow-up):** Keep `NovaAvatar` as the actual Me/People call-site owner. These surfaces opt into the authored illustration via optional `plantupiaUserId`; all unmodified NovaAvatar callers retain the original behavior. No guard weakened or bypassed. Verify the native build and tests at the new exact SHA.
 
 **W2 social identity integration continuation:** Reused the same opt-in NovaAvatar seam for actual Post author, Comment/Reply author, Stories author/viewer and self Add Story rail (including a missing real photo). IDs come from Nova post and story models; group chat identity and anonymous text-story composer remain intentionally separate. Android/build and phone proof still required.
+
+## 2026-10-17 W1/W2 profile cohesion and private-data isolation increment — CODED, NOT DEVICE ACCEPTED
+
+- Owner Me and visited Person now share **one public-safe Plantupia person card**, with paper/forest/cream visual roles and the same deterministic illustrated person/photo fallback. Public Person continues through the original `NovaProfileIdentity` seam but the opted-in Plantupia branch uses `PlantupiaMeIdentity`; vanilla Nova remains unchanged.
+- **Privacy guard:** `PlantupiaProfileSpaces` now requires the authenticated numeric account ID, skips nonpositive/unknown account, and keys its repository/loading/retry/requests by ID to avoid displaying a prior session's private-space cards after account switching. Visitors never invoke this private component.
+- Added JVM ID-policy tests; server authorization continues to be the source of truth. No backend endpoint/schema change.
+- This is a first cohesive profile/identity pass, **not** a signoff on overall screens, fonts, approved illustration, manual avatar picker, or two-account/physical QA. Current exact-head CI is required.

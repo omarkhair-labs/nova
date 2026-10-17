@@ -85,6 +85,24 @@ internal fun NovaProfileIdentity(
     plantupiaIdentityId: Long? = null,
     modifier: Modifier = Modifier,
 ) {
+    if (plantupiaIdentityId != null) {
+        // One art direction for the person's public identity and owner's Me.
+        // No PlantupiaProfileSpaces, private plants, placement or care data
+        // can cross this boundary: this component receives public fields only.
+        PlantupiaMeIdentity(
+            displayName = displayName,
+            userId = plantupiaIdentityId,
+            username = username,
+            avatarUrl = avatarUrl,
+            bio = bio,
+            location = location,
+            link = link,
+            interests = interests,
+            isVerified = isVerified,
+        )
+        return
+    }
+
     val palette = remember(profileTheme) { novaProfileThemePalette(profileTheme) }
     val externalUrl = remember(link) { normalizedProfileExternalUrl(link) }
     val uriHandler = LocalUriHandler.current
