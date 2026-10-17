@@ -44,6 +44,7 @@ class NovaSessionStore(context: Context) {
             .putString(KEY_LINK, user.link)
             .putStringSet(KEY_INTERESTS, user.interests.toSet())
             .putString(KEY_PROFILE_THEME, user.profileTheme)
+            .putInt(KEY_PLANTUPIA_AVATAR_VARIANT, user.plantupiaAvatarVariant)
             .putBoolean(KEY_SHOW_ORBIT, user.showOrbit)
             .putBoolean(KEY_IS_VERIFIED, user.isVerified)
             .putInt(KEY_FOLLOWERS_COUNT, user.followersCount)
@@ -147,6 +148,7 @@ class NovaSessionStore(context: Context) {
             link = prefs.getString(KEY_LINK, "").orEmpty(),
             interests = prefs.getStringSet(KEY_INTERESTS, emptySet()).orEmpty().sorted(),
             profileTheme = prefs.getString(KEY_PROFILE_THEME, "violet").orEmpty(),
+            plantupiaAvatarVariant = prefs.getInt(KEY_PLANTUPIA_AVATAR_VARIANT, -1),
             showOrbit = prefs.getBoolean(KEY_SHOW_ORBIT, true),
             isVerified = prefs.getBoolean(KEY_IS_VERIFIED, false),
             followersCount = prefs.getInt(KEY_FOLLOWERS_COUNT, 0),
@@ -181,6 +183,7 @@ class NovaSessionStore(context: Context) {
         const val KEY_LINK = "link"
         const val KEY_INTERESTS = "interests"
         const val KEY_PROFILE_THEME = "profile_theme"
+        const val KEY_PLANTUPIA_AVATAR_VARIANT = "plantupia_avatar_variant"
         const val KEY_SHOW_ORBIT = "show_orbit"
         const val KEY_IS_VERIFIED = "is_verified"
         const val KEY_FOLLOWERS_COUNT = "followers_count"

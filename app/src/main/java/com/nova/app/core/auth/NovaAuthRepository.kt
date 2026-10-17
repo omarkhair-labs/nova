@@ -128,6 +128,7 @@ class NovaAuthRepository(
         interests: List<String>,
         profileTheme: String,
         showOrbit: Boolean,
+        plantupiaAvatarVariant: Int = -1,
     ): ApiResult<NovaUser> {
         val stored = sessionStore.load()
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
@@ -148,6 +149,7 @@ class NovaAuthRepository(
             interests = interests.map(String::trim).filter(String::isNotBlank).distinct().take(8),
             profileTheme = profileTheme,
             showOrbit = showOrbit,
+            plantupiaAvatarVariant = plantupiaAvatarVariant,
         )
     }
 
@@ -175,6 +177,7 @@ class NovaAuthRepository(
         interests: List<String>,
         profileTheme: String,
         showOrbit: Boolean,
+        plantupiaAvatarVariant: Int = -1,
     ): ApiResult<NovaUser> {
         when (
             val first = remote.updateProfile(
@@ -188,6 +191,7 @@ class NovaAuthRepository(
                 interests = interests,
                 profileTheme = profileTheme,
                 showOrbit = showOrbit,
+                plantupiaAvatarVariant = plantupiaAvatarVariant,
             )
         ) {
             is ApiResult.Success -> {
@@ -215,6 +219,7 @@ class NovaAuthRepository(
                         interests = interests,
                         profileTheme = profileTheme,
                         showOrbit = showOrbit,
+                        plantupiaAvatarVariant = plantupiaAvatarVariant,
                     )
                 ) {
                     is ApiResult.Success -> {
