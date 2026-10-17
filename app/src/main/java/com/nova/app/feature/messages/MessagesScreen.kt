@@ -459,6 +459,7 @@ private fun ConversationRow(
                         displayName = conversation.displayName,
                         photoUrl = conversation.otherUser.avatarUrl,
                         size = 50.dp,
+                        chosenVariant = conversation.otherUser.plantupiaAvatarVariant,
                     )
                 }
 
