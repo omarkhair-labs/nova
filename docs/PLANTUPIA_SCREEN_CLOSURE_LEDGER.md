@@ -91,6 +91,15 @@ All entries below are **not accepted** pending the listed evidence. Legacy names
 - **Client product handoff source:** [Plantupia Product Bible & Handoff v0.1](./PLANTUPIA_PRODUCT_BIBLE_AND_HANDOFF_V01_2026-10-17.md) now contains product thesis, seven source-derived principles, exploration worlds, decision/evidence log, Pass 04–07 translation, art direction, IA, APIs, privacy, staged evidence gates, separate app-store destination and deliverable annexes. Status **WORKING**, not an already-approved client PDF or final APK.
 - **Physical device verification remains open** before any “accepted” stage. The CI outcome belongs to a named exact commit only.
 
+### 2026-10-17 Native design consolidation: Create intent-first page
+
+- **Owner device review triggered a true visual/product intervention**, not just a green palette. See [nine-capture brief audit](./PLANTUPIA_REAL_DEVICE_VISUAL_BRIEF_AUDIT_2026-10-17.md).
+- **Profile/Home:** new own-profile Plantupia identity separate from inherited violet Nova theme, shorter branded English-first Home header and truthful singular plant counts. Account/profile, private places, public social content, notifications and DM engine preserved.
+- **Create:** prior stacked explanatory hero + optional user-photo decoration + long marketing introduction replaced by native compact Private (record care / add plant / new space) and Public (plant question / post / Story / video) intent groups, with Nova's actual existing editor routes retained. Secondary Pulse, Gathering and Memory still use actual native rails. Existing page is still the center `+` destination until the full-navigation device A/B gate.
+- **QA semantic distinction:** the `can_add_plant` field now tracks whether the QA API returned an authorization answer. Missing field shows server-revision warning, explicit denied access shows owner/manager role guidance; **client-side write remains disabled** until server authority is present. A live server-response check is still required; don't infer the owner has actually been granted or denied.
+- **Tests / acceptance:** source changed only on draft PR #241. Final exact-HEAD CI, 360/390/430dp physical screenshots, screen-reader focus, two-account public/private test and actual Add Plant create remain outstanding until proven.
+- **Later Codex audit (not started):** [Codex scoped audit contract](./PLANTUPIA_CODEX_AUDIT_HANDOFF_CONTRACT.md) preserves research hierarchy, avoids autonomous product redesign, and requires review before accepted code changes.
+
 ## Backend / invisible engine ledger
 
 | Layer | Exists | Next evidence gate |
