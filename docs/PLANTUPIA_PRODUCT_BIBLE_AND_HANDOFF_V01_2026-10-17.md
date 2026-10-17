@@ -2,11 +2,11 @@
 ## Product Bible · Experience Rationale · Engineering & Client Handoff
 **Working edition v0.1 | 17 October 2026 | Android Native | Review in progress**
 
-**Product:** Plantupia  
-**Prepared by:** Product-building / design & engineering workstream  
-**Audience:** Client stakeholders, product/design partners, future Android/backend maintainers, internal reviewers  
-**Status:** **WORKING HANDOFF — not company approval, app-store clearance or production sign-off**  
-**Single source of truth for live feature closure:** [Native screen ledger](./PLANTUPIA_SCREEN_CLOSURE_LEDGER.md)  
+**Product:** Plantupia
+**Prepared by:** Product-building / design & engineering workstream
+**Audience:** Client stakeholders, product/design partners, future Android/backend maintainers, internal reviewers
+**Status:** **WORKING HANDOFF — not company approval, app-store clearance or production sign-off**
+**Single source of truth for live feature closure:** [Native screen ledger](./PLANTUPIA_SCREEN_CLOSURE_LEDGER.md)
 **Implementation:** [PR #240](https://github.com/omarkhair-labs/nova/pull/240) → [stacked PR #241](https://github.com/omarkhair-labs/nova/pull/241). All branch links in this edition target `feature/plantupia-native-experience-20261012`; revisions continue until one integrated device-tested build is approved.
 
 > **Product thesis** — A living plant is not an isolated object or generic reminder. It exists in a real place, is cared for by real people, and becomes understood through honest observation and time. Plantupia connects **place → plant → human care → dated evidence → observed outcome**, with community knowledge and a voluntary assistant as **optional** additions, never automatic exposure of private records.
