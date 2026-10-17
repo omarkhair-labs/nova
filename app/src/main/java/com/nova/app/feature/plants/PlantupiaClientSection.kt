@@ -107,6 +107,7 @@ fun PlantupiaClientSection(
     var sharedSpecies by remember { mutableStateOf("") }
     var sharedPlacement by remember { mutableStateOf("") }
     var showCareEditor by remember { mutableStateOf(false) }
+    var creationAccessNotice by remember { mutableStateOf<String?>(null) }
     var showPlantManagement by remember(currentPlantId) { mutableStateOf(false) }
     var showAssistant by remember { mutableStateOf(false) }
     var photoToView by remember { mutableStateOf<Pair<String, String>?>(null) }
@@ -184,6 +185,13 @@ fun PlantupiaClientSection(
     }
 
     suspend fun openPlant(plant: PlantupiaPlant) {
+        if (PlantupiaCreateIntent.pending.needsPlantSelection() &&
+            plant !in actionablePlantChoices(plants)
+        ) {
+            creationAccessNotice = "This plant is read-only. Choose a plant you can care for, or create your own."
+            return
+        }
+        creationAccessNotice = null
         detailRequestGeneration += 1
         val requestGeneration = detailRequestGeneration
         openDetailMode = PlantupiaCreateIntent.pending.takeIf { plant.active }
@@ -285,7 +293,7 @@ fun PlantupiaClientSection(
     LaunchedEffect(Unit) { refresh() }
     LaunchedEffect(PlantupiaCreateIntent.pending, plants, loading) {
         if (!loading && error == null && PlantupiaCreateIntent.pending.needsPlantSelection()) {
-            val available = plants.filter { it.active }
+            val available = actionablePlantChoices(plants)
             if (available.size == 1) openPlant(available.first())
         }
     }
@@ -326,7 +334,25 @@ fun PlantupiaClientSection(
                         "Private care records stay private. Public sharing requires your consent.",
                         color = muted, fontSize = 12.sp,
                     )
-                    TextButton(onClick = { PlantupiaCreateIntent.clear() }) {
+                    if (actionablePlantChoices(plants).isEmpty()) {
+                        Text(
+                            "None of your active plants allow care or questions yet. You can create your own private space and plant.",
+                            color = muted, fontSize = 12.sp,
+                        )
+                        TextButton(onClick = {
+                            creationAccessNotice = null
+                            PlantupiaCreateIntent.request(PlantupiaCreateMode.ADD_PLANT)
+                        }) {
+                            Text("+ Add your own plant", color = deepGreen)
+                        }
+                    }
+                    if (creationAccessNotice != null) {
+                        Text(creationAccessNotice.orEmpty(), color = Color(0xFF9A4A31), fontSize = 12.sp)
+                    }
+                    TextButton(onClick = {
+                        creationAccessNotice = null
+                        PlantupiaCreateIntent.clear()
+                    }) {
                         Text("Cancel", color = deepGreen)
                     }
                 }
