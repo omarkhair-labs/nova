@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -26,6 +28,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -56,6 +59,9 @@ fun PlantupiaSelfServiceForms(
     onRequestConsumed: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
+    // Create → Home opens a real editor below the photo-led space hero.
+    // Bring only its heading into view; avoid trying to scroll a long form in full.
+    val creationEditorHeading = remember { BringIntoViewRequester() }
     val writableSpaces = spaces.filter { it.canAddPlant }
     var spaceOpen by remember { mutableStateOf(false) }
     var plantOpen by remember { mutableStateOf(false) }
@@ -117,6 +123,14 @@ fun PlantupiaSelfServiceForms(
         }
     }
 
+    LaunchedEffect(spaceOpen, plantOpen) {
+        if (spaceOpen || plantOpen) {
+            // Wait for the newly visible heading to enter composition/layout.
+            withFrameNanos { }
+            creationEditorHeading.bringIntoView()
+        }
+    }
+
     // A failed or loading API is not an empty account. Keep composable state
     // across reloads so a newly-created space can lead into its plant editor.
     if (!enabled) return
@@ -165,7 +179,7 @@ fun PlantupiaSelfServiceForms(
         if (spaceOpen) {
             Surface(color = paper, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("New space", color = ink, fontSize = 22.sp)
+                    Text("New space", modifier = Modifier.bringIntoViewRequester(creationEditorHeading), color = ink, fontSize = 22.sp)
                     Text("Your space is private and won't appear on your public profile.", color = textMuted, fontSize = 12.sp)
                     OutlinedTextField(
                         value = spaceName, onValueChange = { spaceName = it.take(140) },
@@ -218,7 +232,7 @@ fun PlantupiaSelfServiceForms(
         if (plantOpen) {
             Surface(color = paper, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("New plant", color = ink, fontSize = 22.sp)
+                    Text("New plant", modifier = Modifier.bringIntoViewRequester(creationEditorHeading), color = ink, fontSize = 22.sp)
                     Text("Every plant has a name, a place, and a history that grows over time.", color = textMuted, fontSize = 12.sp)
                     OutlinedButton(
                         onClick = { spaceMenuOpen = true },
