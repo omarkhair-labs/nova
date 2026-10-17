@@ -114,7 +114,7 @@ class AuthFlowTests(APITestCase):
             email="viewer@example.com", username="viewer",
             password="SecureAvatarPass2026!",
         )
-        person = self.client.get(reverse("person", kwargs={"username": "omar"}))
+        person = self.client.get(reverse("person-detail", kwargs={"username": "omar"}))
         self.assertEqual(person.status_code, 200)
         self.assertEqual(person.data["plantupia_avatar_variant"], 5)
 
