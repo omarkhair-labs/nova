@@ -52,9 +52,9 @@ All entries below are **not accepted** pending the listed evidence. Legacy names
 | M06 | Stories 24h, viewer, privacy | NOVA-INHERITED / CREATE ENTRYPOINT IMPROVED | `CreateHubScreen.kt` reveals the real existing `StoriesRail` instead of leaving the loaded composer below the fold | user journey camera/gallery/expiry and publishing tests; story↔plant is NOT implemented |
 | M07 | Reels/video | NOVA-INHERITED | `ReelsScreen.kt`, player/upload | decide role and brand; Android performance |
 | M08 | Optional Pulse, Memories, Rooms, Tonight | NOVA-INHERITED | respective feature packages | inspect value; keep secondary or remove from navigation, never delete underlying data |
-| U01 | My profile and private spaces | HYBRID | `ProfileScreen.kt`, `PlantupiaProfileSpaces.kt` | public/private separation, visual QA |
+| U01 | My profile and private spaces | HYBRID / EXPLICIT REFRESH CODED | `ProfileScreen.kt`, `PlantupiaProfileSpaces.kt`; authenticated owner-only private card has manual real reload after new plant/space | public/private two-account check; actual card photo, count and error/retry device QA |
 | U02 | Edit profile, followers, other profiles | NOVA-INHERITED | profile/social packages | user copy, private memberships hidden |
-| U03 | Inbox/conversation/groups/voice/video | NOVA-INHERITED | `MessagesRootRoute`, `ConversationScreen`, `CallActivity` | keep engine; Plantupia surface, calls QA |
+| U03 | Inbox/conversation/groups/voice/video | NOVA-INHERITED / QUERY-FILTER ISOLATION CODED | `MessagesRootRoute`, `InboxViewModel.kt` + JVM tests, `ConversationScreen`, `CallActivity`; changing search/filter drops old rows/cursor immediately and revokes prior requests | end-to-end search/mentions, groups/calls/voice/video, auth/keyboard/device QA |
 | U04 | Activity notifications + privacy/security | NOVA-INHERITED | notifications/settings/privacy/security | brand copy, care-vs-social activity, permission truth |
 | U05 | Legal, support and account lifecycle | HYBRID | welcome/auth/settings and policy | approved URLs, data rights, contact channels |
 | B01 | Company installation → support/service journey | GAP / COMPANY-GATED | Django Admin is not an approved customer service contract | need real roster, responsibilities, SLA & entitlement data |
@@ -83,6 +83,13 @@ All entries below are **not accepted** pending the listed evidence. Legacy names
 - **Circle:** refreshing the real public question feed clears old rows/cursor and revokes any outstanding "load older" requests; stale request results and old errors are ignored, never appended to a new page or shown following a failed refresh. `PlantupiaCirclePagePolicyTest` covers current/stale/multiple refresh revisions.
 - **Consent:** the plant question preview, explicit checkbox, text/photo checks, and server-side public consent validation stay intact; this increment does not attach private care records, locations or photos automatically.
 - **QA still pending:** native scroll/focus behavior with the keyboard and nested media rails, two-account public post/reply and moderation, media upload, screen reader behavior, slow-connection refresh, and exact HEAD CI. The screen is not owner-accepted.
+
+### 2026-10-17 Native screen closure increment 4: Profile and Inbox + product rationale
+
+- **U01 owner Profile:** the authenticated private-space summary can be refreshed explicitly after creating or changing genuine plants/spaces; loaded photos and counts remain authorized API data, never inserted into another person's public profile. Physical device, second-account and session-change QA pending.
+- **U03 Inbox:** a new search/filter immediately hides prior-filter conversations and pagination; previously in-flight responses cannot repopulate the new filter. JVM regressions cover filter failure, changed query before load and delayed responses. Nova's conversations/media/calls engine remains unmodified.
+- **Client product handoff source:** [Plantupia Product Bible & Handoff v0.1](./PLANTUPIA_PRODUCT_BIBLE_AND_HANDOFF_V01_2026-10-17.md) now contains product thesis, seven source-derived principles, exploration worlds, decision/evidence log, Pass 04–07 translation, art direction, IA, APIs, privacy, staged evidence gates, separate app-store destination and deliverable annexes. Status **WORKING**, not an already-approved client PDF or final APK.
+- **Physical device verification remains open** before any “accepted” stage. The CI outcome belongs to a named exact commit only.
 
 ## Backend / invisible engine ledger
 
