@@ -103,9 +103,8 @@ fun ProfileScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column {
-                    Text(text = "YOU / PLANTUPIA", color = NovaMuted, style = NovaType.micro)
-                    Text(text = "Your life with plants", color = NovaInk, style = NovaType.pageTitle)
-                    Text(text = "Your community identity and private spaces, each in its own place.", color = NovaMuted, style = NovaType.meta)
+                    Text(text = "PLANTUPIA / ME", color = NovaMuted, style = NovaType.micro)
+                    Text(text = "Your profile", color = NovaInk, style = NovaType.sectionTitle)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box {
@@ -129,7 +128,7 @@ fun ProfileScreen(
             }
 
             Spacer(modifier = Modifier.height(NovaSpacing.xl))
-            NovaProfileIdentity(
+            PlantupiaMeIdentity(
                 displayName = displayName,
                 username = username,
                 avatarUrl = avatarUrl,
@@ -137,8 +136,6 @@ fun ProfileScreen(
                 location = location,
                 link = link,
                 interests = interests,
-                profileTheme = profileTheme,
-                showOrbit = showOrbit,
                 isVerified = isVerified,
             )
 
@@ -148,7 +145,9 @@ fun ProfileScreen(
             // or another user's PersonScreen.
             PlantupiaProfileSpaces(onOpenSpaces = onHomeClick)
 
-            Spacer(modifier = Modifier.height(NovaSpacing.xxl))
+            Spacer(modifier = Modifier.height(NovaSpacing.lg))
+            Text("COMMUNITY", color = NovaMuted, style = NovaType.micro)
+            Spacer(modifier = Modifier.height(NovaSpacing.sm))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
@@ -179,7 +178,7 @@ fun ProfileScreen(
                 onClick = onEditProfile,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Spacer(modifier = Modifier.height(NovaSpacing.xxl))
+            Spacer(modifier = Modifier.height(NovaSpacing.lg))
             NovaPagedProfilePostsGrid(
                 username = username,
                 owner = profileContentOwner,
