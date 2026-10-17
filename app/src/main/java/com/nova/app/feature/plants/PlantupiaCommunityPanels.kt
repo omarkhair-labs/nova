@@ -30,6 +30,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -67,19 +68,25 @@ fun PlantupiaQuestionsPanel(
     onOpenPost: (Long) -> Unit,
     onOutcomeSaved: suspend () -> Unit,
     compactHeader: Boolean = false,
+    isParentCurrent: () -> Boolean = { true },
+    requestGeneration: Int = 0,
 ) {
     val scope = rememberCoroutineScope()
-    var question by remember(plantId) { mutableStateOf("") }
-    var topic by remember(plantId) { mutableStateOf("") }
-    var imageUri by remember(plantId) { mutableStateOf<Uri?>(null) }
-    var consent by remember(plantId) { mutableStateOf(false) }
-    var reviewOpen by remember(plantId) { mutableStateOf(false) }
-    var submitting by remember(plantId) { mutableStateOf(false) }
-    var loading by remember(plantId) { mutableStateOf(true) }
-    var error by remember(plantId) { mutableStateOf<String?>(null) }
-    var linkedPosts by remember(plantId) { mutableStateOf<List<PlantupiaQuestion>>(emptyList()) }
-    var respondingTo by remember(plantId) { mutableStateOf<String?>(null) }
-    var outcome by remember(plantId) { mutableStateOf("") }
+    val lifetime = remember(plantId, repository, requestGeneration) {
+        PlantupiaCallbackLifetime { repository.isCurrentSession() && isParentCurrent() }
+    }
+    DisposableEffect(lifetime) { onDispose { lifetime.dispose() } }
+    var question by remember(plantId, requestGeneration) { mutableStateOf("") }
+    var topic by remember(plantId, requestGeneration) { mutableStateOf("") }
+    var imageUri by remember(plantId, requestGeneration) { mutableStateOf<Uri?>(null) }
+    var consent by remember(plantId, requestGeneration) { mutableStateOf(false) }
+    var reviewOpen by remember(plantId, requestGeneration) { mutableStateOf(false) }
+    var submitting by remember(plantId, requestGeneration) { mutableStateOf(false) }
+    var loading by remember(plantId, requestGeneration) { mutableStateOf(true) }
+    var error by remember(plantId, requestGeneration) { mutableStateOf<String?>(null) }
+    var linkedPosts by remember(plantId, requestGeneration) { mutableStateOf<List<PlantupiaQuestion>>(emptyList()) }
+    var respondingTo by remember(plantId, requestGeneration) { mutableStateOf<String?>(null) }
+    var outcome by remember(plantId, requestGeneration) { mutableStateOf("") }
     val publicDraft = PlantupiaPublicShareDraft(topic, question, imageUri != null)
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
@@ -91,15 +98,18 @@ fun PlantupiaQuestionsPanel(
     }
 
     suspend fun refreshQuestions() {
+        if (!lifetime.isCurrent()) return
         loading = true
-        when (val response = repository.plantQuestions(plantId)) {
+        val response = repository.plantQuestions(plantId)
+        if (!lifetime.isCurrent()) return
+        when (response) {
             is ApiResult.Failure -> error = response.message
             is ApiResult.Success -> { linkedPosts = response.value; error = null }
         }
         loading = false
     }
 
-    LaunchedEffect(plantId) { refreshQuestions() }
+    LaunchedEffect(plantId, requestGeneration) { refreshQuestions() }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (!compactHeader) {
@@ -221,24 +231,26 @@ fun PlantupiaQuestionsPanel(
                         colors = ButtonDefaults.buttonColors(containerColor = green),
                         onClick = {
                             val selected = imageUri ?: return@Button
+                            val submittedTopic = publicDraft.cleanTopic
+                            val submittedQuestion = publicDraft.cleanQuestion
                             scope.launch {
-                                submitting = true
-                                error = null
-                                when (val result = repository.askWithPhoto(
-                                    plantId, publicDraft.cleanTopic, publicDraft.cleanQuestion, selected,
-                                )) {
-                                    is ApiResult.Failure -> error = result.message
-                                    is ApiResult.Success -> {
+                                runPlantupiaMutation(
+                                    isAccountCurrent = lifetime::isCurrent,
+                                    isDetailCurrent = lifetime::isCurrent,
+                                    request = { repository.askWithPhoto(plantId, submittedTopic, submittedQuestion, selected) },
+                                    onStarted = { submitting = true; error = null },
+                                    onSuccess = { postId ->
                                         question = ""
                                         topic = ""
                                         imageUri = null
                                         consent = false
                                         reviewOpen = false
                                         refreshQuestions()
-                                        if (result.value > 0) onOpenPost(result.value)
-                                    }
-                                }
-                                submitting = false
+                                        if (lifetime.isCurrent() && postId > 0) onOpenPost(postId)
+                                    },
+                                    onFailure = { error = it.message },
+                                    onFinished = { submitting = false },
+                                )
                             }
                         },
                     ) { Text(if (submitting) "Publishing…" else "Agree and publish", color = card) }
@@ -272,18 +284,23 @@ fun PlantupiaQuestionsPanel(
                     Button(
                         enabled = outcome.isNotBlank() && !submitting,
                         onClick = {
-                            submitting = true
+                            val submittedOutcome = outcome
+                            val discussionId = entry.id
                             scope.launch {
-                                when (val result = repository.resolveQuestion(plantId, entry.id, outcome)) {
-                                    is ApiResult.Failure -> error = result.message
-                                    is ApiResult.Success -> {
+                                runPlantupiaMutation(
+                                    isAccountCurrent = lifetime::isCurrent,
+                                    isDetailCurrent = lifetime::isCurrent,
+                                    request = { repository.resolveQuestion(plantId, discussionId, submittedOutcome) },
+                                    onStarted = { submitting = true },
+                                    onSuccess = {
                                         respondingTo = null
                                         outcome = ""
                                         refreshQuestions()
-                                        onOutcomeSaved()
-                                    }
-                                }
-                                submitting = false
+                                        if (lifetime.isCurrent()) onOutcomeSaved()
+                                    },
+                                    onFailure = { error = it.message },
+                                    onFinished = { submitting = false },
+                                )
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = green),

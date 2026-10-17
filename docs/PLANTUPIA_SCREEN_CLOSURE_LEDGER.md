@@ -275,3 +275,10 @@ Build the following connected groups continuously, with developer-side testing/C
 - **CODED:** a failed initial/private history request must never display the authored blank-fieldbook “No field notes yet” empty state. UI now distinguishes loading, unavailable, genuine empty, and recorded states.
 - **CODED:** a scoped **Retry loading history** action re-fetches only the selected plant’s authenticated history, with the existing request generation check. It does not reset/erase an unsaved care note, attached preview image, check-in choice or switch plants. Actual owner data remains in Django.
 - **JVM tests:** state boundaries 0/1/100 records, loading overriding a prior failure, and failed fetch overriding apparent emptiness. **PENDING:** exact-head green CI, offline/reconnect on device, rapid Back/switch during retry, cross-account authorization. No real history data was fabricated or deleted.
+
+### 2026-10-18 Integrity Sprint 01 — F06 mutation isolation
+
+- Private mutation submissions snapshot their values before launch. Care, outcome, reschedule, nickname, shared metadata, archive, space edits and question callbacks use account/lifetime/request guards; Back or another selection cannot apply old history, errors, navigation or busy-state completion.
+- Same-account confirmed server saves remain valid after Back; reminder side effects never attach to a different login. Plantupia repositories are bound to their originating login. Shared Nova authentication is unchanged; F01 is a separate investigation.
+- Linked-post resolution checks the originating detail again after its own network request. Question panels reset their callback lifetime when the same plant is reopened.
+- Focused local JVM regression run: 12 tests passed (mutation runner + existing detail policy). Final sprint CI and physical device cases remain pending; no deployment or hosted migration performed.

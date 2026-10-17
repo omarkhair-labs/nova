@@ -12,6 +12,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,6 +41,8 @@ internal fun PlantupiaSpaceDetailsEditor(
     var description by remember(space.id, editing) { mutableStateOf(space.description) }
     var error by remember(space.id) { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val lifetime = remember(space.id, repository) { PlantupiaCallbackLifetime(repository::isCurrentSession) }
+    DisposableEffect(lifetime) { onDispose { lifetime.dispose() } }
 
     if (!editing) {
         TextButton(onClick = { editing = true; error = null }) {
@@ -84,19 +87,19 @@ internal fun PlantupiaSpaceDetailsEditor(
                         (name.trim() != space.name || location.trim() != space.location ||
                             description.trim() != space.description),
                     onClick = {
+                        val submittedName = name
+                        val submittedDescription = description
+                        val submittedLocation = location
                         scope.launch {
-                            saving = true
-                            when (val response = repository.updateSpaceDetails(
-                                space.id, name, description, location,
-                            )) {
-                                is ApiResult.Success -> {
-                                    editing = false
-                                    error = null
-                                    onSaved()
-                                }
-                                is ApiResult.Failure -> error = response.message
-                            }
-                            saving = false
+                            runPlantupiaMutation(
+                                isAccountCurrent = lifetime::isCurrent,
+                                isDetailCurrent = lifetime::isCurrent,
+                                request = { repository.updateSpaceDetails(space.id, submittedName, submittedDescription, submittedLocation) },
+                                onStarted = { saving = true },
+                                onSuccess = { editing = false; error = null; onSaved() },
+                                onFailure = { error = it.message },
+                                onFinished = { saving = false },
+                            )
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = PlantupiaColors.forest),

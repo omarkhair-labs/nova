@@ -35,6 +35,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -90,13 +92,27 @@ private val white = Color(0xFFFFFDF7)
  */
 @Composable
 fun PlantupiaClientSection(
+    accountId: Long,
     onCommunityCreateClick: () -> Unit,
-    onOpenLinkedPost: (Long) -> Unit,
+    onOpenLinkedPost: (Long, () -> Boolean) -> Unit,
+    onOpenPlant: () -> Unit = {},
+) {
+    key(accountId) {
+        PlantupiaAccountClientSection(onCommunityCreateClick, onOpenLinkedPost, onOpenPlant)
+    }
+}
+
+@Composable
+private fun PlantupiaAccountClientSection(
+    onCommunityCreateClick: () -> Unit,
+    onOpenLinkedPost: (Long, () -> Boolean) -> Unit,
     onOpenPlant: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val repository = remember(context) { PlantupiaRepository(context.applicationContext) }
     val scope = rememberCoroutineScope()
+    val lifetime = remember(repository) { PlantupiaCallbackLifetime(repository::isCurrentSession) }
+    DisposableEffect(lifetime) { onDispose { lifetime.dispose() } }
     var spaces by remember { mutableStateOf<List<PlantupiaSpace>>(emptyList()) }
     var plants by remember { mutableStateOf<List<PlantupiaPlant>>(emptyList()) }
     var currentPlantId by remember { mutableStateOf<String?>(null) }
@@ -136,10 +152,14 @@ fun PlantupiaClientSection(
     var reminderRevision by remember { mutableStateOf(0) }
     var error by remember { mutableStateOf<String?>(null) }
     var requestedExistingReminder by remember { mutableStateOf<PlantupiaCareEvent?>(null) }
+    var reminderPermissionGeneration by remember { mutableStateOf<Int?>(null) }
     val selectedPlant = plants.firstOrNull { it.id == currentPlantId }
     val reminderPermissionPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
+        val permissionGeneration = reminderPermissionGeneration
+        reminderPermissionGeneration = null
+        if (!lifetime.isCurrent() || permissionGeneration != detailRequestGeneration) return@rememberLauncherForActivityResult
         val existing = requestedExistingReminder
         requestedExistingReminder = null
         if (existing == null) {
@@ -165,11 +185,19 @@ fun PlantupiaClientSection(
     var carePhotoUri by remember { mutableStateOf<Uri?>(null) }
     val carePhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> carePhotoUri = uri }
 
-    suspend fun refresh() {
+    fun isCurrentRequest(plantId: String, generation: Int): Boolean =
+        lifetime.isCurrent() && isCurrentPlantDetailRequest(
+            plantId, generation, currentPlantId, detailRequestGeneration,
+        )
+
+    suspend fun refresh(acceptResult: () -> Boolean = { true }) {
+        if (!lifetime.isCurrent() || !acceptResult()) return
         loading = true
         error = null
         val spaceResult = repository.spaces()
+        if (!lifetime.isCurrent() || !acceptResult()) return
         val plantResult = repository.plants()
+        if (!lifetime.isCurrent() || !acceptResult()) return
         if (spaceResult is ApiResult.Failure && spaceResult.statusCode == 404 ||
             plantResult is ApiResult.Failure && plantResult.statusCode == 404
         ) {
@@ -190,6 +218,7 @@ fun PlantupiaClientSection(
     }
 
     suspend fun openPlant(plant: PlantupiaPlant) {
+        if (!lifetime.isCurrent()) return
         if (PlantupiaCreateIntent.pending.needsPlantSelection() &&
             plant !in actionablePlantChoices(plants)
         ) {
@@ -208,6 +237,8 @@ fun PlantupiaClientSection(
         showCareEditor = openDetailMode == PlantupiaCreateMode.OBSERVATION
         PlantupiaCreateIntent.clear()
         currentPlantId = plant.id
+        saving = false
+        pendingArchiveAction = null
         // Never let another plant's private history flash while the new detail loads.
         events = emptyList()
         photoToView = null
@@ -220,6 +251,7 @@ fun PlantupiaClientSection(
         customFollowUpDate = null
         reminderOptIn = false
         requestedExistingReminder = null
+        reminderPermissionGeneration = null
         followUpTarget = null
         followUpResult = ""
         movingCheckIn = null
@@ -234,7 +266,7 @@ fun PlantupiaClientSection(
         error = null
         nextHistoryOffset = null
         val historyResponse = repository.historyPage(plant.id)
-        if (!isCurrentPlantDetailRequest(plant.id, requestGeneration, currentPlantId, detailRequestGeneration)) return
+        if (!isCurrentRequest(plant.id, requestGeneration)) return
         when (val response = historyResponse) {
             is ApiResult.Success -> {
                 events = response.value.events
@@ -248,7 +280,7 @@ fun PlantupiaClientSection(
             }
         }
         val pendingResponse = repository.historyPage(plant.id, pendingOnly = true)
-        if (!isCurrentPlantDetailRequest(plant.id, requestGeneration, currentPlantId, detailRequestGeneration)) return
+        if (!isCurrentRequest(plant.id, requestGeneration)) return
         when (val response = pendingResponse) {
             is ApiResult.Success -> {
                 pendingFollowUps = response.value.events
@@ -259,23 +291,37 @@ fun PlantupiaClientSection(
         detailLoading = false
     }
 
-    suspend fun finishSavedMoment(
-        eventId: String,
-        plant: PlantupiaPlant,
-        requestGeneration: Int,
-        chosenFollowUpDate: String?,
-        optedInToReminder: Boolean,
-    ) {
-        // Server confirmation is authoritative. An optional reminder belongs to
-        // the saved event even if the user pressed Android Back while it uploaded.
-        val requestedReminder = optedInToReminder && chosenFollowUpDate != null
-        val reminderScheduled = !requestedReminder ||
-            PlantupiaCareReminderScheduler.schedule(context, eventId, chosenFollowUpDate.orEmpty(), plant.id)
-        if (!isCurrentPlantDetailRequest(plant.id, requestGeneration, currentPlantId, detailRequestGeneration)) return
-        note = ""
-        openPlant(plant)
-        if (!reminderScheduled) {
-            error = "Your entry was saved, but the reminder couldn't be scheduled. Check notification permissions."
+    fun saveMoment(plant: PlantupiaPlant, kind: String, details: String) {
+        val generation = detailRequestGeneration
+        val photo = carePhotoUri
+        val followUpDate = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now())
+        val optedInToReminder = reminderOptIn
+        val current = { isCurrentRequest(plant.id, generation) }
+        scope.launch {
+            var reminderScheduled = true
+            runPlantupiaMutation(
+                isAccountCurrent = lifetime::isCurrent,
+                isDetailCurrent = current,
+                request = {
+                    photo?.let { repository.recordWithPhoto(plant.id, kind, details, it, followUpOn = followUpDate) }
+                        ?: repository.record(plant.id, kind, details, followUpOn = followUpDate)
+                },
+                onStarted = { saving = true },
+                onCommitted = { eventId ->
+                    if (optedInToReminder && followUpDate != null) {
+                        reminderScheduled = PlantupiaCareReminderScheduler.schedule(context, eventId, followUpDate, plant.id)
+                    }
+                },
+                onSuccess = {
+                    val reloadGeneration = detailRequestGeneration + 1
+                    openPlant(plant)
+                    if (isCurrentRequest(plant.id, reloadGeneration) && !reminderScheduled) {
+                        error = "Your entry was saved, but the reminder couldn't be scheduled. Check notification permissions."
+                    }
+                },
+                onFailure = { error = it.message },
+                onFinished = { saving = false },
+            )
         }
     }
 
@@ -283,6 +329,10 @@ fun PlantupiaClientSection(
         detailRequestGeneration += 1
         showAssistant = false
         currentPlantId = null
+        saving = false
+        pendingArchiveAction = null
+        requestedExistingReminder = null
+        reminderPermissionGeneration = null
         openDetailMode = null
         photoToView = null
         events = emptyList()
@@ -500,11 +550,14 @@ fun PlantupiaClientSection(
                 onPlantCreated = { plantId, spaceId ->
                     // Completing onboarding opens the real new plant, rather
                     // than dropping a first-time owner back into a generic list.
+                    if (!lifetime.isCurrent()) return@PlantupiaSelfServiceForms
+                    val generation = detailRequestGeneration
+                    val current = { lifetime.isCurrent() && generation == detailRequestGeneration && currentPlantId == null }
                     focusedSpaceId = spaceId
                     plantSearch = ""
                     scope.launch {
-                        refresh()
-                        plants.firstOrNull { it.id == plantId }?.let { openPlant(it) }
+                        refresh(current)
+                        if (current()) plants.firstOrNull { it.id == plantId }?.let { openPlant(it) }
                     }
                 },
                 preferredSpaceId = focusedSpaceId,
@@ -914,6 +967,7 @@ fun PlantupiaClientSection(
                                             context, Manifest.permission.POST_NOTIFICATIONS,
                                         ) != PackageManager.PERMISSION_GRANTED
                                     ) {
+                                        reminderPermissionGeneration = detailRequestGeneration
                                         reminderPermissionPicker.launch(Manifest.permission.POST_NOTIFICATIONS)
                                     } else {
                                         reminderOptIn = true
@@ -940,69 +994,18 @@ fun PlantupiaClientSection(
                         OutlinedButton(
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                             enabled = !saving && validFollowUpDate && (note.isNotBlank() || carePhotoUri != null),
-                            onClick = {
-                                scope.launch {
-                                    saving = true
-                                    val requestGeneration = detailRequestGeneration
-                                    val followUpDate = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now())
-                                    val optedInToReminder = reminderOptIn
-                                    when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "observation", note, it, followUpOn = followUpDate) } ?: repository.record(selectedPlant.id, "observation", note, followUpOn = followUpDate)) {
-                                        is ApiResult.Failure -> {
-                                            if (isCurrentPlantDetailRequest(selectedPlant.id, requestGeneration, currentPlantId, detailRequestGeneration)) {
-                                                error = r.message
-                                            }
-                                        }
-                                        is ApiResult.Success -> finishSavedMoment(r.value, selectedPlant, requestGeneration, followUpDate, optedInToReminder)
-                                    }
-                                    saving = false
-                                }
-                            },
+                            onClick = { saveMoment(selectedPlant, "observation", note) },
                         ) { Text("Save observation", color = deepGreen) }
                         Button(
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                             enabled = !saving && validFollowUpDate && (selectedCareAction != null || note.isNotBlank() || carePhotoUri != null),
-                            onClick = {
-                                val careDetails = buildPlantupiaCareNote(selectedCareAction, note)
-                                scope.launch {
-                                    saving = true
-                                    val requestGeneration = detailRequestGeneration
-                                    val followUpDate = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now())
-                                    val optedInToReminder = reminderOptIn
-                                    when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "care", careDetails, it, followUpOn = followUpDate) } ?: repository.record(selectedPlant.id, "care", careDetails, followUpOn = followUpDate)) {
-                                        is ApiResult.Failure -> {
-                                            if (isCurrentPlantDetailRequest(selectedPlant.id, requestGeneration, currentPlantId, detailRequestGeneration)) {
-                                                error = r.message
-                                            }
-                                        }
-                                        is ApiResult.Success -> finishSavedMoment(r.value, selectedPlant, requestGeneration, followUpDate, optedInToReminder)
-                                    }
-                                    saving = false
-                                }
-                            },
+                            onClick = { saveMoment(selectedPlant, "care", buildPlantupiaCareNote(selectedCareAction, note)) },
                             colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
                         ) { Text("Save care", color = white) }
                         OutlinedButton(
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                             enabled = !saving && validFollowUpDate && (note.isNotBlank() || carePhotoUri != null),
-                            onClick = {
-                                scope.launch {
-                                    saving = true
-                                    val requestGeneration = detailRequestGeneration
-                                    val followUpDate = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now())
-                                    val optedInToReminder = reminderOptIn
-                                    when (val result = carePhotoUri?.let {
-                                        repository.recordWithPhoto(selectedPlant.id, "issue", note, it, followUpOn = followUpDate)
-                                    } ?: repository.record(selectedPlant.id, "issue", note, followUpOn = followUpDate)) {
-                                        is ApiResult.Failure -> {
-                                            if (isCurrentPlantDetailRequest(selectedPlant.id, requestGeneration, currentPlantId, detailRequestGeneration)) {
-                                                error = result.message
-                                            }
-                                        }
-                                        is ApiResult.Success -> finishSavedMoment(result.value, selectedPlant, requestGeneration, followUpDate, optedInToReminder)
-                                    }
-                                    saving = false
-                                }
-                            },
+                            onClick = { saveMoment(selectedPlant, "issue", note) },
                         ) { Text("Record a concern", color = deepGreen) }
                     }
                     Text(
@@ -1032,17 +1035,23 @@ fun PlantupiaClientSection(
                 }
             }
             if (openDetailMode == PlantupiaCreateMode.QUESTION) {
+                val questionGeneration = detailRequestGeneration
                 PlantupiaQuestionsPanel(
+                    isParentCurrent = { isCurrentRequest(selectedPlant.id, questionGeneration) },
+                    requestGeneration = questionGeneration,
                     plantId = selectedPlant.id,
                     repository = repository,
                     compactHeader = true,
                     canPublish = selectedPlant.canRecord,
-                    onOpenPost = onOpenLinkedPost,
+                    onOpenPost = { postId ->
+                        onOpenLinkedPost(postId) { isCurrentRequest(selectedPlant.id, questionGeneration) }
+                    },
                     onOutcomeSaved = {
                         val plantId = selectedPlant.id
-                        val generation = detailRequestGeneration
+                        val generation = questionGeneration
+                        if (!isCurrentRequest(plantId, generation)) return@PlantupiaQuestionsPanel
                         val response = repository.historyPage(plantId)
-                        if (!isCurrentPlantDetailRequest(plantId, generation, currentPlantId, detailRequestGeneration)) return@PlantupiaQuestionsPanel
+                        if (!isCurrentRequest(plantId, generation)) return@PlantupiaQuestionsPanel
                         when (response) {
                             is ApiResult.Success -> {
                                 events = response.value.events
@@ -1136,24 +1145,30 @@ fun PlantupiaClientSection(
                                     onClick = {
                                         val target = movingCheckIn ?: return@Button
                                         val newDate = movedCheckInDate?.toString() ?: return@Button
+                                        val generation = detailRequestGeneration
+                                        val current = { isCurrentRequest(selectedPlant.id, generation) }
+                                        val hadReminder = PlantupiaCareReminderScheduler.isScheduled(context, target.id)
                                         scope.launch {
-                                            saving = true
-                                            val hadReminder = PlantupiaCareReminderScheduler.isScheduled(context, target.id)
-                                            when (val response = repository.moveCheckIn(
-                                                selectedPlant.id, target.id, newDate,
-                                            )) {
-                                                is ApiResult.Failure -> error = response.message
-                                                is ApiResult.Success -> {
+                                            var reminderScheduled = true
+                                            runPlantupiaMutation(
+                                                isAccountCurrent = lifetime::isCurrent,
+                                                isDetailCurrent = current,
+                                                request = { repository.moveCheckIn(selectedPlant.id, target.id, newDate) },
+                                                onStarted = { saving = true },
+                                                onCommitted = {
                                                     PlantupiaCareReminderScheduler.cancel(context, target.id)
-                                                    val scheduled = !hadReminder ||
-                                                        PlantupiaCareReminderScheduler.schedule(context, target.id, newDate, selectedPlant.id)
+                                                    if (hadReminder) reminderScheduled = PlantupiaCareReminderScheduler.schedule(context, target.id, newDate, selectedPlant.id)
+                                                },
+                                                onSuccess = {
+                                                    val reloadGeneration = detailRequestGeneration + 1
                                                     openPlant(selectedPlant)
-                                                    if (!scheduled) {
+                                                    if (isCurrentRequest(selectedPlant.id, reloadGeneration) && !reminderScheduled) {
                                                         error = "Check-in date was saved, but the local reminder could not be moved."
                                                     }
-                                                }
-                                            }
-                                            saving = false
+                                                },
+                                                onFailure = { error = it.message },
+                                                onFinished = { saving = false },
+                                            )
                                         }
                                     },
                                 ) { Text(if (saving) "Saving…" else "Save new check-in date", color = white) }
@@ -1177,6 +1192,7 @@ fun PlantupiaClientSection(
                                     ) != PackageManager.PERMISSION_GRANTED
                                 ) {
                                     requestedExistingReminder = check
+                                    reminderPermissionGeneration = detailRequestGeneration
                                     reminderPermissionPicker.launch(Manifest.permission.POST_NOTIFICATIONS)
                                 } else {
                                     val scheduled = PlantupiaCareReminderScheduler.schedule(
@@ -1205,7 +1221,7 @@ fun PlantupiaClientSection(
                                 val response = repository.historyPage(
                                     plantId, offset = offset, pendingOnly = true,
                                 )
-                                if (!isCurrentPlantDetailRequest(plantId, generation, currentPlantId, detailRequestGeneration)) return@launch
+                                if (!isCurrentRequest(plantId, generation)) return@launch
                                 when (response) {
                                     is ApiResult.Success -> {
                                         pendingFollowUps = (pendingFollowUps + response.value.events)
@@ -1241,20 +1257,19 @@ fun PlantupiaClientSection(
                         enabled = !saving && followUpResult.isNotBlank(),
                         onClick = {
                             val source = followUpTarget ?: return@Button
+                            val generation = detailRequestGeneration
+                            val submittedOutcome = followUpResult
                             scope.launch {
-                                saving = true
-                                when (val response = repository.record(
-                                    selectedPlant.id, "outcome", followUpResult,
-                                    followUpFor = source.id,
-                                )) {
-                                    is ApiResult.Failure -> error = response.message
-                                    is ApiResult.Success -> {
-                                        PlantupiaCareReminderScheduler.cancel(context, source.id)
-                                        reminderRevision += 1
-                                        openPlant(selectedPlant)
-                                    }
-                                }
-                                saving = false
+                                runPlantupiaMutation(
+                                    isAccountCurrent = lifetime::isCurrent,
+                                    isDetailCurrent = { isCurrentRequest(selectedPlant.id, generation) },
+                                    request = { repository.record(selectedPlant.id, "outcome", submittedOutcome, followUpFor = source.id) },
+                                    onStarted = { saving = true },
+                                    onCommitted = { PlantupiaCareReminderScheduler.cancel(context, source.id) },
+                                    onSuccess = { openPlant(selectedPlant) },
+                                    onFailure = { error = it.message },
+                                    onFinished = { saving = false },
+                                )
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
@@ -1291,9 +1306,7 @@ fun PlantupiaClientSection(
                             scope.launch {
                                 historyRetryLoading = true
                                 val response = repository.historyPage(plantId)
-                                if (!isCurrentPlantDetailRequest(
-                                    plantId, generation, currentPlantId, detailRequestGeneration,
-                                )) return@launch
+                                if (!isCurrentRequest(plantId, generation)) return@launch
                                 when (response) {
                                     is ApiResult.Success -> {
                                         events = response.value.events
@@ -1410,7 +1423,7 @@ fun PlantupiaClientSection(
                         scope.launch {
                             olderEventsLoading = true
                             val result = repository.historyPage(plantId, offset)
-                            if (!isCurrentPlantDetailRequest(plantId, generation, currentPlantId, detailRequestGeneration)) return@launch
+                            if (!isCurrentRequest(plantId, generation)) return@launch
                             when (result) {
                                 is ApiResult.Success -> {
                                     events = (events + result.value.events).distinctBy { it.id }
@@ -1468,19 +1481,22 @@ fun PlantupiaClientSection(
                     Button(
                         enabled = !saving && plantName.trim().isNotBlank(),
                         onClick = {
+                            val generation = detailRequestGeneration
+                            val submittedName = plantName.trim()
                             scope.launch {
-                                saving = true
-                                when (val result = repository.nickname(selectedPlant.id, plantName)) {
-                                    is ApiResult.Failure -> error = result.message
-                                    is ApiResult.Success -> {
-                                        plants = plants.map {
-                                            if (it.id == selectedPlant.id) it.copy(name = plantName.trim()) else it
-                                        }
+                                runPlantupiaMutation(
+                                    isAccountCurrent = lifetime::isCurrent,
+                                    isDetailCurrent = { isCurrentRequest(selectedPlant.id, generation) },
+                                    request = { repository.nickname(selectedPlant.id, submittedName) },
+                                    onStarted = { saving = true },
+                                    onSuccess = {
+                                        plants = plants.map { if (it.id == selectedPlant.id) it.copy(name = submittedName) else it }
                                         error = null
                                         showNameEditor = false
-                                    }
-                                }
-                                saving = false
+                                    },
+                                    onFailure = { error = it.message },
+                                    onFinished = { saving = false },
+                                )
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
@@ -1547,29 +1563,24 @@ fun PlantupiaClientSection(
                                      sharedSpecies.trim() != selectedPlant.species ||
                                      sharedPlacement.trim() != selectedPlant.placement),
                                 onClick = {
+                                    val generation = detailRequestGeneration
+                                    val submittedLabel = sharedPlantLabel
+                                    val submittedSpecies = sharedSpecies
+                                    val submittedPlacement = sharedPlacement
+                                    val current = { isCurrentRequest(selectedPlant.id, generation) }
                                     scope.launch {
-                                        saving = true
-                                        when (val result = repository.updatePlantDetails(
-                                            selectedPlant.id, sharedPlantLabel, sharedSpecies, sharedPlacement,
-                                        )) {
-                                            is ApiResult.Failure -> error = result.message
-                                            is ApiResult.Success -> {
-                                                showSharedDetailsEditor = false
-                                                refresh()
-                                                when (val reloaded = repository.historyPage(selectedPlant.id)) {
-                                                    is ApiResult.Success -> {
-                                                        events = reloaded.value.events
-                                                        nextHistoryOffset = reloaded.value.nextOffset
-                                                        historyLoadFailed = false
-                                                    }
-                                                    is ApiResult.Failure -> {
-                                                        historyLoadFailed = true
-                                                        error = reloaded.message
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        saving = false
+                                        runPlantupiaMutation(
+                                            isAccountCurrent = lifetime::isCurrent,
+                                            isDetailCurrent = current,
+                                            request = { repository.updatePlantDetails(selectedPlant.id, submittedLabel, submittedSpecies, submittedPlacement) },
+                                            onStarted = { saving = true },
+                                            onSuccess = {
+                                                refresh(current)
+                                                if (current()) plants.firstOrNull { it.id == selectedPlant.id }?.let { openPlant(it) }
+                                            },
+                                            onFailure = { error = it.message },
+                                            onFinished = { saving = false },
+                                        )
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
@@ -1611,17 +1622,23 @@ fun PlantupiaClientSection(
                 )
             }
             if (showPlantSharing) {
+                val questionGeneration = detailRequestGeneration
                 PlantupiaQuestionsPanel(
+                    isParentCurrent = { isCurrentRequest(selectedPlant.id, questionGeneration) },
+                    requestGeneration = questionGeneration,
                     plantId = selectedPlant.id,
                     repository = repository,
                     compactHeader = true,
                     canPublish = selectedPlant.canRecord,
-                    onOpenPost = onOpenLinkedPost,
+                    onOpenPost = { postId ->
+                        onOpenLinkedPost(postId) { isCurrentRequest(selectedPlant.id, questionGeneration) }
+                    },
                     onOutcomeSaved = {
                         val plantId = selectedPlant.id
-                        val generation = detailRequestGeneration
+                        val generation = questionGeneration
+                        if (!isCurrentRequest(plantId, generation)) return@PlantupiaQuestionsPanel
                         val response = repository.historyPage(plantId)
-                        if (!isCurrentPlantDetailRequest(plantId, generation, currentPlantId, detailRequestGeneration)) return@PlantupiaQuestionsPanel
+                        if (!isCurrentRequest(plantId, generation)) return@PlantupiaQuestionsPanel
                         when (response) {
                             is ApiResult.Success -> {
                                 events = response.value.events
@@ -1673,36 +1690,24 @@ fun PlantupiaClientSection(
                         enabled = !saving,
                         onClick = {
                             pendingArchiveAction = null
+                            val generation = detailRequestGeneration
+                            val current = { isCurrentRequest(plant.id, generation) }
                             scope.launch {
-                                saving = true
-                                when (val result = repository.setPlantArchived(plant.id, archived)) {
-                                    is ApiResult.Failure -> error = result.message
-                                    is ApiResult.Success -> {
-                                        if (archived) {
-                                            PlantupiaCareReminderScheduler.cancelForPlant(context, plant.id)
-                                            pendingFollowUps.forEach {
-                                                PlantupiaCareReminderScheduler.cancel(context, it.id)
-                                            }
-                                            pendingFollowUps = emptyList()
-                                            nextPendingOffset = null
-                                            showCareEditor = false
-                                            followUpTarget = null
-                                        }
-                                        refresh()
-                                        when (val history = repository.historyPage(plant.id)) {
-                                            is ApiResult.Success -> {
-                                                events = history.value.events
-                                                nextHistoryOffset = history.value.nextOffset
-                                                historyLoadFailed = false
-                                            }
-                                            is ApiResult.Failure -> {
-                                                historyLoadFailed = true
-                                                error = history.message
-                                            }
-                                        }
-                                    }
-                                }
-                                saving = false
+                                runPlantupiaMutation(
+                                    isAccountCurrent = lifetime::isCurrent,
+                                    isDetailCurrent = current,
+                                    request = { repository.setPlantArchived(plant.id, archived) },
+                                    onStarted = { saving = true },
+                                    onCommitted = {
+                                        if (archived) PlantupiaCareReminderScheduler.cancelForPlant(context, plant.id)
+                                    },
+                                    onSuccess = {
+                                        refresh(current)
+                                        if (current()) plants.firstOrNull { it.id == plant.id }?.let { openPlant(it) }
+                                    },
+                                    onFailure = { error = it.message },
+                                    onFinished = { saving = false },
+                                )
                             }
                         },
                     ) { Text(if (archived) "Archive" else "Restore") }

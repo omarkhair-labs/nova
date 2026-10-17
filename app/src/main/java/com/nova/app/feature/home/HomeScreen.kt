@@ -288,6 +288,7 @@ fun HomeScreen(
 
                 item(key = "plantupia-living-space") {
                     PlantupiaClientSection(
+                        accountId = userId,
                         onCommunityCreateClick = onCreatePost,
                         onOpenPlant = {
                             scope.launch {
@@ -296,10 +297,10 @@ fun HomeScreen(
                                 )
                             }
                         },
-                        onOpenLinkedPost = { postId ->
+                        onOpenLinkedPost = { postId, isCurrent ->
                             scope.launch {
                                 when (val result = onResolvePost(postId)) {
-                                    is ApiResult.Success -> onPostClick(result.value)
+                                    is ApiResult.Success -> if (isCurrent()) onPostClick(result.value)
                                     is ApiResult.Failure -> Unit
                                 }
                             }

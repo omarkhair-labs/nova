@@ -244,14 +244,19 @@ fun PlantupiaSelfServiceForms(
                         Button(
                             enabled = !saving && spaceName.isNotBlank(),
                             onClick = {
+                                val submittedName = spaceName
+                                val submittedDescription = spaceDescription
+                                val submittedLocation = spaceLocation
                                 scope.launch {
                                     saving = true
                                     error = null
-                                    when (val result = repository.createSpace(spaceName, spaceDescription, spaceLocation)) {
+                                    val result = repository.createSpace(submittedName, submittedDescription, submittedLocation)
+                                    if (!repository.isCurrentSession()) return@launch
+                                    when (result) {
                                         is ApiResult.Failure -> error = result.message
                                         is ApiResult.Success -> {
                                             selectedSpaceId = result.value
-                                            justCreatedSpace = result.value to spaceName.trim()
+                                            justCreatedSpace = result.value to submittedName.trim()
                                             spaceOpen = false
                                             plantOpen = true
                                             spaceName = ""
@@ -332,12 +337,18 @@ fun PlantupiaSelfServiceForms(
                             enabled = !saving && plantName.isNotBlank() && selectedSpaceId != null,
                             onClick = {
                                 val targetSpace = selectedSpaceId ?: return@Button
+                                val submittedName = plantName
+                                val submittedSpecies = species
+                                val submittedPlacement = placement
+                                val submittedPhoto = plantPhoto
                                 scope.launch {
                                     saving = true
                                     error = null
-                                    when (val result = repository.createPlant(
-                                        targetSpace, plantName, species, placement, plantPhoto,
-                                    )) {
+                                    val result = repository.createPlant(
+                                        targetSpace, submittedName, submittedSpecies, submittedPlacement, submittedPhoto,
+                                    )
+                                    if (!repository.isCurrentSession()) return@launch
+                                    when (result) {
                                         is ApiResult.Failure -> error = result.message
                                         is ApiResult.Success -> {
                                             plantName = ""
