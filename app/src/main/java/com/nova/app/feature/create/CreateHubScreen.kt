@@ -23,6 +23,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -87,11 +88,18 @@ fun CreateHubScreen(
     // Nova engines remain functional; secondary formats are opened on demand.
     var activeFormat by remember { mutableStateOf<String?>(null) }
     var showOtherFormats by remember { mutableStateOf(false) }
+    var formatOpenRevision by remember { mutableIntStateOf(0) }
     val createListState = rememberLazyListState()
     // Secondary Nova formats render after the existing five primary sections.
-    // Bring the real composer into view rather than leaving it below the fold.
-    LaunchedEffect(activeFormat) {
-        if (activeFormat != null) createListState.animateScrollToItem(5)
+    // Repeated taps also return to the live editor if the user has scrolled away.
+    LaunchedEffect(formatOpenRevision) {
+        if (formatOpenRevision > 0 && activeFormat != null) {
+            createListState.animateScrollToItem(5)
+        }
+    }
+    fun openFormat(format: String) {
+        activeFormat = format
+        formatOpenRevision += 1
     }
 
     val context = LocalContext.current
@@ -126,7 +134,7 @@ fun CreateHubScreen(
             "Story",
             "Photo, video or text for 24 hours — public only if you choose",
             NovaIconAsset.Story,
-        ) { activeFormat = "story" },
+        ) { openFormat("story") },
         CreateHubAction(
             "Video",
             "Upload your own video",
@@ -137,9 +145,9 @@ fun CreateHubScreen(
     val otherFormats = listOf(
         // Retain Nova's engines, but do not turn every format into a separate
         // Plantupia destination until its role in a living-space journey is clear.
-        CreateHubAction("Pulse", "A short update for your community", NovaIconAsset.Orbit) { activeFormat = "pulse" },
-        CreateHubAction("Gathering", "Meet around shared interests", NovaIconAsset.Room) { activeFormat = "gathering" },
-        CreateHubAction("Memory", "Revisit moments over time", NovaIconAsset.Memory) { activeFormat = "memory" },
+        CreateHubAction("Pulse", "A short update for your community", NovaIconAsset.Orbit) { openFormat("pulse") },
+        CreateHubAction("Gathering", "Meet around shared interests", NovaIconAsset.Room) { openFormat("gathering") },
+        CreateHubAction("Memory", "Revisit moments over time", NovaIconAsset.Memory) { openFormat("memory") },
     )
 
     Scaffold(
