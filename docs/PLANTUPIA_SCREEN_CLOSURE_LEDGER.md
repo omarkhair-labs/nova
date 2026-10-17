@@ -126,6 +126,14 @@ All entries below are **not accepted** pending the listed evidence. Legacy names
 - **P0 NOT RESOLVED REMOTELY:** the account screenshot's Add Plant button disabled despite existing spaces requires checking the actual QA `GET /api/v1/plantupia/spaces/` payload and deployed Django revision/owner vs manager membership. Don't default `can_add_plant` to true, force enable UI, or claim a confirmed staging-backend fix without the network evidence.
 - **QA:** inspect 360/390/430dp first useful viewport with 0/1/7/100 records and due/no-due states. Complete a real approved New Space → Add Plant → Care + date → History → Ask preview → actual reply/outcome → Inbox/Story flow and check Back/keyboard and two-account privacy.
 
+### 2026-10-17 Pass 08 / whole-product brand and competitive reset — RESEARCH ONLY
+
+- [Pass 08 cross-product research and honest self-evaluation](./PLANTUPIA_PASS08_WHOLE_PRODUCT_DESIGN_RESEARCH_EVALUATION_2026-10-17.md) re-read the original award-reference atlases and master capability matrix; updated official competitor listings and Apple/Google awards; proposed coherent photography, typography, pictogram, illustration, motion and Profile visual rules.
+- **Actual state:** researched proposals, three Me/Profile alternatives, provisional rubric and required tests — **no approval, generated visual assets, font licensing, native UI commits or APK in this research increment**. Previous QA fixes still await exact-device acceptance.
+- **Differentiation warning:** Planta and Greg already offer journals, reminders and social community. Current defensible Plantupia thesis is place + real authored care + dated evidence + optional consented question/outcome. Effects on plant health or user's relationship are NOT yet established.
+- **Creative reviewer:** [deferred Codex handoff](./PLANTUPIA_CODEX_AUDIT_HANDOFF_CONTRACT.md) now must consider Pass08 and is allowed to challenge it with better reversible proofs.
+- **Design gate:** evaluate actual first useful action, 0/1/7/100 plant inventory, no-image states, real photos, brand fonts/licensing, Arabic/English fallback, profile self/stranger privacy, media+Inbox, 320–430dp with font scaling, reduced motion and material interaction. Do not confuse concept art with verified client installations.
+
 ## Backend / invisible engine ledger
 
 | Layer | Exists | Next evidence gate |
