@@ -29,13 +29,14 @@ import com.nova.app.feature.plants.PlantupiaColors
  */
 internal data class PlantupiaAvatarStyle(val figure: Int, val palette: Int, val accent: Int)
 
-internal fun plantupiaAvatarStyle(userId: Long): PlantupiaAvatarStyle {
+internal fun plantupiaAvatarStyle(userId: Long, chosenVariant: Int = -1): PlantupiaAvatarStyle {
     // Immutable numeric API user ID gives a shared result across devices/screens.
     val id = userId.coerceAtLeast(0L)
+    val figure = chosenVariant.takeIf { it in 0..7 } ?: Math.floorMod(id, 8L).toInt()
     return PlantupiaAvatarStyle(
-        figure = Math.floorMod(id, 8L).toInt(),
-        palette = Math.floorMod(id / 8L + id, 5L).toInt(),
-        accent = Math.floorMod(id / 40L + id, 3L).toInt(),
+        figure = figure,
+        palette = if (chosenVariant in 0..7) (figure * 3) % 5 else Math.floorMod(id / 8L + id, 5L).toInt(),
+        accent = if (chosenVariant in 0..7) figure % 3 else Math.floorMod(id / 40L + id, 3L).toInt(),
     )
 }
 
@@ -46,8 +47,9 @@ fun PlantupiaAvatar(
     photoUrl: String,
     size: Dp,
     modifier: Modifier = Modifier,
+    chosenVariant: Int = -1,
 ) {
-    val style = remember(userId) { plantupiaAvatarStyle(userId) }
+    val style = remember(userId, chosenVariant) { plantupiaAvatarStyle(userId, chosenVariant) }
     var photoLoaded by remember(photoUrl) { mutableStateOf(false) }
     val name = displayName.ifBlank { "this person" }
     val backgrounds = listOf(

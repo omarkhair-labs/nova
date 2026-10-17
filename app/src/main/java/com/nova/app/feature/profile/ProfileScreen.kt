@@ -50,6 +50,7 @@ import com.nova.app.ui.theme.NovaType
 fun ProfileScreen(
     displayName: String,
     userId: Long = 0L,
+    avatarVariant: Int = -1,
     username: String,
     avatarUrl: String,
     bio: String,
@@ -134,6 +135,7 @@ fun ProfileScreen(
             PlantupiaMeIdentity(
                 displayName = displayName,
                 userId = userId,
+                avatarVariant = avatarVariant,
                 username = username,
                 avatarUrl = avatarUrl,
                 bio = bio,

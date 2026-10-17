@@ -83,6 +83,7 @@ internal fun NovaProfileIdentity(
     showOrbit: Boolean,
     isVerified: Boolean,
     plantupiaIdentityId: Long? = null,
+    plantupiaAvatarVariant: Int = -1,
     modifier: Modifier = Modifier,
 ) {
     if (plantupiaIdentityId != null) {
@@ -92,6 +93,7 @@ internal fun NovaProfileIdentity(
         PlantupiaMeIdentity(
             displayName = displayName,
             userId = plantupiaIdentityId,
+            avatarVariant = plantupiaAvatarVariant,
             username = username,
             avatarUrl = avatarUrl,
             bio = bio,

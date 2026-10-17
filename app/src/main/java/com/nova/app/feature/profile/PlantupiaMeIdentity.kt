@@ -40,6 +40,7 @@ import com.nova.app.ui.theme.NovaType
 internal fun PlantupiaMeIdentity(
     displayName: String,
     userId: Long = 0L,
+    avatarVariant: Int = -1,
     username: String,
     avatarUrl: String,
     bio: String,
@@ -69,6 +70,7 @@ internal fun PlantupiaMeIdentity(
                     fallbackText = displayName.ifBlank { username }.ifBlank { "Plantupia" },
                     size = 64.dp,
                     plantupiaUserId = userId,
+                    plantupiaAvatarVariant = avatarVariant,
                 )
                 Column(
                     modifier = Modifier.weight(1f),

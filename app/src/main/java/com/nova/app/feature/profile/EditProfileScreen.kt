@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -36,6 +37,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import com.nova.app.ui.components.NovaKeyboardAwareFormPage
 import com.nova.app.ui.components.NovaPrimaryButton
 import com.nova.app.ui.components.NovaTextField
+import com.nova.app.ui.components.PlantupiaAvatar
+import com.nova.app.feature.plants.PlantupiaColors
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaInk
@@ -46,6 +49,7 @@ import com.nova.app.ui.theme.NovaBorder
 fun EditProfileScreen(
     displayName: String,
     userId: Long = 0L,
+    avatarVariant: Int = -1,
     username: String,
     avatarUrl: String,
     bio: String,
@@ -58,7 +62,7 @@ fun EditProfileScreen(
     isLoading: Boolean,
     errorMessage: String?,
     onBack: () -> Unit,
-    onSave: (String, String, Uri?, String, String, String, List<String>, String, Boolean) -> Unit,
+    onSave: (String, String, Uri?, String, String, String, List<String>, String, Boolean, Int) -> Unit,
 ) {
     var name by remember(displayName) { mutableStateOf(displayName) }
     var handle by remember(username) { mutableStateOf(username) }
@@ -68,6 +72,7 @@ fun EditProfileScreen(
     var profileLink by remember(link) { mutableStateOf(link) }
     var interestsText by remember(interests) { mutableStateOf(interests.joinToString(", ")) }
     var selectedTheme by remember(profileTheme) { mutableStateOf(profileTheme) }
+    var selectedAvatarVariant by remember(userId, avatarVariant) { mutableStateOf(avatarVariant) }
     var orbitVisible by remember(showOrbit) { mutableStateOf(showOrbit) }
     val linkError = if (
         profileLink.isNotBlank() && normalizedProfileExternalUrl(profileLink) == null
@@ -116,6 +121,7 @@ fun EditProfileScreen(
                         interestsText.split(',').map { it.trim() }.filter { it.isNotBlank() }.distinct().take(8),
                         selectedTheme,
                         orbitVisible,
+                        selectedAvatarVariant,
                     )
                 },
                 enabled = linkError == null &&
@@ -138,6 +144,7 @@ fun EditProfileScreen(
             showOrbit = orbitVisible,
             isVerified = isVerified,
             plantupiaIdentityId = userId,
+            plantupiaAvatarVariant = selectedAvatarVariant,
         )
 
         TextButton(
@@ -153,7 +160,63 @@ fun EditProfileScreen(
         }
 
         Spacer(modifier = Modifier.height(18.dp))
+        Text(
+            "YOUR ILLUSTRATED IDENTITY",
+            color = PlantupiaColors.forest,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 12.sp,
+        )
+        Text(
+            "Choose a character for when you have no photo. The choice saves to your account.",
+            color = NovaMuted,
+            fontSize = 12.sp,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            (-1..7).forEach { variant ->
+                val chosen = selectedAvatarVariant == variant
+                Surface(
+                    onClick = { selectedAvatarVariant = variant },
+                    enabled = !isLoading,
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (chosen) PlantupiaColors.softSage else PlantupiaColors.paper,
+                    border = BorderStroke(
+                        if (chosen) 2.dp else 1.dp,
+                        if (chosen) PlantupiaColors.forest else PlantupiaColors.border,
+                    ),
+                ) {
+                    androidx.compose.foundation.layout.Column(
+                        modifier = Modifier.padding(8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(5.dp),
+                    ) {
+                        PlantupiaAvatar(
+                            userId = userId,
+                            displayName = name,
+                            photoUrl = "",
+                            size = 58.dp,
+                            chosenVariant = variant,
+                        )
+                        Text(
+                            if (variant == -1) "Original" else "No. ${variant + 1}",
+                            color = PlantupiaColors.forestText,
+                            fontSize = 11.sp,
+                        )
+                    }
+                }
+            }
+        }
+        if (selectedPhoto != null || avatarUrl.isNotBlank()) {
+            Text(
+                "Your uploaded photo stays visible. The illustration is the fallback.",
+                color = NovaMuted,
+                fontSize = 12.sp,
+            )
+        }
 
+        Spacer(modifier = Modifier.height(18.dp))
         NovaTextField(
             value = name,
             onValueChange = { name = it.take(80) },
