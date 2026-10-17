@@ -337,6 +337,7 @@ private fun StoryGroupRailItem(group: NovaStoryGroup, label: String, onClick: ()
                     fallbackText = group.author.displayName,
                     size = 50.dp,
                     plantupiaUserId = group.author.id,
+                    plantupiaAvatarVariant = group.author.plantupiaAvatarVariant,
                 )
             }
         }
@@ -683,7 +684,7 @@ private fun StoryViewer(
                 }
                 Spacer(Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    NovaAvatar(source = story.author.avatarUrl, fallbackText = story.author.displayName, size = 38.dp, plantupiaUserId = story.author.id)
+                    NovaAvatar(source = story.author.avatarUrl, fallbackText = story.author.displayName, size = 38.dp, plantupiaUserId = story.author.id, plantupiaAvatarVariant = story.author.plantupiaAvatarVariant)
                     Spacer(Modifier.width(9.dp))
                     Column(Modifier.weight(1f)) {
                         Text(story.author.displayName, color = StoryInk, fontSize = 13.sp, fontWeight = FontWeight.Bold)
@@ -1047,7 +1048,7 @@ private fun StoryViewersDialog(owner: StoryViewerStateOwner) {
                 ) {
                     items(state.viewers, key = { it.user.id }) { viewer ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            NovaAvatar(source = viewer.user.avatarUrl, fallbackText = viewer.user.displayName, size = 36.dp, plantupiaUserId = viewer.user.id)
+                            NovaAvatar(source = viewer.user.avatarUrl, fallbackText = viewer.user.displayName, size = 36.dp, plantupiaUserId = viewer.user.id, plantupiaAvatarVariant = viewer.user.plantupiaAvatarVariant)
                             Spacer(Modifier.width(9.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(viewer.user.displayName, color = NovaInk, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
