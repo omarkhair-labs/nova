@@ -107,7 +107,7 @@ fun ProfileScreen(
             ) {
                 Column {
                     Text(text = "PLANTUPIA / ME", style = PlantupiaText.sectionLabel)
-                    Text(text = "Your profile", style = PlantupiaText.editorialHeading)
+                    Text(text = "Your profile", style = NovaType.sectionTitle.copy(color = PlantupiaColors.forestText))
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box {
