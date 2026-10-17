@@ -10,10 +10,11 @@ After the builder completes the core design/product passes (My Space, Plant Deta
 
 1. The builder's newest explicit requirements and actual device-test findings.
 2. [Product Bible and decision rationale](./PLANTUPIA_PRODUCT_BIBLE_AND_HANDOFF_V01_2026-10-17.md).
-3. [Nine-screenshot integrated design audit](./PLANTUPIA_REAL_DEVICE_VISUAL_BRIEF_AUDIT_2026-10-17.md) and [screen closure ledger](./PLANTUPIA_SCREEN_CLOSURE_LEDGER.md).
-4. Actual primary research repo `omarkhair70-droid/Plantupia`, branch `research/foundation-source-atlas-20261007`: `docs/synthesis/*`, `docs/product/*`, `docs/design/*`, Pass 04–07 research and reference teardown; treat early options as options, not approvals.
-5. The real implementation, Django permissions, migrations, native shell, media features and automated test/code evidence on `omarkhair-labs/nova` stacked PR #240 → #241.
-6. Only then unrelated competitor patterns, generic refactoring instincts or convenience APIs.
+3. [Pass 08 whole-product re-research & self-evaluation](./PLANTUPIA_PASS08_WHOLE_PRODUCT_DESIGN_RESEARCH_EVALUATION_2026-10-17.md) — competitive feature reality, awards, typographic/icon/photo/illustration/motion/profile alternatives, true vs proposed status. This is a proposal set, **not** product-signoff.
+4. [First and second on-device visual audits](./PLANTUPIA_REAL_DEVICE_VISUAL_BRIEF_AUDIT_2026-10-17.md), [second QA captures review](./PLANTUPIA_2026-10-17_SECOND_PHONE_VISUAL_QA.md) and [screen closure ledger](./PLANTUPIA_SCREEN_CLOSURE_LEDGER.md).
+5. Actual primary research repo `omarkhair70-droid/Plantupia`, branch `research/foundation-source-atlas-20261007`: `docs/synthesis/*`, `docs/product/*`, `docs/design/*`, Pass 04–07 research and reference teardown; treat early options as options, not approvals.
+6. The real implementation, Django permissions, migrations, native shell, media features and automated test/code evidence on `omarkhair-labs/nova` stacked PR #240 → #241.
+7. Only then unrelated competitor patterns, generic refactoring instincts or convenience APIs.
 
 ## Phase A — finish visual and UX product decisions first (builder/ChatGPT)
 
@@ -36,6 +37,8 @@ Inspect:
 - Existing source documentation: identify decisions without implementation and functions without real QA, with exact file/test evidence.
 
 Deliver a **ranked P0/P1/P2 report**: file/line, observed or reproducible failure, matching product law, scope of fix, tests, security/UX risk and expected sign-off. Avoid overhauls not traceable to a bug or accepted direction.
+
+**Extra review requirement from Pass 08:** audit actual Android `NovaType` vs `PlantupiaText` vs generic `FontFamily.Serif`, care Canvas glyph legibility, remaining legacy `ic_nova_*` icons, real/photo vs custom authored empty illustrations, whole-product motion / reduced-motion, and three competing Me/Profile compositions. Audit 0/1/7/100 plants, English/mixed Arabic names and physical 320–430dp font scaling before claiming success. **Codex may propose an original fourth direction** and explain why it beats our existing three.
 
 ## Creative judgment: permission to improve, not permission to erase research
 
