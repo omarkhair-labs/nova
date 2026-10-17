@@ -55,6 +55,10 @@ private val mutedGreen = Color(0xFF4A5A50)
 private val parchment = Color(0xFFF3EEDE)
 private val card = Color(0xFFFFFDF7)
 
+/** A new Circle refresh invalidates earlier in-flight pagination and retries. */
+internal fun isCurrentCirclePageRequest(requestRevision: Int, visibleRevision: Int): Boolean =
+    requestRevision == visibleRevision
+
 @Composable
 fun PlantupiaQuestionsPanel(
     plantId: String,
@@ -305,9 +309,18 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
     var refresh by remember { mutableStateOf(0) }
 
     LaunchedEffect(refresh) {
+        val requestRevision = refresh
         pending = true
+        // Never leave a previous session's public-feed snapshot on a failed reload.
+        // A refresh also invalidates the cursor used by any older loading page.
+        questions = emptyList()
+        nextCursor = null
+        loadingMore = false
         olderPageError = null
-        when (val result = repo.circle()) {
+        error = null
+        val result = repo.circle()
+        if (!isCurrentCirclePageRequest(requestRevision, refresh)) return@LaunchedEffect
+        when (result) {
             is ApiResult.Success -> {
                 questions = result.value.questions
                 nextCursor = result.value.nextCursor
@@ -372,9 +385,14 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
                 enabled = !loadingMore,
                 onClick = {
                     val cursor = nextCursor ?: return@OutlinedButton
+                    val requestRevision = refresh
                     scope.launch {
                         loadingMore = true
-                        when (val result = repo.circle(cursor)) {
+                        val result = repo.circle(cursor)
+                        // A late response belongs to an older Circle list. Never
+                        // append it to the freshly loaded questions or revive its cursor.
+                        if (!isCurrentCirclePageRequest(requestRevision, refresh)) return@launch
+                        when (result) {
                             is ApiResult.Failure -> olderPageError = result.message
                             is ApiResult.Success -> {
                                 questions = (questions + result.value.questions).distinctBy { it.id }
