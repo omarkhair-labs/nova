@@ -664,7 +664,7 @@ fun PlantupiaClientSection(
                         .clickable { photoToView = selectedPlant.coverPhoto to selectedPlant.name },
                     contentScale = ContentScale.Crop,
                 )
-             else {
+            } else {
                 // No cover photo is not a missing plant or invented photographic evidence.
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
