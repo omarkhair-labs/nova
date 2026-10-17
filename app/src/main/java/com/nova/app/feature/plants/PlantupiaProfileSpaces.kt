@@ -226,6 +226,11 @@ fun PlantupiaProfileSpaces(onOpenSpaces: () -> Unit) {
                         }
                     }
                 }
+                // A person may have added a plant from Home while their Profile
+                // remained composed. Allow an explicit fresh authenticated reload.
+                TextButton(onClick = { retry += 1 }) {
+                    Text("Refresh private spaces", color = PlantupiaColors.forest)
+                }
             }
         }
         Text(
