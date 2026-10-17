@@ -37,11 +37,11 @@ The same dissatisfaction was explicitly predicted by the research, before the sc
 ## 03 / Proposed integrated design structure, not separate skin tweaks
 
 ### My Space / Today
-**Header:** wordmark + search/messages/notifications, compact personal greeting in English.  
-**Attention:** one real selected review card (if any), concise due date & one reachable action.  
-**Place:** photographed currently selected site *or explicitly labeled real plant-in-place image*; concise location/name and switch.  
-**Plants:** recognizably photographed unit strip/grid; tap unit → real dedicated detail; quick record.  
-**Evidence:** last actual dated observation only if recorded, otherwise simple empty state.  
+**Header:** wordmark + search/messages/notifications, compact personal greeting in English.
+**Attention:** one real selected review card (if any), concise due date & one reachable action.
+**Place:** photographed currently selected site *or explicitly labeled real plant-in-place image*; concise location/name and switch.
+**Plants:** recognizably photographed unit strip/grid; tap unit → real dedicated detail; quick record.
+**Evidence:** last actual dated observation only if recorded, otherwise simple empty state.
 **Secondary:** opt-in assistant and social moments further down — **not** before place, care or plants.
 
 ### Dedicated plant detail / Care / History
