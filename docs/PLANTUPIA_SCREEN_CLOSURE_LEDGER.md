@@ -44,7 +44,7 @@ All entries below are **not accepted** pending the listed evidence. Legacy names
 | C08 | Sourced plant care guide | GAP | not an approved curated corpus | cite real sources; avoid invented biology |
 | AI01 | General & context-scoped care assistant | PLANTUPIA-CODED, DISABLED | `PlantupiaAssistantSheet.kt`, `backend/plants/assistant.py` | isolated QA provider key, actual reply/device QA, policy confirmation |
 | AI02 | AI photos, cited resources, answer-to-care action | GAP | text only, no RAG | optional C1, explicit user save |
-| M01 | Circle plant Q&A + pagination | HYBRID / REFRESH ISOLATION CODED | `OrbitScreen.kt`, `PlantupiaCommunityPanels.kt`; refresh clears stale questions/cursor and discards older in-flight pages; JVM test validates revisions | two-account publishing/replies, retry/offline and device QA; user review |
+| M01 | Circle plant Q&A + pagination | HYBRID / QUESTION-FIRST NATIVE PASS | `OrbitScreen.kt`, `PlantupiaCommunityPanels.kt`, `PlantupiaCirclePresentationTest.kt`; compact header, question-first 96dp optional photo, truthful author/reply/outcome labels, Ask from actual plant before list; preserves Nova posts/comments and private/public consent | 360/390/430dp, actual post/replies, two-account consent/EXIF, reader/RTL, refresh and native Back/Inbox/Story QA |
 | M02 | Public question and precise preview/consent | HYBRID | plant discussion + Nova Post engine | post and verify account-separated private/public |
 | M03 | Public post detail, comments, reporting | NOVA-INHERITED | post detail/comments/privacy | visual and permission QA, return to plant/outcome |
 | M04 | People/relationships/followers | NOVA-INHERITED | `PeopleScreen`, `PersonScreen`, social graph | role in living community, Plantupia visual language |
@@ -108,6 +108,13 @@ All entries below are **not accepted** pending the listed evidence. Legacy names
 - **Create fix:** the compact private/public Create refactor initially failed Kotlin compile due to an accidentally removed `remember` import; restored explicitly on commit `38189395`. Do **not** cite the pre-fix build as green.
 - **Navigation scroll:** `HomeScreen` already scrolls to the Plantupia living-space item in `onOpenPlant` via the actual owning `LazyColumn`. Keep it and test device jump; don't duplicate a conflicting local scroll call.
 - **Upcoming real QA:** long names in Arabic/English, photo zoom, keyboard on care textarea, human-selected dates, fast plant switching, viewer/archived roles, visual 360/390/430dp and Add Plant stale server-permission mismatch. No full-screen sign-off or QA APK from these commits yet.
+
+### 2026-10-17 Native design consolidation: Circle → question → replies → private observed outcome
+
+- **Behavior from briefs and references, not decoration:** [Circle research-to-Compose decision map](./PLANTUPIA_CIRCLE_BRIEF_TO_NATIVE_DECISIONS_2026-10-17.md) traces [Pass 05 Are.na / Day One / Focus Friend](https://github.com/omarkhair70-droid/Plantupia/blob/research/foundation-source-atlas-20261007/docs/design/07-award-winners-behavioral-teardown-pass-05-2026-10-14.md), [Pass 07](https://github.com/omarkhair70-droid/Plantupia/blob/research/foundation-source-atlas-20261007/docs/design/09-pass07-integrated-product-synthesis-contract-2026-10-14.md) and [Nova integration visual brief](https://github.com/omarkhair70-droid/Plantupia/blob/research/foundation-source-atlas-20261007/docs/product/NOVA_INTEGRATION_VISUAL_CONTRACT_V01_2026-10-12.md).
+- **Native changes:** concise Circle header, small Ask-from-your-plant action preceding questions, authored title + chosen caption + small optional source photo, **actual** server comment-count grammar and server-confirmed outcome state. No suggestion, expert badge or fictional data added.
+- **Preserved:** original Nova post/comment navigation, people/Stories/Inbox engine, Plantupia preview/photo explicit public consent and separate private observed outcome, account-scoped server privacy, paginated Circle refresh.
+- **Regression:** new `PlantupiaCirclePresentationTest` validates 0/1/2/100 and negative malformed reply counts. No physical/on-device or two-account signoff yet.
 
 ## Backend / invisible engine ledger
 
