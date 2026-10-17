@@ -37,6 +37,17 @@ Inspect:
 
 Deliver a **ranked P0/P1/P2 report**: file/line, observed or reproducible failure, matching product law, scope of fix, tests, security/UX risk and expected sign-off. Avoid overhauls not traceable to a bug or accepted direction.
 
+## Creative judgment: permission to improve, not permission to erase research
+
+Codex is **explicitly invited to notice what the builder missed and propose genuinely good UX, product or visual decisions**; it should not be reduced to a literal ticket executor. The existing studies are informed evidence, **not a ban on iteration**. New observations can legitimately revise an earlier choice when a better solution is demonstrated.
+
+- **Freedom:** generate alternative native interaction models, challenge weak IA, propose more graceful photo/care/history composition, better typography and motion, spot hidden user needs, and draw fresh references when directly relevant.
+- **Initiative:** prototype a *small, reversible* design change on an isolated branch when it has clear user value and no security/data/prod impact; annotate why this improves on Pass 07 or the current device capture.
+- **Proof:** for material decisions provide the observed friction, researched premise, alternatives considered, actual prototype/Compose change, keyboard/Back/accessibility cases, test evidence, and an easy way to undo it.
+- **Approval boundary:** changes to the core product meaning, root navigation, private/public model, data ownership, service commitments, brand identity or existing Nova user data require a design review with the builder before rollout.
+- **Disagreement is allowed:** explicitly explain where the current Product Bible or a prior brief may be wrong or outdated; don't follow inherited decisions blindly. Present a reasoned alternative, not an unrequested 20-screen rewrite.
+- **Preserve provenance:** never delete original reference briefs, source atlases or earlier alternatives to make new output look inevitable. Add dated decision records (proposed / tested / accepted / rejected), without pretending experiments happened when they haven't.
+
 ## Phase C — only after audit review, execute bounded changes
 
 - Explicitly identify target feature branch / base; create separate scoped commits or a review PR where appropriate. Don't modify default branch, existing Nova listing/package, production migrations, Oracle production data, signing, secrets, account owners or Google Play without approval.
