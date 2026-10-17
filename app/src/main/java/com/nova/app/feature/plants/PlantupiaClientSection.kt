@@ -871,7 +871,11 @@ fun PlantupiaClientSection(
                                     val followUpDate = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now())
                                     val optedInToReminder = reminderOptIn
                                     when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "observation", note, it, followUpOn = followUpDate) } ?: repository.record(selectedPlant.id, "observation", note, followUpOn = followUpDate)) {
-                                        is ApiResult.Failure -> error = r.message
+                                        is ApiResult.Failure -> {
+                                            if (isCurrentPlantDetailRequest(selectedPlant.id, requestGeneration, currentPlantId, detailRequestGeneration)) {
+                                                error = r.message
+                                            }
+                                        }
                                         is ApiResult.Success -> finishSavedMoment(r.value, selectedPlant, requestGeneration, followUpDate, optedInToReminder)
                                     }
                                     saving = false
@@ -888,7 +892,11 @@ fun PlantupiaClientSection(
                                     val followUpDate = selectedFollowUpDate(customFollowUpDate, checkAgainInDays, LocalDate.now())
                                     val optedInToReminder = reminderOptIn
                                     when (val r = carePhotoUri?.let { repository.recordWithPhoto(selectedPlant.id, "care", careDetails, it, followUpOn = followUpDate) } ?: repository.record(selectedPlant.id, "care", careDetails, followUpOn = followUpDate)) {
-                                        is ApiResult.Failure -> error = r.message
+                                        is ApiResult.Failure -> {
+                                            if (isCurrentPlantDetailRequest(selectedPlant.id, requestGeneration, currentPlantId, detailRequestGeneration)) {
+                                                error = r.message
+                                            }
+                                        }
                                         is ApiResult.Success -> finishSavedMoment(r.value, selectedPlant, requestGeneration, followUpDate, optedInToReminder)
                                     }
                                     saving = false
@@ -907,7 +915,11 @@ fun PlantupiaClientSection(
                                     when (val result = carePhotoUri?.let {
                                         repository.recordWithPhoto(selectedPlant.id, "issue", note, it, followUpOn = followUpDate)
                                     } ?: repository.record(selectedPlant.id, "issue", note, followUpOn = followUpDate)) {
-                                        is ApiResult.Failure -> error = result.message
+                                        is ApiResult.Failure -> {
+                                            if (isCurrentPlantDetailRequest(selectedPlant.id, requestGeneration, currentPlantId, detailRequestGeneration)) {
+                                                error = result.message
+                                            }
+                                        }
                                         is ApiResult.Success -> finishSavedMoment(result.value, selectedPlant, requestGeneration, followUpDate, optedInToReminder)
                                     }
                                     saving = false
@@ -946,7 +958,11 @@ fun PlantupiaClientSection(
                     canPublish = selectedPlant.canRecord,
                     onOpenPost = onOpenLinkedPost,
                     onOutcomeSaved = {
-                        when (val response = repository.historyPage(selectedPlant.id)) {
+                        val plantId = selectedPlant.id
+                        val generation = detailRequestGeneration
+                        val response = repository.historyPage(plantId)
+                        if (!isCurrentPlantDetailRequest(plantId, generation, currentPlantId, detailRequestGeneration)) return@PlantupiaQuestionsPanel
+                        when (response) {
                             is ApiResult.Success -> {
                                 events = response.value.events
                                 nextHistoryOffset = response.value.nextOffset
