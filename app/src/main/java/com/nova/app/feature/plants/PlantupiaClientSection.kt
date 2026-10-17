@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -330,19 +331,32 @@ fun PlantupiaClientSection(
                     }
                 }
             }
-            BrandEyebrow("YOUR LIVING SPACE")
-            Text(
-                "Your plants, in their place.",
-                fontFamily = FontFamily.Serif,
-                fontSize = 26.sp,
-                color = deepGreen,
-                lineHeight = 33.sp,
-            )
-            if (!loading && error == null && plants.any { it.active }) {
+            // Quiet Care: a small, real next step before hero and AI.
+            if (!loading && error == null) {
                 PlantupiaTodayPanel(
                     plants = plants,
                     onOpenPlant = { plant -> scope.launch { openPlant(plant) } },
                 )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(9.dp),
+                ) {
+                    if (plants.any { it.active && it.canRecord }) {
+                        Button(
+                            onClick = { PlantupiaCreateIntent.request(PlantupiaCreateMode.OBSERVATION) },
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
+                        ) {
+                            Text("Record care", color = white)
+                        }
+                    }
+                    OutlinedButton(
+                        onClick = { PlantupiaCreateIntent.request(PlantupiaCreateMode.ADD_PLANT) },
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    ) {
+                        Text("+ Add plant", color = deepGreen)
+                    }
+                }
             }
             // Pass 07: show the authentic place before AI and creation controls.
             // An empty or failed API must never display stock customer imagery.
@@ -373,12 +387,12 @@ fun PlantupiaClientSection(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(if (photoHero) 244.dp else 202.dp),
+                            .height(if (photoHero) 196.dp else 154.dp),
                     ) {
                         if (photoHero) {
                             AsyncImage(
                                 model = heroPhoto,
-                                contentDescription = "Actual photo of ${heroPlant?.name.orEmpty()}, a plant in ${featured.name}",
+                                contentDescription = "Photo uploaded for ${heroPlant?.name.orEmpty()} in ${featured.name}",
                                 modifier = Modifier.matchParentSize(),
                                 contentScale = ContentScale.Crop,
                             )
@@ -432,19 +446,6 @@ fun PlantupiaClientSection(
                     onSaved = { scope.launch { refresh() } },
                 )
             }
-            OutlinedButton(
-                onClick = { showAssistant = true },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(15.dp),
-            ) {
-                com.nova.app.ui.icons.NovaIcon(
-                    asset = com.nova.app.ui.icons.NovaIconAsset.Info,
-                    contentDescription = null,
-                    modifier = Modifier.padding(end = 10.dp),
-                    tint = deepGreen,
-                )
-                Text("Ask the Plantupia assistant", color = deepGreen)
-            }
             PlantupiaSelfServiceForms(
                 spaces = spaces,
                 repository = repository,
@@ -464,6 +465,19 @@ fun PlantupiaClientSection(
                 creationRequest = PlantupiaCreateIntent.pending,
                 onRequestConsumed = { PlantupiaCreateIntent.clear() },
             )
+            OutlinedButton(
+                onClick = { showAssistant = true },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(15.dp),
+            ) {
+                com.nova.app.ui.icons.NovaIcon(
+                    asset = com.nova.app.ui.icons.NovaIconAsset.Info,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = 10.dp),
+                    tint = deepGreen,
+                )
+                Text("Ask the Plantupia assistant", color = deepGreen)
+            }
             if (loading) {
                 Text("Loading your spaces…", color = muted, fontSize = 13.sp)
             } else {
