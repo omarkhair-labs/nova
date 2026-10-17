@@ -300,3 +300,10 @@ Build the following connected groups continuously, with developer-side testing/C
 - Deterministic JVM test executes the real session-store primitive and reproduces an old A refresh mixing with B's current cached user/refresh token. A second test verifies the actual Plantupia-local repository rejects account/new-login changes.
 - Shared Nova authentication source is unchanged. F01 remains OPEN; the proposed atomic session-generation repair and full required regression matrix are recorded in `PLANTUPIA_INTEGRITY_SPRINT_01_2026-10-18.md` for review before implementation.
 - No device verification, hosted migration/deployment, consent-policy or deletion-policy change is implied by this sprint.
+
+
+### 2026-10-18 Integrity Sprint 02 — F01 shared session safety IMPLEMENTED, DEVICE QA PENDING
+
+- F01's characterization was first converted to a B-remains-unchanged security regression and observed failing before implementation. Shared process-wide coordination now guards every asynchronous credential/profile/restore/clear write by immutable persisted login generation across repository/store instances; refreshes coalesce per login.
+- All feature auth wrappers, restore/profile/security actions, realtime, background push/calls and media preparation were migrated. Stale expiry events cannot clear a later login. Existing encryption, endpoints and Nova protocols remain compatible; optional registration media and confirmed-expiry cleanup retain bounded behavior.
+- See [Sprint 02 implementation, full caller audit, compatibility and device matrix](./PLANTUPIA_INTEGRITY_SPRINT_02_2026-10-18.md). Final local/CI evidence is recorded on draft PR #241 for its exact HEAD. No screen is device-verified, accepted or release-ready by this increment. F05 and hosted QA/release gates remain open.

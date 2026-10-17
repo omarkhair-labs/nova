@@ -286,3 +286,8 @@ Every relevant change must update: **the PR commit → affected screen ledger ro
 ### 2026-10-18 maintenance increment — Integrity Sprint 01
 
 Audit F06/F07/F12 now have scoped native implementation and JVM regression coverage: immutable/account-scoped mutation callbacks, independent pending check-in failure/retry states, and strict successful-response contracts with retained Nova no-content compatibility. F01 was deterministically reproduced; shared authentication remains unchanged and open. See [versioned sprint evidence and proposed F01 repair](./PLANTUPIA_INTEGRITY_SPRINT_01_2026-10-18.md). Source/CI increments do not mark any screen device-verified or owner-accepted.
+
+
+### 2026-10-18 maintenance increment — Integrity Sprint 02
+
+F01 now has a shared native session-generation/refresh coordinator, required-owner credential/profile writes and deterministic cross-account/background regression coverage. This supersedes the preceding investigation-only status without changing backend authentication, deletion/consent policy or Play configuration. See [Sprint 02 evidence and compatibility review](./PLANTUPIA_INTEGRITY_SPRINT_02_2026-10-18.md). Device/hosted QA and whole-app release approval remain open.
