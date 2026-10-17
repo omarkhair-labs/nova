@@ -139,8 +139,10 @@ private fun PlantupiaAccountClientSection(
     var visiblePlantCount by remember { mutableStateOf(8) }
     var events by remember { mutableStateOf<List<PlantupiaCareEvent>>(emptyList()) }
     var historyFilter by remember(currentPlantId) { mutableStateOf(PlantupiaHistoryFilter.ALL) }
-    var pendingFollowUps by remember { mutableStateOf<List<PlantupiaCareEvent>>(emptyList()) }
-    var nextPendingOffset by remember { mutableStateOf<Int?>(null) }
+    var pendingState by remember { mutableStateOf<PlantupiaPendingCheckInsState>(PlantupiaPendingCheckInsState.Loading) }
+    val pendingFollowUps = (pendingState as? PlantupiaPendingCheckInsState.Loaded)?.events.orEmpty()
+    val nextPendingOffset = (pendingState as? PlantupiaPendingCheckInsState.Loaded)?.nextOffset
+    var pendingPageError by remember { mutableStateOf<String?>(null) }
     var pendingPageLoading by remember { mutableStateOf(false) }
     var followUpTarget by remember { mutableStateOf<PlantupiaCareEvent?>(null) }
     var followUpResult by remember { mutableStateOf("") }
@@ -217,6 +219,16 @@ private fun PlantupiaAccountClientSection(
         loading = false
     }
 
+    suspend fun loadPending(plantId: String, generation: Int) {
+        if (!isCurrentRequest(plantId, generation)) return
+        pendingPageError = null
+        loadPlantupiaPendingCheckIns(
+            isCurrent = { isCurrentRequest(plantId, generation) },
+            request = { repository.historyPage(plantId, pendingOnly = true) },
+            onState = { pendingState = it },
+        )
+    }
+
     suspend fun openPlant(plant: PlantupiaPlant) {
         if (!lifetime.isCurrent()) return
         if (PlantupiaCreateIntent.pending.needsPlantSelection() &&
@@ -256,8 +268,8 @@ private fun PlantupiaAccountClientSection(
         followUpResult = ""
         movingCheckIn = null
         movedCheckInDate = null
-        pendingFollowUps = emptyList()
-        nextPendingOffset = null
+        pendingState = PlantupiaPendingCheckInsState.Loading
+        pendingPageError = null
         pendingPageLoading = false
         olderEventsLoading = false
         historyRetryLoading = false
@@ -279,16 +291,8 @@ private fun PlantupiaAccountClientSection(
                 error = response.message
             }
         }
-        val pendingResponse = repository.historyPage(plant.id, pendingOnly = true)
-        if (!isCurrentRequest(plant.id, requestGeneration)) return
-        when (val response = pendingResponse) {
-            is ApiResult.Success -> {
-                pendingFollowUps = response.value.events
-                nextPendingOffset = response.value.nextOffset
-            }
-            is ApiResult.Failure -> if (error == null) error = response.message
-        }
         detailLoading = false
+        loadPending(plant.id, requestGeneration)
     }
 
     fun saveMoment(plant: PlantupiaPlant, kind: String, details: String) {
@@ -336,9 +340,9 @@ private fun PlantupiaAccountClientSection(
         openDetailMode = null
         photoToView = null
         events = emptyList()
-        pendingFollowUps = emptyList()
+        pendingState = PlantupiaPendingCheckInsState.Loading
+        pendingPageError = null
         nextHistoryOffset = null
-        nextPendingOffset = null
         pendingPageLoading = false
         olderEventsLoading = false
         historyRetryLoading = false
@@ -1072,9 +1076,22 @@ private fun PlantupiaAccountClientSection(
             // history and record administration belong to the normal plant detail.
             if (openDetailMode != PlantupiaCreateMode.QUESTION) {
             BrandEyebrow("CHECK BACK")
-            if (detailLoading) {
+            if (pendingState is PlantupiaPendingCheckInsState.Loading) {
                 Text("Loading check-ins…", color = muted, fontSize = 12.sp)
-            } else if (pendingFollowUps.isEmpty()) {
+            } else if (pendingState is PlantupiaPendingCheckInsState.Unavailable) {
+                PlantupiaPanel {
+                    Text("Check-ins couldn't be loaded", color = forestText, fontWeight = FontWeight.SemiBold)
+                    Text((pendingState as PlantupiaPendingCheckInsState.Unavailable).message, color = muted, fontSize = 12.sp)
+                    OutlinedButton(
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        onClick = {
+                            val plantId = selectedPlant.id
+                            val generation = detailRequestGeneration
+                            scope.launch { loadPending(plantId, generation) }
+                        },
+                    ) { Text("Retry loading check-ins", color = deepGreen) }
+                }
+            } else if (pendingState is PlantupiaPendingCheckInsState.Empty) {
                 Text("When you record care or a change, you can choose when to check its outcome.", color = muted, fontSize = 12.sp)
             } else {
                 pendingFollowUps.forEach { check ->
@@ -1208,6 +1225,9 @@ private fun PlantupiaAccountClientSection(
                         }
                     }
                 }
+                pendingPageError?.let { message ->
+                    Text("Older check-ins couldn't be loaded: $message", color = PlantupiaColors.errorText, fontSize = 12.sp)
+                }
                 if (nextPendingOffset != null) {
                     OutlinedButton(
                         modifier = Modifier.fillMaxWidth(),
@@ -1218,25 +1238,27 @@ private fun PlantupiaAccountClientSection(
                             val generation = detailRequestGeneration
                             scope.launch {
                                 pendingPageLoading = true
+                                pendingPageError = null
                                 val response = repository.historyPage(
                                     plantId, offset = offset, pendingOnly = true,
                                 )
                                 if (!isCurrentRequest(plantId, generation)) return@launch
                                 when (response) {
                                     is ApiResult.Success -> {
-                                        pendingFollowUps = (pendingFollowUps + response.value.events)
-                                            .distinctBy { it.id }
-                                        nextPendingOffset = response.value.nextOffset
-                                        error = null
+                                        pendingState = pendingCheckInsFromPage(response.value.copy(
+                                            events = (pendingFollowUps + response.value.events).distinctBy { it.id },
+                                        ))
+                                        pendingPageError = null
                                     }
-                                    is ApiResult.Failure -> error = response.message
+                                    is ApiResult.Failure -> pendingPageError = response.message
                                 }
                                 pendingPageLoading = false
                             }
                         },
                     ) {
                         Text(
-                            if (pendingPageLoading) "Loading older check-ins…" else "Load older check-ins",
+                            if (pendingPageLoading) "Loading older check-ins…"
+                            else if (pendingPageError != null) "Retry older check-ins" else "Load older check-ins",
                             color = deepGreen,
                         )
                     }

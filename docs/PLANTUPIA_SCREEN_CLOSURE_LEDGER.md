@@ -282,3 +282,9 @@ Build the following connected groups continuously, with developer-side testing/C
 - Same-account confirmed server saves remain valid after Back; reminder side effects never attach to a different login. Plantupia repositories are bound to their originating login. Shared Nova authentication is unchanged; F01 is a separate investigation.
 - Linked-post resolution checks the originating detail again after its own network request. Question panels reset their callback lifetime when the same plant is reopened.
 - Focused local JVM regression run: 12 tests passed (mutation runner + existing detail policy). Final sprint CI and physical device cases remain pending; no deployment or hosted migration performed.
+
+### 2026-10-18 Integrity Sprint 01 — F07 pending check-in states
+
+- Pending reviews have independent Loading / Unavailable / Empty / Loaded states. Only a successful empty response renders the no-check-ins message. History can finish independently of pending loading.
+- Retry loading check-ins requests only the current plant's pending endpoint and keeps history, selected plant, care note/photo/action/date untouched. Older-page failures retain loaded reviews and expose their own retry error.
+- Local JVM run: 17 focused tests passed, including five pending-state/load regressions and the F06/request-isolation tests. Local Django check, migration-drift check and 43 plants tests passed using disposable SQLite/storage; PostgreSQL CI and device evidence remain separate gates.
