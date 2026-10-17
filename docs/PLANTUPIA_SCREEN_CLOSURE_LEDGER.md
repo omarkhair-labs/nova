@@ -44,12 +44,12 @@ All entries below are **not accepted** pending the listed evidence. Legacy names
 | C08 | Sourced plant care guide | GAP | not an approved curated corpus | cite real sources; avoid invented biology |
 | AI01 | General & context-scoped care assistant | PLANTUPIA-CODED, DISABLED | `PlantupiaAssistantSheet.kt`, `backend/plants/assistant.py` | isolated QA provider key, actual reply/device QA, policy confirmation |
 | AI02 | AI photos, cited resources, answer-to-care action | GAP | text only, no RAG | optional C1, explicit user save |
-| M01 | Circle plant Q&A + pagination | HYBRID | `OrbitScreen.kt`, `PlantupiaCommunityPanels.kt` | distinct useful discovery, all states, end-to-end |
+| M01 | Circle plant Q&A + pagination | HYBRID / REFRESH ISOLATION CODED | `OrbitScreen.kt`, `PlantupiaCommunityPanels.kt`; refresh clears stale questions/cursor and discards older in-flight pages; JVM test validates revisions | two-account publishing/replies, retry/offline and device QA; user review |
 | M02 | Public question and precise preview/consent | HYBRID | plant discussion + Nova Post engine | post and verify account-separated private/public |
 | M03 | Public post detail, comments, reporting | NOVA-INHERITED | post detail/comments/privacy | visual and permission QA, return to plant/outcome |
 | M04 | People/relationships/followers | NOVA-INHERITED | `PeopleScreen`, `PersonScreen`, social graph | role in living community, Plantupia visual language |
-| M05 | Generic Create post/publishing queue | NOVA-INHERITED | `CreatePostScreen`, background media pipeline | Plantupia audience, publishing/abort/retry |
-| M06 | Stories 24h, viewer, privacy | NOVA-INHERITED | `StoriesRail.kt`, repository | preserve media viewer; story↔plant is NOT implemented |
+| M05 | Generic Create post/publishing queue | NOVA-INHERITED / ENTRYPOINT NAV IMPROVED | `CreateHubScreen.kt`, `CreatePostScreen`; optional live social editors scroll into view when chosen even after repeat tap | real public post publishing/abort/retry and private-vs-public QA |
+| M06 | Stories 24h, viewer, privacy | NOVA-INHERITED / CREATE ENTRYPOINT IMPROVED | `CreateHubScreen.kt` reveals the real existing `StoriesRail` instead of leaving the loaded composer below the fold | user journey camera/gallery/expiry and publishing tests; story↔plant is NOT implemented |
 | M07 | Reels/video | NOVA-INHERITED | `ReelsScreen.kt`, player/upload | decide role and brand; Android performance |
 | M08 | Optional Pulse, Memories, Rooms, Tonight | NOVA-INHERITED | respective feature packages | inspect value; keep secondary or remove from navigation, never delete underlying data |
 | U01 | My profile and private spaces | HYBRID | `ProfileScreen.kt`, `PlantupiaProfileSpaces.kt` | public/private separation, visual QA |
@@ -76,6 +76,13 @@ All entries below are **not accepted** pending the listed evidence. Legacy names
 - **P02/C06 request isolation:** every plant-detail open increments an ephemeral generation; opening a different plant, reopening the same plant, or Back invalidates prior network results. Clear previous private history synchronously. Guard initial events, pending check-ins, subsequent history pages, and Circle question outcome refresh before updating visible state. JVM tests reject old plant, same-plant prior generation, and null selection.
 - **C02 save navigation:** capture chosen check-in/reminder parameters for the actual save; if user navigates away before the API returns, keep the authoritative server save/optional scheduled local reminder but **do not forcibly reopen the old plant**, alter new plant notes, or show another plant's save error.
 - **Still unverified:** physical-device transitions, TalkBack focus, poor/slow network, actual Oracle-hosted QA service revision/media permissions and full preview-user signoff. No merged changes, Oracle migration or Play uploads.
+
+### 2026-10-17 Native screen closure increment 3: Create and Circle
+
+- **Create:** existing `StoriesRail`, `PulseRail`, `RoomsRail`, `MemoriesRail` are maintained; when a secondary format opens, the real section at index 5 scrolls into view. A repeated tap on the same format triggers navigation again (not a no-op). Public-post and private-plant actions remain separate.
+- **Circle:** refreshing the real public question feed clears old rows/cursor and revokes any outstanding "load older" requests; stale request results and old errors are ignored, never appended to a new page or shown following a failed refresh. `PlantupiaCirclePagePolicyTest` covers current/stale/multiple refresh revisions.
+- **Consent:** the plant question preview, explicit checkbox, text/photo checks, and server-side public consent validation stay intact; this increment does not attach private care records, locations or photos automatically.
+- **QA still pending:** native scroll/focus behavior with the keyboard and nested media rails, two-account public post/reply and moderation, media upload, screen reader behavior, slow-connection refresh, and exact HEAD CI. The screen is not owner-accepted.
 
 ## Backend / invisible engine ledger
 
