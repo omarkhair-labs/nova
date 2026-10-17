@@ -6,6 +6,7 @@ data class NovaPostAuthor(
     val username: String,
     val name: String,
     val avatarUrl: String,
+    val plantupiaAvatarVariant: Int = -1,
 )
 
 

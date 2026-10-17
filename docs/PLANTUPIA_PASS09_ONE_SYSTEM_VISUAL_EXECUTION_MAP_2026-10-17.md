@@ -88,3 +88,10 @@ Codex may challenge iconography, illustration composition, user identity and inf
 - Replaced the generic brand glyph in **own private-space no-data/no-photo panels only** with the original Compose `PlantupiaEmptyPlaceArt`: a quiet architectural arch/plant silhouette in approved forest/sage/cream roles. This represents a **decorative illustration of possibility**, never an actual customer space/plant photograph, observation or installation.
 - A reusable native Canvas component, not a downloaded illustration, fake history or an HTML substitution. Existing real PlantCover media remains first choice and private; this art only appears when none is available.
 - Pending visual validation on 320/360/390/430dp, dark mode/system contrast, increased font size and one integrated Android device run. Further empty states should reuse a cohesive authored family, not fill every surface with art.
+
+## 2026-10-17 W2 owner-selectable saved Avatar identity — CODED, CI/DEVICE NOT YET ACCEPTED
+
+- Account choice `-1` (stable default) or `0..7` native illustrated variants stored server-side on Django User (migration `0037`). Public profile/people/post author serializers expose the chosen style. Existing Nova `profile_theme` remains independent; real uploaded photo still takes precedence.
+- Android Edit Profile has a preview row and user-picked choice, saved through existing authenticated API, cached session and restored profile. The preference propagates through Me, visited Person, people rows, Posts and Comments (no-photo fallback).
+- API unit tests protect persistence and out-of-range rejection. Story author/viewer, direct-message peer objects, Reels, notification payloads are **not yet wired to reflect an explicit preference**; they retain stable account-ID illustration and are part of the next continuity pass.
+- Keep code in draft PR only; no Oracle production schema migration or Play signing. Evidence remaining: exact-head green CI, isolated migrated QA server, two-account/photo/RTL/TalkBack + 320–430dp on-device visual QA, company/owner art signoff.
