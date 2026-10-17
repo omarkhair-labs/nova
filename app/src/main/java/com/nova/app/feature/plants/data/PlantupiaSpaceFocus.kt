@@ -24,3 +24,10 @@ internal fun chooseWritableSpaceId(
         ?: writableSpaces.firstOrNull { it.id == currentId }?.id
         ?: writableSpaces.firstOrNull()?.id
 }
+
+/** Count only server-visible, active units in the selected space. */
+internal fun spacePlantCountSummary(count: Int): String = when (count.coerceAtLeast(0)) {
+    0 -> "No plants added yet"
+    1 -> "1 plant in this space"
+    else -> "${count} plants in this space"
+}
