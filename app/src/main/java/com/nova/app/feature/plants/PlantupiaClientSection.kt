@@ -35,6 +35,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -64,6 +65,7 @@ import com.nova.app.feature.plants.data.PlantupiaSpace
 import com.nova.app.feature.plants.data.findSpacePlants
 import com.nova.app.feature.plants.data.findArchivedPlants
 import com.nova.app.feature.plants.data.resolveFocusedSpace
+import com.nova.app.feature.plants.data.isCurrentPlantDetailRequest
 import com.nova.app.feature.plants.data.spacePlantCountSummary
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -94,6 +96,8 @@ fun PlantupiaClientSection(
     var spaces by remember { mutableStateOf<List<PlantupiaSpace>>(emptyList()) }
     var plants by remember { mutableStateOf<List<PlantupiaPlant>>(emptyList()) }
     var currentPlantId by remember { mutableStateOf<String?>(null) }
+    // Invalidate slower in-flight history calls when a user opens another plant or goes Back.
+    var detailRequestGeneration by remember { mutableIntStateOf(0) }
     var openDetailMode by remember { mutableStateOf<PlantupiaCreateMode?>(null) }
     var showNameEditor by remember { mutableStateOf(false) }
     var showSharedDetailsEditor by remember { mutableStateOf(false) }
@@ -177,6 +181,8 @@ fun PlantupiaClientSection(
     }
 
     suspend fun openPlant(plant: PlantupiaPlant) {
+        detailRequestGeneration += 1
+        val requestGeneration = detailRequestGeneration
         openDetailMode = PlantupiaCreateIntent.pending.takeIf { plant.active }
         showNameEditor = false
         showSharedDetailsEditor = false
@@ -186,6 +192,9 @@ fun PlantupiaClientSection(
         showCareEditor = openDetailMode == PlantupiaCreateMode.OBSERVATION
         PlantupiaCreateIntent.clear()
         currentPlantId = plant.id
+        // Never let another plant's private history flash while the new detail loads.
+        events = emptyList()
+        photoToView = null
         onOpenPlant()
         plantName = plant.name
         note = ""
@@ -201,17 +210,23 @@ fun PlantupiaClientSection(
         movedCheckInDate = null
         pendingFollowUps = emptyList()
         nextPendingOffset = null
+        pendingPageLoading = false
+        olderEventsLoading = false
         detailLoading = true
         error = null
         nextHistoryOffset = null
-        when (val response = repository.historyPage(plant.id)) {
+        val historyResponse = repository.historyPage(plant.id)
+        if (!isCurrentPlantDetailRequest(plant.id, requestGeneration, currentPlantId, detailRequestGeneration)) return
+        when (val response = historyResponse) {
             is ApiResult.Success -> {
                 events = response.value.events
                 nextHistoryOffset = response.value.nextOffset
             }
             is ApiResult.Failure -> { events = emptyList(); error = response.message }
         }
-        when (val response = repository.historyPage(plant.id, pendingOnly = true)) {
+        val pendingResponse = repository.historyPage(plant.id, pendingOnly = true)
+        if (!isCurrentPlantDetailRequest(plant.id, requestGeneration, currentPlantId, detailRequestGeneration)) return
+        when (val response = pendingResponse) {
             is ApiResult.Success -> {
                 pendingFollowUps = response.value.events
                 nextPendingOffset = response.value.nextOffset
@@ -236,9 +251,18 @@ fun PlantupiaClientSection(
     }
 
     fun closePlant() {
+        detailRequestGeneration += 1
         showAssistant = false
         currentPlantId = null
         openDetailMode = null
+        photoToView = null
+        events = emptyList()
+        pendingFollowUps = emptyList()
+        nextHistoryOffset = null
+        nextPendingOffset = null
+        pendingPageLoading = false
+        olderEventsLoading = false
+        detailLoading = false
         error = null
         scope.launch { refresh() }
     }
@@ -1184,11 +1208,15 @@ fun PlantupiaClientSection(
                         enabled = !pendingPageLoading,
                         onClick = {
                             val offset = nextPendingOffset ?: return@OutlinedButton
+                            val plantId = selectedPlant.id
+                            val generation = detailRequestGeneration
                             scope.launch {
                                 pendingPageLoading = true
-                                when (val response = repository.historyPage(
-                                    selectedPlant.id, offset = offset, pendingOnly = true,
-                                )) {
+                                val response = repository.historyPage(
+                                    plantId, offset = offset, pendingOnly = true,
+                                )
+                                if (!isCurrentPlantDetailRequest(plantId, generation, currentPlantId, detailRequestGeneration)) return@launch
+                                when (response) {
                                     is ApiResult.Success -> {
                                         pendingFollowUps = (pendingFollowUps + response.value.events)
                                             .distinctBy { it.id }
@@ -1308,9 +1336,13 @@ fun PlantupiaClientSection(
                     enabled = !olderEventsLoading,
                     onClick = {
                         val offset = nextHistoryOffset ?: return@OutlinedButton
+                        val plantId = selectedPlant.id
+                        val generation = detailRequestGeneration
                         scope.launch {
                             olderEventsLoading = true
-                            when (val result = repository.historyPage(selectedPlant.id, offset)) {
+                            val result = repository.historyPage(plantId, offset)
+                            if (!isCurrentPlantDetailRequest(plantId, generation, currentPlantId, detailRequestGeneration)) return@launch
+                            when (result) {
                                 is ApiResult.Success -> {
                                     events = (events + result.value.events).distinctBy { it.id }
                                     nextHistoryOffset = result.value.nextOffset
@@ -1335,7 +1367,11 @@ fun PlantupiaClientSection(
                 canPublish = selectedPlant.canRecord,
                 onOpenPost = onOpenLinkedPost,
                 onOutcomeSaved = {
-                    when (val response = repository.historyPage(selectedPlant.id)) {
+                    val plantId = selectedPlant.id
+                    val generation = detailRequestGeneration
+                    val response = repository.historyPage(plantId)
+                    if (!isCurrentPlantDetailRequest(plantId, generation, currentPlantId, detailRequestGeneration)) return@PlantupiaQuestionsPanel
+                    when (response) {
                             is ApiResult.Success -> {
                                 events = response.value.events
                                 nextHistoryOffset = response.value.nextOffset
