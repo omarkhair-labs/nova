@@ -716,7 +716,7 @@ fun PlantupiaClientSection(
             if (selectedPlant.coverPhoto.isNotBlank()) {
                 AsyncImage(
                     model = selectedPlant.coverPhoto,
-                    contentDescription = "Actual plant photo. Tap to enlarge.",
+                    contentDescription = "Photo uploaded for this plant. Tap to enlarge.",
                     modifier = Modifier.fillMaxWidth()
                         .height(160.dp)
                         .clip(RoundedCornerShape(16.dp))
@@ -761,7 +761,7 @@ fun PlantupiaClientSection(
                         Text(if (showCareEditor) "Close care form ↑" else "+ Record care or observation", color = white)
                     }
                 if (showCareEditor) PlantupiaPanel {
-                    Text("Which care action did you actually perform?", color = forestText, fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                    Text("What did you do?", color = forestText, fontWeight = FontWeight.Medium, fontSize = 13.sp)
                     PlantupiaCareAction.entries.chunked(3).forEach { group ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -905,8 +905,15 @@ fun PlantupiaClientSection(
                             color = muted, fontSize = 11.sp,
                         )
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Each save action has its own full-width touch target.
+                    // Never force three unequal labels into a single weighted row:
+                    // large fonts made "Concerning change" render letter-by-letter.
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         OutlinedButton(
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                             enabled = !saving && validFollowUpDate && (note.isNotBlank() || carePhotoUri != null),
                             onClick = {
                                 scope.launch {
@@ -925,8 +932,9 @@ fun PlantupiaClientSection(
                                     saving = false
                                 }
                             },
-                        ) { Text("Observation", color = deepGreen) }
+                        ) { Text("Save observation", color = deepGreen) }
                         Button(
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                             enabled = !saving && validFollowUpDate && (selectedCareAction != null || note.isNotBlank() || carePhotoUri != null),
                             onClick = {
                                 val careDetails = buildPlantupiaCareNote(selectedCareAction, note)
@@ -947,8 +955,9 @@ fun PlantupiaClientSection(
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
-                        ) { Text("Care", color = white) }
+                        ) { Text("Save care", color = white) }
                         OutlinedButton(
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                             enabled = !saving && validFollowUpDate && (note.isNotBlank() || carePhotoUri != null),
                             onClick = {
                                 scope.launch {
@@ -969,7 +978,7 @@ fun PlantupiaClientSection(
                                     saving = false
                                 }
                             },
-                        ) { Text("Concerning change", color = deepGreen) }
+                        ) { Text("Record a concern", color = deepGreen) }
                     }
                     Text(
                         "Record what you actually noticed. You don't need to diagnose the cause.",
