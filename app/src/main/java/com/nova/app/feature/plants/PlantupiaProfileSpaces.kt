@@ -256,7 +256,7 @@ private fun EmptySpacesIllustration() {
         modifier = Modifier.fillMaxWidth().height(112.dp),
     ) {
         Box(contentAlignment = Alignment.Center) {
-            PlantupiaBrandGlyph(modifier = Modifier.size(56.dp))
+            PlantupiaEmptyPlaceArt(modifier = Modifier.fillMaxWidth().height(112.dp))
         }
     }
 }

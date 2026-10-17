@@ -249,3 +249,5 @@ Build the following connected groups continuously, with developer-side testing/C
 - **CODED:** one Plantupia public metadata identity card for owner Me, public visitor profile, and Edit Profile preview; saved Nova public social posts/follows and profile links retained. Private spaces are still only included on owner `ProfileScreen`.
 - **CODED:** private space summaries gated on positive authenticated account ID; repository, load state, retry and request coroutine keyed per account to avoid old UI data persisting across account switches.
 - **PENDING:** two-account permission/device QA; small screens, accessibility and real photo variants. The separate QA backend's Add Plant role mismatch is **still unverified**, and a successful build is not a substitute for that check.
+
+- **W3 initial zero-content art CODED, NOT DEVICE ACCEPTED:** `PlantupiaEmptyPlaceArt` in the owner's empty/missing-photo private-spaces summary replaces a generic brand placeholder. It is explicitly decorative and never used as a real plant/space photo. Final appearance and coherence with onboarding and Care zero states still require physical review.

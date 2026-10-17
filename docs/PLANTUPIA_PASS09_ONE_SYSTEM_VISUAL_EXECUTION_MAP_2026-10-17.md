@@ -82,3 +82,9 @@ Codex may challenge iconography, illustration composition, user identity and inf
 - **Privacy guard:** `PlantupiaProfileSpaces` now requires the authenticated numeric account ID, skips nonpositive/unknown account, and keys its repository/loading/retry/requests by ID to avoid displaying a prior session's private-space cards after account switching. Visitors never invoke this private component.
 - Added JVM ID-policy tests; server authorization continues to be the source of truth. No backend endpoint/schema change.
 - This is a first cohesive profile/identity pass, **not** a signoff on overall screens, fonts, approved illustration, manual avatar picker, or two-account/physical QA. Current exact-head CI is required.
+
+## 2026-10-17 W3 original no-photo state #1 — CODED, QA PENDING
+
+- Replaced the generic brand glyph in **own private-space no-data/no-photo panels only** with the original Compose `PlantupiaEmptyPlaceArt`: a quiet architectural arch/plant silhouette in approved forest/sage/cream roles. This represents a **decorative illustration of possibility**, never an actual customer space/plant photograph, observation or installation.
+- A reusable native Canvas component, not a downloaded illustration, fake history or an HTML substitution. Existing real PlantCover media remains first choice and private; this art only appears when none is available.
+- Pending visual validation on 320/360/390/430dp, dark mode/system contrast, increased font size and one integrated Android device run. Further empty states should reuse a cohesive authored family, not fill every surface with art.
