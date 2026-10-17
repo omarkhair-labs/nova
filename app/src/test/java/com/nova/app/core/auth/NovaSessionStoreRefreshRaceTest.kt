@@ -24,9 +24,9 @@ import java.util.Collections
 import java.util.Date
 import javax.crypto.KeyGenerator
 
-/** Characterization of F01, not a claim that shared authentication is fixed. */
+/** F01 security regressions: delayed work must leave the replacing login untouched. */
 class NovaSessionStoreRefreshRaceTest {
-    @Test fun delayedARefreshCanMixItsAccessTokenWithBsSession() = runBlocking {
+    @Test fun delayedARefreshLeavesBsSessionUnchanged() = runBlocking {
         withRealSessionStore { store, _ ->
             store.save(session(1, "access-A", "refresh-A"))
             val original = requireNotNull(store.load())
@@ -39,11 +39,10 @@ class NovaSessionStoreRefreshRaceTest {
             store.save(session(2, "access-B", "refresh-B"))
             refreshReply.complete("refreshed-access-A")
             callback.await()
-            val mixed = requireNotNull(store.load())
-            assertEquals(2L, mixed.cachedUser?.id)
-            assertEquals("refresh-B", mixed.refreshToken)
-            assertEquals("refreshed-access-A", mixed.accessToken)
-            assertNotEquals("access-B", mixed.accessToken)
+            val current = requireNotNull(store.load())
+            assertEquals(2L, current.cachedUser?.id)
+            assertEquals("refresh-B", current.refreshToken)
+            assertEquals("access-B", current.accessToken)
         }
     }
 
