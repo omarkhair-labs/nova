@@ -43,6 +43,24 @@ Two separately named Android XML vectors are generated from our original SVG stu
 
 **Technical caveat:** these native XML conversions trace the authored SVG path geometry and opacity with Android vector paths; Android's handling of clipping, antialiasing, joins and 32dp rasterization may differ from desktop SVG. Inspect and refine against actual preview renders before calling visual parity. If the import loses details, simplify the authoring curves or use a supported Compose drawing mechanism; never silently switch to bitmap output.
 
+## Responsive portrait detail pass — code + native resources, 18 October
+
+**Implemented in the review branch (not visually approved):**
+- The existing `PlantupiaAvatar.kt` makes its visual detail conditional on requested logical size: `Micro` at up to 40dp, `Standard` at 41–79dp, and `Hero` at 80dp or larger. The original stable `userId` / chosen `-1..7` design contract, authorized uploaded photo precedence and semantics remain unchanged.
+- At micro sizes, facial lines and repeated leafy details are omitted to preserve the silhouette. Standard gets readable face detail and a single leaf. Hero retains the compositional architecture and full botanical signature. **This improves the existing family technically; it does not magically raise all eight portraits to finished illustration quality.**
+- Two original simplified source portraits: [The Window / micro](plantupia-avatar-window-micro.svg) and [The Courtyard / micro](plantupia-avatar-courtyard-micro.svg). Their native review-only `VectorDrawable` resources are `plantupia_artlab_window_micro.xml` and `plantupia_artlab_courtyard_micro.xml`, displayed alongside the 96dp variants in Android Studio Compose Preview.
+- The second `PlantupiaFullPortraitFamilyPreview` renders all eight actually selected Compose identities together at 92/40/24dp, rather than comparing only one variant; it has no public app route.
+- `PlantupiaAvatarIdentityTest` now asserts the micro/standard/hero thresholds and that the saved identity mapping remains stable.
+
+**Fresh maker-process references (additional disciplinary search):**
+- [ustwo Games — conversation with lead artist Lili Ibrahim](https://play.google.com/store/apps/editorial?hl=en_US&id=mc_games_editorialevergreen_indiedev_interviewseries_ustwogames_fcp) and [Monument Valley 3 making-of, Design Week](https://www.designweek.co.uk/how-monument-valley-3-came-to-life/): creator-led evidence that architecture, silhouette, distant read and faceless/near-faceless character shape can carry a coherent world. We transfer the *sizing and spatial grammar*, **not Monument Valley artwork**.
+- [Ken Wong — the project's architectural concept and iterations](https://architizer.com/blog/practice/materials/an-interview-with-ken-wong-of-monument-valley/): a reminder to build the screen's navigable visual logic first, then an art pass to refine it. Transfer to Plantupia: the illustration of a person belongs next to a truthful place and task, not as full-screen decoration interrupting care.
+- [Google Android Vector Asset Studio limitations](https://developer.android.com/studio/write/vector-asset-studio.html) and [VectorDrawable clip-path support](https://developer.android.com/reference/android/graphics/drawable/VectorDrawable): Android vectors support solid paths, groups and clip paths; filters and some external SVG operations require simplification. We authored paths directly and kept one clip-path per group. This is **documentation of a supported method**, not proof of final device visual parity.
+
+**Quality criteria to test, not assertions of success:** eight identities should differ in recognizable hair/head/shoulder masses when stripped of facial detail and palette, be coherent at all sizes, never suggest a user's actual likeness or sensitive personal traits, and not overwhelm the genuine photographic plant/place identity. Before acceptance, capture actual device render and verify a saved choice remains the same across Me, Circle, Posts, Stories, Inbox, People and Notifications.
+
+**Next creative decision:** expand **one consistent portrait anatomy/graphics language** across all eight, using the two original authored examples only as a *craft exploration*. Choose final source production format by native visual comparison, not convenience. Do not delete users' uploads or rewrite the selected variant mapping.
+
 ## Creative + technical next gate
 
 1. Compare portrait design against the **six existing care pictograms** in `PlantupiaVisualComponents.kt`, and original no-space/no-history states: thickness and detail can differ by semantic role, but each must feel authored by the same art direction, not a copied illustration set.
