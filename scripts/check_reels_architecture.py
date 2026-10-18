@@ -369,6 +369,17 @@ for source_root in (MAIN_KOTLIN, TEST_KOTLIN):
                     f"legacy core Reel model import must stay removed: {path.relative_to(ROOT)} -> {forbidden.strip()}"
                 )
 
+# Plantupia's product navigation deliberately does not expose a generic
+# Reels/video-feed destination, even though the legacy playback/data graph
+# above remains intact for existing posts and old links.
+create_hub_path = ROOT / "app/src/main/java/com/nova/app/feature/create/CreateHubScreen.kt"
+create_hub_source = read(create_hub_path)
+for forbidden in ('onOpenReels', '"Upload your own video"', 'NovaIconAsset.Reels'):
+    if forbidden in create_hub_source:
+        errors.append(f"Plantupia Create restored stand-alone Reels promotion: {forbidden}")
+if 'CreateSectionLabel("Story", "Photo, video or text — 24 hours")' not in create_hub_source:
+    errors.append("Plantupia Create lost contextual video in temporary Stories")
+
 if errors:
     print("Reels architecture check failed:")
     for error in errors:
