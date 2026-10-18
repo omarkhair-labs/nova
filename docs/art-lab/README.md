@@ -99,3 +99,19 @@ Following the initial two-vector experiment, **all eight stored `0..7` portrait 
 4. A successful CI proves only source compilation/tests; visual/touch/contrast and actual device evidence remain separately required.
 
 **Still open:** visually art-direct all eight portrait silhouettes to the desired finish; inspect true Android rendering across screen/density sizes; finish all generic Nova visual remnants across non-core surfaces; unify genuine image/crop/history treatment and no-photo fallback elsewhere; test remote slow/deleted media and correct TalkBack hierarchy. No production migration, release or data clear in this pass.
+
+## 19 October — native photo system whole-surface integration
+
+**Source-coded in the real Android screens, pending exact-HEAD CI + physical QA:**
+
+- One `PlantupiaEvidencePhoto` component now handles source-accurate missing/loading/error/success states for: Home's selected plant/photo hero, the Today due-check-in cards, the Me private plant photo rail, Recent Moments, plant inventory cards, Plant Detail, the dated History event cards, and the chronological photo index.
+- The Home hero uses a successful Coil image load to determine whether white-on-photo overlay typography is appropriate. A source URL alone is not proof that media actually appeared. Failed/slow images retain readable dark text against the quiet paper/sage treatment.
+- Compact 54–110dp photos show an accessible non-lying small mark without overflowing status paragraphs. Full-size detail presents retry of the same URL on failure, with no mutation or new upload. Fullscreen viewer likewise distinguishes loading, failed original images and actual zoom; the `Pinch to zoom` cue requires a loaded image.
+- The dated History photo index does **not** make an unavailable whole card clickable; only an actually loaded photo can open. The recorded event date and note still render when the photo fails. The unsaved private Photo Picker preview remains intentionally separate from *recorded* media.
+- In Me's private places, `no space`, `real space with no plant`, `only archived plants`, `active plants with no photos`, and `genuine photos` remain distinct semantics. Archived plants must never be illustrated as first-time planting.
+- The existing `PlantupiaEvidencePhotoPolicyTest` protects refusal to open blank/unloaded original media, but cannot substitute for emulator/phone loading/race/raster QA.
+
+**Open gates:** exact-head Android/Django CI, real source 404/timeout/offline recovery, user photo crop and full image gestures, TalkBack duplicate semantics in nested clickable rows, screenshots at 320–430dp and font scales 1/1.5/2, actual private-photo authorization in QA backend. No upload, server, release or historical record was mutated by these UI changes.
+
+**Next art-product system:** close the existing 8-character vector family and 5 honest illustration states via real Android contact sheets and device critique, then inspect typography/motion and place/history narrative rather than generating isolated screens.
+
