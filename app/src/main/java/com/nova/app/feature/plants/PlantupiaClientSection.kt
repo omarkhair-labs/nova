@@ -673,25 +673,12 @@ private fun PlantupiaAccountClientSection(
                                         modifier = Modifier.padding(8.dp),
                                         verticalArrangement = Arrangement.spacedBy(7.dp),
                                     ) {
-                                        if (plant.coverPhoto.isNotBlank()) {
-                                            AsyncImage(
-                                                model = plant.coverPhoto,
-                                                contentDescription = "Photo of " + plant.name,
-                                                modifier = Modifier.fillMaxWidth()
-                                                    .height(106.dp)
-                                                    .clip(RoundedCornerShape(10.dp)),
-                                                contentScale = ContentScale.Crop,
-                                            )
-                                        } else {
-                                            Box(
-                                                modifier = Modifier.fillMaxWidth()
-                                                    .height(106.dp)
-                                                    .background(sage.copy(alpha = 0.23f), RoundedCornerShape(10.dp)),
-                                                contentAlignment = Alignment.Center,
-                                            ) {
-                                                PlantupiaMissingPhotoMark(modifier = Modifier.size(54.dp))
-                                            }
-                                        }
+                                        PlantupiaEvidencePhoto(
+                                            photoUrl = plant.coverPhoto,
+                                            photoDescription = "Uploaded photograph of " + plant.name,
+                                            modifier = Modifier.fillMaxWidth().height(106.dp),
+                                            cornerRadius = 10.dp,
+                                        )
                                         Text(
                                             plant.name, color = forestText,
                                             fontSize = 13.sp, fontWeight = FontWeight.Medium,
@@ -838,14 +825,12 @@ private fun PlantupiaAccountClientSection(
             val meta = listOf(selectedPlant.species, selectedPlant.placement).filter(String::isNotBlank).joinToString(" · ")
             if (meta.isNotBlank()) Text(meta, fontSize = 13.sp, color = muted)
             if (selectedPlant.coverPhoto.isNotBlank()) {
-                AsyncImage(
-                    model = selectedPlant.coverPhoto,
-                    contentDescription = "Photo uploaded for this plant. Tap to enlarge.",
-                    modifier = Modifier.fillMaxWidth()
-                        .height(160.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .clickable { photoToView = selectedPlant.coverPhoto to selectedPlant.name },
-                    contentScale = ContentScale.Crop,
+                PlantupiaEvidencePhoto(
+                    photoUrl = selectedPlant.coverPhoto,
+                    photoDescription = "Uploaded photograph of " + selectedPlant.name,
+                    modifier = Modifier.fillMaxWidth().height(160.dp),
+                    cornerRadius = 16.dp,
+                    onOpenPhoto = { photoToView = selectedPlant.coverPhoto to selectedPlant.name },
                 )
             } else {
                 // No cover photo is not a missing plant or invented photographic evidence.
