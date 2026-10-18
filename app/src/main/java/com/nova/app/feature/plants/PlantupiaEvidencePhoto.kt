@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -19,6 +20,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
@@ -46,16 +49,34 @@ internal fun PlantupiaEvidencePhoto(
     modifier: Modifier = Modifier,
     cornerRadius: Dp = 12.dp,
     onOpenPhoto: (() -> Unit)? = null,
+    compact: Boolean = false,
+    onPhotoLoadChanged: ((Boolean) -> Unit)? = null,
 ) {
     var photoLoaded by remember(photoUrl) { mutableStateOf(false) }
     var photoFailed by remember(photoUrl) { mutableStateOf(false) }
     var retryIndex by remember(photoUrl) { mutableIntStateOf(0) }
+    // A reused card must report an unloaded new URL before the prior image
+    // can influence an overlaid title's contrast or claim a photo is visible.
+    LaunchedEffect(photoUrl, photoLoaded) {
+        onPhotoLoadChanged?.invoke(canOpenPlantupiaPhoto(photoUrl, photoLoaded))
+    }
     val photoCanOpen = canOpenPlantupiaPhoto(photoUrl, photoLoaded) && onOpenPhoto != null
 
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(cornerRadius))
             .background(PlantupiaColors.softSage)
+            .then(
+                if (compact && !photoLoaded) {
+                    Modifier.semantics {
+                        contentDescription = when {
+                            photoUrl.isBlank() -> "No uploaded photo for $photoDescription"
+                            photoFailed -> "Photo unavailable for $photoDescription"
+                            else -> "Loading photo for $photoDescription"
+                        }
+                    }
+                } else Modifier
+            )
             .then(if (photoCanOpen) Modifier.clickable(onClick = { onOpenPhoto?.invoke() }) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
@@ -65,8 +86,8 @@ internal fun PlantupiaEvidencePhoto(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                PlantupiaMissingPhotoMark(Modifier.size(45.dp))
-                Text(
+                PlantupiaMissingPhotoMark(Modifier.size(if (compact) 32.dp else 45.dp))
+                if (!compact) Text(
                     text = when {
                         photoUrl.isBlank() -> "No photo added"
                         photoFailed -> "Photo unavailable"
