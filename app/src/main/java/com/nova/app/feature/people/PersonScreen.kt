@@ -390,7 +390,7 @@ fun PersonScreen(
     ) {
         NovaHeader(
             title = "Profile",
-            subtitle = "A person in the Plantupia community.",
+            subtitle = "Identity, public moments and ways to connect.",
             onBack = onBack,
         )
 
@@ -527,6 +527,54 @@ fun PersonScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                 }
 
+                Text(
+                    "CONNECT",
+                    color = PlantupiaColors.forest,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
+
+                when {
+                    !privacyResolved -> {
+                        Text(
+                            if (privacyLoading) "Checking connection permissions…"
+                            else "Connection controls are unavailable until access is verified.",
+                            color = PlantupiaColors.secondaryText,
+                            fontSize = 12.sp,
+                        )
+                    }
+                    person.isFollowing -> {
+                        NovaSecondaryButton(
+                            text = "Following",
+                            onClick = { toggleFollow(person) },
+                            enabled = !privacyLoading,
+                            busy = isLoading,
+                            busyText = "Updating…",
+                        )
+                    }
+                    privacyState.followRequested -> {
+                        NovaSecondaryButton(
+                            text = "Requested",
+                            onClick = { toggleFollow(person) },
+                            enabled = !isLoading && !privacyLoading,
+                            busy = requestCanceling,
+                            busyText = "Canceling…",
+                        )
+                    }
+                    else -> {
+                        NovaPrimaryButton(
+                            text = "Follow",
+                            onClick = { toggleFollow(person) },
+                            enabled = !requestCanceling,
+                            busy = isLoading || privacyLoading,
+                            busyText = "Updating…",
+                        )
+                    }
+                }
+
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -576,46 +624,6 @@ fun PersonScreen(
                             onClick = { openCall(person, NovaCallKind.Video) },
                             modifier = Modifier.weight(1f),
                             enabled = !isOpeningMessage && !isSafetyLoading,
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                when {
-                    !privacyResolved -> {
-                        Text(
-                            if (privacyLoading) "Checking connection permissions…"
-                            else "Connection controls are unavailable until access is verified.",
-                            color = PlantupiaColors.secondaryText,
-                            fontSize = 12.sp,
-                        )
-                    }
-                    person.isFollowing -> {
-                        NovaSecondaryButton(
-                            text = "Following",
-                            onClick = { toggleFollow(person) },
-                            enabled = !privacyLoading,
-                            busy = isLoading,
-                            busyText = "Updating…",
-                        )
-                    }
-                    privacyState.followRequested -> {
-                        NovaSecondaryButton(
-                            text = "Requested",
-                            onClick = { toggleFollow(person) },
-                            enabled = !isLoading && !privacyLoading,
-                            busy = requestCanceling,
-                            busyText = "Canceling…",
-                        )
-                    }
-                    else -> {
-                        NovaPrimaryButton(
-                            text = "Follow",
-                            onClick = { toggleFollow(person) },
-                            enabled = !requestCanceling,
-                            busy = isLoading || privacyLoading,
-                            busyText = "Updating…",
                         )
                     }
                 }
