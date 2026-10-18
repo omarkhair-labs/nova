@@ -145,14 +145,20 @@ fun ProfileScreen(
                 isVerified = isVerified,
             )
 
-            Spacer(modifier = Modifier.height(NovaSpacing.xl))
+            Spacer(modifier = Modifier.height(NovaSpacing.md))
+            NovaSecondaryButton(
+                text = "Edit profile",
+                onClick = onEditProfile,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(modifier = Modifier.height(NovaSpacing.lg))
             // The personal, authenticated view only. Plantupia sites and
             // care records must never be injected into public Nova posts
             // or another user's PersonScreen.
             PlantupiaProfileSpaces(accountId = userId, onOpenSpaces = onHomeClick)
 
             Spacer(modifier = Modifier.height(NovaSpacing.lg))
-            Text("COMMUNITY", style = PlantupiaText.sectionLabel)
+            Text("PUBLIC MOMENTS & CONNECTIONS", style = PlantupiaText.sectionLabel)
             Spacer(modifier = Modifier.height(NovaSpacing.sm))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -179,18 +185,12 @@ fun ProfileScreen(
             }
 
             Spacer(modifier = Modifier.height(NovaSpacing.md))
-            NovaSecondaryButton(
-                text = "Edit public profile",
-                onClick = onEditProfile,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(modifier = Modifier.height(NovaSpacing.lg))
             NovaPagedProfilePostsGrid(
                 username = username,
                 owner = profileContentOwner,
                 onPostClick = onPostClick,
                 emptyTitle = "Share your first moment",
-                emptyMessage = "Your posts will build a visual history here.",
+                emptyMessage = "What you choose to share with others will appear here.",
             )
             Spacer(modifier = Modifier.height(NovaSpacing.xl))
         }
