@@ -69,7 +69,6 @@ fun CreateHubScreen(
     username: String,
     avatarUrl: String,
     onCreatePost: () -> Unit,
-    onOpenReels: () -> Unit,
     onPersonClick: (String) -> Unit,
     onHomeClick: () -> Unit,
     onOrbitClick: () -> Unit,
@@ -102,6 +101,8 @@ fun CreateHubScreen(
         onHomeClick()
     }
 
+    // Public creation is intentional; the inherited infinite Reels feed is not
+    // a Plantupia destination. Existing video posts and 24h stories still work.
     val publicActions = listOf(
         CreateHubAction(
             "Ask about your plant",
@@ -119,12 +120,6 @@ fun CreateHubScreen(
             "Temporary photo, video or text",
             NovaIconAsset.Story,
         ) { openFormat("story") },
-        CreateHubAction(
-            "Video",
-            "Upload your own video",
-            NovaIconAsset.Reels,
-            onOpenReels,
-        ),
     )
     val otherFormats = listOf(
         // Retain Nova's engines, but do not turn every format into a separate
