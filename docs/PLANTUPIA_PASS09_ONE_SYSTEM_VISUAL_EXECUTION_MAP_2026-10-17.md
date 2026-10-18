@@ -1,6 +1,12 @@
 # Plantupia — Pass 09 / One Integrated Native Visual System + Execution Map
 **Date:** 2026-10-17 | **Status:** Active research-to-native execution ledger; historical planned items below are not all current (see implementation updates). No owner/device acceptance | **Source:** Product Bible, Pass04–08, native QA captures and user's current direction.
 
+## Research is recurring craft, not a finished stage
+
+At every plateau, investigate how other teams **actually designed and produced** the relevant artwork, UI behavior, motion or technology. Look at multidisciplinary references, primary maker case studies, editor/export/runtime tools, then try bounded original Android-native experiments; re-evaluate the whole family visually before moving on. This is an explicit working method, **not** permission to restart the visual direction or copy third-party art.
+
+**Implementation/research note:** [Creative plateau investigation + first avatar/illustration making-of & tool study, 18 October](./PLANTUPIA_ITERATIVE_RESEARCH_TO_NATIVE_ART_PROTOCOL_2026-10-18.md). Its current status is **RESEARCH COMPLETE FOR FIRST PASS; ARTWORK AND DEVICE CRITIQUE OPEN**.
+
 ## Final direction (do not reopen three HTML design routes)
 **One coherent Android-native Plantupia**. Material language: warm paper/cream, forest/sage, quiet editorial serif for true plant/place identity, readable UI sans, real photographs when users supply them, authored botanical–architectural vector motifs, clear six-action care pictograms, restrained meaningful motion. Maintain existing Nova Android/Django functionality and privacy; visually integrate rather than recolor. Do not copy winner artwork or Reddit identity characters.
 
