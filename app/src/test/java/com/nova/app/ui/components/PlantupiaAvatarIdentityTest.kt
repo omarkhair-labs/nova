@@ -23,6 +23,19 @@ class PlantupiaAvatarIdentityTest {
         assertEquals(plantupiaAvatarStyle(id), plantupiaAvatarStyle(id, 99))
     }
 
+    @Test fun portraitDetailsScaleWithoutChangingSavedIdentity() {
+        assertEquals(PlantupiaPortraitDetail.Micro, plantupiaPortraitDetail(24f))
+        assertEquals(PlantupiaPortraitDetail.Micro, plantupiaPortraitDetail(32f))
+        assertEquals(PlantupiaPortraitDetail.Micro, plantupiaPortraitDetail(40f))
+        assertEquals(PlantupiaPortraitDetail.Standard, plantupiaPortraitDetail(48f))
+        assertEquals(PlantupiaPortraitDetail.Standard, plantupiaPortraitDetail(64f))
+        assertEquals(PlantupiaPortraitDetail.Hero, plantupiaPortraitDetail(80f))
+        assertEquals(PlantupiaPortraitDetail.Hero, plantupiaPortraitDetail(96f))
+        val selected = plantupiaAvatarStyle(1024L, 7)
+        assertEquals(7, selected.figure)
+        assertEquals(selected, plantupiaAvatarStyle(1024L, 7))
+    }
+
     @Test fun allPartsStayWithinTheAuthoredFamily() {
         listOf(0L, 1L, 7L, 40L, 99L, Long.MAX_VALUE).forEach { id ->
             val style = plantupiaAvatarStyle(id)
