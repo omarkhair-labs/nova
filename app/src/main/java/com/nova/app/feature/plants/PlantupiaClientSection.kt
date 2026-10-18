@@ -184,6 +184,7 @@ private fun PlantupiaAccountClientSection(
     var plantName by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
     var selectedCareAction by remember { mutableStateOf<PlantupiaCareAction?>(null) }
+    var pendingPrivateSaves by remember { mutableStateOf<List<com.nova.app.feature.plants.data.PlantupiaSubmission>>(emptyList()) }
     var carePhotoUri by remember { mutableStateOf<Uri?>(null) }
     var carePhotoRequestGeneration by remember { mutableStateOf<Int?>(null) }
     val carePhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -343,16 +344,18 @@ private fun PlantupiaAccountClientSection(
                 isAccountCurrent = lifetime::isCurrent,
                 isDetailCurrent = current,
                 request = {
-                    photo?.let { repository.recordWithPhoto(plant.id, kind, details, it, followUpOn = followUpDate) }
-                        ?: repository.record(plant.id, kind, details, followUpOn = followUpDate)
+                    photo?.let { repository.recordWithPhoto(plant.id, kind, details, it, followUpOn = followUpDate, reminder = optedInToReminder) }
+                        ?: repository.record(plant.id, kind, details, followUpOn = followUpDate, reminder = optedInToReminder)
                 },
                 onStarted = { saving = true },
                 onCommitted = { eventId ->
                     if (optedInToReminder && followUpDate != null) {
-                        reminderScheduled = PlantupiaCareReminderScheduler.schedule(context, eventId, followUpDate, plant.id)
+                        reminderScheduled = PlantupiaCareReminderScheduler.scheduleOnce(context, eventId, followUpDate, plant.id)
                     }
                 },
-                onSuccess = {
+                onSuccess = { eventId ->
+                    repository.confirmSubmission(plant.id, "event", eventId)
+                    if (!current()) return@runPlantupiaMutation
                     val reloadGeneration = detailRequestGeneration + 1
                     openPlant(plant)
                     if (isCurrentRequest(plant.id, reloadGeneration) && !reminderScheduled) {
@@ -395,6 +398,17 @@ private fun PlantupiaAccountClientSection(
         closePlant()
     }
 
+    LaunchedEffect(currentPlantId, saving, detailRequestGeneration) {
+        val plantId = currentPlantId
+        pendingPrivateSaves = emptyList()
+        if (plantId != null && !saving) {
+            val generation = detailRequestGeneration
+            when (val pending = repository.pendingSubmissions(plantId)) {
+                is ApiResult.Success -> if (isCurrentRequest(plantId, generation)) pendingPrivateSaves = pending.value.filter { it.operation == "event" }
+                is ApiResult.Failure -> if (isCurrentRequest(plantId, generation)) error = pending.message
+            }
+        }
+    }
     LaunchedEffect(Unit) { refresh() }
     LaunchedEffect(PlantupiaCreateIntent.pending, plants, loading) {
         if (!loading && error == null && PlantupiaCreateIntent.pending.needsPlantSelection()) {
@@ -853,6 +867,35 @@ private fun PlantupiaAccountClientSection(
                             )
                         }
                     }
+                }
+            }
+
+            pendingPrivateSaves.filter { it.plant == selectedPlant.id }.forEach { pending ->
+                PlantupiaPanel {
+                    Text("An earlier entry is awaiting confirmation. Retry its original text and photo; it won't create a second record.", color = forestText, fontSize = 13.sp)
+                    Text(pending.fields["note"].orEmpty(), color = muted, fontSize = 12.sp)
+                    Button(enabled = !saving && selectedPlant.canRecord, onClick = {
+                        val generation = detailRequestGeneration
+                        scope.launch {
+                            runPlantupiaMutation(
+                                isAccountCurrent = lifetime::isCurrent,
+                                isDetailCurrent = { isCurrentRequest(selectedPlant.id, generation) },
+                                request = { repository.retrySubmission(pending) },
+                                onStarted = { saving = true },
+                                onCommitted = { eventId ->
+                                    pending.fields["follow_up_for"]?.let { PlantupiaCareReminderScheduler.cancel(context, it) }
+                                    val date = pending.fields["follow_up_on"]
+                                    if (pending.reminder && date != null) PlantupiaCareReminderScheduler.scheduleOnce(context, eventId, date, selectedPlant.id)
+                                },
+                                onSuccess = { eventId ->
+                                    repository.confirmSubmission(selectedPlant.id, pending.slot, eventId)
+                                    if (isCurrentRequest(selectedPlant.id, generation)) reloadPlantRecords(selectedPlant.id)
+                                },
+                                onFailure = { error = it.message },
+                                onFinished = { saving = false },
+                            )
+                        }
+                    }) { Text("Retry original entry") }
                 }
             }
 
@@ -1332,7 +1375,10 @@ private fun PlantupiaAccountClientSection(
                                     request = { repository.record(selectedPlant.id, "outcome", submittedOutcome, followUpFor = source.id) },
                                     onStarted = { saving = true },
                                     onCommitted = { PlantupiaCareReminderScheduler.cancel(context, source.id) },
-                                    onSuccess = { openPlant(selectedPlant) },
+                                    onSuccess = { eventId ->
+                                        repository.confirmSubmission(selectedPlant.id, "outcome-${source.id}", eventId)
+                                        if (isCurrentRequest(selectedPlant.id, generation)) openPlant(selectedPlant)
+                                    },
                                     onFailure = { error = it.message },
                                     onFinished = { saving = false },
                                 )

@@ -89,14 +89,20 @@ data class PlantupiaQuestion(
  * Nova's existing sessions/media/social architecture are not rebuilt.
  * The Plantupia domain remains a separate backend app with object-level permissions.
  */
-class PlantupiaRepository(context: Context) {
+class PlantupiaRepository(
+    context: Context,
+    private val api: NovaApiClient = NovaApiClient(NovaMessagingRepository.PRODUCTION_API_URL),
+) {
     private val appContext = context.applicationContext
     private val sessionStore = NovaSessionStore(appContext)
     // A repository belongs to the login that created it, never a later account.
     private val initialSession = sessionStore.load()
     fun isCurrentSession(): Boolean = initialSession?.let { sessionStore.current(it.identity) != null } == true
 
-    private val api = NovaApiClient(NovaMessagingRepository.PRODUCTION_API_URL)
+    private val submissions by lazy {
+        PlantupiaSubmissionJournal(java.io.File(appContext.noBackupFilesDir, "plantupia-submissions"), NovaMessagingRepository.PRODUCTION_API_URL)
+    }
+    private val submissionAccount get() = initialSession?.cachedUser?.id?.takeIf { it > 0L } ?: error("Please log in again.")
 
     /** The AI key lives server-side; private plant context is opt-in per request. */
     suspend fun askAssistant(
@@ -378,58 +384,9 @@ class PlantupiaRepository(context: Context) {
         }
 
     suspend fun recordWithPhoto(
-        plantId: String,
-        kind: String,
-        note: String,
-        photoUri: Uri,
-        followUpOn: String? = null,
-        followUpFor: String? = null,
-    ): ApiResult<String> = authorized { token ->
-        val data = withContext(Dispatchers.IO) {
-            runCatching {
-                val input = appContext.contentResolver.openInputStream(photoUri)
-                    ?: error("Can't open photo")
-                input.use { stream ->
-                    val out = ByteArrayOutputStream()
-                    val chunk = ByteArray(8192)
-                    while (true) {
-                        val bytes = stream.read(chunk)
-                        if (bytes < 0) break
-                        out.write(chunk, 0, bytes)
-                        if (out.size() > 10 * 1024 * 1024) error("Photo too large")
-                    }
-                    out.toByteArray()
-                }
-            }.getOrNull()
-        } ?: return@authorized ApiResult.Failure("Please choose a photo smaller than 10 MB.")
-        val mimeType = appContext.contentResolver.getType(photoUri)
-            ?.takeIf { it == "image/jpeg" || it == "image/png" || it == "image/webp" }
-            ?: return@authorized ApiResult.Failure("Use a JPEG, PNG or WebP photo.")
-        val ext = when (mimeType) {
-            "image/png" -> "png"
-            "image/webp" -> "webp"
-            else -> "jpg"
-        }
-        when (val result = api.requestMultipart(
-            path = "plantupia/plants/$plantId/events/",
-            method = "POST",
-            fields = mapOf(
-                "kind" to kind,
-                "note" to note.trim(),
-                "evidence_type" to "observed",
-                "observed_at" to Instant.now().toString(),
-            ) + listOfNotNull(
-                followUpOn?.let { "follow_up_on" to it },
-                followUpFor?.let { "follow_up_for" to it },
-            ).toMap(),
-            fileField = "photo",
-            file = UploadFile(bytes = data, fileName = "plant-event.$ext", mimeType = mimeType),
-            bearerToken = token,
-        )) {
-            is ApiResult.Success -> parsePlantupiaResponse(result.value) { requiredPlantupiaId(it) }
-            is ApiResult.Failure -> result
-        }
-    }
+        plantId: String, kind: String, note: String, photoUri: Uri,
+        followUpOn: String? = null, followUpFor: String? = null, reminder: Boolean = false,
+    ): ApiResult<String> = prepareSave(plantId, "event", eventFields(kind, note, followUpOn, followUpFor), photoUri, reminder)
 
     suspend fun nickname(plantId: String, value: String): ApiResult<Unit> =
         authorized { token ->
@@ -449,32 +406,92 @@ class PlantupiaRepository(context: Context) {
         }
 
     suspend fun record(
-        plantId: String,
-        kind: String,
-        note: String,
-        followUpOn: String? = null,
-        followUpFor: String? = null,
-    ): ApiResult<String> =
-        authorized { token ->
-            when (val result = api.requestJson(
-                path = "plantupia/plants/$plantId/events/",
-                method = "POST",
-                body = JSONObject()
-                    .put("kind", kind)
-                    .put("note", note.trim())
-                    .put("evidence_type", "observed")
-                    .put("observed_at", Instant.now().toString())
-                    .apply {
-                        followUpOn?.let { put("follow_up_on", it) }
-                        followUpFor?.let { put("follow_up_for", it) }
-                    },
-                bearerToken = token,
-            )) {
-                is ApiResult.Success -> parsePlantupiaResponse(result.value) { requiredPlantupiaId(it) }
-                is ApiResult.Failure -> result
+        plantId: String, kind: String, note: String, followUpOn: String? = null,
+        followUpFor: String? = null, reminder: Boolean = false,
+    ): ApiResult<String> = prepareSave(plantId, "event", eventFields(kind, note, followUpOn, followUpFor), null, reminder)
+
+    private fun eventFields(kind: String, note: String, followUpOn: String?, followUpFor: String?) =
+        mapOf("kind" to kind, "note" to note.trim(), "evidence_type" to "observed") +
+            listOfNotNull(followUpOn?.let { "follow_up_on" to it }, followUpFor?.let { "follow_up_for" to it }).toMap()
+
+    private suspend fun prepareSave(
+        plantId: String, operation: String, fields: Map<String, String>, photoUri: Uri?, reminder: Boolean = false,
+    ): ApiResult<String> {
+        if (!isCurrentSession()) return changedSession()
+        val prepared = withContext(Dispatchers.IO) {
+            runCatching {
+                val bytes = photoUri?.let { uri ->
+                    appContext.contentResolver.openInputStream(uri)?.use { input ->
+                        val out = ByteArrayOutputStream()
+                        val buffer = ByteArray(8192)
+                        while (true) {
+                            val read = input.read(buffer)
+                            if (read < 0) break
+                            out.write(buffer, 0, read)
+                            check(out.size() <= 10 * 1024 * 1024) { "Choose a photo smaller than 10 MB." }
+                        }
+                        out.toByteArray().also { check(it.isNotEmpty()) { "Choose a non-empty photo." } }
+                    } ?: error("Couldn't read the selected photo.")
+                }
+                val mime = photoUri?.let { uri ->
+                    appContext.contentResolver.getType(uri) ?: if (uri.scheme == "file") {
+                        when (java.io.File(uri.path.orEmpty()).extension) { "png" -> "image/png"; "jpg" -> "image/jpeg"; "webp" -> "image/webp"; else -> null }
+                    } else null
+                }
+                if (photoUri != null) check(mime in setOf("image/jpeg", "image/png", "image/webp")) { "Use a JPEG, PNG or WebP photo." }
+                val slot = if (operation == "question") "question" else fields["follow_up_for"]?.let { "outcome-$it" } ?: "event"
+                submissions.prepare(submissionAccount, plantId, slot, fields, bytes, mime, reminder)
             }
         }
+        if (!isCurrentSession()) return changedSession()
+        val submission = prepared.getOrElse { return ApiResult.Failure(it.message ?: "Couldn't preserve this save. Please retry.") }
+        return retrySubmission(submission, publicConsentConfirmed = operation == "question")
+    }
 
+    internal suspend fun pendingSubmissions(plantId: String): ApiResult<List<PlantupiaSubmission>> {
+        if (!isCurrentSession()) return changedSession()
+        val result = withContext(Dispatchers.IO) {
+            runCatching { submissions.pending(submissionAccount, plantId) }
+        }
+        if (!isCurrentSession()) return changedSession()
+        return result.fold({ ApiResult.Success(it) }, { ApiResult.Failure("An unconfirmed save couldn't be read. Its identity was preserved; please retry.") })
+    }
+
+    internal suspend fun confirmSubmission(plantId: String, slot: String, resultId: String) = withContext(Dispatchers.IO) {
+        if (isCurrentSession()) runCatching { submissions.confirm(submissionAccount, plantId, slot, resultId) }.getOrDefault(false)
+    }
+
+    internal suspend fun retrySubmission(submission: PlantupiaSubmission, publicConsentConfirmed: Boolean = false): ApiResult<String> {
+        if (submission.operation == "question" && !publicConsentConfirmed) return ApiResult.Failure("Review the saved question and confirm public sharing again.")
+        if (!isCurrentSession() || submission.account != submissionAccount) return changedSession()
+        val stored = withContext(Dispatchers.IO) { runCatching { submissions.load(submissionAccount, submission.plant, submission.slot) } }
+            .getOrElse { return ApiResult.Failure("The original saved submission couldn't be read. Its identity was preserved.") }
+        if (!isCurrentSession() || stored?.copy(acknowledgedResult = null) != submission.copy(acknowledgedResult = null)) return changedSession()
+        val fields = submission.fields + ("client_submission_id" to submission.id)
+        val result = authorized { token ->
+            val path = "plantupia/plants/${submission.plant}/${submission.operation}-submissions/"
+            val response = if (submission.photo == null) api.requestJson(path, "POST", JSONObject(fields), token)
+                else api.requestMultipart(path, "POST", fields,
+                    if (submission.operation == "event") "photo" else "image",
+                    UploadFile(fileName = submission.photo.name, mimeType = requireNotNull(submission.mime), sourceFile = submission.photo), token)
+            when (response) {
+                is ApiResult.Failure -> response
+                is ApiResult.Success -> parsePlantupiaResponse(response.value) {
+                    require(requiredPlantupiaString(it, "client_submission_id") == submission.id)
+                    val id = requiredPlantupiaId(it)
+                    if (submission.operation == "question") requiredPlantupiaLong(it, "post_id").toString() else id
+                }
+            }
+        }
+        val retained = withContext(Dispatchers.IO) { runCatching {
+            when (result) {
+                is ApiResult.Success -> submissions.acknowledge(submission, result.value)
+                is ApiResult.Failure -> if (result.statusCode == 400 && result.errorCode == "submission_rejected" && result.requestId == submission.id) submissions.reject(submission)
+            }
+        } }
+        if (retained.isFailure) return ApiResult.Failure("The save couldn't be confirmed locally. Retry the original saved submission.")
+        return if (isCurrentSession()) result else changedSession()
+    }
 
     suspend fun circle(cursor: String? = null): ApiResult<PlantupiaCirclePage> =
         authorized { token ->
@@ -518,61 +535,14 @@ class PlantupiaRepository(context: Context) {
         )
     }
 
-    suspend fun askWithPhoto(
-        plantId: String,
-        publicTopic: String,
-        question: String,
-        imageUri: Uri,
-    ): ApiResult<Long> = authorized { token ->
-        val bytesResult = withContext(Dispatchers.IO) {
-            runCatching {
-                val input = appContext.contentResolver.openInputStream(imageUri)
-                    ?: error("Unable to open the selected photo")
-                input.use { stream ->
-                    val out = ByteArrayOutputStream()
-                    val buffer = ByteArray(8192)
-                    while (true) {
-                        val count = stream.read(buffer)
-                        if (count < 0) break
-                        out.write(buffer, 0, count)
-                        if (out.size() > 10 * 1024 * 1024) {
-                            error("Choose an image smaller than 10 MB")
-                        }
-                    }
-                    out.toByteArray()
-                }
-            }.getOrNull()
-        } ?: return@authorized ApiResult.Failure("Couldn't read this photo (maximum 10 MB).")
-
-        if (bytesResult.isEmpty()) return@authorized ApiResult.Failure("Select a non-empty photo.")
-        val mimeType = appContext.contentResolver.getType(imageUri)
-            ?.takeIf { it == "image/jpeg" || it == "image/png" || it == "image/webp" }
-            ?: return@authorized ApiResult.Failure("Use a JPEG, PNG or WebP question photo.")
-        val extension = when (mimeType) {
-            "image/png" -> "png"
-            "image/webp" -> "webp"
-            else -> "jpg"
+    suspend fun askWithPhoto(plantId: String, publicTopic: String, question: String, imageUri: Uri): ApiResult<Long> =
+        when (val result = prepareSave(plantId, "question", mapOf(
+            "public_topic" to publicTopic.trim(), "caption" to question.trim(),
+            "public_share_consent" to "true", "media_type" to "image",
+        ), imageUri)) {
+            is ApiResult.Success -> ApiResult.Success(result.value.toLong())
+            is ApiResult.Failure -> result
         }
-        when (val response = api.requestMultipart(
-            path = "plantupia/plants/$plantId/questions/",
-            method = "POST",
-            fields = mapOf(
-                "public_topic" to publicTopic.trim(),
-                "caption" to question.trim(),
-                "public_share_consent" to "true",
-                "media_type" to "image",
-            ),
-            fileField = "image",
-            file = UploadFile(bytes = bytesResult, fileName = "plant-question.$extension", mimeType = mimeType),
-            bearerToken = token,
-        )) {
-            is ApiResult.Failure -> response
-            is ApiResult.Success -> parsePlantupiaResponse(response.value) {
-                requiredPlantupiaId(it)
-                requiredPlantupiaLong(it, "post_id")
-            }
-        }
-    }
 
     suspend fun resolveQuestion(plantId: String, discussionId: String, outcome: String): ApiResult<Unit> =
         authorized { token ->
@@ -602,7 +572,7 @@ class PlantupiaRepository(context: Context) {
             is ApiResult.Success -> parsePlantupiaList(result.value, parseItem)
         }
 
-    private fun changedSession() = ApiResult.Failure("Your account changed. Reopen your Plantupia space.", 401)
+    private fun changedSession() = ApiResult.Failure("Your account changed. Reopen your Plantupia space.", 409)
 
     private suspend fun <T> authorized(block: suspend (String) -> ApiResult<T>): ApiResult<T> {
         if (!isCurrentSession()) return changedSession()

@@ -8,7 +8,7 @@ internal suspend fun <T> runPlantupiaMutation(
     isDetailCurrent: () -> Boolean,
     request: suspend () -> ApiResult<T>,
     onStarted: () -> Unit,
-    onCommitted: (T) -> Unit = {},
+    onCommitted: suspend (T) -> Unit = {},
     onSuccess: suspend (T) -> Unit,
     onFailure: (ApiResult.Failure) -> Unit,
     onFinished: () -> Unit,
@@ -20,7 +20,7 @@ internal suspend fun <T> runPlantupiaMutation(
             is ApiResult.Success -> {
                 if (!isAccountCurrent()) return
                 onCommitted(result.value)
-                if (isDetailCurrent()) onSuccess(result.value)
+                if (isAccountCurrent() && isDetailCurrent()) onSuccess(result.value)
             }
             is ApiResult.Failure -> {
                 if (isAccountCurrent() && isDetailCurrent()) onFailure(result)

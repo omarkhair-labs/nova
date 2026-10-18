@@ -7,6 +7,20 @@ import org.junit.Test
 import java.net.InetSocketAddress
 
 class NovaApiClientResponseTest {
+    @Test fun rejectionMetadataIsTypedAndIdenticalAcrossJsonAndMultipart() {
+        for (typed in listOf(true, false)) {
+            val body = if (typed) """{"detail":"Rejected","code":"submission_rejected","request_id":"submission-1"}"""
+                else """{"detail":"Rejected","code":42,"request_id":false}"""
+            withResponse(400, body) { client ->
+                val json = runBlocking { client.requestJson("records/") } as ApiResult.Failure
+                val multipart = runBlocking { client.requestMultipart("records/", "POST", mapOf("note" to "Original"), "photo", null, "test-only-token") } as ApiResult.Failure
+                assertEquals(json, multipart)
+                assertEquals(if (typed) "submission_rejected" else null, json.errorCode)
+                assertEquals(if (typed) "submission-1" else null, json.requestId)
+            }
+        }
+    }
+
     private fun withResponse(status: Int, body: String, test: (NovaApiClient) -> Unit) {
         val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
         server.createContext("/") { exchange ->

@@ -9,6 +9,27 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class PlantupiaMutationRunnerTest {
+    @Test fun accountSwitchDuringCommittedDiskWorkRejectsLaterUiCallbacks() = runBlocking {
+        var accountCurrent = true
+        var applied = false
+        val committed = CompletableDeferred<Unit>()
+        val resume = CompletableDeferred<Unit>()
+        val job = launch(start = CoroutineStart.UNDISPATCHED) {
+            runPlantupiaMutation(
+                isAccountCurrent = { accountCurrent }, isDetailCurrent = { true },
+                request = { ApiResult.Success("server-event") }, onStarted = {},
+                onCommitted = { committed.complete(Unit); resume.await() },
+                onSuccess = { applied = true }, onFailure = { fail("unexpected error") },
+                onFinished = { fail("a newer account owns completion") },
+            )
+        }
+        committed.await()
+        accountCurrent = false
+        resume.complete(Unit)
+        job.join()
+        assertFalse(applied)
+    }
+
     private class Screen {
         var account = "A-login-1"
         var plant: String? = "plant-A"

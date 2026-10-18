@@ -76,6 +76,7 @@ fun PlantupiaQuestionsPanel(
         PlantupiaCallbackLifetime { repository.isCurrentSession() && isParentCurrent() }
     }
     DisposableEffect(lifetime) { onDispose { lifetime.dispose() } }
+    var savedQuestion by remember(plantId, repository) { mutableStateOf<com.nova.app.feature.plants.data.PlantupiaSubmission?>(null) }
     var question by remember(plantId) { mutableStateOf("") }
     var topic by remember(plantId) { mutableStateOf("") }
     var imageUri by remember(plantId) { mutableStateOf<Uri?>(null) }
@@ -112,6 +113,12 @@ fun PlantupiaQuestionsPanel(
     }
 
     LaunchedEffect(plantId, requestGeneration) { refreshQuestions() }
+    LaunchedEffect(plantId, submitting, requestGeneration) {
+        if (!submitting) when (val pending = repository.pendingSubmissions(plantId)) {
+            is ApiResult.Success -> if (lifetime.isCurrent()) savedQuestion = pending.value.firstOrNull { it.operation == "question" }
+            is ApiResult.Failure -> if (lifetime.isCurrent()) error = pending.message
+        }
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (!compactHeader) {
@@ -123,6 +130,17 @@ fun PlantupiaQuestionsPanel(
             )
         }
         if (canPublish) {
+        savedQuestion?.let { saved ->
+            Text("An earlier question is awaiting confirmation. Review that exact submission before retrying; it won't publish another question.", color = mutedGreen, fontSize = 12.sp)
+            OutlinedButton(enabled = !submitting, onClick = {
+                topic = saved.fields["public_topic"].orEmpty()
+                question = saved.fields["caption"].orEmpty()
+                imageUri = saved.photo?.let(Uri::fromFile)
+                consent = false
+                error = null
+                reviewOpen = true
+            }) { Text("Review saved question") }
+        }
         OutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
             value = topic,
@@ -242,6 +260,9 @@ fun PlantupiaQuestionsPanel(
                                     request = { repository.askWithPhoto(plantId, submittedTopic, submittedQuestion, selected) },
                                     onStarted = { submitting = true; error = null },
                                     onSuccess = { postId ->
+                                        repository.confirmSubmission(plantId, "question", postId.toString())
+                                        if (!lifetime.isCurrent()) return@runPlantupiaMutation
+                                        savedQuestion = null
                                         question = ""
                                         topic = ""
                                         imageUri = null

@@ -435,6 +435,22 @@ for relative in (
         'val origin = sessionStore.load()', 'origin = origin', 'val stored = origin',
     ))
 
+# Integrity Sprint 03: new saves must fail closed on an older server and retain
+# an account-scoped snapshot instead of assigning an identity on every request.
+plant_repository = read(ROOT / "app/src/main/java/com/nova/app/feature/plants/data/PlantupiaRepository.kt")
+plant_journal = read(ROOT / "app/src/main/java/com/nova/app/feature/plants/data/PlantupiaSubmissionJournal.kt")
+require_all(plant_repository, "Plantupia reliable submission boundary", (
+    'noBackupFilesDir', 'submissions.prepare(', 'submissions.acknowledge(',
+    '"client_submission_id" to submission.id', '${submission.operation}-submissions/',
+    'publicConsentConfirmed', 'result.errorCode == "submission_rejected"',
+    'result.requestId == submission.id', 'submission.account != submissionAccount',
+))
+require_all(plant_journal, "durable Plantupia submission identity", (
+    'UUID.randomUUID()', 'synchronized(lock)', 'it.fd.sync()',
+    'StandardCopyOption.ATOMIC_MOVE', 'private fun directory(account: Long)',
+    'current.acknowledgedResult != result',
+))
+
 if errors:
     print("Network architecture exit check failed:")
     for error in errors:

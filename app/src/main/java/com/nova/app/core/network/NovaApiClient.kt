@@ -60,6 +60,8 @@ sealed interface ApiResult<out T> {
     data class Failure(
         val message: String,
         val statusCode: Int? = null,
+        val errorCode: String? = null,
+        val requestId: String? = null,
     ) : ApiResult<Nothing>
 }
 
@@ -264,6 +266,8 @@ class NovaApiClient(
             ApiResult.Failure(
                 message = parseError(json, status),
                 statusCode = status,
+                errorCode = json.opt("code") as? String,
+                requestId = json.opt("request_id") as? String,
             )
         }
     }
