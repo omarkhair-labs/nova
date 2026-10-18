@@ -1,6 +1,7 @@
 package com.nova.app.feature.plants
 
 import com.nova.app.feature.plants.data.PlantupiaCareEvent
+import java.time.LocalDate
 
 /** One real private history event and outcomes that explicitly point back to it. */
 internal data class PlantupiaHistoryMoment(
@@ -101,12 +102,13 @@ internal fun plantupiaLoadedPhotoPair(events: List<PlantupiaCareEvent>): Plantup
     val photos = recordedPlantPhotos(events)
     val later = photos.firstOrNull() ?: return null
     val latestDate = later.observedAt.take(10)
-    if (latestDate.length != 10) return null
+    if (runCatching { LocalDate.parse(latestDate) }.isFailure) return null
     val earlier = photos.asReversed().firstOrNull {
+        val earlierDate = it.observedAt.take(10)
         it.id != later.id &&
             it.photoUrl != later.photoUrl &&
-            it.observedAt.take(10).length == 10 &&
-            it.observedAt.take(10) != latestDate
+            runCatching { LocalDate.parse(earlierDate) }.isSuccess &&
+            earlierDate != latestDate
     } ?: return null
     return PlantupiaLoadedPhotoPair(earlier = earlier, later = later)
 }
