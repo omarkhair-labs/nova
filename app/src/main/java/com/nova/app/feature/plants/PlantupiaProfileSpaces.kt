@@ -183,6 +183,7 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
                                                     photoDescription = "Private uploaded photo of ${plant.name}",
                                                     modifier = Modifier.fillMaxWidth().height(110.dp),
                                                     cornerRadius = 14.dp,
+                                                    compact = true,
                                                 )
                                                 Surface(
                                                     color = PlantupiaColors.paper.copy(alpha = 0.92f),
