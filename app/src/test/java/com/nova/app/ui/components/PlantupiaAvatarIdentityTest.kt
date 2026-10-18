@@ -36,6 +36,28 @@ class PlantupiaAvatarIdentityTest {
         assertEquals(selected, plantupiaAvatarStyle(1024L, 7))
     }
 
+    @Test fun everySavedPortraitHasDistinctRealNativeArtworkAtBothSizes() {
+        val heroes = (0..7).map {
+            plantupiaPortraitResource(it, PlantupiaPortraitDetail.Hero)
+        }
+        val micro = (0..7).map {
+            plantupiaPortraitResource(it, PlantupiaPortraitDetail.Micro)
+        }
+        assertEquals(8, heroes.distinct().size)
+        assertEquals(8, micro.distinct().size)
+        (0..7).forEach { variant ->
+            assertNotEquals(heroes[variant], micro[variant])
+            assertEquals(
+                heroes[variant],
+                plantupiaPortraitResource(variant, PlantupiaPortraitDetail.Standard),
+            )
+        }
+        assertEquals(
+            heroes[0],
+            plantupiaPortraitResource(-4, PlantupiaPortraitDetail.Hero),
+        )
+    }
+
     @Test fun allPartsStayWithinTheAuthoredFamily() {
         listOf(0L, 1L, 7L, 40L, 99L, Long.MAX_VALUE).forEach { id ->
             val style = plantupiaAvatarStyle(id)
