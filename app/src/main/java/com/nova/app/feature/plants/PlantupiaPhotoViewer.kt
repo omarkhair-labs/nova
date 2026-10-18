@@ -17,6 +17,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -27,12 +28,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
@@ -51,15 +55,34 @@ internal fun PlantupiaPhotoViewer(
     var imageLoaded by remember(photoUrl) { mutableStateOf(false) }
     var imageFailed by remember(photoUrl) { mutableStateOf(false) }
     var retryIndex by remember(photoUrl) { mutableIntStateOf(0) }
+    var viewport by remember(photoUrl) { mutableStateOf(IntSize.Zero) }
+    var imageSize by remember(photoUrl) { mutableStateOf(IntSize.Zero) }
+
+    // Transformable detects gestures, but its translation has to follow the
+    // actual fitted image bounds, not fixed px that break across aspect ratios.
     val transform = rememberTransformableState { zoomDelta, panDelta, _ ->
         val nextZoom = (zoom * zoomDelta).coerceIn(1f, 4f)
+        val limits = plantupiaPhotoPanLimits(
+            viewport.width.toFloat(), viewport.height.toFloat(),
+            imageSize.width.toFloat(), imageSize.height.toFloat(), nextZoom,
+        )
+        pan = Offset(
+            x = plantupiaClampPhotoPan(pan.x + panDelta.x, limits.maxX),
+            y = plantupiaClampPhotoPan(pan.y + panDelta.y, limits.maxY),
+        )
         zoom = nextZoom
-        pan = if (nextZoom <= 1f) Offset.Zero else {
-            Offset(
-                x = (pan.x + panDelta.x).coerceIn(-550f, 550f),
-                y = (pan.y + panDelta.y).coerceIn(-850f, 850f),
-            )
-        }
+    }
+    // Rotation/screen resize and an asynchronously decoded image must not
+    // leave the photo permanently translated outside the visible viewport.
+    LaunchedEffect(viewport, imageSize, zoom) {
+        val limits = plantupiaPhotoPanLimits(
+            viewport.width.toFloat(), viewport.height.toFloat(),
+            imageSize.width.toFloat(), imageSize.height.toFloat(), zoom,
+        )
+        pan = Offset(
+            plantupiaClampPhotoPan(pan.x, limits.maxX),
+            plantupiaClampPhotoPan(pan.y, limits.maxY),
+        )
     }
     Dialog(
         onDismissRequest = onClose,
@@ -79,7 +102,31 @@ internal fun PlantupiaPhotoViewer(
                         "Photo of " + plantName,
                         color = Color(0xFFFFFDF7),
                         fontSize = 15.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
                     )
+                    if (imageLoaded) {
+                        TextButton(
+                            onClick = {
+                                val nextZoom = if (zoom > 1f) 1f else 2f
+                                val limits = plantupiaPhotoPanLimits(
+                                    viewport.width.toFloat(), viewport.height.toFloat(),
+                                    imageSize.width.toFloat(), imageSize.height.toFloat(), nextZoom,
+                                )
+                                zoom = nextZoom
+                                pan = Offset(
+                                    plantupiaClampPhotoPan(pan.x, limits.maxX),
+                                    plantupiaClampPhotoPan(pan.y, limits.maxY),
+                                )
+                            },
+                        ) {
+                            Text(
+                                if (zoom > 1f) "Reset" else "Zoom 2×",
+                                color = Color(0xFFE1E8DC),
+                            )
+                        }
+                    }
                     IconButton(onClick = onClose) {
                         NovaIcon(
                             asset = NovaIconAsset.Close,
@@ -90,8 +137,10 @@ internal fun PlantupiaPhotoViewer(
                     }
                 }
                 Box(
-                    modifier = Modifier.fillMaxSize().clipToBounds()
-                        .transformable(state = transform),
+                    modifier = Modifier.fillMaxSize()
+                        .onSizeChanged { viewport = it }
+                        .clipToBounds()
+                        .transformable(state = transform, enabled = imageLoaded),
                     contentAlignment = Alignment.Center,
                 ) {
                     if (photoUrl.isNotBlank()) {
@@ -106,12 +155,19 @@ internal fun PlantupiaPhotoViewer(
                                     translationY = pan.y
                                 },
                                 contentScale = ContentScale.Fit,
-                                onSuccess = {
+                                onSuccess = { state ->
+                                    // Decode dimensions describe the source's aspect,
+                                    // even if Coil scaled the resource for this request.
+                                    imageSize = IntSize(
+                                        state.result.image.width.coerceAtLeast(0),
+                                        state.result.image.height.coerceAtLeast(0),
+                                    )
                                     imageLoaded = true
                                     imageFailed = false
                                 },
                                 onError = {
                                     imageLoaded = false
+                                    imageSize = IntSize.Zero
                                     imageFailed = true
                                 },
                             )
