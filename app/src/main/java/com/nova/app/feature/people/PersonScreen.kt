@@ -456,8 +456,9 @@ fun PersonScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(26.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
+                if (privacyResolved && privacyState.canViewContent) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
@@ -490,6 +491,7 @@ fun PersonScreen(
                             modifier = Modifier.weight(1f),
                         )
                     }
+                }
                 }
 
                 Spacer(modifier = Modifier.height(18.dp))
@@ -628,26 +630,6 @@ fun PersonScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    NovaSecondaryButton(
-                        text = "Report",
-                        onClick = { showReportDialog = true },
-                        modifier = Modifier.weight(1f),
-                        enabled = !isSafetyLoading && !isOpeningMessage,
-                    )
-                    NovaSecondaryButton(
-                        text = "Block",
-                        onClick = { showBlockConfirm = true },
-                        modifier = Modifier.weight(1f),
-                        enabled = !isSafetyLoading && !isOpeningMessage,
-                    )
-                }
-
                 Spacer(modifier = Modifier.height(24.dp))
 
                 if (privacyResolved && privacyState.canViewContent) {
@@ -718,7 +700,23 @@ fun PersonScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(12.dp))
+                // Account safety stays accessible, but does not dominate the
+                // person's identity or their intentionally shared contributions.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    TextButton(
+                        onClick = { showReportDialog = true },
+                        enabled = !isSafetyLoading && !isOpeningMessage,
+                    ) { Text("Report person", color = PlantupiaColors.secondaryText) }
+                    TextButton(
+                        onClick = { showBlockConfirm = true },
+                        enabled = !isSafetyLoading && !isOpeningMessage,
+                    ) { Text("Block person", color = PlantupiaColors.secondaryText) }
+                }
+
             }
         }
     }
