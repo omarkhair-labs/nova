@@ -29,7 +29,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -37,7 +36,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
-import coil3.compose.AsyncImage
 import com.nova.app.feature.plants.data.PlantupiaCareAction
 import com.nova.app.feature.plants.data.PlantupiaCareEvent
 import com.nova.app.feature.plants.data.PlantupiaPlant
@@ -195,28 +193,13 @@ internal fun PlantupiaPlantInventoryCard(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Surface(
+            PlantupiaEvidencePhoto(
+                photoUrl = plant.coverPhoto,
+                photoDescription = "Uploaded photo of " + plant.name,
                 modifier = Modifier.size(width = 96.dp, height = 106.dp),
-                shape = RoundedCornerShape(13.dp),
-                color = soft,
-            ) {
-                if (plant.coverPhoto.isNotBlank()) {
-                    AsyncImage(
-                        model = plant.coverPhoto,
-                        contentDescription = "Photo of " + plant.name,
-                        contentScale = ContentScale.Crop,
-                    )
-                } else {
-                    Box(contentAlignment = Alignment.Center) {
-                        NovaIcon(
-                            asset = NovaIconAsset.Photo,
-                            contentDescription = "No photo yet",
-                            modifier = Modifier.size(26.dp),
-                            tint = muted,
-                        )
-                    }
-                }
-            }
+                cornerRadius = 13.dp,
+                compact = true,
+            )
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
