@@ -25,7 +25,7 @@ import com.nova.app.R
 /**
  * REVIEW-ONLY design tool — no public route, account mutation, default picker
  * change or production profile identity switch. The two original illustrations
- * are vector assets converted from docs/art-lab/*.svg.
+ * are vector assets converted from the original SVG studies in docs/art-lab.
  *
  * Open in Android Studio Compose Preview to compare an actual native-rendered
  * 96dp portrait and its 40dp miniature, rather than judging the SVG board alone.
