@@ -468,6 +468,10 @@ internal fun circleReplyLabel(count: Int): String = when (count.coerceAtLeast(0)
     else -> "${count.coerceAtLeast(0)} replies"
 }
 
+/** A removed/unknown account must not retain an identity-specific avatar. */
+internal fun canDisplayQuestionAuthorPortrait(entry: PlantupiaQuestion): Boolean =
+    entry.authorId > 0L && !entry.authorDeleted
+
 @Composable
 private fun QuestionCard(entry: PlantupiaQuestion, onClick: () -> Unit) {
     Surface(
@@ -491,7 +495,7 @@ private fun QuestionCard(entry: PlantupiaQuestion, onClick: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(9.dp),
                     verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
                 ) {
-                    if (entry.authorId > 0L && !entry.authorDeleted) {
+                    if (canDisplayQuestionAuthorPortrait(entry)) {
                         PlantupiaAvatar(
                             userId = entry.authorId,
                             displayName = entry.authorName,
