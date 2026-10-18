@@ -2,6 +2,7 @@ package com.nova.app.feature.plants
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -32,8 +34,8 @@ private fun IllustrationSample(title: String, art: @Composable () -> Unit) {
     }
 }
 
-@Preview(name = "Plantupia / Illustration Family 360", widthDp = 360, heightDp = 720, showBackground = true)
-@Preview(name = "Plantupia / Illustration Family 430", widthDp = 430, heightDp = 720, showBackground = true)
+@Preview(name = "Plantupia / Illustration Family 360", widthDp = 360, heightDp = 820, showBackground = true)
+@Preview(name = "Plantupia / Illustration Family 430", widthDp = 430, heightDp = 820, showBackground = true)
 @Composable
 private fun PlantupiaIllustrationFamilyPreview() {
     Column(
@@ -58,19 +60,26 @@ private fun PlantupiaIllustrationFamilyPreview() {
             }
         }
         Text("AUTHORED CARE PICTOGRAMS", color = PlantupiaColors.forest, fontSize = 12.sp)
-        val actions = PlantupiaCareAction.values().toList()
-        for (line in 0..1) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                for (offset in 0..2) {
-                    val idx = line * 3 + offset
-                    if (idx < actions.size) {
-                        PlantupiaCareActionTile(
-                            action = actions[idx],
-                            selected = idx == 0,
-                            enabled = true,
-                            onClick = {},
-                            modifier = Modifier.weight(1f),
-                        )
+        // Use the exact production care-grid column policy, not a misleading
+        // fixed three-column design-only arrangement at 360dp.
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val columns = plantupiaCareActionColumns(
+                availableWidthDp = maxWidth.value,
+                fontScale = LocalDensity.current.fontScale,
+            )
+            val actions = PlantupiaCareAction.entries.toList()
+            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                actions.chunked(columns).forEach { group ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        group.forEachIndexed { index, action ->
+                            PlantupiaCareActionTile(
+                                action = action,
+                                selected = index == 0 && action == actions.first(),
+                                enabled = true,
+                                onClick = {},
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
                     }
                 }
             }
