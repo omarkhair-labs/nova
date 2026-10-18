@@ -54,15 +54,15 @@ internal fun plantupiaAvatarStyle(userId: Long, chosenVariant: Int = -1): Plantu
 internal fun plantupiaPortraitResource(figure: Int, detail: PlantupiaPortraitDetail): Int {
     val micro = detail == PlantupiaPortraitDetail.Micro
     return when (figure) {
-        0 -> if (micro) R.drawable.plantupia_artlab_window_micro else R.drawable.plantupia_artlab_window
-        1 -> if (micro) R.drawable.plantupia_artlab_courtyard_micro else R.drawable.plantupia_artlab_courtyard
+        0 -> if (micro) R.drawable.plantupia_portrait_0_micro else R.drawable.plantupia_portrait_0_hero
+        1 -> if (micro) R.drawable.plantupia_portrait_1_micro else R.drawable.plantupia_portrait_1_hero
         2 -> if (micro) R.drawable.plantupia_portrait_2_micro else R.drawable.plantupia_portrait_2_hero
         3 -> if (micro) R.drawable.plantupia_portrait_3_micro else R.drawable.plantupia_portrait_3_hero
         4 -> if (micro) R.drawable.plantupia_portrait_4_micro else R.drawable.plantupia_portrait_4_hero
         5 -> if (micro) R.drawable.plantupia_portrait_5_micro else R.drawable.plantupia_portrait_5_hero
         6 -> if (micro) R.drawable.plantupia_portrait_6_micro else R.drawable.plantupia_portrait_6_hero
         7 -> if (micro) R.drawable.plantupia_portrait_7_micro else R.drawable.plantupia_portrait_7_hero
-        else -> if (micro) R.drawable.plantupia_artlab_window_micro else R.drawable.plantupia_artlab_window
+        else -> if (micro) R.drawable.plantupia_portrait_0_micro else R.drawable.plantupia_portrait_0_hero
     }
 }
 
