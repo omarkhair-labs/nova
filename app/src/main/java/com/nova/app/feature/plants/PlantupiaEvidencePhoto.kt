@@ -29,6 +29,16 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 
 /**
+ * An index/card cover may crop for composition; an observation is documentary
+ * evidence and MUST keep the full source frame inside its container.
+ * Neither policy alters uploaded bytes or invents missing photo content.
+ */
+internal enum class PlantupiaPhotoFraming(val contentScale: ContentScale) {
+    COVER(ContentScale.Crop),
+    FULL_RECORD(ContentScale.Fit),
+}
+
+/**
  * A fullscreen viewer is only actionable when an actual uploaded photo has
  * loaded. An unavailable URL or decorative placeholder cannot be enlarged.
  */
@@ -50,6 +60,7 @@ internal fun PlantupiaEvidencePhoto(
     cornerRadius: Dp = 12.dp,
     onOpenPhoto: (() -> Unit)? = null,
     compact: Boolean = false,
+    framing: PlantupiaPhotoFraming = PlantupiaPhotoFraming.COVER,
     onPhotoLoadChanged: ((Boolean) -> Unit)? = null,
 ) {
     var photoLoaded by remember(photoUrl) { mutableStateOf(false) }
@@ -119,7 +130,7 @@ internal fun PlantupiaEvidencePhoto(
                     model = photoUrl,
                     contentDescription = if (photoLoaded) photoDescription else null,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
+                    contentScale = framing.contentScale,
                     onSuccess = {
                         photoLoaded = true
                         photoFailed = false
