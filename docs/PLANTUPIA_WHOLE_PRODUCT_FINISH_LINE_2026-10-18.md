@@ -23,7 +23,7 @@ A person can create an account; create/select an authorized real space and plant
 
 | Capability | Working recommendation | Why / evidence needed | Current safety boundary |
 | --- | --- | --- | --- |
-| Reels | **Provisional: contextual, not the core infinite feed.** Consider short living stories, processes, place diaries, transformations with truthful dates/context, or an optional media shelf. | Test whether actual public videos help care, culture, discovery or learning. Compare retention/creation effort and navigation. | Keep Nova upload/player/data while reviewing UI. Don't relabel generic videos as verified transformations. |
+| Reels | **Decision 2026-10-18: remove as a standalone Plantupia destination.** Do not promote an infinite-scrolling feed or a dedicated generic video upload from Create. Short video remains usable only as purposeful contextual media (real public posts or Stories today; living-place histories only after a privacy-safe product contract). | Plantupia should reward intentional care, places and human context rather than passive scrolling. Reassess any video viewer only from a specific object or deliberate share. | Create's Video/Reels action and callback removed in this increment. Retain current Nova player, existing videos, legacy routes/deep-link handling and endpoints for compatibility; do **not** delete data, assert video-in-care is built, or expose private media. |
 | Stories | Optional short-lived human/place moments; linked to actual public content only when user explicitly selects it. | Separate spontaneous social expression from private observation log. | Existing Nova 24h pipeline remains; don't claim plant->Story linking is implemented. |
 | Calls | **Contextual** in people/contact surface; do not make Audio+Video permanent primary buttons for strangers. Could ultimately become opt-in support after a DM or within a real expert session. | Test perceived privacy, consent, actual demand and notification reliability. | Keep existing engine/routes. This sprint collapses the buttons under a deliberate affordance; no backend permission rules changed. |
 | Me / visited Profile | The person first; honest public contributions and optional connection; *self-only* private places. | Current owner screen duplicates private-space/media/social blocks; visitor still feels like a Nova social hub. | Do not show site membership/photos in visitor profile or infer public installations. |
@@ -81,3 +81,14 @@ The native code increment after the initial Edit/Profile cleanup includes:
 - Read-only server evidence: QA build host routes to `240.zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io`, while non-QA remains on the Nova domain. Both DNS lookups from the review environment failed, so this is **not** evidence of server downtime; external web read also could not reach the QA host. Backend source has `event-submissions`, `question-submissions` and `can_add_plant`, but there is **no authenticated live Oracle QA contract proof**. Do not mark server compatibility repaired.
 
 **Still open:** QA host/runtime migration verification and account role tests, Photo Picker/process death, visual/device acceptance, two-account avatar propagation, Circle/Media story behavior, call support context, privacy/deletion/release policy and exact-head green CI. Keep PR #241 Draft and do not promote production, install over unrecovered submissions, or claim the Android app has shipped.
+
+
+## Reels decision, 18 October 2026 — owner discussion resolved for navigation
+
+**Reject:** Reels as an independent discovery/scrolling feature and “Video / Upload your own video” as a generic publishing tile in Create.
+
+**Keep:** actual video media in authentic experiences, Story, and existing historical posts; existing playback/upload data and compatibility routes stay until data migration, feature usage and deep-link impact are separately tested. This is a **surface/product choice**, not authorization to delete backend routes or users' media.
+
+**Native changes in PR #241:** `feature/create/CreateHubScreen.kt` no longer offers a generic `Video` entry, and `NovaApp.kt` no longer passes its Reels overlay callback into Create. `NovaAppHost.kt` retains legacy overlay support to avoid breaking older notifications/deep links. `Create` still offers private plant care/space, public question, experience post and temporary Story.
+
+**Acceptance:** signed-in Create visibly lacks a stand-alone Reels / Video-feed action, existing actual video posts and Stories still open, old deep links do not crash, and private care photos/videos never become public by default. UI change is submitted; exact-HEAD CI and device QA are required before marking accepted.
