@@ -468,6 +468,8 @@ fun NovaApp(
                         displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
                         username = user?.username ?: "nova",
                         avatarUrl = user?.avatarUrl.orEmpty(),
+                        userId = user?.id ?: 0L,
+                        avatarVariant = user?.plantupiaAvatarVariant ?: -1,
                         onCreatePost = {
                             feedOwner.clearPostError()
                             backStack.add(NovaRoute.CreatePost)
