@@ -82,6 +82,12 @@ data class PlantupiaQuestion(
     val comments: Int,
     val resolved: Boolean,
     val isMine: Boolean,
+    // Explicit public post-author identity. These are never private plant
+    // records; deleted accounts receive a generic, non-identifying placeholder.
+    val authorId: Long = 0L,
+    val authorAvatarUrl: String = "",
+    val authorAvatarVariant: Int = -1,
+    val authorDeleted: Boolean = false,
 )
 
 /**
@@ -519,7 +525,7 @@ class PlantupiaRepository(
     private fun parseQuestion(raw: JSONObject): PlantupiaQuestion {
         val post = raw.getJSONObject("post")
         val author = post.getJSONObject("author")
-        requiredPlantupiaLong(author, "id")
+        val authorId = requiredPlantupiaLong(author, "id")
         return PlantupiaQuestion(
             id = raw.optString("id"),
             postId = requiredPlantupiaLong(post, "id"),
@@ -529,6 +535,10 @@ class PlantupiaRepository(
                 post.optString("thumbnail_url").ifBlank { post.optString("image_url") }
             ),
             authorName = author.optString("name").ifBlank { author.optString("username") },
+            authorId = authorId,
+            authorAvatarUrl = api.resolveMediaUrl(author.optString("avatar_url")),
+            authorAvatarVariant = author.optInt("plantupia_avatar_variant", -1).takeIf { it in -1..7 } ?: -1,
+            authorDeleted = author.optString("username") == "deleted",
             comments = post.optInt("comments_count"),
             resolved = raw.optBoolean("resolved"),
             isMine = post.optBoolean("is_mine"),
