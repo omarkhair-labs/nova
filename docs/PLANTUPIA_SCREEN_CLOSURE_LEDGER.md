@@ -325,4 +325,3 @@ Build the following connected groups continuously, with developer-side testing/C
 - `PlantupiaEvidencePhoto` is a shared live photo renderer for recent-moment and plant-detail photos: source missing/loading/failure is explicit, and full-screen photo affordance is gated on successful real image load. A pure JVM regression test covers that gate; actual asynchronous network/device acceptance remains open.
 - Eight selected people identity variants are still the 16 actual production VectorDrawable resources; saved user mapping and real photo priority remain intact. No invented accounts, synthetic plant installation photos, production deploys or migrations.
 - Art direction closure still **OPEN**: device screenshots and critiques for all eight vectors, missing/broken remote media, typography, care-grid TalkBack at font scale up to 2×, 320/360/390/430dp, actual empty-state source truth and all remaining legacy component appearances.
-
