@@ -86,3 +86,27 @@ internal fun recordedPlantPhotos(events: List<PlantupiaCareEvent>): List<Plantup
     events.distinctBy { it.id }
         .filter { it.photoUrl.isNotBlank() }
         .sortedWith(compareByDescending<PlantupiaCareEvent> { it.observedAt }.thenByDescending { it.id })
+
+/**
+ * Deliberate two-point comparison, using only *loaded*, genuinely distinct
+ * uploaded photos on different recorded dates. Oldest loaded != first-ever
+ * if another history page exists; no automated growth claim is inferred.
+ */
+internal data class PlantupiaLoadedPhotoPair(
+    val earlier: PlantupiaCareEvent,
+    val later: PlantupiaCareEvent,
+)
+
+internal fun plantupiaLoadedPhotoPair(events: List<PlantupiaCareEvent>): PlantupiaLoadedPhotoPair? {
+    val photos = recordedPlantPhotos(events)
+    val later = photos.firstOrNull() ?: return null
+    val latestDate = later.observedAt.take(10)
+    if (latestDate.length != 10) return null
+    val earlier = photos.asReversed().firstOrNull {
+        it.id != later.id &&
+            it.photoUrl != later.photoUrl &&
+            it.observedAt.take(10).length == 10 &&
+            it.observedAt.take(10) != latestDate
+    } ?: return null
+    return PlantupiaLoadedPhotoPair(earlier = earlier, later = later)
+}
