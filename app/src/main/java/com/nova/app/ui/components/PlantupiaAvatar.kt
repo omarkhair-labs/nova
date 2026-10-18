@@ -29,6 +29,19 @@ import com.nova.app.feature.plants.PlantupiaColors
  */
 internal data class PlantupiaAvatarStyle(val figure: Int, val palette: Int, val accent: Int)
 
+/**
+ * The same person's silhouette is kept at every size. Tiny portraits need
+ * architectural mass and outer contour; they cannot carry 1px facial detail.
+ * Values are logical dp, not device pixels, so density does not change identity.
+ */
+internal enum class PlantupiaPortraitDetail { Micro, Standard, Hero }
+
+internal fun plantupiaPortraitDetail(sizeDp: Float): PlantupiaPortraitDetail = when {
+    sizeDp <= 40f -> PlantupiaPortraitDetail.Micro
+    sizeDp < 80f -> PlantupiaPortraitDetail.Standard
+    else -> PlantupiaPortraitDetail.Hero
+}
+
 internal fun plantupiaAvatarStyle(userId: Long, chosenVariant: Int = -1): PlantupiaAvatarStyle {
     // Immutable numeric API user ID gives a shared result across devices/screens.
     val id = userId.coerceAtLeast(0L)
@@ -50,6 +63,7 @@ fun PlantupiaAvatar(
     chosenVariant: Int = -1,
 ) {
     val style = remember(userId, chosenVariant) { plantupiaAvatarStyle(userId, chosenVariant) }
+    val detail = plantupiaPortraitDetail(size.value)
     var photoLoaded by remember(photoUrl) { mutableStateOf(false) }
     val name = displayName.ifBlank { "this person" }
     val backgrounds = listOf(
@@ -223,6 +237,7 @@ fun PlantupiaAvatar(
                     drawCircle(bg, radius = w * 0.018f, center = Offset(cx, h * 0.835f))
                 }
             }
+            if (detail != PlantupiaPortraitDetail.Micro) {
             drawCircle(ink, radius = w * 0.011f, center = Offset(cx - w * 0.04f, cy))
             drawCircle(ink, radius = w * 0.011f, center = Offset(cx + w * 0.04f, cy))
             drawLine(
@@ -231,6 +246,7 @@ fun PlantupiaAvatar(
                 end = Offset(cx + w * 0.026f, cy + h * 0.067f),
                 strokeWidth = w * 0.011f,
             )
+            }
             // Garment marks complete the visual difference at small sizes.
             // All detail remains graphic and user-selected, never inferred
             // from the user's demographic traits.
@@ -252,6 +268,7 @@ fun PlantupiaAvatar(
                 }
             }
             // Botanical signature stays around the human, never substitutes for them.
+            if (detail == PlantupiaPortraitDetail.Hero) {
             val stemX = w * if (style.accent == 1) 0.17f else 0.83f
             val leafX = w * if (style.accent == 1) 0.20f else 0.72f
             val leafY = h * (0.25f + 0.045f * style.accent)
@@ -271,6 +288,16 @@ fun PlantupiaAvatar(
                 radius = w * 0.018f,
                 center = Offset(w * 0.22f, h * 0.19f),
             )
+            } else if (detail == PlantupiaPortraitDetail.Standard) {
+                // Keep the botanical signature as a single robust leaf at
+                // medium sizes; micro avatars omit it in favor of silhouette.
+                val accentX = if (style.accent == 1) 0.20f else 0.73f
+                drawOval(
+                    color = ink.copy(alpha = 0.8f),
+                    topLeft = Offset(w * accentX, h * 0.29f),
+                    size = Size(w * 0.115f, h * 0.073f),
+                )
+            }
         }
         // Authorized user photo wins. Missing/broken media reveals the stable illustration.
         if (photoUrl.isNotBlank()) {
