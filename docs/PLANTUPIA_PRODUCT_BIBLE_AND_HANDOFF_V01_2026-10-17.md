@@ -291,3 +291,7 @@ Audit F06/F07/F12 now have scoped native implementation and JVM regression cover
 ### 2026-10-18 maintenance increment — Integrity Sprint 02
 
 F01 now has a shared native session-generation/refresh coordinator, required-owner credential/profile writes and deterministic cross-account/background regression coverage. This supersedes the preceding investigation-only status without changing backend authentication, deletion/consent policy or Play configuration. See [Sprint 02 evidence and compatibility review](./PLANTUPIA_INTEGRITY_SPRINT_02_2026-10-18.md). Device/hosted QA and whole-app release approval remain open.
+
+### 2026-10-18 maintenance increment — Integrity Sprint 03
+
+F05 now has durable account/plant-scoped native submission identities and atomic Django replay/conflict enforcement for private care and consented public questions. Retries preserve observation time and exact photo bytes; recovered public questions require review and explicit consent. See [Sprint 03 contract, migration/compatibility review and device QA](./PLANTUPIA_INTEGRITY_SPRINT_03_2026-10-18.md). Migration 0004 was tested only in disposable environments. Legacy clients without IDs remain outside the new guarantee; hosted rollout and device/release gates remain open.
