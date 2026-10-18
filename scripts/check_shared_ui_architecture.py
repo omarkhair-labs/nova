@@ -299,10 +299,13 @@ else:
         "RoomsRail(",
         "MemoriesRail(",
         "onCreatePost",
-        "onOpenReels",
     ):
         if seam not in create_text:
             errors.append(f"Create destination lost truthful existing-flow seam: {seam}")
+    # The Plantupia product decision removed the generic endless Reels feed
+    # from Create; real posted videos and 24h Stories still keep their engines.
+    if "onOpenReels" in create_text:
+        errors.append("Plantupia Create must not restore generic Reels navigation")
 
 app_host_text = APP_HOST.read_text(encoding="utf-8")
 for seam in (
