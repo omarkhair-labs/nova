@@ -155,6 +155,8 @@ fun PeopleScreen(
                                     source = person?.avatarUrl.orEmpty(),
                                     fallbackText = person?.name?.ifBlank { username } ?: username,
                                     size = 46.dp,
+                                    plantupiaUserId = person?.id?.takeIf { it > 0L },
+                                    plantupiaAvatarVariant = person?.plantupiaAvatarVariant ?: -1,
                                 )
                             }
                             Text(
