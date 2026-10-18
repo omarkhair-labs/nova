@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -85,7 +86,10 @@ internal fun PlantupiaCareActionTile(
         border = BorderStroke(1.dp, if (selected) ink else border),
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 116.dp)
+                .padding(horizontal = 7.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(7.dp),
         ) {
@@ -95,12 +99,12 @@ internal fun PlantupiaCareActionTile(
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center,
                 color = foreground,
-                fontSize = 11.sp,
-                lineHeight = 15.sp,
+                // A full human action must stay legible even on narrow
+                // editors and enlarged Android font sizes. Rows can grow.
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                 minLines = 2,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
             )
         }
     }
