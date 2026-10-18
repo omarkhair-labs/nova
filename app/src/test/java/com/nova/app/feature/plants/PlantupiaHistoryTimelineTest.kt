@@ -123,6 +123,12 @@ class PlantupiaHistoryTimelineTest {
         assertEquals(null, plantupiaLoadedPhotoPair(listOf(first)))
     }
 
+    @Test fun malformedHistoryDatesCannotCreateAFalseTimeComparison() {
+        val fakeDate = event("bad-date", "care", "not-a-date", photo = "https://qa.invalid/a.jpg")
+        val actual = event("actual", "observation", "2026-10-19T08:00:00Z", photo = "https://qa.invalid/b.jpg")
+        assertEquals(null, plantupiaLoadedPhotoPair(listOf(fakeDate, actual)))
+    }
+
     @Test fun photoComparisonDoesNotInferPlantGrowthFromCareRecords() {
         val withoutPhoto = event("note", "observation", "2025-01-01T08:00:00Z")
         val later = event("late", "care", "2026-10-11T08:00:00Z", photo = "https://qa.invalid/real.jpg")
