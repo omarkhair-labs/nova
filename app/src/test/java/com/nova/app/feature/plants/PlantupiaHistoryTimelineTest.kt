@@ -105,6 +105,30 @@ class PlantupiaHistoryTimelineTest {
         )
     }
 
+    @Test fun twoDatePhotoComparisonUsesRealDistinctLoadedImages() {
+        val oldest = event("early", "observation", "2026-02-01T09:00:00Z", photo = "https://qa.invalid/early.jpg")
+        val newest = event("latest", "care", "2026-10-03T12:00:00Z", photo = "https://qa.invalid/latest.jpg")
+        val middle = event("middle", "observation", "2026-04-01T09:00:00Z", photo = "https://qa.invalid/middle.jpg")
+        val pair = plantupiaLoadedPhotoPair(listOf(middle, newest, oldest, newest))
+        assertEquals("early", pair?.earlier?.id)
+        assertEquals("latest", pair?.later?.id)
+    }
+
+    @Test fun duplicatedImagesAndSameDaySnapshotsNeverClaimAComparison() {
+        val first = event("first", "observation", "2026-10-03T08:00:00Z", photo = "https://qa.invalid/same.jpg")
+        val repeated = event("repeated", "care", "2026-10-05T09:00:00Z", photo = "https://qa.invalid/same.jpg")
+        assertEquals(null, plantupiaLoadedPhotoPair(listOf(first, repeated)))
+        val other = event("second", "observation", "2026-10-05T19:00:00Z", photo = "https://qa.invalid/other.jpg")
+        assertEquals(null, plantupiaLoadedPhotoPair(listOf(repeated, other)))
+        assertEquals(null, plantupiaLoadedPhotoPair(listOf(first)))
+    }
+
+    @Test fun photoComparisonDoesNotInferPlantGrowthFromCareRecords() {
+        val withoutPhoto = event("note", "observation", "2025-01-01T08:00:00Z")
+        val later = event("late", "care", "2026-10-11T08:00:00Z", photo = "https://qa.invalid/real.jpg")
+        assertEquals(null, plantupiaLoadedPhotoPair(listOf(withoutPhoto, later)))
+    }
+
     @Test fun photoIndexCanTruthfullyBeEmptyOrHaveOnlyOnePhoto() {
         val noPhoto = event("text", "care", "2026-10-02T09:00:00Z")
         val image = event("photo", "care", "2026-10-03T09:00:00Z", photo = "https://qa.invalid/photo.jpg")
