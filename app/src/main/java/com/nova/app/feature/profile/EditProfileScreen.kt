@@ -69,6 +69,7 @@ fun EditProfileScreen(
     var profileLink by remember(link) { mutableStateOf(link) }
     var interestsText by remember(interests) { mutableStateOf(interests.joinToString(", ")) }
     var selectedAvatarVariant by remember(userId, avatarVariant) { mutableStateOf(avatarVariant) }
+    var showPublicPreview by remember(userId) { mutableStateOf(false) }
     val linkError = if (
         profileLink.isNotBlank() && normalizedProfileExternalUrl(profileLink) == null
     ) {
@@ -86,8 +87,8 @@ fun EditProfileScreen(
     BackHandler(enabled = isLoading) { }
 
     NovaKeyboardAwareFormPage(
-        title = "Your public identity",
-        subtitle = "Choose what people see about you. Your private spaces and care records stay separate.",
+        title = "Edit profile",
+        subtitle = "Your identity in Plantupia. Only the details you add here are public.",
         onBack = onBack,
         action = {
             val visibleError = errorMessage ?: linkError
@@ -125,41 +126,35 @@ fun EditProfileScreen(
             )
         },
     ) {
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            "PUBLIC PREVIEW",
-            color = PlantupiaColors.forest,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
         Spacer(modifier = Modifier.height(10.dp))
-        // The real Plantupia public identity is used here and for profile visitors.
-        // Legacy theme/orbit settings are passed through unchanged, never silently reset.
-        NovaProfileIdentity(
-            displayName = name,
-            username = handle,
-            avatarUrl = selectedPhoto?.toString() ?: avatarUrl,
-            bio = profileBio,
-            location = profileLocation,
-            link = profileLink,
-            interests = interestsText.split(',').map(String::trim).filter(String::isNotBlank).take(8),
-            profileTheme = profileTheme,
-            showOrbit = showOrbit,
-            isVerified = isVerified,
-            plantupiaIdentityId = userId,
-            plantupiaAvatarVariant = selectedAvatarVariant,
-        )
-
-        TextButton(
-            onClick = { photoPicker.launch("image/*") },
-            enabled = !isLoading,
-            modifier = Modifier.align(Alignment.CenterHorizontally),
+        Text("YOUR PHOTO", color = PlantupiaColors.forest, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+        Spacer(modifier = Modifier.height(10.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text(
-                text = if (selectedPhoto == null) "Change photo" else "Choose another photo",
-                color = NovaAccent,
-                fontWeight = FontWeight.SemiBold,
+            PlantupiaAvatar(
+                userId = userId,
+                displayName = name,
+                photoUrl = selectedPhoto?.toString() ?: avatarUrl,
+                size = 88.dp,
+                chosenVariant = selectedAvatarVariant,
             )
+            androidx.compose.foundation.layout.Column(modifier = Modifier.weight(1f)) {
+                Text("How people recognize you", color = PlantupiaColors.forestText, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Use a photograph or keep an illustrated identity.",
+                    color = NovaMuted, fontSize = 12.sp, lineHeight = 18.sp,
+                )
+                TextButton(
+                    onClick = { photoPicker.launch("image/*") },
+                    enabled = !isLoading,
+                    modifier = Modifier.align(Alignment.Start),
+                ) {
+                    Text(if (selectedPhoto == null) "Choose photo" else "Change selected photo", color = PlantupiaColors.forest)
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(18.dp))
@@ -243,6 +238,31 @@ fun EditProfileScreen(
 
         Spacer(modifier = Modifier.height(14.dp))
         NovaTextField(
+            value = handle,
+            onValueChange = { raw ->
+                handle = raw
+                    .lowercase()
+                    .filter { it.isLetterOrDigit() || it == '_' || it == '.' }
+                    .take(30)
+            },
+            label = "Username",
+            placeholder = "yourname",
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Ascii,
+                imeAction = ImeAction.Done,
+            ),
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+        Text(
+            text = "Your username has to be unique within Plantupia.",
+            color = NovaMuted,
+            fontSize = 12.sp,
+            lineHeight = 18.sp,
+        )
+
+        Spacer(modifier = Modifier.height(14.dp))
+        NovaTextField(
             value = profileBio,
             onValueChange = { profileBio = it.take(160) },
             label = "Bio",
@@ -296,33 +316,37 @@ fun EditProfileScreen(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        // Nova's old circle switch and accent-theme chooser are deliberately
-        // absent from this Plantupia editor. Persist the existing API values
-        // unchanged until a consented profile-schema migration is designed.
-        Spacer(modifier = Modifier.height(14.dp))
+        // Preserve the legacy Nova theme/orbit fields on save, without presenting
+        // them as Plantupia product settings until their UX and privacy are reviewed.
+        // Reuse the same public identity view visitors see, but keep it
+        // optional so the edit form isn't buried underneath a tall preview.
+        Spacer(modifier = Modifier.height(18.dp))
+        TextButton(
+            onClick = { showPublicPreview = !showPublicPreview },
+            modifier = Modifier.align(Alignment.Start),
+        ) {
+            Text(
+                if (showPublicPreview) "Hide public preview" else "Preview public profile",
+                color = PlantupiaColors.forest,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        if (showPublicPreview) {
+            NovaProfileIdentity(
+                displayName = name,
+                username = handle,
+                avatarUrl = selectedPhoto?.toString() ?: avatarUrl,
+                bio = profileBio,
+                location = profileLocation,
+                link = profileLink,
+                interests = interestsText.split(',').map(String::trim).filter(String::isNotBlank).take(8),
+                profileTheme = profileTheme,
+                showOrbit = showOrbit,
+                isVerified = isVerified,
+                plantupiaIdentityId = userId,
+                plantupiaAvatarVariant = selectedAvatarVariant,
+            )
+        }
 
-        NovaTextField(
-            value = handle,
-            onValueChange = { raw ->
-                handle = raw
-                    .lowercase()
-                    .filter { it.isLetterOrDigit() || it == '_' || it == '.' }
-                    .take(30)
-            },
-            label = "Username",
-            placeholder = "yourname",
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Ascii,
-                imeAction = ImeAction.Done,
-            ),
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
-        Text(
-            text = "Your username has to be unique within Plantupia.",
-            color = NovaMuted,
-            fontSize = 12.sp,
-            lineHeight = 18.sp,
-        )
     }
 }
