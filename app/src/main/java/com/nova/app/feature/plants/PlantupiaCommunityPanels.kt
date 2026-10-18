@@ -412,11 +412,11 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
                     modifier = Modifier.fillMaxWidth().padding(17.dp),
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
-                    PlantupiaBrandGlyph(modifier = Modifier.size(48.dp))
+                    PlantupiaEmptyCircleArt(modifier = Modifier.size(72.dp))
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text("No questions yet", color = green, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Text(
-                            "Start with a plant, choose a photo and question, then preview what will be public. Real questions will appear as they're published.",
+                            "Questions people choose to share appear here. You can start from a plant and preview exactly what's public.",
                             color = mutedGreen, fontSize = 12.sp, lineHeight = 19.sp,
                         )
                     }
