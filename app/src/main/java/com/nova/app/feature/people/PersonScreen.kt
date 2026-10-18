@@ -117,17 +117,25 @@ fun PersonScreen(
     var showShareProfile by remember(person?.username) { mutableStateOf(false) }
     var reportReason by remember(person?.username) { mutableStateOf("harassment") }
     var reportDetails by remember(person?.username) { mutableStateOf("") }
+    // A failed access check must never default a visited profile to open.
     var privacyState by remember(person?.username) {
-        mutableStateOf(NovaPersonPrivacyState(isPrivate = false, followRequested = false, canViewContent = true))
+        mutableStateOf(NovaPersonPrivacyState(isPrivate = false, followRequested = false, canViewContent = false))
     }
-    var privacyLoading by remember(person?.username) { mutableStateOf(false) }
+    var privacyResolved by remember(person?.username) { mutableStateOf(false) }
+    var privacyLoading by remember(person?.username) { mutableStateOf(true) }
+    var privacyRetry by remember(person?.username) { mutableStateOf(0) }
     var requestCanceling by remember(person?.username) { mutableStateOf(false) }
 
-    LaunchedEffect(person?.username) {
+    LaunchedEffect(person?.username, privacyRetry) {
         val selected = person ?: return@LaunchedEffect
         privacyLoading = true
+        privacyResolved = false
         when (val result = privacyRepository.personState(selected.username)) {
-            is ApiResult.Success -> privacyState = result.value
+            is ApiResult.Success -> {
+                privacyState = result.value
+                privacyResolved = true
+                messageError = null
+            }
             is ApiResult.Failure -> messageError = result.message
         }
         privacyLoading = false
@@ -183,7 +191,7 @@ fun PersonScreen(
     }
 
     fun openSocialGraph(selectedPerson: NovaPerson, mode: String) {
-        if (!privacyState.canViewContent) return
+        if (!privacyResolved || !privacyState.canViewContent) return
         context.startActivity(
             Intent(context, SocialGraphActivity::class.java)
                 .putExtra(SocialGraphActivity.EXTRA_USERNAME, selectedPerson.username)
@@ -192,7 +200,7 @@ fun PersonScreen(
     }
 
     fun cancelFollowRequest(selectedPerson: NovaPerson) {
-        if (requestCanceling || isLoading) return
+        if (!privacyResolved || requestCanceling || isLoading) return
         scope.launch {
             requestCanceling = true
             messageError = null
@@ -211,7 +219,7 @@ fun PersonScreen(
     }
 
     fun toggleFollow(selectedPerson: NovaPerson) {
-        if (requestCanceling || isLoading) return
+        if (!privacyResolved || requestCanceling || isLoading) return
         when {
             privacyState.followRequested && !selectedPerson.isFollowing -> cancelFollowRequest(selectedPerson)
             else -> {
@@ -420,7 +428,7 @@ fun PersonScreen(
                     plantupiaIdentityId = person.id,
                     plantupiaAvatarVariant = person.plantupiaAvatarVariant,
                 )
-                if (shouldShowPrivateProfileBadge(privacyState)) {
+                if (privacyResolved && shouldShowPrivateProfileBadge(privacyState)) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Surface(
                         modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -464,7 +472,7 @@ fun PersonScreen(
                             value = person.followersCount.toString(),
                             label = "followers",
                             modifier = Modifier.weight(1f),
-                            onClick = if (privacyState.canViewContent) {
+                            onClick = if (privacyResolved && privacyState.canViewContent) {
                                 { openSocialGraph(person, MODE_FOLLOWERS) }
                             } else null,
                         )
@@ -472,7 +480,7 @@ fun PersonScreen(
                             value = person.followingCount.toString(),
                             label = "following",
                             modifier = Modifier.weight(1f),
-                            onClick = if (privacyState.canViewContent) {
+                            onClick = if (privacyResolved && privacyState.canViewContent) {
                                 { openSocialGraph(person, MODE_FOLLOWING) }
                             } else null,
                         )
@@ -575,6 +583,14 @@ fun PersonScreen(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 when {
+                    !privacyResolved -> {
+                        Text(
+                            if (privacyLoading) "Checking connection permissions…"
+                            else "Connection controls are unavailable until access is verified.",
+                            color = PlantupiaColors.secondaryText,
+                            fontSize = 12.sp,
+                        )
+                    }
                     person.isFollowing -> {
                         NovaSecondaryButton(
                             text = "Following",
@@ -626,7 +642,14 @@ fun PersonScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                if (privacyState.canViewContent) {
+                if (privacyResolved && privacyState.canViewContent) {
+                    Text(
+                        "SHARED MOMENTS",
+                        color = PlantupiaColors.forest,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
                     NovaPagedProfilePostsGrid(
                         username = person.username,
                         initialPosts = profilePosts,
@@ -656,23 +679,33 @@ fun PersonScreen(
                             )
                             Spacer(Modifier.height(10.dp))
                             Text(
-                                text = "This account is private",
-                                color = NovaInk,
+                                text = when {
+                                    privacyLoading -> "Checking shared content…"
+                                    !privacyResolved -> "Shared content unavailable"
+                                    else -> "This account is private"
+                                },
+                                color = PlantupiaColors.forestText,
                                 fontSize = 17.sp,
                                 fontWeight = FontWeight.Bold,
                             )
                             Spacer(Modifier.height(5.dp))
                             Text(
-                                text = if (privacyState.followRequested) {
-                                    "Your follow request is waiting for approval."
-                                } else {
-                                    "Follow @${person.username} and wait for approval to see posts and connections."
+                                text = when {
+                                    privacyLoading -> "Checking the account's sharing permissions."
+                                    !privacyResolved -> "Your access could not be confirmed. No private contributions will be shown."
+                                    privacyState.followRequested -> "Your follow request is waiting for approval."
+                                    else -> "Follow @${person.username} and wait for approval to see posts and connections."
                                 },
                                 color = NovaMuted,
                                 fontSize = 12.sp,
                                 lineHeight = 18.sp,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                             )
+                            if (!privacyLoading && !privacyResolved) {
+                                TextButton(onClick = { privacyRetry += 1 }) {
+                                    Text("Retry access check", color = PlantupiaColors.forest)
+                                }
+                            }
                         }
                     }
                 }
