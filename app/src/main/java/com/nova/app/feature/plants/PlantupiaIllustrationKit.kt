@@ -130,3 +130,92 @@ internal fun PlantupiaEmptyFieldNotesArt(modifier: Modifier = Modifier) {
         )
     }
 }
+
+/**
+ * A graphic *possibility*, not a real plant photograph or inventory record.
+ * Use only in an authenticated, genuine empty-plant state.
+ */
+@Composable
+internal fun PlantupiaEmptyPlantArt(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.clearAndSetSemantics { }) {
+        val w = size.width
+        val h = size.height
+        val ink = PlantupiaColors.forest
+        val sage = PlantupiaColors.mutedSage
+        val s = size.minDimension
+        val stroke = (s * .021f).coerceAtLeast(1f)
+        // Architecture gives this imagined planting space somewhere to exist.
+        drawRoundRect(
+            color = ink.copy(alpha = .18f),
+            topLeft = Offset(w * .32f, h * .075f),
+            size = Size(w * .36f, h * .79f),
+            cornerRadius = CornerRadius(s * .15f),
+            style = Stroke(stroke),
+        )
+        drawLine(
+            color = ink.copy(alpha = .27f),
+            start = Offset(w * .18f, h * .83f),
+            end = Offset(w * .82f, h * .83f),
+            strokeWidth = stroke,
+        )
+        // Open vessel, soil line and a small drawn sprout: never user evidence.
+        drawRoundRect(
+            color = ink.copy(alpha = .86f),
+            topLeft = Offset(w * .42f, h * .62f),
+            size = Size(w * .16f, h * .20f),
+            cornerRadius = CornerRadius(s * .03f),
+            style = Stroke(stroke * 1.25f),
+        )
+        drawLine(sage, Offset(w * .50f, h * .65f), Offset(w * .50f, h * .34f), stroke * 1.65f)
+        drawOval(
+            sage,
+            topLeft = Offset(w * .38f, h * .335f),
+            size = Size(w * .115f, h * .10f),
+        )
+        drawOval(
+            sage,
+            topLeft = Offset(w * .51f, h * .285f),
+            size = Size(w * .103f, h * .105f),
+        )
+    }
+}
+
+/**
+ * An original conversation mark for a public Q&A zero state.
+ * No avatars, fake messages, reply counts, or implied real activity.
+ */
+@Composable
+internal fun PlantupiaEmptyCircleArt(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.clearAndSetSemantics { }) {
+        val w = size.width
+        val h = size.height
+        val ink = PlantupiaColors.forest
+        val sage = PlantupiaColors.mutedSage
+        val s = size.minDimension
+        val stroke = (s * .027f).coerceAtLeast(1f)
+        drawRoundRect(
+            color = ink.copy(alpha = .17f),
+            topLeft = Offset(w * .12f, h * .09f),
+            size = Size(w * .74f, h * .78f),
+            cornerRadius = CornerRadius(s * .34f),
+            style = Stroke(stroke * .8f),
+        )
+        drawRoundRect(
+            color = ink.copy(alpha = .86f),
+            topLeft = Offset(w * .18f, h * .25f),
+            size = Size(w * .50f, h * .27f),
+            cornerRadius = CornerRadius(s * .06f),
+            style = Stroke(stroke),
+        )
+        drawLine(ink, Offset(w * .29f, h * .35f), Offset(w * .56f, h * .35f), stroke * .75f)
+        drawLine(ink, Offset(w * .29f, h * .42f), Offset(w * .47f, h * .42f), stroke * .75f)
+        drawRoundRect(
+            color = sage.copy(alpha = .89f),
+            topLeft = Offset(w * .39f, h * .59f),
+            size = Size(w * .37f, h * .17f),
+            cornerRadius = CornerRadius(s * .065f),
+            style = Stroke(stroke),
+        )
+        drawLine(sage, Offset(w * .47f, h * .67f), Offset(w * .66f, h * .67f), stroke * .75f)
+    }
+}
