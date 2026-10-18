@@ -297,13 +297,12 @@ internal fun PlantupiaHistoryEventCard(
                 }
             }
             if (event.photoUrl.isNotBlank()) {
-                AsyncImage(
-                    model = event.photoUrl,
-                    contentDescription = "Actual photo recorded with this event. Tap to enlarge.",
-                    modifier = Modifier.fillMaxWidth()
-                        .height(198.dp)
-                        .clickable(onClick = onPhotoClick),
-                    contentScale = ContentScale.Crop,
+                PlantupiaEvidencePhoto(
+                    photoUrl = event.photoUrl,
+                    photoDescription = "Actual photo saved with the " + title + " event",
+                    modifier = Modifier.fillMaxWidth().height(198.dp),
+                    cornerRadius = 13.dp,
+                    onOpenPhoto = onPhotoClick,
                 )
             }
             if (event.note.isNotBlank()) {
