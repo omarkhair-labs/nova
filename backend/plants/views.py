@@ -13,6 +13,7 @@ from rest_framework.views import APIView
 from .models import PlantDiscussion, PlantEvent, PlantNickname, PlantUnit, Space, SpaceMember
 from .serializers import (PlantCreateSerializer, PlantEventSerializer, PlantSerializer, PlantUpdateSerializer, SpaceCreateSerializer, SpaceSerializer, SpaceUpdateSerializer)
 from .media import sanitize_public_plant_photo
+from .submissions import submit, save_submission_photo
 
 
 def accessible_spaces(user):
@@ -230,28 +231,40 @@ class PlantEventsView(APIView):
             "next_offset": offset + size if len(rows) > size else None,
         })
 
+    require_submission_identity = False
+
     def post(self, request, plant_id):
         plant = self.get_plant(request, plant_id)
-        if not plant.is_active:
+        if not request.data.get("client_submission_id") and not plant.is_active:
             return Response({"detail": "Restore this archived plant before recording a new event."}, status=409)
         if not can_record(request.user, plant):
-            return Response({"detail": "Read-only space membership."}, status=status.HTTP_403_FORBIDDEN)
-        with transaction.atomic():
-            s = PlantEventSerializer(
-                data=request.data, context={"request": request, "plant": plant},
-            )
-            s.is_valid(raise_exception=True)
-            follow_up_for = s.validated_data.get("follow_up_for")
-            if follow_up_for is not None:
-                # Reject duplicate closure even if two devices submit simultaneously.
-                updated = PlantEvent.objects.filter(
-                    pk=follow_up_for.pk, plant=plant, follow_up_on__isnull=False,
-                    follow_up_completed_at__isnull=True,
-                ).update(follow_up_completed_at=timezone.now())
-                if updated != 1:
-                    return Response({"detail": "This check-in was already completed."}, status=409)
-            event = s.save(plant=plant, actor=request.user)
-        return Response(PlantEventSerializer(event, context={"request": request}).data, status=status.HTTP_201_CREATED)
+            return Response({"detail": "Read-only space membership."}, status=403)
+        def create(receipt):
+            if not plant.is_active:
+                return Response({"detail": "Restore this archived plant before recording a new event."}, status=409)
+            with transaction.atomic():
+                s = PlantEventSerializer(
+                    data=request.data, context={"request": request, "plant": plant},
+                )
+                s.is_valid(raise_exception=True)
+                follow_up_for = s.validated_data.get("follow_up_for")
+                if follow_up_for is not None:
+                    # Reject duplicate closure even if two devices submit simultaneously.
+                    updated = PlantEvent.objects.filter(
+                        pk=follow_up_for.pk, plant=plant, follow_up_on__isnull=False,
+                        follow_up_completed_at__isnull=True,
+                    ).update(follow_up_completed_at=timezone.now())
+                    if updated != 1:
+                        return Response({"detail": "This check-in was already completed."}, status=409)
+                photo = s.validated_data.get("photo")
+                saved_photo = save_submission_photo(receipt, PlantEvent._meta.get_field("photo").storage, photo, "plantupia/events") if receipt and photo else photo
+                event = s.save(plant=plant, actor=request.user, **({"photo": saved_photo} if photo else {}))
+            return Response(PlantEventSerializer(event, context={"request": request}).data, status=status.HTTP_201_CREATED)
+        return submit(request, plant, "event", create, required=self.require_submission_identity)
+
+
+class PlantEventSubmissionsView(PlantEventsView):
+    require_submission_identity = True
 
 
 
@@ -344,46 +357,55 @@ class PlantQuestionsView(APIView):
             for link in links
         ]})
 
-    @transaction.atomic
+    require_submission_identity = False
+
     def post(self, request, plant_id):
         from accounts.serializers import PostSerializer
-
         plant = get_object_or_404(accessible_plants(request.user), pk=plant_id)
-        if not plant.is_active:
+        if not request.data.get("client_submission_id") and not plant.is_active:
             return Response({"detail": "Restore this archived plant before asking a new question."}, status=409)
         if not can_record(request.user, plant):
             return Response({"detail": "Read-only space membership."}, status=403)
         if request.data.get("public_share_consent") not in ("true", "True", True):
             return Response({"detail": "Confirm public photo sharing before posting."}, status=400)
-        topic = str(request.data.get("public_topic", "")).strip()
-        if not 1 <= len(topic) <= 80:
-            return Response({"public_topic": "Choose a public topic of 1–80 characters."}, status=400)
-        caption = str(request.data.get("caption", "")).strip()
-        if not 1 <= len(caption) <= 500:
-            return Response({"caption": "Write a question of 1–500 characters."}, status=400)
-        # Public Nova posts must not preserve the original photo's GPS/EXIF,
-        # even when the user consents to publishing the visible image.
-        try:
-            clean_photo = sanitize_public_plant_photo(request.FILES.get("image"))
-        except ValueError as error:
-            return Response({"image": str(error)}, status=400)
-        if clean_photo is None:
-            return Response({"image": "Select a photo to share publicly."}, status=400)
-        data = {
-            "caption": caption,
-            "media_type": "image",
-            "image": clean_photo,
-        }
-        serializer = PostSerializer(data=data, context={"request": request})
-        serializer.is_valid(raise_exception=True)
-        post = serializer.save(author=request.user)
-        link = PlantDiscussion.objects.create(plant=plant, post=post, public_topic=topic)
-        return Response({
-            "id": str(link.pk),
-            "post_id": post.pk,
-            "topic": topic,
-            "resolved": False,
-        }, status=201)
+        def create(receipt):
+            if not plant.is_active:
+                return Response({"detail": "Restore this archived plant before asking a new question."}, status=409)
+            topic = str(request.data.get("public_topic", "")).strip()
+            if not 1 <= len(topic) <= 80:
+                return Response({"public_topic": "Choose a public topic of 1–80 characters."}, status=400)
+            caption = str(request.data.get("caption", "")).strip()
+            if not 1 <= len(caption) <= 500:
+                return Response({"caption": "Write a question of 1–500 characters."}, status=400)
+            # Public Nova posts must not preserve the original photo's GPS/EXIF,
+            # even when the user consents to publishing the visible image.
+            try:
+                clean_photo = sanitize_public_plant_photo(request.FILES.get("image"))
+            except ValueError as error:
+                return Response({"image": str(error)}, status=400)
+            if clean_photo is None:
+                return Response({"image": "Select a photo to share publicly."}, status=400)
+            data = {
+                "caption": caption,
+                "media_type": "image",
+                "image": clean_photo,
+            }
+            serializer = PostSerializer(data=data, context={"request": request})
+            serializer.is_valid(raise_exception=True)
+            stored_photo = save_submission_photo(receipt, serializer.Meta.model._meta.get_field("image").storage, clean_photo, "posts/plantupia") if receipt else clean_photo
+            post = serializer.save(author=request.user, image=stored_photo)
+            link = PlantDiscussion.objects.create(plant=plant, post=post, public_topic=topic)
+            return Response({
+                "id": str(link.pk),
+                "post_id": post.pk,
+                "topic": topic,
+                "resolved": False,
+            }, status=201)
+        return submit(request, plant, "question", create, required=self.require_submission_identity)
+
+
+class PlantQuestionSubmissionsView(PlantQuestionsView):
+    require_submission_identity = True
 
 
 class PlantQuestionResolveView(APIView):

@@ -1,8 +1,11 @@
 from django.urls import path
 from .assistant import PlantAssistantView
+from .views import PlantEventSubmissionsView, PlantQuestionSubmissionsView
 from .views import SpaceDetailView, PlantDetailView, PlantEventsView, PlantFollowUpDateView, PlantNicknameView, PlantsView, SpacesView, PlantQuestionsView, PlantQuestionResolveView, PlantCircleView
 
 urlpatterns = [
+    path("plants/<uuid:plant_id>/event-submissions/", PlantEventSubmissionsView.as_view(), name="plantupia-event-submissions"),
+    path("plants/<uuid:plant_id>/question-submissions/", PlantQuestionSubmissionsView.as_view(), name="plantupia-question-submissions"),
     path("spaces/", SpacesView.as_view(), name="plantupia-spaces"),
     path("spaces/<uuid:space_id>/", SpaceDetailView.as_view(), name="plantupia-space-detail"),
     path("plants/", PlantsView.as_view(), name="plantupia-plants"),

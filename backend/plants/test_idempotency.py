@@ -5,19 +5,21 @@ from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from threading import Barrier
+from unittest.mock import patch
+from django.db.models.signals import post_save
 import uuid
 
 from PIL import Image
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.db import close_old_connections, connection
+from django.db import close_old_connections, connection, connections
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from accounts.models import Post
-from .models import PlantDiscussion, PlantEvent, PlantUnit, Space, SpaceMember
+from accounts.models import Post, Notification
+from .models import PlantDiscussion, PlantEvent, PlantUnit, Space, SpaceMember, PlantSubmission
 
 
 class SubmissionFixtures:
@@ -155,6 +157,68 @@ class PlantupiaSubmissionTests(SubmissionFixtures, TestCase):
         body.pop("client_submission_id")
         self.assertEqual(self.client.post(reverse("plantupia-events", args=[self.plant.pk]), body, format="json").status_code, 201)
 
+    def test_durable_validation_rejection_cannot_race_with_changed_content(self):
+        path = reverse("plantupia-event-submissions", args=[self.plant.pk])
+        body = self.event(); body["kind"] = "invalid"
+        first = self.client.post(path, body, format="json")
+        self.assertEqual(first.status_code, 400)
+        self.assertEqual(first.json()["code"], "submission_rejected")
+        self.assertEqual(first.json()["request_id"], self.key)
+        self.assertEqual(self.client.post(path, body, format="json").json(), first.json())
+        self.assertEqual(self.client.post(path, self.event(), format="json").status_code, 409)
+        self.assertEqual(PlantEvent.objects.count(), 0)
+        self.assertEqual(PlantSubmission.objects.count(), 1)
+        self.key = str(uuid.uuid4())
+        self.assertEqual(self.client.post(path, self.event(), format="json").status_code, 201)
+
+    def test_json_and_multipart_identical_fields_share_one_receipt(self):
+        path = reverse("plantupia-event-submissions", args=[self.plant.pk])
+        first = self.client.post(path, self.event(), format="json")
+        replay = self.client.post(path, self.event(), format="multipart")
+        self.assertEqual(replay.status_code, 200)
+        self.assertEqual(first.json(), replay.json())
+        self.assertEqual(PlantEvent.objects.count(), 1)
+
+    def test_storage_write_survives_database_rollback_and_retry_reuses_the_blob(self):
+        path = reverse("plantupia-question-submissions", args=[self.plant.pk])
+        with patch("plants.views.PlantDiscussion.objects.create", side_effect=RuntimeError("Simulated DB failure")):
+            with self.assertRaises(RuntimeError):
+                self.client.post(path, self.question(), format="multipart")
+        self.assertEqual(Post.objects.count(), 0)
+        self.assertEqual(PlantSubmission.objects.count(), 0)
+        original_files = self.files()
+        self.assertEqual(len(original_files), 1)
+        self.assertEqual(self.client.post(path, self.question(), format="multipart").status_code, 201)
+        self.assertEqual(self.files(), original_files)
+        self.assertEqual(Post.objects.count(), 1)
+
+    def test_replay_never_resurrects_a_deleted_public_post(self):
+        path = reverse("plantupia-question-submissions", args=[self.plant.pk])
+        first = self.client.post(path, self.question(), format="multipart")
+        Post.objects.get().delete()
+        replay = self.client.post(path, self.question(), format="multipart")
+        self.assertEqual(replay.status_code, 200)
+        self.assertEqual(first.json(), replay.json())
+        self.assertEqual(Post.objects.count(), 0)
+        self.assertEqual(PlantDiscussion.objects.count(), 0)
+        self.assertEqual(self.files(), [])
+
+    def test_replay_does_not_repeat_model_creation_or_notification_side_effects(self):
+        # Plantupia does not currently notify followers for a newly published question.
+        # A test receiver proves creation-triggered DB effects run only for the winner.
+        def notification(sender, instance, created, **kwargs):
+            if created:
+                Notification.objects.create(recipient=self.other, actor=self.owner, kind="comment", post=instance,
+                                            dedupe_key=f"submission-test:{instance.pk}")
+        post_save.connect(notification, sender=Post, weak=False)
+        try:
+            path = reverse("plantupia-question-submissions", args=[self.plant.pk])
+            self.assertEqual(self.client.post(path, self.question(), format="multipart").status_code, 201)
+            self.assertEqual(self.client.post(path, self.question(), format="multipart").status_code, 200)
+            self.assertEqual(Notification.objects.count(), 1)
+        finally:
+            post_save.disconnect(notification, sender=Post)
+
 
 class PlantupiaSubmissionConcurrencyTests(SubmissionFixtures, TransactionTestCase):
     def test_simultaneous_json_and_photo_submissions_have_one_commit(self):
@@ -173,7 +237,7 @@ class PlantupiaSubmissionConcurrencyTests(SubmissionFixtures, TransactionTestCas
                     response = client.post(path, data, format="multipart")
                     return response.status_code, response.json()
                 finally:
-                    close_old_connections()
+                    connections.close_all()
             with ThreadPoolExecutor(max_workers=2) as executor:
                 results = list(executor.map(lambda _: submit(), range(2)))
             self.assertEqual(sorted(x[0] for x in results), [200, 201])
@@ -182,3 +246,23 @@ class PlantupiaSubmissionConcurrencyTests(SubmissionFixtures, TransactionTestCas
         self.assertEqual(Post.objects.count(), 1)
         self.assertEqual(PlantDiscussion.objects.count(), 1)
         self.assertEqual(len(self.files()), 2)
+
+    def test_simultaneous_conflicting_submissions_have_one_winner(self):
+        if connection.vendor != "postgresql":
+            self.skipTest("Real row contention requires PostgreSQL.")
+        barrier = Barrier(2)
+        path = reverse("plantupia-event-submissions", args=[self.plant.pk])
+        def submit(index):
+            close_old_connections()
+            try:
+                client = APIClient(); client.force_authenticate(self.owner)
+                data = self.event(); data["note"] = f"Different intent {index}"
+                barrier.wait(timeout=10)
+                return client.post(path, data, format="json").status_code
+            finally:
+                connections.close_all()
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = list(executor.map(submit, range(2)))
+        self.assertEqual(sorted(results), [201, 409])
+        self.assertEqual(PlantEvent.objects.count(), 1)
+        self.assertEqual(PlantSubmission.objects.count(), 1)
