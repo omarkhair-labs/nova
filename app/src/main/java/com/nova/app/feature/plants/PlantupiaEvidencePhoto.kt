@@ -23,6 +23,13 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 
 /**
+ * A fullscreen viewer is only actionable when an actual uploaded photo has
+ * loaded. An unavailable URL or decorative placeholder cannot be enlarged.
+ */
+internal fun canOpenPlantupiaPhoto(photoUrl: String, loaded: Boolean): Boolean =
+    photoUrl.isNotBlank() && loaded
+
+/**
  * A real user's uploaded plant photo, NEVER a synthetic plant or stock-room
  * picture. A missing, loading, or broken photo has an honest illustrated state.
  * It may open fullscreen only AFTER the real photo actually loads.
@@ -39,7 +46,7 @@ internal fun PlantupiaEvidencePhoto(
 ) {
     var photoLoaded by remember(photoUrl) { mutableStateOf(false) }
     var photoFailed by remember(photoUrl) { mutableStateOf(false) }
-    val photoCanOpen = photoLoaded && onOpenPhoto != null
+    val photoCanOpen = canOpenPlantupiaPhoto(photoUrl, photoLoaded) && onOpenPhoto != null
 
     Box(
         modifier = modifier
