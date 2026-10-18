@@ -15,11 +15,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil3.compose.AsyncImage
 import com.nova.app.feature.plants.data.PlantupiaCareEvent
 
 /**
@@ -50,18 +48,18 @@ internal fun PlantupiaPhotoIndex(
         ) {
             items(photos, key = { it.id }) { photo ->
                 Surface(
-                    onClick = { onOpenPhoto(photo) },
                     color = PlantupiaColors.paper,
                     border = BorderStroke(1.dp, PlantupiaColors.border),
                     shape = RoundedCornerShape(15.dp),
                     modifier = Modifier.width(162.dp),
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                        AsyncImage(
-                            model = photo.photoUrl,
-                            contentDescription = "Open actual plant photo recorded on " + photo.observedAt.take(10),
+                        PlantupiaEvidencePhoto(
+                            photoUrl = photo.photoUrl,
+                            photoDescription = "Photo recorded on " + photo.observedAt.take(10),
                             modifier = Modifier.fillMaxWidth().height(137.dp),
-                            contentScale = ContentScale.Crop,
+                            cornerRadius = 15.dp,
+                            onOpenPhoto = { onOpenPhoto(photo) },
                         )
                         Text(
                             photo.observedAt.take(10),
