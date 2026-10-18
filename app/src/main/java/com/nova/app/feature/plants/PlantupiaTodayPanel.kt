@@ -143,6 +143,7 @@ internal fun PlantupiaTodayPanel(
                                     photoDescription = "Uploaded photo of " + plant.name,
                                     modifier = Modifier.size(54.dp),
                                     cornerRadius = 10.dp,
+                                    compact = true,
                                 )
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(plant.name, style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
