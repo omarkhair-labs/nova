@@ -75,19 +75,57 @@ fun PlantupiaAvatar(
             val cy = h * (0.41f + (style.figure / 4) * 0.018f)
             val headRadius = w * (0.166f + (style.figure % 3) * 0.008f)
             drawRect(bg)
-            // Architectural arch anchors every member of this illustration family.
-            drawRoundRect(
-                color = ink.copy(alpha = 0.18f),
-                topLeft = Offset(w * 0.13f, h * 0.11f),
-                size = Size(w * 0.74f, h * 0.82f),
-                cornerRadius = CornerRadius(w * 0.32f),
-                style = Stroke(width = w * 0.018f),
-            )
+            // One botanical-architectural visual language, but deliberately
+            // different *compositions* so eight characters do not read as
+            // recolored versions of the same portrait at 32-48dp.
+            when (style.figure % 4) {
+                0 -> drawRoundRect(
+                    color = ink.copy(alpha = 0.22f),
+                    topLeft = Offset(w * 0.14f, h * 0.095f),
+                    size = Size(w * 0.72f, h * 0.82f),
+                    cornerRadius = CornerRadius(w * 0.34f),
+                    style = Stroke(width = w * 0.020f),
+                )
+                1 -> {
+                    // Twin lintels and asymmetrical architecture.
+                    drawLine(ink.copy(alpha = 0.24f), Offset(w * 0.11f, h * 0.28f), Offset(w * 0.87f, h * 0.28f), strokeWidth = w * 0.018f)
+                    drawLine(ink.copy(alpha = 0.23f), Offset(w * 0.21f, h * 0.11f), Offset(w * 0.21f, h * 0.85f), strokeWidth = w * 0.019f)
+                    drawLine(ink.copy(alpha = 0.20f), Offset(w * 0.84f, h * 0.18f), Offset(w * 0.84f, h * 0.80f), strokeWidth = w * 0.016f)
+                }
+                2 -> {
+                    drawOval(
+                        color = ink.copy(alpha = 0.16f),
+                        topLeft = Offset(w * 0.10f, h * 0.07f),
+                        size = Size(w * 0.80f, h * 0.82f),
+                        style = Stroke(width = w * 0.019f),
+                    )
+                    drawLine(ink.copy(alpha = 0.17f), Offset(w * 0.10f, h * 0.70f), Offset(w * 0.90f, h * 0.70f), strokeWidth = w * 0.014f)
+                }
+                else -> {
+                    drawRoundRect(
+                        color = ink.copy(alpha = 0.20f),
+                        topLeft = Offset(w * 0.19f, h * 0.105f),
+                        size = Size(w * 0.62f, h * 0.78f),
+                        cornerRadius = CornerRadius(w * 0.10f),
+                        style = Stroke(width = w * 0.019f),
+                    )
+                    drawLine(ink.copy(alpha = 0.18f), Offset(w * 0.11f, h * 0.62f), Offset(w * 0.87f, h * 0.62f), strokeWidth = w * 0.014f)
+                }
+            }
+            // Different coat/shoulder geometries without encoding a presumed
+            // gender, age, personality, culture or identity in account data.
+            val shoulderWidth = when (style.figure) {
+                0, 4 -> 0.72f
+                1, 5 -> 0.59f
+                2, 6 -> 0.80f
+                else -> 0.66f
+            }
+            val shoulderLeft = cx - w * shoulderWidth / 2f
             drawRoundRect(
                 color = ink,
-                topLeft = Offset(w * (0.18f + shift * 0.4f), h * 0.69f),
-                size = Size(w * 0.64f, h * 0.40f),
-                cornerRadius = CornerRadius(w * (0.21f + (style.figure % 3) * 0.016f)),
+                topLeft = Offset(shoulderLeft, h * (if (style.figure % 2 == 0) 0.70f else 0.73f)),
+                size = Size(w * shoulderWidth, h * 0.38f),
+                cornerRadius = CornerRadius(w * (if (style.figure % 3 == 0) 0.25f else 0.16f)),
             )
             drawRoundRect(
                 color = ink,
@@ -193,6 +231,26 @@ fun PlantupiaAvatar(
                 end = Offset(cx + w * 0.026f, cy + h * 0.067f),
                 strokeWidth = w * 0.011f,
             )
+            // Garment marks complete the visual difference at small sizes.
+            // All detail remains graphic and user-selected, never inferred
+            // from the user's demographic traits.
+            when (style.figure) {
+                1, 5 -> {
+                    drawRoundRect(
+                        color = bg.copy(alpha = 0.90f),
+                        topLeft = Offset(cx - w * 0.13f, h * 0.80f),
+                        size = Size(w * 0.26f, h * 0.037f),
+                        cornerRadius = CornerRadius(w * 0.018f),
+                    )
+                }
+                2, 6 -> {
+                    drawLine(bg, Offset(cx - w * 0.18f, h * 0.79f), Offset(cx + w * 0.18f, h * 0.91f), strokeWidth = w * 0.025f)
+                }
+                3, 7 -> {
+                    drawLine(bg, Offset(cx - w * 0.12f, h * 0.80f), Offset(cx + w * 0.12f, h * 0.80f), strokeWidth = w * 0.018f)
+                    drawLine(bg, Offset(cx, h * 0.79f), Offset(cx, h * 0.99f), strokeWidth = w * 0.017f)
+                }
+            }
             // Botanical signature stays around the human, never substitutes for them.
             val stemX = w * if (style.accent == 1) 0.17f else 0.83f
             val leafX = w * if (style.accent == 1) 0.20f else 0.72f
