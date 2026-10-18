@@ -87,19 +87,19 @@ private fun PlantupiaPortraitArtLabPreview() {
             ) {
                 PlantupiaAvatar(
                     userId = 100L,
-                    displayName = "Existing portrait",
+                    displayName = "Portrait three",
                     photoUrl = "",
                     size = 96.dp,
-                    chosenVariant = 0,
+                    chosenVariant = 2,
                 )
                 PlantupiaAvatar(
                     userId = 100L,
-                    displayName = "Existing portrait",
+                    displayName = "Portrait three",
                     photoUrl = "",
                     size = 40.dp,
-                    chosenVariant = 0,
+                    chosenVariant = 2,
                 )
-                Text("Current", fontSize = 12.sp, color = Color(0xFF173B31))
+                Text("Style 03 / live", fontSize = 12.sp, color = Color(0xFF173B31))
             }
             ArtLabVectorSample(
                 "The Window",
@@ -113,7 +113,7 @@ private fun PlantupiaPortraitArtLabPreview() {
             )
         }
         Text(
-            "Art prototype only · existing profile selection and photos stay unchanged",
+            "All three portraits are available through the live identity component",
             fontSize = 11.sp,
             color = Color(0xFF526859),
         )
