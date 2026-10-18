@@ -20,7 +20,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import com.nova.app.feature.plants.data.PlantupiaPlant
 import java.time.LocalDate
 
@@ -139,15 +138,12 @@ internal fun PlantupiaTodayPanel(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
-                                if (plant.coverPhoto.isNotBlank()) {
-                                    AsyncImage(
-                                        model = plant.coverPhoto,
-                                        contentDescription = "Photo of plant " + plant.name,
-                                        modifier = Modifier.size(54.dp),
-                                    )
-                                } else {
-                                    PlantupiaBrandGlyph(modifier = Modifier.size(43.dp))
-                                }
+                                PlantupiaEvidencePhoto(
+                                    photoUrl = plant.coverPhoto,
+                                    photoDescription = "Uploaded photo of " + plant.name,
+                                    modifier = Modifier.size(54.dp),
+                                    cornerRadius = 10.dp,
+                                )
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(plant.name, style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
                                     Text("Check-in you chose: " + plant.nextFollowUpOn, style = PlantupiaText.supporting)
