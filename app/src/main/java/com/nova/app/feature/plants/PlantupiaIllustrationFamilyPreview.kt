@@ -8,8 +8,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
@@ -34,7 +36,7 @@ private fun IllustrationSample(title: String, art: @Composable () -> Unit) {
     }
 }
 
-@Preview(name = "Plantupia / Illustration Family 360", widthDp = 360, heightDp = 820, showBackground = true)
+@Preview(name = "Plantupia / Illustration Family 360", widthDp = 360, heightDp = 900, showBackground = true)
 @Preview(name = "Plantupia / Illustration Family 430", widthDp = 430, heightDp = 820, showBackground = true)
 @Composable
 private fun PlantupiaIllustrationFamilyPreview() {
@@ -58,6 +60,19 @@ private fun PlantupiaIllustrationFamilyPreview() {
                     PlantupiaEmptyCircleArt(Modifier.fillMaxWidth().height(112.dp))
                 }
             }
+        }
+        // A photo absent from an existing plant is a fifth, distinct state.
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            PlantupiaMissingPhotoMark(Modifier.size(56.dp))
+            Text(
+                "Existing plant, no uploaded cover photo",
+                color = PlantupiaColors.secondaryText,
+                fontSize = 12.sp,
+            )
         }
         Text("AUTHORED CARE PICTOGRAMS", color = PlantupiaColors.forest, fontSize = 12.sp)
         // Use the exact production care-grid column policy, not a misleading
