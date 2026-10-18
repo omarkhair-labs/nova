@@ -315,3 +315,14 @@ Build the following connected groups continuously, with developer-side testing/C
 - C07: creation replay uses unique event work plus a durable scheduling marker; cannot duplicate or re-enable a cancelled reminder. New work is login-generation scoped. Actual device delivery remains unverified.
 - Backend migration 0004 is committed and tested only in disposable environments. PostgreSQL CI exercises simultaneous identical/conflicting requests. Older native clients without IDs retain legacy behavior; new native clients fail safely on an older server without fallback.
 - See [Sprint 03 contract, evidence, compatibility risks and exact physical QA matrix](./PLANTUPIA_INTEGRITY_SPRINT_03_2026-10-18.md). Final exact-HEAD checks/commits are recorded on draft PR #241. No hosted migrations, deployment, release approval or physical verification implied.
+
+
+### 2026-10-19 Art / Care / real-media cohesion increment — CODED, DEVICE VISUAL QA OPEN
+
+- Previous exact-head `7541258f` passed Android + Django CI and uploaded an isolated QA APK; that **was not physical app acceptance**. Subsequent source edits need their own exact-head CI.
+- Care action tiles are now readable with natural text wrapping and 13sp/19sp typography, and the art-family preview follows the production two/three-column policy rather than a fictional three-column 360dp grid.
+- Actual living-space and Circle first-content states keep distinct authored illustrations; an existing plant without an uploaded image now has a fifth `PlantupiaMissingPhotoMark` in private plant detail and Recent Moments (not a fabricated image).
+- `PlantupiaEvidencePhoto` is a shared live photo renderer for recent-moment and plant-detail photos: source missing/loading/failure is explicit, and full-screen photo affordance is gated on successful real image load. A pure JVM regression test covers that gate; actual asynchronous network/device acceptance remains open.
+- Eight selected people identity variants are still the 16 actual production VectorDrawable resources; saved user mapping and real photo priority remain intact. No invented accounts, synthetic plant installation photos, production deploys or migrations.
+- Art direction closure still **OPEN**: device screenshots and critiques for all eight vectors, missing/broken remote media, typography, care-grid TalkBack at font scale up to 2×, 320/360/390/430dp, actual empty-state source truth and all remaining legacy component appearances.
+
