@@ -77,6 +77,7 @@ class PlantupiaSubmissionTests(SubmissionFixtures, TestCase):
         self.assertEqual(first.json(), retry.json())
         self.assertEqual(len(stored), 1)
         self.assertEqual(stored, self.files())
+        self.assertLessEqual(len(PlantEvent.objects.get().photo.name), PlantEvent._meta.get_field("photo").max_length)
 
     def test_conflicting_note_scope_kind_or_photo_is_rejected(self):
         path = reverse("plantupia-events", args=[self.plant.pk])
@@ -133,6 +134,7 @@ class PlantupiaSubmissionTests(SubmissionFixtures, TestCase):
         self.assertEqual(Post.objects.count(), 1)
         self.assertEqual(PlantDiscussion.objects.count(), 1)
         self.assertEqual(stored, self.files())
+        self.assertLessEqual(len(Post.objects.get().image.name), Post._meta.get_field("image").max_length)
         with Image.open(Post.objects.get().image.path) as image:
             self.assertFalse(image.getexif())
 

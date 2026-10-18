@@ -62,7 +62,10 @@ def save_submission_photo(receipt, storage, upload, prefix):
     """
     digest = photo_digest(upload)
     suffix = {"image/png": "png", "image/webp": "webp"}.get(upload.content_type, "jpg")
-    name = f"{prefix}/submissions/{receipt.actor_id}/{receipt.client_submission_id}/{digest}.{suffix}"
+    # Both private events and Nova Post.image retain their existing 100-character
+    # columns. Hash the complete ownership tuple rather than embedding long UUIDs.
+    owned_digest = hashlib.sha256(f"{receipt.actor_id}:{receipt.client_submission_id}:{digest}".encode()).hexdigest()
+    name = f"{prefix}/s/{owned_digest}.{suffix}"
     if not storage.exists(name):
         saved = storage.save(name, upload)
         if saved != name:
