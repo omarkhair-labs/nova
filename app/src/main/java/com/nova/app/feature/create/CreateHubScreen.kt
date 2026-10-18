@@ -75,6 +75,9 @@ fun CreateHubScreen(
     onOrbitClick: () -> Unit,
     onProfileClick: () -> Unit,
     onSessionExpired: () -> Unit,
+    // Signed-in public identity, shared with Me / Circle / Inbox.
+    userId: Long = 0L,
+    avatarVariant: Int = -1,
 ) {
     // Private care and public media require different intentional entry points.
     // Nova engines remain functional; secondary formats are opened on demand.
@@ -172,6 +175,8 @@ fun CreateHubScreen(
                             source = avatarUrl,
                             fallbackText = displayName.ifBlank { username }.ifBlank { "Plantupia" },
                             size = 40.dp,
+                            plantupiaUserId = userId.takeIf { it > 0L },
+                            plantupiaAvatarVariant = avatarVariant,
                         )
                     }
                 }
