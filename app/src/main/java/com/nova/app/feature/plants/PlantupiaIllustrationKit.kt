@@ -219,3 +219,51 @@ internal fun PlantupiaEmptyCircleArt(modifier: Modifier = Modifier) {
         drawLine(sage, Offset(w * .47f, h * .67f), Offset(w * .66f, h * .67f), stroke * .75f)
     }
 }
+
+/**
+ * Existing plant, **missing user photo**. Different from the zero-plant art:
+ * an empty field-note photo mount expresses absence without fabricating the
+ * plant's appearance, growth, lighting or a user's room.
+ * Decorative only; neighboring text names the missing-photo state.
+ */
+@Composable
+internal fun PlantupiaMissingPhotoMark(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.clearAndSetSemantics { }) {
+        val w = size.width
+        val h = size.height
+        val s = size.minDimension
+        val ink = PlantupiaColors.forest
+        val sage = PlantupiaColors.mutedSage
+        val stroke = (s * 0.030f).coerceAtLeast(1f)
+        drawRoundRect(
+            color = ink.copy(alpha = 0.82f),
+            topLeft = Offset(w * 0.14f, h * 0.18f),
+            size = Size(w * 0.72f, h * 0.62f),
+            cornerRadius = CornerRadius(s * 0.08f),
+            style = Stroke(width = stroke),
+        )
+        // Empty picture mount, not a landscape, plant likeness or camera feed.
+        drawLine(
+            ink.copy(alpha = 0.46f),
+            Offset(w * 0.23f, h * 0.66f),
+            Offset(w * 0.77f, h * 0.66f),
+            strokeWidth = stroke * 0.7f,
+        )
+        drawLine(
+            sage,
+            Offset(w * 0.50f, h * 0.36f),
+            Offset(w * 0.50f, h * 0.53f),
+            strokeWidth = stroke,
+        )
+        drawOval(
+            color = sage,
+            topLeft = Offset(w * 0.385f, h * 0.34f),
+            size = Size(w * 0.12f, h * 0.075f),
+        )
+        drawOval(
+            color = sage,
+            topLeft = Offset(w * 0.51f, h * 0.37f),
+            size = Size(w * 0.12f, h * 0.075f),
+        )
+    }
+}
