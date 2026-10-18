@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.material3.AlertDialog
@@ -45,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.nova.app.ui.components.PlantupiaAvatar
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.plants.data.PlantupiaQuestion
 import com.nova.app.feature.plants.data.PlantupiaRepository
@@ -484,15 +486,47 @@ private fun QuestionCard(entry: PlantupiaQuestion, onClick: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
-                Text(
-                    entry.authorName.ifBlank { "Circle member" },
-                    color = mutedGreen,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                )
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(9.dp),
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                ) {
+                    if (entry.authorId > 0L && !entry.authorDeleted) {
+                        PlantupiaAvatar(
+                            userId = entry.authorId,
+                            displayName = entry.authorName,
+                            photoUrl = entry.authorAvatarUrl,
+                            chosenVariant = entry.authorAvatarVariant,
+                            size = 40.dp,
+                        )
+                    } else {
+                        // Deleted/unknown authors must not inherit a stable
+                        // identity silhouette from a former account ID.
+                        Surface(
+                            modifier = Modifier.size(40.dp),
+                            shape = CircleShape,
+                            color = PlantupiaColors.softSage,
+                        ) {
+                            Column(
+                                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
+                            ) {
+                                Text("—", color = PlantupiaColors.secondaryText)
+                            }
+                        }
+                    }
+                    Text(
+                        entry.authorName.ifBlank { "Circle member" },
+                        color = green,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 2,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    )
+                }
                 if (entry.resolved) {
                     Text(
-                        "Outcome recorded ✓",
+                        "Resolved",
                         color = green,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
