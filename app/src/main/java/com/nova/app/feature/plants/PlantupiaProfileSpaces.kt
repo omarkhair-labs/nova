@@ -204,11 +204,33 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
                                     }
                                 }
                             } else {
-                                EmptySpacesIllustration()
-                                Text(
-                                    "Add a real photo of your plant to begin its visual history.",
-                                    style = PlantupiaText.supporting,
-                                )
+                                // A real owned space is not "no spaces".
+                                // Keep three genuinely different inventory
+                                // states separate from a failed network load.
+                                when {
+                                    current.plants.isEmpty() -> {
+                                        PlantupiaEmptyPlantArt(
+                                            modifier = Modifier.fillMaxWidth().height(86.dp),
+                                        )
+                                        Text(
+                                            "Your places are ready for their first recorded plant.",
+                                            style = PlantupiaText.supporting,
+                                        )
+                                    }
+                                    activePlants.isEmpty() -> {
+                                        Text(
+                                            "Only archived plants are recorded here. Their history remains available in your places.",
+                                            style = PlantupiaText.supporting,
+                                        )
+                                    }
+                                    else -> {
+                                        PlantupiaMissingPhotoMark(modifier = Modifier.size(68.dp))
+                                        Text(
+                                            "Add a real photo of your plant to begin its visual history.",
+                                            style = PlantupiaText.supporting,
+                                        )
+                                    }
+                                }
                             }
                             Text(
                                 current.spaces.take(3).joinToString(" · ") { it.name } +
