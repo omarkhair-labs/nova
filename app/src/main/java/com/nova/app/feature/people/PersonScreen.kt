@@ -58,6 +58,7 @@ import com.nova.app.ui.components.NovaPagedProfilePostsGrid
 import com.nova.app.ui.components.NovaPrimaryButton
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.feature.profile.NovaProfileIdentity
+import com.nova.app.feature.plants.PlantupiaColors
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
@@ -98,6 +99,7 @@ fun PersonScreen(
     onBlocked: (NovaPerson) -> Unit,
 ) {
     val context = LocalContext.current
+    var callOptionsVisible by remember(person?.id) { mutableStateOf(false) }
     val messagingRepository = remember(context) {
         NovaMessagingRepository(context.applicationContext)
     }
@@ -372,7 +374,7 @@ fun PersonScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(NovaBackground)
+            .background(PlantupiaColors.cream)
             .statusBarsPadding()
             .navigationBarsPadding()
             .verticalScroll(rememberScrollState())
@@ -451,8 +453,8 @@ fun PersonScreen(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
-                    color = NovaBackground,
-                    border = BorderStroke(1.dp, NovaBackground),
+                    color = PlantupiaColors.paper,
+                    border = BorderStroke(1.dp, PlantupiaColors.border),
                 ) {
                     Row(
                         modifier = Modifier.padding(vertical = 20.dp),
@@ -537,23 +539,37 @@ fun PersonScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                // Calls are still reachable, but should not compete with care,
+                // personhood and the primary Message action in a public profile.
+                TextButton(
+                    onClick = { callOptionsVisible = !callOptionsVisible },
+                    enabled = !isOpeningMessage && !isSafetyLoading,
+                    modifier = Modifier.align(Alignment.Start),
                 ) {
-                    NovaSecondaryButton(
-                        text = "Audio call",
-                        onClick = { openCall(person, NovaCallKind.Audio) },
-                        modifier = Modifier.weight(1f),
-                        enabled = !isOpeningMessage && !isSafetyLoading,
+                    Text(
+                        if (callOptionsVisible) "Hide call options" else "Voice or video call",
+                        color = PlantupiaColors.forest,
+                        fontWeight = FontWeight.SemiBold,
                     )
-                    NovaSecondaryButton(
-                        text = "Video call",
-                        onClick = { openCall(person, NovaCallKind.Video) },
-                        modifier = Modifier.weight(1f),
-                        enabled = !isOpeningMessage && !isSafetyLoading,
-                    )
+                }
+                if (callOptionsVisible) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        NovaSecondaryButton(
+                            text = "Voice call",
+                            onClick = { openCall(person, NovaCallKind.Audio) },
+                            modifier = Modifier.weight(1f),
+                            enabled = !isOpeningMessage && !isSafetyLoading,
+                        )
+                        NovaSecondaryButton(
+                            text = "Video call",
+                            onClick = { openCall(person, NovaCallKind.Video) },
+                            modifier = Modifier.weight(1f),
+                            enabled = !isOpeningMessage && !isSafetyLoading,
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
