@@ -59,7 +59,6 @@ import com.nova.app.feature.publishing.MediaPublishWorker
 import com.nova.app.feature.publishing.MediaPublishingStateOwner
 import com.nova.app.feature.tonight.TonightScreen
 import com.nova.app.feature.welcome.WelcomeScreen
-import com.nova.app.navigation.AppDestination
 import com.nova.app.navigation.NovaRootNavigationSignal
 import com.nova.app.navigation.NovaRootTab
 import com.nova.app.navigation.NovaRoute
@@ -474,7 +473,6 @@ fun NovaApp(
                             feedOwner.clearPostError()
                             backStack.add(NovaRoute.CreatePost)
                         },
-                        onOpenReels = { appViewModel.navigate(AppDestination.Reels) },
                         onPersonClick = { username -> backStack.add(NovaRoute.Person(username)) },
                         onHomeClick = { openRoot(NovaRootTab.Home) },
                         onOrbitClick = { openRoot(NovaRootTab.Orbit) },
