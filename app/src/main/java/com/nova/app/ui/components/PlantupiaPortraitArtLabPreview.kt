@@ -104,3 +104,66 @@ private fun PlantupiaPortraitArtLabPreview() {
         )
     }
 }
+
+/**
+ * Review the whole persisted eight-variant family before approving a single
+ * character. Sizes reveal different problems: 24/40 for Circle and comments,
+ * 96 for a selected person's identity. No fake photos or user data.
+ */
+@Preview(name = "Plantupia / Full Eight Portraits", widthDp = 430, heightDp = 580, showBackground = true)
+@Composable
+private fun PlantupiaFullPortraitFamilyPreview() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFF3EEDE))
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+    ) {
+        Text("ALL EIGHT / SAME ART FAMILY", fontSize = 13.sp, color = Color(0xFF173B31))
+        for (rowIndex in 0..1) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                for (columnIndex in 0..3) {
+                    val variant = rowIndex * 4 + columnIndex
+                    Column(
+                        modifier = Modifier.width(94.dp),
+                        verticalArrangement = Arrangement.spacedBy(9.dp),
+                    ) {
+                        PlantupiaAvatar(
+                            userId = (variant + 1).toLong(),
+                            displayName = "Person ${variant + 1}",
+                            photoUrl = "",
+                            size = 92.dp,
+                            chosenVariant = variant,
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                            PlantupiaAvatar(
+                                userId = (variant + 1).toLong(),
+                                displayName = "Person ${variant + 1}",
+                                photoUrl = "",
+                                size = 40.dp,
+                                chosenVariant = variant,
+                            )
+                            PlantupiaAvatar(
+                                userId = (variant + 1).toLong(),
+                                displayName = "Person ${variant + 1}",
+                                photoUrl = "",
+                                size = 24.dp,
+                                chosenVariant = variant,
+                            )
+                        }
+                        Text("STYLE 0${variant + 1}", fontSize = 10.sp, color = Color(0xFF526859))
+                    }
+                }
+            }
+        }
+        Text(
+            "92 hero / 40 micro / 24 micro · technical preview, not art approval",
+            fontSize = 11.sp,
+            color = Color(0xFF526859),
+        )
+    }
+}
