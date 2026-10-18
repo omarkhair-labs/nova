@@ -285,6 +285,7 @@ internal fun PlantupiaHistoryEventCard(
                     photoDescription = "Actual photo saved with the " + title + " event",
                     modifier = Modifier.fillMaxWidth().height(198.dp),
                     cornerRadius = 13.dp,
+                    framing = PlantupiaPhotoFraming.FULL_RECORD,
                     onOpenPhoto = onPhotoClick,
                 )
             }
