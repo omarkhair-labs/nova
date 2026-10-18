@@ -15,9 +15,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -45,6 +48,9 @@ internal fun PlantupiaPhotoViewer(
 ) {
     var zoom by remember(photoUrl) { mutableFloatStateOf(1f) }
     var pan by remember(photoUrl) { mutableStateOf(Offset.Zero) }
+    var imageLoaded by remember(photoUrl) { mutableStateOf(false) }
+    var imageFailed by remember(photoUrl) { mutableStateOf(false) }
+    var retryIndex by remember(photoUrl) { mutableIntStateOf(0) }
     val transform = rememberTransformableState { zoomDelta, panDelta, _ ->
         val nextZoom = (zoom * zoomDelta).coerceIn(1f, 4f)
         zoom = nextZoom
@@ -88,18 +94,58 @@ internal fun PlantupiaPhotoViewer(
                         .transformable(state = transform),
                     contentAlignment = Alignment.Center,
                 ) {
-                    AsyncImage(
-                        model = photoUrl,
-                        contentDescription = "Actual photo of plant " + plantName,
-                        modifier = Modifier.fillMaxSize().graphicsLayer {
-                            scaleX = zoom
-                            scaleY = zoom
-                            translationX = pan.x
-                            translationY = pan.y
-                        },
-                        contentScale = ContentScale.Fit,
-                    )
-                    if (zoom <= 1f) {
+                    if (photoUrl.isNotBlank()) {
+                        key(photoUrl, retryIndex) {
+                            AsyncImage(
+                                model = photoUrl,
+                                contentDescription = if (imageLoaded) "Actual photo of plant " + plantName else null,
+                                modifier = Modifier.fillMaxSize().graphicsLayer {
+                                    scaleX = zoom
+                                    scaleY = zoom
+                                    translationX = pan.x
+                                    translationY = pan.y
+                                },
+                                contentScale = ContentScale.Fit,
+                                onSuccess = {
+                                    imageLoaded = true
+                                    imageFailed = false
+                                },
+                                onError = {
+                                    imageLoaded = false
+                                    imageFailed = true
+                                },
+                            )
+                        }
+                    }
+                    if (!imageLoaded) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Text(
+                                when {
+                                    photoUrl.isBlank() -> "No photo added"
+                                    imageFailed -> "Photo unavailable"
+                                    else -> "Loading original photo…"
+                                },
+                                color = Color(0xFFFFFDF7),
+                                fontSize = 14.sp,
+                            )
+                            if (photoUrl.isNotBlank() && imageFailed) {
+                                TextButton(
+                                    onClick = {
+                                        imageFailed = false
+                                        zoom = 1f
+                                        pan = Offset.Zero
+                                        retryIndex += 1
+                                    },
+                                ) {
+                                    Text("Retry original photo", color = Color(0xFFE1E8DC))
+                                }
+                            }
+                        }
+                    }
+                    if (imageLoaded && zoom <= 1f) {
                         Text(
                             "Pinch to zoom",
                             modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
