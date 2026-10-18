@@ -527,8 +527,11 @@ private fun PlantupiaAccountClientSection(
                 val featuredCount = focusedPlants.size
                 // A plant cover is evidence of that plant, NOT an architectural site photo.
                 val heroPlant = focusedPlants.firstOrNull { it.coverPhoto.isNotBlank() }
-                val heroPhoto = heroPlant?.coverPhoto
-                val photoHero = heroPhoto != null
+                val heroPhoto = heroPlant?.coverPhoto.orEmpty()
+                var heroPhotoLoaded by remember(featured.id, heroPhoto) { mutableStateOf(false) }
+                // Only a successfully rendered, owner-uploaded plant photo may
+                // switch the architectural card to white-on-photo treatment.
+                val photoHero = heroPhoto.isNotBlank() && heroPhotoLoaded
                 val heroInk = if (photoHero) white else deepGreen
                 val heroMuted = if (photoHero) Color(0xFFE0E7DD) else muted
                 Surface(
@@ -539,26 +542,29 @@ private fun PlantupiaAccountClientSection(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(if (photoHero) 196.dp else 154.dp),
+                            .height(if (heroPhoto.isNotBlank()) 196.dp else 154.dp),
                     ) {
-                        if (photoHero) {
-                            AsyncImage(
-                                model = heroPhoto,
-                                contentDescription = "Photo uploaded for ${heroPlant?.name.orEmpty()} in ${featured.name}",
+                        if (heroPhoto.isNotBlank()) {
+                            PlantupiaEvidencePhoto(
+                                photoUrl = heroPhoto,
+                                photoDescription = "Uploaded photo of ${heroPlant?.name.orEmpty()} in ${featured.name}",
                                 modifier = Modifier.matchParentSize(),
-                                contentScale = ContentScale.Crop,
+                                cornerRadius = 22.dp,
+                                onPhotoLoadChanged = { loaded -> heroPhotoLoaded = loaded },
                             )
-                            Box(
-                                modifier = Modifier
-                                    .matchParentSize()
-                                    .background(
-                                        Brush.verticalGradient(
-                                            0f to Color(0x22112317),
-                                            0.35f to Color(0x66112317),
-                                            1f to Color(0xE6112317),
+                            if (photoHero) {
+                                Box(
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .background(
+                                            Brush.verticalGradient(
+                                                0f to Color(0x22112317),
+                                                0.35f to Color(0x66112317),
+                                                1f to Color(0xE6112317),
+                                            )
                                         )
-                                    )
-                            )
+                                )
+                            }
                         }
                         Column(
                             modifier = Modifier
