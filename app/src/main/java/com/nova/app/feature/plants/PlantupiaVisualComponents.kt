@@ -101,8 +101,8 @@ internal fun PlantupiaCareActionTile(
                 color = foreground,
                 // A full human action must stay legible even on narrow
                 // editors and enlarged Android font sizes. Rows can grow.
-                fontSize = 12.sp,
-                lineHeight = 17.sp,
+                fontSize = 13.sp,
+                lineHeight = 19.sp,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                 minLines = 2,
             )
