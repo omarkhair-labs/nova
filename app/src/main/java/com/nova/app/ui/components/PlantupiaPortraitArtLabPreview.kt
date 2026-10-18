@@ -34,6 +34,7 @@ import com.nova.app.R
 private fun ArtLabVectorSample(
     name: String,
     resource: Int,
+    resourceMicro: Int,
 ) {
     Column(
         modifier = Modifier.width(112.dp),
@@ -46,16 +47,22 @@ private fun ArtLabVectorSample(
             contentScale = ContentScale.Fit,
         )
         Image(
-            painter = painterResource(resource),
+            painter = painterResource(resourceMicro),
             contentDescription = "$name vector portrait study, 40 dp",
             modifier = Modifier.size(40.dp).clip(CircleShape),
+            contentScale = ContentScale.Fit,
+        )
+        Image(
+            painter = painterResource(resourceMicro),
+            contentDescription = "$name simplified micro portrait study, 24 dp",
+            modifier = Modifier.size(24.dp).clip(CircleShape),
             contentScale = ContentScale.Fit,
         )
         Text(name, fontSize = 12.sp, color = Color(0xFF173B31))
     }
 }
 
-@Preview(name = "Plantupia / Portrait Lab A-B", widthDp = 430, heightDp = 300, showBackground = true)
+@Preview(name = "Plantupia / Portrait Lab A-B", widthDp = 430, heightDp = 360, showBackground = true)
 @Composable
 private fun PlantupiaPortraitArtLabPreview() {
     Column(
@@ -94,8 +101,16 @@ private fun PlantupiaPortraitArtLabPreview() {
                 )
                 Text("Current", fontSize = 12.sp, color = Color(0xFF173B31))
             }
-            ArtLabVectorSample("The Window", R.drawable.plantupia_artlab_window)
-            ArtLabVectorSample("The Courtyard", R.drawable.plantupia_artlab_courtyard)
+            ArtLabVectorSample(
+                "The Window",
+                R.drawable.plantupia_artlab_window,
+                R.drawable.plantupia_artlab_window_micro,
+            )
+            ArtLabVectorSample(
+                "The Courtyard",
+                R.drawable.plantupia_artlab_courtyard,
+                R.drawable.plantupia_artlab_courtyard_micro,
+            )
         }
         Text(
             "Art prototype only · existing profile selection and photos stay unchanged",
