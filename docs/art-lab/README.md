@@ -83,3 +83,19 @@ Following the initial two-vector experiment, **all eight stored `0..7` portrait 
 **Status definitions:** 16 native avatar vectors plus 12 editable new SVG sources are committed and invoked by the actual shared renderer; two contextual empty illustrations are live in their eligible product states. **Exact-head build, real device screenshot comparison, visual art-direction approval, all call-site coverage, dark/large-font/accessibility check remain distinct gates.** A successful compilation is not an accepted illustration family.
 
 **Quality review next:** render all 8 identity choices on an Android phone side-by-side in micro and hero; ensure the additional six meet the craft level of Window/Courtyard and none read as gender/identity inferred from account data; test missing/broken image fallback, restored saved variant, changed profile photo, deleted-account safety, and placement in all real surfaces. If rendering looks generic or too repetitive, reopen *making-of* research for contour and vector manufacturing rather than retreating to color tweaks. Keep production/deployment separate.
+
+## 19 October / next source-integrated art and photography pass
+
+**Implemented in actual native screens (not merely on the concept art board):**
+- `PlantupiaCareActionTile` now uses readable 13sp action text with 19sp line height, no `maxLines=2` clipping, and an adaptive minimum-height card. The existing production `plantupiaCareActionColumns` preserves two columns in narrow editors and at high font scale. `PlantupiaIllustrationFamilyPreview` now **uses that very same runtime policy**, rather than a misleading fixed three-column screenshot. Verify 320/360/390/430dp, 1.0×/1.5×/2.0× text and TalkBack.
+- Existing **plant without a photograph** has a distinct native `PlantupiaMissingPhotoMark` rather than `PlantupiaBrandGlyph` or the *no plants* illustration. This mark now appears in recent-moment cards and plant detail; the contact sheet includes all five distinct contexts (no space, first plant, blank notes, empty Circle, existing plant without media).
+- New `PlantupiaEvidencePhoto` draws the honest visual when a user's cover photo is absent, still loading or fails, and shows real media only after Coil succeeds. Recent moments and plant detail use it. The detail viewer click is available **only after a real nonempty photo URL loaded**, not on a broken image or placeholder. `PlantupiaEvidencePhotoPolicyTest` protects the deterministic viewer policy. True source/crop and stale URL behavior still need on-device / network QA.
+- Source audit found exactly **16 distinct native portrait VectorDrawable files**, two sizes for all eight saved styles, each containing an Android clip path. This is source inventory evidence, not screenshot-based art approval or evidence all 16 silhouettes are distinguishable.
+
+**System-level art rules reaffirmed:**
+1. A missing *place*, *plant*, *care history*, *public question*, or *photo of an existing plant* are five different meanings and must never share a misleading illustration.
+2. Illustrated possibility is not a real photo or observed plant record. On API unavailable/loading, do **not** show an empty state.
+3. At the visual checkpoint evaluate a whole family including selected/disabled/error states, action words and actual photographs, not an isolated image.
+4. A successful CI proves only source compilation/tests; visual/touch/contrast and actual device evidence remain separately required.
+
+**Still open:** visually art-direct all eight portrait silhouettes to the desired finish; inspect true Android rendering across screen/density sizes; finish all generic Nova visual remnants across non-core surfaces; unify genuine image/crop/history treatment and no-photo fallback elsewhere; test remote slow/deleted media and correct TalkBack hierarchy. No production migration, release or data clear in this pass.
