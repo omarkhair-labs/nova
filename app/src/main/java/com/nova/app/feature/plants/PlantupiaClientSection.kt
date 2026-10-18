@@ -719,6 +719,7 @@ private fun PlantupiaAccountClientSection(
                     if (sitePlants.isEmpty()) {
                         PlantupiaPanel {
                             val hasArchived = plants.any { it.spaceId == focused.id && !it.active }
+                            PlantupiaEmptyPlantArt(modifier = Modifier.fillMaxWidth().height(92.dp))
                             Text(
                                 if (hasArchived) "No active plants in this space" else "Your space is waiting for its first plant",
                                 color = forestText, fontWeight = FontWeight.Medium,
