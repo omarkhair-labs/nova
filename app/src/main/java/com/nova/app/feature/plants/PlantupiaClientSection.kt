@@ -689,7 +689,7 @@ private fun PlantupiaAccountClientSection(
                                                     .background(sage.copy(alpha = 0.23f), RoundedCornerShape(10.dp)),
                                                 contentAlignment = Alignment.Center,
                                             ) {
-                                                PlantupiaBrandGlyph(modifier = Modifier.height(46.dp).width(46.dp))
+                                                PlantupiaMissingPhotoMark(modifier = Modifier.size(54.dp))
                                             }
                                         }
                                         Text(
@@ -859,7 +859,7 @@ private fun PlantupiaAccountClientSection(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        PlantupiaBrandGlyph(modifier = Modifier.height(44.dp).width(44.dp))
+                        PlantupiaMissingPhotoMark(modifier = Modifier.size(52.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text("NO COVER PHOTO YET", style = PlantupiaText.sectionLabel)
                             Text(
