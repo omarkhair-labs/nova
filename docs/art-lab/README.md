@@ -33,6 +33,16 @@ All tiers must be three depictions of **the same selected account identity**; no
 
 **Device proof:** render true Compose 24/32/40/48/64/96dp (not just raster resize), real photo override, no-photo fallback, long display name, missing image, account switch, deleted account, 1× and 2× text, TalkBack. Compare identical inputs and capture screenshots on actual target Android. Preserve existing saved `plantupia_avatar_variant` values `-1..7` and original server account ID semantics.
 
+## First native implementation experiment — staged, not shipped
+
+Two separately named Android XML vectors are generated from our original SVG studies:
+- `app/src/main/res/drawable/plantupia_artlab_window.xml`
+- `app/src/main/res/drawable/plantupia_artlab_courtyard.xml`
+
+`app/src/main/java/com/nova/app/ui/components/PlantupiaPortraitArtLabPreview.kt` uses `painterResource` + Compose's actual current `PlantupiaAvatar` at **96dp and 40dp** to compare the two designs side-by-side in Android Studio. The comparator deliberately has **no route and no account state write**. Android build/VectorDrawable aapt validation on its exact commit SHA is pending, and an IDE Preview is *not* represented here as already captured on a physical device.
+
+**Technical caveat:** these native XML conversions trace the authored SVG path geometry and opacity with Android vector paths; Android's handling of clipping, antialiasing, joins and 32dp rasterization may differ from desktop SVG. Inspect and refine against actual preview renders before calling visual parity. If the import loses details, simplify the authoring curves or use a supported Compose drawing mechanism; never silently switch to bitmap output.
+
 ## Creative + technical next gate
 
 1. Compare portrait design against the **six existing care pictograms** in `PlantupiaVisualComponents.kt`, and original no-space/no-history states: thickness and detail can differ by semantic role, but each must feel authored by the same art direction, not a copied illustration set.
