@@ -9,9 +9,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -46,6 +49,7 @@ internal fun PlantupiaEvidencePhoto(
 ) {
     var photoLoaded by remember(photoUrl) { mutableStateOf(false) }
     var photoFailed by remember(photoUrl) { mutableStateOf(false) }
+    var retryIndex by remember(photoUrl) { mutableIntStateOf(0) }
     val photoCanOpen = canOpenPlantupiaPhoto(photoUrl, photoLoaded) && onOpenPhoto != null
 
     Box(
@@ -70,24 +74,41 @@ internal fun PlantupiaEvidencePhoto(
                     },
                     style = PlantupiaText.supporting,
                 )
+                // Keep the tiny Recent Moments card compact. The full plant
+                // detail can retry a failed media GET without mutating history
+                // or creating a new user upload.
+                if (photoFailed && onOpenPhoto != null) {
+                    TextButton(
+                        onClick = {
+                            photoFailed = false
+                            retryIndex += 1
+                        },
+                    ) {
+                        Text("Retry photo", color = PlantupiaColors.forest)
+                    }
+                }
             }
         }
 
         if (photoUrl.isNotBlank()) {
-            AsyncImage(
-                model = photoUrl,
-                contentDescription = if (photoLoaded) photoDescription else null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-                onSuccess = {
-                    photoLoaded = true
-                    photoFailed = false
-                },
-                onError = {
-                    photoLoaded = false
-                    photoFailed = true
-                },
-            )
+            // Force only the image request to restart on explicit Retry;
+            // the URL, account and private event are left untouched.
+            key(photoUrl, retryIndex) {
+                AsyncImage(
+                    model = photoUrl,
+                    contentDescription = if (photoLoaded) photoDescription else null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    onSuccess = {
+                        photoLoaded = true
+                        photoFailed = false
+                    },
+                    onError = {
+                        photoLoaded = false
+                        photoFailed = true
+                    },
+                )
+            }
         }
     }
 }
