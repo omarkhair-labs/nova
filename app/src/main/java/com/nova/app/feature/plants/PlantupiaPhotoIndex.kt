@@ -59,7 +59,8 @@ internal fun PlantupiaPhotoIndex(
                             photoDescription = "Photo recorded on " + photo.observedAt.take(10),
                             modifier = Modifier.fillMaxWidth().height(137.dp),
                             cornerRadius = 15.dp,
-                            onOpenPhoto = { onOpenPhoto(photo) },
+                            framing = PlantupiaPhotoFraming.FULL_RECORD,
+                    onOpenPhoto = { onOpenPhoto(photo) },
                         )
                         Text(
                             photo.observedAt.take(10),
