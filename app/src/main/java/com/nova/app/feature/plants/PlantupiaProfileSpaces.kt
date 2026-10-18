@@ -137,7 +137,7 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
                 // photography, inferred plant health or public profile publishing.
                 val photos = activePlants.filter { it.coverPhoto.isNotBlank() }
                     .distinctBy { it.coverPhoto }
-                    .take(6)
+                    .take(3)
 
                 Surface(
                     onClick = onOpenSpaces,
@@ -151,13 +151,12 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
                         verticalArrangement = Arrangement.spacedBy(13.dp),
                     ) {
                         Text(
-                            if (current.spaces.isEmpty()) "A place for your living records"
-                            else "The spaces you help care for",
+                            "Your private places",
                             style = PlantupiaText.editorialHeading,
                         )
                         if (current.spaces.isEmpty()) {
                             Text(
-                                "No spaces yet. Create a private space, then add plants, photos and care records.",
+                                "No spaces yet. Add a place to begin recording its plants and changes.",
                                 style = PlantupiaText.body,
                             )
                             EmptySpacesIllustration()
@@ -172,13 +171,13 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
                                         Surface(
                                             shape = PlantupiaShapes.inset,
                                             color = PlantupiaColors.cream,
-                                            modifier = Modifier.width(118.dp).height(144.dp),
+                                            modifier = Modifier.width(92.dp).height(110.dp),
                                         ) {
                                             Box(contentAlignment = Alignment.BottomStart) {
                                                 AsyncImage(
                                                     model = plant.coverPhoto,
                                                     contentDescription = "Private photo of ${plant.name}",
-                                                    modifier = Modifier.fillMaxWidth().height(144.dp),
+                                                    modifier = Modifier.fillMaxWidth().height(110.dp),
                                                     contentScale = ContentScale.Crop,
                                                 )
                                                 Surface(
@@ -236,12 +235,12 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
                 // A person may have added a plant from Home while their Profile
                 // remained composed. Allow an explicit fresh authenticated reload.
                 TextButton(onClick = { retry += 1 }) {
-                    Text("Refresh private spaces", color = PlantupiaColors.forest)
+                    Text("Refresh places", color = PlantupiaColors.forest)
                 }
             }
         }
         Text(
-            "Spaces, photos and care records are only visible to authorized people—not on your public profile.",
+            "Your place and care records stay separate from what you share publicly.",
             style = PlantupiaText.supporting,
         )
     }
