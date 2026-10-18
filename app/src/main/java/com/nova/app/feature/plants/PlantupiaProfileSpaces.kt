@@ -25,12 +25,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.plants.data.PlantupiaPlant
 import com.nova.app.feature.plants.data.PlantupiaRepository
@@ -180,11 +178,11 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
                                             modifier = Modifier.width(92.dp).height(110.dp),
                                         ) {
                                             Box(contentAlignment = Alignment.BottomStart) {
-                                                AsyncImage(
-                                                    model = plant.coverPhoto,
-                                                    contentDescription = "Private photo of ${plant.name}",
+                                                PlantupiaEvidencePhoto(
+                                                    photoUrl = plant.coverPhoto,
+                                                    photoDescription = "Private uploaded photo of ${plant.name}",
                                                     modifier = Modifier.fillMaxWidth().height(110.dp),
-                                                    contentScale = ContentScale.Crop,
+                                                    cornerRadius = 14.dp,
                                                 )
                                                 Surface(
                                                     color = PlantupiaColors.paper.copy(alpha = 0.92f),
