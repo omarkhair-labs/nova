@@ -114,4 +114,3 @@ Following the initial two-vector experiment, **all eight stored `0..7` portrait 
 **Open gates:** exact-head Android/Django CI, real source 404/timeout/offline recovery, user photo crop and full image gestures, TalkBack duplicate semantics in nested clickable rows, screenshots at 320–430dp and font scales 1/1.5/2, actual private-photo authorization in QA backend. No upload, server, release or historical record was mutated by these UI changes.
 
 **Next art-product system:** close the existing 8-character vector family and 5 honest illustration states via real Android contact sheets and device critique, then inspect typography/motion and place/history narrative rather than generating isolated screens.
-
