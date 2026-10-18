@@ -1,11 +1,14 @@
 package com.nova.app.feature.profile
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -54,13 +57,19 @@ internal fun PlantupiaMeIdentity(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = PlantupiaColors.paper,
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(26.dp),
         border = BorderStroke(1.dp, PlantupiaColors.border),
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 22.dp),
             verticalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
         ) {
+            Text(
+                text = "PUBLIC IDENTITY",
+                style = PlantupiaText.sectionLabel,
+                color = PlantupiaColors.forest,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -68,7 +77,7 @@ internal fun PlantupiaMeIdentity(
                 NovaAvatar(
                     source = avatarUrl,
                     fallbackText = displayName.ifBlank { username }.ifBlank { "Plantupia" },
-                    size = 64.dp,
+                    size = 80.dp,
                     plantupiaUserId = userId,
                     plantupiaAvatarVariant = avatarVariant,
                 )
@@ -84,7 +93,7 @@ internal fun PlantupiaMeIdentity(
                             text = displayName.ifBlank { username }.ifBlank { "Your profile" },
                             color = PlantupiaColors.forestText,
                             style = NovaType.sectionTitle,
-                            maxLines = 1,
+                            maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f, fill = false),
                         )
@@ -107,7 +116,13 @@ internal fun PlantupiaMeIdentity(
                 }
             }
             if (bio.isNotBlank()) {
-                Text(text = bio, style = PlantupiaText.body, color = PlantupiaColors.forestText)
+                Text(
+                    text = bio,
+                    style = PlantupiaText.body,
+                    color = PlantupiaColors.forestText,
+                    maxLines = 5,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
             if (location.isNotBlank()) {
                 Row(
@@ -145,12 +160,25 @@ internal fun PlantupiaMeIdentity(
                 }
             }
             if (interests.isNotEmpty()) {
-                Text(
-                    text = interests.joinToString(" · "),
-                    color = PlantupiaColors.forest,
-                    style = NovaType.micro,
-                    maxLines = 2,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(7.dp),
+                ) {
+                    interests.take(8).forEach { interest ->
+                        Surface(
+                            color = PlantupiaColors.softSage,
+                            shape = RoundedCornerShape(100.dp),
+                        ) {
+                            Text(
+                                text = interest,
+                                color = PlantupiaColors.forestText,
+                                style = PlantupiaText.supporting,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                maxLines = 1,
+                            )
+                        }
+                    }
+                }
             }
         }
     }
