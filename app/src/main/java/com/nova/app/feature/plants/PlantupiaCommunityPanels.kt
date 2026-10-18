@@ -379,11 +379,18 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text("PLANT QUESTIONS · REAL EXPERIENCES", color = green, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-        Text(
-            "Questions people chose to share. Your private plant records stay private.",
-            color = mutedGreen, fontSize = 12.sp, lineHeight = 18.sp,
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
+            Text("PLANT QUESTIONS", color = green, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            if (!pending && error == null && questions.isNotEmpty()) {
+                TextButton(onClick = { refresh++ }) {
+                    Text("Refresh", color = green, fontSize = 12.sp)
+                }
+            }
+        }
         if (pending) {
             Surface(color = parchment, shape = RoundedCornerShape(18.dp)) {
                 Row(
@@ -454,7 +461,6 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
                 )
             }
         }
-        if (questions.isNotEmpty()) TextButton(onClick = { refresh++ }) { Text("Refresh questions", color = green) }
     }
 }
 
