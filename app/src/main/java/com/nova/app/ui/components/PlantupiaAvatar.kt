@@ -1,7 +1,8 @@
 package com.nova.app.ui.components
 
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
@@ -11,29 +12,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import coil3.compose.AsyncImage
-import com.nova.app.feature.plants.PlantupiaColors
+import com.nova.app.R
 
 /**
- * Original, abstract person-first Plantupia identity family, not a fictional
- * plant portrait or a name-initial. NovaAvatar remains unchanged.
+ * Authored, human-first Plantupia identity.
+ *
+ * The eight choices are real native vector assets (not a name initial, a demo
+ * URL, or fake photographs). Every choice has its own designed full portrait
+ * and reduced-detail silhouette for 24-40dp. Photo always takes precedence.
+ *
+ * IMPORTANT: public API identity/saved -1..7 choices are not migrated.
  */
 internal data class PlantupiaAvatarStyle(val figure: Int, val palette: Int, val accent: Int)
 
-/**
- * The same person's silhouette is kept at every size. Tiny portraits need
- * architectural mass and outer contour; they cannot carry 1px facial detail.
- * Values are logical dp, not device pixels, so density does not change identity.
- */
 internal enum class PlantupiaPortraitDetail { Micro, Standard, Hero }
 
 internal fun plantupiaPortraitDetail(sizeDp: Float): PlantupiaPortraitDetail = when {
@@ -43,14 +40,31 @@ internal fun plantupiaPortraitDetail(sizeDp: Float): PlantupiaPortraitDetail = w
 }
 
 internal fun plantupiaAvatarStyle(userId: Long, chosenVariant: Int = -1): PlantupiaAvatarStyle {
-    // Immutable numeric API user ID gives a shared result across devices/screens.
     val id = userId.coerceAtLeast(0L)
     val figure = chosenVariant.takeIf { it in 0..7 } ?: Math.floorMod(id, 8L).toInt()
+    // Keep original selection/fallback mapping stable, even though the new
+    // authored asset kit owns each portrait's calibrated background palette.
     return PlantupiaAvatarStyle(
         figure = figure,
         palette = if (chosenVariant in 0..7) (figure * 3) % 5 else Math.floorMod(id / 8L + id, 5L).toInt(),
         accent = if (chosenVariant in 0..7) figure % 3 else Math.floorMod(id / 40L + id, 3L).toInt(),
     )
+}
+
+/** One resource mapping used by Me, Create, People, Posts, Circle and DM. */
+internal fun plantupiaPortraitResource(figure: Int, detail: PlantupiaPortraitDetail): Int {
+    val micro = detail == PlantupiaPortraitDetail.Micro
+    return when (figure) {
+        0 -> if (micro) R.drawable.plantupia_artlab_window_micro else R.drawable.plantupia_artlab_window
+        1 -> if (micro) R.drawable.plantupia_artlab_courtyard_micro else R.drawable.plantupia_artlab_courtyard
+        2 -> if (micro) R.drawable.plantupia_portrait_2_micro else R.drawable.plantupia_portrait_2_hero
+        3 -> if (micro) R.drawable.plantupia_portrait_3_micro else R.drawable.plantupia_portrait_3_hero
+        4 -> if (micro) R.drawable.plantupia_portrait_4_micro else R.drawable.plantupia_portrait_4_hero
+        5 -> if (micro) R.drawable.plantupia_portrait_5_micro else R.drawable.plantupia_portrait_5_hero
+        6 -> if (micro) R.drawable.plantupia_portrait_6_micro else R.drawable.plantupia_portrait_6_hero
+        7 -> if (micro) R.drawable.plantupia_portrait_7_micro else R.drawable.plantupia_portrait_7_hero
+        else -> if (micro) R.drawable.plantupia_artlab_window_micro else R.drawable.plantupia_artlab_window
+    }
 }
 
 @Composable
@@ -63,243 +77,23 @@ fun PlantupiaAvatar(
     chosenVariant: Int = -1,
 ) {
     val style = remember(userId, chosenVariant) { plantupiaAvatarStyle(userId, chosenVariant) }
-    val detail = plantupiaPortraitDetail(size.value)
+    val portrait = plantupiaPortraitResource(style.figure, plantupiaPortraitDetail(size.value))
     var photoLoaded by remember(photoUrl) { mutableStateOf(false) }
     val name = displayName.ifBlank { "this person" }
-    val backgrounds = listOf(
-        Color(0xFFF4E8D5), Color(0xFFDDE8DA), Color(0xFFE6E4D4),
-        Color(0xFFE1E8E2), Color(0xFFECDFC9),
-    )
-    val inks = listOf(
-        PlantupiaColors.forest, Color(0xFF526859), Color(0xFF536A66),
-        Color(0xFF725D4F), Color(0xFF4B6755),
-    )
+
     Box(
         modifier = modifier.size(size).clip(CircleShape).semantics(mergeDescendants = true) {
             contentDescription = if (photoLoaded) "Profile photo for $name" else "Profile illustration for $name"
         },
     ) {
-        Canvas(Modifier.matchParentSize()) {
-            val w = this.size.width
-            val h = this.size.height
-            val ink = inks[style.palette]
-            val bg = backgrounds[style.palette]
-            val shift = ((style.figure % 4) - 1.5f) * 0.027f
-            val cx = w * (0.50f + shift)
-            val cy = h * (0.41f + (style.figure / 4) * 0.018f)
-            val headRadius = w * (0.166f + (style.figure % 3) * 0.008f)
-            drawRect(bg)
-            // One botanical-architectural visual language, but deliberately
-            // different *compositions* so eight characters do not read as
-            // recolored versions of the same portrait at 32-48dp.
-            when (style.figure % 4) {
-                0 -> drawRoundRect(
-                    color = ink.copy(alpha = 0.22f),
-                    topLeft = Offset(w * 0.14f, h * 0.095f),
-                    size = Size(w * 0.72f, h * 0.82f),
-                    cornerRadius = CornerRadius(w * 0.34f),
-                    style = Stroke(width = w * 0.020f),
-                )
-                1 -> {
-                    // Twin lintels and asymmetrical architecture.
-                    drawLine(ink.copy(alpha = 0.24f), Offset(w * 0.11f, h * 0.28f), Offset(w * 0.87f, h * 0.28f), strokeWidth = w * 0.018f)
-                    drawLine(ink.copy(alpha = 0.23f), Offset(w * 0.21f, h * 0.11f), Offset(w * 0.21f, h * 0.85f), strokeWidth = w * 0.019f)
-                    drawLine(ink.copy(alpha = 0.20f), Offset(w * 0.84f, h * 0.18f), Offset(w * 0.84f, h * 0.80f), strokeWidth = w * 0.016f)
-                }
-                2 -> {
-                    drawOval(
-                        color = ink.copy(alpha = 0.16f),
-                        topLeft = Offset(w * 0.10f, h * 0.07f),
-                        size = Size(w * 0.80f, h * 0.82f),
-                        style = Stroke(width = w * 0.019f),
-                    )
-                    drawLine(ink.copy(alpha = 0.17f), Offset(w * 0.10f, h * 0.70f), Offset(w * 0.90f, h * 0.70f), strokeWidth = w * 0.014f)
-                }
-                else -> {
-                    drawRoundRect(
-                        color = ink.copy(alpha = 0.20f),
-                        topLeft = Offset(w * 0.19f, h * 0.105f),
-                        size = Size(w * 0.62f, h * 0.78f),
-                        cornerRadius = CornerRadius(w * 0.10f),
-                        style = Stroke(width = w * 0.019f),
-                    )
-                    drawLine(ink.copy(alpha = 0.18f), Offset(w * 0.11f, h * 0.62f), Offset(w * 0.87f, h * 0.62f), strokeWidth = w * 0.014f)
-                }
-            }
-            // Different coat/shoulder geometries without encoding a presumed
-            // gender, age, personality, culture or identity in account data.
-            val shoulderWidth = when (style.figure) {
-                0, 4 -> 0.72f
-                1, 5 -> 0.59f
-                2, 6 -> 0.80f
-                else -> 0.66f
-            }
-            val shoulderLeft = cx - w * shoulderWidth / 2f
-            drawRoundRect(
-                color = ink,
-                topLeft = Offset(shoulderLeft, h * (if (style.figure % 2 == 0) 0.70f else 0.73f)),
-                size = Size(w * shoulderWidth, h * 0.38f),
-                cornerRadius = CornerRadius(w * (if (style.figure % 3 == 0) 0.25f else 0.16f)),
-            )
-            drawRoundRect(
-                color = ink,
-                topLeft = Offset(cx - headRadius * 0.27f, h * 0.55f),
-                size = Size(headRadius * 0.54f, h * 0.19f),
-                cornerRadius = CornerRadius(w * 0.025f),
-            )
-            // Features are drawn, never inferred from a name or demographic data.
-            drawOval(
-                color = ink,
-                topLeft = Offset(cx - headRadius * 1.06f, cy - headRadius * 1.19f),
-                size = Size(headRadius * 2.12f, headRadius * 2.38f),
-            )
-            drawOval(
-                color = bg,
-                topLeft = Offset(cx - headRadius * 0.64f, cy - headRadius * 0.80f),
-                size = Size(headRadius * 1.28f, headRadius * 1.72f),
-            )
-            // Eight intentionally authored contour/garment combinations.
-            // Character differences are graphic choices, not inferred traits
-            // about anyone's face, age, gender or identity.
-            when (style.figure) {
-                0 -> {
-                    // Center-parted arc and a folded collar.
-                    drawLine(ink, Offset(cx, cy - h * 0.145f), Offset(cx - w * 0.11f, cy - h * 0.073f), strokeWidth = w * 0.034f)
-                    drawLine(ink, Offset(cx, cy - h * 0.145f), Offset(cx + w * 0.11f, cy - h * 0.073f), strokeWidth = w * 0.034f)
-                }
-                1 -> {
-                    // Rounded, cloud-like crown.
-                    for (dx in listOf(-0.10f, -0.045f, 0.025f, 0.095f)) {
-                        drawCircle(ink, radius = w * 0.040f, center = Offset(cx + dx * w, cy - h * 0.125f))
-                    }
-                }
-                2 -> {
-                    // A continuous low-brim arc.
-                    drawRoundRect(
-                        color = ink,
-                        topLeft = Offset(cx - w * 0.15f, cy - h * 0.12f),
-                        size = Size(w * 0.30f, h * 0.045f),
-                        cornerRadius = CornerRadius(w * 0.026f),
-                    )
-                    drawOval(
-                        color = ink,
-                        topLeft = Offset(cx - w * 0.112f, cy - h * 0.19f),
-                        size = Size(w * 0.224f, h * 0.095f),
-                    )
-                }
-                3 -> {
-                    // Angular side-swept geometry.
-                    drawLine(ink, Offset(cx - w * 0.12f, cy - h * 0.065f), Offset(cx + w * 0.12f, cy - h * 0.15f), strokeWidth = w * 0.045f)
-                    drawCircle(ink, radius = w * 0.039f, center = Offset(cx + w * 0.095f, cy - h * 0.13f))
-                }
-                4 -> {
-                    // Quiet frame/hood outline around the upper head.
-                    drawRoundRect(
-                        color = ink.copy(alpha = 0.9f),
-                        topLeft = Offset(cx - w * 0.148f, cy - h * 0.19f),
-                        size = Size(w * 0.296f, h * 0.31f),
-                        cornerRadius = CornerRadius(w * 0.12f),
-                        style = Stroke(width = w * 0.024f),
-                    )
-                }
-                5 -> {
-                    // Off-center raised crown.
-                    drawCircle(ink, radius = w * 0.067f, center = Offset(cx + w * 0.065f, cy - h * 0.193f))
-                    drawLine(ink, Offset(cx - w * 0.092f, cy - h * 0.102f), Offset(cx + w * 0.12f, cy - h * 0.116f), strokeWidth = w * 0.025f)
-                }
-                6 -> {
-                    // Horizontal band and rounded side contours.
-                    drawLine(ink, Offset(cx - w * 0.115f, cy - h * 0.125f), Offset(cx + w * 0.115f, cy - h * 0.125f), strokeWidth = w * 0.035f)
-                    drawCircle(ink, radius = w * 0.030f, center = Offset(cx - w * 0.105f, cy - h * 0.08f))
-                    drawCircle(ink, radius = w * 0.030f, center = Offset(cx + w * 0.105f, cy - h * 0.08f))
-                }
-                else -> {
-                    // Asymmetric arch-shaped silhouette at the face edge.
-                    drawOval(ink, topLeft = Offset(cx - w * 0.14f, cy - h * 0.185f), size = Size(w * 0.18f, h * 0.135f))
-                    drawLine(ink, Offset(cx + w * 0.045f, cy - h * 0.13f), Offset(cx + w * 0.12f, cy - h * 0.065f), strokeWidth = w * 0.036f)
-                }
-            }
-            // A second, readable difference below the face even at 32-48dp.
-            when (style.figure % 4) {
-                0 -> {
-                    drawLine(bg, Offset(cx - w * 0.12f, h * 0.75f), Offset(cx, h * 0.85f), strokeWidth = w * 0.017f)
-                    drawLine(bg, Offset(cx + w * 0.12f, h * 0.75f), Offset(cx, h * 0.85f), strokeWidth = w * 0.017f)
-                }
-                1 -> drawRoundRect(
-                    color = bg.copy(alpha = 0.9f),
-                    topLeft = Offset(cx - w * 0.095f, h * 0.75f),
-                    size = Size(w * 0.19f, h * 0.036f),
-                    cornerRadius = CornerRadius(w * 0.015f),
-                )
-                2 -> drawLine(bg, Offset(cx, h * 0.76f), Offset(cx, h * 0.97f), strokeWidth = w * 0.014f)
-                else -> {
-                    drawLine(bg, Offset(cx - w * 0.11f, h * 0.78f), Offset(cx + w * 0.11f, h * 0.78f), strokeWidth = w * 0.017f)
-                    drawCircle(bg, radius = w * 0.018f, center = Offset(cx, h * 0.835f))
-                }
-            }
-            if (detail != PlantupiaPortraitDetail.Micro) {
-            drawCircle(ink, radius = w * 0.011f, center = Offset(cx - w * 0.04f, cy))
-            drawCircle(ink, radius = w * 0.011f, center = Offset(cx + w * 0.04f, cy))
-            drawLine(
-                color = ink.copy(alpha = 0.65f),
-                start = Offset(cx - w * 0.026f, cy + h * 0.067f),
-                end = Offset(cx + w * 0.026f, cy + h * 0.067f),
-                strokeWidth = w * 0.011f,
-            )
-            }
-            // Garment marks complete the visual difference at small sizes.
-            // All detail remains graphic and user-selected, never inferred
-            // from the user's demographic traits.
-            when (style.figure) {
-                1, 5 -> {
-                    drawRoundRect(
-                        color = bg.copy(alpha = 0.90f),
-                        topLeft = Offset(cx - w * 0.13f, h * 0.80f),
-                        size = Size(w * 0.26f, h * 0.037f),
-                        cornerRadius = CornerRadius(w * 0.018f),
-                    )
-                }
-                2, 6 -> {
-                    drawLine(bg, Offset(cx - w * 0.18f, h * 0.79f), Offset(cx + w * 0.18f, h * 0.91f), strokeWidth = w * 0.025f)
-                }
-                3, 7 -> {
-                    drawLine(bg, Offset(cx - w * 0.12f, h * 0.80f), Offset(cx + w * 0.12f, h * 0.80f), strokeWidth = w * 0.018f)
-                    drawLine(bg, Offset(cx, h * 0.79f), Offset(cx, h * 0.99f), strokeWidth = w * 0.017f)
-                }
-            }
-            // Botanical signature stays around the human, never substitutes for them.
-            if (detail == PlantupiaPortraitDetail.Hero) {
-            val stemX = w * if (style.accent == 1) 0.17f else 0.83f
-            val leafX = w * if (style.accent == 1) 0.20f else 0.72f
-            val leafY = h * (0.25f + 0.045f * style.accent)
-            drawLine(
-                color = ink.copy(alpha = 0.8f),
-                start = Offset(stemX, h * 0.55f),
-                end = Offset(stemX, leafY),
-                strokeWidth = w * 0.019f,
-            )
-            drawOval(
-                color = ink.copy(alpha = 0.77f),
-                topLeft = Offset(leafX, leafY),
-                size = Size(w * 0.13f, h * 0.08f),
-            )
-            drawCircle(
-                color = PlantupiaColors.paper.copy(alpha = 0.75f),
-                radius = w * 0.018f,
-                center = Offset(w * 0.22f, h * 0.19f),
-            )
-            } else if (detail == PlantupiaPortraitDetail.Standard) {
-                // Keep the botanical signature as a single robust leaf at
-                // medium sizes; micro avatars omit it in favor of silhouette.
-                val accentX = if (style.accent == 1) 0.20f else 0.73f
-                drawOval(
-                    color = ink.copy(alpha = 0.8f),
-                    topLeft = Offset(w * accentX, h * 0.29f),
-                    size = Size(w * 0.115f, h * 0.073f),
-                )
-            }
-        }
-        // Authorized user photo wins. Missing/broken media reveals the stable illustration.
+        Image(
+            painter = painterResource(portrait),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.matchParentSize(),
+        )
+        // Never replace a real uploaded photo with an illustration when the
+        // image can be loaded. Offline/missing photos fall back to the same ID.
         if (photoUrl.isNotBlank()) {
             AsyncImage(
                 model = photoUrl,
