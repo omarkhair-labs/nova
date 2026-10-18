@@ -47,7 +47,7 @@ internal fun PlantupiaPhotoIndex(
         // The oldest *loaded* photo is not necessarily the first ever recorded.
         if (comparison != null) {
             Text(
-                "TWO RECORDED DATES · NO INFERRED GROWTH",
+                "TWO MOMENTS · SAME PLANT",
                 style = PlantupiaText.sectionLabel,
             )
             Row(
@@ -55,8 +55,8 @@ internal fun PlantupiaPhotoIndex(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 listOf(
-                    "EARLIER LOADED" to comparison.earlier,
-                    "LATEST LOADED" to comparison.later,
+                    "EARLIER RECORD" to comparison.earlier,
+                    "LATEST RECORD" to comparison.later,
                 ).forEach { (label, entry) ->
                     Surface(
                         color = PlantupiaColors.paper,
