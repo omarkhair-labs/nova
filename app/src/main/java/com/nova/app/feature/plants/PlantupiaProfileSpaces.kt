@@ -35,8 +35,6 @@ import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.plants.data.PlantupiaPlant
 import com.nova.app.feature.plants.data.PlantupiaRepository
 import com.nova.app.feature.plants.data.PlantupiaSpace
-import com.nova.app.ui.icons.NovaIcon
-import com.nova.app.ui.icons.NovaIconAsset
 
 private sealed interface PrivateSpacesSummary {
     data object Loading : PrivateSpacesSummary
@@ -83,11 +81,19 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
         }
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(
-            "PRIVATE SPACES",
-            style = PlantupiaText.sectionLabel,
-        )
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("YOUR LIVING PLACES · PRIVATE", style = PlantupiaText.sectionLabel)
+            if (state is PrivateSpacesSummary.Loaded) {
+                TextButton(onClick = { retry += 1 }) {
+                    Text("Refresh", color = PlantupiaColors.forest)
+                }
+            }
+        }
         when (val current = state) {
             PrivateSpacesSummary.Loading -> {
                 Surface(
@@ -223,19 +229,13 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
                                 color = PlantupiaColors.forest,
                                 style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
                             )
-                            NovaIcon(
-                                asset = NovaIconAsset.Back,
-                                contentDescription = null,
-                                modifier = Modifier.size(19.dp),
-                                tint = PlantupiaColors.forest,
+                            Text(
+                                "→",
+                                color = PlantupiaColors.forest,
+                                style = PlantupiaText.editorialHeading,
                             )
                         }
                     }
-                }
-                // A person may have added a plant from Home while their Profile
-                // remained composed. Allow an explicit fresh authenticated reload.
-                TextButton(onClick = { retry += 1 }) {
-                    Text("Refresh places", color = PlantupiaColors.forest)
                 }
             }
         }
