@@ -69,3 +69,15 @@ Visual briefs needed: (A) person identity across 10+ placements; (B) photographi
 
 ## Change/decision discipline
 For every uncertain choice record **observation -> reference/brief -> alternatives -> decision for this increment -> native implementation -> measured QA -> revise**. Do not make previous Markdown, a single award/reference, or assistant preference a permanent rule. Changes affecting production, user data, new package/signing/Play or deleting existing media require explicit separate approval.
+
+## 18 October follow-up implementation / evidence (CI + physical QA still required)
+
+The native code increment after the initial Edit/Profile cleanup includes:
+- `PlantupiaAvatar.kt`: four distinct authored spatial backdrops, shoulder proportions and additional clothing geometry across the original eight deterministic identity variants. No demographic inference or generated photographic evidence, same stable ID and photo priority. Artwork still needs small-size and real-device owner critique.
+- `PlantupiaProfileSpaces.kt`: compact private-place header, smaller honest photo rail, contextual inline refresh and correct forward affordance. The refresh action is retained while navigation/return invalidation remains unverified.
+- `PersonScreen.kt`: social counters and private feed now wait for confirmed server visibility; follow controls fail closed on uncertain access, with explicit retry. Report/Block remain available but visually secondary, after shared content. Messaging/calling engines untouched.
+- `PlantupiaRepository.kt` and `PlantupiaCommunityPanels.kt`: public Circle questions now parse the Nova Post author's immutable public ID, authorized avatar URL and chosen avatar variant, then render the same 40dp person illustration or uploaded portrait as elsewhere. A deleted/unknown account gets a neutral non-identifying placeholder; no private-space/plant media is pulled into public Circle.
+- `PlantupiaCirclePresentationTest.kt`: verifies the known/current public-author-only avatar rule. Final exact-HEAD Android CI is the compile/test gate.
+- Read-only server evidence: QA build host routes to `240.zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io`, while non-QA remains on the Nova domain. Both DNS lookups from the review environment failed, so this is **not** evidence of server downtime; external web read also could not reach the QA host. Backend source has `event-submissions`, `question-submissions` and `can_add_plant`, but there is **no authenticated live Oracle QA contract proof**. Do not mark server compatibility repaired.
+
+**Still open:** QA host/runtime migration verification and account role tests, Photo Picker/process death, visual/device acceptance, two-account avatar propagation, Circle/Media story behavior, call support context, privacy/deletion/release policy and exact-head green CI. Keep PR #241 Draft and do not promote production, install over unrecovered submissions, or claim the Android app has shipped.
