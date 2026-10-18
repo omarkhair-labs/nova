@@ -18,8 +18,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -43,9 +41,6 @@ import com.nova.app.ui.components.PlantupiaAvatar
 import com.nova.app.feature.plants.PlantupiaColors
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaMuted
-import com.nova.app.ui.theme.NovaInk
-import com.nova.app.ui.theme.NovaAccentSoft
-import com.nova.app.ui.theme.NovaBorder
 
 @Composable
 fun EditProfileScreen(
@@ -73,9 +68,7 @@ fun EditProfileScreen(
     var profileLocation by remember(location) { mutableStateOf(location) }
     var profileLink by remember(link) { mutableStateOf(link) }
     var interestsText by remember(interests) { mutableStateOf(interests.joinToString(", ")) }
-    var selectedTheme by remember(profileTheme) { mutableStateOf(profileTheme) }
     var selectedAvatarVariant by remember(userId, avatarVariant) { mutableStateOf(avatarVariant) }
-    var orbitVisible by remember(showOrbit) { mutableStateOf(showOrbit) }
     val linkError = if (
         profileLink.isNotBlank() && normalizedProfileExternalUrl(profileLink) == null
     ) {
@@ -93,8 +86,8 @@ fun EditProfileScreen(
     BackHandler(enabled = isLoading) { }
 
     NovaKeyboardAwareFormPage(
-        title = "Edit Profile",
-        subtitle = "Choose how you appear in the Plantupia community.",
+        title = "Your public identity",
+        subtitle = "Choose what people see about you. Your private spaces and care records stay separate.",
         onBack = onBack,
         action = {
             val visibleError = errorMessage ?: linkError
@@ -121,8 +114,8 @@ fun EditProfileScreen(
                         profileLocation.trim(),
                         profileLink.trim(),
                         interestsText.split(',').map { it.trim() }.filter { it.isNotBlank() }.distinct().take(8),
-                        selectedTheme,
-                        orbitVisible,
+                        profileTheme,
+                        showOrbit,
                         selectedAvatarVariant,
                     )
                 },
@@ -132,8 +125,16 @@ fun EditProfileScreen(
             )
         },
     ) {
-        Spacer(modifier = Modifier.height(26.dp))
-
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            "PUBLIC PREVIEW",
+            color = PlantupiaColors.forest,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        // The real Plantupia public identity is used here and for profile visitors.
+        // Legacy theme/orbit settings are passed through unchanged, never silently reset.
         NovaProfileIdentity(
             displayName = name,
             username = handle,
@@ -142,8 +143,8 @@ fun EditProfileScreen(
             location = profileLocation,
             link = profileLink,
             interests = interestsText.split(',').map(String::trim).filter(String::isNotBlank).take(8),
-            profileTheme = selectedTheme,
-            showOrbit = orbitVisible,
+            profileTheme = profileTheme,
+            showOrbit = showOrbit,
             isVerified = isVerified,
             plantupiaIdentityId = userId,
             plantupiaAvatarVariant = selectedAvatarVariant,
@@ -163,13 +164,13 @@ fun EditProfileScreen(
 
         Spacer(modifier = Modifier.height(18.dp))
         Text(
-            "YOUR ILLUSTRATED IDENTITY",
+            "CHOOSE AN ILLUSTRATION",
             color = PlantupiaColors.forest,
             fontWeight = FontWeight.SemiBold,
             fontSize = 12.sp,
         )
         Text(
-            "Choose a character for when you have no photo. The choice saves to your account.",
+            "Use any of these identities when you do not upload a photo. No illustration assumes your gender or personality.",
             color = NovaMuted,
             fontSize = 12.sp,
         )
@@ -205,7 +206,7 @@ fun EditProfileScreen(
                             chosenVariant = variant,
                         )
                         Text(
-                            if (variant == -1) "Original" else "No. ${variant + 1}",
+                            if (variant == -1) "Default" else "Style ${variant + 1}",
                             color = PlantupiaColors.forestText,
                             fontSize = 11.sp,
                         )
@@ -221,7 +222,14 @@ fun EditProfileScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(22.dp))
+        Text(
+            "ABOUT YOU",
+            color = PlantupiaColors.forest,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
         NovaTextField(
             value = name,
             onValueChange = { name = it.take(80) },
@@ -238,11 +246,24 @@ fun EditProfileScreen(
             value = profileBio,
             onValueChange = { profileBio = it.take(160) },
             label = "Bio",
-            placeholder = "Collecting moments, not things.",
+            placeholder = "A little about you and what interests you.",
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
         )
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(20.dp))
+        Text(
+            "OPTIONAL PUBLIC DETAILS",
+            color = PlantupiaColors.forest,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            "Location, links and interests can be seen by other people. Leave them empty if you prefer.",
+            color = NovaMuted,
+            fontSize = 12.sp,
+            lineHeight = 18.sp,
+        )
+        Spacer(modifier = Modifier.height(10.dp))
         NovaTextField(
             value = profileLocation,
             onValueChange = { profileLocation = it.take(80) },
@@ -265,7 +286,7 @@ fun EditProfileScreen(
             value = interestsText,
             onValueChange = { interestsText = it.take(200) },
             label = "Interests",
-            placeholder = "Photography, Travel, Design",
+            placeholder = "Gardens, architecture, photography",
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
         )
         Text(
@@ -275,61 +296,9 @@ fun EditProfileScreen(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        Spacer(modifier = Modifier.height(18.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            androidx.compose.foundation.layout.Column {
-                Text("Show my circle", color = NovaInk, fontWeight = FontWeight.SemiBold)
-                Text("Let people see your circle treatment.", color = NovaMuted, fontSize = 12.sp)
-            }
-            Switch(
-                checked = orbitVisible,
-                onCheckedChange = { orbitVisible = it },
-                colors = SwitchDefaults.colors(checkedTrackColor = NovaAccent),
-            )
-        }
-
-        Spacer(modifier = Modifier.height(18.dp))
-        Text("Profile theme", color = NovaInk, fontWeight = FontWeight.SemiBold)
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            listOf("violet", "cyan", "orange", "pink", "slate", "ink", "black").forEach { theme ->
-                Surface(
-                    onClick = { selectedTheme = theme },
-                    shape = RoundedCornerShape(999.dp),
-                    color = if (selectedTheme == theme) NovaAccentSoft else androidx.compose.ui.graphics.Color.Transparent,
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.dp,
-                        if (selectedTheme == theme) NovaAccent else NovaBorder,
-                    ),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(7.dp),
-                    ) {
-                        Surface(
-                            modifier = Modifier.size(10.dp),
-                            shape = RoundedCornerShape(999.dp),
-                            color = novaProfileThemePalette(theme).accent,
-                        ) { }
-                        Text(
-                            text = theme.replaceFirstChar { it.uppercase() },
-                            color = if (selectedTheme == theme) NovaAccent else NovaInk,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                        )
-                    }
-                }
-            }
-        }
-
+        // Nova's old circle switch and accent-theme chooser are deliberately
+        // absent from this Plantupia editor. Persist the existing API values
+        // unchanged until a consented profile-schema migration is designed.
         Spacer(modifier = Modifier.height(14.dp))
 
         NovaTextField(
