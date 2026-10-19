@@ -2,7 +2,6 @@ package com.nova.app.feature.profile
 
 import android.content.Intent
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,7 +19,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nova.app.SettingsActivity
 import com.nova.app.SocialGraphActivity
@@ -40,11 +38,7 @@ import com.nova.app.ui.components.NovaPagedProfilePostsGrid
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.components.NovaTab
 import com.nova.app.ui.icons.NovaIconAsset
-import com.nova.app.ui.theme.NovaBackground
-import com.nova.app.ui.theme.NovaInk
-import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSpacing
-import com.nova.app.ui.theme.NovaType
 
 @Composable
 fun ProfileScreen(
@@ -108,7 +102,7 @@ fun ProfileScreen(
             ) {
                 Column {
                     Text(text = "PLANTUPIA / ME", style = PlantupiaText.sectionLabel)
-                    Text(text = "Your profile", style = NovaType.sectionTitle.copy(color = PlantupiaColors.forestText))
+                    Text(text = "Your profile", style = PlantupiaText.editorialHeading)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box {
@@ -158,30 +152,18 @@ fun ProfileScreen(
             PlantupiaProfileSpaces(accountId = userId, onOpenSpaces = onHomeClick)
 
             Spacer(modifier = Modifier.height(NovaSpacing.lg))
-            Text("SHARED MOMENTS & CONNECTIONS", style = PlantupiaText.sectionLabel)
+            PlantupiaProfileSectionHeading(
+                eyebrow = "SHARED MOMENTS",
+                description = "What you choose to make public, separate from your private plants and care.",
+            )
             Spacer(modifier = Modifier.height(NovaSpacing.sm))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-            ) {
-                ProfileStat(
-                    postsCount.toString(),
-                    "Moments",
-                    Modifier.weight(1f),
-                )
-                ProfileStat(
-                    followersCount.toString(),
-                    "Followers",
-                    Modifier.weight(1f),
-                    onClick = { openSocialGraph(MODE_FOLLOWERS) },
-                )
-                ProfileStat(
-                    followingCount.toString(),
-                    "Following",
-                    Modifier.weight(1f),
-                    onClick = { openSocialGraph(MODE_FOLLOWING) },
-                )
-            }
+            PlantupiaProfileSocialStats(
+                moments = postsCount,
+                followers = followersCount,
+                following = followingCount,
+                onFollowersClick = { openSocialGraph(MODE_FOLLOWERS) },
+                onFollowingClick = { openSocialGraph(MODE_FOLLOWING) },
+            )
 
             Spacer(modifier = Modifier.height(NovaSpacing.md))
             NovaPagedProfilePostsGrid(
@@ -197,25 +179,3 @@ fun ProfileScreen(
     }
 }
 
-@Composable
-private fun ProfileStat(
-    value: String,
-    label: String,
-    modifier: Modifier = Modifier,
-    onClick: (() -> Unit)? = null,
-) {
-    Column(
-        modifier = modifier
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(vertical = NovaSpacing.xs),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = value,
-            color = NovaInk,
-            style = NovaType.title.copy(fontWeight = FontWeight.Bold),
-        )
-        Spacer(modifier = Modifier.height(NovaSpacing.xxs))
-        Text(text = label, color = NovaMuted, style = NovaType.micro)
-    }
-}
