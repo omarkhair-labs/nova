@@ -58,7 +58,16 @@ class PeopleStateOwner(
         val query = raw.take(40)
         if (query == state.query) return
         requestVersion += 1
-        state = state.copy(query = query)
+        // A fresh search must not show people from the previous query,
+        // nor let the old page's privacy map authorize the new results.
+        state = state.copy(
+            query = query,
+            people = emptyList(),
+            privacyByUserId = emptyMap(),
+            nextCursor = null,
+            firstPageLoading = true,
+            pagingError = null,
+        )
         scheduleQueryLoad()
     }
 
