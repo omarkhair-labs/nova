@@ -8,12 +8,12 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -169,11 +169,14 @@ fun EditProfileScreen(
             color = NovaMuted,
             fontSize = 12.sp,
         )
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        // Only compose the visible portraits. The previous eager Row
+        // inflated all nine VectorDrawable previews on every edit-screen
+        // entry, before someone even chose to scroll the portrait picker.
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            (-1..7).forEach { variant ->
+            items(items = (-1..7).toList(), key = { it }) { variant ->
                 val chosen = selectedAvatarVariant == variant
                 Surface(
                     onClick = { selectedAvatarVariant = variant },
