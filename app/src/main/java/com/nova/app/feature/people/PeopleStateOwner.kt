@@ -130,7 +130,7 @@ class PeopleStateOwner(
                 if (version != requestVersion) return
                 state = state.copy(
                     people = if (reset) {
-                        result.value.people
+                        normalizeDiscoverPeople(result.value.people)
                     } else {
                         mergePeoplePage(state.people, result.value.people)
                     },
@@ -271,10 +271,23 @@ class PeopleStateOwner(
 }
 
 
+/**
+ * Compose LazyColumn uses person.id as an item key. A malformed/duplicate
+ * discovery response (especially missing id -> 0) must never take down the
+ * entire UI. Do not invent an ID or let two accounts share one row key.
+ */
+internal fun normalizeDiscoverPeople(people: List<NovaPerson>): List<NovaPerson> {
+    val seenIds = mutableSetOf<Long>()
+    val seenHandles = mutableSetOf<String>()
+    return people.filter { person ->
+        val handle = person.username.trim().lowercase()
+        person.id > 0L && handle.isNotEmpty() &&
+            person.id !in seenIds && handle !in seenHandles &&
+            seenIds.add(person.id) && seenHandles.add(handle)
+    }
+}
+
 internal fun mergePeoplePage(
     existing: List<NovaPerson>,
     incoming: List<NovaPerson>,
-): List<NovaPerson> {
-    val existingIds = existing.mapTo(mutableSetOf()) { it.id }
-    return existing + incoming.filterNot { it.id in existingIds }
-}
+): List<NovaPerson> = normalizeDiscoverPeople(existing + incoming)
