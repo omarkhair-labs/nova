@@ -267,3 +267,56 @@ internal fun PlantupiaMissingPhotoMark(modifier: Modifier = Modifier) {
         )
     }
 }
+
+/**
+ * A place for people to *arrive*, not a claim that any person has joined.
+ * Two open architectural thresholds share one grounded botanical element.
+ * Distinct from Q&A, missing photograph, and empty plant inventory art.
+ */
+@Composable
+internal fun PlantupiaEmptyPeopleArt(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.clearAndSetSemantics { }) {
+        val w = size.width
+        val h = size.height
+        val ink = PlantupiaColors.forest
+        val leaf = PlantupiaColors.mutedSage
+        val s = size.minDimension
+        val stroke = (s * .025f).coerceAtLeast(1f)
+        drawRoundRect(
+            color = ink.copy(alpha = .48f),
+            topLeft = Offset(w * .19f, h * .09f),
+            size = Size(w * .27f, h * .74f),
+            cornerRadius = CornerRadius(s * .28f, s * .28f),
+            style = Stroke(width = stroke),
+        )
+        drawRoundRect(
+            color = ink.copy(alpha = .25f),
+            topLeft = Offset(w * .54f, h * .20f),
+            size = Size(w * .27f, h * .63f),
+            cornerRadius = CornerRadius(s * .26f, s * .26f),
+            style = Stroke(width = stroke),
+        )
+        drawLine(
+            color = ink.copy(alpha = .30f),
+            start = Offset(w * .12f, h * .85f),
+            end = Offset(w * .88f, h * .85f),
+            strokeWidth = stroke,
+        )
+        drawLine(
+            color = leaf,
+            start = Offset(w * .50f, h * .84f),
+            end = Offset(w * .50f, h * .38f),
+            strokeWidth = stroke * 1.2f,
+        )
+        drawOval(
+            color = leaf,
+            topLeft = Offset(w * .38f, h * .41f),
+            size = Size(w * .115f, h * .13f),
+        )
+        drawOval(
+            color = leaf,
+            topLeft = Offset(w * .51f, h * .32f),
+            size = Size(w * .13f, h * .14f),
+        )
+    }
+}
