@@ -401,6 +401,22 @@ for legacy_usage in (
     if legacy_usage in activity:
         errors.append(f"CallActivity restored legacy communication icon usage: {legacy_usage}")
 
+# Plantupia's public-facing profile contract is one intentionally shared
+# moments section. The Nova Reels/Reposts implementation may remain for data
+# compatibility, but must not be surfaced by Me or visited Person routes.
+PERSON_SCREEN = MAIN / "com/nova/app/feature/people/PersonScreen.kt"
+CONTENT_TABS = MAIN / "com/nova/app/ui/components/NovaProfileContentTabs.kt"
+PAGED_GRID = MAIN / "com/nova/app/ui/components/NovaPagedProfilePostsGrid.kt"
+for profile_path in (PROFILE_SCREEN, PERSON_SCREEN):
+    source = profile_path.read_text(encoding="utf-8")
+    if "plantupiaMomentsOnly = true" not in source:
+        errors.append(f"{profile_path.name} restored Nova's Reels/Posts/Reposts profile tabs")
+tabs_source = CONTENT_TABS.read_text(encoding="utf-8")
+if "if (plantupiaMomentsOnly)" not in tabs_source or "ProfilePosts(" not in tabs_source:
+    errors.append("Plantupia single-moments display path is missing")
+if PAGED_GRID.read_text(encoding="utf-8").count("plantupiaMomentsOnly = plantupiaMomentsOnly") != 2:
+    errors.append("Both owner and visitor paging wrappers must forward Plantupia moments mode")
+
 if errors:
     print("Shared UI architecture check failed:")
     for error in errors:
