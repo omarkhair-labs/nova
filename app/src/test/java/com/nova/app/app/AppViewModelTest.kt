@@ -61,6 +61,47 @@ class AppViewModelTest {
     }
 
     @Test
+    fun transientBootstrapFailurePreservesActiveCachedSessionInsteadOfKickingUserOut() = runBlocking {
+        val cached = user("cached")
+        val model = viewModel(
+            cachedUser = { cached },
+            hasStoredSession = { true },
+            restore = { ApiResult.Failure("QA server temporarily unreachable", statusCode = 503) },
+        )
+        assertEquals(true, model.hydrateCachedSession())
+        model.bootstrapSession()
+        assertEquals(cached, model.state.currentUser)
+        assertFalse(model.state.isBootstrapping)
+    }
+
+    @Test
+    fun expiredOrSwitchedSessionCannotKeepStaleCachedIdentityOnBootstrap() = runBlocking {
+        for (status in listOf(401, 409)) {
+            val cached = user("cached")
+            val model = viewModel(
+                cachedUser = { cached },
+                hasStoredSession = { true },
+                restore = { ApiResult.Failure("Session invalid", statusCode = status) },
+            )
+            model.hydrateCachedSession()
+            model.bootstrapSession()
+            assertNull(model.state.currentUser)
+        }
+    }
+
+    @Test
+    fun missingPersistedLoginNeverPretendsAStaleCachedUserIsAuthenticated() = runBlocking {
+        val model = viewModel(
+            cachedUser = { user("cached") },
+            hasStoredSession = { false },
+            restore = { ApiResult.Failure("Offline", statusCode = 503) },
+        )
+        model.hydrateCachedSession()
+        model.bootstrapSession()
+        assertNull(model.state.currentUser)
+    }
+
+    @Test
     fun logoutWhileCachedSessionValidationIsInFlightCannotRestoreTheOldAccount() = runBlocking {
         val cached = user("cached")
         val validation = CompletableDeferred<ApiResult<NovaUser?>>()
