@@ -1,9 +1,11 @@
 package com.nova.app
 
 import android.content.Intent
+import android.content.ActivityNotFoundException
 import android.net.Uri
 import android.graphics.Color
 import android.os.Bundle
+import android.widget.Toast
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -71,8 +73,23 @@ class SettingsActivity : ComponentActivity() {
         val username = appContainer.currentCachedUsername()
         val appVersion = packageManager.getPackageInfo(packageName, 0).versionName ?: ""
 
+        // QA devices often have no configured email client or browser app.
+        // An unsupported external Intent must never crash the Plantupia task.
+        fun launchOptionalExternal(intent: Intent, unavailableMessage: String) {
+            try {
+                startActivity(intent)
+            } catch (_: ActivityNotFoundException) {
+                Toast.makeText(this, unavailableMessage, Toast.LENGTH_LONG).show()
+            } catch (_: SecurityException) {
+                Toast.makeText(this, unavailableMessage, Toast.LENGTH_LONG).show()
+            }
+        }
+
         fun openExternalUrl(url: String) {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            launchOptionalExternal(
+                Intent(Intent.ACTION_VIEW, Uri.parse(url)),
+                "No browser available to open this link.",
+            )
         }
 
         setContent {
@@ -106,14 +123,18 @@ class SettingsActivity : ComponentActivity() {
                         )
                     },
                     onDataStorage = {
-                        startActivity(
+                        launchOptionalExternal(
                             Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                                 data = Uri.parse("package:$packageName")
-                            }
+                            },
+                            "Device settings could not be opened.",
                         )
                     },
                     onHelpSupport = {
-                        startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$SUPPORT_EMAIL?subject=Plantupia%20support")))
+                        launchOptionalExternal(
+                            Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$SUPPORT_EMAIL?subject=Plantupia%20support")),
+                            "No email app is available. Support address: $SUPPORT_EMAIL",
+                        )
                     },
                     onTonight = {
                         NovaRootNavigationSignal.requestTonight()
