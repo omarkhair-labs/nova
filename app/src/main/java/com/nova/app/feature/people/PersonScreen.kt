@@ -58,6 +58,9 @@ import com.nova.app.ui.components.NovaPagedProfilePostsGrid
 import com.nova.app.ui.components.NovaPrimaryButton
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.feature.profile.NovaProfileIdentity
+import com.nova.app.feature.profile.PlantupiaProfileSectionHeading
+import com.nova.app.feature.profile.PlantupiaProfileSocialStats
+import com.nova.app.feature.plants.PlantupiaText
 import com.nova.app.feature.plants.PlantupiaColors
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
@@ -459,39 +462,13 @@ fun PersonScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 if (privacyResolved && privacyState.canViewContent) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
-                    color = PlantupiaColors.paper,
-                    border = BorderStroke(1.dp, PlantupiaColors.border),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(vertical = 20.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                    ) {
-                        SocialStat(
-                            value = person.followersCount.toString(),
-                            label = "followers",
-                            modifier = Modifier.weight(1f),
-                            onClick = if (privacyResolved && privacyState.canViewContent) {
-                                { openSocialGraph(person, MODE_FOLLOWERS) }
-                            } else null,
-                        )
-                        SocialStat(
-                            value = person.followingCount.toString(),
-                            label = "following",
-                            modifier = Modifier.weight(1f),
-                            onClick = if (privacyResolved && privacyState.canViewContent) {
-                                { openSocialGraph(person, MODE_FOLLOWING) }
-                            } else null,
-                        )
-                        SocialStat(
-                            value = person.postsCount.toString(),
-                            label = "posts",
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                }
+                    PlantupiaProfileSocialStats(
+                        moments = person.postsCount,
+                        followers = person.followersCount,
+                        following = person.followingCount,
+                        onFollowersClick = { openSocialGraph(person, MODE_FOLLOWERS) },
+                        onFollowingClick = { openSocialGraph(person, MODE_FOLLOWING) },
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(18.dp))
@@ -529,14 +506,11 @@ fun PersonScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                 }
 
-                Text(
-                    "CONNECT",
-                    color = PlantupiaColors.forest,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
+                PlantupiaProfileSectionHeading(
+                    eyebrow = "CONNECT",
+                    description = "A conversation begins with a choice, not an obligation.",
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 when {
                     !privacyResolved -> {
@@ -633,11 +607,9 @@ fun PersonScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 if (privacyResolved && privacyState.canViewContent) {
-                    Text(
-                        "SHARED MOMENTS",
-                        color = PlantupiaColors.forest,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
+                    PlantupiaProfileSectionHeading(
+                        eyebrow = "SHARED MOMENTS",
+                        description = "Only what @${person.username} has chosen to share.",
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     NovaPagedProfilePostsGrid(
@@ -647,7 +619,7 @@ fun PersonScreen(
                         errorMessage = postsError,
                         onRetry = onRetryPosts,
                         onPostClick = onPostClick,
-                        emptyTitle = "No posts yet",
+                        emptyTitle = "No shared moments yet",
                         emptyMessage = "When @${person.username} shares a moment, it will appear here.",
                         plantupiaMomentsOnly = true,
                     )
@@ -723,29 +695,3 @@ fun PersonScreen(
     }
 }
 
-@Composable
-private fun SocialStat(
-    value: String,
-    label: String,
-    modifier: Modifier = Modifier,
-    onClick: (() -> Unit)? = null,
-) {
-    Column(
-        modifier = modifier
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(vertical = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = value,
-            color = NovaInk,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            text = label,
-            color = NovaMuted,
-            fontSize = 12.sp,
-        )
-    }
-}
