@@ -52,7 +52,14 @@ class AppViewModel internal constructor(
             )
 
             is ApiResult.Failure -> state.copy(
-                currentUser = null,
+                // A temporary QA/network failure is NOT a logout. Preserve a
+                // valid hydrated account while local credentials still exist.
+                // 401 and 409 (invalid or switched login) must fail closed.
+                currentUser = if (
+                    restored.statusCode == 401 ||
+                    restored.statusCode == 409 ||
+                    !hasStoredSession()
+                ) null else state.currentUser,
                 isBootstrapping = false,
             )
         }
