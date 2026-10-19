@@ -648,7 +648,8 @@ fun PersonScreen(
                         onRetry = onRetryPosts,
                         onPostClick = onPostClick,
                         emptyTitle = "No posts yet",
-                        emptyMessage = "When @${person.username} shares something, it will appear here.",
+                        emptyMessage = "When @${person.username} shares a moment, it will appear here.",
+                        plantupiaMomentsOnly = true,
                     )
                 } else {
                     Surface(
