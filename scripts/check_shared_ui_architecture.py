@@ -241,7 +241,15 @@ for file_name, surface_text in (
 # Plantupia Me intentionally replaces the legacy violet Nova identity slab while
 # keeping the real authenticated avatar, profile content, follow graph and UI tokens.
 # Protect the NEW owning component and native composition, not an obsolete look.
-for seam in ("PlantupiaMeIdentity(", "PlantupiaProfileSpaces(", "NovaPagedProfilePostsGrid(", "NovaType.sectionTitle", "NovaSpacing.lg"):
+for seam in (
+    "PlantupiaMeIdentity(",
+    "PlantupiaProfileSpaces(",
+    "PlantupiaProfileSectionHeading(",
+    "PlantupiaProfileSocialStats(",
+    "plantupiaMomentsOnly = true",
+    "NovaPagedProfilePostsGrid(",
+    "NovaSpacing.lg",
+):
     if seam not in profile_text:
         errors.append(f"Profile bypassed Plantupia Me/privacy/community composition: {seam}")
 new_identity = MAIN / "com/nova/app/feature/profile/PlantupiaMeIdentity.kt"
@@ -256,7 +264,9 @@ else:
 home_text = HOME_SCREEN.read_text(encoding="utf-8")
 for seam in (
     "HomeIdentityHeader(",
-    "NovaCard(",
+    "PlantupiaColors.cream",
+    "PlantupiaShapes.inset",
+    "THE CIRCLE",
     "NovaLoadingState(",
     "NovaErrorState(",
     "NovaEmptyState(",
@@ -276,7 +286,7 @@ else:
     for seam in (
         "PlantupiaBrandGlyph(",
         "NovaType.display",
-        "NovaType.meta",
+        "PlantupiaText.editorialHeading",
         "NovaIconAsset.Search",
         "NovaIconAsset.Notifications",
         "NovaAvatar(",
@@ -409,6 +419,15 @@ for legacy_usage in (
 # moments section. The Nova Reels/Reposts implementation may remain for data
 # compatibility, but must not be surfaced by Me or visited Person routes.
 PERSON_SCREEN = MAIN / "com/nova/app/feature/people/PersonScreen.kt"
+visitor_profile_text = PERSON_SCREEN.read_text(encoding="utf-8")
+for seam in (
+    "PlantupiaProfileSectionHeading(",
+    "PlantupiaProfileSocialStats(",
+    "plantupiaMomentsOnly = true",
+    "privacyResolved && privacyState.canViewContent",
+):
+    if seam not in visitor_profile_text:
+        errors.append(f"Visitor profile lost Plantupia shared experience or privacy gate: {seam}")
 CONTENT_TABS = MAIN / "com/nova/app/ui/components/NovaProfileContentTabs.kt"
 PAGED_GRID = MAIN / "com/nova/app/ui/components/NovaPagedProfilePostsGrid.kt"
 for profile_path in (PROFILE_SCREEN, PERSON_SCREEN):
