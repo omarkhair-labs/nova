@@ -158,7 +158,7 @@ fun ProfileScreen(
             PlantupiaProfileSpaces(accountId = userId, onOpenSpaces = onHomeClick)
 
             Spacer(modifier = Modifier.height(NovaSpacing.lg))
-            Text("PUBLIC MOMENTS & CONNECTIONS", style = PlantupiaText.sectionLabel)
+            Text("SHARED MOMENTS & CONNECTIONS", style = PlantupiaText.sectionLabel)
             Spacer(modifier = Modifier.height(NovaSpacing.sm))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -168,7 +168,6 @@ fun ProfileScreen(
                     postsCount.toString(),
                     "Moments",
                     Modifier.weight(1f),
-                    onClick = { profileContentOwner.selectTab(ProfileContentTab.Posts) },
                 )
                 ProfileStat(
                     followersCount.toString(),
@@ -190,7 +189,8 @@ fun ProfileScreen(
                 owner = profileContentOwner,
                 onPostClick = onPostClick,
                 emptyTitle = "Share your first moment",
-                emptyMessage = "What you choose to share with others will appear here.",
+                emptyMessage = "Your intentionally shared moments will appear here.",
+                plantupiaMomentsOnly = true,
             )
             Spacer(modifier = Modifier.height(NovaSpacing.xl))
         }
