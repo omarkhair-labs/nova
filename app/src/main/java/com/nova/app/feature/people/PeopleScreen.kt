@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import com.nova.app.feature.people.domain.model.NovaPerson
 import com.nova.app.feature.plants.PlantupiaColors
 import com.nova.app.feature.plants.PlantupiaText
+import com.nova.app.feature.plants.PlantupiaEmptyPeopleArt
 import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
@@ -255,6 +256,13 @@ fun PeopleScreen(
                 }
 
                 state.people.isEmpty() -> {
+                    // Real zero-community state only, not an API error or
+                    // an empty search-result imitation of another person's data.
+                    if (state.query.isBlank()) {
+                        PlantupiaEmptyPeopleArt(
+                            modifier = Modifier.fillMaxWidth().height(112.dp),
+                        )
+                    }
                     NovaEmptyState(
                         title = if (state.query.isBlank()) "No one to show yet" else "No matches",
                         message = peopleEmptyMessage(state.filter, state.query),
