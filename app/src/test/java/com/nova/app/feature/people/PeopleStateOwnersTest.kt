@@ -24,7 +24,7 @@ import org.junit.Test
 
 class PeopleStateOwnersTest {
     @Test
-    fun `people paging skips existing ids but preserves duplicates inside incoming page`() = runBlocking {
+    fun `people paging skips existing ids and duplicates inside the same incoming page`() = runBlocking {
         val paging = QueuePeoplePagingRepository(
             ApiResult.Success(NovaPersonPage(listOf(person(1)), "next")),
             ApiResult.Success(NovaPersonPage(listOf(person(1), person(2), person(2), person(3)), null)),
@@ -34,7 +34,7 @@ class PeopleStateOwnersTest {
         owner.loadPageNow(reset = true)
         owner.loadPageNow(reset = false, cursorOverride = "next")
 
-        assertEquals(listOf(1L, 2L, 2L, 3L), owner.state.people.map { it.id })
+        assertEquals(listOf(1L, 2L, 3L), owner.state.people.map { it.id })
         assertNull(owner.state.nextCursor)
         assertFalse(owner.state.loadingMore)
     }
