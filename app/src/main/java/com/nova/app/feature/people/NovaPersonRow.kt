@@ -1,6 +1,8 @@
 package com.nova.app.feature.people
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -25,6 +28,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nova.app.feature.people.domain.model.NovaPerson
+import com.nova.app.feature.plants.PlantupiaColors
+import com.nova.app.feature.plants.PlantupiaShapes
+import com.nova.app.feature.plants.PlantupiaText
 import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaPresenceIndicator
@@ -48,12 +54,29 @@ internal fun NovaPersonRow(
     isSelf: Boolean = false,
     onClick: (() -> Unit)? = null,
     showFollowerCount: Boolean = true,
+    plantupiaStyle: Boolean = false,
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
+    val titleInk = if (plantupiaStyle) PlantupiaColors.forestText else NovaInk
+    val hintInk = if (plantupiaStyle) PlantupiaColors.secondaryText else NovaMuted
+    val actionColor = if (plantupiaStyle) PlantupiaColors.forest else NovaAccent
+    val outlineColor = if (plantupiaStyle) PlantupiaColors.border else NovaBorder
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .then(
+                if (plantupiaStyle) Modifier
+                    .background(PlantupiaColors.paper, PlantupiaShapes.inset)
+                    .border(1.dp, PlantupiaColors.border, PlantupiaShapes.inset)
+                else Modifier
+            ),
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = NovaSpacing.sm),
+                .padding(
+                    horizontal = if (plantupiaStyle) 12.dp else 0.dp,
+                    vertical = if (plantupiaStyle) 12.dp else NovaSpacing.sm,
+                ),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(NovaSpacing.md),
         ) {
@@ -79,8 +102,8 @@ internal fun NovaPersonRow(
                     ) {
                         Text(
                             text = person.name.ifBlank { person.username },
-                            color = NovaInk,
-                            style = NovaType.label,
+                            color = titleInk,
+                            style = if (plantupiaStyle) PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold) else NovaType.label,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -89,7 +112,7 @@ internal fun NovaPersonRow(
                                 asset = NovaIconAsset.Verified,
                                 contentDescription = "Verified account",
                                 modifier = Modifier.size(15.dp),
-                                tint = NovaAccent,
+                                tint = actionColor,
                             )
                         }
                     }
@@ -99,7 +122,7 @@ internal fun NovaPersonRow(
                     ) {
                         Text(
                             text = "@${person.username}",
-                            color = NovaMuted,
+                            color = hintInk,
                             style = NovaType.meta,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -109,7 +132,7 @@ internal fun NovaPersonRow(
                                 asset = NovaIconAsset.Lock,
                                 contentDescription = "Private account",
                                 modifier = Modifier.size(13.dp),
-                                tint = NovaMuted,
+                                tint = hintInk,
                             )
                         }
                     }
@@ -117,7 +140,7 @@ internal fun NovaPersonRow(
                         Spacer(modifier = Modifier.height(NovaSpacing.xxs))
                         Text(
                             text = "${person.followersCount} ${if (person.followersCount == 1) "follower" else "followers"}",
-                            color = NovaMuted,
+                            color = hintInk,
                             style = NovaType.micro,
                         )
                     }
@@ -139,7 +162,7 @@ internal fun NovaPersonRow(
                         enabled = !isUpdating,
                         modifier = Modifier.sizeIn(minWidth = 88.dp, minHeight = 48.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = NovaAccent,
+                            containerColor = actionColor,
                             contentColor = Color.White,
                         ),
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
@@ -151,19 +174,19 @@ internal fun NovaPersonRow(
                         onClick = onFollowToggle,
                         enabled = !isUpdating,
                         modifier = Modifier.sizeIn(minWidth = 88.dp, minHeight = 48.dp),
-                        border = BorderStroke(1.dp, NovaBorder),
+                        border = BorderStroke(1.dp, outlineColor),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     ) {
                         PersonRowActionContent(
                             label = label,
                             isUpdating = isUpdating,
-                            color = if (requested) NovaMuted else NovaInk,
+                            color = if (requested) hintInk else titleInk,
                         )
                     }
                 }
             }
         }
-        HorizontalDivider(color = NovaBorder.copy(alpha = 0.72f))
+        if (!plantupiaStyle) HorizontalDivider(color = NovaBorder.copy(alpha = 0.72f))
     }
 }
 
