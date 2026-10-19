@@ -332,11 +332,15 @@ for stale_destination in ("data object People", "data object Messages"):
         errors.append(f"typed navigation contract restored stale primary destination: {stale_destination}")
 
 people_text = PEOPLE_SCREEN.read_text(encoding="utf-8")
+# People retains shared row/feedback/navigation foundations, but the visible
+# header now uses Plantupia's authored editorial type, not Nova's title style.
 for seam in (
     "NovaPersonRow(",
     "NovaLoadingState(",
     "NovaEmptyState(",
-    "NovaType.pageTitle",
+    "PlantupiaText.editorialHeading",
+    "PlantupiaEmptyPeopleArt(",
+    "plantupiaStyle = true",
     "NovaSpacing.xl",
 ):
     if seam not in people_text:
