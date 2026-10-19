@@ -694,4 +694,3 @@ fun PersonScreen(
         }
     }
 }
-
