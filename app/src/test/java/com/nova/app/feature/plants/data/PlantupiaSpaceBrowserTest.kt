@@ -47,6 +47,26 @@ class PlantupiaSpaceBrowserTest {
         assertTrue(findSpacePlants(plants, "office", "bedroom").isEmpty())
     }
 
+    @Test fun archivedPlantsRemainSearchableWithoutEnteringActiveCare() {
+        val records = listOf(
+            plant("a", name = "Basil", active = false, placement = "Window"),
+            plant("b", name = "Palm", active = true),
+            plant("c", name = "Fern", active = false, space = "other"),
+            plant("d", name = "Mint", active = false, species = "Mentha"),
+        )
+        assertEquals(listOf("a", "d"), findArchivedPlants(records, "office", "").map { it.id })
+        assertEquals(listOf("d"), findArchivedPlants(records, "office", "MENTHA").map { it.id })
+        assertEquals(listOf("a"), findArchivedPlants(records, "office", " window ").map { it.id })
+        assertEquals(listOf("b"), findSpacePlants(records, "office", "").map { it.id })
+    }
+
+    @Test fun archivedInventoryCanScaleToOneHundredRecordsWithoutFabricatedItems() {
+        val records = (0 until 100).map { plant("unit-$it", name = "Unit $it", active = false) }
+        assertEquals(100, findArchivedPlants(records, "office", "").size)
+        assertTrue(findSpacePlants(records, "office", "").isEmpty())
+        assertEquals(1, findArchivedPlants(records, "office", "Unit 99").size)
+    }
+
     @Test fun ordersByLatestRealEventNotGuesswork() {
         val plants = listOf(
             plant("a", name = "Newer", lastEventAt = "2026-10-09T10:00:00Z"),

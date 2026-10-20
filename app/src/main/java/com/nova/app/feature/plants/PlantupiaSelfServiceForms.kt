@@ -7,8 +7,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -26,6 +29,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -36,6 +40,8 @@ import coil3.compose.AsyncImage
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.plants.data.PlantupiaRepository
 import com.nova.app.feature.plants.data.PlantupiaSpace
+import com.nova.app.feature.plants.data.addPlantAccessExplanation
+import com.nova.app.feature.plants.data.chooseWritableSpaceId
 import kotlinx.coroutines.launch
 
 private val ink = Color(0xFF123B2E)
@@ -48,10 +54,21 @@ fun PlantupiaSelfServiceForms(
     spaces: List<PlantupiaSpace>,
     repository: PlantupiaRepository,
     onCreated: () -> Unit,
+    onRefreshSpaces: () -> Unit,
+    onPlantCreated: (plantId: String, spaceId: String) -> Unit,
+    preferredSpaceId: String? = null,
+    enabled: Boolean = true,
+    creationRequest: PlantupiaCreateMode? = null,
+    onRequestConsumed: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
+    // Create → Home opens a real editor below the photo-led space hero.
+    // Bring only its heading into view; avoid trying to scroll a long form in full.
+    val creationEditorHeading = remember { BringIntoViewRequester() }
+    val writableSpaces = spaces.filter { it.canAddPlant }
     var spaceOpen by remember { mutableStateOf(false) }
     var plantOpen by remember { mutableStateOf(false) }
+    var accessNotice by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var spaceName by remember { mutableStateOf("") }
@@ -61,75 +78,187 @@ fun PlantupiaSelfServiceForms(
     var species by remember { mutableStateOf("") }
     var placement by remember { mutableStateOf("") }
     var selectedSpaceId by remember { mutableStateOf<String?>(null) }
+    // The newly returned UUID is authorized, but may precede the refreshing list.
+    var justCreatedSpace by remember { mutableStateOf<Pair<String, String>?>(null) }
     var spaceMenuOpen by remember { mutableStateOf(false) }
     var plantPhoto by remember { mutableStateOf<Uri?>(null) }
+    var photoPickerOrigin by remember { mutableStateOf<PlantupiaRepository?>(null) }
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {
-        plantPhoto = it
+        if (photoPickerOrigin === repository && repository.isCurrentSession()) plantPhoto = it
+        photoPickerOrigin = null
     }
 
     LaunchedEffect(spaces) {
-        if (selectedSpaceId == null && spaces.isNotEmpty()) selectedSpaceId = spaces.first().id
+        if (writableSpaces.isNotEmpty()) accessNotice = false
+        if (justCreatedSpace != null &&
+            writableSpaces.any { it.id == justCreatedSpace?.first }
+        ) {
+            justCreatedSpace = null
+        }
+        // Do not keep a revoked/stale space selection. The only temporary
+        // exception is the UUID from a just-successful createSpace response.
+        if (selectedSpaceId != justCreatedSpace?.first &&
+            writableSpaces.none { it.id == selectedSpaceId }
+        ) {
+            selectedSpaceId = writableSpaces.firstOrNull()?.id
+        }
     }
+
+    // On a Create → Home handoff open the real server-backed form, not a
+    // separate mock composer. A first plant requires creating a space first.
+    LaunchedEffect(creationRequest, enabled) {
+        if (enabled) {
+            when (creationRequest.creationForm(
+                hasSpaces = writableSpaces.isNotEmpty(),
+                hasVisibleSpaces = spaces.isNotEmpty(),
+            )) {
+                PlantupiaCreationForm.SPACE -> {
+                    spaceOpen = true
+                    plantOpen = false
+                    accessNotice = false
+                    error = null
+                    onRequestConsumed()
+                }
+                PlantupiaCreationForm.PLANT -> {
+                    selectedSpaceId = chooseWritableSpaceId(
+                        writableSpaces, preferredSpaceId, selectedSpaceId,
+                        justCreatedSpace?.first,
+                    )
+                    plantOpen = true
+                    spaceOpen = false
+                    accessNotice = false
+                    error = null
+                    onRequestConsumed()
+                }
+                PlantupiaCreationForm.ACCESS -> {
+                    // A space the person can see is not necessarily editable.
+                    // Don't open a new-space form or bypass the API role gate.
+                    accessNotice = true
+                    spaceOpen = false
+                    plantOpen = false
+                    error = null
+                    onRequestConsumed()
+                }
+                PlantupiaCreationForm.NONE -> Unit
+            }
+        }
+    }
+
+    LaunchedEffect(spaceOpen, plantOpen, accessNotice) {
+        if (spaceOpen || plantOpen || accessNotice) {
+            // Wait for the newly visible heading to enter composition/layout.
+            withFrameNanos { }
+            creationEditorHeading.bringIntoView()
+        }
+    }
+
+    // A failed or loading API is not an empty account. Keep composable state
+    // across reloads so a newly-created space can lead into its plant editor.
+    if (!enabled) return
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (spaces.isEmpty() && !spaceOpen && !plantOpen) {
             Surface(color = paper, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                    Text("ابدأ من مكانك", color = ink, fontSize = 22.sp)
+                    Text("Start with your space", color = ink, fontSize = 22.sp)
                     Text(
-                        "بيتك، بلكونتك، مكتبك، أو أي مكان فيه حياة. سمّي المساحة الأول، وبعدها أضف نباتاتك واحدة واحدة.",
+                        "Home, balcony, office, or anywhere your plants live. Create a space, then add your plants.",
                         color = textMuted, fontSize = 13.sp,
                     )
                     Button(
                         onClick = { error = null; spaceOpen = true },
                         colors = ButtonDefaults.buttonColors(containerColor = ink),
-                    ) { Text("+ أنشئ مساحتي") }
+                    ) { Text("+ Create my space") }
                 }
             }
         } else if (!spaceOpen && !plantOpen) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { error = null; spaceOpen = true }, modifier = Modifier.weight(1f)) {
-                    Text("+ مساحة جديدة", color = ink, fontSize = 12.sp)
-                }
+            // Stack creation actions for 320dp screens and 2x system fonts.
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
-                    onClick = { error = null; plantOpen = true },
-                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        error = null
+                        accessNotice = false
+                        selectedSpaceId = chooseWritableSpaceId(
+                            writableSpaces, preferredSpaceId, selectedSpaceId, justCreatedSpace?.first,
+                        )
+                        plantOpen = true
+                    },
+                    enabled = writableSpaces.isNotEmpty(),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = ink),
-                ) { Text("+ أضف نبات", fontSize = 12.sp) }
+                ) { Text("+ Add plant") }
+                OutlinedButton(
+                    onClick = { error = null; accessNotice = false; spaceOpen = true },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                ) { Text("+ New private space", color = ink) }
+            }
+            if (writableSpaces.isEmpty()) {
+                Surface(
+                    color = paper,
+                    shape = RoundedCornerShape(18.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            if (spaces.any { !it.canAddPlantPermissionReported }) "Access not confirmed"
+                            else "These spaces are read-only",
+                            modifier = Modifier.bringIntoViewRequester(creationEditorHeading),
+                            color = ink,
+                            fontSize = 18.sp,
+                        )
+                        Text(addPlantAccessExplanation(spaces), color = textMuted, fontSize = 13.sp)
+                        OutlinedButton(
+                            onClick = {
+                                error = null
+                                onRefreshSpaces()
+                            },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        ) { Text("Refresh access", color = ink) }
+                    }
+                }
             }
         }
 
         if (spaceOpen) {
             Surface(color = paper, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("مساحة جديدة", color = ink, fontSize = 22.sp)
-                    Text("المساحة خاصة بيك، ومش هتظهر على بروفايلك العام.", color = textMuted, fontSize = 12.sp)
+                    Text("New space", modifier = Modifier.bringIntoViewRequester(creationEditorHeading), color = ink, fontSize = 22.sp)
+                    Text("Your space is private and won't appear on your public profile.", color = textMuted, fontSize = 12.sp)
                     OutlinedTextField(
                         value = spaceName, onValueChange = { spaceName = it.take(140) },
-                        label = { Text("اسم المكان *") }, singleLine = true,
+                        label = { Text("Space name *") }, singleLine = true,
                         modifier = Modifier.fillMaxWidth(), enabled = !saving,
                     )
                     OutlinedTextField(
                         value = spaceLocation, onValueChange = { spaceLocation = it.take(200) },
-                        label = { Text("مكانها (اختياري)") }, singleLine = true,
+                        label = { Text("Location (optional)") }, singleLine = true,
                         modifier = Modifier.fillMaxWidth(), enabled = !saving,
                     )
                     OutlinedTextField(
                         value = spaceDescription, onValueChange = { spaceDescription = it.take(1000) },
-                        label = { Text("عن المكان (اختياري)") },
+                        label = { Text("About this space (optional)") },
                         modifier = Modifier.fillMaxWidth(), enabled = !saving,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Button(
                             enabled = !saving && spaceName.isNotBlank(),
                             onClick = {
+                                val submittedName = spaceName
+                                val submittedDescription = spaceDescription
+                                val submittedLocation = spaceLocation
                                 scope.launch {
                                     saving = true
                                     error = null
-                                    when (val result = repository.createSpace(spaceName, spaceDescription, spaceLocation)) {
+                                    val result = repository.createSpace(submittedName, submittedDescription, submittedLocation)
+                                    if (!repository.isCurrentSession()) return@launch
+                                    when (result) {
                                         is ApiResult.Failure -> error = result.message
                                         is ApiResult.Success -> {
                                             selectedSpaceId = result.value
+                                            justCreatedSpace = result.value to submittedName.trim()
                                             spaceOpen = false
                                             plantOpen = true
                                             spaceName = ""
@@ -142,9 +271,9 @@ fun PlantupiaSelfServiceForms(
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = ink),
-                        ) { Text(if (saving) "جارٍ الحفظ…" else "أنشئ وأضف نبات") }
+                        ) { Text(if (saving) "Saving…" else "Create and add a plant") }
                         TextButton(onClick = { spaceOpen = false; error = null }, enabled = !saving) {
-                            Text("إلغاء", color = ink)
+                            Text("Cancel", color = ink)
                         }
                     }
                 }
@@ -154,53 +283,55 @@ fun PlantupiaSelfServiceForms(
         if (plantOpen) {
             Surface(color = paper, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("نبات جديد", color = ink, fontSize = 22.sp)
-                    Text("كل نبات ليه اسم ومكان وتاريخ بيتكوّن مع الوقت.", color = textMuted, fontSize = 12.sp)
+                    Text("New plant", modifier = Modifier.bringIntoViewRequester(creationEditorHeading), color = ink, fontSize = 22.sp)
+                    Text("Every plant has a name, a place, and a history that grows over time.", color = textMuted, fontSize = 12.sp)
                     OutlinedButton(
                         onClick = { spaceMenuOpen = true },
                         modifier = Modifier.fillMaxWidth(), enabled = !saving,
                     ) {
                         Text(
-                            spaces.firstOrNull { it.id == selectedSpaceId }?.name
-                                ?: "اختار المساحة",
+                            writableSpaces.firstOrNull { it.id == selectedSpaceId }?.name
+                                ?: justCreatedSpace?.takeIf { it.first == selectedSpaceId }?.second
+                                ?: "Choose a space",
                             color = ink,
                         )
                     }
                     DropdownMenu(expanded = spaceMenuOpen, onDismissRequest = { spaceMenuOpen = false }) {
-                        spaces.forEach { space ->
+                        writableSpaces.forEach { space ->
                             DropdownMenuItem(text = { Text(space.name) }, onClick = {
                                 selectedSpaceId = space.id
+                                justCreatedSpace = null
                                 spaceMenuOpen = false
                             })
                         }
                     }
                     OutlinedTextField(
                         value = plantName, onValueChange = { plantName = it.take(120) },
-                        label = { Text("اسم النبات *") }, singleLine = true,
+                        label = { Text("Plant name *") }, singleLine = true,
                         modifier = Modifier.fillMaxWidth(), enabled = !saving,
                     )
                     OutlinedTextField(
                         value = species, onValueChange = { species = it.take(180) },
-                        label = { Text("نوع النبات (لو تعرفه)") }, singleLine = true,
+                        label = { Text("Species (if known)") }, singleLine = true,
                         modifier = Modifier.fillMaxWidth(), enabled = !saving,
                     )
                     OutlinedTextField(
                         value = placement, onValueChange = { placement = it.take(180) },
-                        label = { Text("مكانه جوه المساحة") }, singleLine = true,
+                        label = { Text("Placement within the space") }, singleLine = true,
                         modifier = Modifier.fillMaxWidth(), enabled = !saving,
                     )
                     OutlinedButton(
-                        onClick = { photoPicker.launch("image/*") }, enabled = !saving,
+                        onClick = { photoPickerOrigin = repository; photoPicker.launch("image/*") }, enabled = !saving,
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text(if (plantPhoto == null) "+ صورة حقيقية (اختيارية)" else "تغيير الصورة", color = ink) }
+                    ) { Text(if (plantPhoto == null) "+ Real plant photo (optional)" else "Change photo", color = ink) }
                     plantPhoto?.let { uri ->
                         AsyncImage(
-                            model = uri, contentDescription = "صورة النبات المختارة",
+                            model = uri, contentDescription = "Selected plant photo",
                             modifier = Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(12.dp)),
                             contentScale = ContentScale.Crop,
                         )
                         TextButton(onClick = { plantPhoto = null }, enabled = !saving) {
-                            Text("إزالة الصورة", color = textMuted)
+                            Text("Remove photo", color = textMuted)
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -208,12 +339,18 @@ fun PlantupiaSelfServiceForms(
                             enabled = !saving && plantName.isNotBlank() && selectedSpaceId != null,
                             onClick = {
                                 val targetSpace = selectedSpaceId ?: return@Button
+                                val submittedName = plantName
+                                val submittedSpecies = species
+                                val submittedPlacement = placement
+                                val submittedPhoto = plantPhoto
                                 scope.launch {
                                     saving = true
                                     error = null
-                                    when (val result = repository.createPlant(
-                                        targetSpace, plantName, species, placement, plantPhoto,
-                                    )) {
+                                    val result = repository.createPlant(
+                                        targetSpace, submittedName, submittedSpecies, submittedPlacement, submittedPhoto,
+                                    )
+                                    if (!repository.isCurrentSession()) return@launch
+                                    when (result) {
                                         is ApiResult.Failure -> error = result.message
                                         is ApiResult.Success -> {
                                             plantName = ""
@@ -221,16 +358,16 @@ fun PlantupiaSelfServiceForms(
                                             placement = ""
                                             plantPhoto = null
                                             plantOpen = false
-                                            onCreated()
+                                            onPlantCreated(result.value, targetSpace)
                                         }
                                     }
                                     saving = false
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = ink),
-                        ) { Text(if (saving) "جارٍ الحفظ…" else "أضف النبات") }
+                        ) { Text(if (saving) "Saving…" else "Add plant") }
                         TextButton(onClick = { plantOpen = false; error = null }, enabled = !saving) {
-                            Text("إلغاء", color = ink)
+                            Text("Cancel", color = ink)
                         }
                     }
                 }

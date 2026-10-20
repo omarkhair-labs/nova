@@ -126,3 +126,18 @@ class PlantDiscussion(models.Model):
 
     def __str__(self):
         return f"Plant discussion for post {self.post_id}"
+
+
+class PlantSubmission(models.Model):
+    """Account-scoped immutable receipt; never serialized in public Circle feeds."""
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="plantupia_submissions")
+    client_submission_id = models.UUIDField()
+    operation = models.CharField(max_length=12)
+    plant_id = models.UUIDField()
+    fingerprint = models.CharField(max_length=64)
+    response = models.JSONField(default=dict)
+    status_code = models.PositiveSmallIntegerField(default=201)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=("actor", "client_submission_id"), name="plant_submission_actor_identity")]

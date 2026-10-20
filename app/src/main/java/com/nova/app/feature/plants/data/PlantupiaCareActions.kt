@@ -5,12 +5,12 @@ package com.nova.app.feature.plants.data
  * Only the action actually selected by a person is written to private history.
  */
 enum class PlantupiaCareAction(val label: String, val recordedText: String) {
-    WATERED("رويت", "رويت النبات"),
-    CHECKED_SOIL("فحصت التربة", "فحصت التربة"),
-    PRUNED("قلّمت", "قلّمت النبات"),
-    MOVED("غيّرت المكان", "نقلت النبات لمكان آخر"),
-    FERTILIZED("سمّدت", "سمّدت النبات"),
-    REPOTTED("غيّرت الأصيص", "غيّرت أصيص النبات"),
+    WATERED("Watered", "Watered the plant"),
+    CHECKED_SOIL("Checked the soil", "Checked the soil"),
+    PRUNED("Pruned", "Pruned the plant"),
+    MOVED("Moved", "Moved the plant to another spot"),
+    FERTILIZED("Fertilized", "Fertilized the plant"),
+    REPOTTED("Repotted", "Repotted the plant"),
 }
 
 /** Compatible with the existing private care-event API; no fake metadata. */

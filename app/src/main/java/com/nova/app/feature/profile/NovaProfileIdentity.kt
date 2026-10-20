@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nova.app.ui.components.NovaAvatar
+import com.nova.app.ui.components.PlantupiaAvatar
 import com.nova.app.ui.components.NovaOrbitRing
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
@@ -81,8 +82,29 @@ internal fun NovaProfileIdentity(
     profileTheme: String,
     showOrbit: Boolean,
     isVerified: Boolean,
+    plantupiaIdentityId: Long? = null,
+    plantupiaAvatarVariant: Int = -1,
     modifier: Modifier = Modifier,
 ) {
+    if (plantupiaIdentityId != null) {
+        // One art direction for the person's public identity and owner's Me.
+        // No PlantupiaProfileSpaces, private plants, placement or care data
+        // can cross this boundary: this component receives public fields only.
+        PlantupiaMeIdentity(
+            displayName = displayName,
+            userId = plantupiaIdentityId,
+            avatarVariant = plantupiaAvatarVariant,
+            username = username,
+            avatarUrl = avatarUrl,
+            bio = bio,
+            location = location,
+            link = link,
+            interests = interests,
+            isVerified = isVerified,
+        )
+        return
+    }
+
     val palette = remember(profileTheme) { novaProfileThemePalette(profileTheme) }
     val externalUrl = remember(link) { normalizedProfileExternalUrl(link) }
     val uriHandler = LocalUriHandler.current
@@ -103,19 +125,37 @@ internal fun NovaProfileIdentity(
                     rings = 2,
                     showLivePoint = false,
                 ) {
-                    NovaAvatar(
-                        source = avatarUrl,
-                        fallbackText = displayName.ifBlank { username },
-                        size = 88.dp,
-                    )
+                    if (plantupiaIdentityId != null) {
+                        PlantupiaAvatar(
+                            userId = plantupiaIdentityId,
+                            displayName = displayName.ifBlank { username },
+                            photoUrl = avatarUrl,
+                            size = 88.dp,
+                        )
+                    } else {
+                        NovaAvatar(
+                            source = avatarUrl,
+                            fallbackText = displayName.ifBlank { username },
+                            size = 88.dp,
+                        )
+                    }
                 }
             } else {
                 Surface(shape = CircleShape, color = Color.Transparent) {
-                    NovaAvatar(
-                        source = avatarUrl,
-                        fallbackText = displayName.ifBlank { username },
-                        size = 88.dp,
-                    )
+                    if (plantupiaIdentityId != null) {
+                        PlantupiaAvatar(
+                            userId = plantupiaIdentityId,
+                            displayName = displayName.ifBlank { username },
+                            photoUrl = avatarUrl,
+                            size = 88.dp,
+                        )
+                    } else {
+                        NovaAvatar(
+                            source = avatarUrl,
+                            fallbackText = displayName.ifBlank { username },
+                            size = 88.dp,
+                        )
+                    }
                 }
             }
 

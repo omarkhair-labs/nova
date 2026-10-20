@@ -66,6 +66,7 @@ class AuthRemoteDataSource(
         interests: List<String> = emptyList(),
         profileTheme: String = "violet",
         showOrbit: Boolean = true,
+        plantupiaAvatarVariant: Int = -1,
     ): ApiResult<NovaUser> {
         return when (
             val response = api.requestMultipart(
@@ -80,6 +81,7 @@ class AuthRemoteDataSource(
                     "interests" to JSONArray(interests).toString(),
                     "profile_theme" to profileTheme,
                     "show_orbit" to showOrbit.toString(),
+                    "plantupia_avatar_variant" to plantupiaAvatarVariant.toString(),
                 ),
                 fileField = "avatar",
                 file = avatar,

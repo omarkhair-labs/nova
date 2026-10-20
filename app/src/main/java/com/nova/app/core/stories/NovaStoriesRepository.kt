@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import com.nova.app.core.auth.NovaSessionStore
+import com.nova.app.core.auth.authenticatedRequest
 import com.nova.app.core.media.NovaVideoPreparer
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
@@ -81,7 +82,8 @@ class NovaStoriesRepository(
         onProgress: (Int?) -> Unit,
         expectedUserId: Long?,
     ): ApiResult<NovaStory> {
-        if (!storyPublishAccountMatches(expectedUserId, sessionStore.load()?.cachedUser?.id)) {
+        val origin = sessionStore.load() ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
+        if (!storyPublishAccountMatches(expectedUserId, origin.cachedUser?.id)) {
             return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)
         }
         val cleanAudience = audience.takeIf { it == "followers" || it == "close_friends" }
@@ -117,6 +119,7 @@ class NovaStoriesRepository(
                     audience = cleanAudience,
                     clientPublishId = clientPublishId,
                     expectedUserId = expectedUserId,
+                    origin = origin,
                     onUploadProgress = onProgress,
                 )
             } finally {
@@ -141,6 +144,7 @@ class NovaStoriesRepository(
                     audience = cleanAudience,
                     clientPublishId = clientPublishId,
                     expectedUserId = expectedUserId,
+                    origin = origin,
                     onUploadProgress = onProgress,
                 )
             } finally {
@@ -381,8 +385,9 @@ class NovaStoriesRepository(
         audience: String,
         clientPublishId: String,
         expectedUserId: Long?,
+        origin: NovaSessionStore.StoredSession,
         onUploadProgress: ((Int?) -> Unit)? = null,
-    ): ApiResult<NovaStory> = authenticatedCall(expectedUserId) { token ->
+    ): ApiResult<NovaStory> = authenticatedCall(expectedUserId, origin = origin) { token ->
         when (
             val response = authApi.requestMultipart(
                 path = "stories/",
@@ -463,43 +468,19 @@ class NovaStoriesRepository(
 
     private suspend fun <T> authenticatedCall(
         expectedUserId: Long? = null,
+        origin: NovaSessionStore.StoredSession? = sessionStore.load(),
         call: suspend (String) -> ApiResult<T>,
     ): ApiResult<T> {
-        val stored = sessionStore.load()
+        val stored = origin
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
         if (!storyPublishAccountMatches(expectedUserId, stored.cachedUser?.id)) {
             return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)
         }
-        when (val first = call(stored.accessToken)) {
-            is ApiResult.Success -> return first
-            is ApiResult.Failure -> if (first.statusCode != 401) return first
-        }
-        return when (val refreshed = authApi.refresh(stored.refreshToken)) {
-            is ApiResult.Success -> {
-                if (!storyPublishAccountMatches(expectedUserId, sessionStore.load()?.cachedUser?.id)) {
-                    return ApiResult.Failure(
-                        "This publish belongs to a different signed-in account.",
-                        409,
-                    )
-                }
-                sessionStore.updateAccessToken(refreshed.value)
-                when (val retried = call(refreshed.value)) {
-                    is ApiResult.Success -> retried
-                    is ApiResult.Failure -> {
-                        if (retried.statusCode == 401) sessionStore.clear()
-                        retried
-                    }
-                }
-            }
-            is ApiResult.Failure -> {
-                if (refreshed.statusCode == 400 || refreshed.statusCode == 401) {
-                    sessionStore.clear()
-                    ApiResult.Failure("Your session expired. Please log in again.", 401)
-                } else {
-                    refreshed
-                }
-            }
-        }
+        return sessionStore.authenticatedRequest(
+            stored = stored,
+            refresh = { authApi.refresh(stored.refreshToken) },
+            request = call,
+        )
     }
 
     private fun parseGroup(json: JSONObject): NovaStoryGroup {
@@ -561,6 +542,7 @@ class NovaStoriesRepository(
             username = json.optString("username"),
             name = json.optString("name"),
             avatarUrl = resolveMediaUrl(json.optString("avatar_url")),
+            plantupiaAvatarVariant = json.optInt("plantupia_avatar_variant", -1),
         )
     }
 

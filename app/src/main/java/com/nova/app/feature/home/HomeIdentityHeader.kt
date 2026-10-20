@@ -19,14 +19,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.feature.plants.PlantupiaBrandGlyph
+import com.nova.app.feature.plants.PlantupiaColors
+import com.nova.app.feature.plants.PlantupiaText
 import com.nova.app.ui.components.NovaIconButton
-import com.nova.app.ui.components.NovaOrbitRing
 import com.nova.app.ui.components.NovaUnreadDot
 import com.nova.app.ui.icons.NovaIconAsset
-import com.nova.app.ui.theme.NovaInk
-import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSpacing
-import com.nova.app.ui.theme.NovaSurface
 import com.nova.app.ui.theme.NovaType
 import java.time.LocalTime
 
@@ -36,6 +34,8 @@ internal fun HomeIdentityHeader(
     displayName: String,
     username: String,
     avatarUrl: String,
+    userId: Long = 0L,
+    avatarVariant: Int = -1,
     unreadCount: Int,
     onSearchClick: () -> Unit,
     onActivityClick: () -> Unit,
@@ -45,31 +45,45 @@ internal fun HomeIdentityHeader(
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Row(horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
                 PlantupiaBrandGlyph(modifier = Modifier.size(30.dp))
-                Text(text = "PLANTUPIA", color = NovaInk, style = NovaType.display.copy(fontFamily = FontFamily.Serif, fontSize = 26.sp, fontWeight = FontWeight.SemiBold))
+                Text(text = "PLANTUPIA", color = PlantupiaColors.forestText, style = NovaType.display.copy(fontFamily = FontFamily.Serif, fontSize = 26.sp, fontWeight = FontWeight.SemiBold))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(NovaSpacing.xs), verticalAlignment = Alignment.CenterVertically) {
-                NovaIconButton(asset = NovaIconAsset.Search, contentDescription = "Search people", onClick = onSearchClick, size = 48.dp, iconSize = 24.dp, containerColor = Color.Transparent, borderColor = Color.Transparent, contentColor = NovaInk)
+                NovaIconButton(asset = NovaIconAsset.Search, contentDescription = "Search people", onClick = onSearchClick, size = 48.dp, iconSize = 24.dp, containerColor = Color.Transparent, borderColor = Color.Transparent, contentColor = PlantupiaColors.forest)
                 Box {
-                    NovaIconButton(asset = NovaIconAsset.Notifications, contentDescription = "Activity", onClick = onActivityClick, size = 48.dp, iconSize = 23.dp, containerColor = Color.Transparent, borderColor = Color.Transparent, contentColor = NovaInk)
+                    NovaIconButton(asset = NovaIconAsset.Notifications, contentDescription = "Activity", onClick = onActivityClick, size = 48.dp, iconSize = 23.dp, containerColor = Color.Transparent, borderColor = Color.Transparent, contentColor = PlantupiaColors.forest)
                     if (unreadCount > 0) NovaUnreadDot(modifier = Modifier.align(Alignment.TopEnd).offset(x = (-2).dp, y = 2.dp))
                 }
-                Surface(onClick = onProfileClick, color = NovaSurface, shape = androidx.compose.foundation.shape.CircleShape) {
-                    NovaOrbitRing(modifier = Modifier.size(48.dp), rings = 1, showLivePoint = true) {
-                        NovaAvatar(source = avatarUrl, fallbackText = displayName.ifBlank { username }, size = 38.dp)
-                    }
+                Surface(onClick = onProfileClick, color = PlantupiaColors.paper, shape = androidx.compose.foundation.shape.CircleShape) {
+                    NovaAvatar(
+                        source = avatarUrl,
+                        fallbackText = displayName.ifBlank { username }.ifBlank { "Plantupia" },
+                        size = 42.dp,
+                        plantupiaUserId = userId.takeIf { it > 0L },
+                        plantupiaAvatarVariant = avatarVariant,
+                    )
                 }
             }
         }
-        Column(verticalArrangement = Arrangement.spacedBy(NovaSpacing.xxs)) {
-            Text(text = "${currentGreeting()}، $firstName", color = NovaInk, style = NovaType.screenTitle)
-            Text(text = "كل مساحة ليها حياة، وذكريات بتتكتب مع الوقت.", color = NovaMuted, style = NovaType.subtitle)
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = if (firstName.isNotBlank()) "${currentGreeting()}, $firstName" else currentGreeting(),
+                style = PlantupiaText.sectionLabel,
+            )
+            Text(
+                text = "Your living world",
+                style = PlantupiaText.editorialHeading,
+            )
+            Text(
+                text = "Notice what is growing. Choose what matters today.",
+                style = PlantupiaText.supporting,
+            )
         }
     }
 }
 
 private fun currentGreeting(): String = when (LocalTime.now().hour) {
-    in 0..4 -> "أهلًا"
-    in 5..11 -> "صباح الخير"
-    in 12..17 -> "نهارك سعيد"
-    else -> "مساء الخير"
+    in 0..4 -> "Hello"
+    in 5..11 -> "Good morning"
+    in 12..17 -> "Good afternoon"
+    else -> "Good evening"
 }

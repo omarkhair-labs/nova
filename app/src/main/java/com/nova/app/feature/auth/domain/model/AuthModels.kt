@@ -12,6 +12,7 @@ data class NovaUser(
     val link: String = "",
     val interests: List<String> = emptyList(),
     val profileTheme: String = "violet",
+    val plantupiaAvatarVariant: Int = -1,
     val showOrbit: Boolean = true,
     val isVerified: Boolean = false,
     val followersCount: Int = 0,

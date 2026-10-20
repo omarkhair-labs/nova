@@ -58,6 +58,10 @@ import com.nova.app.ui.components.NovaPagedProfilePostsGrid
 import com.nova.app.ui.components.NovaPrimaryButton
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.feature.profile.NovaProfileIdentity
+import com.nova.app.feature.profile.PlantupiaProfileSectionHeading
+import com.nova.app.feature.profile.PlantupiaProfileSocialStats
+import com.nova.app.feature.plants.PlantupiaText
+import com.nova.app.feature.plants.PlantupiaColors
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
@@ -98,6 +102,7 @@ fun PersonScreen(
     onBlocked: (NovaPerson) -> Unit,
 ) {
     val context = LocalContext.current
+    var callOptionsVisible by remember(person?.id) { mutableStateOf(false) }
     val messagingRepository = remember(context) {
         NovaMessagingRepository(context.applicationContext)
     }
@@ -115,17 +120,25 @@ fun PersonScreen(
     var showShareProfile by remember(person?.username) { mutableStateOf(false) }
     var reportReason by remember(person?.username) { mutableStateOf("harassment") }
     var reportDetails by remember(person?.username) { mutableStateOf("") }
+    // A failed access check must never default a visited profile to open.
     var privacyState by remember(person?.username) {
-        mutableStateOf(NovaPersonPrivacyState(isPrivate = false, followRequested = false, canViewContent = true))
+        mutableStateOf(NovaPersonPrivacyState(isPrivate = false, followRequested = false, canViewContent = false))
     }
-    var privacyLoading by remember(person?.username) { mutableStateOf(false) }
+    var privacyResolved by remember(person?.username) { mutableStateOf(false) }
+    var privacyLoading by remember(person?.username) { mutableStateOf(true) }
+    var privacyRetry by remember(person?.username) { mutableStateOf(0) }
     var requestCanceling by remember(person?.username) { mutableStateOf(false) }
 
-    LaunchedEffect(person?.username) {
+    LaunchedEffect(person?.username, privacyRetry) {
         val selected = person ?: return@LaunchedEffect
         privacyLoading = true
+        privacyResolved = false
         when (val result = privacyRepository.personState(selected.username)) {
-            is ApiResult.Success -> privacyState = result.value
+            is ApiResult.Success -> {
+                privacyState = result.value
+                privacyResolved = true
+                messageError = null
+            }
             is ApiResult.Failure -> messageError = result.message
         }
         privacyLoading = false
@@ -181,7 +194,7 @@ fun PersonScreen(
     }
 
     fun openSocialGraph(selectedPerson: NovaPerson, mode: String) {
-        if (!privacyState.canViewContent) return
+        if (!privacyResolved || !privacyState.canViewContent) return
         context.startActivity(
             Intent(context, SocialGraphActivity::class.java)
                 .putExtra(SocialGraphActivity.EXTRA_USERNAME, selectedPerson.username)
@@ -190,7 +203,7 @@ fun PersonScreen(
     }
 
     fun cancelFollowRequest(selectedPerson: NovaPerson) {
-        if (requestCanceling || isLoading) return
+        if (!privacyResolved || requestCanceling || isLoading) return
         scope.launch {
             requestCanceling = true
             messageError = null
@@ -209,7 +222,7 @@ fun PersonScreen(
     }
 
     fun toggleFollow(selectedPerson: NovaPerson) {
-        if (requestCanceling || isLoading) return
+        if (!privacyResolved || requestCanceling || isLoading) return
         when {
             privacyState.followRequested && !selectedPerson.isFollowing -> cancelFollowRequest(selectedPerson)
             else -> {
@@ -372,7 +385,7 @@ fun PersonScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(NovaBackground)
+            .background(PlantupiaColors.cream)
             .statusBarsPadding()
             .navigationBarsPadding()
             .verticalScroll(rememberScrollState())
@@ -380,7 +393,7 @@ fun PersonScreen(
     ) {
         NovaHeader(
             title = "Profile",
-            subtitle = "A person in the Plantupia community.",
+            subtitle = "Identity, public moments and ways to connect.",
             onBack = onBack,
         )
 
@@ -415,8 +428,10 @@ fun PersonScreen(
                     profileTheme = person.profileTheme,
                     showOrbit = person.showOrbit,
                     isVerified = person.isVerified,
+                    plantupiaIdentityId = person.id,
+                    plantupiaAvatarVariant = person.plantupiaAvatarVariant,
                 )
-                if (shouldShowPrivateProfileBadge(privacyState)) {
+                if (privacyResolved && shouldShowPrivateProfileBadge(privacyState)) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Surface(
                         modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -444,40 +459,16 @@ fun PersonScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(26.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
-                    color = NovaBackground,
-                    border = BorderStroke(1.dp, NovaBackground),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(vertical = 20.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                    ) {
-                        SocialStat(
-                            value = person.followersCount.toString(),
-                            label = "followers",
-                            modifier = Modifier.weight(1f),
-                            onClick = if (privacyState.canViewContent) {
-                                { openSocialGraph(person, MODE_FOLLOWERS) }
-                            } else null,
-                        )
-                        SocialStat(
-                            value = person.followingCount.toString(),
-                            label = "following",
-                            modifier = Modifier.weight(1f),
-                            onClick = if (privacyState.canViewContent) {
-                                { openSocialGraph(person, MODE_FOLLOWING) }
-                            } else null,
-                        )
-                        SocialStat(
-                            value = person.postsCount.toString(),
-                            label = "posts",
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
+                if (privacyResolved && privacyState.canViewContent) {
+                    PlantupiaProfileSocialStats(
+                        moments = person.postsCount,
+                        followers = person.followersCount,
+                        following = person.followingCount,
+                        onFollowersClick = { openSocialGraph(person, MODE_FOLLOWERS) },
+                        onFollowingClick = { openSocialGraph(person, MODE_FOLLOWING) },
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(18.dp))
@@ -515,48 +506,21 @@ fun PersonScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    NovaSecondaryButton(
-                        text = "Message",
-                        onClick = { openMessage(person) },
-                        modifier = Modifier.weight(1f),
-                        enabled = !isSafetyLoading,
-                        busy = isOpeningMessage,
-                        busyText = "Opening…",
-                    )
-                    NovaSecondaryButton(
-                        text = "Share profile",
-                        onClick = { showShareProfile = true },
-                        modifier = Modifier.weight(1f),
-                        enabled = !isOpeningMessage && !isSafetyLoading,
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    NovaSecondaryButton(
-                        text = "Audio call",
-                        onClick = { openCall(person, NovaCallKind.Audio) },
-                        modifier = Modifier.weight(1f),
-                        enabled = !isOpeningMessage && !isSafetyLoading,
-                    )
-                    NovaSecondaryButton(
-                        text = "Video call",
-                        onClick = { openCall(person, NovaCallKind.Video) },
-                        modifier = Modifier.weight(1f),
-                        enabled = !isOpeningMessage && !isSafetyLoading,
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
+                PlantupiaProfileSectionHeading(
+                    eyebrow = "CONNECT",
+                    description = "A conversation begins with a choice, not an obligation.",
+                )
+                Spacer(modifier = Modifier.height(14.dp))
 
                 when {
+                    !privacyResolved -> {
+                        Text(
+                            if (privacyLoading) "Checking connection permissions…"
+                            else "Connection controls are unavailable until access is verified.",
+                            color = PlantupiaColors.secondaryText,
+                            fontSize = 12.sp,
+                        )
+                    }
                     person.isFollowing -> {
                         NovaSecondaryButton(
                             text = "Following",
@@ -586,29 +550,68 @@ fun PersonScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     NovaSecondaryButton(
-                        text = "Report",
-                        onClick = { showReportDialog = true },
+                        text = "Message",
+                        onClick = { openMessage(person) },
                         modifier = Modifier.weight(1f),
-                        enabled = !isSafetyLoading && !isOpeningMessage,
+                        enabled = !isSafetyLoading,
+                        busy = isOpeningMessage,
+                        busyText = "Opening…",
                     )
                     NovaSecondaryButton(
-                        text = "Block",
-                        onClick = { showBlockConfirm = true },
+                        text = "Share profile",
+                        onClick = { showShareProfile = true },
                         modifier = Modifier.weight(1f),
-                        enabled = !isSafetyLoading && !isOpeningMessage,
+                        enabled = !isOpeningMessage && !isSafetyLoading,
                     )
+                }
+
+                // Calls are still reachable, but should not compete with care,
+                // personhood and the primary Message action in a public profile.
+                TextButton(
+                    onClick = { callOptionsVisible = !callOptionsVisible },
+                    enabled = !isOpeningMessage && !isSafetyLoading,
+                    modifier = Modifier.align(Alignment.Start),
+                ) {
+                    Text(
+                        if (callOptionsVisible) "Hide call options" else "Voice or video call",
+                        color = PlantupiaColors.forest,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                if (callOptionsVisible) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        NovaSecondaryButton(
+                            text = "Voice call",
+                            onClick = { openCall(person, NovaCallKind.Audio) },
+                            modifier = Modifier.weight(1f),
+                            enabled = !isOpeningMessage && !isSafetyLoading,
+                        )
+                        NovaSecondaryButton(
+                            text = "Video call",
+                            onClick = { openCall(person, NovaCallKind.Video) },
+                            modifier = Modifier.weight(1f),
+                            enabled = !isOpeningMessage && !isSafetyLoading,
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                if (privacyState.canViewContent) {
+                if (privacyResolved && privacyState.canViewContent) {
+                    PlantupiaProfileSectionHeading(
+                        eyebrow = "SHARED MOMENTS",
+                        description = "Only what @${person.username} has chosen to share.",
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
                     NovaPagedProfilePostsGrid(
                         username = person.username,
                         initialPosts = profilePosts,
@@ -616,8 +619,9 @@ fun PersonScreen(
                         errorMessage = postsError,
                         onRetry = onRetryPosts,
                         onPostClick = onPostClick,
-                        emptyTitle = "No posts yet",
-                        emptyMessage = "When @${person.username} shares something, it will appear here.",
+                        emptyTitle = "No shared moments yet",
+                        emptyMessage = "When @${person.username} shares a moment, it will appear here.",
+                        plantupiaMomentsOnly = true,
                     )
                 } else {
                     Surface(
@@ -638,56 +642,55 @@ fun PersonScreen(
                             )
                             Spacer(Modifier.height(10.dp))
                             Text(
-                                text = "This account is private",
-                                color = NovaInk,
+                                text = when {
+                                    privacyLoading -> "Checking shared content…"
+                                    !privacyResolved -> "Shared content unavailable"
+                                    else -> "This account is private"
+                                },
+                                color = PlantupiaColors.forestText,
                                 fontSize = 17.sp,
                                 fontWeight = FontWeight.Bold,
                             )
                             Spacer(Modifier.height(5.dp))
                             Text(
-                                text = if (privacyState.followRequested) {
-                                    "Your follow request is waiting for approval."
-                                } else {
-                                    "Follow @${person.username} and wait for approval to see posts and connections."
+                                text = when {
+                                    privacyLoading -> "Checking the account's sharing permissions."
+                                    !privacyResolved -> "Your access could not be confirmed. No private contributions will be shown."
+                                    privacyState.followRequested -> "Your follow request is waiting for approval."
+                                    else -> "Follow @${person.username} and wait for approval to see posts and connections."
                                 },
                                 color = NovaMuted,
                                 fontSize = 12.sp,
                                 lineHeight = 18.sp,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                             )
+                            if (!privacyLoading && !privacyResolved) {
+                                TextButton(onClick = { privacyRetry += 1 }) {
+                                    Text("Retry access check", color = PlantupiaColors.forest)
+                                }
+                            }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(12.dp))
+                // Account safety stays accessible, but does not dominate the
+                // person's identity or their intentionally shared contributions.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    TextButton(
+                        onClick = { showReportDialog = true },
+                        enabled = !isSafetyLoading && !isOpeningMessage,
+                    ) { Text("Report person", color = PlantupiaColors.secondaryText) }
+                    TextButton(
+                        onClick = { showBlockConfirm = true },
+                        enabled = !isSafetyLoading && !isOpeningMessage,
+                    ) { Text("Block person", color = PlantupiaColors.secondaryText) }
+                }
+
             }
         }
-    }
-}
-
-@Composable
-private fun SocialStat(
-    value: String,
-    label: String,
-    modifier: Modifier = Modifier,
-    onClick: (() -> Unit)? = null,
-) {
-    Column(
-        modifier = modifier
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(vertical = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = value,
-            color = NovaInk,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            text = label,
-            color = NovaMuted,
-            fontSize = 12.sp,
-        )
     }
 }

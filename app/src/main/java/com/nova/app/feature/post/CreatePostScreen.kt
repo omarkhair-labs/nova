@@ -86,8 +86,8 @@ fun CreatePostScreen(
             .padding(horizontal = 22.dp, vertical = 18.dp),
     ) {
         NovaHeader(
-            title = "لحظة عامة",
-            subtitle = "صورة أو فيديو تختار تشاركه مع الناس.",
+            title = "Public moment",
+            subtitle = "A photo or video you choose to share with others.",
             onBack = { if (!isLoading) onBack() },
         )
 
@@ -98,7 +98,7 @@ fun CreatePostScreen(
             shape = RoundedCornerShape(16.dp),
         ) {
             Text(
-                text = "PUBLIC / هتنشر للناس. سجل النبات الخاص ومساحتك مش بيتشاركوا تلقائيًا.",
+                text = "PUBLIC / This post is visible to others. Your private plant history and spaces are never shared automatically.",
                 modifier = Modifier.padding(14.dp),
                 color = NovaInk,
                 fontSize = 12.sp,
@@ -243,7 +243,7 @@ fun CreatePostScreen(
         Spacer(modifier = Modifier.height(22.dp))
 
         NovaPrimaryButton(
-            text = if (isLoading) "جارٍ النشر…" else "انشر اللحظة للناس",
+            text = if (isLoading) "Publishing…" else "Publish moment",
             onClick = {
                 val media = selectedMedia
                 if (media != null && !isLoading) onShare(media, caption)

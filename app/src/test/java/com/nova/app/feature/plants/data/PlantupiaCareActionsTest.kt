@@ -11,11 +11,11 @@ class PlantupiaCareActionsTest {
     }
 
     @Test fun recordsOnlyChosenHumanAction() {
-        assertEquals("رويت النبات", buildPlantupiaCareNote(PlantupiaCareAction.WATERED, "  "))
+        assertEquals("Watered the plant", buildPlantupiaCareNote(PlantupiaCareAction.WATERED, "  "))
         assertEquals(
-            "نقلت النبات لمكان آخر\nبعيدًا عن التكييف",
+            "Moved the plant to another spot\nبعيدًا عن التكييف",
             buildPlantupiaCareNote(PlantupiaCareAction.MOVED, " بعيدًا عن التكييف "),
         )
-        assertTrue(PlantupiaCareAction.entries.none { it.recordedText.contains("يجب") })
+        assertTrue(PlantupiaCareAction.entries.none { it.recordedText.contains("must", ignoreCase = true) })
     }
 }

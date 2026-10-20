@@ -38,6 +38,9 @@ import com.nova.app.feature.memories.MemoriesRail
 import com.nova.app.feature.plants.PlantupiaCreateIntent
 import com.nova.app.feature.plants.PlantupiaClientSection
 import com.nova.app.feature.plants.PlantupiaCirclePanel
+import com.nova.app.feature.plants.PlantupiaColors
+import com.nova.app.feature.plants.PlantupiaText
+import com.nova.app.feature.plants.PlantupiaShapes
 import com.nova.app.feature.notifications.NotificationsScreen
 import com.nova.app.feature.orbit.OrbitRail
 import com.nova.app.feature.posts.domain.model.NovaPost
@@ -69,6 +72,8 @@ fun HomeScreen(
     displayName: String,
     username: String,
     avatarUrl: String,
+    userId: Long = 0L,
+    avatarVariant: Int = -1,
     posts: List<NovaPost>,
     isLoading: Boolean,
     isRefreshing: Boolean,
@@ -224,7 +229,7 @@ fun HomeScreen(
     }
 
     Scaffold(
-        containerColor = NovaBackground,
+        containerColor = PlantupiaColors.cream,
         bottomBar = {
             NovaBottomBar(
                 selected = NovaTab.Home,
@@ -250,7 +255,7 @@ fun HomeScreen(
                 state = listState,
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(NovaBackground),
+                    .background(PlantupiaColors.cream),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(
                     start = NovaSpacing.lg,
                     end = NovaSpacing.lg,
@@ -265,6 +270,8 @@ fun HomeScreen(
                         displayName = displayName,
                         username = username,
                         avatarUrl = avatarUrl,
+                        userId = userId,
+                        avatarVariant = avatarVariant,
                         unreadCount = notificationUnreadCount,
                         onSearchClick = onPeopleClick,
                         onActivityClick = { showActivity = true },
@@ -284,6 +291,7 @@ fun HomeScreen(
 
                 item(key = "plantupia-living-space") {
                     PlantupiaClientSection(
+                        accountId = userId,
                         onCommunityCreateClick = onCreatePost,
                         onOpenPlant = {
                             scope.launch {
@@ -292,10 +300,10 @@ fun HomeScreen(
                                 )
                             }
                         },
-                        onOpenLinkedPost = { postId ->
+                        onOpenLinkedPost = { postId, isCurrent ->
                             scope.launch {
                                 when (val result = onResolvePost(postId)) {
-                                    is ApiResult.Success -> onPostClick(result.value)
+                                    is ApiResult.Success -> if (isCurrent()) onPostClick(result.value)
                                     is ApiResult.Failure -> Unit
                                 }
                             }
@@ -304,12 +312,39 @@ fun HomeScreen(
                 }
 
                 item(key = "home-community-toggle") {
-                    TextButton(onClick = { showCommunityFeed = !showCommunityFeed }) {
-                        Text(
-                            if (showCommunityFeed) "اخفِ لحظات الناس ↑" else "لحظات الناس (اختياري) ↓",
-                            color = NovaAccent,
-                            style = NovaType.bodyCompact,
-                        )
+                    // Community remains a deliberate choice, not an endless
+                    // autoplay feed intruding into private living-space care.
+                    Surface(
+                        onClick = { showCommunityFeed = !showCommunityFeed },
+                        modifier = Modifier.fillMaxWidth(),
+                        color = PlantupiaColors.paper,
+                        shape = PlantupiaShapes.inset,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, PlantupiaColors.border),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 17.dp, vertical = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text("THE CIRCLE", style = PlantupiaText.sectionLabel)
+                                Text(
+                                    if (showCommunityFeed) "Close shared moments" else "Explore shared moments",
+                                    style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
+                                )
+                                Text(
+                                    "A community you enter when you choose.",
+                                    style = PlantupiaText.supporting,
+                                )
+                            }
+                            Text(
+                                if (showCommunityFeed) "↑" else "↓",
+                                style = PlantupiaText.editorialHeading,
+                            )
+                        }
                     }
                 }
                 if (showCommunityFeed) {
@@ -319,8 +354,8 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(text = "From the circle", color = NovaInk, style = NovaType.title)
-                        Text(text = "Community", color = NovaMuted, style = NovaType.micro)
+                        Text(text = "FROM THE CIRCLE", style = PlantupiaText.sectionLabel)
+                        Text(text = "Shared by people", style = PlantupiaText.supporting)
                     }
                 }
 
@@ -415,9 +450,12 @@ fun HomeScreen(
                 }
 
                 item {
-                    NovaCard(
+                    Surface(
                         onClick = onCreatePost,
                         modifier = Modifier.fillMaxWidth(),
+                        color = PlantupiaColors.paper,
+                        shape = PlantupiaShapes.inset,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, PlantupiaColors.border),
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = NovaSpacing.lg, vertical = NovaSpacing.md),
@@ -428,27 +466,27 @@ fun HomeScreen(
                                 source = avatarUrl,
                                 fallbackText = displayName.ifBlank { username },
                                 size = 40.dp,
+                                plantupiaUserId = userId.takeIf { it > 0L },
+                                plantupiaAvatarVariant = avatarVariant,
                             )
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = "Share a living moment",
-                                    color = NovaInk,
-                                    style = NovaType.bodyCompact.copy(fontWeight = FontWeight.SemiBold),
+                                    style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
                                 )
                                 Text(
-                                    text = "Photo or video + caption",
-                                    color = NovaMuted,
-                                    style = NovaType.micro,
+                                    text = "Only what you intentionally make public",
+                                    style = PlantupiaText.supporting,
                                 )
                             }
                             Surface(
                                 shape = RoundedCornerShape(14.dp),
-                                color = NovaAccent,
+                                color = PlantupiaColors.forest,
                             ) {
                                 Text(
                                     text = "+",
                                     modifier = Modifier.padding(horizontal = 13.dp, vertical = 6.dp),
-                                    color = NovaBackground,
+                                    color = PlantupiaColors.paper,
                                     style = NovaType.title,
                                 )
                             }
@@ -465,13 +503,11 @@ fun HomeScreen(
                         ) {
                             Text(
                                 text = "More from your circle",
-                                color = NovaInk,
-                                style = NovaType.title,
+                                style = PlantupiaText.editorialHeading,
                             )
                             Text(
                                 text = if (isLoading) "Refreshing…" else "Latest",
-                                color = NovaMuted,
-                                style = NovaType.micro,
+                                style = PlantupiaText.supporting,
                             )
                         }
                     }

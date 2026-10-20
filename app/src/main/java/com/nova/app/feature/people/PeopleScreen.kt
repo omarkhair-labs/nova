@@ -32,6 +32,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nova.app.feature.people.domain.model.NovaPerson
+import com.nova.app.feature.plants.PlantupiaColors
+import com.nova.app.feature.plants.PlantupiaText
+import com.nova.app.feature.plants.PlantupiaEmptyPeopleArt
 import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
@@ -80,7 +83,7 @@ fun PeopleScreen(
         onPersonClick(username)
     }
     androidx.compose.material3.Scaffold(
-        containerColor = NovaBackground,
+        containerColor = PlantupiaColors.cream,
         bottomBar = {
             NovaBottomBar(
                 selected = null,
@@ -94,22 +97,20 @@ fun PeopleScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(NovaBackground)
+                .background(PlantupiaColors.cream)
                 .padding(innerPadding)
                 .statusBarsPadding()
                 .padding(horizontal = NovaSpacing.xl),
         ) {
             Text(
-                text = "الناس",
-                color = NovaInk,
-                style = NovaType.pageTitle,
+                text = "People",
+                style = PlantupiaText.editorialHeading,
                 modifier = Modifier.padding(top = NovaSpacing.lg),
             )
             Spacer(modifier = Modifier.height(NovaSpacing.sm))
             Text(
-                text = "اكتشف أشخاصًا وتجارب من المجتمع. المتابعة اختيارك.",
-                color = NovaMuted,
-                style = NovaType.bodyCompact,
+                text = "Meet people who share their worlds with plants. Follow only when you choose.",
+                style = PlantupiaText.body,
             )
 
             Spacer(modifier = Modifier.height(NovaSpacing.xl))
@@ -129,14 +130,14 @@ fun PeopleScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("Recent searches", color = NovaInk, style = NovaType.label)
+                    Text("Recent searches", color = PlantupiaColors.forestText, style = NovaType.label)
                     TextButton(
                         onClick = {
                             recentUsernames = emptyList()
                             recentPreferences.edit().remove("usernames").apply()
                         },
                     ) {
-                        Text("Clear", color = NovaMuted, style = NovaType.micro)
+                        Text("Clear", color = PlantupiaColors.secondaryText, style = NovaType.micro)
                     }
                 }
                 Spacer(modifier = Modifier.height(NovaSpacing.sm))
@@ -149,17 +150,19 @@ fun PeopleScreen(
                             Surface(
                                 onClick = { recordAndOpen(username) },
                                 shape = RoundedCornerShape(999.dp),
-                                color = NovaBackground,
+                                color = PlantupiaColors.cream,
                             ) {
                                 NovaAvatar(
                                     source = person?.avatarUrl.orEmpty(),
                                     fallbackText = person?.name?.ifBlank { username } ?: username,
                                     size = 46.dp,
+                                    plantupiaUserId = person?.id?.takeIf { it > 0L },
+                                    plantupiaAvatarVariant = person?.plantupiaAvatarVariant ?: -1,
                                 )
                             }
                             Text(
                                 person?.name?.ifBlank { username } ?: "@$username",
-                                color = NovaInk,
+                                color = PlantupiaColors.forestText,
                                 style = NovaType.micro,
                                 maxLines = 1,
                             )
@@ -182,12 +185,12 @@ fun PeopleScreen(
                     Surface(
                         onClick = { onFilterChange(value) },
                         shape = RoundedCornerShape(999.dp),
-                        color = if (state.filter == value) NovaAccent else NovaBackground,
-                        border = BorderStroke(1.dp, if (state.filter == value) NovaAccent else NovaBorder),
+                        color = if (state.filter == value) PlantupiaColors.forest else PlantupiaColors.paper,
+                        border = BorderStroke(1.dp, if (state.filter == value) PlantupiaColors.forest else PlantupiaColors.border),
                     ) {
                         Text(
                             text = label,
-                            color = if (state.filter == value) androidx.compose.ui.graphics.Color.White else NovaInk,
+                            color = if (state.filter == value) PlantupiaColors.paper else PlantupiaColors.forestText,
                             style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
                             modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
                         )
@@ -197,7 +200,7 @@ fun PeopleScreen(
             Spacer(modifier = Modifier.height(NovaSpacing.sm))
             Text(
                 text = discoveryFilterDescription(state.filter),
-                color = NovaMuted,
+                color = PlantupiaColors.secondaryText,
                 style = NovaType.micro,
             )
             Spacer(modifier = Modifier.height(NovaSpacing.lg))
@@ -209,8 +212,8 @@ fun PeopleScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = if (state.query.isBlank()) "Discover" else "Results",
-                        color = NovaInk,
+                        text = if (state.query.isBlank()) "PEOPLE TO DISCOVER" else "SEARCH RESULTS",
+                        color = PlantupiaColors.forestText,
                         style = NovaType.label,
                     )
                     Row(
@@ -221,12 +224,12 @@ fun PeopleScreen(
                             NovaPresenceIndicator(
                                 modifier = Modifier.size(14.dp),
                                 monochrome = true,
-                                monochromeColor = NovaAccent,
+                                monochromeColor = PlantupiaColors.forest,
                             )
                         }
                         Text(
                             text = "${state.people.size} loaded",
-                            color = NovaMuted,
+                            color = PlantupiaColors.secondaryText,
                             style = NovaType.micro,
                         )
                     }
@@ -253,6 +256,13 @@ fun PeopleScreen(
                 }
 
                 state.people.isEmpty() -> {
+                    // Real zero-community state only, not an API error or
+                    // an empty search-result imitation of another person's data.
+                    if (state.query.isBlank()) {
+                        PlantupiaEmptyPeopleArt(
+                            modifier = Modifier.fillMaxWidth().height(112.dp),
+                        )
+                    }
                     NovaEmptyState(
                         title = if (state.query.isBlank()) "No one to show yet" else "No matches",
                         message = peopleEmptyMessage(state.filter, state.query),
@@ -275,6 +285,7 @@ fun PeopleScreen(
                                     state.cancelingUsername == person.username,
                                 onClick = { recordAndOpen(person.username) },
                                 onFollowToggle = { onFollowToggle(person) },
+                                plantupiaStyle = true,
                             )
                         }
 
@@ -282,7 +293,7 @@ fun PeopleScreen(
                             item {
                                 Text(
                                     text = state.followError,
-                                    color = NovaMuted,
+                                    color = PlantupiaColors.secondaryText,
                                     style = NovaType.meta,
                                     modifier = Modifier.padding(horizontal = NovaSpacing.sm, vertical = NovaSpacing.xs),
                                 )

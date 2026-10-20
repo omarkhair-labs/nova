@@ -67,6 +67,7 @@ import com.nova.app.ui.theme.NovaType
 import com.nova.app.feature.plants.PlantupiaCirclePanel
 import com.nova.app.feature.plants.PlantupiaCreateIntent
 import com.nova.app.feature.plants.PlantupiaCreateMode
+import com.nova.app.feature.stories.StoriesRail
 import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.ui.components.NovaUnreadDot
@@ -76,8 +77,8 @@ import java.time.OffsetDateTime
 
 
 private enum class CircleSection(val label: String) {
-    PlantQuestions("النباتات والأسئلة"),
-    PeopleActivity("الناس واللحظات"),
+    PlantQuestions("Plant questions"),
+    PeopleActivity("People & moments"),
 }
 
 private enum class OrbitFilter(val label: String) {
@@ -153,13 +154,9 @@ fun OrbitScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("CIRCLE / الدائرة", color = NovaAccent, style = NovaType.micro)
-                        Text("اللي بين الناس والنباتات", color = NovaInk, style = NovaType.pageTitle)
-                        Text(
-                            "أسئلة حقيقية، لحظات موثّقة، وناس بتشارك خبرتها.",
-                            color = NovaMuted,
-                            style = NovaType.bodyCompact,
-                        )
+                        Text("PLANTUPIA / CIRCLE", color = NovaAccent, style = NovaType.micro)
+                        Text("Circle", color = NovaInk, style = NovaType.screenTitle)
+                        Text("Questions, people and shared experience.", color = NovaMuted, style = NovaType.meta)
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(NovaSpacing.xs)) {
                         Box {
@@ -171,7 +168,7 @@ fun OrbitScreen(
                             ) {
                                 NovaIcon(
                                     asset = NovaIconAsset.Inbox,
-                                    contentDescription = "الرسائل",
+                                    contentDescription = "Messages",
                                     tint = NovaInk,
                                     modifier = Modifier.padding(NovaSpacing.md).size(21.dp),
                                 )
@@ -188,7 +185,7 @@ fun OrbitScreen(
                         ) {
                             NovaIcon(
                                 asset = NovaIconAsset.Search,
-                                contentDescription = "اكتشف الناس",
+                                contentDescription = "Explore people",
                                 tint = NovaInk,
                                 modifier = Modifier.padding(NovaSpacing.md).size(21.dp),
                             )
@@ -226,9 +223,8 @@ fun OrbitScreen(
             }
 
             if (selectedSection == CircleSection.PlantQuestions) {
-                item(key = "circle-real-plant-questions") {
-                    PlantupiaCirclePanel(onOpenPost = onPostClick)
-                }
+                // Human help starts at a real plant. No source care entry is
+                // shared until the owner previews exact public text and photo.
                 item(key = "circle-start-your-own-question") {
                     Surface(
                         onClick = {
@@ -237,24 +233,42 @@ fun OrbitScreen(
                         },
                         modifier = Modifier.fillMaxWidth(),
                         color = NovaAccentSoft,
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(22.dp),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
                     ) {
-                        Column(
-                            modifier = Modifier.padding(NovaSpacing.lg),
-                            verticalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
+                        Row(
+                            modifier = Modifier.padding(NovaSpacing.md),
+                            horizontalArrangement = Arrangement.spacedBy(NovaSpacing.md),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("FROM YOUR SPACE / من مساحتك", color = NovaAccent, style = NovaType.micro)
-                            Text("عندك سؤال عن نباتك؟", color = NovaInk, style = NovaType.sectionTitle)
-                            Text(
-                                "اختار النبات الأول. إنت اللي تقرر إمتى تشارك سؤالك وصورته مع الناس.",
-                                color = NovaMuted,
-                                style = NovaType.bodyCompact,
+                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text("ASK FROM A PLANT", color = NovaAccent, style = NovaType.micro)
+                                Text("Ask the Circle", color = NovaInk, style = NovaType.label)
+                                Text("Choose a plant, then review what you share.", color = NovaMuted, style = NovaType.meta)
+                            }
+                            NovaIcon(
+                                asset = NovaIconAsset.Create,
+                                contentDescription = null,
+                                tint = NovaAccent,
+                                modifier = Modifier.size(24.dp),
                             )
-                            Text("اسأل من سجل النبات ←", color = NovaAccent, style = NovaType.label)
                         }
                     }
                 }
+                item(key = "circle-real-plant-questions") {
+                    PlantupiaCirclePanel(onOpenPost = onPostClick)
+                }
             } else {
+            // Real Nova Stories are rendered through their existing authenticated
+            // StoriesRepository, upload/viewer/audience/media engine, not demo content.
+            // A Story is public and temporary; it never becomes a private care event.
+            item(key = "plantupia-real-stories") {
+                StoriesRail(
+                    displayName = displayName,
+                    username = username,
+                    avatarUrl = avatarUrl,
+                    onSessionExpired = onSessionExpired,
+                )
+            }
             item {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm)) {
                     items(OrbitFilter.entries) { filter ->

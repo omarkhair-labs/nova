@@ -96,6 +96,17 @@ else:
         }
     }
 
+# Separate rate-limit cache for the optional Plantupia paid AI endpoint.
+# A shared Redis backend is required before enabling it for real users.
+CACHES = {
+    "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    "plantupia_ai": (
+        {"BACKEND": "django.core.cache.backends.redis.RedisCache", "LOCATION": REDIS_URL}
+        if REDIS_URL else
+        {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "plantupia-ai-dev"}
+    ),
+}
+
 database_url = os.getenv("DATABASE_URL", "").strip()
 if database_url:
     DATABASES = {

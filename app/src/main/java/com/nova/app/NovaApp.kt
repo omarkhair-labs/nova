@@ -59,7 +59,6 @@ import com.nova.app.feature.publishing.MediaPublishWorker
 import com.nova.app.feature.publishing.MediaPublishingStateOwner
 import com.nova.app.feature.tonight.TonightScreen
 import com.nova.app.feature.welcome.WelcomeScreen
-import com.nova.app.navigation.AppDestination
 import com.nova.app.navigation.NovaRootNavigationSignal
 import com.nova.app.navigation.NovaRootTab
 import com.nova.app.navigation.NovaRoute
@@ -139,8 +138,7 @@ fun NovaApp(
     }
 
     fun expireSession() {
-        appViewModel.expireSession()
-        clearSessionUi()
+        if (appViewModel.expireSession()) clearSessionUi()
     }
 
     fun refreshCurrentUser() {
@@ -402,6 +400,8 @@ fun NovaApp(
                         displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
                         username = user?.username ?: "nova",
                         avatarUrl = user?.avatarUrl.orEmpty(),
+                        userId = user?.id ?: 0L,
+                        avatarVariant = user?.plantupiaAvatarVariant ?: -1,
                         posts = homeFeedState.posts.takeIf { feedBelongsToUser }.orEmpty(),
                         isLoading = !feedBelongsToUser || homeFeedState.isLoading,
                         isRefreshing = feedBelongsToUser && homeFeedState.isRefreshing,
@@ -467,11 +467,12 @@ fun NovaApp(
                         displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
                         username = user?.username ?: "nova",
                         avatarUrl = user?.avatarUrl.orEmpty(),
+                        userId = user?.id ?: 0L,
+                        avatarVariant = user?.plantupiaAvatarVariant ?: -1,
                         onCreatePost = {
                             feedOwner.clearPostError()
                             backStack.add(NovaRoute.CreatePost)
                         },
-                        onOpenReels = { appViewModel.navigate(AppDestination.Reels) },
                         onPersonClick = { username -> backStack.add(NovaRoute.Person(username)) },
                         onHomeClick = { openRoot(NovaRootTab.Home) },
                         onOrbitClick = { openRoot(NovaRootTab.Orbit) },
@@ -795,6 +796,8 @@ fun NovaApp(
 
                     ProfileScreen(
                         displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
+                        userId = user?.id ?: 0L,
+                        avatarVariant = user?.plantupiaAvatarVariant ?: -1,
                         username = user?.username ?: "nova",
                         avatarUrl = user?.avatarUrl.orEmpty(),
                         bio = user?.bio.orEmpty(),
@@ -825,6 +828,8 @@ fun NovaApp(
                     val user = appState.currentUser
                     EditProfileScreen(
                         displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
+                        userId = user?.id ?: 0L,
+                        avatarVariant = user?.plantupiaAvatarVariant ?: -1,
                         username = user?.username ?: "nova",
                         avatarUrl = user?.avatarUrl.orEmpty(),
                         bio = user?.bio.orEmpty(),
@@ -842,7 +847,7 @@ fun NovaApp(
                                 backStack.removeLastOrNull()
                             }
                         },
-                        onSave = { name, handle, avatarUri, bio, location, link, interests, theme, showOrbit ->
+                        onSave = { name, handle, avatarUri, bio, location, link, interests, theme, showOrbit, avatarVariant ->
                             if (!authLoading) {
                                 scope.launch {
                                     authLoading = true
@@ -859,6 +864,7 @@ fun NovaApp(
                                             interests = interests,
                                             profileTheme = theme,
                                             showOrbit = showOrbit,
+                                            plantupiaAvatarVariant = avatarVariant,
                                         )
                                     ) {
                                         is ApiResult.Success -> {

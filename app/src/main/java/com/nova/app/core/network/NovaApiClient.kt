@@ -16,6 +16,7 @@ import okio.buffer
 import okio.source
 import org.json.JSONArray
 import org.json.JSONObject
+import org.json.JSONTokener
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -59,6 +60,8 @@ sealed interface ApiResult<out T> {
     data class Failure(
         val message: String,
         val statusCode: Int? = null,
+        val errorCode: String? = null,
+        val requestId: String? = null,
     ) : ApiResult<Nothing>
 }
 
@@ -104,6 +107,7 @@ class NovaApiClient(
         method: String = "GET",
         body: JSONObject? = null,
         bearerToken: String? = null,
+        readTimeoutMillis: Int = 10_000,
     ): ApiResult<JSONObject> = withContext(Dispatchers.IO) {
         var connection: HttpURLConnection? = null
 
@@ -111,7 +115,11 @@ class NovaApiClient(
             connection = (URL(baseUrl + path).openConnection() as HttpURLConnection).apply {
                 requestMethod = method
                 connectTimeout = 10_000
+                // Preserve Nova's established 10s JSON behavior by default.
                 readTimeout = 10_000
+                if (readTimeoutMillis != 10_000) {
+                    readTimeout = readTimeoutMillis.coerceIn(10_000, 30_000)
+                }
                 setRequestProperty("Accept", "application/json")
                 bearerToken?.let { setRequestProperty("Authorization", "Bearer $it") }
 
@@ -233,8 +241,24 @@ class NovaApiClient(
         htmlErrorMessage(status, raw)?.let {
             return ApiResult.Failure(message = it, statusCode = status)
         }
-        val json = if (raw.isBlank()) JSONObject() else runCatching { JSONObject(raw) }
-            .getOrElse { JSONObject().put("detail", raw) }
+        // Existing Nova DELETE/session-revoke endpoints legitimately return no body.
+        // Other successful responses must contain one complete JSON object.
+        val json = if (status in 200..299) {
+            if (status in setOf(204, 205) && raw.isBlank()) JSONObject() else {
+                runCatching {
+                    val reader = JSONTokener(raw)
+                    val value = reader.nextValue()
+                    require(value is JSONObject && reader.nextClean() == '\u0000')
+                    value
+                }.getOrElse {
+                    return ApiResult.Failure("Nova returned an invalid server response. Please try again.", status)
+                }
+            }
+        } else {
+            // Keep Nova's established non-2xx error parsing contract.
+            if (raw.isBlank()) JSONObject() else runCatching { JSONObject(raw) }
+                .getOrElse { JSONObject().put("detail", raw) }
+        }
 
         return if (status in 200..299) {
             ApiResult.Success(json)
@@ -242,6 +266,8 @@ class NovaApiClient(
             ApiResult.Failure(
                 message = parseError(json, status),
                 statusCode = status,
+                errorCode = json.opt("code") as? String,
+                requestId = json.opt("request_id") as? String,
             )
         }
     }

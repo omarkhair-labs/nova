@@ -110,102 +110,33 @@ class NovaAccountSecurityRepository(
         authenticatedJsonCall("auth/sessions/$sessionId/", method = "DELETE") { Unit }
 
     override suspend fun deleteAccount(currentPassword: String): ApiResult<String> {
-        val stored = sessionStore.load()
-            ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
+        val stored = sessionStore.load() ?: return expiredSession()
         val body = JSONObject().put("current_password", currentPassword)
-
-        var accessToken = stored.accessToken
-        var response = requestJson(
-            path = "auth/account/delete/",
-            method = "POST",
-            body = body,
-            bearerToken = accessToken,
-        )
-
-        if (response is ApiResult.Failure && response.statusCode == 401) {
-            when (val refreshed = authApi.refresh(stored.refreshToken)) {
-                is ApiResult.Success -> {
-                    accessToken = refreshed.value
-                    sessionStore.updateAccessToken(accessToken)
-                    response = requestJson(
-                        path = "auth/account/delete/",
-                        method = "POST",
-                        body = body,
-                        bearerToken = accessToken,
-                    )
-                }
-                is ApiResult.Failure -> {
-                    if (refreshed.statusCode == 400 || refreshed.statusCode == 401) {
-                        sessionStore.clear()
-                        return ApiResult.Failure("Your session expired. Please log in again.", 401)
-                    }
-                    return refreshed
-                }
-            }
-        }
-
+        val response = sessionStore.authenticatedRequest(
+            stored, refresh = { authApi.refresh(stored.refreshToken) },
+        ) { token -> requestJson(path = "auth/account/delete/", method = "POST", body = body, bearerToken = token) }
         return when (response) {
             is ApiResult.Success -> {
-                sessionStore.clear()
-                ApiResult.Success(
-                    response.value.optString("detail").ifBlank { "Your Nova account was deleted." }
-                )
+                if (!sessionStore.clear(stored.identity)) return changedSession()
+                ApiResult.Success(response.value.optString("detail").ifBlank { "Your Nova account was deleted." })
             }
-            is ApiResult.Failure -> {
-                if (response.statusCode == 401) sessionStore.clear()
-                response
-            }
+            is ApiResult.Failure -> response
         }
     }
 
-    private suspend fun authenticatedSessionCall(
-        path: String,
-        body: JSONObject,
-    ): ApiResult<NovaUser> {
-        val stored = sessionStore.load()
-            ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
-
-        var accessToken = stored.accessToken
-        var response = requestJson(
-            path = path,
-            method = "POST",
-            body = body,
-            bearerToken = accessToken,
-        )
-
-        if (response is ApiResult.Failure && response.statusCode == 401) {
-            when (val refreshed = authApi.refresh(stored.refreshToken)) {
-                is ApiResult.Success -> {
-                    accessToken = refreshed.value
-                    sessionStore.updateAccessToken(accessToken)
-                    response = requestJson(
-                        path = path,
-                        method = "POST",
-                        body = body,
-                        bearerToken = accessToken,
-                    )
-                }
-                is ApiResult.Failure -> {
-                    if (refreshed.statusCode == 400 || refreshed.statusCode == 401) {
-                        sessionStore.clear()
-                        return ApiResult.Failure("Your session expired. Please log in again.", 401)
-                    }
-                    return refreshed
-                }
-            }
-        }
-
+    private suspend fun authenticatedSessionCall(path: String, body: JSONObject): ApiResult<NovaUser> {
+        val stored = sessionStore.load() ?: return expiredSession()
+        val response = sessionStore.authenticatedRequest(
+            stored, refresh = { authApi.refresh(stored.refreshToken) },
+        ) { token -> requestJson(path, "POST", body, token) }
         return when (response) {
             is ApiResult.Success -> {
                 val session = parseSession(response.value)
-                sessionStore.save(session)
+                if (!sessionStore.replaceSession(stored.identity, session)) return changedSession()
                 NovaPushRegistration.activate(appContext)
                 ApiResult.Success(session.user)
             }
-            is ApiResult.Failure -> {
-                if (response.statusCode == 401) sessionStore.clear()
-                response
-            }
+            is ApiResult.Failure -> response
         }
     }
 
@@ -214,21 +145,11 @@ class NovaAccountSecurityRepository(
         method: String = "GET",
         transform: (JSONObject) -> T,
     ): ApiResult<T> {
-        val stored = sessionStore.load()
-            ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
-        var accessToken = stored.accessToken
-        var response = requestJson(path, method = method, bearerToken = accessToken)
-        if (response is ApiResult.Failure && response.statusCode == 401) {
-            when (val refreshed = authApi.refresh(stored.refreshToken)) {
-                is ApiResult.Success -> {
-                    accessToken = refreshed.value
-                    sessionStore.updateAccessToken(accessToken)
-                    response = requestJson(path, method = method, bearerToken = accessToken)
-                }
-                is ApiResult.Failure -> return refreshed
-            }
-        }
-        return when (response) {
+        val stored = sessionStore.load() ?: return expiredSession()
+        return when (val response = sessionStore.authenticatedRequest(
+            stored, refresh = { authApi.refresh(stored.refreshToken) },
+            request = { token -> requestJson(path, method = method, bearerToken = token) },
+        )) {
             is ApiResult.Success -> ApiResult.Success(transform(response.value))
             is ApiResult.Failure -> response
         }

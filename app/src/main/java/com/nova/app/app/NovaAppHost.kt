@@ -8,9 +8,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nova.app.NovaApp
 import com.nova.app.MessagesRootRoute
@@ -35,8 +38,7 @@ fun NovaAppHost() {
     val appState = appViewModel.state
 
     fun expireOverlaySession() {
-        appViewModel.expireSession()
-        (context as? Activity)?.recreate()
+        if (appViewModel.expireSession()) (context as? Activity)?.recreate()
     }
 
     fun openReelAuthor(username: String) {
@@ -69,7 +71,10 @@ fun NovaAppHost() {
         appViewModel.clearPrimaryOverlay()
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    // Product-owned navigation is English-first, including on RTL system
+    // locales. User-authored text still keeps its natural Unicode bidi.
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+        Box(modifier = Modifier.fillMaxSize()) {
         NovaApp(
             appContainer = container,
             appViewModel = appViewModel,
@@ -109,6 +114,7 @@ fun NovaAppHost() {
             AppDestination.Create,
             AppDestination.Profile,
             null -> Unit
+        }
         }
     }
 }
