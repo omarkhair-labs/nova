@@ -4,8 +4,22 @@ import com.nova.app.core.network.ApiResult
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.BinaryBitmap
+import com.google.zxing.MultiFormatReader
+import com.google.zxing.RGBLuminanceSource
+import com.google.zxing.common.HybridBinarizer
+import com.google.zxing.qrcode.QRCodeWriter
 
 class PlantupiaHandoverTest {
+    @Test fun actualQrCodecRoundTripProducesTheSameOpaqueInvitation() {
+        val code = "synthetic_" + "a".repeat(43)
+        val image = QRCodeWriter().encode(code, BarcodeFormat.QR_CODE, 256, 256)
+        val pixels = IntArray(256 * 256) { index -> if (image[index % 256, index / 256]) 0xFF000000.toInt() else 0xFFFFFFFF.toInt() }
+        val decoded = MultiFormatReader().decode(BinaryBitmap(HybridBinarizer(RGBLuminanceSource(256, 256, pixels))))
+        assertEquals(code, deliveryCode(decoded.text))
+        assertEquals(BarcodeFormat.QR_CODE, decoded.barcodeFormat)
+    }
     @Test fun codeParserAcceptsOnlyOpaqueDeliverySecretsIncludingScannedPayloads() {
         val code = "a_-".repeat(15)
         assertEquals(code, deliveryCode(" $code\n"))

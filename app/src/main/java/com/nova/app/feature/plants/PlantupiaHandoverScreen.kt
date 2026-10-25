@@ -153,7 +153,7 @@ internal fun PlantupiaHandoverScreen(
                 }
                 if (busy) { LinearProgressIndicator(Modifier.fillMaxWidth()); Text("Confirming with Plantupia…") }
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                TextButton(enabled = !busy, onClick = { store.clear(); onClose() }) { Text("This is not my delivery · remove code") }
+                TextButton(enabled = !busy, onClick = { if (current()) { store.clear(); onClose() } }) { Text("This is not my delivery · remove code") }
                 Text("You can close this screen and return later. The invitation is kept securely for up to 24 hours; it may expire sooner on the server.", style = MaterialTheme.typography.bodySmall)
             }
         }

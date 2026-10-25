@@ -238,7 +238,7 @@ jobs:
       - name: Upload Plantupia QA APK
         uses: actions/upload-artifact@v4
         with:
-          name: plantupia-qa-pr240-apk
+          name: plantupia-qa-pr241-apk
           path: app/build/outputs/apk/qa/app-qa.apk
           if-no-files-found: error
           retention-days: 7
