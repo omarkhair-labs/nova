@@ -1,7 +1,10 @@
 # Staff inventory and care-guide import v1
 
 Issue #244 · existing branch `feature/plantupia-native-experience-20261012` · draft PR #241.
-This is a Django Admin operational workflow. Android continues using the existing
+The primary employee interface is now the independent [Company Dashboard](PLANTUPIA_COMPANY_DASHBOARD_V1.md).
+This document defines the shared schema/import contract and retained technical
+Django Admin fallback; the Admin rehearsal below is for technical staff only.
+Android continues using the existing
 authenticated Care Guide, handover, care, check-in and history contracts.
 No hosted data, deployment, QR issuance or customer entitlement is changed by upload.
 

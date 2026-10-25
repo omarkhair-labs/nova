@@ -195,7 +195,11 @@ class InventoryImportTests(ImportFixture, TestCase):
         self.assertEqual(self.client.get(self.url).status_code, 302)
         self.staff.is_superuser = False
         self.staff.save()
-        self.staff.user_permissions.set(Permission.objects.filter(content_type__app_label="plants").exclude(codename="add_careguideversion"))
+        # This is the technical Admin fallback. Company employees are refused
+        # Admin entry entirely; the portal suite tests that separate boundary.
+        self.staff.user_permissions.set(Permission.objects.filter(content_type__app_label="plants").exclude(
+            codename__in=("add_careguideversion", "access_company_dashboard")))
+        self.assertFalse(self.staff.has_perm("plants.access_company_dashboard"))
         self.client.force_login(self.staff)
         self.assertEqual(self.client.get(self.url).status_code, 403)
         self.staff.is_staff = False
