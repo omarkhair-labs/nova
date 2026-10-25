@@ -2,6 +2,15 @@ from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
+from django import forms
+from django.contrib.auth import get_user_model
+from django.core.exceptions import PermissionDenied
+from django.template.response import TemplateResponse
+from django.urls import path
+from django.views.decorators.debug import sensitive_post_parameters
+from django.utils.decorators import method_decorator
+from .handovers import HandoverError, issue_pilot_invitation, pilot_enabled
+from .models import BotanicalSpecies, CareGuideVersion, HandoverInvitation
 from .models import (InstallationBatch, InstallationManifestRow, PlantEvent,
                      PlantNickname, PlantUnit, Space, SpaceMember, PlantDiscussion)
 
@@ -23,6 +32,86 @@ class PlantUnitAdmin(admin.ModelAdmin):
     list_display = ("label", "space", "unit_type", "species_label", "is_active")
     list_filter = ("unit_type", "is_active")
     search_fields = ("label", "species_label", "space__name")
+
+
+@admin.register(BotanicalSpecies)
+class BotanicalSpeciesAdmin(admin.ModelAdmin):
+    search_fields = ("key", "scientific_name")
+
+
+@admin.register(CareGuideVersion)
+class CareGuideVersionAdmin(admin.ModelAdmin):
+    list_display = ("species", "version", "reviewer", "reviewed_at", "published")
+    list_filter = ("published",)
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj and obj.published:
+            return tuple(field.name for field in obj._meta.fields if field.name != "published")
+        return ()
+
+    def has_delete_permission(self, request, obj=None):
+        return bool(not obj or not obj.published) and super().has_delete_permission(request, obj)
+
+
+class PilotInvitationForm(forms.Form):
+    batch = forms.ModelChoiceField(queryset=InstallationBatch.objects.filter(status="ready"))
+    recipient = forms.ModelChoiceField(queryset=get_user_model().objects.filter(is_active=True, is_staff=False))
+    mode = forms.ChoiceField(choices=[("", "Select explicitly approved QA ownership mode")] + list(HandoverInvitation.Mode.choices))
+    approved_qa_policy = forms.BooleanField(label="This is isolated QA and the selected simulated ownership mode is approved for this test")
+
+
+@admin.register(HandoverInvitation)
+class HandoverInvitationAdmin(admin.ModelAdmin):
+    list_display = ("batch", "intended_recipient", "mode", "expires_at", "revoked_at", "claimed_at")
+    readonly_fields = tuple(f.name for f in HandoverInvitation._meta.fields if f.name != "token_digest")
+    exclude = ("token_digest",)
+    actions = ("revoke_invitations",)
+    change_list_template = "admin/plants/handover_list.html"
+
+    def get_urls(self):
+        return [path("issue/", self.admin_site.admin_view(self.issue_view), name="plants_handoverinvitation_issue")] + super().get_urls()
+
+    def has_add_permission(self, request):
+        return False  # Issuance service is the only creation path.
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    @method_decorator(sensitive_post_parameters())
+    def issue_view(self, request):
+        if not request.user.has_perm("plants.add_handoverinvitation") or not pilot_enabled():
+            raise PermissionDenied
+        form = PilotInvitationForm(request.POST or None)
+        raw_code = None
+        if request.method == "POST" and form.is_valid():
+            try:
+                raw_code, invitation = issue_pilot_invitation(
+                    batch_id=form.cleaned_data["batch"].pk, recipient=form.cleaned_data["recipient"],
+                    staff=request.user, mode=form.cleaned_data["mode"],
+                )
+                self.log_addition(request, invitation, "QA invitation issued; secret withheld")
+            except HandoverError as exc:
+                form.add_error(None, exc.code)
+        response = TemplateResponse(request, "admin/plants/handover_issue.html", {
+            **self.admin_site.each_context(request), "title": "Isolated QA handover", "form": form,
+            "raw_code": raw_code, "opts": self.model._meta,
+        })
+        response["Cache-Control"] = "no-store, private"
+        response["Referrer-Policy"] = "no-referrer"
+        return response
+
+    @admin.action(description="Revoke selected unused QA invitations")
+    def revoke_invitations(self, request, queryset):
+        if not pilot_enabled() or not self.has_change_permission(request):
+            raise PermissionDenied
+        for invitation_id, batch_id in queryset.values_list("pk", "batch_id"):
+            with transaction.atomic():
+                InstallationBatch.objects.select_for_update().get(pk=batch_id)
+                invitation = HandoverInvitation.objects.select_for_update().get(pk=invitation_id)
+                if invitation.claimed_at is None and invitation.revoked_at is None:
+                    invitation.revoked_at = timezone.now()
+                    invitation.save(update_fields=("revoked_at",))
+                    self.log_change(request, invitation, "Unused QA invitation revoked")
 
 
 @admin.register(PlantEvent)

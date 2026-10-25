@@ -42,6 +42,50 @@ class SpaceMember(models.Model):
         constraints = [models.UniqueConstraint(fields=["space", "user"], name="plant_space_unique_member")]
 
 
+class BotanicalSpecies(models.Model):
+    """Curated identity; a user-entered species_label is never verification."""
+    key = models.SlugField(max_length=100, unique=True)
+    scientific_name = models.CharField(max_length=180)
+
+    def __str__(self):
+        return self.scientific_name
+
+
+class CareGuideVersion(models.Model):
+    species = models.ForeignKey(BotanicalSpecies, on_delete=models.PROTECT, related_name="guides")
+    version = models.PositiveIntegerField()
+    source_url = models.URLField(max_length=500)
+    source_reference = models.CharField(max_length=240)
+    instructions = models.TextField()
+    context_notes = models.TextField(blank=True)
+    reviewer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    reviewed_at = models.DateTimeField()
+    published = models.BooleanField(default=False)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=("species", "version"), name="plant_guide_species_version")]
+
+    def clean(self):
+        super().clean()
+        if not self.source_url.startswith("https://"):
+            raise ValidationError({"source_url": "An HTTPS source is required."})
+        if self.reviewer_id and not self.reviewer.is_staff:
+            raise ValidationError({"reviewer": "An authorized botanical reviewer is required."})
+        if self.version < 1:
+            raise ValidationError({"version": "Start guide versions at 1."})
+        from django.utils import timezone
+        if self.reviewed_at and self.reviewed_at > timezone.now():
+            raise ValidationError({"reviewed_at": "A review must have actually occurred."})
+        if self.pk:
+            previous = type(self).objects.filter(pk=self.pk, published=True).values().first()
+            if previous and any(previous[field.attname] != getattr(self, field.attname)
+                                for field in self._meta.fields if field.name != "published"):
+                raise ValidationError("Published content is immutable; create a new version.")
+
+    def __str__(self):
+        return f"{self.species} v{self.version}"
+
+
 class PlantUnit(models.Model):
     class UnitType(models.TextChoices):
         INDIVIDUAL = "individual", "Individual plant"
@@ -53,6 +97,10 @@ class PlantUnit(models.Model):
     label = models.CharField(max_length=120)
     cover_photo = models.ImageField(upload_to="plantupia/units/%Y/%m/", blank=True)
     species_label = models.CharField(max_length=180, blank=True)
+    verified_species = models.ForeignKey(
+        BotanicalSpecies, null=True, blank=True, on_delete=models.PROTECT,
+        help_text="Assign only after botanical identity verification; free-text species is not verification.",
+    )
     placement_note = models.CharField(max_length=180, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -11,6 +11,7 @@ import secrets
 from datetime import timedelta
 
 from django.core.cache import cache
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
@@ -26,7 +27,18 @@ class HandoverError(Exception):
 
 def pilot_enabled():
     # Explicit opt-in for isolated non-production QA. No default activation.
-    return os.getenv("PLANTUPIA_HANDOVER_QA_ENABLED", "0") == "1"
+    return not settings.IS_PRODUCTION and os.getenv("PLANTUPIA_HANDOVER_QA_ENABLED", "0") == "1"
+
+
+def _inventory_ready(batch):
+    rows = batch.manifest_rows
+    return (rows.exists() and not rows.exclude(plant__space_id=batch.space_id).exists()
+            and rows.count() == batch.space.plants.count())
+
+
+def _retains_claim_access(invitation, space, user):
+    return (space.owner_id == user.pk if invitation.mode == HandoverInvitation.Mode.CUSTOMER_OWNED
+            else SpaceMember.objects.filter(space=space, user=user).exists())
 
 
 def _digest(raw_token):
@@ -64,9 +76,7 @@ def issue_pilot_invitation(*, batch_id, recipient, staff, mode, valid_for=timede
     ).get(pk=batch_id)
     if batch.status != InstallationBatch.Status.READY or not batch.space.owner.is_staff:
         raise HandoverError("inventory_not_ready", 409)
-    if not batch.manifest_rows.exists() or batch.manifest_rows.exclude(
-        plant__space_id=batch.space_id,
-    ).exists():
+    if not _inventory_ready(batch):
         raise HandoverError("inventory_not_ready", 409)
     if _nonstaff_extra_members(batch, recipient):
         raise HandoverError("unexpected_membership", 409)
@@ -135,6 +145,8 @@ def preview_handover(*, token, user):
         raise HandoverError("invalid_invitation", 404)
     if invitation.claimed_at is not None and invitation.claimed_by_id != user.pk:
         raise HandoverError("invalid_invitation", 404)
+    if invitation.claimed_at is not None and not _retains_claim_access(invitation, batch.space, user):
+        raise HandoverError("claim_not_available", 409)
     return _summary(invitation, claimed=invitation.claimed_at is not None)
 
 
@@ -159,18 +171,14 @@ def claim_handover(*, token, user):
 
     if invitation.claimed_at is not None:
         # No privilege resurrection after a customer later loses access.
-        permitted = (
-            space.owner_id == user.pk if invitation.mode == HandoverInvitation.Mode.CUSTOMER_OWNED
-            else SpaceMember.objects.filter(space=space, user=user).exists()
-        )
+        permitted = _retains_claim_access(invitation, space, user)
         if (invitation.claimed_by_id != user.pk or not permitted
                 or batch.status != InstallationBatch.Status.CLAIMED):
             raise HandoverError("claim_not_available", 409)
         return {"space_id": str(space.pk), **_summary(invitation, claimed=True)}
 
     if (batch.status != InstallationBatch.Status.READY or not space.owner.is_staff
-            or not batch.manifest_rows.exists()
-            or batch.manifest_rows.exclude(plant__space_id=space.pk).exists()
+            or not _inventory_ready(batch)
             or _nonstaff_extra_members(batch, user)):
         raise HandoverError("claim_not_available", 409)
 

@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .handovers import HandoverError, claim_handover, preview_handover
-from .models import PlantDiscussion, PlantEvent, PlantNickname, PlantUnit, Space, SpaceMember
+from .models import CareGuideVersion, PlantDiscussion, PlantEvent, PlantNickname, PlantUnit, Space, SpaceMember
 from .serializers import (PlantCreateSerializer, PlantEventSerializer, PlantSerializer, PlantUpdateSerializer, SpaceCreateSerializer, SpaceSerializer, SpaceUpdateSerializer)
 from .media import sanitize_public_plant_photo
 from .submissions import submit, save_submission_photo
@@ -32,6 +32,29 @@ def can_record(user, plant):
         space=plant.space, user=user,
         role__in=[SpaceMember.Role.CARER, SpaceMember.Role.MANAGER]
     ).exists()
+
+
+class PlantCareGuideView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, plant_id):
+        plant = get_object_or_404(accessible_plants(request.user), pk=plant_id)
+        guide = (CareGuideVersion.objects.filter(species_id=plant.verified_species_id, published=True)
+                 .select_related("species").order_by("-version").first()) if plant.verified_species_id else None
+        result = {
+            "plant_id": str(plant.pk), "placement": plant.placement_note,
+            "state": "available" if guide else "unverified",
+            "identity_verified": bool(plant.verified_species_id),
+            "guide": None,
+        }
+        if guide:
+            result["guide"] = {
+                "version": guide.version, "species": guide.species.scientific_name,
+                "instructions": guide.instructions, "context_notes": guide.context_notes,
+                "source_url": guide.source_url, "source_reference": guide.source_reference,
+                "reviewer": guide.reviewer.get_username(), "reviewed_at": guide.reviewed_at.isoformat(),
+            }
+        return Response(result, headers={"Cache-Control": "private, no-store"})
 
 
 class SpacesView(APIView):

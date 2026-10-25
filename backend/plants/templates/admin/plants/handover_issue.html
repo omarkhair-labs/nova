@@ -1,0 +1,14 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+{% if raw_code %}
+<h2>Sensitive invitation — shown once</h2>
+<p>Deliver only through the authorized QA channel. Do not log, screenshot or save in permanent records.</p>
+<p>The raw code can also be encoded as a QR locally. Scanning never claims a delivery.</p>
+<label for="handover-code">Delivery code</label>
+<input id="handover-code" readonly value="{{ raw_code }}" autocomplete="off" size="48">
+<p>Reopening this page cannot recover the code. Issuing a replacement revokes the previous unused invitation.</p>
+{% else %}
+<p>Only for synthetic records in an isolated QA environment. No commercial ownership or maintenance agreement is implied.</p>
+<form method="post" autocomplete="off">{% csrf_token %}{{ form.as_p }}<button type="submit">Issue invitation once</button></form>
+{% endif %}
+{% endblock %}
