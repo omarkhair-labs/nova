@@ -143,10 +143,18 @@ def claim_handover(*, token, user):
     if not pilot_enabled():
         raise HandoverError("handover_disabled", 503)
     throttle_account(user)
-    invitation = _load_valid_invitation(token, user, for_update=True)
+    # Consistent lock order for issue and claim: installation before invitation.
+    # The digest lookup itself is not an authorization decision.
+    digest = _digest(token)
+    header = HandoverInvitation.objects.filter(token_digest=digest).values(
+        "batch_id",
+    ).first()
+    if header is None:
+        raise HandoverError("invalid_invitation", 404)
     batch = InstallationBatch.objects.select_for_update().select_related(
         "space__owner",
-    ).get(pk=invitation.batch_id)
+    ).get(pk=header["batch_id"])
+    invitation = _load_valid_invitation(token, user, for_update=True)
     space = Space.objects.select_for_update().get(pk=batch.space_id)
 
     if invitation.claimed_at is not None:
