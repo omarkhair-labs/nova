@@ -242,6 +242,20 @@ jobs:
           path: app/build/outputs/apk/qa/app-qa.apk
           if-no-files-found: error
           retention-days: 7
+      # Distinct from the normal QA artifact: this APK talks only to the developer
+      # machine's disposable local backend through the Android emulator loopback.
+      # It is not suitable for a physical phone or an online/customer demo.
+      - name: Assemble local-emulator-only Plantupia demo APK
+        run: ./gradlew --no-daemon assembleQa -PplantupiaQaApiUrl=http://10.0.2.2:8765/api/v1/
+
+      - name: Upload local-emulator-only Plantupia demo APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: plantupia-pr241-local-emulator-only-apk
+          path: app/build/outputs/apk/qa/app-qa.apk
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Assemble Android instrumentation APK
         run: ./gradlew --no-daemon assembleDebugAndroidTest
 
