@@ -8,6 +8,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.core.exceptions import ValidationError
 
 
 class Space(models.Model):
@@ -58,6 +59,90 @@ class PlantUnit(models.Model):
 
     def __str__(self):
         return self.label
+
+
+
+class InstallationBatch(models.Model):
+    """Staff-prepared real inventory; never a claim token or customer entitlement.
+
+    An installation has exactly one existing staff-owned Space. Customer account
+    rights are deliberately NOT changed until a separately reviewed claim flow.
+    """
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        READY = "ready", "Inventory reviewed; ready for handover design"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    reference_code = models.CharField(max_length=80, unique=True)
+    space = models.OneToOneField(
+        Space, on_delete=models.PROTECT, related_name="installation_batch",
+    )
+    prepared_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="prepared_plantupia_installations",
+    )
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.DRAFT)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        null=True, blank=True, related_name="reviewed_plantupia_installations",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.space_id and not self.space.owner.is_staff:
+            errors["space"] = "Prepare installations inside a staff-owned space only."
+        if self.prepared_by_id and not self.prepared_by.is_staff:
+            errors["prepared_by"] = "Only authorized staff may prepare an installation."
+        if self.status == self.Status.READY:
+            if not self.reviewed_by_id or not self.reviewed_by.is_staff or not self.reviewed_at:
+                errors["status"] = "Ready inventory needs a staff reviewer and review timestamp."
+            if not self.pk or not self.manifest_rows.exists():
+                errors["status"] = "At least one real manifest row is required before review."
+        if errors:
+            raise ValidationError(errors)
+
+    def __str__(self):
+        return self.reference_code
+
+
+class InstallationManifestRow(models.Model):
+    """One real plant identity per source row, not a duplicated copy of PlantUnit.
+
+    A source key is an internal inventory reference; never a public QR credential.
+    """
+
+    batch = models.ForeignKey(
+        InstallationBatch, on_delete=models.PROTECT, related_name="manifest_rows",
+    )
+    plant = models.OneToOneField(
+        PlantUnit, on_delete=models.PROTECT, related_name="installation_manifest_row",
+    )
+    source_key = models.CharField(max_length=80)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("batch", "source_key"),
+                name="plant_installation_source_key_unique",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.batch_id and self.plant_id and self.plant.space_id != self.batch.space_id:
+            errors["plant"] = "Manifest plant must belong to this installation's space."
+        if self.batch_id and self.batch.status == InstallationBatch.Status.READY:
+            errors["batch"] = "Reviewed inventory is locked. Reopen before changing entries."
+        if errors:
+            raise ValidationError(errors)
+
+    def __str__(self):
+        return f"{self.source_key} — {self.plant_id}"
 
 
 class PlantNickname(models.Model):
