@@ -94,8 +94,12 @@ class InstallationBatch(models.Model):
     def clean(self):
         super().clean()
         errors = {}
-        if self.space_id and not self.space.owner.is_staff:
+        if (self.space_id and self.status != self.Status.CLAIMED
+                and not self.space.owner.is_staff):
             errors["space"] = "Prepare installations inside a staff-owned space only."
+        if (self.status == self.Status.CLAIMED and self.pk
+                and not self.invitations.filter(claimed_at__isnull=False).exists()):
+            errors["status"] = "A claimed installation needs a recorded authenticated handover."
         if self.prepared_by_id and not self.prepared_by.is_staff:
             errors["prepared_by"] = "Only authorized staff may prepare an installation."
         if self.status == self.Status.READY:
