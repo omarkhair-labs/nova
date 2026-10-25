@@ -1,3 +1,18 @@
+## Issue #244 staff import continuation — 25 October 2026
+
+The Django Admin company-side XLSX/CSV import is now implemented on the same
+branch. Read [the operator/schema runbook](PLANTUPIA_STAFF_INVENTORY_IMPORT_V1.md)
+and [implementation evidence](PLANTUPIA_ISSUE_244_DELIVERY_2026-10-25.md).
+It imports only into authorized staff-owned DRAFT batches after read-only preview
+and explicit approval. New guides remain unreviewed drafts until a separate staff
+publication action; verified plant identity requires independent evidence and
+confirmation. Migration 0008 is additive and must not be applied to live data by
+this task. No Android rebuild/redesign, Oracle data mutation, merge or deployment.
+Next step is supervised disposable-data QA of upload -> preview -> approve ->
+source review/publish -> READY -> existing recipient-bound claim -> Care Guide.
+Compare the final pushed SHA and CI evidence in the delivered report before QA;
+older counts below remain historical. Company botanical approval is still open.
+
 ## Implementation continuation — 25 October 2026
 
 Native delivery activation and Care Guide structure are now implemented. Read [the G/H/I integration contract](./PLANTUPIA_PHASE_G_H_I_INTEGRATION_2026-10-25.md) before interpreting the historical baseline and proposed demo below. Implementation code HEAD is `14652d7e` (resolve full SHA in Git); final delivery documentation commits and exact tested CI/artifact links are recorded on draft PR #241 and in the delivery report. Always compare the current remote HEAD before continuing.

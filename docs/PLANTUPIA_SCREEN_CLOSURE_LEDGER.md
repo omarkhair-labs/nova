@@ -1,3 +1,15 @@
+## 25 October 2026 — Issue #244 staff import
+
+**CODED; supervised operational/physical QA and company acceptance open.** Protected
+Admin XLSX/CSV template -> read-only row preview -> explicit atomic DRAFT import ->
+separate source review/publication now fills the existing plant/manifest/guide
+models. UUIDs, photos, history and Android care consumption are preserved.
+Migration 0008 adds genuine unreviewed drafts, identity evidence, receipts and
+granular permissions. Reviewed/claimed imports are refused; no calendar engine,
+hosted mutation, deployment, merge or approval of botanical content occurred.
+See [operator runbook](PLANTUPIA_STAFF_INVENTORY_IMPORT_V1.md) and
+[exact implementation/evidence boundary](PLANTUPIA_ISSUE_244_DELIVERY_2026-10-25.md).
+
 ## 25 October 2026 — integrated customer journey increment
 
 Runtime QA subsequently completed the seven-plant activation→care→check-in→restart→outcome→linked-history path on an Android 16 emulator at 360dp width. It also exposed an Edit Profile crash from non-finite coordinates in existing portrait vectors. Four rectangle origins were corrected to the original SVG default `(0,0)`; a real Compose parser regression and sixteen-portrait native rendering test were added. Circle/Me were opened; final rerun status, remaining People/messaging/media checks and physical/visual acceptance are separate in the delivery report. No screen is owner-accepted by this evidence.
