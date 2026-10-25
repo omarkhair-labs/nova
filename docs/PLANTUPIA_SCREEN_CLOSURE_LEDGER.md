@@ -1,5 +1,7 @@
 ## 25 October 2026 — integrated customer journey increment
 
+Runtime QA subsequently completed the seven-plant activation→care→check-in→restart→outcome→linked-history path on an Android 16 emulator at 360dp width. It also exposed an Edit Profile crash from non-finite coordinates in existing portrait vectors. Four rectangle origins were corrected to the original SVG default `(0,0)`; a real Compose parser regression and sixteen-portrait native rendering test were added. Circle/Me were opened; final rerun status, remaining People/messaging/media checks and physical/visual acceptance are separate in the delivery report. No screen is owner-accepted by this evidence.
+
 **CODED; not owner-accepted or production-authorized.** See [25 October integration and QA contract](./PLANTUPIA_PHASE_G_H_I_INTEGRATION_2026-10-25.md) for the exact product flow, API/model inventory, tests and remaining gates. Final exact-head CI and actual emulator evidence are in the delivery report/draft PR; earlier green snapshots do not certify this increment.
 
 | Surface | Actual implementation | Acceptance boundary |

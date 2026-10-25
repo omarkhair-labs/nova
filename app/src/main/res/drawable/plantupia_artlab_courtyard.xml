@@ -7,7 +7,7 @@
     android:viewportHeight="1000">
   <group>
     <clip-path android:pathData="M1000,500 A500,500 0 1,0 0,500 A500,500 0 1,0 1000,500 Z"/>
-    <path android:pathData="MNaN,NaNh1000v1000h-1000z" android:fillColor="#E2E7D9"/>
+    <path android:pathData="M0,0h1000v1000h-1000z" android:fillColor="#E2E7D9"/>
     <path android:pathData="M80 920V346Q80 96 330 95H675Q927 104 927 350V925" android:fillColor="#00000000" android:strokeColor="#91A18F" android:strokeWidth="31" android:strokeAlpha=".50"/>
     <path android:pathData="M123 777H888" android:fillColor="#00000000" android:strokeColor="#C2C9B6" android:strokeWidth="22"/>
     <path android:pathData="M250 148V704" android:fillColor="#00000000" android:strokeColor="#A4B49F" android:strokeWidth="14" android:strokeAlpha=".50"/>

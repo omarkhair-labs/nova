@@ -138,7 +138,7 @@ internal fun PlantupiaHandoverScreen(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
                         visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
                     if (accountId == null) {
-                        Text("Log in or create an account to review the delivery. Signing in never connects plants automatically.")
+                        Text("Log in with the account this invitation was issued to. If you create an account, ask the team for a new code for that account. Signing in never connects plants automatically.")
                         Button(onClick = { if (preserve()) onLogin() }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Continue to log in") }
                         OutlinedButton(onClick = { if (preserve()) onRegister() }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Create account and continue") }
                     } else {
