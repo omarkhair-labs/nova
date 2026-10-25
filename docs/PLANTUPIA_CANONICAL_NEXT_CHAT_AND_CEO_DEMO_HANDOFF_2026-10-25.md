@@ -1,3 +1,17 @@
+## Issue #244 standalone Company Dashboard — 25 October 2026
+
+The updated issue/comment requires the branded staff portal, not an Admin-only
+importer. It is now implemented independently at `/company/`, preserving the
+importer and technical Admin fallback. See [dashboard architecture, roles, local
+fixture, browser evidence and separate gaps](PLANTUPIA_COMPANY_DASHBOARD_V1.md).
+The flag is OFF by default and restricted to isolated development/QA. New migration
+0009 adds company access permission and a review assignment distinct from approval.
+The actual non-superuser browser flow reached upload/apply, assigned reviewer
+publication and local QR issue/reissue; recipient HTTP claim and privacy checks
+passed on disposable local data. Final pushed-SHA CI and owner acceptance must be
+read from the delivered report. Issue #244 stays open and PR #241 stays draft;
+there is no deployment, live Oracle action or Android product rebuild.
+
 ## Issue #244 staff import continuation — 25 October 2026
 
 The Django Admin company-side XLSX/CSV import is now implemented on the same

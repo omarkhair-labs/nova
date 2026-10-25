@@ -17,6 +17,7 @@ class HealthView(APIView):
 
 
 urlpatterns = [
+    path("company/", include("plants.company_urls")),
     path("admin/", admin.site.urls),
     path(
         "privacy/",

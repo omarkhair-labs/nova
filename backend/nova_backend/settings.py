@@ -9,6 +9,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 ENVIRONMENT = os.getenv("DJANGO_ENV", "development").strip().lower()
 IS_PRODUCTION = ENVIRONMENT == "production"
+PLANTUPIA_COMPANY_DASHBOARD_ENABLED = os.getenv("PLANTUPIA_COMPANY_DASHBOARD_ENABLED", "0") == "1"
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "nova-dev-only-secret")
 DEBUG = os.getenv("DJANGO_DEBUG", "0") == "1"
@@ -28,7 +29,7 @@ ALLOWED_HOSTS = allowed_hosts
 
 INSTALLED_APPS = [
     "daphne",
-    "django.contrib.admin",
+    "plants.admin_config.PlantupiaAdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",

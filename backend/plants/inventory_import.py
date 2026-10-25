@@ -340,7 +340,7 @@ def make_preview(user, batch, document):
     return plan, token
 
 
-def apply_preview(user, token, *, confirmed=False, identities_confirmed=False):
+def apply_preview(user, token, *, confirmed=False, identities_confirmed=False, expected_batch_id=None):
     require_permissions(user)
     if not confirmed:
         raise ImportProblem("Explicit import approval is required.")
@@ -350,6 +350,8 @@ def apply_preview(user, token, *, confirmed=False, identities_confirmed=False):
         raise ImportProblem("Preview is invalid or expired. Upload again for a fresh preview.") from exc
     if payload["actor"] != user.pk:
         raise PermissionDenied
+    if expected_batch_id is not None and payload["batch"] != str(expected_batch_id):
+        raise ImportProblem("This preview belongs to a different installation. Open its original workspace.")
     document = payload["document"]
     if any(r["verified_species_key"] for r in document["PlantUnits"]) and not identities_confirmed:
         raise ImportProblem("Explicit confirmation of independently reviewed identity evidence is required.")

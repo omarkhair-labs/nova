@@ -1,3 +1,15 @@
+## 25 October 2026 — Issue #244 independent Company Dashboard
+
+**CODED / LOCAL BROWSER VERIFIED; final-head CI and owner acceptance required.**
+`/company/` is an independent same-origin staff portal with branded login/navigation,
+real overview counts/queues, installations/plant context, the preserved import
+workspace, assigned source review/publication and private QA invitation/QR/register.
+Default-off isolated-QA gating and per-action role/scope checks apply. Customer-owned
+claimed records expose a nonsecret staff audit only, never renewed private access.
+Migration 0009 is additive; no Android source, live data or deployment was changed.
+See [scope, reproducible local QA and separate remaining dashboard/importer gaps](PLANTUPIA_COMPANY_DASHBOARD_V1.md).
+Issue #244 remains open and PR #241 remains draft.
+
 ## 25 October 2026 — Issue #244 staff import
 
 **CODED; supervised operational/physical QA and company acceptance open.** Protected

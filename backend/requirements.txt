@@ -14,3 +14,4 @@ django-storages[s3]>=1.14,<2.0
 firebase-admin>=6.8,<8.0
 openpyxl>=3.1.5,<4.0
 defusedxml>=0.7.1,<1.0
+qrcode>=8.2,<9.0

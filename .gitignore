@@ -23,6 +23,7 @@ __pycache__/
 venv/
 .pytest_cache/
 backend/media/
+backend/staticfiles/
 
 # Local secrets
 .env

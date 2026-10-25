@@ -62,6 +62,11 @@ class CareGuideVersion(models.Model):
     reviewed_at = models.DateTimeField(null=True, blank=True)
     published = models.BooleanField(default=False)
     ever_published = models.BooleanField(default=False, editable=False)
+    assigned_reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT,
+        related_name="assigned_plantupia_guides",
+        help_text="Review assignment only; not botanical approval or publication.",
+    )
 
     class Meta:
         permissions = [("publish_careguideversion", "Review and publish care guide versions")]
@@ -79,7 +84,7 @@ class CareGuideVersion(models.Model):
             raise ValidationError({"source_url": "An HTTPS source is required."})
         if self.reviewer_id and not self.reviewer.is_staff:
             raise ValidationError({"reviewer": "An authorized botanical reviewer is required."})
-        if self.version < 1:
+        if self.version is not None and self.version < 1:
             raise ValidationError({"version": "Start guide versions at 1."})
         from django.utils import timezone
         if self.reviewed_at and self.reviewed_at > timezone.now():
@@ -172,7 +177,8 @@ class InstallationBatch(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        permissions = [("import_inventory", "Preview and approve installation inventory imports")]
+        permissions = [("import_inventory", "Preview and approve installation inventory imports"),
+                       ("access_company_dashboard", "Access the Plantupia company dashboard")]
 
     def clean(self):
         super().clean()
