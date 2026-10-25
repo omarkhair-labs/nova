@@ -72,6 +72,7 @@ class InstallationBatch(models.Model):
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
         READY = "ready", "Inventory reviewed; ready for handover design"
+        CLAIMED = "claimed", "Claimed by verified recipient"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     reference_code = models.CharField(max_length=80, unique=True)
@@ -143,6 +144,52 @@ class InstallationManifestRow(models.Model):
 
     def __str__(self):
         return f"{self.source_key} — {self.plant_id}"
+
+
+class HandoverInvitation(models.Model):
+    """Recipient-bound one-use activation. Never store or expose raw QR secrets."""
+
+    class Mode(models.TextChoices):
+        CUSTOMER_OWNED = "customer_owned", "Customer-owned sale"
+        MANAGED = "managed", "Company-maintained site"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    batch = models.ForeignKey(
+        InstallationBatch, on_delete=models.PROTECT, related_name="invitations",
+    )
+    intended_recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="incoming_plantupia_handovers",
+    )
+    issued_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="issued_plantupia_handovers",
+    )
+    token_digest = models.CharField(max_length=64, unique=True, editable=False)
+    mode = models.CharField(max_length=20, choices=Mode.choices)
+    expires_at = models.DateTimeField()
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    claimed_at = models.DateTimeField(null=True, blank=True)
+    claimed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.PROTECT, related_name="claimed_plantupia_handovers",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.issued_by_id and not self.issued_by.is_staff:
+            errors["issued_by"] = "An authorized staff issuer is required."
+        if self.intended_recipient_id and self.intended_recipient.is_staff:
+            errors["intended_recipient"] = "Customer invitations cannot target a staff account."
+        if self.claimed_by_id and self.claimed_by_id != self.intended_recipient_id:
+            errors["claimed_by"] = "Only the intended account may claim the handover."
+        if errors:
+            raise ValidationError(errors)
+
+    def __str__(self):
+        return f"{self.batch.reference_code} ({self.mode}, secret withheld)"
 
 
 class PlantNickname(models.Model):
