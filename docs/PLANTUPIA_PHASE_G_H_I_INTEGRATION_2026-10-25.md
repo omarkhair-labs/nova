@@ -90,6 +90,25 @@ The script deliberately sets `DJANGO_ENV=development`, an empty **new** SQLite d
 
 **Boundaries:** this permits physical Android QA without a hosted staging service, **while USB/ADB is connected**. It does not prove production deployment, internet/cloud access, real customer invitations, push notifications, S3 storage or a wireless demonstration. Re-run `adb reverse` after USB reconnect. Only report successful physical-device evidence after a person has actually carried out the steps. If Python/ADB/setup fail on the user's machine, that must be resolved there rather than silently switching to Oracle production.
 
+## Hosted Oracle Preview #241 — real online Android acceptance (25 October update)
+
+A real `Plantupia QA — Office 01` installation with three original plant units is now marked READY and reviewed on the existing `241.` Coolify preview. The owner has successfully accessed Django Admin on that live Oracle preview. The existing PR #241 backend routes, including authenticated QR preview/claim and private care guide, respond on the preview; this does **not** mean QR activation is enabled yet.
+
+**Release safeguard:** The default `plantupia-qa-pr241-apk` on the *next successful exact-HEAD CI* now targets `https://241.zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/`, rather than the old PR #240. It installs side-by-side as a `.qa` app. The ordinary production Nova Android package still targets the original production host and is untouched.
+
+The hosted QA handover feature no longer requires downgrading public Django to development. The new code permits a **narrowly constrained** hosted exception while `DJANGO_ENV=production`, retaining HTTPS, secure cookies, CSRF rules, and the existing separate media requirements. It requires **ALL** of the following simultaneously:
+
+- `PLANTUPIA_HANDOVER_QA_ENABLED=1` AND `PLANTUPIA_PREVIEW_HOSTED_QA_ENABLED=1`, scoped to **Coolify Preview Deployment Environment Variables only**; both default OFF.
+- `DJANGO_DEBUG=0`.
+- PostgreSQL host exactly `imfiwc6cb0pkuyuzu1y1rxsu`, the verified isolated Plantupia QA database host, **not** Nova's production PostgreSQL host `ptrfqssosjhwn99g1ogfzlhf`.
+- Django `ALLOWED_HOSTS` includes the exact `241.zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io`.
+
+A production/shared database, missing flag, other public host, or DEBUG mode cannot activate this hosted exception even if someone copies some Preview variables. Development local-fixture behavior stays unchanged; tests assert all guard conditions. No secrets, credential strings or new users are committed. Do not put either QA flag into the main Production Environment Variables.
+
+**Operator steps:** After CI passes, inspect the PR #241 preview’s effective DB host, secure mode and flags in its *own* terminal (read-only). Set only the two QA feature flags in Coolify Preview variables, then deploy **Actions → Deploy/Rebuild on Preview #241** (not the global `nova-backend` Redeploy). If the preview shares environment variables with #240, that older preview must not be redeployed under surprising settings; changes in this branch do not change the old code. Check `pilot_enabled()` from the PR #241 container, then confirm the staff-only `/admin/plants/handoverinvitation/issue/` works. Never enter a raw invitation into chat or public logs.
+
+**Recipient prerequisite:** Register a *separate normal non-staff Android test account first* on the Oracle `.qa` app; the admin/superuser account is ineligible. On the trusted Admin issue page select the prepared READY installation, the exact existing test recipient, one explicitly agreed QA ownership mode, and acknowledge the QA policy. The raw invitation is displayed only once: save locally or encode a QR locally, not on a public QR website. Scan in the `.qa` Android app, review, explicitly confirm, then inspect My Space → care → follow-up → Living History. Production-like company service SLAs, autonomous watering, Play release and botanical content approval remain separate gates.
+
 ## Backend inventory
 
 Existing preserved models: `Space`, `SpaceMember`, `PlantUnit`, `PlantNickname`, `PlantEvent`, `PlantDiscussion`, `PlantSubmission`, `InstallationBatch`, `InstallationManifestRow`, `HandoverInvitation`.

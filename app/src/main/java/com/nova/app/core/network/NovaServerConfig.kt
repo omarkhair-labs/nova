@@ -2,10 +2,10 @@ package com.nova.app.core.network
 
 import com.nova.app.BuildConfig
 
-/** Routes the side-by-side QA build to PR #240 without touching Nova production. */
+/** QA targets the isolated PR #241 Oracle preview; release stays on Nova production. */
 object NovaServerConfig {
     private const val productionHost = "zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io"
-    private const val qaHost = "240.zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io"
+    private const val qaHost = "241.zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io"
 
     private val host = if (BuildConfig.BUILD_TYPE == "qa") qaHost else productionHost
 

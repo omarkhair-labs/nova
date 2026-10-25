@@ -25,9 +25,31 @@ class HandoverError(Exception):
         super().__init__(code)
 
 
+# The sole hosted handover QA exception belongs to the VERIFIED Oracle PR #241
+# preview and its own Postgres host. Never authorize a shared Nova database,
+# generic production deployment, or another preview using a copied flag.
+_ORACLE_QA_HOST = "241.zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io"
+_ORACLE_QA_DB_HOST = "imfiwc6cb0pkuyuzu1y1rxsu"
+
+
 def pilot_enabled():
-    # Explicit opt-in for isolated non-production QA. No default activation.
-    return not settings.IS_PRODUCTION and os.getenv("PLANTUPIA_HANDOVER_QA_ENABLED", "0") == "1"
+    if os.getenv("PLANTUPIA_HANDOVER_QA_ENABLED", "0") != "1":
+        return False
+    if not settings.IS_PRODUCTION:
+        # Existing disposable development/SQLite test fixture, unchanged.
+        return True
+
+    # A hosted preview runs Django with production-grade HTTPS/session settings.
+    # It requires a SECOND, explicit opt-in plus fixed QA host and database
+    # identity. This is intentionally not a general "enable in production" flag.
+    database = settings.DATABASES["default"]
+    return (
+        os.getenv("PLANTUPIA_PREVIEW_HOSTED_QA_ENABLED", "0") == "1"
+        and not settings.DEBUG
+        and database.get("ENGINE") == "django.db.backends.postgresql"
+        and database.get("HOST") == _ORACLE_QA_DB_HOST
+        and _ORACLE_QA_HOST in settings.ALLOWED_HOSTS
+    )
 
 
 def _inventory_ready(batch):
