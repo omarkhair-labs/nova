@@ -1,0 +1,18 @@
+{% extends "admin/change_list.html" %}
+{% block content %}
+<section class="module" aria-label="Plantupia installation preparation" style="padding: 1rem 1.25rem; margin-bottom: 1rem;">
+  <h2>Prepare a plant delivery</h2>
+  <ol>
+    <li>Create a private staff-owned Space and add the actual plant units.</li>
+    <li>Create a draft Installation, attach each exact plant to its manifest, then use the <strong>Review inventory and mark as ready</strong> action.</li>
+    <li>After review, issue a recipient-bound code from the protected QA invitation flow. Marking READY never grants customer access.</li>
+  </ol>
+  <p>The <strong>Plants</strong> column shows the number of manifest entries actually recorded, not a planned quantity.</p>
+  {% if can_issue %}
+    <p><a href="{% url 'admin:plants_handoverinvitation_issue' %}">Continue to QA invitation issuing</a></p>
+  {% else %}
+    <p>QA invitation issuing is currently disabled or not permitted. Prepared inventory remains private.</p>
+  {% endif %}
+</section>
+{{ block.super }}
+{% endblock %}

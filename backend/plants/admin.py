@@ -1,6 +1,7 @@
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Count
 from django.utils import timezone
 from django import forms
 from django.contrib.auth import get_user_model
@@ -68,6 +69,13 @@ class HandoverInvitationAdmin(admin.ModelAdmin):
     actions = ("revoke_invitations",)
     change_list_template = "admin/plants/handover_list.html"
 
+    def changelist_view(self, request, extra_context=None):
+        extra_context = {
+            **(extra_context or {}),
+            "can_issue": pilot_enabled() and request.user.has_perm("plants.add_handoverinvitation"),
+        }
+        return super().changelist_view(request, extra_context=extra_context)
+
     def get_urls(self):
         return [path("issue/", self.admin_site.admin_view(self.issue_view), name="plants_handoverinvitation_issue")] + super().get_urls()
 
@@ -81,7 +89,18 @@ class HandoverInvitationAdmin(admin.ModelAdmin):
     def issue_view(self, request):
         if not request.user.has_perm("plants.add_handoverinvitation") or not pilot_enabled():
             raise PermissionDenied
-        form = PilotInvitationForm(request.POST or None)
+        # Selecting a reviewed installation from the Admin keeps staff in context.
+        # The form's READY-only queryset still validates the submitted batch.
+        form = PilotInvitationForm(
+            request.POST or None,
+            initial={"batch": request.GET.get("batch", "")} if request.method == "GET" else None,
+        )
+        ready_batches = (
+            InstallationBatch.objects.filter(status=InstallationBatch.Status.READY)
+            .select_related("space")
+            .annotate(manifest_total=Count("manifest_rows", distinct=True))
+            .order_by("-created_at")[:20]
+        )
         raw_code = None
         if request.method == "POST" and form.is_valid():
             try:
@@ -95,6 +114,7 @@ class HandoverInvitationAdmin(admin.ModelAdmin):
         response = TemplateResponse(request, "admin/plants/handover_issue.html", {
             **self.admin_site.each_context(request), "title": "Isolated QA handover", "form": form,
             "raw_code": raw_code, "opts": self.model._meta,
+            "ready_batches": ready_batches,
         })
         response["Cache-Control"] = "no-store, private"
         response["Referrer-Policy"] = "no-referrer"
@@ -153,12 +173,35 @@ class InstallationManifestRowInline(admin.TabularInline):
 class InstallationBatchAdmin(admin.ModelAdmin):
     """G1 operations: staff-owned staged inventory, NOT an activated QR claim."""
 
-    list_display = ("reference_code", "space", "status", "prepared_by", "reviewed_at")
+    list_display = ("reference_code", "space", "status", "manifest_total", "workflow_step", "prepared_by", "reviewed_at")
+    change_list_template = "admin/plants/installation_list.html"
     list_filter = ("status",)
     search_fields = ("reference_code", "space__name")
     readonly_fields = ("status", "prepared_by", "reviewed_by", "reviewed_at", "created_at")
     inlines = (InstallationManifestRowInline,)
     actions = ("mark_inventory_ready",)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(_manifest_total=Count("manifest_rows", distinct=True))
+
+    @admin.display(description="Plants", ordering="_manifest_total")
+    def manifest_total(self, obj):
+        return obj._manifest_total
+
+    @admin.display(description="Next step")
+    def workflow_step(self, obj):
+        if obj.status == InstallationBatch.Status.DRAFT:
+            return "Review the complete inventory before marking READY"
+        if obj.status == InstallationBatch.Status.READY:
+            return "Reviewed; invitation is a separate QA action"
+        return "Claimed; review the invitation record"
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = {
+            **(extra_context or {}),
+            "can_issue": pilot_enabled() and request.user.has_perm("plants.add_handoverinvitation"),
+        }
+        return super().changelist_view(request, extra_context=extra_context)
 
     def save_model(self, request, obj, form, change):
         if not change:

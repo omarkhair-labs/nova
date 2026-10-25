@@ -1,14 +1,44 @@
 {% extends "admin/base_site.html" %}
 {% block content %}
 {% if raw_code %}
-<h2>Sensitive invitation — shown once</h2>
-<p>Deliver only through the authorized QA channel. Do not log, screenshot or save in permanent records.</p>
-<p>The raw code can also be encoded as a QR locally. Scanning never claims a delivery.</p>
-<label for="handover-code">Delivery code</label>
-<input id="handover-code" readonly value="{{ raw_code }}" autocomplete="off" size="48">
-<p>Reopening this page cannot recover the code. Issuing a replacement revokes the previous unused invitation.</p>
+<section class="module" aria-label="One-time delivery code" style="padding: 1rem 1.25rem; max-width: 56rem;">
+  <h2>Sensitive QA invitation — shown once</h2>
+  <p>Deliver only through the authorized QA channel. Do not log, screenshot, or save the code in permanent records.</p>
+  <p>The raw code can be encoded as a QR locally. Scanning does not claim a delivery; the correct account must explicitly confirm in Android.</p>
+  <label for="handover-code">One-time delivery code</label>
+  <input id="handover-code" readonly value="{{ raw_code }}" autocomplete="off" size="48" aria-describedby="code-note">
+  <p id="code-note">This page cannot recover the code later. A replacement revokes the previous unused invitation; do not reload or resubmit this form.</p>
+  <p><a href="{% url 'admin:plants_handoverinvitation_changelist' %}">Return to non-secret invitation status</a></p>
+</section>
 {% else %}
-<p>Only for synthetic records in an isolated QA environment. No commercial ownership or maintenance agreement is implied.</p>
-<form method="post" autocomplete="off">{% csrf_token %}{{ form.as_p }}<button type="submit">Issue invitation once</button></form>
+<section class="module" aria-label="Review delivery before issuing" style="padding: 1rem 1.25rem; max-width: 62rem;">
+  <h2>Issue a code for an existing customer account</h2>
+  <p>Isolated QA only. Review the inventory and select the correct intended recipient and approved test ownership mode. This action is separate from installation preparation; it does not transfer plants until the customer explicitly confirms.</p>
+  <p><a href="{% url 'admin:plants_installationbatch_changelist' %}">Review installations and the exact inventory</a></p>
+  <h3>Recently reviewed installations</h3>
+  {% if ready_batches %}
+  <table>
+    <thead><tr><th scope="col">Installation</th><th scope="col">Space</th><th scope="col">Manifest plants</th></tr></thead>
+    <tbody>
+    {% for batch in ready_batches %}
+    <tr>
+      <th scope="row"><a href="{% url 'admin:plants_installationbatch_change' batch.pk %}">{{ batch.reference_code }}</a></th>
+      <td>{{ batch.space.name }}</td>
+      <td>{{ batch.manifest_total }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p>Showing up to 20 recently reviewed installations. The form below is the authoritative selection.</p>
+  {% else %}
+  <p>No installations are reviewed and ready. Prepare and review a real plant manifest first.</p>
+  {% endif %}
+  <form method="post" autocomplete="off">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <div class="submit-row"><button type="submit" class="default">Issue QA invitation once</button></div>
+  </form>
+  <p>Invitation expiry and account binding are enforced by the backend. This is not an approved customer-support, maintenance, or commercial ownership workflow.</p>
+</section>
 {% endif %}
 {% endblock %}
