@@ -57,6 +57,10 @@ class StaffDeliveryWorkflowUiTests(TestCase):
         self.assertContains(response, "Manifest plants")
         self.assertEqual(str(response.context["form"]["batch"].value()), str(self.batch.pk))
         self.assertIsNone(response.context["raw_code"])
+        # An HTML form submitted under no-referrer sends Origin: null.
+        # The issue form must allow Django CSRF to verify its real origin.
+        self.assertEqual(response["Referrer-Policy"], "same-origin")
+        self.assertContains(response, 'name="csrfmiddlewaretoken"')
 
     def test_unreviewed_inventory_is_not_displayed_as_ready(self):
         with patch.dict(os.environ, {"PLANTUPIA_HANDOVER_QA_ENABLED": "1"}):

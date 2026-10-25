@@ -322,6 +322,9 @@ class HandoverPilotTests(TestCase):
         code = response.context["raw_code"]
         self.assertTrue(code)
         self.assertIn("no-store", response["Cache-Control"])
+        # After issuance there is no POST form, and the displayed one-time
+        # code must never leak as a cross-site referrer.
+        self.assertEqual(response["Referrer-Policy"], "no-referrer")
         self.assertNotIn(code, str(list(HandoverInvitation.objects.values())))
         self.assertIsNone(self.client.get(url).context["raw_code"])
         self.client.post(url, data)

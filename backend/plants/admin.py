@@ -117,7 +117,11 @@ class HandoverInvitationAdmin(admin.ModelAdmin):
             "ready_batches": ready_batches,
         })
         response["Cache-Control"] = "no-store, private"
-        response["Referrer-Policy"] = "no-referrer"
+        # Browser HTML form POSTs inherit the document Referrer-Policy:
+        # "no-referrer" causes Origin: null and Django CSRF rejects it.
+        # Keep the one-time secret page no-referrer; only the issue form
+        # needs same-origin so its POST has a verifiable origin.
+        response["Referrer-Policy"] = "no-referrer" if raw_code else "same-origin"
         return response
 
     @admin.action(description="Revoke selected unused QA invitations")
