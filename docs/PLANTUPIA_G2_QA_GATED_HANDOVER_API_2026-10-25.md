@@ -1,3 +1,5 @@
+**Later implementation:** [25 October integration and QA contract](./PLANTUPIA_PHASE_G_H_I_INTEGRATION_2026-10-25.md) adds protected QA Admin issue/reissue/revoke, native QR/manual login-resume/preview/confirm/original-space navigation and Care Guide structure. Claimed previews now recheck current access, extra unmanifested plants block claim and Django production refuses the QA flag. The backend-only G2 snapshot below is historical; no hosted rollout or company approval is implied.
+
 # Plantupia G2 — QA-gated secure delivery handover (backend)
 
 **25 Oct 2026. Draft PR #241, isolated engineering prototype, NOT deployed and NOT production-authorized.**

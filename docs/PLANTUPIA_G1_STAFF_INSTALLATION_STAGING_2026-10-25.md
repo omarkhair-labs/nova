@@ -1,3 +1,5 @@
+**Later implementation:** [25 October integration and QA contract](./PLANTUPIA_PHASE_G_H_I_INTEGRATION_2026-10-25.md) adds QA Admin issuance/revocation, exact-manifest handover checks, native activation and Care Guide structure. The original G1 snapshot below is historical; company/production approval is still absent.
+
 # Plantupia G1 · Protected staff installation staging
 
 **Implemented on Android Plantupia draft PR #241, backend only · 25 Oct 2026.**

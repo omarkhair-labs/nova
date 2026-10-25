@@ -1,3 +1,19 @@
+## Implementation continuation — 25 October 2026
+
+Native delivery activation and Care Guide structure are now implemented. Read [the G/H/I integration contract](./PLANTUPIA_PHASE_G_H_I_INTEGRATION_2026-10-25.md) before interpreting the historical baseline and proposed demo below. Implementation code HEAD is `14652d7e` (resolve full SHA in Git); final delivery documentation commits and exact tested CI/artifact links are recorded on draft PR #241 and in the delivery report. Always compare the current remote HEAD before continuing.
+
+Completed code: protected isolated-QA Admin issue/reissue/revoke, exact-manifest checks, revoked-access preview safety, production-disable safeguard, native Welcome/My Space QR/manual entry, encrypted code persistence through authentication/restart, explicit preview/claim and original-space refresh, private version/source/review/placement Care Guide or unverified state. The existing manual add, care, idempotent photo/event submissions, check-ins, outcomes, history and four roots remain the shared product.
+
+New migration: `plants/0007_botanicalspecies_plantunit_verified_species_and_more.py`; new models `BotanicalSpecies`, `CareGuideVersion`, nullable plant `verified_species`. New authenticated route: `GET /api/v1/plantupia/plants/{uuid}/care-guide/`. Native flow uses existing G2 handover POST endpoints. The QA flag stays off by default and is rejected in production. No hosted migration, merge, Play action or deployment.
+
+Local evidence at this continuation: the 77-test plants run passed with three SQLite locking skips; the 16-test focused handover/guide run passed with one PostgreSQL-only skip; 443 Android JVM tests passed with zero failures/skips; all 20 architecture/design/language guards passed. Two more PostgreSQL race cases and the QR codec regression were subsequently added. Exact final-head CI and actual emulator execution must be read from the final delivery evidence, not inferred from these earlier local counts.
+
+**Unresolved core limitation:** there is no secure pre-account or install-to-App-Link redemption mechanism. A first-time customer registers before staff issues/reissues a code to that existing account. Android preserves registration intent but does not override recipient binding. No approved botanical content or commercial maintenance/support operation was supplied. Those are not presented as delivered capabilities.
+
+**Next concrete implementation action:** read final delivery evidence and reproduce the documented local seven-plant fixture, then close any remaining Android runtime matrix cases. Before extending the zero-account delivery scenario, obtain an approved verified-recipient enrollment/channel contract and implement/test that bounded authentication extension; never remove recipient checks. Keep PR draft and production unchanged.
+
+---
+
 # PLANTUPIA — CANONICAL NEXT CHAT / CODEX / CEO DEMO HANDOFF
 **2026-10-25 · living handoff — update when Codex completes implementation · Draft PR #241**
 

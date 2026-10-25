@@ -1,3 +1,7 @@
+## Later implemented native flow — 25 October 2026
+
+The October 20 snapshot below is historical. Welcome and My Space now connect to native QR/manual activation → existing login/registration with encrypted pending intent → recipient-authorized preview → explicit claim → refreshed original space/plant identities. Plant Detail now includes a private versioned Care Guide with sourced reviewed content when supplied, or honest unverified guidance. Manual Add Space/Add Plant reaches the same care/history systems. The four roots and contextual People/inbox remain. See [25 October integration and QA contract](./PLANTUPIA_PHASE_G_H_I_INTEGRATION_2026-10-25.md); compilation, emulator evidence and owner acceptance are separate gates.
+
 # PLANTUPIA / AS-IS — Complete Android User Flow & Information Architecture
 **20 October 2026 · source-traced from PR #241 · Current Android product only · not the new CEO/QR proposal**
 

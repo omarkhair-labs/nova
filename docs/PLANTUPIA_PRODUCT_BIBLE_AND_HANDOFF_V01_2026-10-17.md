@@ -1,3 +1,7 @@
+## Current delivery supplement — 25 October 2026
+
+[25 October integration and QA contract](./PLANTUPIA_PHASE_G_H_I_INTEGRATION_2026-10-25.md) supersedes older “Android QR/care guide absent” implementation statements below. Protected QA staff issuance/revocation, native dual entry and delivery confirmation, original-space refresh, source-backed guide structure and existing care/history integration are implemented on draft PR #241. Commercial operations, actual botanical approvals, pre-account recipient invitations, verified App Links, hosted QA rollout and final device/visual acceptance remain open. No production change or owner acceptance is implied.
+
 # PLANTUPIA
 ## Product Bible · Experience Rationale · Engineering & Client Handoff
 **Working edition v0.1 | 17 October 2026 | Android Native | Review in progress**

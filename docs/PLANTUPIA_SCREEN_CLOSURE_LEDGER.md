@@ -1,3 +1,16 @@
+## 25 October 2026 — integrated customer journey increment
+
+**CODED; not owner-accepted or production-authorized.** See [25 October integration and QA contract](./PLANTUPIA_PHASE_G_H_I_INTEGRATION_2026-10-25.md) for the exact product flow, API/model inventory, tests and remaining gates. Final exact-head CI and actual emulator evidence are in the delivery report/draft PR; earlier green snapshots do not certify this increment.
+
+| Surface | Actual implementation | Acceptance boundary |
+| --- | --- | --- |
+| Welcome / My Space | Contextual connect-delivery entry; existing independent add path | Final visual/accessibility review open |
+| Native delivery screen | QR/manual capture, login/register continuity, private minimal preview, explicit claim, acknowledged success and original-space refresh | Physical camera/install/real-customer QA open |
+| Plant Detail / Care Guide | Private reviewed version/source/reviewer/date and placement, or unverified/unavailable/retry | No company botanical content supplied or approved |
+| Care / follow-up / Living History | Existing real event/photo/submission/outcome system reused after both entry paths | Remote media, reminders and physical process death remain separate tests |
+| Four roots / People / Me / messaging / media | Existing engines/navigation retained; no fifth activation root | Full actual-media device regression and final visual acceptance open |
+| Staff Admin | Exact-manifest QA issue/reissue/revoke and non-secret status | Commercial amendments, staff organization policy and rollout approval open |
+
 # PLANTUPIA — Native Screen-by-Screen Closure Ledger (2026-10-13)
 
 **Status: ACTIVE BUILD LEDGER — user-facing final review is deferred until the complete integrated APK.**

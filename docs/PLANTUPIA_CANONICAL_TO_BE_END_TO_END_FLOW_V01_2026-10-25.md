@@ -1,3 +1,7 @@
+## Current implementation status — 25 October 2026
+
+Native dual entry, QR/manual delivery capture, encrypted authentication continuity, authenticated preview/explicit claim, actual-space refresh and private versioned Care Guide are now coded in draft PR #241. Both entry paths converge on the existing private care/follow-up/outcome/Living History. See [25 October integration and QA contract](./PLANTUPIA_PHASE_G_H_I_INTEGRATION_2026-10-25.md) for the implemented flow diagram, endpoints, tests, demonstration, release gates and the account-before-issuance limitation. The historical proposal below remains a design/operations reference; it does not establish company approval or device acceptance. No substantive botanical advice or maintenance service is approved by this increment.
+
 # PLANTUPIA — Canonical end-to-end product flow V0.1
 
 **Working product decision · 25 Oct 2026 · CEO discussion draft · Author: product/design/engineering**
