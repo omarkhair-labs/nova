@@ -67,7 +67,10 @@ internal fun PlantupiaHandoverScreen(
         if (current() && result.contents != null) {
             val scanned = deliveryCode(result.contents)
             if (scanned == null) error = "This QR isn't a Plantupia delivery code. Enter the code supplied with your plants."
-            else { code = scanned; delivery = null; error = null }
+            else {
+                code = scanned; delivery = null
+                error = if (store.save(scanned, accountId)) null else "The code couldn't be stored securely. Please retry."
+            }
         }
     }
     fun scan() {
@@ -125,7 +128,12 @@ internal fun PlantupiaHandoverScreen(
                         if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) scan()
                         else permission.launch(Manifest.permission.CAMERA)
                     }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Scan delivery QR") }
-                    OutlinedTextField(value = code, onValueChange = { code = it; error = null },
+                    OutlinedTextField(value = code, onValueChange = {
+                        code = it; error = null
+                        deliveryCode(it)?.let { token ->
+                            if (current() && !store.save(token, accountId)) error = "The code couldn't be stored securely. Please retry."
+                        }
+                    },
                         enabled = !busy, label = { Text("Delivery code") }, singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
                         visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())

@@ -41,6 +41,7 @@ class PlantupiaHandoverInstrumentedTest {
             }
         }
         compose.onNodeWithText("Delivery code").performTextInput(code)
+        compose.runOnIdle { assertEquals(code, PlantupiaHandoverStore(context).read(null)?.token) }
         compose.onNodeWithText("Create account and continue").performScrollTo().performClick()
         compose.runOnIdle {
             assertTrue(registered)
