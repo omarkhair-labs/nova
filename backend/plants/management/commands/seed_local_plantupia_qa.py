@@ -8,13 +8,19 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 from plants.handovers import issue_pilot_invitation, pilot_enabled
-from plants.models import InstallationBatch, InstallationManifestRow, PlantUnit, Space
+from plants.models import (BotanicalSpecies, CareGuideVersion, InstallationBatch,
+                          InstallationManifestRow, PlantUnit, Space)
+from plants.qa_demo_care import SAMPLE_CARE_GUIDES
 
 
 class Command(BaseCommand):
     help = "Create seven explicitly synthetic plants in an EMPTY disposable SQLite QA database."
 
     def add_arguments(self, parser):
+        parser.add_argument(
+            "--with-sample-care-guides", action="store_true",
+            help="Seed three RHS-linked SYNTHETIC QA examples; never company-approved advice.",
+        )
         parser.add_argument("--credentials-file", required=True,
                             help="Private local output outside the repository; contains test credentials and a short-lived secret.")
 
@@ -45,6 +51,25 @@ class Command(BaseCommand):
                                               placement_note=f"Synthetic position {number:02}")
             plant_ids.append(str(plant.pk))
             InstallationManifestRow.objects.create(batch=batch, plant=plant, source_key=f"QA-{number:02}")
+        if options["with_sample_care_guides"]:
+            for index, sample in enumerate(SAMPLE_CARE_GUIDES):
+                species = BotanicalSpecies.objects.create(
+                    key=sample["key"], scientific_name=sample["scientific_name"],
+                )
+                guide = CareGuideVersion(
+                    species=species, version=1, source_url=sample["source_url"],
+                    source_reference=sample["source_reference"],
+                    instructions=sample["instructions"], context_notes=sample["context_notes"],
+                    reviewer=staff, reviewed_at=timezone.now(), published=True,
+                )
+                guide.full_clean()
+                guide.save()
+                plant = PlantUnit.objects.get(pk=plant_ids[index])
+                plant.species_label = species.scientific_name
+                # Synthetic fixture assumption, NOT a real plant identification.
+                plant.verified_species = species
+                plant.full_clean()
+                plant.save(update_fields=("species_label", "verified_species"))
         batch.status = InstallationBatch.Status.READY
         batch.reviewed_by = staff
         batch.reviewed_at = timezone.now()
@@ -55,4 +80,7 @@ class Command(BaseCommand):
         with destination.open("x", encoding="utf-8") as output:
             json.dump({"synthetic": True, "accounts": accounts, "invitation": code,
                        "space_id": str(space.pk), "plant_ids": plant_ids}, output, indent=2)
-        self.stdout.write("Synthetic fixture created. Private credentials were written to the requested local file.")
+        self.stdout.write(
+            "Synthetic fixture created. Private credentials were written to the requested local file."
+            + (" Three SYNTHETIC QA care guides were seeded, not company-approved." if options["with_sample_care_guides"] else "")
+        )
