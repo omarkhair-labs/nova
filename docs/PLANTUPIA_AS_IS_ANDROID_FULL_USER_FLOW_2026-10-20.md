@@ -54,7 +54,7 @@ flowchart TB
   Person --> Safety["Report / block / privacy gated actions"]
   Home --> Legacy["Optional inherited Stories / Pulse / Tonight / Rooms / Memories"]
   Create --> Legacy
-~~~ 
+~~~
 
 **Navigation truth:** There are **four root tabs**: Home/My Space, Circle, Create, Me. Inbox, People, Settings, notifications, edit profile, post comments and person pages are contextual entries or secondary activities; they are not additional bottom tabs. The legacy \`NovaRoute.ProfileSetup\` exists in source but current register/login routes go to Home after success. Edit/Profile and People crash issues are **fixes coded, device recurrence not yet independently verified**.
 
@@ -99,7 +99,7 @@ flowchart TB
   Open --> Manage["Plant details & settings: rename / edit shared context / archive / restore"]
   Manage --> History
   Open --> AskAI["Optional assistant (source coded; live provider QA open)"]
-~~~ 
+~~~
 
 **Ownership and privacy:** a \`SpaceMember\` has owner/manager/carer/viewer roles; the server enforces who may list, add, edit, record and see private history. \`viewer\` and archived plant paths are not care-editors. A space may exist without photos; a plant may exist without photos; neither implies an imaginary installation. User-chosen *check-in* != biological watering schedule. A deleted/offline photo has a truthful loading/failure state. The care journal is isolated from public community content.
 
@@ -130,7 +130,7 @@ flowchart TB
   Start --> Other["Optional Stories (24h), Pulse, Gatherings, Memories"]
   Start --> People["Discover people / search"]
   People --> Visit
-~~~ 
+~~~
 
 **Current nuance:** Reels as an independent infinite-feed entry was removed from Plantupia Create; the retained Nova video/story/player engine is *not* equivalent to a user-facing primary Reels tab. Me and visited Person profiles now expose one Shared Moments section rather than the inherited Posts/Reels/Reposts tab strip; code-built, not yet accepted on every device.
 
@@ -151,7 +151,7 @@ flowchart LR
   Person --> Safe["Block / report / share profile"]
   Inbox --> Chat["Existing individual/group messaging & media"]
   Settings --> Control["Privacy / notifications / security / support / account actions"]
-~~~ 
+~~~
 
 The owner profile can show private spaces. A visited person's profile cannot show their private space inventory. Other inherited Nova settings/social/messaging subflows need a dedicated real-device navigation and permission sweep; this map identifies their **entry and module**, not an E2E certification of every inherited screen.
 
