@@ -2,13 +2,15 @@
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.test import TestCase
+from django.test import TestCase, override_settings
+from django.conf import settings
 from django.urls import reverse
 from rest_framework.test import APIClient
 
 from .models import InstallationBatch, InstallationManifestRow, PlantUnit, Space
 
 
+@override_settings(STORAGES={**settings.STORAGES, "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"}})
 class InstallationStagingTests(TestCase):
     def setUp(self):
         User = get_user_model()
