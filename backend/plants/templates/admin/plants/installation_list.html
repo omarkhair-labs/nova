@@ -2,6 +2,7 @@
 {% block content %}
 <section class="module" aria-label="Plantupia installation preparation" style="padding: 1rem 1.25rem; margin-bottom: 1rem;">
   <h2>Prepare a plant delivery</h2>
+  {% if can_import %}<p><a href="{% url 'admin:plants_inventory_import' %}">Import inventory and care-guide drafts from Excel / CSV</a></p>{% endif %}
   <ol>
     <li>Create a private staff-owned Space and add the actual plant units.</li>
     <li>Create a draft Installation, attach each exact plant to its manifest, then use the <strong>Review inventory and mark as ready</strong> action.</li>

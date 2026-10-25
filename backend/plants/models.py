@@ -58,15 +58,23 @@ class CareGuideVersion(models.Model):
     source_reference = models.CharField(max_length=240)
     instructions = models.TextField()
     context_notes = models.TextField(blank=True)
-    reviewer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
-    reviewed_at = models.DateTimeField()
+    reviewer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
     published = models.BooleanField(default=False)
+    ever_published = models.BooleanField(default=False, editable=False)
 
     class Meta:
-        constraints = [models.UniqueConstraint(fields=("species", "version"), name="plant_guide_species_version")]
+        permissions = [("publish_careguideversion", "Review and publish care guide versions")]
+        constraints = [
+            models.UniqueConstraint(fields=("species", "version"), name="plant_guide_species_version"),
+            models.CheckConstraint(condition=models.Q(published=False) | models.Q(
+                reviewer__isnull=False, reviewed_at__isnull=False), name="plant_published_guide_review_required"),
+        ]
 
     def clean(self):
         super().clean()
+        if self.published and (not self.reviewer_id or not self.reviewed_at):
+            raise ValidationError("Publication requires an actual staff review.")
         if not self.source_url.startswith("https://"):
             raise ValidationError({"source_url": "An HTTPS source is required."})
         if self.reviewer_id and not self.reviewer.is_staff:
@@ -77,10 +85,22 @@ class CareGuideVersion(models.Model):
         if self.reviewed_at and self.reviewed_at > timezone.now():
             raise ValidationError({"reviewed_at": "A review must have actually occurred."})
         if self.pk:
-            previous = type(self).objects.filter(pk=self.pk, published=True).values().first()
+            previous = type(self).objects.filter(pk=self.pk).filter(
+                models.Q(published=True) | models.Q(ever_published=True)
+            ).values().first()
+            if previous and previous["ever_published"] and not self.ever_published:
+                raise ValidationError("A published version cannot lose its immutable history.")
             if previous and any(previous[field.attname] != getattr(self, field.attname)
-                                for field in self._meta.fields if field.name != "published"):
+                                for field in self._meta.fields if field.name not in ("published", "ever_published")):
                 raise ValidationError("Published content is immutable; create a new version.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        if self.published:
+            self.ever_published = True
+            if kwargs.get("update_fields") is not None:
+                kwargs["update_fields"] = set(kwargs["update_fields"]) | {"ever_published"}
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.species} v{self.version}"
@@ -102,6 +122,12 @@ class PlantUnit(models.Model):
         help_text="Assign only after botanical identity verification; free-text species is not verification.",
     )
     placement_note = models.CharField(max_length=180, blank=True)
+    identity_reference = models.CharField(max_length=500, blank=True)
+    identity_verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT,
+        related_name="verified_plant_identities", editable=False,
+    )
+    identity_verified_at = models.DateTimeField(null=True, blank=True, editable=False)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -138,6 +164,9 @@ class InstallationBatch(models.Model):
     )
     reviewed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        permissions = [("import_inventory", "Preview and approve installation inventory imports")]
 
     def clean(self):
         super().clean()
@@ -325,3 +354,15 @@ class PlantSubmission(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=("actor", "client_submission_id"), name="plant_submission_actor_identity")]
+
+
+class InventoryImportReceipt(models.Model):
+    """One atomic application of normalized content; no spreadsheet/customer payload."""
+    batch = models.ForeignKey(InstallationBatch, on_delete=models.PROTECT, related_name="import_receipts")
+    digest = models.CharField(max_length=64)
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    approved_at = models.DateTimeField(auto_now_add=True)
+    summary = models.JSONField(default=dict)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=("batch", "digest"), name="plant_inventory_import_identity")]

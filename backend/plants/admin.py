@@ -7,6 +7,8 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied
 from django.template.response import TemplateResponse
+from django.http import Http404, HttpResponse
+from django.shortcuts import get_object_or_404
 from django.urls import path
 from django.views.decorators.debug import sensitive_post_parameters
 from django.utils.decorators import method_decorator
@@ -14,6 +16,8 @@ from .handovers import HandoverError, issue_pilot_invitation, pilot_enabled
 from .models import BotanicalSpecies, CareGuideVersion, HandoverInvitation
 from .models import (InstallationBatch, InstallationManifestRow, PlantEvent,
                      PlantNickname, PlantUnit, Space, SpaceMember, PlantDiscussion)
+from .inventory_import import (ImportProblem, PERMISSIONS, apply_preview, eligible_batches,
+                               make_preview, parse_upload, require_permissions, template_bytes)
 
 
 class SpaceMemberInline(admin.TabularInline):
@@ -33,6 +37,8 @@ class PlantUnitAdmin(admin.ModelAdmin):
     list_display = ("label", "space", "unit_type", "species_label", "is_active")
     list_filter = ("unit_type", "is_active")
     search_fields = ("label", "species_label", "space__name")
+    change_list_template = "admin/plants/inventory_entry_list.html"
+    readonly_fields = ("identity_reference", "identity_verified_by", "identity_verified_at")
 
 
 @admin.register(BotanicalSpecies)
@@ -44,14 +50,49 @@ class BotanicalSpeciesAdmin(admin.ModelAdmin):
 class CareGuideVersionAdmin(admin.ModelAdmin):
     list_display = ("species", "version", "reviewer", "reviewed_at", "published")
     list_filter = ("published",)
+    change_list_template = "admin/plants/inventory_entry_list.html"
+    actions = ("review_and_publish", "withdraw",)
+    readonly_fields = ("reviewer", "reviewed_at", "published", "ever_published")
 
     def get_readonly_fields(self, request, obj=None):
-        if obj and obj.published:
-            return tuple(field.name for field in obj._meta.fields if field.name != "published")
-        return ()
+        if obj and obj.ever_published:
+            return tuple(field.name for field in obj._meta.fields)
+        return self.readonly_fields
 
     def has_delete_permission(self, request, obj=None):
-        return bool(not obj or not obj.published) and super().has_delete_permission(request, obj)
+        return bool(not obj or not obj.ever_published) and super().has_delete_permission(request, obj)
+
+    @admin.action(description="Confirm source/content review and publish selected versions", permissions=["publish"])
+    def review_and_publish(self, request, queryset):
+        if not self.has_publish_permission(request):
+            raise PermissionDenied
+        for pk, species_id in queryset.order_by("species_id", "pk").values_list("pk", "species_id"):
+            with transaction.atomic():
+                BotanicalSpecies.objects.select_for_update().get(pk=species_id)
+                guide = CareGuideVersion.objects.select_for_update().get(pk=pk)
+                if guide.published:
+                    continue
+                if not guide.ever_published:
+                    guide.reviewer, guide.reviewed_at = request.user, timezone.now()
+                guide.published = True
+                guide.save()
+                self.log_change(request, guide, "Staff confirmed source/content review and published this version")
+        self.message_user(request, "Selected versions published after your explicit source/content review.")
+
+    def has_publish_permission(self, request):
+        return request.user.is_staff and request.user.has_perms(("plants.publish_careguideversion", "plants.change_careguideversion"))
+
+    @admin.action(description="Withdraw selected publications (retain immutable content)")
+    def withdraw(self, request, queryset):
+        if not self.has_publish_permission(request):
+            raise PermissionDenied
+        for pk, species_id in queryset.order_by("species_id", "pk").values_list("pk", "species_id"):
+            with transaction.atomic():
+                BotanicalSpecies.objects.select_for_update().get(pk=species_id)
+                guide = CareGuideVersion.objects.select_for_update().get(pk=pk)
+                guide.published = False
+                guide.save(update_fields=("published",))
+                self.log_change(request, guide, "Publication withdrawn; immutable version retained")
 
 
 class PilotInvitationForm(forms.Form):
@@ -173,6 +214,21 @@ class InstallationManifestRowInline(admin.TabularInline):
         return bool(obj and obj.status == InstallationBatch.Status.DRAFT) and super().has_delete_permission(request, obj)
 
 
+class InventoryUploadForm(forms.Form):
+    batch = forms.ModelChoiceField(queryset=InstallationBatch.objects.none(), label="Destination DRAFT installation")
+    file = forms.FileField(label="Version 1 workbook (.xlsx) or inventory-only UTF-8 CSV")
+
+    def __init__(self, *args, user, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["batch"].queryset = eligible_batches(user).select_related("space")
+
+
+class InventoryApprovalForm(forms.Form):
+    preview = forms.CharField(widget=forms.HiddenInput)
+    confirmed = forms.BooleanField(label="I reviewed every row, the exact destination and warnings; apply this import atomically")
+    identities_confirmed = forms.BooleanField(required=False, label="For every supplied verified species, I independently reviewed the identity evidence and confirm it")
+
+
 @admin.register(InstallationBatch)
 class InstallationBatchAdmin(admin.ModelAdmin):
     """G1 operations: staff-owned staged inventory, NOT an activated QR claim."""
@@ -184,6 +240,70 @@ class InstallationBatchAdmin(admin.ModelAdmin):
     readonly_fields = ("status", "prepared_by", "reviewed_by", "reviewed_at", "created_at")
     inlines = (InstallationManifestRowInline,)
     actions = ("mark_inventory_ready",)
+    change_form_template = "admin/plants/installation_change.html"
+
+    def get_urls(self):
+        return [
+            path("inventory-import/", self.admin_site.admin_view(self.inventory_import_view), name="plants_inventory_import"),
+            path("inventory-template/<uuid:batch_id>/", self.admin_site.admin_view(self.inventory_template_view), name="plants_inventory_template"),
+        ] + super().get_urls()
+
+    def inventory_template_view(self, request, batch_id):
+        require_permissions(request.user)
+        batch = get_object_or_404(eligible_batches(request.user), pk=batch_id)
+        csv_only = request.GET.get("format") == "csv"
+        response = HttpResponse(template_bytes(batch, csv_only), content_type=(
+            "text/csv; charset=utf-8" if csv_only else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+        response["Content-Disposition"] = 'attachment; filename="plantupia-inventory-v1.' + ("csv" if csv_only else "xlsx") + '"'
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+    @method_decorator(sensitive_post_parameters())
+    def inventory_import_view(self, request):
+        require_permissions(request.user)
+        batch = None
+        if request.GET.get("batch"):
+            try:
+                batch_id = forms.UUIDField().clean(request.GET["batch"])
+            except ValidationError as exc:
+                raise Http404 from exc
+            batch = get_object_or_404(eligible_batches(request.user), pk=batch_id)
+        form = InventoryUploadForm(user=request.user, initial={"batch": batch})
+        approval, plan, applied = None, None, None
+        if request.method == "POST":
+            if "preview" in request.POST:
+                approval = InventoryApprovalForm(request.POST)
+                if approval.is_valid():
+                    try:
+                        receipt, created = apply_preview(request.user, approval.cleaned_data["preview"],
+                            confirmed=approval.cleaned_data["confirmed"],
+                            identities_confirmed=approval.cleaned_data["identities_confirmed"])
+                        batch = receipt.batch
+                        applied = {"summary": receipt.summary, "created": created}
+                        self.log_change(request, receipt.batch, "Inventory import approved" if created else "Inventory import replay; no changes")
+                        approval = None
+                    except ImportProblem as exc:
+                        approval.add_error(None, str(exc))
+            else:
+                form = InventoryUploadForm(request.POST, request.FILES, user=request.user)
+                if form.is_valid():
+                    batch = form.cleaned_data["batch"]
+                    try:
+                        document = parse_upload(form.cleaned_data["file"], batch)
+                        plan, token = make_preview(request.user, batch, document)
+                        if token:
+                            approval = InventoryApprovalForm(initial={"preview": token})
+                    except ImportProblem as exc:
+                        form.add_error("file", str(exc))
+        response = TemplateResponse(request, "admin/plants/inventory_import.html", {
+            **self.admin_site.each_context(request), "opts": self.model._meta,
+            "title": "Import installation inventory and care-guide drafts", "form": form,
+            "batch": batch, "plan": plan, "approval": approval, "applied": applied,
+            "destinations": eligible_batches(request.user).select_related("space")[:100],
+        })
+        response["Cache-Control"] = "private, no-store"
+        response["Referrer-Policy"] = "same-origin"
+        return response
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(_manifest_total=Count("manifest_rows", distinct=True))
@@ -204,6 +324,7 @@ class InstallationBatchAdmin(admin.ModelAdmin):
         extra_context = {
             **(extra_context or {}),
             "can_issue": pilot_enabled() and request.user.has_perm("plants.add_handoverinvitation"),
+            "can_import": request.user.has_perms(PERMISSIONS),
         }
         return super().changelist_view(request, extra_context=extra_context)
 

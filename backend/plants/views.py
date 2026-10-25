@@ -213,7 +213,8 @@ class PlantDetailView(APIView):
             if ("species_label" in submitted and submitted["species_label"] != plant.species_label
                     and plant.verified_species_id is not None):
                 # A customer correction cannot keep showing guidance for a previous verified identity.
-                serializer.save(verified_species=None)
+                serializer.save(verified_species=None, identity_reference="",
+                                identity_verified_by=None, identity_verified_at=None)
                 changes.append("Botanical verification cleared pending review")
             else:
                 serializer.save()
