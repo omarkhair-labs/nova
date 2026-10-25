@@ -44,6 +44,26 @@ The four existing roots remain **My Space / Circle / Create / Me**. People, inbo
 - The private Care Guide panel lives in the existing Plant Detail view. It displays the latest published version for the curated identity, sources/review provenance and recorded placement, or an accurate unverified/unavailable/loading/retry state. Reading it never records care. No inferred environmental measurements, health score, diagnosis, recurring watering schedule or invented maintenance role.
 - Local QA can compile a loopback/emulator-only API override into the `.qa` variant with `-PplantupiaQaApiUrl=http://10.0.2.2:8765/api/v1/`. It cannot modify release/debug production routing or target an arbitrary hosted server. Without the property the existing QA preview origin is preserved. QA and production package identities remain unchanged.
 
+## Two distinct QA APK artifacts — read before demonstration
+
+The PR CI intentionally builds **two separately named QA artifacts**:
+
+1. `plantupia-qa-pr241-apk`: existing QA package using the project's configured QA preview origin. A successful build does **not** verify that a hosted QA service, its database, migrations, or data are available.
+2. `plantupia-pr241-local-emulator-only-apk`: the same side-by-side `.qa` package with an explicit compile-time API URL of `http://10.0.2.2:8765/api/v1/`. `10.0.2.2` is Android **emulator-to-host** loopback, **not** a remote server or a physical phone address. This artifact can be used only with a separately running disposable local backend on that same development computer.
+
+Do not relabel the emulator artifact as a physical-device APK or distribute it as a customer build. Installing either artifact alone does not create accounts, seed data, generate a QR, run Django, or enable handover. Both artifacts are short-retention CI outputs, not an operational release. The extra build only adds a safe demo artifact; it does not deploy, sign for Play, change the standard QA routing, or enable production.
+
+### Operator rehearsal on a developer computer (disposable data only)
+
+- Retrieve the **local-emulator-only** APK from the latest *successful exact-HEAD* PR Actions run. Extract it locally; never place invitations or test passwords in GitHub/CI.
+- On that same computer, create a **fresh empty local SQLite database** and separate filesystem media, set `DJANGO_ENV=development`, `DJANGO_SECRET_KEY` to a local throwaway secret, `DATABASE_URL` to the fresh SQLite URL, `DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,10.0.2.2`, and `PLANTUPIA_HANDOVER_QA_ENABLED=1`. Do not use hosted credentials, production storage, or a database containing customer data.
+- From `backend/`, install requirements, `python manage.py migrate`, then run `python manage.py seed_local_plantupia_qa --credentials-file <private-new-local-path-outside-repo> --with-sample-care-guides`. Keep the credentials file private; it contains four test-account passwords and a one-time handover code. Run `python manage.py runserver 127.0.0.1:8765`.
+- Start an Android emulator attached to the **same host** and install the extracted `.qa` APK with `adb install -r <path-to-app-qa.apk>`. Log in with the synthetic intended customer, not the QA staff account. Use the stored raw code directly, or generate a QR locally that encodes **only that raw code**. Do not upload the code or QR to an online QR service.
+- On the protected local Django Admin, sign in with the synthetic staff account to review the installation, inventory, invitation status and revocation/reissue. In Android, run preview -> explicit claim -> seven-plant My Space -> three visibly unapproved sample guides plus four unknown-guide states -> care -> check-in -> outcome -> Living History. Also try the unrelated QA user and the independent manual-add account.
+- Delete the disposable database, media, secret/QR files and emulator state after the rehearsal. Do not report this as a physical-phone, production, push-delivery or hosted-isolation test.
+
+**Acceptance boundary:** the emulator runtime path and app/core journey were exercised in the recorded October 25 implementation walkthrough, while the new separately named CI emulator artifact must itself pass *final-commit* CI and be checked before being described as a usable deliverable. A real-phone CEO demo requires an independently verified, approved QA backend reachable from that phone and a compatible build; `10.0.2.2` cannot supply that.
+
 ## Backend inventory
 
 Existing preserved models: `Space`, `SpaceMember`, `PlantUnit`, `PlantNickname`, `PlantEvent`, `PlantDiscussion`, `PlantSubmission`, `InstallationBatch`, `InstallationManifestRow`, `HandoverInvitation`.
