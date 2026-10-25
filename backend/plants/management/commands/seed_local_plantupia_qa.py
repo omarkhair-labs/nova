@@ -1,5 +1,6 @@
 """Disposable local fixture only. Never connect this command to a hosted database."""
 import json
+import os
 import secrets
 from pathlib import Path
 from django.conf import settings
@@ -11,6 +12,23 @@ from plants.handovers import issue_pilot_invitation, pilot_enabled
 from plants.models import (BotanicalSpecies, CareGuideVersion, InstallationBatch,
                           InstallationManifestRow, PlantUnit, Space)
 from plants.qa_demo_care import SAMPLE_CARE_GUIDES
+
+
+
+def write_private_qa_credentials(destination, payload):
+    """Create the one-time local QA secret file with owner-only permissions.
+
+    Path.open("x") inherits the process umask and can produce a world-readable
+    file. An exclusive OS create with mode 0600 avoids that exposure, including
+    when the developer's umask is permissive.
+    """
+    fd = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as output:
+            json.dump(payload, output, indent=2)
+    except BaseException:
+        destination.unlink(missing_ok=True)
+        raise
 
 
 class Command(BaseCommand):
@@ -77,9 +95,10 @@ class Command(BaseCommand):
         batch.save()
         code, _ = issue_pilot_invitation(batch_id=batch.pk, recipient=customer, staff=staff, mode="customer_owned")
         # Secrets go to one explicitly requested local file, never command logs or permanent admin fields.
-        with destination.open("x", encoding="utf-8") as output:
-            json.dump({"synthetic": True, "accounts": accounts, "invitation": code,
-                       "space_id": str(space.pk), "plant_ids": plant_ids}, output, indent=2)
+        write_private_qa_credentials(destination, {
+            "synthetic": True, "accounts": accounts, "invitation": code,
+            "space_id": str(space.pk), "plant_ids": plant_ids,
+        })
         self.stdout.write(
             "Synthetic fixture created. Private credentials were written to the requested local file."
             + (" Three SYNTHETIC QA care guides were seeded, not company-approved." if options["with_sample_care_guides"] else "")
