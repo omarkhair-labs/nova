@@ -147,6 +147,15 @@ STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+# Only disposable, opt-in, local SQLite handover QA may keep uploaded photos
+# outside the repository. This cannot redirect hosted/production media.
+if (
+    not IS_PRODUCTION
+    and DATABASES["default"]["ENGINE"] == "django.db.backends.sqlite3"
+    and os.getenv("PLANTUPIA_HANDOVER_QA_ENABLED", "0") == "1"
+    and os.getenv("PLANTUPIA_LOCAL_QA_MEDIA_ROOT", "").strip()
+):
+    MEDIA_ROOT = Path(os.environ["PLANTUPIA_LOCAL_QA_MEDIA_ROOT"]).expanduser().resolve()
 
 STORAGES = {
     "default": {

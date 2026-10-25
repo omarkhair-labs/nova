@@ -256,6 +256,20 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      # Real Android phone connected by USB: adb reverse tcp:8765 tcp:8765
+      # maps its own 127.0.0.1 to the disposable Django QA server on the PC.
+      # Not a network-deployed, public, or production APK.
+      - name: Assemble USB-tethered physical-phone Plantupia QA APK
+        run: ./gradlew --no-daemon assembleQa -PplantupiaQaApiUrl=http://127.0.0.1:8765/api/v1/
+
+      - name: Upload USB-only physical-phone Plantupia QA APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: plantupia-pr241-physical-phone-usb-localhost-apk
+          path: app/build/outputs/apk/qa/app-qa.apk
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Assemble Android instrumentation APK
         run: ./gradlew --no-daemon assembleDebugAndroidTest
 

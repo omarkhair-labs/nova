@@ -64,6 +64,32 @@ Do not relabel the emulator artifact as a physical-device APK or distribute it a
 
 **Acceptance boundary:** the emulator runtime path and app/core journey were exercised in the recorded October 25 implementation walkthrough, while the new separately named CI emulator artifact must itself pass *final-commit* CI and be checked before being described as a usable deliverable. A real-phone CEO demo requires an independently verified, approved QA backend reachable from that phone and a compatible build; `10.0.2.2` cannot supply that.
 
+## Real Android phone on Windows — local USB acceptance (no hosted deployment)
+
+**This is a third, distinct QA artifact, not a re-test of the previously successful emulator walkthrough.** CI also publishes `plantupia-pr241-physical-phone-usb-localhost-apk`, compiled with `http://127.0.0.1:8765/api/v1/`. Use it **only** while the Android phone is USB-connected to the same Windows computer running the disposable local Django backend and ADB reverse is active:
+
+```powershell
+adb devices
+adb reverse tcp:8765 tcp:8765
+```
+
+Android then reaches the Windows computer's local server via the phone's `127.0.0.1:8765`. All usual app API routing, including login and Plantupia, uses this QA base URL; the production app package remains separate. The emulator-targeted `10.0.2.2` APK is **not** the correct physical-phone artifact.
+
+For an explicit fresh test fixture on Windows, extract the new USB-only APK from the exact successful CI run, install Python 3.12 and Android Platform Tools (ADB), enable USB debugging and authorize that computer on the phone, then from the repository root run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\plantupia_local_phone_qa.ps1 -ApkPath "C:\path\to\app-qa.apk" -CreateLocalQr
+```
+
+The script deliberately sets `DJANGO_ENV=development`, an empty **new** SQLite database under the current user's local `PlantupiaQA` folder, a throwaway Django secret, no Redis/object-store credentials, an isolated media directory, and enables handovers **only** for that local fixture. It migrates the new database, seeds distinct staff/intended-recipient/stranger/independent QA accounts, seven unique synthetic plant records and three clearly unapproved care-guide examples, installs the side-by-side `.qa` APK and keeps Django running on `127.0.0.1:8765`. Optional QR is generated **offline on that PC** from the private fixture secret; manual code entry works without a QR.
+
+- On the Windows PC open `http://127.0.0.1:8765/admin/`. Use the generated **staff** account, inspect the `Installations` and `Handover invitations` pages and the prepared manifest. The fixture creates a prepared invitation already; you may revoke/reissue through staff Admin, but doing so invalidates the old local code and requires the new code shown once.
+- On the Android phone open the **QA** app with the **customer** fixture account. Scan the generated local QR or enter its code, review the authorized delivery, explicitly claim, then inspect all seven records inside My Space. Inspect care-guide available and unverified states; record an actual observation/photo and check-in; return, record an outcome, see linked Living History.
+- Use the **stranger** account to prove authorization rejection; use the **independent** account to create a separate private space/plant. Review Me, Circle, People and Messages as appropriate, remembering that dummy Firebase configuration does not prove push delivery.
+- The script prints **only** the private credential-file path, never the password or raw invitation; do not upload/share the local credentials or QR. The fixture lives in a new per-run directory in the current Windows user's local application data; remove that directory when finished. Disconnecting the cable invalidates the reverse tunnel until re-established.
+
+**Boundaries:** this permits physical Android QA without a hosted staging service, **while USB/ADB is connected**. It does not prove production deployment, internet/cloud access, real customer invitations, push notifications, S3 storage or a wireless demonstration. Re-run `adb reverse` after USB reconnect. Only report successful physical-device evidence after a person has actually carried out the steps. If Python/ADB/setup fail on the user's machine, that must be resolved there rather than silently switching to Oracle production.
+
 ## Backend inventory
 
 Existing preserved models: `Space`, `SpaceMember`, `PlantUnit`, `PlantNickname`, `PlantEvent`, `PlantDiscussion`, `PlantSubmission`, `InstallationBatch`, `InstallationManifestRow`, `HandoverInvitation`.
