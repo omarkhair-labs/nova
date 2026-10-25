@@ -375,7 +375,7 @@ server_config = read(ROOT / "app/src/main/java/com/nova/app/core/network/NovaSer
 require_all(server_config, "QA endpoint isolation", (
     'BuildConfig.BUILD_TYPE == "qa"',
     'productionHost = "zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io"',
-    'qaHost = "240.zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io"',
+    'qaHost = "241.zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io"',
 ))
 production_ctor = 'NovaApiClient(com.nova.app.core.network.NovaServerConfig.API_URL)'
 for text, name in (
