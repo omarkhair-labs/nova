@@ -10,6 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .handovers import HandoverError, claim_handover, preview_handover
 from .models import PlantDiscussion, PlantEvent, PlantNickname, PlantUnit, Space, SpaceMember
 from .serializers import (PlantCreateSerializer, PlantEventSerializer, PlantSerializer, PlantUpdateSerializer, SpaceCreateSerializer, SpaceSerializer, SpaceUpdateSerializer)
 from .media import sanitize_public_plant_photo
@@ -469,3 +470,33 @@ class PlantCircleView(APIView):
             ],
             "next_cursor": str(page[-1].id) if has_more and page else None,
         })
+
+
+class HandoverPreviewView(APIView):
+    """QA-only authenticated minimal inventory summary; no private list."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            summary = preview_handover(
+                token=request.data.get("invitation"), user=request.user,
+            )
+        except HandoverError as exc:
+            return Response({"code": exc.code}, status=exc.http_status)
+        return Response(summary)
+
+
+class HandoverClaimView(APIView):
+    """QA-only atomic explicit acceptance; a QR scan alone does nothing."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if request.data.get("confirm") is not True:
+            return Response({"code": "confirmation_required"}, status=400)
+        try:
+            result = claim_handover(
+                token=request.data.get("invitation"), user=request.user,
+            )
+        except HandoverError as exc:
+            return Response({"code": exc.code}, status=exc.http_status)
+        return Response(result)
