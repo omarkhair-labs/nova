@@ -335,6 +335,63 @@ class HandoverConcurrentClaimsTests(TransactionTestCase):
     issue = HandoverPilotTests.issue
 
     @skipUnlessDBFeature("has_select_for_update")
+    def test_simultaneous_recipient_and_stranger_never_transfer_to_stranger(self):
+        token, _ = self.issue()
+        barrier = Barrier(2)
+
+        def claim_as(account_id):
+            close_old_connections()
+            try:
+                api = APIClient()
+                api.force_authenticate(get_user_model().objects.get(pk=account_id))
+                barrier.wait(timeout=10)
+                return api.post(self.claim, {"invitation": token, "confirm": True}, format="json").status_code
+            finally:
+                close_old_connections()
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(claim_as, [self.customer.pk, self.stranger.pk]))
+        self.assertEqual(results, [200, 404])
+        self.space.refresh_from_db()
+        self.assertEqual(self.space.owner_id, self.customer.pk)
+        self.assertEqual(PlantUnit.objects.count(), 7)
+
+    @skipUnlessDBFeature("has_select_for_update")
+    def test_claim_racing_reissue_has_one_valid_serialized_result(self):
+        token, invitation = self.issue()
+        barrier = Barrier(2)
+
+        def operation(reissue):
+            close_old_connections()
+            try:
+                barrier.wait(timeout=10)
+                if reissue:
+                    try:
+                        replacement, _ = issue_pilot_invitation(batch_id=self.batch.pk, recipient=self.customer,
+                            staff=self.staff, mode="customer_owned")
+                        return 200, replacement
+                    except HandoverError as exc:
+                        return exc.http_status, None
+                api = APIClient()
+                api.force_authenticate(get_user_model().objects.get(pk=self.customer.pk))
+                return api.post(self.claim, {"invitation": token, "confirm": True}, format="json").status_code, None
+            finally:
+                close_old_connections()
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            claim, reissue = list(pool.map(operation, [False, True]))
+        invitation.refresh_from_db()
+        self.space.refresh_from_db()
+        self.assertIn((claim[0], reissue[0]), [(200, 409), (404, 200)])
+        if claim[0] == 200:
+            self.assertIsNotNone(invitation.claimed_at)
+            self.assertEqual(self.space.owner_id, self.customer.pk)
+        else:
+            self.assertIsNotNone(invitation.revoked_at)
+            self.assertEqual(self.space.owner_id, self.staff.pk)
+        self.assertEqual(PlantUnit.objects.count(), 7)
+
+    @skipUnlessDBFeature("has_select_for_update")
     def test_simultaneous_claims_return_same_original_seven_plants(self):
         token, _ = self.issue()
         barrier = Barrier(2)
