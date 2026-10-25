@@ -1,3 +1,5 @@
+import java.net.URI
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -31,6 +33,7 @@ android {
         versionName = "2.1.13"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "PLANTUPIA_QA_API_URL", "\"\"")
     }
 
     signingConfigs {
@@ -51,6 +54,15 @@ android {
             applicationIdSuffix = ".qa"
             versionNameSuffix = "-qa"
             matchingFallbacks += listOf("debug")
+            val localQaUrl = providers.gradleProperty("plantupiaQaApiUrl").orNull
+            if (localQaUrl != null) {
+                val uri = URI(localQaUrl)
+                require(uri.scheme == "http" && uri.host in listOf("10.0.2.2", "127.0.0.1", "localhost") &&
+                    uri.path == "/api/v1/" && uri.userInfo == null && uri.query == null && uri.fragment == null) {
+                    "Local QA override must be a loopback/emulator HTTP origin ending in /api/v1/"
+                }
+                buildConfigField("String", "PLANTUPIA_QA_API_URL", "\"$localQaUrl\"")
+            }
         }
         release {
             isMinifyEnabled = false
@@ -105,6 +117,7 @@ dependencies {
     implementation("androidx.navigation3:navigation3-ui:1.1.4")
     implementation("androidx.core:core-telecom:1.0.0")
     implementation("androidx.work:work-runtime-ktx:2.10.1")
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     implementation("io.github.webrtc-sdk:android:144.7559.08")
     testImplementation(libs.junit)
     // Exercise the real response parser on the JVM rather than Android's JSON stubs.

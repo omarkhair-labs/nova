@@ -52,7 +52,7 @@ class PlantCareGuideView(APIView):
                 "version": guide.version, "species": guide.species.scientific_name,
                 "instructions": guide.instructions, "context_notes": guide.context_notes,
                 "source_url": guide.source_url, "source_reference": guide.source_reference,
-                "reviewer": guide.reviewer.get_username(), "reviewed_at": guide.reviewed_at.isoformat(),
+                "reviewer": guide.reviewer.username, "reviewed_at": guide.reviewed_at.isoformat(),
             }
         return Response(result, headers={"Cache-Control": "private, no-store"})
 
@@ -210,7 +210,13 @@ class PlantDetailView(APIView):
                     changes.append(f"{labels[key]}: {previous or '(none)'} → {new_value or '(none)'}")
 
         if changes:
-            serializer.save()
+            if ("species_label" in submitted and submitted["species_label"] != plant.species_label
+                    and plant.verified_species_id is not None):
+                # A customer correction cannot keep showing guidance for a previous verified identity.
+                serializer.save(verified_species=None)
+                changes.append("Botanical verification cleared pending review")
+            else:
+                serializer.save()
             PlantEvent.objects.create(
                 plant=plant,
                 actor=request.user,
@@ -506,7 +512,7 @@ class HandoverPreviewView(APIView):
             )
         except HandoverError as exc:
             return Response({"code": exc.code}, status=exc.http_status)
-        return Response(summary)
+        return Response(summary, headers={"Cache-Control": "private, no-store"})
 
 
 class HandoverClaimView(APIView):
@@ -522,4 +528,4 @@ class HandoverClaimView(APIView):
             )
         except HandoverError as exc:
             return Response({"code": exc.code}, status=exc.http_status)
-        return Response(result)
+        return Response(result, headers={"Cache-Control": "private, no-store"})

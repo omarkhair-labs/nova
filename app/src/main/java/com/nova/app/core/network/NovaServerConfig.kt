@@ -9,6 +9,7 @@ object NovaServerConfig {
 
     private val host = if (BuildConfig.BUILD_TYPE == "qa") qaHost else productionHost
 
-    val API_URL: String = "https://" + host + "/api/v1/"
-    val WS_URL: String = "wss://" + host + "/ws/"
+    private val localQaUrl = BuildConfig.PLANTUPIA_QA_API_URL.takeIf { BuildConfig.BUILD_TYPE == "qa" && it.isNotBlank() }
+    val API_URL: String = localQaUrl ?: ("https://" + host + "/api/v1/")
+    val WS_URL: String = localQaUrl?.replace("http://", "ws://")?.replace("/api/v1/", "/ws/") ?: ("wss://" + host + "/ws/")
 }

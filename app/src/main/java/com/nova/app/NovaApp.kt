@@ -99,6 +99,17 @@ fun NovaApp(
     var pendingPassword by remember { mutableStateOf("") }
     var authLoading by remember { mutableStateOf(false) }
     var authError by remember { mutableStateOf<String?>(null) }
+    val handoverStore = remember(context) { com.nova.app.feature.plants.data.PlantupiaHandoverStore(context) }
+    var showHandover by remember { mutableStateOf(false) }
+    val handoverRequest = com.nova.app.feature.plants.PlantupiaHandoverNavigation.requestVersion
+    LaunchedEffect(handoverRequest) {
+        if (handoverRequest > 0) showHandover = true
+    }
+    LaunchedEffect(appState.currentUser?.id, appState.isBootstrapping) {
+        if (!appState.isBootstrapping) {
+            showHandover = handoverStore.read(appState.currentUser?.id) != null
+        }
+    }
 
     var handledFeedSessionExpiry by remember { mutableStateOf(0) }
     var handledProfileRefresh by remember { mutableStateOf(0) }
@@ -251,6 +262,7 @@ fun NovaApp(
             when (route) {
                 NovaRoute.Welcome -> NavEntry(route) {
                     WelcomeScreen(
+                        onConnectPlants = { showHandover = true },
                         onCreateAccount = {
                             authError = null
                             backStack.add(NovaRoute.CreateAccount)
@@ -891,6 +903,24 @@ fun NovaApp(
             }
         },
     )
+    if (showHandover) {
+        androidx.compose.runtime.key(appState.currentUser?.id) {
+            com.nova.app.feature.plants.PlantupiaHandoverScreen(
+                accountId = appState.currentUser?.id,
+                accountName = appState.currentUser?.username.orEmpty(),
+                onClose = { showHandover = false },
+                onLogin = { showHandover = false; authError = null; backStack.add(NovaRoute.Login) },
+                onRegister = { showHandover = false; authError = null; backStack.add(NovaRoute.CreateAccount) },
+                onConnected = { spaceId ->
+                    appState.currentUser?.id?.let { accountId ->
+                        com.nova.app.feature.plants.PlantupiaHandoverNavigation.connected(accountId, spaceId)
+                    }
+                    showHandover = false
+                    openHome()
+                },
+            )
+        }
+    }
 }
 
 @Composable

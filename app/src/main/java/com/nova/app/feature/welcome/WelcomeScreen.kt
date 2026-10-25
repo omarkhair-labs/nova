@@ -42,6 +42,7 @@ fun WelcomeScreen(
     onLogin: () -> Unit,
     onTerms: () -> Unit,
     onPrivacy: () -> Unit,
+    onConnectPlants: () -> Unit = {},
 ) {
     Column(
         modifier = Modifier
@@ -120,8 +121,11 @@ fun WelcomeScreen(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            Text("Received plants from Plantupia?", color = NovaInk, fontWeight = FontWeight.SemiBold)
+            NovaPrimaryButton(text = "Connect my Plantupia plants", onClick = onConnectPlants)
+            Text("Or add your own plants after signing in.", color = NovaMuted)
             NovaPrimaryButton(
-                text = "Create account",
+                text = "Add my own plants · Create account",
                 onClick = onCreateAccount,
             )
             NovaSecondaryButton(

@@ -35,3 +35,6 @@ app/google-services.json
 *.keystore
 keystore.properties
 signing.properties
+# Local Kotlin state and isolated QA Firebase configuration (CI recreates its dummy config).
+.kotlin/
+app/src/qa/google-services.json

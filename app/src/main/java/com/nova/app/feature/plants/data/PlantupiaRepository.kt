@@ -110,6 +110,25 @@ class PlantupiaRepository(
     }
     private val submissionAccount get() = initialSession?.cachedUser?.id?.takeIf { it > 0L } ?: error("Please log in again.")
 
+    suspend fun delivery(token: String, confirm: Boolean = false): ApiResult<PlantupiaDelivery> = authorized { bearer ->
+        val payload = JSONObject().put("invitation", token)
+        if (confirm) payload.put("confirm", true)
+        when (val response = api.requestJson(
+            path = if (confirm) "plantupia/handovers/claim/" else "plantupia/handovers/preview/",
+            method = "POST", body = payload, bearerToken = bearer,
+        )) {
+            is ApiResult.Failure -> response.copy(message = handoverFailure(response.statusCode))
+            is ApiResult.Success -> parsePlantupiaResponse(response.value) { parseDelivery(it, confirm) }
+        }
+    }
+
+    suspend fun careGuide(plantId: String): ApiResult<PlantupiaCareGuide> = authorized { bearer ->
+        when (val response = api.requestJson("plantupia/plants/$plantId/care-guide/", bearerToken = bearer)) {
+            is ApiResult.Failure -> response
+            is ApiResult.Success -> parsePlantupiaResponse(response.value) { parseCareGuide(it, plantId) }
+        }
+    }
+
     /** The AI key lives server-side; private plant context is opt-in per request. */
     suspend fun askAssistant(
         message: String,

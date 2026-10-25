@@ -99,12 +99,13 @@ fun PlantupiaClientSection(
     onOpenPlant: () -> Unit = {},
 ) {
     key(accountId) {
-        PlantupiaAccountClientSection(onCommunityCreateClick, onOpenLinkedPost, onOpenPlant)
+        PlantupiaAccountClientSection(accountId, onCommunityCreateClick, onOpenLinkedPost, onOpenPlant)
     }
 }
 
 @Composable
 private fun PlantupiaAccountClientSection(
+    accountId: Long,
     onCommunityCreateClick: () -> Unit,
     onOpenLinkedPost: (Long, () -> Boolean) -> Unit,
     onOpenPlant: () -> Unit = {},
@@ -410,18 +411,27 @@ private fun PlantupiaAccountClientSection(
             }
         }
     }
-    LaunchedEffect(Unit) { refresh() }
+    val handoverTarget = PlantupiaHandoverNavigation.target
+    LaunchedEffect(handoverTarget) {
+        refresh()
+    }
     LaunchedEffect(PlantupiaCreateIntent.pending, plants, loading) {
         if (!loading && error == null && PlantupiaCreateIntent.pending.needsPlantSelection()) {
             val available = actionablePlantChoices(plants)
             if (available.size == 1) openPlant(available.first())
         }
     }
-    LaunchedEffect(spaces, loading, error) {
+    LaunchedEffect(spaces, loading, error, handoverTarget) {
         // Never reset a saved user choice during the initial empty/loading
         // frame or an unavailable API. Validate only against a successful,
         // authenticated server response.
         if (loading || error != null) return@LaunchedEffect
+        if (handoverTarget?.first == accountId && spaces.any { it.id == handoverTarget.second }) {
+            focusedSpaceId = handoverTarget.second
+            plantSearch = ""
+            PlantupiaHandoverNavigation.consume()
+            return@LaunchedEffect
+        }
         val allowed = resolveFocusedSpace(spaces, focusedSpaceId)
         if (focusedSpaceId != allowed?.id) {
             focusedSpaceId = allowed?.id
@@ -442,6 +452,9 @@ private fun PlantupiaAccountClientSection(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         if (selectedPlant == null) {
+            TextButton(onClick = { PlantupiaHandoverNavigation.open() }) {
+                Text("Received plants from Plantupia? Connect a delivery", color = deepGreen)
+            }
             if (PlantupiaCreateIntent.pending.needsPlantSelection()) {
                 PlantupiaPanel {
                     Text(
@@ -827,6 +840,7 @@ private fun PlantupiaAccountClientSection(
             }
             // Identify the *actual selected plant* before showing its photo or controls.
             Text(selectedPlant.name, fontFamily = FontFamily.Serif, fontSize = 35.sp, color = deepGreen)
+            PlantupiaCareGuidePanel(selectedPlant.id, repository)
             if (!selectedPlant.active) {
                 Text(
                     "ARCHIVED · Read-only living record. Photos, notes and history are retained.",

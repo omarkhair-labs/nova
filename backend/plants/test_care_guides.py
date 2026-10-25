@@ -68,3 +68,15 @@ class CareGuideTests(TestCase):
         guide.reviewed_at = timezone.now() + timedelta(days=1)
         with self.assertRaises(ValidationError):
             guide.full_clean()
+
+    def test_customer_species_correction_clears_old_botanical_verification(self):
+        self.plant.verified_species = self.species
+        self.plant.save()
+        self.guide(published=True)
+        self.assertEqual(self.api.get(self.url).json()["state"], "available")
+        response = self.api.patch(reverse("plantupia-plant-detail", args=[self.plant.pk]),
+                                  {"species_label": "Identity uncertain"}, format="json")
+        self.assertEqual(response.status_code, 200, response.content)
+        body = self.api.get(self.url).json()
+        self.assertFalse(body["identity_verified"])
+        self.assertIsNone(body["guide"])
