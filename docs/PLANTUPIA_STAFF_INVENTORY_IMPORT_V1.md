@@ -87,8 +87,10 @@ unrelated Species/CareGuides sheets; curate those first or use XLSX.
 
 Limits: 2 MiB uploaded bytes; 16 MiB expanded XLSX; 80 unique ZIP entries;
 exactly four sheets; 500 data rows per sheet; 8000 characters per text cell.
+The signed approval payload must also fit 2 MiB; unusually dense workbooks must be
+split before preview can offer approval, keeping the confirmation POST bounded.
 Legacy XLS, XLSM, encrypted archives, macros, embedded objects, external data,
-defined names, formulas, hyperlinks/external relationships, error/boolean/date
+defined names, formulas, embedded images/charts, hyperlinks/external relationships, error/boolean/date
 cells and formula-like text starting `= + - @` are rejected. Paste values as text
 and remove Excel's automatic hyperlinks. ZIP parts are inspected without extraction;
 XML uses defusedxml; openpyxl reads literal cells without evaluating formulas or
@@ -146,9 +148,10 @@ than handing operational users superuser credentials.
 row conflicts, read-only preview, CSRF/auth/scope, tampered/expired approvals,
 explicit review, rollback, stable identity/idempotency, READY/CLAIMED refusal,
 publication/withdrawal immutability and import -> review -> claim -> existing
-private Care Guide contract. Four PostgreSQL-only simultaneous transaction cases
+private Care Guide contract. Five PostgreSQL-only simultaneous transaction cases
 cover identical imports, conflicting previews, review vs import and cross-batch
-taxonomy creation. They intentionally skip on SQLite; full CI uses PostgreSQL.
+taxonomy creation, plus stale guide editing vs publication. They intentionally
+skip on SQLite; full CI uses PostgreSQL.
 Run `python manage.py check`, `python manage.py makemigrations --check`, full Django
 tests, all existing architecture guards and Android tests/build/lint.
 

@@ -81,6 +81,9 @@ class InventoryImportTests(ImportFixture, TestCase):
         self.assertFalse(SpaceMember.objects.exists())
         self.assertFalse(HandoverInvitation.objects.exists())
         self.assertFalse(PlantEvent.objects.exists())
+        with patch("plants.inventory_import.signing.dumps", return_value="x" * (MAX_BYTES + 1)):
+            with self.assertRaisesMessage(ImportProblem, "Split this workbook"):
+                make_preview(self.staff, self.batch, self.document())
         replay = self.client.post(self.url, {"preview": token, "confirmed": "on"})
         self.assertContains(replay, "already applied")
         self.assertEqual(PlantUnit.objects.get().pk, original_id)
@@ -330,6 +333,7 @@ class InventoryParserTests(ImportFixture, TestCase):
         original = template_bytes(self.batch)
         for name, content in (("xl/externalLinks/externalLink1.xml", b"<x/>"),
                               ("xl/vbaProject.bin", b"qa"),
+                              ("xl/media/image1.png", b"qa-embedded-image"),
                               ("custom/external.rels", b'<Relationships><Relationship TargetMode="External" Target="file:///qa"/></Relationships>'),
                               ("custom/entity.xml", b'<!DOCTYPE x [<!ENTITY a "qa">]><x>&a;</x>')):
             out = io.BytesIO()
@@ -342,6 +346,37 @@ class InventoryParserTests(ImportFixture, TestCase):
 
 
 class InventoryConcurrencyTests(ImportFixture, TransactionTestCase):
+    @skipUnlessDBFeature("has_select_for_update")
+    def test_stale_draft_editor_cannot_overwrite_concurrently_published_content(self):
+        self.approve()
+        guide_id = CareGuideVersion.objects.get().pk
+        barrier = Barrier(2)
+
+        def save(publish):
+            close_old_connections()
+            try:
+                guide = CareGuideVersion.objects.get(pk=guide_id)
+                if publish:
+                    guide.published, guide.reviewer, guide.reviewed_at = True, self.staff, timezone.now()
+                else:
+                    guide.instructions = "QA concurrent editor content"
+                barrier.wait(timeout=10)
+                try:
+                    guide.save()
+                    return "saved"
+                except ValidationError:
+                    return "frozen"
+            finally:
+                close_old_connections()
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            published, edited = list(pool.map(save, [True, False]))
+        self.assertEqual(published, "saved")
+        self.assertIn(edited, ("saved", "frozen"))
+        guide = CareGuideVersion.objects.get(pk=guide_id)
+        self.assertTrue(guide.published)
+        self.assertEqual(guide.instructions, self.document()["CareGuides"][0]["instructions"])
+
     @skipUnlessDBFeature("has_select_for_update")
     def test_two_simultaneous_approvals_same_preview_commit_one_receipt(self):
         _, token = make_preview(self.staff, self.batch, self.document(verified=True))

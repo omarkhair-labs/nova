@@ -7,7 +7,7 @@ are different things. No public serial or QR code is required.
 import uuid
 
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction
 from django.core.exceptions import ValidationError
 
 
@@ -95,12 +95,18 @@ class CareGuideVersion(models.Model):
                 raise ValidationError("Published content is immutable; create a new version.")
 
     def save(self, *args, **kwargs):
-        self.full_clean()
-        if self.published:
-            self.ever_published = True
-            if kwargs.get("update_fields") is not None:
-                kwargs["update_fields"] = set(kwargs["update_fields"]) | {"ever_published"}
-        super().save(*args, **kwargs)
+        # Validation and the write share the publication/import lock order.
+        # A stale draft editor must never overwrite a concurrently published guide.
+        with transaction.atomic():
+            list(BotanicalSpecies.objects.select_for_update().filter(pk=self.species_id))
+            if self.pk:
+                list(type(self).objects.select_for_update().filter(pk=self.pk))
+            self.full_clean()
+            if self.published:
+                self.ever_published = True
+                if kwargs.get("update_fields") is not None:
+                    kwargs["update_fields"] = set(kwargs["update_fields"]) | {"ever_published"}
+            super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.species} v{self.version}"

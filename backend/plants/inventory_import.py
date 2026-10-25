@@ -137,7 +137,7 @@ def parse_upload(upload, batch):
             for info in infos:
                 name = info.filename.lower()
                 if (info.flag_bits & 1 or ".." in name.split("/") or name.startswith(("/", "\\"))
-                        or any(part in name for part in ("vbaproject", "externallinks/", "embeddings/", "connections.xml", "querytables/"))):
+                        or any(part in name for part in ("vbaproject", "externallinks/", "embeddings/", "connections.xml", "querytables/", "xl/media/", "xl/drawings/", "xl/charts/"))):
                     raise ImportProblem("Encrypted, macro, embedded or external-data workbooks are unsupported.")
                 if name.endswith((".xml", ".rels")):
                     root = fromstring(archive.read(info))
@@ -335,6 +335,8 @@ def make_preview(user, batch, document):
         "actor": user.pk, "batch": str(batch.pk), "space": str(batch.space_id),
         "document": document, "fingerprint": plan["fingerprint"],
     }, salt=SALT, compress=True)
+    if token and len(token) > MAX_BYTES:
+        raise ImportProblem("Validated preview exceeds 2 MiB. Split this workbook into smaller imports.")
     return plan, token
 
 

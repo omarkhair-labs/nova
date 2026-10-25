@@ -26,8 +26,14 @@ Changed implementation files:
 - `backend/plants/views.py`: customer species correction also clears obsolete
   imported identity-review metadata. Existing response contract is unchanged.
 - `backend/requirements.txt`: openpyxl and defusedxml, no deployment configuration.
-- `backend/plants/test_inventory_import.py`: 19 scenario tests including four
+- `backend/plants/test_inventory_import.py`: 20 scenario tests including five
   PostgreSQL-only concurrency cases. All other tests/guards remain intact.
+
+Final review hardening additionally serializes model validation/save with guide
+publication, preventing a stale draft editor from changing published content.
+Embedded workbook images/charts are rejected with the unsupported-content error,
+so photo input cannot be silently discarded. A separate commit contains this fix
+and its fifth PostgreSQL race regression; consult the delivered final SHA/run.
 
 Local evidence before push:
 
