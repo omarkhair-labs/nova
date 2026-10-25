@@ -71,9 +71,10 @@ def issue_pilot_invitation(*, batch_id, recipient, staff, mode, valid_for=timede
     if not timedelta(minutes=1) <= valid_for <= timedelta(days=7):
         raise HandoverError("invalid_expiration", 400)
 
-    batch = InstallationBatch.objects.select_for_update().select_related(
-        "space__owner", "prepared_by",
-    ).get(pk=batch_id)
+    # Lock the base row alone. PostgreSQL can lose a joined FOR UPDATE result
+    # when a competing claim changes Space.owner while this query waits.
+    batch = InstallationBatch.objects.select_for_update().get(pk=batch_id)
+    Space.objects.select_for_update().get(pk=batch.space_id)
     if batch.status != InstallationBatch.Status.READY or not batch.space.owner.is_staff:
         raise HandoverError("inventory_not_ready", 409)
     if not _inventory_ready(batch):
@@ -114,7 +115,7 @@ def _load_valid_invitation(token, user, *, for_update=False):
         "batch__space", "intended_recipient",
     )
     if for_update:
-        qs = qs.select_for_update()
+        qs = qs.select_for_update(of=("self",))
     invitation = qs.filter(token_digest=digest).first()
     # Do not distinguish strangers, nonexistent tokens and revoked tokens.
     if (invitation is None or invitation.intended_recipient_id != user.pk
@@ -163,9 +164,7 @@ def claim_handover(*, token, user):
     ).first()
     if header is None:
         raise HandoverError("invalid_invitation", 404)
-    batch = InstallationBatch.objects.select_for_update().select_related(
-        "space__owner",
-    ).get(pk=header["batch_id"])
+    batch = InstallationBatch.objects.select_for_update().get(pk=header["batch_id"])
     invitation = _load_valid_invitation(token, user, for_update=True)
     space = Space.objects.select_for_update().get(pk=batch.space_id)
 
