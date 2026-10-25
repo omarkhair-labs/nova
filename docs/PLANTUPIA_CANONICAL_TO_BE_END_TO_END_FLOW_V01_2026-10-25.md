@@ -124,6 +124,17 @@ Each proposed screen here is marked **NEW** or **REUSE**. Labels are working Eng
 - For install where company staff retain care responsibility, server roles must be explicitly assigned, auditable and revocable; owner/manager/carer/viewer already exist but staff/organization semantics are **NOT confirmed**.
 - Customer can always use B/manual route if never delivered Plantupia plants.
 
+### Ownership transfer vs ongoing company-managed installation
+
+The existing Django model distinguishes `Space.owner` from `SpaceMember(role=manager/carer/viewer)`. Therefore **"plants appear in the customer app" does not itself decide legal or technical ownership**. To avoid an unsafe implicit company account staying in charge forever:
+
+- **Outright delivery/sale — proposed default for a customer-owned space**: staff safely stage the real inventory internally. After verified claim, an atomic handover makes the authenticated customer the `Space.owner` (or creates the equivalent client-owned space without duplicating plant identity and history). Temporary company provisioning access is revoked unless the customer explicitly authorizes a separately contracted service. No staff member remains entitled to personal photos by default.
+- **Company-maintained site — explicitly approved agreement only**: ownership/control and customer manager/carer/viewer membership are defined by the actual contract. The app communicates who maintains what, and which logs either side can see. Revocation and staff reassignment are auditable.
+- **No approved contract yet**: pilot with isolated test accounts and a documented simulated ownership policy; **do not** assert a real customer has ceded their space to Plantupia. A confirmed QR must not silently override an existing private `Space.owner`.
+- **Idempotent claim** must resolve this ownership branch under a database transaction alongside invitation consumption and membership updates. The same exact plant IDs must persist whether rights are transferred or granted.
+
+This product decision needs CEO confirmation before a real customer rollout but does **not** block designing or testing both branches in isolation.
+
 ## 5. Care: useful without manufacturing biological certainty
 
 **Layer 1 — shared plant/species guide (new and gated):** verified taxonomy when known, source URL/document & revision, approving botanist/staff member, light/placement, substrate/drainage, water-inspection cues, pruning/fertilizer cautions and safety notes. Missing/unknown species is a valid state.
