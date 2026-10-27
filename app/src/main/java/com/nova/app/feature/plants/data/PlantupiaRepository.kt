@@ -603,6 +603,38 @@ class PlantupiaRepository(
 
     private fun changedSession() = ApiResult.Failure("Your account changed. Reopen your Plantupia space.", 409)
 
+    /** Additive native QA contracts use the same authenticated API and account guards. */
+    internal suspend fun demoGet(path: String): ApiResult<JSONObject> = authorized { token ->
+        api.requestJson(path = "plantupia/$path", bearerToken = token)
+    }
+
+    internal suspend fun demoPost(path: String, body: JSONObject): ApiResult<JSONObject> = authorized { token ->
+        api.requestJson(path = "plantupia/$path", method = "POST", body = body, bearerToken = token)
+    }
+
+    internal suspend fun demoMutation(slot: String, path: String, body: JSONObject): ApiResult<JSONObject> {
+        if (!isCurrentSession()) return changedSession()
+        val intent = try { withContext(Dispatchers.IO) {
+            PlantupiaDemoJournal.prepare(appContext, submissionAccount, NovaMessagingRepository.PRODUCTION_API_URL, slot, path, body)
+        } } catch (error: Exception) { return ApiResult.Failure(error.message ?: "The QA action could not be prepared.") }
+        return retryDemoMutation(intent)
+    }
+
+    internal suspend fun pendingDemoMutations(): List<JSONObject> = withContext(Dispatchers.IO) {
+        if (isCurrentSession()) PlantupiaDemoJournal.pending(appContext, submissionAccount, NovaMessagingRepository.PRODUCTION_API_URL) else emptyList()
+    }
+
+    internal suspend fun retryDemoMutation(intent: JSONObject): ApiResult<JSONObject> {
+        if (!isCurrentSession()) return changedSession()
+        val payload = JSONObject(intent.getString("body")).put("client_id", intent.getString("client_id"))
+        val result = demoPost(intent.getString("path"), payload)
+        if (isCurrentSession() && (result is ApiResult.Success ||
+                result is ApiResult.Failure && result.statusCode in listOf(400, 402, 403, 404, 409))) {
+            withContext(Dispatchers.IO) { PlantupiaDemoJournal.clear(appContext, submissionAccount, NovaMessagingRepository.PRODUCTION_API_URL, intent) }
+        }
+        return result
+    }
+
     private suspend fun <T> authorized(block: suspend (String) -> ApiResult<T>): ApiResult<T> {
         if (!isCurrentSession()) return changedSession()
         val session = sessionStore.load() ?: return changedSession()

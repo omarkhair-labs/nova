@@ -1,3 +1,16 @@
+## 27 October 2026 — Issue #246 connected CEO QA
+
+**IMPLEMENTED / DISPOSABLE INTEGRATION VERIFICATION.** The existing four-root
+Android app and independent company dashboard now connect source-reviewed
+inspection plans, opt-in and actual observations/history, concept paywall and
+expiring QA access, honest existing-provider fallback, explicitly shared service
+requests with actual Nova staff messages, and fictional catalog/cart/no-charge
+orders. See [scope, safeguards and reproducible local setup](PLANTUPIA_CEO_DEMO_246.md).
+The delivery report records exact commit CI and actual browser/emulator evidence;
+neither alone establishes physical-phone, botanical, live-provider, accessibility
+or owner acceptance. Issue #245 remains the company care-schedule follow-up.
+No billing, delivery promise, production/Oracle mutation or deployment is authorized.
+
 ## 25 October 2026 — Issue #244 independent Company Dashboard
 
 **CODED / LOCAL BROWSER VERIFIED; final-head CI and owner acceptance required.**

@@ -1,3 +1,3 @@
 {% extends 'plants/company/base.html' %}{% block content %}
 <div class="page-heading"><div><p class="eyebrow">{% firstof eyebrow 'A DELIBERATE STAFF ACTION' %}</p><h1>{{ title }}</h1><p class="lead">{{ description }}</p>{% if batch %}<p>{{ batch.reference_code }} · {{ batch.site_label }}</p>{% endif %}</div></div>
-<form class="panel padded fields form-panel" method="post">{% csrf_token %}{{ form.as_div }}<div class="form-actions"><button class="button primary" type="submit">{{ submit }} →</button><a class="button" href="{% url 'company:overview' %}">Cancel</a></div></form>{% endblock %}
+<form class="panel padded fields form-panel" method="post" enctype="multipart/form-data">{% csrf_token %}{{ form.as_div }}<div class="form-actions"><button class="button primary" type="submit">{{ submit }} →</button><a class="button" href="{% url 'company:overview' %}">Cancel</a></div></form>{% endblock %}

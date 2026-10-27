@@ -131,6 +131,7 @@ private fun PlantupiaAccountClientSection(
     var showPlantManagement by remember(currentPlantId) { mutableStateOf(false) }
     var showPlantSharing by remember(currentPlantId) { mutableStateOf(false) }
     var showAssistant by remember { mutableStateOf(false) }
+    var showTeam by remember { mutableStateOf(false) }
     var photoToView by remember { mutableStateOf<Pair<String, String>?>(null) }
     var focusedSpaceId by rememberSaveable { mutableStateOf<String?>(null) }
     var plantSearch by remember { mutableStateOf("") }
@@ -496,8 +497,9 @@ private fun PlantupiaAccountClientSection(
                     }
                 }
             }
-            // Quiet Care: a small, real next step before hero and AI.
+            // Quiet Care: real persisted inspections and check-ins before optional help.
             if (!loading && error == null) {
+                PlantupiaDemoHome(repository, plants, onOpenPlant = { plant -> scope.launch { openPlant(plant) } })
                 PlantupiaTodayPanel(
                     plants = plants,
                     onOpenPlant = { plant -> scope.launch { openPlant(plant) } },
@@ -841,6 +843,10 @@ private fun PlantupiaAccountClientSection(
             // Identify the *actual selected plant* before showing its photo or controls.
             Text(selectedPlant.name, fontFamily = FontFamily.Serif, fontSize = 35.sp, color = deepGreen)
             PlantupiaCareGuidePanel(selectedPlant.id, repository)
+            PlantupiaInspectionPanel(selectedPlant, repository, onRecorded = { scope.launch { openPlant(selectedPlant) } })
+            OutlinedButton(onClick = { showTeam = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Text("Ask Plantupia team · optional QA Expert Care")
+            }
             if (!selectedPlant.active) {
                 Text(
                     "ARCHIVED · Read-only living record. Photos, notes and history are retained.",
@@ -1840,6 +1846,9 @@ private fun PlantupiaAccountClientSection(
                 },
             )
         }
+    }
+    if (showTeam && selectedPlant != null) {
+        PlantupiaTeamSheet(selectedPlant, repository, onDismiss = { showTeam = false })
     }
     if (showAssistant) {
         PlantupiaAssistantSheet(

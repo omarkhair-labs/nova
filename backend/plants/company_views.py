@@ -32,8 +32,9 @@ from .models import (BotanicalSpecies, CareGuideVersion, HandoverInvitation,
 
 
 def page(request, template, context=None, status=200):
+    from .demo_services import enabled as demo_enabled
     user = request.user
-    context = {"can_import": user.has_perms(PERMISSIONS),
+    context = {"ceo_demo_enabled": demo_enabled(), "can_import": user.has_perms(PERMISSIONS),
                "can_inventory": user.has_perm("plants.view_plantunit"),
                "can_care": user.has_perms(("plants.view_careguideversion", "plants.view_botanicalspecies")),
                "can_handovers": user.has_perm("plants.view_handoverinvitation"),

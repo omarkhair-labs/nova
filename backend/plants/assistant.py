@@ -20,6 +20,7 @@ from rest_framework.views import APIView
 
 from .models import PlantEvent
 from .views import accessible_plants
+from .demo_services import require_access, DemoProblem
 
 BASE_INSTRUCTIONS = (
     "You are Plantupia's careful educational plant-care assistant. "
@@ -175,6 +176,9 @@ class PlantAssistantView(APIView):
         elif include_context:
             return Response({"detail": "Choose a plant before including private context."}, status=400)
 
+        # Entitlement and object access are both checked before any provider call.
+        access = require_access(request.user)
+
         # No user content is forwarded to any provider until enabled explicitly.
         if os.getenv("PLANTUPIA_AI_ENABLED", "0") != "1" or not os.getenv("PLANTUPIA_AI_API_KEY"):
             return Response(
@@ -182,7 +186,7 @@ class PlantAssistantView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        if settings.IS_PRODUCTION and not settings.REDIS_URL:
+        if not settings.REDIS_URL:
             return Response(
                 {"detail": "The assistant needs a shared rate-limit store before activation.", "code": "not_configured"},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -190,7 +194,7 @@ class PlantAssistantView(APIView):
 
         # Shared Redis throttling when configured; set an upstream provider spending
         # limit as well. This prevents basic inadvertent paid-request flooding.
-        daily_limit = 35
+        daily_limit = min(35, access.offer.ai_daily_limit)
         ai_cache = caches["plantupia_ai"]
         key = "plantupia-ai-v1:%s:%s" % (request.user.pk, date.today().isoformat())
         first = ai_cache.add(key, 1, timeout=24 * 3600)
@@ -204,6 +208,17 @@ class PlantAssistantView(APIView):
                 {"detail": "Daily assistant limit reached. Please try again tomorrow.", "code": "rate_limit"},
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
+
+        # Deployment-wide cap as well as the account quota. Configure a provider
+        # project spending limit separately; no local application can guarantee it.
+        global_key = "plantupia-ai-global-v1:" + date.today().isoformat()
+        try:
+            global_count = 1 if ai_cache.add(global_key, 1, timeout=24 * 3600) else ai_cache.incr(global_key)
+        except ValueError:
+            ai_cache.set(global_key, 1, timeout=24 * 3600)
+            global_count = 1
+        if global_count > getattr(settings, "PLANTUPIA_AI_GLOBAL_DAILY_LIMIT", 200):
+            return Response({"detail": "QA assistant capacity reached. Try again tomorrow.", "code": "rate_limit"}, status=429)
 
         context = None
         if plant is not None and include_context:

@@ -1,3 +1,16 @@
+## Issue #246 connected CEO rehearsal — 27 October 2026
+
+Continue the existing product and draft PR #241. The explicitly authorized
+QA-only slice adds reviewed per-plant inspection proposals, customer opt-in and
+real history completion, expiring concept-plan access, gated existing AI adapters,
+consented service requests using Nova messages, and fictional catalog/cart/orders.
+Read [the connected contract and local rehearsal runbook](PLANTUPIA_CEO_DEMO_246.md)
+alongside Issue #245. Historical deferrals below remain historical; this increment
+does not authorize commercial billing, botanical approval or a hosted rollout.
+The delivery report must distinguish persisted browser/emulator evidence, exact-head
+CI, unavailable live inference and remaining physical/owner acceptance gates.
+No deployment, production/Oracle mutation, Play action, PR merge or issue closure.
+
 ## Issue #244 standalone Company Dashboard — 25 October 2026
 
 The updated issue/comment requires the branded staff portal, not an Admin-only

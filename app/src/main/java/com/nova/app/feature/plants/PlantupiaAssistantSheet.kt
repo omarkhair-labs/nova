@@ -104,6 +104,8 @@ internal fun PlantupiaAssistantSheet(
                 "An AI plant companion for observations and next checks—not a confirmed diagnosis or company support.",
                 fontSize = 12.sp, color = muted, lineHeight = 20.sp,
             )
+            TextButton(onClick = onDismiss) { Text(if (plant != null) "Back to ${plant.name} · free care guide" else "Back to My Space") }
+            PlantupiaDemoAccessGate(repository, human = false) { accessLost ->
             if (plant != null) Surface(
                 color = mist,
                 shape = RoundedCornerShape(15.dp),
@@ -201,13 +203,14 @@ internal fun PlantupiaAssistantSheet(
                         input = ""
                         error = null
                         val consent = includeContext
-                        val dialogue = bubbles.takeLast(8).map {
+                        val dialogue = (if (consent) bubbles.takeLast(8) else emptyList()).map {
                             PlantupiaAssistantTurn(
                                 role = if (it.fromUser) "user" else "assistant",
                                 content = it.text.take(1200),
                             )
                         }
                         bubbles = bubbles + CareChatBubble(question, fromUser = true)
+                        includeContext = false // Consent is a separate choice for each request.
                         pending = true
                         scope.launch {
                             when (val result = repository.askAssistant(
@@ -223,6 +226,9 @@ internal fun PlantupiaAssistantSheet(
                                     )
                                 }
                                 is ApiResult.Failure -> {
+                                    input = question
+                                    bubbles = bubbles.dropLast(1)
+                                    if (result.statusCode == 402) accessLost()
                                     error = if (result.statusCode == 503)
                                         "The AI assistant is not enabled on this server or is temporarily unavailable. Your question wasn't saved to the plant's care record."
                                     else result.message
@@ -239,6 +245,7 @@ internal fun PlantupiaAssistantSheet(
                 "Responses are informational and never automatically create care records. Plantupia has no plant sensors or live soil readings.",
                 color = muted, fontSize = 10.sp, lineHeight = 15.sp,
             )
+            }
             Spacer(Modifier.height(10.dp))
         }
     }

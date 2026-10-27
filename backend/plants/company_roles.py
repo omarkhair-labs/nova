@@ -8,10 +8,15 @@ OPERATOR = {
     "import_inventory", "view_botanicalspecies", "add_botanicalspecies", "view_careguideversion",
     "add_careguideversion", "change_careguideversion", "view_inventoryimportreceipt",
     "view_handoverinvitation", "add_handoverinvitation", "change_handoverinvitation",
+    "view_careinspectionplan", "add_careinspectionplan", "change_careinspectionplan", "manage_service_requests",
+    "view_catalogproduct", "add_catalogproduct", "change_catalogproduct",
+    "view_demoorder", "change_demoorder", "view_demoentitlement", "change_demoentitlement",
+    "view_demooffer", "change_demooffer",
 }
 REVIEWER = {"access_company_dashboard", "view_installationbatch", "view_space", "view_plantunit",
             "view_botanicalspecies", "view_careguideversion", "add_careguideversion",
-            "change_careguideversion", "publish_careguideversion"}
+            "change_careguideversion", "publish_careguideversion", "view_careinspectionplan",
+            "add_careinspectionplan", "change_careinspectionplan", "approve_careinspectionplan", "manage_service_requests"}
 
 
 def create_qa_roles():

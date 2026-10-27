@@ -19,6 +19,8 @@ val releaseSigningConfigured = listOf(
 
 android {
     namespace = "com.nova.app"
+    // Explicit local QA instrumentation; ordinary CI/debug/release behavior is retained.
+    testBuildType = if (providers.gradleProperty("plantupiaQaInstrumentation").orNull == "true") "qa" else "debug"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1

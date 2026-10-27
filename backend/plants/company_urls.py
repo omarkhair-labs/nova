@@ -1,8 +1,21 @@
 from django.urls import path
 from . import company_views as views
+from . import company_demo as demo
 
 app_name = "company"
 urlpatterns = [
+    path("plans/", demo.plans, name="plans"),
+    path("plans/new/", demo.plan_create, name="plan-create"),
+    path("plans/<uuid:plan_id>/", demo.plan_review, name="plan-review"),
+    path("support/", demo.support, name="support"),
+    path("support/<uuid:ticket_id>/", demo.support_detail, name="support-detail"),
+    path("catalog/", demo.catalog, name="catalog"),
+    path("catalog/new/", demo.product_edit, name="product-create"),
+    path("catalog/<uuid:product_id>/", demo.product_edit, name="product-edit"),
+    path("orders/", demo.orders, name="orders"),
+    path("orders/<uuid:order_id>/", demo.order_detail, name="order-detail"),
+    path("demo-access/", demo.access, name="demo-access"),
+    path("demo-access/<slug:offer_key>/", demo.offer_edit, name="offer-edit"),
     path("", views.overview, name="overview"),
     path("login/", views.login_view, name="login"),
     path("logout/", views.logout_view, name="logout"),

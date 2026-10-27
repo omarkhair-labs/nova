@@ -206,7 +206,8 @@ internal fun PlantupiaPlantInventoryCard(
             ) {
                 Text(
                     plant.name, color = ink, fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    // Keep distinct inventory identities readable at 360dp and large text.
+                    softWrap = true,
                 )
                 val context = listOf(plant.species, plant.placement).filter(String::isNotBlank).joinToString(" · ")
                 if (context.isNotBlank()) {
@@ -224,12 +225,6 @@ internal fun PlantupiaPlantInventoryCard(
                     )
                 }
             }
-            Text(
-                "View →",
-                color = ink,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 11.sp,
-            )
         }
     }
 }

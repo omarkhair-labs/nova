@@ -4,13 +4,17 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from django.test import TestCase
+from django.test import TestCase, override_settings
+from django.utils import timezone
+from datetime import timedelta
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from .models import PlantEvent, PlantUnit, Space
+from .models import PlantEvent, PlantUnit, Space, DemoOffer, DemoEntitlement
 
 
+@override_settings(PLANTUPIA_CEO_DEMO_ENABLED=True, PLANTUPIA_COMPANY_DASHBOARD_ENABLED=True,
+                   IS_PRODUCTION=False, ENVIRONMENT="development", REDIS_URL="redis://qa-unit-test-only")
 class PlantAssistantSecurityTests(TestCase):
     def setUp(self):
         User = get_user_model()
@@ -27,6 +31,8 @@ class PlantAssistantSecurityTests(TestCase):
         )
         self.client = APIClient()
         self.url = reverse("plantupia-assistant-ask")
+        offer = DemoOffer.objects.create(key="qa-ai-test", name="QA AI transport test", proposed_monthly_price="79.00", ai_daily_limit=35)
+        DemoEntitlement.objects.create(user=self.owner, offer=offer, expires_at=timezone.now() + timedelta(hours=1))
         cache.clear()
 
     def test_login_required(self):
