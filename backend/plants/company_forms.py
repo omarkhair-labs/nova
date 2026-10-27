@@ -4,6 +4,7 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.core.validators import MaxLengthValidator
 
 from .company_services import ACCESS, PUBLISH
+from .media import sanitize_public_plant_photo
 from .models import BotanicalSpecies, CareGuideVersion, HandoverInvitation, PlantUnit
 
 
@@ -26,8 +27,24 @@ class PlantForm(forms.ModelForm):
 
     class Meta:
         model = PlantUnit
-        fields = ("source_key", "label", "unit_type", "species_label", "placement_note")
-        labels = {"species_label": "Species label (unverified text)"}
+        fields = ("source_key", "label", "unit_type", "species_label", "placement_note", "cover_photo")
+        labels = {
+            "species_label": "Species label (unverified text)",
+            "cover_photo": "Photo of this actual plant",
+        }
+        help_texts = {
+            "cover_photo": "Optional authentic photo of this installed plant. JPEG, PNG or WebP, up to 10 MB. Camera metadata is removed.",
+        }
+
+    def clean_cover_photo(self):
+        photo = self.cleaned_data.get("cover_photo")
+        # Existing uploaded media is retained when no replacement is supplied.
+        if not photo or not hasattr(photo, "content_type"):
+            return photo
+        try:
+            return sanitize_public_plant_photo(photo)
+        except ValueError as exc:
+            raise forms.ValidationError(str(exc)) from exc
 
 
 class SpeciesForm(forms.ModelForm):

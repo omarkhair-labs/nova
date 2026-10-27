@@ -1,5 +1,6 @@
 """Standalone company web product: real sessions/forms/services, synthetic QA only."""
 import os
+from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from concurrent.futures import ThreadPoolExecutor
@@ -200,6 +201,50 @@ class CompanyDashboardTests(CompanyFixture, TestCase):
         self.assertEqual(self.client.post(self.url("installation-edit", created.pk), data).status_code, 302)
         created.space.refresh_from_db()
         self.assertEqual(created.space.name, data["name"])
+
+    def test_draft_operator_can_upload_a_real_plant_photo_and_invalid_media_is_rejected(self):
+        from PIL import Image
+
+        def plant_form(key, photo):
+            return {
+                "source_key": key,
+                "label": "FICTIONAL QA studio plant",
+                "unit_type": "individual",
+                "species_label": "Unverified studio plant",
+                "placement_note": "Near the window",
+                "cover_photo": photo,
+            }
+
+        png = BytesIO()
+        Image.new("RGB", (80, 120), (70, 110, 70)).save(png, format="PNG")
+        with TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            url = self.url("plant-create", self.batch.pk)
+            result = self.client.post(url, plant_form(
+                "qa-real-photo-001",
+                SimpleUploadedFile("camera-original.png", png.getvalue(), content_type="image/png"),
+            ))
+            self.assertEqual(result.status_code, 302)
+            unit = PlantUnit.objects.get(label="FICTIONAL QA studio plant")
+            self.assertTrue(unit.cover_photo.name.startswith("plantupia/units/"))
+            self.assertTrue(unit.cover_photo.name.endswith(".jpg"))
+            with unit.cover_photo.open("rb") as saved:
+                self.assertEqual(saved.read(3), b"\xff\xd8\xff")
+            # Only a draft's authorized operator may change this identity/photo.
+            self.client.force_login(self.other)
+            self.assertEqual(
+                self.client.get(self.url("plant-edit", self.batch.pk, unit.pk)).status_code,
+                404,
+            )
+            self.client.force_login(self.staff)
+            invalid = self.client.post(url, plant_form(
+                "qa-invalid-photo",
+                SimpleUploadedFile("spoofed.png", b"not an image", content_type="image/png"),
+            ))
+            self.assertEqual(invalid.status_code, 200)
+            self.assertIn("cover_photo", invalid.context["form"].errors)
+            self.assertFalse(
+                PlantUnit.objects.filter(installation_manifest_row__source_key="qa-invalid-photo").exists()
+            )
 
     def test_import_preview_is_read_only_explicit_apply_replay_and_history(self):
         url = self.url("import", self.batch.pk)

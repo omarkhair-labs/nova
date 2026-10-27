@@ -275,7 +275,7 @@ def plant_edit(request, batch_id, plant_id=None):
     plant = get_object_or_404(PlantUnit, pk=plant_id, space=batch.space, installation_manifest_row__batch=batch) if plant_id else None
     service.require(request.user, *( ("plants.change_plantunit", "plants.change_installationmanifestrow") if plant else ("plants.add_plantunit", "plants.add_installationmanifestrow") ))
     source_key = plant.installation_manifest_row.source_key if plant else ""
-    form = PlantForm(request.POST or None, instance=plant, initial={"source_key": source_key})
+    form = PlantForm(request.POST or None, request.FILES or None, instance=plant, initial={"source_key": source_key})
     if plant:
         form.fields["source_key"].disabled = True
     if request.method == "POST" and form.is_valid():
@@ -301,7 +301,7 @@ def plant_edit(request, batch_id, plant_id=None):
         except (ValidationError, IntegrityError):
             form.add_error(None, "The plant could not be saved. Check the fields and use a unique source key for a new plant.")
     return page(request, "form", {"title": "Edit plant context" if plant else "Add a plant", "section": "inventory", "form": form,
-        "submit": "Save plant record", "description": "Keep the biological identity and original history. Free-text species is unverified; photos use the existing separate asset upload."})
+        "submit": "Save plant record", "description": "Add the actual plant photo and placement. Species identification remains unverified until reviewed."})
 
 
 @portal("plants.view_careguideversion", "plants.view_botanicalspecies", methods=("GET",))
