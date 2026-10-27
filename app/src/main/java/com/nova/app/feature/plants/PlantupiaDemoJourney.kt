@@ -64,21 +64,22 @@ internal fun PlantupiaDemoAccessGate(
     }
     val allowed = access?.optBoolean(if (human) "human_access" else "entitled") == true
     if (allowed) {
-        Text("QA access · expires ${access?.optString("expires_at")?.take(16)} · no charge", fontSize = 11.sp)
+        Text("Preview access active · no payment", fontSize = 11.sp, color = demoForest)
         if (!human && access?.optBoolean("ai_configured") != true) Text("The AI provider is not configured on this QA server. No model response is available. Your free care guide and history still work.", fontWeight = FontWeight.SemiBold)
         content { access = null; refresh++ }
     } else {
-        Text("Choose optional care access", fontFamily = FontFamily.Serif, fontSize = 25.sp, color = demoForest)
-        Text("QA demonstration — no payment / not a commercial offer", fontWeight = FontWeight.SemiBold)
-        Text("Your plants, care guides, observations, history and Circle stay free. AI and team support are optional.")
+        Text("Care, when you need it.", fontFamily = FontFamily.Serif, fontSize = 28.sp, color = demoForest)
+        Text("Your plants and care schedule are always free.", color = demoForest)
+        Text("Preview access · no payment", fontSize = 11.sp, color = demoForest)
         if (access == null && error == null) LinearProgressIndicator(Modifier.fillMaxWidth())
         access?.let { state ->
             state.demoRows("offers").forEach { offer ->
                 DemoCard {
                     Text(offer.getString("name"), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-                    Text("${offer.getString("currency")} ${offer.getString("price")} / month · concept only")
-                    Text("${offer.getInt("ai_daily_limit")} AI questions/day · ${offer.getInt("human_limit")} team requests / 30 days")
-                    Text("${offer.getInt("qa_hours")} hours of test access. Actual AI requires a configured provider; team replies require a real employee.", fontSize = 12.sp)
+                    Text("${offer.getString("currency")} ${offer.getString("price")} / month", fontSize = 18.sp, color = demoForest)
+                    Text("${offer.getInt("ai_daily_limit")} AI questions / day", fontSize = 14.sp)
+                    Text(if (offer.getInt("human_limit") > 0) "${offer.getInt("human_limit")} team requests / month" else "AI plant guidance", fontSize = 14.sp)
+                    Text("${offer.getInt("qa_hours")}-hour trial · no charge", fontSize = 11.sp)
                     Button(enabled = !busy && (!human || offer.getInt("human_limit") > 0), onClick = {
                         busy = true; error = null
                         scope.launch {
@@ -90,7 +91,7 @@ internal fun PlantupiaDemoAccessGate(
                             }
                             busy = false
                         }
-                    }) { Text(if (busy) "Activating QA access…" else "Activate demo access · no charge") }
+                    }) { Text(if (busy) "Activating…" else "Try this plan · no charge") }
                 }
             }
         }
@@ -125,8 +126,7 @@ internal fun PlantupiaDemoHome(repository: PlantupiaRepository, plants: List<Pla
                     Text("${if (plan.optBoolean("due")) "Due · " else "Next · "}${plan.getString("plant_name")} · ${plan.getString("action")} · ${plan.getString("next_due_on")}")
                 }
             }
-            OutlinedButton(onClick = { shop = true }, modifier = Modifier.fillMaxWidth()) { Text("Explore QA plants & products · My orders") }
-            Text("Fictional sample catalog. Provisional prices. No charge or delivery.", fontSize = 11.sp)
+            OutlinedButton(onClick = { shop = true }, modifier = Modifier.fillMaxWidth()) { Text("Shop plants & essentials") }
             pending.forEach { intent ->
                 Button(onClick = {
                     scope.launch {
@@ -325,9 +325,8 @@ private fun PlantupiaQaShop(repository: PlantupiaRepository, onDismiss: () -> Un
     }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = demoPaper) {
         Column(Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Explore plants & products", fontFamily = FontFamily.Serif, fontSize = 27.sp, color = demoForest)
-            Text("FICTIONAL QA catalog · prices are provisional", fontWeight = FontWeight.SemiBold)
-            Text("Demo order — no charge or delivery initiated. These are not approved Plantupia commercial products.", fontSize = 12.sp)
+            Text("Plantupia Shop", fontFamily = FontFamily.Serif, fontSize = 28.sp, color = demoForest)
+            Text("Preview catalog · no payment or delivery", fontSize = 11.sp, color = demoForest)
             Row { TextButton(onClick = { screen = "catalog"; selected = null }) { Text("Catalog") }; TextButton(onClick = { screen = "cart"; selected = null }) { Text("Cart") }; TextButton(onClick = { screen = "orders"; selected = null }) { Text("My orders") } }
             when (screen) {
                 "cart" -> cart?.let { quote ->
@@ -336,7 +335,7 @@ private fun PlantupiaQaShop(repository: PlantupiaRepository, onDismiss: () -> Un
                         val product = line.getJSONObject("product")
                         DemoCard {
                             Text(product.getString("name"), fontWeight = FontWeight.SemiBold)
-                            Text("${line.getInt("quantity")} × ${product.getString("currency")} ${product.getString("price")} · concept only")
+                            Text("${line.getInt("quantity")} × ${product.getString("currency")} ${product.getString("price")}")
                             TextButton(enabled = !busy, onClick = { busy = true; scope.launch {
                                 when (val result = repository.demoPost("cart/", JSONObject().put("product_id", product.getString("id")).put("quantity", 0))) {
                                     is ApiResult.Success -> if (repository.isCurrentSession()) { cart = result.value; confirmed = false }
@@ -345,7 +344,7 @@ private fun PlantupiaQaShop(repository: PlantupiaRepository, onDismiss: () -> Un
                             } }) { Text("Remove from cart") }
                         }
                     }
-                    Text("Provisional total · EGP ${quote.getString("total_provisional")}", fontSize = 20.sp)
+                    Text("Total · EGP ${quote.getString("total_provisional")}", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
                     Row { Checkbox(confirmed, { confirmed = it }, modifier = Modifier.semantics { contentDescription = "Confirm QA order with no charge or delivery" }); Text("I confirm a QA order only. No charge, delivery or real stock commitment.", modifier = Modifier.weight(1f)) }
                     Button(enabled = !busy && confirmed && quote.demoRows().isNotEmpty(), onClick = { busy = true; scope.launch {
                         when (val result = repository.demoMutation("checkout", "demo/orders/", JSONObject().put("cart_fingerprint", quote.getString("fingerprint")).put("confirm_no_charge", true))) {
@@ -368,16 +367,15 @@ private fun PlantupiaQaShop(repository: PlantupiaRepository, onDismiss: () -> Un
                 else -> {
                     val product = selected
                     if (product == null) products.forEach { item -> DemoCard {
-                        Text(item.getString("name"), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-                        Text(item.getString("description"))
-                        Text("${item.getString("currency")} ${item.getString("price")} · concept only")
-                        OutlinedButton(onClick = { selected = item; quantity = 1 }, modifier = Modifier.semantics { contentDescription = "View QA product: " + item.getString("name") }) { Text("View item & choose quantity") }
+                        if (item.optBoolean("has_image")) PlantupiaCatalogPhoto(item.getString("id"), repository, compact = true)
+                        Text(item.getString("name").removePrefix("FICTIONAL QA · "), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                        Text("${item.getString("currency")} ${item.getString("price")}", fontSize = 18.sp, color = demoForest)
+                        OutlinedButton(onClick = { selected = item; quantity = 1 }, modifier = Modifier.semantics { contentDescription = "View QA product: " + item.getString("name") }) { Text("View product") }
                     } } else DemoCard {
-                        Text(product.getString("name"), fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
-                        Text(product.getString("description"))
                         if (product.optBoolean("has_image")) PlantupiaCatalogPhoto(product.getString("id"), repository)
-                        else Text("Photograph not supplied. No generated product image is presented as real.", fontSize = 11.sp)
-                        Text("${product.getString("currency")} ${product.getString("price")} · provisional · ${product.getInt("qa_stock")} test units")
+                        Text(product.getString("name").removePrefix("FICTIONAL QA · "), fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                        if (!product.getString("description").startsWith("Fictional Plantupia software QA product")) Text(product.getString("description"), fontSize = 14.sp)
+                        Text("${product.getString("currency")} ${product.getString("price")} · ${product.getInt("qa_stock")} available", fontSize = 18.sp, color = demoForest)
                         Row { TextButton(enabled = !busy && quantity > 1, onClick = { quantity-- }) { Text("−") }; Text("Quantity $quantity", Modifier.padding(top = 12.dp)); TextButton(enabled = !busy && quantity < 10, onClick = { quantity++ }) { Text("+") } }
                         Button(enabled = !busy && product.getInt("qa_stock") >= quantity, onClick = { busy = true; scope.launch {
                             when (val result = repository.demoPost("cart/", JSONObject().put("product_id", product.getString("id")).put("quantity", quantity))) {
@@ -390,7 +388,7 @@ private fun PlantupiaQaShop(repository: PlantupiaRepository, onDismiss: () -> Un
                 }
             }
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error); TextButton(onClick = { refresh++ }) { Text("Retry this workspace") } }
+            error?.let { Text(if (it.contains("nonstaff customer account", ignoreCase = true)) "Switch to a customer account to shop." else it, color = MaterialTheme.colorScheme.error); TextButton(onClick = { refresh++ }) { Text("Retry") } }
             TextButton(onClick = onDismiss) { Text("Back to My Space") }
             Spacer(Modifier.height(24.dp))
         }
@@ -398,7 +396,7 @@ private fun PlantupiaQaShop(repository: PlantupiaRepository, onDismiss: () -> Un
 }
 
 @Composable
-private fun PlantupiaCatalogPhoto(productId: String, repository: PlantupiaRepository) {
+private fun PlantupiaCatalogPhoto(productId: String, repository: PlantupiaRepository, compact: Boolean = false) {
     var bitmap by remember(productId) { mutableStateOf<ImageBitmap?>(null) }
     var failed by remember(productId) { mutableStateOf(false) }
     var revision by remember { mutableIntStateOf(0) }
@@ -416,7 +414,7 @@ private fun PlantupiaCatalogPhoto(productId: String, repository: PlantupiaReposi
             is ApiResult.Failure -> if (repository.isCurrentSession()) failed = true
         }
     }
-    bitmap?.let { Image(it, "Uploaded catalog photograph", modifier = Modifier.fillMaxWidth().heightIn(max = 220.dp), contentScale = ContentScale.Fit) }
+    bitmap?.let { Image(it, "Uploaded catalog photograph", modifier = Modifier.fillMaxWidth().height(if (compact) 148.dp else 260.dp), contentScale = ContentScale.Crop) }
     if (failed) TextButton(onClick = { revision++ }) { Text("Photograph unavailable · retry") }
     else if (bitmap == null) LinearProgressIndicator(Modifier.fillMaxWidth())
 }

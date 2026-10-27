@@ -131,9 +131,9 @@ class PlantupiaCeoJourneyInstrumentedTest {
             }
         }
         click("Plantupia assistant (optional)")
-        node("QA demonstration — no payment / not a commercial offer").assertExists()
+        node("Preview access · no payment").assertExists()
         capture("03-ai-paywall")
-        val activate = compose.onAllNodes(hasText("Activate demo access · no charge") and isEnabled()).onFirst()
+        val activate = compose.onAllNodes(hasText("Try this plan · no charge") and isEnabled()).onFirst()
         runCatching { activate.performScrollTo() }
         activate.performClick()
         node("The AI provider is not configured on this QA server.", true).assertExists()
@@ -141,7 +141,7 @@ class PlantupiaCeoJourneyInstrumentedTest {
         click("Back to FICTIONAL QA supplied plant 01 · free care guide")
         click("Ask Plantupia team · optional QA Expert Care")
         node("Choose optional care access").assertExists()
-        val expert = compose.onAllNodes(hasText("Activate demo access · no charge") and isEnabled()).onLast()
+        val expert = compose.onAllNodes(hasText("Try this plan · no charge") and isEnabled()).onLast()
         runCatching { expert.performScrollTo() }
         expert.performClick()
         type("Request subject", "CEO QA inspection question")
@@ -164,7 +164,7 @@ class PlantupiaCeoJourneyInstrumentedTest {
         click("Back to FICTIONAL QA supplied plant 01")
         // Returning through the existing selected-plant Back action preserves My Space.
         click("← Back to space")
-        click("Explore QA plants & products · My orders")
+        click("Shop plants & essentials")
         val catalog = runBlocking { repository.demoGet("catalog/") }
         assertTrue(catalog is ApiResult.Success)
         val plantProduct = (catalog as ApiResult.Success).value.demoRows().first { it.getString("kind") == "plant" }
@@ -190,7 +190,7 @@ class PlantupiaCeoJourneyInstrumentedTest {
         val orders = runBlocking { repository.demoGet("demo/orders/") }
         assertTrue(orders is ApiResult.Success && orders.value.demoRows().isNotEmpty())
         scenario!!.recreate()
-        click("Explore QA plants & products · My orders")
+        click("Shop plants & essentials")
         click("My orders")
         node("charged: no", true).assertExists()
         capture("08-order-after-relaunch")
@@ -215,7 +215,7 @@ class PlantupiaCeoJourneyInstrumentedTest {
         capture("11-revoked-paywall-${width}dp")
         click("Back to FICTIONAL QA supplied plant 01 · free care guide")
         click("← Back to space")
-        click("Explore QA plants & products · My orders")
+        click("Shop plants & essentials")
         click("My orders")
         node("charged: no", true).assertExists()
         capture("12-orders-${width}dp")
