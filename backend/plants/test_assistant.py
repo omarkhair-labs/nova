@@ -135,3 +135,20 @@ class PlantAssistantSecurityTests(TestCase):
             self.assertEqual(response.status_code, 503)
             self.assertNotIn("test-only", response.content.decode())
             self.assertNotIn("provider_unavailable", response.content.decode())
+
+    def test_groq_uses_identified_http_client_not_generic_urllib_agent(self):
+        """The provider edge may reject urllib's default User-Agent with a non-JSON 403."""
+        from .assistant import call_provider
+
+        fake_result = b'{"choices":[{"message":{"content":"Inspect the soil first."}}]}'
+        with patch.dict(os.environ, {
+            "PLANTUPIA_AI_PROVIDER": "groq",
+            "PLANTUPIA_AI_MODEL": "openai/gpt-oss-20b",
+            "PLANTUPIA_AI_API_KEY": "test-key-no-network",
+        }), patch("plants.assistant.urlopen") as opener:
+            opener.return_value.__enter__.return_value.read.return_value = fake_result
+            result = call_provider("What should I check?", None)
+        self.assertEqual(result, "Inspect the soil first.")
+        request = opener.call_args.args[0]
+        self.assertEqual(request.full_url, "https://api.groq.com/openai/v1/chat/completions")
+        self.assertEqual(request.get_header("User-agent"), "Plantupia-QA/1.0")

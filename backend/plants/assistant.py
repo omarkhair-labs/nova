@@ -98,6 +98,8 @@ def call_provider(message, plant_context, conversation=None):
         headers={
             "Authorization": "Bearer " + key,
             "Content-Type": "application/json",
+            # An explicit client identity avoids urllib's generic signature at the provider edge.
+            "User-Agent": "Plantupia-QA/1.0",
         },
         method="POST",
     )
