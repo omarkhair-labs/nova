@@ -179,13 +179,13 @@ class PlantupiaCeoJourneyInstrumentedTest {
         val product = compose.onNodeWithContentDescription(description)
         runCatching { product.performScrollTo() }
         product.performClick()
-        click("Save quantity to cart")
-        node("I confirm a QA order only. No charge, delivery or real stock commitment.").assertExists()
+        click("Add to cart")
+        node("Preview order only · no charge or delivery").assertExists()
         val consent = compose.onAllNodes(isToggleable()).onFirst()
         runCatching { consent.performScrollTo() }
         consent.performClick()
-        click("Confirm no-charge QA order")
-        node("QA order received", true).assertExists()
+        click("Place preview order")
+        node("Preview order received", true).assertExists()
         capture("07-persisted-no-charge-order")
         val orders = runBlocking { repository.demoGet("demo/orders/") }
         assertTrue(orders is ApiResult.Success && orders.value.demoRows().isNotEmpty())
