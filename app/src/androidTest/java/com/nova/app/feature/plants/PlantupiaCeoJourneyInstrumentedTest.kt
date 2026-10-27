@@ -114,7 +114,7 @@ class PlantupiaCeoJourneyInstrumentedTest {
         }
         capture("01-original-plants")
         openPlant("FICTIONAL QA supplied plant 01")
-        click("Understand this plant · Care guide")
+        click("Care guide")
         node("Reviewed guidance · version 1").assertExists()
         capture("02-sourced-guide")
         val plans = runBlocking { repository.demoGet("care-plans/") }
@@ -140,7 +140,7 @@ class PlantupiaCeoJourneyInstrumentedTest {
         capture("04-honest-ai-unavailable")
         click("Back to FICTIONAL QA supplied plant 01 · free care guide")
         click("Ask the team")
-        node("Choose optional care access").assertExists()
+        node("Care, when you need it.").assertExists()
         val expert = compose.onAllNodes(hasText("Try this plan · no charge") and isEnabled()).onLast()
         runCatching { expert.performScrollTo() }
         expert.performClick()
@@ -207,11 +207,11 @@ class PlantupiaCeoJourneyInstrumentedTest {
         val width = context.resources.configuration.screenWidthDp
         capture("09-plant-identities-${width}dp")
         openPlant("FICTIONAL QA supplied plant 01")
-        click("Understand this plant · Care guide")
+        click("Care guide")
         node("Reviewed guidance · version 1").assertExists()
         capture("10-care-plan-${width}dp")
         click("Ask Plantupia AI")
-        node("Choose optional care access").assertExists()
+        node("Care, when you need it.").assertExists()
         capture("11-revoked-paywall-${width}dp")
         click("Back to FICTIONAL QA supplied plant 01 · free care guide")
         click("← Back to space")

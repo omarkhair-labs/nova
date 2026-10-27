@@ -667,9 +667,6 @@ private fun PlantupiaAccountClientSection(
                 Text("Loading your spaces…", color = muted, fontSize = 13.sp)
             } else {
                 if (spaces.isNotEmpty()) {
-                    // Recent events remain scoped to the currently focused site.
-                    val featured = resolveFocusedSpace(spaces, focusedSpaceId) ?: spaces.first()
-                    val focusedPlants = plants.filter { it.spaceId == featured.id && it.active }
                     // The private history remains inside each plant; avoid a duplicate carousel.
                     BrandEyebrow("MY PLANTS")
                 }
