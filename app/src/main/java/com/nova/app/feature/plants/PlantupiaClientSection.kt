@@ -453,8 +453,16 @@ private fun PlantupiaAccountClientSection(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         if (selectedPlant == null) {
+            Text("My space", fontFamily = FontFamily.Serif, fontSize = 31.sp, color = deepGreen)
+            if (!loading) {
+                Text(
+                    if (plants.any { it.active }) "${plants.count { it.active }} plants in your care"
+                    else "Your plants start here.",
+                    color = muted, fontSize = 13.sp,
+                )
+            }
             TextButton(onClick = { PlantupiaHandoverNavigation.open() }) {
-                Text("Received plants from Plantupia? Connect a delivery", color = deepGreen)
+                Text(if (plants.any { it.active }) "Connect another delivery" else "Connect your plants", color = deepGreen)
             }
             if (PlantupiaCreateIntent.pending.needsPlantSelection()) {
                 PlantupiaPanel {
@@ -499,11 +507,11 @@ private fun PlantupiaAccountClientSection(
             }
             // Quiet Care: real persisted inspections and check-ins before optional help.
             if (!loading && error == null) {
-                PlantupiaDemoHome(repository, plants, onOpenPlant = { plant -> scope.launch { openPlant(plant) } })
                 PlantupiaTodayPanel(
                     plants = plants,
                     onOpenPlant = { plant -> scope.launch { openPlant(plant) } },
                 )
+                PlantupiaDemoHome(repository, plants, onOpenPlant = { plant -> scope.launch { openPlant(plant) } })
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(9.dp),
@@ -662,65 +670,8 @@ private fun PlantupiaAccountClientSection(
                     // Recent events remain scoped to the currently focused site.
                     val featured = resolveFocusedSpace(spaces, focusedSpaceId) ?: spaces.first()
                     val focusedPlants = plants.filter { it.spaceId == featured.id && it.active }
-                    val recent = focusedPlants
-                        .filter { it.lastEventAt.isNotBlank() }
-                        .sortedByDescending { it.lastEventAt }
-                    if (recent.isNotEmpty()) {
-                        val latest = recent.first()
-                        BrandEyebrow("LATEST OBSERVATION")
-                        PlantupiaPanel {
-                            Text(latest.name, color = deepGreen, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                            Text(
-                                "${latest.lastEventAt.take(10)} · ${eventLabel(latest.lastEventKind)}",
-                                color = muted, fontSize = 12.sp,
-                            )
-                            TextButton(onClick = { scope.launch { openPlant(latest) } }) {
-                                Text("View history →", color = deepGreen)
-                            }
-                        }
-                        BrandEyebrow("RECENT MOMENTS")
-                        LazyRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            items(recent.take(12).size) { index ->
-                                val plant = recent[index]
-                                Surface(
-                                    onClick = { scope.launch { openPlant(plant) } },
-                                    modifier = Modifier.width(158.dp),
-                                    color = white,
-                                    shape = RoundedCornerShape(15.dp),
-                                ) {
-                                    Column(
-                                        modifier = Modifier.padding(8.dp),
-                                        verticalArrangement = Arrangement.spacedBy(7.dp),
-                                    ) {
-                                        PlantupiaEvidencePhoto(
-                                            photoUrl = plant.coverPhoto,
-                                            photoDescription = "Uploaded photograph of " + plant.name,
-                                            modifier = Modifier.fillMaxWidth().height(106.dp),
-                                            cornerRadius = 10.dp,
-                                        )
-                                        Text(
-                                            plant.name, color = forestText,
-                                            fontSize = 13.sp, fontWeight = FontWeight.Medium,
-                                            maxLines = 1,
-                                        )
-                                        Text(
-                                            eventLabel(plant.lastEventKind) + " · " + plant.lastEventAt.take(10),
-                                            color = muted, fontSize = 10.sp, maxLines = 1,
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        Text(
-                            "Your first plant photo or observation will appear here. No sample records.",
-                            color = muted, fontSize = 12.sp,
-                        )
-                    }
-                    BrandEyebrow("YOUR PLANTS")
+                    // The private history remains inside each plant; avoid a duplicate carousel.
+                    BrandEyebrow("MY PLANTS")
                 }
                 val focused = resolveFocusedSpace(spaces, focusedSpaceId)
                 if (focused != null) {
@@ -832,7 +783,7 @@ private fun PlantupiaAccountClientSection(
             }
             BrandEyebrow(
                 if (openDetailMode == PlantupiaCreateMode.QUESTION) "ASK THE CIRCLE"
-                else "YOUR PLANT · PRIVATE RECORD"
+                else "MY PLANTS"
             )
             if (openDetailMode == PlantupiaCreateMode.QUESTION) {
                 Text(
@@ -840,35 +791,24 @@ private fun PlantupiaAccountClientSection(
                     color = muted, fontSize = 12.sp,
                 )
             }
-            // Identify the *actual selected plant* before showing its photo or controls.
-            Text(selectedPlant.name, fontFamily = FontFamily.Serif, fontSize = 35.sp, color = deepGreen)
-            PlantupiaCareGuidePanel(selectedPlant.id, repository)
-            PlantupiaInspectionPanel(selectedPlant, repository, onRecorded = { scope.launch { openPlant(selectedPlant) } })
-            OutlinedButton(onClick = { showTeam = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                Text("Ask Plantupia team · optional QA Expert Care")
-            }
-            if (!selectedPlant.active) {
-                Text(
-                    "ARCHIVED · Read-only living record. Photos, notes and history are retained.",
-                    color = muted, fontSize = 12.sp,
-                )
-            }
-            val meta = listOf(selectedPlant.species, selectedPlant.placement).filter(String::isNotBlank).joinToString(" · ")
+            // Genuine specimen identity and photo lead the care experience.
+            Text(selectedPlant.name, fontFamily = FontFamily.Serif, fontSize = 32.sp, color = deepGreen)
+            val meta = listOf(selectedPlant.placement, selectedPlant.species).filter(String::isNotBlank).joinToString(" · ")
             if (meta.isNotBlank()) Text(meta, fontSize = 13.sp, color = muted)
             if (selectedPlant.coverPhoto.isNotBlank()) {
                 PlantupiaEvidencePhoto(
                     photoUrl = selectedPlant.coverPhoto,
                     photoDescription = "Uploaded photograph of " + selectedPlant.name,
-                    modifier = Modifier.fillMaxWidth().height(160.dp),
-                    cornerRadius = 16.dp,
+                    modifier = Modifier.fillMaxWidth().height(244.dp),
+                    cornerRadius = 18.dp,
                     onOpenPhoto = { photoToView = selectedPlant.coverPhoto to selectedPlant.name },
                 )
             } else {
-                // No cover photo is not a missing plant or invented photographic evidence.
+                // Only actual customer/uploaded media, never generic stock stand-ins.
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     color = PlantupiaColors.softSage,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(18.dp),
                 ) {
                     Row(
                         modifier = Modifier.padding(15.dp),
@@ -876,16 +816,31 @@ private fun PlantupiaAccountClientSection(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         PlantupiaMissingPhotoMark(modifier = Modifier.size(52.dp))
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("NO COVER PHOTO YET", style = PlantupiaText.sectionLabel)
-                            Text(
-                                "Photos from recorded observations, if any, appear in the private history below.",
-                                style = PlantupiaText.supporting,
-                            )
-                        }
+                        Text("Add a photo of this plant", style = PlantupiaText.supporting)
                     }
                 }
             }
+            if (selectedPlant.nextFollowUpOn.isNotBlank()) {
+                Surface(
+                    color = PlantupiaColors.softSage,
+                    shape = PlantupiaShapes.inset,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("Next check", style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
+                        Text(selectedPlant.nextFollowUpOn, style = PlantupiaText.sectionLabel)
+                    }
+                }
+            }
+            if (!selectedPlant.active) {
+                Text("Archived · history is read-only", color = muted, fontSize = 12.sp)
+            }
+            PlantupiaCareGuidePanel(selectedPlant.id, repository)
+            PlantupiaInspectionPanel(selectedPlant, repository, onRecorded = { scope.launch { openPlant(selectedPlant) } })
 
             pendingPrivateSaves.filter { it.plant == selectedPlant.id }.forEach { pending ->
                 PlantupiaPanel {
@@ -927,7 +882,7 @@ private fun PlantupiaAccountClientSection(
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
                     ) {
-                        Text(if (showCareEditor) "Close care form ↑" else "+ Record care or observation", color = white)
+                        Text(if (showCareEditor) "Close care form ↑" else "Record care", color = white)
                     }
                 if (showCareEditor) PlantupiaPanel {
                     Text("What did you do?", color = forestText, fontWeight = FontWeight.Medium, fontSize = 13.sp)
@@ -1136,7 +1091,14 @@ private fun PlantupiaAccountClientSection(
                         modifier = Modifier.padding(end = 8.dp),
                         tint = deepGreen,
                     )
-                    Text("Plantupia assistant (optional)", color = deepGreen)
+                    Text("Ask Plantupia AI", color = deepGreen)
+                }
+                OutlinedButton(
+                    onClick = { showTeam = true },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    shape = RoundedCornerShape(15.dp),
+                ) {
+                    Text("Ask the team", color = deepGreen)
                 }
             }
             if (openDetailMode == PlantupiaCreateMode.QUESTION) {

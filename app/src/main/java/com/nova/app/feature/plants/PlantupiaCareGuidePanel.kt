@@ -31,7 +31,7 @@ internal fun PlantupiaCareGuidePanel(plantId: String, repository: PlantupiaRepos
         }
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             OutlinedButton(onClick = { open = !open }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                Text(if (open) "Close care guide" else "Understand this plant · Care guide")
+                Text(if (open) "Close care guide" else "Care guide")
             }
             if (open) {
                 if (loading) { LinearProgressIndicator(Modifier.fillMaxWidth()); Text("Loading care guidance…") }

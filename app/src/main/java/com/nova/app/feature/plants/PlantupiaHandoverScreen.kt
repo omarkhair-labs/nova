@@ -119,15 +119,17 @@ internal fun PlantupiaHandoverScreen(
         Surface(color = PlantupiaColors.cream, modifier = Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize().imePadding().safeDrawingPadding()
                 .verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                TextButton(onClick = onClose) { Text("Back to Plantupia") }
-                Text("Connect your plants", style = MaterialTheme.typography.headlineMedium, color = PlantupiaColors.forest)
-                Text("Use the invitation supplied with your delivery. Your plant records stay private.")
-                if (accountId != null) Text("Signed in as $accountName", color = PlantupiaColors.forest)
+                TextButton(onClick = onClose) { Text("← Back") }
+                Text("WELCOME HOME", style = PlantupiaText.sectionLabel)
+                Text("Bring your plants home.", style = MaterialTheme.typography.headlineLarge, color = PlantupiaColors.forest)
+                Text("Scan the QR from your Plantupia delivery.", style = PlantupiaText.body)
+                if (accountId != null) Text("Account · $accountName", style = PlantupiaText.supporting)
                 if (delivery == null) {
-                    OutlinedButton(enabled = !busy, onClick = {
+                    Button(enabled = !busy, onClick = {
                         if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) scan()
                         else permission.launch(Manifest.permission.CAMERA)
-                    }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Scan delivery QR") }
+                    }, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = PlantupiaColors.forest)) { Text("Scan QR code") }
                     OutlinedTextField(value = code, onValueChange = {
                         code = it; error = null
                         deliveryCode(it)?.let { token ->
@@ -138,7 +140,7 @@ internal fun PlantupiaHandoverScreen(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
                         visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
                     if (accountId == null) {
-                        Text("Log in with the account this invitation was issued to. If you create an account, ask the team for a new code for that account. Signing in never connects plants automatically.")
+                        Text("Use the account named on your delivery. New account? Ask the team for a new code.", style = PlantupiaText.supporting)
                         Button(onClick = { if (preserve()) onLogin() }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Continue to log in") }
                         OutlinedButton(onClick = { if (preserve()) onRegister() }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Create account and continue") }
                     } else {
@@ -153,7 +155,7 @@ internal fun PlantupiaHandoverScreen(
                         Button(onClick = { if (current()) { store.clear(); onConnected(requireNotNull(summary.spaceId)) } },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Open My Space") }
                     } else {
-                        Text("Confirm only if this is your delivery. Private inventory becomes available after the server confirms access.")
+                        Text("Only confirm if this delivery belongs to you.", style = PlantupiaText.supporting)
                         Button(enabled = !busy, onClick = { request(true) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                             Text(if (summary.claimed) "Confirm and reopen my plants" else "Confirm and connect my plants")
                         }
@@ -161,8 +163,12 @@ internal fun PlantupiaHandoverScreen(
                 }
                 if (busy) { LinearProgressIndicator(Modifier.fillMaxWidth()); Text("Confirming with Plantupia…") }
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                TextButton(enabled = !busy, onClick = { if (current()) { store.clear(); onClose() } }) { Text("This is not my delivery · remove code") }
-                Text("You can close this screen and return later. The invitation is kept securely for up to 24 hours; it may expire sooner on the server.", style = MaterialTheme.typography.bodySmall)
+                if (code.isNotBlank()) {
+                    TextButton(enabled = !busy, onClick = { if (current()) { store.clear(); onClose() } }) {
+                        Text("Not my delivery? Remove code")
+                    }
+                }
+                Text("Your code is stored privately for up to 24 hours; it may expire sooner.", style = MaterialTheme.typography.bodySmall)
             }
         }
     }

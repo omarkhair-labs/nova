@@ -197,7 +197,7 @@ internal fun PlantupiaPlantInventoryCard(
             PlantupiaEvidencePhoto(
                 photoUrl = plant.coverPhoto,
                 photoDescription = "Uploaded photo of " + plant.name,
-                modifier = Modifier.size(width = 96.dp, height = 106.dp),
+                modifier = Modifier.size(width = 108.dp, height = 120.dp),
                 cornerRadius = 13.dp,
                 compact = true,
             )
@@ -210,18 +210,18 @@ internal fun PlantupiaPlantInventoryCard(
                     // Keep distinct inventory identities readable at 360dp and large text.
                     softWrap = true,
                 )
-                val context = listOf(plant.species, plant.placement).filter(String::isNotBlank).joinToString(" · ")
+                val context = listOf(plant.placement, plant.species).filter(String::isNotBlank).joinToString(" · ")
                 if (context.isNotBlank()) {
                     Text(context, color = muted, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
                 Text(
                     if (plant.lastEventAt.isNotBlank()) eventLabel + " · " + plant.lastEventAt.take(10)
-                    else "Start recording this plant's life",
+                    else "No moments recorded",
                     color = muted, fontSize = 11.sp, maxLines = 1,
                 )
                 if (plant.nextFollowUpOn.isNotBlank()) {
                     Text(
-                        "Chosen check-in · " + plant.nextFollowUpOn,
+                        "Next check · " + plant.nextFollowUpOn,
                         color = ink, fontWeight = FontWeight.Medium, fontSize = 11.sp,
                     )
                 }

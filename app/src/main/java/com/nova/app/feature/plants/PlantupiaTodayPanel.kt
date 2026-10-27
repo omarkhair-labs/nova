@@ -38,154 +38,126 @@ internal fun PlantupiaTodayPanel(
     plants: List<PlantupiaPlant>,
     onOpenPlant: (PlantupiaPlant) -> Unit,
 ) {
+    val active = plants.filter { it.active }
+    if (active.isEmpty()) return
+
     val today = LocalDate.now()
     val planned = scheduledPlantCheckIns(plants)
     val due = planned.filter { !LocalDate.parse(it.nextFollowUpOn).isAfter(today) }
-    val future = planned.filter { LocalDate.parse(it.nextFollowUpOn).isAfter(today) }
-    var dueVisibleCount by rememberSaveable { mutableIntStateOf(3) }
+    val upcoming = planned.firstOrNull { LocalDate.parse(it.nextFollowUpOn).isAfter(today) }
+    var visible by rememberSaveable { mutableIntStateOf(3) }
 
-    // Quiet-care composition: a giant zero-count attention card implies urgency
-    // when no human-selected check-in is due. Preserve the real next review
-    // without taking visual priority away from the living space.
-    if (due.isEmpty()) {
-        if (future.isNotEmpty()) {
-            val next = future.first()
-            Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                Text("NEXT CHECK-IN · ALL SPACES", style = PlantupiaText.sectionLabel)
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Today", style = PlantupiaText.editorialHeading)
+            Text(
+                if (due.isEmpty()) "ALL CAUGHT UP" else "${due.size} TO CHECK",
+                style = PlantupiaText.sectionLabel,
+            )
+        }
+        if (due.isNotEmpty()) {
+            val first = due.first()
+            Surface(
+                onClick = { onOpenPlant(first) },
+                modifier = Modifier.fillMaxWidth(),
+                color = PlantupiaColors.softSage,
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, PlantupiaColors.border),
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text("READY FOR A CHECK-IN", style = PlantupiaText.sectionLabel)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        PlantupiaEvidencePhoto(
+                            photoUrl = first.coverPhoto,
+                            photoDescription = "Uploaded photo of " + first.name,
+                            modifier = Modifier.size(106.dp),
+                            cornerRadius = 14.dp,
+                            compact = true,
+                        )
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(5.dp),
+                        ) {
+                            Text(
+                                first.name,
+                                style = PlantupiaText.editorialHeading,
+                            )
+                            Text("Review your plant", style = PlantupiaText.body)
+                            Text(
+                                "Check-in · " + first.nextFollowUpOn,
+                                style = PlantupiaText.supporting,
+                            )
+                            Text("Open care →", style = PlantupiaText.sectionLabel)
+                        }
+                    }
+                }
+            }
+            due.drop(1).take((visibleDueCheckInCount(due.size, visible) - 1).coerceAtLeast(0)).forEach { plant ->
                 Surface(
-                    onClick = { onOpenPlant(next) },
+                    onClick = { onOpenPlant(plant) },
+                    modifier = Modifier.fillMaxWidth(),
                     color = PlantupiaColors.paper,
                     border = BorderStroke(1.dp, PlantupiaColors.border),
                     shape = PlantupiaShapes.inset,
-                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 15.dp, vertical = 13.dp),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(11.dp),
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                next.name,
-                                style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
-                            )
-                            Text(
-                                "You chose to check again on " + next.nextFollowUpOn,
-                                style = PlantupiaText.supporting,
-                            )
+                            Text(plant.name, style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
+                            Text("Check-in · " + plant.nextFollowUpOn, style = PlantupiaText.supporting)
                         }
                         Text("Open →", style = PlantupiaText.sectionLabel)
                     }
                 }
             }
-        } else if (plants.any { it.active }) {
-            Text(
-                "No check-ins planned. Record what you notice when you visit your plants.",
-                style = PlantupiaText.supporting,
-            )
-        }
-        return
-    }
-
-    Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-        Text("CHECK-INS ACROSS YOUR SPACES", style = PlantupiaText.sectionLabel)
-        Surface(
-            color = PlantupiaColors.softSage,
-            border = BorderStroke(1.dp, PlantupiaColors.border),
-            shape = RoundedCornerShape(20.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(15.dp),
-                        color = PlantupiaColors.paper,
-                    ) {
-                        Text(
-                            text = due.size.toString(),
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                            style = PlantupiaText.editorialHeading,
-                        )
-                    }
-                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(
-                            if (due.isNotEmpty()) "Check-ins need your attention"
-                            else "No check-ins due today",
-                            style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
-                        )
-                        Text(
-                            "Check the soil and leaves before deciding whether to water.",
-                            style = PlantupiaText.supporting,
-                        )
-                    }
-                }
-                if (due.isNotEmpty()) {
-                    due.take(visibleDueCheckInCount(due.size, dueVisibleCount)).forEach { plant ->
-                        Surface(
-                            onClick = { onOpenPlant(plant) },
-                            color = PlantupiaColors.paper,
-                            shape = PlantupiaShapes.inset,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                PlantupiaEvidencePhoto(
-                                    photoUrl = plant.coverPhoto,
-                                    photoDescription = "Uploaded photo of " + plant.name,
-                                    modifier = Modifier.size(54.dp),
-                                    cornerRadius = 10.dp,
-                                    compact = true,
-                                )
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(plant.name, style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
-                                    Text("Check-in you chose: " + plant.nextFollowUpOn, style = PlantupiaText.supporting)
-                                }
-                                Text("Open →", style = PlantupiaText.sectionLabel)
-                            }
-                        }
-                    }
-                    if (due.size > dueVisibleCount) {
-                        val remaining = due.size - dueVisibleCount
-                        TextButton(
-                            onClick = { dueVisibleCount += 8 },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(
-                                "Show ${minOf(8, remaining)} more check-ins · $remaining remaining",
-                                color = PlantupiaColors.forest,
-                            )
-                        }
-                    }
-                } else if (future.isNotEmpty()) {
-                    val next = future.first()
-                    Text(
-                        "Next check-in: " + next.name + " · " + next.nextFollowUpOn,
-                        style = PlantupiaText.supporting,
-                    )
-                    TextButton(onClick = { onOpenPlant(next) }) {
-                        Text("Open plant", color = PlantupiaColors.forest)
-                    }
-                } else {
-                    Text(
-                        "No check-ins planned yet. Open a plant, record care or an observation, and choose when to revisit.",
-                        style = PlantupiaText.supporting,
-                    )
-                    plants.firstOrNull { it.active }?.let { plant ->
-                        TextButton(onClick = { onOpenPlant(plant) }) {
-                            Text("Start with " + plant.name + " →", color = PlantupiaColors.forest)
-                        }
-                    }
+            if (due.size > visible) {
+                TextButton(onClick = { visible += 8 }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Show more · ${due.size - visible} remaining", color = PlantupiaColors.forest)
                 }
             }
+        } else if (upcoming != null) {
+            Surface(
+                onClick = { onOpenPlant(upcoming) },
+                modifier = Modifier.fillMaxWidth(),
+                color = PlantupiaColors.paper,
+                border = BorderStroke(1.dp, PlantupiaColors.border),
+                shape = PlantupiaShapes.inset,
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    PlantupiaEvidencePhoto(
+                        photoUrl = upcoming.coverPhoto,
+                        photoDescription = "Uploaded photo of " + upcoming.name,
+                        modifier = Modifier.size(64.dp),
+                        cornerRadius = 11.dp,
+                        compact = true,
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Next check", style = PlantupiaText.sectionLabel)
+                        Text(upcoming.name, style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
+                        Text(upcoming.nextFollowUpOn, style = PlantupiaText.supporting)
+                    }
+                    Text("Open →", style = PlantupiaText.sectionLabel)
+                }
+            }
+        } else {
+            Text("No check-ins planned yet. Open a plant to choose a day.", style = PlantupiaText.supporting)
         }
     }
 }

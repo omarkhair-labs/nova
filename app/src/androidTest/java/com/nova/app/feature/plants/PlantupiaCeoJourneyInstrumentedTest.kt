@@ -95,7 +95,7 @@ class PlantupiaCeoJourneyInstrumentedTest {
         val plantsBefore = runBlocking { repository.plants() }
         assertTrue(plantsBefore is ApiResult.Success)
         if ((plantsBefore as ApiResult.Success).value.isEmpty()) {
-            click("Received plants from Plantupia? Connect a delivery")
+            click("Connect your plants")
             type("Delivery code", fixture.getString("invitation"))
             click("Review my delivery")
             node("3 plants prepared").assertExists()
@@ -130,7 +130,7 @@ class PlantupiaCeoJourneyInstrumentedTest {
                 response is ApiResult.Success && response.value.events.any { it.note.startsWith("Software QA tester records") }
             }
         }
-        click("Plantupia assistant (optional)")
+        click("Ask Plantupia AI")
         node("Preview access · no payment").assertExists()
         capture("03-ai-paywall")
         val activate = compose.onAllNodes(hasText("Try this plan · no charge") and isEnabled()).onFirst()
@@ -139,7 +139,7 @@ class PlantupiaCeoJourneyInstrumentedTest {
         node("The AI provider is not configured on this QA server.", true).assertExists()
         capture("04-honest-ai-unavailable")
         click("Back to FICTIONAL QA supplied plant 01 · free care guide")
-        click("Ask Plantupia team · optional QA Expert Care")
+        click("Ask the team")
         node("Choose optional care access").assertExists()
         val expert = compose.onAllNodes(hasText("Try this plan · no charge") and isEnabled()).onLast()
         runCatching { expert.performScrollTo() }
@@ -157,7 +157,7 @@ class PlantupiaCeoJourneyInstrumentedTest {
     @Test fun stage2_reopenActualStaffReplyAndPersistNoChargeOrder() {
         click("My Space")
         openPlant("FICTIONAL QA supplied plant 01")
-        click("Ask Plantupia team · optional QA Expert Care")
+        click("Ask the team")
         click("CEO QA inspection question", true)
         node("QA staff reply: I can see your explicitly shared request. This is an actual typed QA response, not botanical advice.").assertExists()
         capture("06-actual-staff-reply")
@@ -210,7 +210,7 @@ class PlantupiaCeoJourneyInstrumentedTest {
         click("Understand this plant · Care guide")
         node("Reviewed guidance · version 1").assertExists()
         capture("10-care-plan-${width}dp")
-        click("Plantupia assistant (optional)")
+        click("Ask Plantupia AI")
         node("Choose optional care access").assertExists()
         capture("11-revoked-paywall-${width}dp")
         click("Back to FICTIONAL QA supplied plant 01 · free care guide")

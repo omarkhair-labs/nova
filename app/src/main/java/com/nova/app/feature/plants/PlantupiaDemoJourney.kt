@@ -118,9 +118,9 @@ internal fun PlantupiaDemoHome(repository: PlantupiaRepository, plants: List<Pla
     }
     if (available) {
         DemoCard {
-            Text("TODAY · INSPECTION PLANS", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            Text("YOUR CARE & SHOP", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
             val optedIn = plans.filter { it.optBoolean("enabled") && it.optBoolean("valid") }
-            if (optedIn.isEmpty()) Text("Company proposals are optional. Open a verified plant to review and opt in.")
+            if (optedIn.isEmpty()) Text("Explore plants & essentials.", fontSize = 13.sp)
             optedIn.sortedBy { it.getString("next_due_on") }.take(4).forEach { plan ->
                 TextButton(onClick = { plants.firstOrNull { it.id == plan.getString("plant_id") }?.let(onOpenPlant) }) {
                     Text("${if (plan.optBoolean("due")) "Due · " else "Next · "}${plan.getString("plant_name")} · ${plan.getString("action")} · ${plan.getString("next_due_on")}")
