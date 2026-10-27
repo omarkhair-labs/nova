@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import com.nova.app.feature.plants.data.PlantupiaCareAction
 import com.nova.app.feature.plants.data.PlantupiaCareEvent
@@ -183,7 +184,7 @@ internal fun PlantupiaPlantInventoryCard(
 ) {
     Surface(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Open plant: " + plant.name },
         shape = RoundedCornerShape(18.dp),
         border = BorderStroke(1.dp, border),
         color = paper,

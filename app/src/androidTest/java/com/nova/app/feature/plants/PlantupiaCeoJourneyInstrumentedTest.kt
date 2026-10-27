@@ -62,7 +62,10 @@ class PlantupiaCeoJourneyInstrumentedTest {
     }
 
     private fun click(text: String, substring: Boolean = false) {
-        val target = node(text, substring)
+        node(text, substring)
+        // A recent-observation heading can repeat a plant's name. Select the
+        // actual interactive inventory row/button instead of that static label.
+        val target = compose.onAllNodes(hasText(text, substring = substring) and hasClickAction()).onFirst()
         runCatching { target.performScrollTo() }
         target.performClick()
     }
@@ -72,6 +75,13 @@ class PlantupiaCeoJourneyInstrumentedTest {
         runCatching { target.performScrollTo() }
         target.performTextReplacement(value)
         closeSoftKeyboard()
+    }
+
+    private fun openPlant(name: String) {
+        val description = "Open plant: $name"
+        compose.waitUntil(30_000) { compose.onAllNodes(hasContentDescription(description)).fetchSemanticsNodes().isNotEmpty() }
+        val row = compose.onNodeWithContentDescription(description)
+        row.performScrollTo().assertIsDisplayed().performClick()
     }
 
     private fun capture(name: String) {
@@ -103,7 +113,7 @@ class PlantupiaCeoJourneyInstrumentedTest {
             identity.assertIsDisplayed()
         }
         capture("01-original-plants")
-        click("FICTIONAL QA supplied plant 01")
+        openPlant("FICTIONAL QA supplied plant 01")
         click("Understand this plant · Care guide")
         node("Reviewed guidance · version 1").assertExists()
         capture("02-sourced-guide")
@@ -146,7 +156,7 @@ class PlantupiaCeoJourneyInstrumentedTest {
 
     @Test fun stage2_reopenActualStaffReplyAndPersistNoChargeOrder() {
         click("My Space")
-        click("FICTIONAL QA supplied plant 01")
+        openPlant("FICTIONAL QA supplied plant 01")
         click("Ask Plantupia team · optional QA Expert Care")
         click("CEO QA inspection question", true)
         node("QA staff reply: I can see your explicitly shared request. This is an actual typed QA response, not botanical advice.").assertExists()
@@ -155,7 +165,18 @@ class PlantupiaCeoJourneyInstrumentedTest {
         // Returning through the existing selected-plant Back action preserves My Space.
         click("← Back to space")
         click("Explore QA plants & products · My orders")
-        val product = compose.onNodeWithContentDescription("View QA product: FICTIONAL QA · indoor plant")
+        val catalog = runBlocking { repository.demoGet("catalog/") }
+        assertTrue(catalog is ApiResult.Success)
+        val plantProduct = (catalog as ApiResult.Success).value.demoRows().first { it.getString("kind") == "plant" }
+        val description = "View QA product: " + plantProduct.getString("name")
+        try {
+            compose.waitUntil(30_000) { compose.onAllNodes(hasContentDescription(description)).fetchSemanticsNodes().isNotEmpty() }
+        } catch (failure: Throwable) {
+            capture("diagnostic-qa-shop")
+            compose.onAllNodes(isRoot()).printToLog("CeoQaShop")
+            throw failure
+        }
+        val product = compose.onNodeWithContentDescription(description)
         runCatching { product.performScrollTo() }
         product.performClick()
         click("Save quantity to cart")
@@ -173,5 +194,30 @@ class PlantupiaCeoJourneyInstrumentedTest {
         click("My orders")
         node("charged: no", true).assertExists()
         capture("08-order-after-relaunch")
+    }
+
+    @Test fun stage3_readOnlyReopenAndRevokedPaywall() {
+        click("My Space")
+        val plants = runBlocking { repository.plants() }
+        assertTrue(plants is ApiResult.Success)
+        val actual = (plants as ApiResult.Success).value
+        val expected = fixture.getJSONArray("plant_ids").let { array -> (0 until array.length()).map { array.getString(it) }.toSet() }
+        assertEquals(expected, actual.map { it.id }.toSet())
+        actual.forEach { node(it.name).let { row -> runCatching { row.performScrollTo() }; row.assertIsDisplayed() } }
+        val width = context.resources.configuration.screenWidthDp
+        capture("09-plant-identities-${width}dp")
+        openPlant("FICTIONAL QA supplied plant 01")
+        click("Understand this plant · Care guide")
+        node("Reviewed guidance · version 1").assertExists()
+        capture("10-care-plan-${width}dp")
+        click("Plantupia assistant (optional)")
+        node("Choose optional care access").assertExists()
+        capture("11-revoked-paywall-${width}dp")
+        click("Back to FICTIONAL QA supplied plant 01 · free care guide")
+        click("← Back to space")
+        click("Explore QA plants & products · My orders")
+        click("My orders")
+        node("charged: no", true).assertExists()
+        capture("12-orders-${width}dp")
     }
 }
