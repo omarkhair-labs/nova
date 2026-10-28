@@ -400,6 +400,7 @@ internal fun PlantupiaQaShop(
     var orders by remember { mutableStateOf(emptyList<JSONObject>()) }
     var screen by rememberSaveable { mutableStateOf("catalog") }
     var category by rememberSaveable { mutableStateOf("all") }
+    var searchText by rememberSaveable { mutableStateOf("") }
     var confirmed by remember { mutableStateOf(false) }
     var receipt by rememberSaveable { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -408,10 +409,10 @@ internal fun PlantupiaQaShop(
     val scope = rememberCoroutineScope()
     LaunchedEffect(refresh, screen) {
         error = null
-        val path = when (screen) { "cart" -> "cart/"; "orders" -> "demo/orders/"; else -> "catalog/" }
+        val path = when (screen) { "cart", "review" -> "cart/"; "orders" -> "demo/orders/"; else -> "catalog/" }
         when (val result = repository.demoGet(path)) {
             is ApiResult.Success -> if (repository.isCurrentSession()) when (screen) {
-                "cart" -> { cart = result.value; confirmed = false }
+                "cart", "review" -> { cart = result.value; confirmed = false }
                 "orders" -> orders = result.value.demoRows()
                 else -> products = result.value.demoRows()
             }
@@ -440,42 +441,40 @@ internal fun PlantupiaQaShop(
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Surface(shape = RoundedCornerShape(14.dp), color = PlantupiaColors.softSage) {
-                    Text("P", modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                        fontFamily = FontFamily.Serif, fontSize = 25.sp, color = demoForest)
-                }
                 Column(modifier = Modifier.weight(1f)) {
                     Text("PLANTUPIA · SHOP", style = PlantupiaText.sectionLabel)
-                    Text(if (selected == null) "Plants & essentials" else "Product details",
-                        style = PlantupiaText.editorialHeading)
+                    Text(
+                        when {
+                            selected != null -> "Product details"
+                            screen == "cart" -> "Your cart"
+                            screen == "review" -> "Review your order"
+                            screen == "orders" -> "Your orders"
+                            else -> "Plants & essentials"
+                        },
+                        style = PlantupiaText.editorialHeading,
+                    )
+                }
+                if (screen != "catalog" || selected != null) {
+                    TextButton(onClick = { selectedId = null; screen = "catalog" }) {
+                        Text("Shop", color = demoForest)
+                    }
+                }
+            }
+            // One Shop destination; cart and orders are contextual routes, not permanent tabs.
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = { selectedId = null; screen = "cart" }) {
+                    Text("Cart", color = demoForest)
+                }
+                TextButton(onClick = { selectedId = null; screen = "orders" }) {
+                    Text("My orders", color = demoForest)
                 }
                 if (!fullPage) TextButton(onClick = onDismiss) { Text("Close", color = demoForest) }
             }
-            Text("Fictional QA collection · provisional prices · no payment or delivery", style = PlantupiaText.supporting)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                listOf("catalog" to "Shop", "cart" to "Cart", "orders" to "My orders").forEach { (destination, label) ->
-                    Surface(
-                        onClick = { screen = destination; selectedId = null },
-                        modifier = Modifier.weight(1f),
-                        color = if (screen == destination) demoForest else demoSage,
-                        shape = RoundedCornerShape(12.dp),
-                    ) {
-                        Text(
-                            label,
-                            modifier = Modifier.padding(vertical = 11.dp),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            color = if (screen == destination) demoPaper else demoForest,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                        )
-                    }
-                }
+            if (screen == "review" || screen == "cart") {
+                Text("QA checkout only · illustrative prices · no payment or delivery", style = PlantupiaText.supporting)
             }
             when (screen) {
                 "cart" -> cart?.let { quote ->
@@ -525,6 +524,13 @@ internal fun PlantupiaQaShop(
                     val product = selected
                     if (product == null) {
                         Text("Find something for your space.", style = PlantupiaText.body)
+                        OutlinedTextField(
+                            value = searchText,
+                            onValueChange = { searchText = it.take(80) },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Search plants, pots and care") },
+                            singleLine = true,
+                        )
                         Row(modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             listOf("all" to "All", "plant" to "Plants", "planter" to "Pots",
@@ -542,9 +548,15 @@ internal fun PlantupiaQaShop(
                                 }
                             }
                         }
-                        val visible = products.filter { category == "all" || it.optString("kind") == category }
+                        val visible = products.filter { item ->
+                            (category == "all" || item.optString("kind") == category) &&
+                                (searchText.isBlank() || listOf(item.optString("name"),
+                                    item.optString("description")).any {
+                                    it.contains(searchText.trim(), ignoreCase = true)
+                                })
+                        }
                         if (visible.isEmpty()) Text(
-                            if (products.isEmpty()) "No active QA products." else "Nothing in this category yet.",
+                            if (products.isEmpty()) "Products coming soon." else "No products match this search.",
                             style = PlantupiaText.supporting,
                         )
                         visible.chunked(2).forEach { group ->
@@ -623,8 +635,8 @@ internal fun PlantupiaQaShop(
             }
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             error?.let { Text(if (it.contains("nonstaff customer account", ignoreCase = true)) "Switch to a customer account to shop." else it, color = MaterialTheme.colorScheme.error); TextButton(onClick = { refresh++ }) { Text("Retry") } }
-            TextButton(onClick = onDismiss) { Text("Back to Plants") }
-            Spacer(Modifier.height(24.dp))
+            if (!fullPage) TextButton(onClick = onDismiss) { Text("Back to Plants") }
+            Spacer(Modifier.height(if (fullPage) 112.dp else 24.dp))
         }
     }
     if (fullPage) {
