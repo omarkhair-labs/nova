@@ -443,18 +443,26 @@ internal fun PlantupiaQaShop(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Surface(shape = RoundedCornerShape(14.dp), color = PlantupiaColors.softSage) {
-                    Text("P", modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                        fontFamily = FontFamily.Serif, fontSize = 25.sp, color = demoForest)
+                // Full-page Shop uses the shared Plantupia account header already.
+                if (!fullPage) {
+                    Surface(shape = RoundedCornerShape(14.dp), color = PlantupiaColors.softSage) {
+                        Text("P", modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                            fontFamily = FontFamily.Serif, fontSize = 25.sp, color = demoForest)
+                    }
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text("PLANTUPIA · SHOP", style = PlantupiaText.sectionLabel)
-                    Text(if (selected == null) "Plants & essentials" else "Product details",
+                    Text(when {
+                        selected != null -> "Product details"
+                        screen == "cart" -> "Your cart"
+                        screen == "orders" -> "Your orders"
+                        else -> "Plants & essentials"
+                    },
                         style = PlantupiaText.editorialHeading)
                 }
                 if (!fullPage) TextButton(onClick = onDismiss) { Text("Close", color = demoForest) }
             }
-            Text("Fictional QA collection · provisional prices · no payment or delivery", style = PlantupiaText.supporting)
+            Text("Preview collection · illustrative prices · no payment or delivery", style = PlantupiaText.supporting)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -516,8 +524,10 @@ internal fun PlantupiaQaShop(
                             else -> "Status unavailable"
                         }
                         Text("$statusLabel · ${order.getString("created_at").take(10)}", style = PlantupiaText.supporting)
-                        order.demoRows("lines").forEach { line -> Text("${line.getInt("quantity")} × ${line.getString("name")}") }
-                        Text("EGP ${order.getString("total_provisional")} · charged: no", color = demoForest)
+                        order.demoRows("lines").forEach { line ->
+                            Text("${line.getInt("quantity")} × ${line.getString("name").removePrefix("FICTIONAL QA · ").removePrefix("FICTIONAL QA ")}")
+                        }
+                        Text("Total · EGP ${order.getString("total_provisional")}", color = demoForest)
                         Text("No payment or delivery was initiated.", style = PlantupiaText.supporting)
                     } }
                 }
@@ -544,7 +554,7 @@ internal fun PlantupiaQaShop(
                         }
                         val visible = products.filter { category == "all" || it.optString("kind") == category }
                         if (visible.isEmpty()) Text(
-                            if (products.isEmpty()) "No active QA products." else "Nothing in this category yet.",
+                            if (products.isEmpty()) "Products coming soon." else "Nothing in this category yet.",
                             style = PlantupiaText.supporting,
                         )
                         visible.chunked(2).forEach { group ->
@@ -623,8 +633,9 @@ internal fun PlantupiaQaShop(
             }
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             error?.let { Text(if (it.contains("nonstaff customer account", ignoreCase = true)) "Switch to a customer account to shop." else it, color = MaterialTheme.colorScheme.error); TextButton(onClick = { refresh++ }) { Text("Retry") } }
-            TextButton(onClick = onDismiss) { Text("Back to Plants") }
-            Spacer(Modifier.height(24.dp))
+            if (!fullPage) TextButton(onClick = onDismiss) { Text("Back to Plants") }
+            // Full-page content scrolls behind the five-destination bottom navigation.
+            Spacer(Modifier.height(if (fullPage) 112.dp else 24.dp))
         }
     }
     if (fullPage) {
