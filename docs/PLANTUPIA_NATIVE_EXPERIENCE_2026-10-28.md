@@ -116,3 +116,41 @@ The conversation PDF mentioned in the handoff was not delivered as an accessible
 file or link. Only the supplied text attachment was available. No contents of that
 missing historical PDF have been inferred; repository contracts and current owner
 instructions govern this change.
+
+## Native verification performed
+
+Application source `522ec6a7047a7c03d625c9f7a296da8b0f167182` passed both CI jobs
+in [run 40656708310](https://github.com/omarkhair-labs/nova/actions/runs/40656708310):
+453 PostgreSQL/Redis backend tests, Android unit tests, release lint, all 20 guards,
+APK variants, instrumentation compilation and release AAB assembly. Local complete
+QA JVM results contain 450 tests, zero failures and zero skips. The later addition
+of the focused platform-keyboard test changes test code only; verify CI on its
+final commit too before treating the final PR head as green.
+
+Against the same disposable Django/SQLite backend, actual Android instrumentation
+passed navigation/draft/activity restoration, authorized actual ticket opening,
+notification categories, actual order-notice navigation, account switching and
+the existing first private plant, plus a real localhost server interruption and
+one original history entry after retry/recreation. The manual first-plant attempt
+created its actual space/plant through HTTP 201 and opened detail; an initial test
+incorrectly expected the inventory row after that intentional detail transition.
+Its corrected repeat preserves that plant instead of deleting QA records.
+
+The read-only root/Circle/Profile/Settings and actual unconfigured-AI/history cases
+passed at 320, 390, 430 and 800dp. The 390dp large-text cases passed at font scale
+2.0; screenshots exposed and then verified the conversation layout correction.
+Compose text injection alone did not establish an actual keyboard window.
+`PlantupiaPlatformKeyboardInstrumentedTest` therefore runs without the Compose
+test rule, renders the **real** assistant sheet with an API-authorized plant and
+real repository, and checks the actual OS input-method window against composer
+bounds. Both normal and 2x text passed, including the real 503 and retained
+question. This is a focused keyboard test; the separate experience suite verifies
+navigation through the actual application. It is not physical-device evidence.
+
+To reproduce, use an owned `.qa` emulator, the private local fixture and backend,
+`-PplantupiaQaInstrumentation=true`, and
+`-PplantupiaQaApiUrl=http://127.0.0.1:8766/api/v1/`. Build `testQaUnitTest assembleQa
+assembleQaAndroidTest`, then `adb reverse tcp:8766 tcp:8766`. Run the explicit test
+classes with AndroidJUnitRunner. Enable the owned emulator's software keyboard
+for the platform test. Ordinary CI compiles these tests but does not claim it
+executed a device. Never put credentials in source, command arguments or reports.
