@@ -630,7 +630,8 @@ internal fun PlantupiaQaShop(
                         val visible = products.filter { item ->
                             (category == "all" || item.optString("kind") == category) &&
                                 (searchText.isBlank() || listOf(item.optString("name"),
-                                    item.optString("description")).any {
+                                    item.optString("description"), item.optString("sku"),
+                                    item.optString("variant_label")).any {
                                     it.contains(searchText.trim(), ignoreCase = true)
                                 })
                         }
@@ -638,7 +639,14 @@ internal fun PlantupiaQaShop(
                             if (products.isEmpty()) "Products coming soon." else "No products match this search.",
                             style = PlantupiaText.supporting,
                         )
-                        visible.chunked(2).forEach { group ->
+                        // One product family in discovery; selection of its exact
+                        // priced SKU happens inside the detail page.
+                        val familyPreview = visible.distinctBy { item ->
+                            item.optString("family_key").takeIf { it.isNotBlank() }?.let {
+                                "family:" + item.optString("kind") + ":" + it
+                            } ?: "sku:" + item.getString("id")
+                        }
+                        familyPreview.chunked(2).forEach { group ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -656,10 +664,43 @@ internal fun PlantupiaQaShop(
                         }
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            if (product.optBoolean("has_image")) {
-                                PlantupiaCatalogPhoto(product.getString("id"), repository)
+                            var selectedPhotoId by remember(selectedId) { mutableStateOf<String?>(null) }
+                            val gallery = product.optJSONArray("photos")
+                            if (product.optBoolean("has_image") || selectedPhotoId != null) {
+                                PlantupiaCatalogPhoto(
+                                    product.getString("id"), repository,
+                                    photoId = selectedPhotoId,
+                                    photoAlt = if (selectedPhotoId == null) product.optString("image_description")
+                                    else (0 until (gallery?.length() ?: 0)).map { gallery!!.getJSONObject(it) }
+                                        .firstOrNull { it.optString("id") == selectedPhotoId }?.optString("alt_text").orEmpty(),
+                                )
                             } else {
                                 PlantupiaCatalogMissingPhoto(compact = false)
+                            }
+                            if (product.optBoolean("has_image") && (gallery?.length() ?: 0) > 0) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    TextButton(onClick = { selectedPhotoId = null }) {
+                                        Text("Cover photo", color = demoForest)
+                                    }
+                                    (0 until minOf(gallery!!.length(), 8)).forEach { index ->
+                                        val photo = gallery.getJSONObject(index)
+                                        TextButton(onClick = { selectedPhotoId = photo.getString("id") }) {
+                                            Text("Photo ${index + 2}", color = demoForest)
+                                        }
+                                    }
+                                }
+                            } else if ((gallery?.length() ?: 0) > 0) {
+                                Column {
+                                    (0 until minOf(gallery!!.length(), 8)).forEach { index ->
+                                        val photo = gallery.getJSONObject(index)
+                                        TextButton(onClick = { selectedPhotoId = photo.getString("id") }) {
+                                            Text("View photo ${index + 1}", color = demoForest)
+                                        }
+                                    }
+                                }
                             }
                             Text(
                                 product.getString("name").removePrefix("FICTIONAL QA · "),
@@ -668,6 +709,34 @@ internal fun PlantupiaQaShop(
                             if (!product.getString("description").startsWith("Fictional Plantupia software QA product")) {
                                 Text(product.getString("description"), style = PlantupiaText.body)
                             }
+                            val familyKey = product.optString("family_key")
+                            val sameFamily = if (familyKey.isNotBlank()) products.filter {
+                                it.optString("family_key") == familyKey &&
+                                    it.optString("kind") == product.optString("kind")
+                            } else listOf(product)
+                            if (sameFamily.size > 1) {
+                                Text("Choose an option", style = PlantupiaText.sectionLabel)
+                                sameFamily.forEach { option ->
+                                    val selectedOption = option.getString("id") == product.getString("id")
+                                    OutlinedButton(
+                                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                                        onClick = { selectedId = option.getString("id"); quantity = 1 },
+                                        enabled = !busy,
+                                        border = BorderStroke(1.dp,
+                                            if (selectedOption) demoForest else PlantupiaColors.border),
+                                    ) {
+                                        Text(
+                                            (option.optString("variant_label").ifBlank {
+                                                option.optString("sku").ifBlank { "Option" }
+                                            }) + " · EGP " + option.getString("price") +
+                                                if (option.optInt("qa_stock") == 0) " · Unavailable" else "",
+                                            color = demoForest,
+                                        )
+                                    }
+                                }
+                            }
+                            if (product.optString("sku").isNotBlank())
+                                Text("SKU · " + product.optString("sku"), style = PlantupiaText.supporting)
                             Text(
                                 "${product.getString("currency")} ${product.getString("price")}",
                                 fontSize = 21.sp, fontWeight = FontWeight.SemiBold, color = demoForest,
@@ -785,13 +854,18 @@ private fun PlantupiaCatalogTile(
 }
 
 @Composable
-private fun PlantupiaCatalogPhoto(productId: String, repository: PlantupiaRepository, compact: Boolean = false, thumbnail: Boolean = false) {
-    var bitmap by remember(productId) { mutableStateOf<ImageBitmap?>(null) }
-    var failed by remember(productId) { mutableStateOf(false) }
-    var revision by remember { mutableIntStateOf(0) }
-    LaunchedEffect(productId, revision) {
+private fun PlantupiaCatalogPhoto(
+    productId: String, repository: PlantupiaRepository, compact: Boolean = false,
+    thumbnail: Boolean = false, photoId: String? = null, photoAlt: String = "",
+) {
+    var bitmap by remember(productId, photoId) { mutableStateOf<ImageBitmap?>(null) }
+    var failed by remember(productId, photoId) { mutableStateOf(false) }
+    var revision by remember(productId, photoId) { mutableIntStateOf(0) }
+    LaunchedEffect(productId, photoId, revision) {
         failed = false
-        when (val result = repository.demoGet("catalog/$productId/image/")) {
+        val resource = "catalog/$productId/image/" +
+            (if (photoId == null) "" else "?photo_id=$photoId")
+        when (val result = repository.demoGet(resource)) {
             is ApiResult.Success -> if (repository.isCurrentSession()) {
                 bitmap = runCatching {
                     val bytes = Base64.decode(result.value.getString("image_base64"), Base64.DEFAULT)
@@ -803,7 +877,10 @@ private fun PlantupiaCatalogPhoto(productId: String, repository: PlantupiaReposi
             is ApiResult.Failure -> if (repository.isCurrentSession()) failed = true
         }
     }
-    bitmap?.let { Image(it, "Uploaded catalog photograph", modifier = Modifier.fillMaxWidth().height(if (thumbnail) 84.dp else if (compact) 148.dp else 245.dp).clip(RoundedCornerShape(13.dp)), contentScale = ContentScale.Crop) }
+    bitmap?.let { Image(it, photoAlt.ifBlank { "Actual uploaded catalogue photograph" },
+        modifier = Modifier.fillMaxWidth()
+            .height(if (thumbnail) 84.dp else if (compact) 148.dp else 245.dp)
+            .clip(RoundedCornerShape(13.dp)), contentScale = ContentScale.Crop) }
     if (failed) TextButton(onClick = { revision++ }) { Text("Retry photo") }
     else if (bitmap == null) LinearProgressIndicator(Modifier.fillMaxWidth())
 }
