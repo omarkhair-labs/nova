@@ -162,10 +162,15 @@ def import_products(user, entries: list[ProposedProduct]) -> int:
         with transaction.atomic():
             existing = set(CatalogProduct.objects.select_for_update().filter(
                 name__in=[p.name for p in entries]).values_list("name", flat=True))
+            existing_skus = set(CatalogProduct.objects.select_for_update().filter(
+                sku__in=[p.sku for p in entries]).values_list("sku", flat=True))
+            if existing_skus:
+                raise CatalogPackError("Existing SKU values would be duplicated: " +
+                    ", ".join(sorted(existing_skus))[:300])
             if existing:
                 raise CatalogPackError("Already exists: " + ", ".join(sorted(existing))[:300])
             for entry in entries:
-                obj = CatalogProduct(name=entry.name, kind=entry.kind,
+                obj = CatalogProduct(name=entry.name, sku=entry.sku, kind=entry.kind,
                     description=entry.description, proposed_price=entry.price,
                     currency="EGP", qa_stock=entry.qa_stock, active=entry.active)
                 obj.full_clean(exclude=["image"])

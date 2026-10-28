@@ -135,10 +135,34 @@ class CatalogProduct(models.Model):
     description = models.CharField(max_length=1500)
     kind = models.CharField(max_length=16, choices=[("plant", "Plant"), ("planter", "Planter"), ("accessory", "Care accessory")])
     image = models.ImageField(upload_to="plantupia/catalog/%Y/%m/", blank=True)
+    image_description = models.CharField(max_length=180, blank=True)
+    # Every choice is a sellable SKU, so the existing cart/order locks still
+    # select an exact price and quantity under a unique product identity.
+    sku = models.CharField(max_length=40, blank=True)
+    family_key = models.SlugField(max_length=60, blank=True)
+    variant_label = models.CharField(max_length=100, blank=True)
     proposed_price = models.DecimalField(max_digits=8, decimal_places=2, validators=[MinValueValidator(0)])
     currency = models.CharField(max_length=3, default="EGP", choices=[("EGP", "EGP")])
     qa_stock = models.PositiveIntegerField(default=10, validators=[MaxValueValidator(10000)])
     active = models.BooleanField(default=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=("sku",),
+                condition=~models.Q(sku=""), name="plant_catalog_unique_nonblank_sku"),
+        ]
+
+
+class CatalogProductPhoto(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    product = models.ForeignKey(CatalogProduct, on_delete=models.CASCADE, related_name="gallery")
+    image = models.ImageField(upload_to="plantupia/catalog/gallery/%Y/%m/")
+    alt_text = models.CharField(max_length=180)
+    position = models.PositiveSmallIntegerField(default=0)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("position", "uploaded_at", "id")
 
 
 class DemoCartLine(models.Model):
@@ -164,6 +188,8 @@ class DemoOrderLine(models.Model):
     order = models.ForeignKey(DemoOrder, on_delete=models.PROTECT, related_name="lines")
     product = models.ForeignKey(CatalogProduct, on_delete=models.PROTECT)
     name_snapshot = models.CharField(max_length=120)
+    sku_snapshot = models.CharField(max_length=40, blank=True)
+    variant_snapshot = models.CharField(max_length=100, blank=True)
     kind_snapshot = models.CharField(max_length=16)
     unit_price_provisional = models.DecimalField(max_digits=8, decimal_places=2)
     quantity = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(10)])

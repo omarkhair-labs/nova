@@ -135,17 +135,29 @@ class ServiceRequestView(DemoView):
 
 class CatalogView(DemoView):
     def get(self, request):
-        return Response({"results": [service.product_json(p) for p in CatalogProduct.objects.filter(active=True).order_by("name")[:100]],
+        return Response({"results": [service.product_json(p) for p in CatalogProduct.objects.filter(active=True).prefetch_related("gallery").order_by("name", "variant_label")[:100]],
                          "notice": "FICTIONAL QA products. Provisional prices. No commercial offer."})
 
 
 class CatalogImageView(DemoView):
     def get(self, request, product_id):
         product = get_object_or_404(CatalogProduct, pk=product_id, active=True)
-        if not product.image:
+        photo_id = request.query_params.get("photo_id")
+        if photo_id:
+            from django.http import Http404
+            try:
+                parsed_id = serializers.UUIDField().run_validation(photo_id)
+            except serializers.ValidationError as exc:
+                raise Http404 from exc
+            from .models import CatalogProductPhoto
+            gallery_photo = get_object_or_404(CatalogProductPhoto, pk=parsed_id, product=product)
+            image_field = gallery_photo.image
+        else:
+            image_field = product.image
+        if not image_field:
             from django.http import Http404
             raise Http404
-        with product.image.open("rb") as source:
+        with image_field.open("rb") as source:
             photo = source.read(2 * 1024 * 1024 + 1)
         if len(photo) > 2 * 1024 * 1024:
             raise serializers.ValidationError("The catalog photograph is too large to display.")
@@ -192,7 +204,10 @@ def order_json(order):
     return {"id": str(order.pk), "status": order.status, "created_at": order.created_at.isoformat(),
             "total_provisional": str(order.total_provisional), "charged": False, "delivery_initiated": False,
             "installation_id": str(order.installation_id) if order.installation_id else None,
-            "lines": [{"name": l.name_snapshot, "quantity": l.quantity, "unit_price_provisional": str(l.unit_price_provisional)} for l in order.lines.all()],
+            "lines": [{"name": l.name_snapshot, "sku": l.sku_snapshot,
+                       "variant_label": l.variant_snapshot,
+                       "quantity": l.quantity, "unit_price_provisional": str(l.unit_price_provisional)}
+                      for l in order.lines.all()],
             "notice": "Demo order — no charge or delivery initiated"}
 
 

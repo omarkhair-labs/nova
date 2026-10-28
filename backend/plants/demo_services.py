@@ -250,11 +250,18 @@ def support_reply(user, ticket_id, body, client_id, staff=False):
 def product_json(product):
     return {"id": str(product.pk), "name": product.name, "description": product.description,
             "kind": product.kind, "price": str(product.proposed_price), "currency": product.currency,
-            "qa_stock": product.qa_stock, "has_image": bool(product.image), "qa_only": True}
+            "qa_stock": product.qa_stock, "has_image": bool(product.image),
+            "image_description": product.image_description,
+            "sku": product.sku, "family_key": product.family_key,
+            "variant_label": product.variant_label,
+            "photos": [{"id": str(photo.pk), "alt_text": photo.alt_text}
+                       for photo in product.gallery.all() if photo.image],
+            "qa_only": True}
 
 
 def cart_json(user):
-    lines = list(DemoCartLine.objects.filter(customer=user).select_related("product").order_by("product_id"))
+    lines = list(DemoCartLine.objects.filter(customer=user)
+        .select_related("product").prefetch_related("product__gallery").order_by("product_id"))
     state = [{"product_id": str(l.product_id), "quantity": l.quantity,
               "price": str(l.product.proposed_price), "active": l.product.active} for l in lines]
     return {"results": [{"product": product_json(l.product), "quantity": l.quantity} for l in lines],
@@ -287,6 +294,7 @@ def checkout(user, data):
             product.qa_stock -= line.quantity
             product.save(update_fields=("qa_stock",))
             DemoOrderLine.objects.create(order=order, product=product, name_snapshot=product.name,
+                sku_snapshot=product.sku, variant_snapshot=product.variant_label,
                 kind_snapshot=product.kind, unit_price_provisional=product.proposed_price, quantity=line.quantity)
         DemoCartLine.objects.filter(customer=user).delete()
         company.audit(user, order, "CEO QA: noncommercial order persisted; no payment or delivery")
