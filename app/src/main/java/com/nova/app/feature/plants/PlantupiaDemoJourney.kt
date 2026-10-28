@@ -172,14 +172,12 @@ internal fun PlantupiaDemoHome(repository: PlantupiaRepository, plants: List<Pla
             is ApiResult.Failure -> if (repository.isCurrentSession() && result.statusCode != 404) message = "Inspection plans couldn't load. Retry when connected."
         }
     }
-    if (available) {
+    val optedIn = plans.filter { it.optBoolean("enabled") && it.optBoolean("valid") }
+    // No ornamental "no plans" panel when an owner simply wants today's work.
+    // Still surface actual approved actions and pending QA mutation retries.
+    if (available && (optedIn.isNotEmpty() || pending.isNotEmpty())) {
         DemoCard {
             Text("APPROVED INSPECTIONS", style = PlantupiaText.sectionLabel)
-            val optedIn = plans.filter { it.optBoolean("enabled") && it.optBoolean("valid") }
-            if (optedIn.isEmpty()) {
-                Text("No inspection plan is active. Care proposals stay optional.", style = PlantupiaText.supporting)
-                TextButton(onClick = { NovaRootNavigationSignal.request(NovaRootTab.Plants) }) { Text("Review your plants →") }
-            }
             optedIn.sortedBy { it.getString("next_due_on") }.take(4).forEach { plan ->
                 TextButton(onClick = { plants.firstOrNull { it.id == plan.getString("plant_id") }?.let(onOpenPlant) }) {
                     Text("${if (plan.optBoolean("due")) "Due · " else "Next · "}${plan.getString("plant_name")} · ${plan.getString("action")} · ${plan.getString("next_due_on")}")
