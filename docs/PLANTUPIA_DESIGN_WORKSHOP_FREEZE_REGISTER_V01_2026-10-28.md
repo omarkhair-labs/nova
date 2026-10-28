@@ -99,3 +99,17 @@ The full structured source is `PLANTUPIA_DESIGN_MASTER_v01.md` in the owner pack
 ### Change record
 
 - v0.1, 2026-10-28: initial comprehensive living map / review board, no implementation freeze.
+
+## 10. Final native technical checkpoint — verified 2026-10-28
+
+**GitHub verified:** draft PR #241 head `9eb039d2d879b43c0e418fe90b8db4580930f45f`. Workflow `40663078245` has `status=completed` and `conclusion=success`; its Android build and Backend tests jobs each concluded successfully.
+
+**Codex delivery report (owner-provided, not a separate independent retest):** 453 backend tests, 450 local Android tests, release lint, 20 architecture guards, completed APK/AAB builds. Reported emulator/device-sized checks: 320/390/430/800dp, 2x text, platform keyboard, private routing, interrupted saves and revocation. Report says evidence gallery contains 65 verified captures; individual files and captures have not all been independently inspected in this design workshop.
+
+**Exact artifact distinction:** GH Actions run `40663078245` produced `plantupia-qa-pr241-apk` (hosted-preview QA), `plantupia-pr241-physical-phone-usb-localhost-apk` (requires connected local backend plus ADB reverse), and `plantupia-pr241-local-emulator-only-apk`. The owner's Codex delivery message links to a Windows-local USB APK, bundle and Markdown report. A Windows `C:\\Users\\...` path is not an accessible public download URL.
+
+**Not completed by successful CI:** physical Samsung acceptance of the *final exact commit*, real Firebase push delivery, live configured AI provider conversation, approved and licensed catalogue photographs, persistent hosted media, payment and commercial fulfilment, and owner approval of redesigned 28 screen states.
+
+**Design baseline decision:** use `9eb039d` for all forthcoming code-to-wireframe gap comparisons. PR #247 remains a separate import draft; PR #248 is a provisional style draft; PR #249 documents design only. No cherry-pick/merge/redeploy until screen decisions and integration tests are explicitly approved.
+
+**Next design review:** S06 Plant Detail (first viewport, care/AI/team positioning, history/Community/Settings) → Today/My Plants → Shop/Cart/Orders/Handover → Membership → Circle/Nova Messaging. Capture exact original-device evidence and approved frame IDs before issuing implementation instructions.
