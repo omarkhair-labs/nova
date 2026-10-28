@@ -240,7 +240,7 @@ internal fun PlantupiaInspectionPanel(plant: PlantupiaPlant, repository: Plantup
                 if (!plan.optBoolean("valid")) Text("Paused: the source, identity or approval is no longer current. No inspection can be recorded from this proposal.")
                 else {
                     Text(plan.getString("instructions"))
-                    Text("Every ${plan.getInt("every_days")} day(s) · ${plan.getString("timezone")} · guide v${plan.getInt("guide_version")} · reviewed by ${plan.getString("reviewer")}", fontSize = 11.sp)
+                    Text("Reviewed care guide · check every ${plan.getInt("every_days")} days", style = PlantupiaText.supporting)
                     if (plant.canRecord) {
                         if (!plan.optBoolean("enabled")) Button(enabled = !busy, onClick = { act("opt_in") }) { Text("Opt into this inspection plan") }
                         else {
