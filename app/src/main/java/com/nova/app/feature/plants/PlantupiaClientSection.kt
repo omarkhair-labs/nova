@@ -1680,7 +1680,18 @@ private fun PlantupiaAccountClientSection(
                     ) { Text(if (saving) "Saving outcome…" else "Save outcome and close check-in", color = white) }
                 }
             }
-            BrandEyebrow("LIVING HISTORY")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                BrandEyebrow(if (showFullHistory) "LIVING HISTORY" else "RECENT ACTIVITY")
+                if (!detailLoading && !historyLoadFailed && events.isNotEmpty()) {
+                    TextButton(onClick = { showFullHistory = !showFullHistory }) {
+                        Text(if (showFullHistory) "Show recent only ↑" else "See all history →", color = deepGreen)
+                    }
+                }
+            }
             when (plantupiaHistoryDisplayState(
                 loading = detailLoading || historyRetryLoading,
                 failed = historyLoadFailed,
@@ -1757,8 +1768,12 @@ private fun PlantupiaAccountClientSection(
                 }
             }
             PlantupiaHistoryDisplayState.RECORDED -> {
-                Text("${events.size} recorded moments · actual observations, not automatic health scores", color = muted, fontSize = 12.sp)
-                PlantupiaPhotoIndex(
+                Text(
+                    if (showFullHistory) "Your saved observations, care and follow-ups"
+                    else "Your latest saved observations and care",
+                    color = muted, fontSize = 12.sp,
+                )
+                if (showFullHistory) PlantupiaPhotoIndex(
                     events = events,
                     hasOlderPages = nextHistoryOffset != null,
                     onOpenPhoto = { photo ->
@@ -1768,7 +1783,7 @@ private fun PlantupiaAccountClientSection(
             }
             }
             val historyReady = !detailLoading && !historyRetryLoading && !historyLoadFailed
-            if (historyReady && events.isNotEmpty()) {
+            if (showFullHistory && historyReady && events.isNotEmpty()) {
                 Text(
                     "EXPLORE HISTORY",
                     color = muted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
@@ -1792,11 +1807,15 @@ private fun PlantupiaAccountClientSection(
                 }
             }
             val visibleHistory = if (historyReady) {
-                filteredPlantupiaHistory(events, historyFilter)
+                val matching = filteredPlantupiaHistory(
+                    events,
+                    if (showFullHistory) historyFilter else PlantupiaHistoryFilter.ALL,
+                )
+                if (showFullHistory) matching else matching.take(2)
             } else {
                 emptyList()
             }
-            if (historyReady && events.isNotEmpty() && visibleHistory.isEmpty()) {
+            if (showFullHistory && historyReady && events.isNotEmpty() && visibleHistory.isEmpty()) {
                 Text(
                     "No ${historyFilter.label.lowercase()} in the loaded history. " +
                         "Load older moments to explore earlier records.",
@@ -1816,7 +1835,7 @@ private fun PlantupiaAccountClientSection(
                     },
                 )
             }
-            if (historyReady && nextHistoryOffset != null) {
+            if (showFullHistory && historyReady && nextHistoryOffset != null) {
                 OutlinedButton(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !olderEventsLoading,
