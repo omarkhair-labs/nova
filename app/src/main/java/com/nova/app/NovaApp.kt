@@ -1036,6 +1036,7 @@ fun NovaApp(
                 accountId = appState.currentUser?.id,
                 accountName = appState.currentUser?.username.orEmpty(),
                 onClose = { showHandover = false },
+                onOwnPlants = { showHandover = false; openRoot(NovaRootTab.Plants) },
                 onLogin = { showHandover = false; authError = null; backStack.add(NovaRoute.Login) },
                 onRegister = { showHandover = false; authError = null; backStack.add(NovaRoute.CreateAccount) },
                 onConnected = { spaceId ->
