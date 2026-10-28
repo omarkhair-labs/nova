@@ -393,6 +393,7 @@ internal fun PlantupiaQaShop(
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
     val selected = products.firstOrNull { it.optString("id") == selectedId }
     var linkedOrder by remember { mutableStateOf<JSONObject?>(null) }
+    var detailOrderId by rememberSaveable { mutableStateOf<String?>(null) }
     var quantity by rememberSaveable { mutableIntStateOf(1) }
     var cart by remember { mutableStateOf<JSONObject?>(null) }
     var orders by remember { mutableStateOf(emptyList<JSONObject>()) }
@@ -425,11 +426,20 @@ internal fun PlantupiaQaShop(
     }
     LaunchedEffect(refresh, screen) {
         error = null
-        val path = when (screen) { "cart", "review" -> "cart/"; "orders" -> "demo/orders/"; else -> "catalog/" }
+        val path = when (screen) {
+            "cart", "review" -> "cart/"
+            "orders" -> "demo/orders/"
+            "order-detail" -> detailOrderId?.let { "demo/orders/$it/" } ?: "demo/orders/"
+            else -> "catalog/"
+        }
         when (val result = repository.demoGet(path)) {
             is ApiResult.Success -> if (repository.isCurrentSession()) when (screen) {
                 "cart", "review" -> { cart = result.value; confirmed = false }
                 "orders" -> orders = result.value.demoRows()
+                "order-detail" -> {
+                    if (result.value.has("lines")) linkedOrder = result.value
+                    else orders = result.value.demoRows()
+                }
                 else -> products = result.value.demoRows()
             }
             is ApiResult.Failure -> if (repository.isCurrentSession()) error = result.message
@@ -438,6 +448,7 @@ internal fun PlantupiaQaShop(
     androidx.activity.compose.BackHandler(enabled = fullPage && (selectedId != null || screen != "catalog")) {
         if (selectedId != null) selectedId = null
         else if (screen == "review") { confirmed = false; screen = "cart" }
+        else if (screen == "order-detail") { detailOrderId = null; screen = "orders" }
         else screen = "catalog"
     }
     val ordersAccount = PlantupiaShopOpenSignal.ordersAccount
@@ -457,7 +468,8 @@ internal fun PlantupiaQaShop(
         scope.launch {
         when (val result = repository.demoGet("demo/orders/${target.second}/")) {
             is ApiResult.Success -> if (repository.isCurrentSession()) {
-                linkedOrder = result.value; selectedId = null; screen = "orders"; refresh++
+                linkedOrder = result.value; selectedId = null
+                detailOrderId = target.second; screen = "order-detail"; refresh++
             }
             is ApiResult.Failure -> if (repository.isCurrentSession()) error = "This order is unavailable for the current account."
         }
@@ -479,6 +491,7 @@ internal fun PlantupiaQaShop(
                             screen == "cart" -> "Your cart"
                             screen == "review" -> "Review your order"
                             screen == "orders" -> "Your orders"
+                            screen == "order-detail" -> "Order details"
                             else -> "Plants & essentials"
                         },
                         style = PlantupiaText.editorialHeading,
@@ -531,6 +544,9 @@ internal fun PlantupiaQaShop(
                                         fontWeight = FontWeight.SemiBold,
                                         color = demoForest,
                                     )
+                                    if (product.optString("variant_label").isNotBlank()) {
+                                        Text(product.optString("variant_label"), style = PlantupiaText.supporting)
+                                    }
                                     Text("${product.getString("currency")} ${product.getString("price")}", color = demoForest)
                                     if (screen == "review") {
                                         Text("Quantity: ${qty}", style = PlantupiaText.supporting)
@@ -580,6 +596,49 @@ internal fun PlantupiaQaShop(
                         }
                     }
                 }
+                "order-detail" -> {
+                    val detail = (orders + listOfNotNull(linkedOrder))
+                        .firstOrNull { it.optString("id") == detailOrderId }
+                    if (detail == null) Text("Loading order details…", style = PlantupiaText.supporting)
+                    else {
+                        Text("Order " + detail.optString("id").take(8),
+                            style = PlantupiaText.editorialHeading)
+                        Text("Submitted · " + detail.optString("created_at").take(10),
+                            style = PlantupiaText.supporting)
+                        val prepared = detail.optString("status") == "draft_prepared"
+                        DemoCard {
+                            Text(if (prepared) "A staff draft has been prepared"
+                                else "Your preview request was received",
+                                color = demoForest, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                if (prepared)
+                                    "A draft is not a delivered plant. The team still must verify real plants, approve installation and issue a recipient-bound handover."
+                                else "The team may review this QA request. No delivery or installation has started.",
+                                style = PlantupiaText.supporting,
+                            )
+                        }
+                        Text("Selected items", style = PlantupiaText.sectionLabel)
+                        detail.demoRows("lines").forEach { item ->
+                            DemoCard {
+                                Text(item.optString("name").removePrefix("FICTIONAL QA · "),
+                                    fontWeight = FontWeight.SemiBold)
+                                if (item.optString("variant_label").isNotBlank()) Text(
+                                    "Option: " + item.optString("variant_label"), style = PlantupiaText.supporting)
+                                if (item.optString("sku").isNotBlank()) Text(
+                                    "SKU: " + item.optString("sku"), style = PlantupiaText.supporting)
+                                Text("${item.getInt("quantity")} × EGP ${item.optString("unit_price_provisional")}",
+                                    style = PlantupiaText.body)
+                            }
+                        }
+                        Text("Concept total · EGP " + detail.optString("total_provisional"),
+                            style = PlantupiaText.editorialHeading)
+                        Text("No payment or physical delivery has been initiated.",
+                            style = PlantupiaText.supporting)
+                        TextButton(onClick = { detailOrderId = null; screen = "orders" }) {
+                            Text("Back to all orders", color = demoForest)
+                        }
+                    }
+                }
                 "orders" -> {
                     receipt?.let { Text("Preview order received · " + it.take(8), fontWeight = FontWeight.SemiBold, color = demoForest) }
                     if (orders.isEmpty()) Text("No orders yet.", style = PlantupiaText.supporting)
@@ -596,6 +655,10 @@ internal fun PlantupiaQaShop(
                         }
                         Text("Total · EGP ${order.getString("total_provisional")}", color = demoForest)
                         Text("No payment or delivery was initiated.", style = PlantupiaText.supporting)
+                        TextButton(onClick = {
+                            detailOrderId = order.getString("id")
+                            screen = "order-detail"
+                        }) { Text("View order details →", color = demoForest) }
                     } }
                 }
                 else -> {
