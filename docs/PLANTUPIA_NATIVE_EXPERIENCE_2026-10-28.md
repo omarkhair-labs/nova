@@ -28,6 +28,11 @@ support retain their existing engines and appropriate context.
 | Social Activity implicitly marked unseen updates read | Explicit individual/all read actions, preserving other unread categories and the existing pagination/auth contracts. |
 | Order preparation had no customer update | One deduplicated notice for an actual staff DRAFT conversion; no alert for one's own checkout, fake shipment or delivery. |
 | Notification settings omitted private categories | Add Team/QA-order push preferences to the existing preferences API. Messages preference still also gates team alerts. |
+| The five-root change had made the actual social feed unreachable | Circle's Shared moments opens the existing authenticated feed/posts/stories owner; its contextual back action returns to Circle. |
+| Consuming a one-shot plant/ticket/order hint cancelled its own awaited operation | Launch the authorized operation in the destination's lifetime scope after consuming the hint; account/generation checks still gate every result. A real emulator ticket-open failure reproduced this before the fix. |
+| General AI questions discarded prior dialogue unless private context was selected | Retain bounded general conversation; exclude prior context-bearing questions and answers without renewed per-question consent. |
+| Changing plant or recording a separate inspection could erase a care draft | Confirm discarding before opening another plant; reload records after inspections/outcomes while retaining the separate observation draft. |
+| Today check-in heading crowded its status on 320dp | Stack the editorial heading and actual due status; preserve full readable text. |
 
 The existing global Nova palette is already Plantupia's forest/cream/sage palette.
 It is preserved. Shared account headers, conversation surfaces, editorial roles,
@@ -61,8 +66,8 @@ seeding, deployments, Play publication or merges against production as a side ef
 ## Verification contract
 
 The focused starting regression suite passed 53 tests (four SQLite-only skips).
-After adding notification contracts, 68 focused backend tests passed (four SQLite
-skips). The initial navigation and integrated conversation/notification code passed
+After adding notification contracts, the 68-test focused backend run succeeded
+(64 passed, four PostgreSQL-only checks skipped on SQLite). The initial navigation and integrated conversation/notification code passed
 Android compilation and JVM tests. These are intermediate results, not final-head
 or visual acceptance. Final results belong in the delivery evidence.
 
@@ -82,3 +87,31 @@ Profile/Settings; back, relaunch, keyboard and 320/390/430dp/tablet/large text.
 No live payment, shipping, botanical diagnosis, staff response SLA, real specimen
 photo or provider response may be invented. Local UI/HTTP evidence, exact-head CI,
 real device/FCM/live-model evidence and owner acceptance must be reported separately.
+
+Checkpoint `77856e76f3c85ae97e0bedbb4032ab942891c531` passed all 453 backend
+tests against CI PostgreSQL/Redis, Android unit tests, release lint, all architecture
+guards, debug/QA/release APK and release AAB builds in
+[run 40649571941](https://github.com/omarkhair-labs/nova/actions/runs/40649571941).
+Later fixes require their own successful final-head CI; this checkpoint is not a
+substitute for that evidence.
+
+Local Android integration uses the actual disposable Django server and actual
+staff/customer/stranger credentials supplied outside Git. The new test class covers
+tab/draft/activity restoration, real Circle/Profile/Settings, private support open
+intents, categorized notices, unavailable AI without history writes, no-charge
+checkout and order reopening, account isolation and manual first-plant creation.
+The interrupted-save case requires an explicit `offline=owned-local` argument and
+host marker coordination; it never disables the device's or host's network.
+The revocation case runs only after a real local staff revocation. Preconditions
+that are not satisfied are skips, not proof of a successful flow.
+
+An owned headless AVD initially displayed an Android **System UI** ANR after cold
+boot. The local fixture helper may select Wait on that exact OS dialog. It does
+not suppress application ANRs. Emulator cold boot on this host and physical-device
+startup remain distinct acceptance gates. Native screenshots are captured after
+Compose idle and native frame presentation, not inferred from test selectors.
+
+The conversation PDF mentioned in the handoff was not delivered as an accessible
+file or link. Only the supplied text attachment was available. No contents of that
+missing historical PDF have been inferred; repository contracts and current owner
+instructions govern this change.

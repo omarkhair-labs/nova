@@ -97,6 +97,7 @@ fun OrbitScreen(
     avatarUrl: String,
     userId: Long = 0L,
     avatarVariant: Int = -1,
+    onSharedMoments: () -> Unit = {},
     onPersonClick: (String) -> Unit,
     onPostClick: (Long) -> Unit,
     onDiscoveryClick: () -> Unit,
@@ -155,7 +156,10 @@ fun OrbitScreen(
                     com.nova.app.feature.plants.PlantupiaAccountHeader(displayName, username, avatarUrl, userId, avatarVariant, onProfileClick)
                     Text("Circle", style = com.nova.app.feature.plants.PlantupiaText.pageHeading)
                     Text("Questions, people and shared experience.", style = com.nova.app.feature.plants.PlantupiaText.supporting)
-                    androidx.compose.material3.TextButton(onClick = onDiscoveryClick) { Text("Explore people") }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        androidx.compose.material3.TextButton(onClick = onSharedMoments, modifier = Modifier.weight(1f)) { Text("Shared moments") }
+                        androidx.compose.material3.TextButton(onClick = onDiscoveryClick, modifier = Modifier.weight(1f)) { Text("Explore people") }
+                    }
                 }
             }
 

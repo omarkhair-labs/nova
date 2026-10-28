@@ -16,7 +16,7 @@ object PlantupiaSupportPushSignal {
         private set
 
     fun offer(accountId: Long, ticketId: String, plantId: String) {
-        if (accountId <= 0 || ticketId.isBlank() || plantId.isBlank()) return
+        if (accountId <= 0 || runCatching { java.util.UUID.fromString(ticketId); java.util.UUID.fromString(plantId) }.isFailure) return
         target = PlantupiaSupportPushTarget(accountId, ticketId, plantId)
     }
 

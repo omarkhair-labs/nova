@@ -73,7 +73,7 @@ internal fun PlantupiaDemoAccessGate(
     val allowed = access?.optBoolean(if (human) "human_access" else "entitled") == true
     if (allowed) {
         Text("Preview access active · no payment", fontSize = 11.sp, color = demoForest)
-        if (!human && access?.optBoolean("ai_configured") != true) Text("The AI provider is not configured on this QA server. No model response is available. Your free care guide and history still work.", fontWeight = FontWeight.SemiBold)
+        if (!human && access?.optBoolean("ai_configured") != true) Text("AI is unavailable in this preview.", style = PlantupiaText.supporting)
         content { access = null; refresh++ }
     } else {
         Column(paywallModifier.then(if (scrollPaywall) Modifier.verticalScroll(rememberScrollState()) else Modifier), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -158,14 +158,14 @@ internal fun PlantupiaDemoAccessGate(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun PlantupiaDemoHome(repository: PlantupiaRepository, plants: List<PlantupiaPlant>, onOpenPlant: (PlantupiaPlant) -> Unit) {
+internal fun PlantupiaDemoHome(repository: PlantupiaRepository, plants: List<PlantupiaPlant>, refreshVersion: Int = 0, onOpenPlant: (PlantupiaPlant) -> Unit) {
     var plans by remember { mutableStateOf(emptyList<JSONObject>()) }
     var available by remember { mutableStateOf(false) }
     var pending by remember { mutableStateOf(emptyList<JSONObject>()) }
     var message by remember { mutableStateOf<String?>(null) }
     var refresh by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
-    LaunchedEffect(refresh) {
+    LaunchedEffect(refresh, refreshVersion) {
         pending = repository.pendingDemoMutations()
         when (val result = repository.demoGet("care-plans/")) {
             is ApiResult.Success -> if (repository.isCurrentSession()) { available = true; plans = result.value.demoRows() }
@@ -426,11 +426,13 @@ internal fun PlantupiaQaShop(
         val target = orderTarget ?: return@LaunchedEffect
         if (target.first != accountId) return@LaunchedEffect
         PlantupiaShopOpenSignal.consume()
+        scope.launch {
         when (val result = repository.demoGet("demo/orders/${target.second}/")) {
             is ApiResult.Success -> if (repository.isCurrentSession()) {
                 linkedOrder = result.value; selectedId = null; screen = "orders"; refresh++
             }
             is ApiResult.Failure -> if (repository.isCurrentSession()) error = "This order is unavailable for the current account."
+        }
         }
     }
     val shopContent: @Composable () -> Unit = {
@@ -508,7 +510,12 @@ internal fun PlantupiaQaShop(
                     if (orders.isEmpty()) Text("No orders yet.", style = PlantupiaText.supporting)
                     (orders + listOfNotNull(linkedOrder)).distinctBy { it.getString("id") }.forEach { order -> DemoCard {
                         Text("Order " + order.getString("id").take(8), fontWeight = FontWeight.SemiBold)
-                        Text("${order.getString("status")} · ${order.getString("created_at").take(10)}", style = PlantupiaText.supporting)
+                        val statusLabel = when (order.getString("status")) {
+                            "draft_prepared" -> "Draft prepared · awaiting review"
+                            "qa_requested" -> "Preview request received"
+                            else -> "Status unavailable"
+                        }
+                        Text("$statusLabel · ${order.getString("created_at").take(10)}", style = PlantupiaText.supporting)
                         order.demoRows("lines").forEach { line -> Text("${line.getInt("quantity")} × ${line.getString("name")}") }
                         Text("EGP ${order.getString("total_provisional")} · charged: no", color = demoForest)
                         Text("No payment or delivery was initiated.", style = PlantupiaText.supporting)
@@ -537,7 +544,7 @@ internal fun PlantupiaQaShop(
                         }
                         val visible = products.filter { category == "all" || it.optString("kind") == category }
                         if (visible.isEmpty()) Text(
-                            if (products.isEmpty()) "Products coming soon." else "Nothing in this category yet.",
+                            if (products.isEmpty()) "No active QA products." else "Nothing in this category yet.",
                             style = PlantupiaText.supporting,
                         )
                         visible.chunked(2).forEach { group ->
@@ -616,7 +623,7 @@ internal fun PlantupiaQaShop(
             }
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             error?.let { Text(if (it.contains("nonstaff customer account", ignoreCase = true)) "Switch to a customer account to shop." else it, color = MaterialTheme.colorScheme.error); TextButton(onClick = { refresh++ }) { Text("Retry") } }
-            TextButton(onClick = onDismiss) { Text("Back to My Space") }
+            TextButton(onClick = onDismiss) { Text("Back to Plants") }
             Spacer(Modifier.height(24.dp))
         }
     }

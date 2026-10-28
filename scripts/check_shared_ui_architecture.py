@@ -272,7 +272,7 @@ for seam in (
     "HomeIdentityHeader(",
     "PlantupiaColors.cream",
     "PlantupiaShapes.inset",
-    "THE CIRCLE",
+    "communityOnly",
     "NovaLoadingState(",
     "NovaErrorState(",
     "NovaEmptyState(",

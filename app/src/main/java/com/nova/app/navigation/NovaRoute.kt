@@ -12,6 +12,7 @@ sealed interface NovaRoute : java.io.Serializable {
     data object Shop : NovaRoute
     data object Activity : NovaRoute
     data object Orbit : NovaRoute
+    data object CircleFeed : NovaRoute
     data object Create : NovaRoute
     data object Pulse : NovaRoute
     data object Tonight : NovaRoute

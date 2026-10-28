@@ -48,11 +48,7 @@ internal fun PlantupiaTodayPanel(
     var visible by rememberSaveable { mutableIntStateOf(3) }
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("Your check-ins", style = PlantupiaText.editorialHeading)
             Text(
                 if (due.isEmpty()) "NO DUE CHECK-INS" else "${due.size} TO CHECK",

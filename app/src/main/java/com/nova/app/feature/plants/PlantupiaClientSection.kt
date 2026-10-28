@@ -103,9 +103,10 @@ fun PlantupiaClientSection(
     onOpenPlant: () -> Unit = {},
     section: PlantupiaPrimarySection = PlantupiaPrimarySection.TODAY,
     onClosePlant: () -> Unit = {},
+    refreshVersion: Int = 0,
 ) {
     key(accountId, section) {
-        PlantupiaAccountClientSection(accountId, onCommunityCreateClick, onOpenLinkedPost, onOpenPlant, section, onClosePlant)
+        PlantupiaAccountClientSection(accountId, onCommunityCreateClick, onOpenLinkedPost, onOpenPlant, section, onClosePlant, refreshVersion)
     }
 }
 
@@ -117,6 +118,7 @@ private fun PlantupiaAccountClientSection(
     onOpenPlant: () -> Unit = {},
     section: PlantupiaPrimarySection,
     onClosePlant: () -> Unit,
+    refreshVersion: Int,
 ) {
     val context = LocalContext.current
     val repository = remember(context) { PlantupiaRepository(context.applicationContext) }
@@ -194,6 +196,8 @@ private fun PlantupiaAccountClientSection(
     var historyLoadFailed by remember(currentPlantId) { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     var confirmDiscard by remember { mutableStateOf(false) }
+    var pendingPlantAfterDiscard by remember { mutableStateOf<String?>(null) }
+    var pendingTicketAfterDiscard by remember { mutableStateOf<String?>(null) }
     var plantName by remember { mutableStateOf("") }
     var note by rememberSaveable { mutableStateOf("") }
     var selectedCareAction by rememberSaveable { mutableStateOf<PlantupiaCareAction?>(null) }
@@ -251,6 +255,12 @@ private fun PlantupiaAccountClientSection(
         if (!lifetime.isCurrent()) return
         if (section == PlantupiaPrimarySection.TODAY) {
             PlantupiaPlantOpenSignal.open(accountId, plant.id)
+            return
+        }
+        if (currentPlantId != null && (note.isNotBlank() || carePhotoUri != null || selectedCareAction != null)) {
+            if (currentPlantId == plant.id && PlantupiaCreateIntent.pending == null) return
+            pendingPlantAfterDiscard = plant.id
+            confirmDiscard = true
             return
         }
         if (PlantupiaCreateIntent.pending.needsPlantSelection() &&
@@ -373,6 +383,7 @@ private fun PlantupiaAccountClientSection(
                 onSuccess = { eventId ->
                     repository.confirmSubmission(plant.id, "event", eventId)
                     if (!current()) return@runPlantupiaMutation
+                    note = ""; carePhotoUri = null; selectedCareAction = null; showCareEditor = false
                     val reloadGeneration = detailRequestGeneration + 1
                     openPlant(plant)
                     if (isCurrentRequest(plant.id, reloadGeneration) && !reminderScheduled) {
@@ -411,15 +422,23 @@ private fun PlantupiaAccountClientSection(
     }
 
     fun requestClosePlant() {
-        if (showCareEditor && (note.isNotBlank() || carePhotoUri != null || selectedCareAction != null)) confirmDiscard = true
+        if (note.isNotBlank() || carePhotoUri != null || selectedCareAction != null) confirmDiscard = true
         else closePlant()
     }
 
-    if (confirmDiscard) AlertDialog(onDismissRequest = { confirmDiscard = false },
-        title = { Text("Leave this draft?") },
+    if (confirmDiscard) AlertDialog(onDismissRequest = { confirmDiscard = false; pendingPlantAfterDiscard = null; pendingTicketAfterDiscard = null },
+        title = { Text(if (pendingPlantAfterDiscard == null) "Leave this draft?" else "Open another plant?") },
         text = { Text("Your unsaved care text or photo will be discarded. Saved records and pending retries stay intact.") },
-        confirmButton = { TextButton(onClick = { confirmDiscard = false; note = ""; carePhotoUri = null; selectedCareAction = null; showCareEditor = false; closePlant() }) { Text("Discard draft") } },
-        dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text("Keep editing") } })
+        confirmButton = { TextButton(onClick = {
+            val next = pendingPlantAfterDiscard
+            val ticket = pendingTicketAfterDiscard
+            confirmDiscard = false; pendingPlantAfterDiscard = null; pendingTicketAfterDiscard = null; note = ""; carePhotoUri = null; selectedCareAction = null; showCareEditor = false
+            if (next == null) closePlant() else scope.launch {
+                plants.firstOrNull { it.id == next }?.let { openPlant(it) }
+                if (ticket != null && lifetime.isCurrent() && currentPlantId == next) { supportTicketId = ticket; showTeam = true }
+            }
+        }) { Text("Discard draft") } },
+        dismissButton = { TextButton(onClick = { confirmDiscard = false; pendingPlantAfterDiscard = null; pendingTicketAfterDiscard = null }) { Text("Keep editing") } })
 
     BackHandler(enabled = selectedPlant != null) {
         // The first Android Back returns to the customer's living space,
@@ -439,7 +458,7 @@ private fun PlantupiaAccountClientSection(
         }
     }
     val handoverTarget = PlantupiaHandoverNavigation.target
-    LaunchedEffect(handoverTarget) {
+    LaunchedEffect(handoverTarget, refreshVersion) {
         refresh()
     }
     val supportPush = PlantupiaSupportPushSignal.target
@@ -448,14 +467,14 @@ private fun PlantupiaAccountClientSection(
         val requested = plantOpen ?: return@LaunchedEffect
         if (section != PlantupiaPrimarySection.PLANTS || loading || error != null) return@LaunchedEffect
         PlantupiaPlantOpenSignal.consume()
-        if (requested.first == accountId) plants.firstOrNull { it.id == requested.second }?.let { openPlant(it) }
+        if (requested.first == accountId) plants.firstOrNull { it.id == requested.second }?.let { plant -> scope.launch { openPlant(plant) } }
     }
     var restoredDetailId by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(loading, currentPlantId) {
         val id = currentPlantId ?: return@LaunchedEffect
         if (!loading && !detailLoading && restoredDetailId != id && selectedPlant != null) {
             restoredDetailId = id
-            reloadPlantRecords(id)
+            scope.launch { reloadPlantRecords(id) }
         }
     }
     LaunchedEffect(supportPush, plants, loading) {
@@ -463,16 +482,20 @@ private fun PlantupiaAccountClientSection(
         if (section != PlantupiaPrimarySection.PLANTS || push.accountId != accountId || loading || error != null) return@LaunchedEffect
         val plant = plants.firstOrNull { it.id == push.plantId } ?: return@LaunchedEffect
         PlantupiaSupportPushSignal.consume()
-        openPlant(plant)
-        if (lifetime.isCurrent()) {
-            supportTicketId = push.ticketId
-            showTeam = true
+        scope.launch {
+            if (currentPlantId != plant.id) openPlant(plant)
+            if (confirmDiscard) {
+                pendingTicketAfterDiscard = push.ticketId
+            } else if (lifetime.isCurrent() && currentPlantId == plant.id) {
+                supportTicketId = push.ticketId
+                showTeam = true
+            }
         }
     }
     LaunchedEffect(PlantupiaCreateIntent.pending, plants, loading) {
         if (section == PlantupiaPrimarySection.PLANTS && !loading && error == null && PlantupiaCreateIntent.pending.needsPlantSelection()) {
             val available = actionablePlantChoices(plants)
-            if (available.size == 1) openPlant(available.first())
+            if (available.size == 1) scope.launch { openPlant(available.first()) }
         }
     }
     LaunchedEffect(spaces, loading, error, handoverTarget) {
@@ -564,7 +587,7 @@ private fun PlantupiaAccountClientSection(
                     plants = plants,
                     onOpenPlant = { plant -> scope.launch { openPlant(plant) } },
                 )
-                PlantupiaDemoHome(repository, plants, onOpenPlant = { plant -> scope.launch { openPlant(plant) } })
+                PlantupiaDemoHome(repository, plants, refreshVersion = refreshVersion, onOpenPlant = { plant -> scope.launch { openPlant(plant) } })
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(9.dp),
@@ -903,7 +926,7 @@ private fun PlantupiaAccountClientSection(
                 Text("Archived · history is read-only", color = muted, fontSize = 12.sp)
             }
             PlantupiaCareGuidePanel(selectedPlant.id, repository)
-            PlantupiaInspectionPanel(selectedPlant, repository, onRecorded = { scope.launch { openPlant(selectedPlant) } })
+            PlantupiaInspectionPanel(selectedPlant, repository, onRecorded = { scope.launch { reloadPlantRecords(selectedPlant.id) } })
 
             pendingPrivateSaves.filter { it.plant == selectedPlant.id }.forEach { pending ->
                 PlantupiaPanel {
@@ -1307,7 +1330,8 @@ private fun PlantupiaAccountClientSection(
                                                 },
                                                 onSuccess = {
                                                     val reloadGeneration = detailRequestGeneration + 1
-                                                    openPlant(selectedPlant)
+                                                    movingCheckIn = null
+                                                    reloadPlantRecords(selectedPlant.id)
                                                     if (isCurrentRequest(selectedPlant.id, reloadGeneration) && !reminderScheduled) {
                                                         error = "Check-in date was saved, but the local reminder could not be moved."
                                                     }
@@ -1419,7 +1443,11 @@ private fun PlantupiaAccountClientSection(
                                     onCommitted = { PlantupiaCareReminderScheduler.cancel(context, source.id) },
                                     onSuccess = { eventId ->
                                         repository.confirmSubmission(selectedPlant.id, "outcome-${source.id}", eventId)
-                                        if (isCurrentRequest(selectedPlant.id, generation)) openPlant(selectedPlant)
+                                        if (isCurrentRequest(selectedPlant.id, generation)) {
+                                            followUpTarget = null
+                                            followUpResult = ""
+                                            reloadPlantRecords(selectedPlant.id)
+                                        }
                                     },
                                     onFailure = { error = it.message },
                                     onFinished = { saving = false },

@@ -22,6 +22,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -69,6 +71,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(
+    communityOnly: Boolean = false,
     displayName: String,
     username: String,
     avatarUrl: String,
@@ -113,19 +116,13 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val firstName = displayName.trim().substringBefore(' ').ifBlank { username }
+    var careRefreshVersion by rememberSaveable { mutableIntStateOf(0) }
 
     // Route on-demand creation back to the real living record, never a
     // generic disconnected Nova post composer.
-    LaunchedEffect(PlantupiaCreateIntent.pending) {
-        if (PlantupiaCreateIntent.pending != null) {
-            // Publishing-status is an optional item before the living space.
-            // Never land on that item when coming from "record" or "ask".
-            listState.animateScrollToItem(if (publishingItems.isEmpty()) 1 else 2)
-        }
-    }
 
     var showActivity by remember { mutableStateOf(false) }
-    var showCommunityFeed by remember { mutableStateOf(false) }
+    val showCommunityFeed = communityOnly
     var notificationUnreadCount by remember { mutableStateOf(0) }
 
     fun refreshUnreadCount() {
@@ -234,7 +231,7 @@ fun HomeScreen(
         containerColor = PlantupiaColors.cream,
         bottomBar = {
             NovaBottomBar(
-                selected = NovaTab.Home,
+                selected = if (communityOnly) NovaTab.Orbit else NovaTab.Home,
                 onHomeClick = {},
                 onOrbitClick = onOrbitClick,
                 onCreateClick = onCreateClick,
@@ -246,6 +243,7 @@ fun HomeScreen(
             isRefreshing = isRefreshing,
             onRefresh = {
                 if (!isLoadingMore) onRefresh()
+                careRefreshVersion++
                 refreshUnreadCount()
             },
             modifier = Modifier
@@ -291,8 +289,9 @@ fun HomeScreen(
                     }
                 }
 
-                item(key = "plantupia-living-space") {
+                if (!communityOnly) item(key = "plantupia-living-space") {
                     PlantupiaClientSection(
+                        refreshVersion = careRefreshVersion,
                         accountId = userId,
                         onCommunityCreateClick = onCreatePost,
                         onOpenPlant = {
@@ -313,40 +312,11 @@ fun HomeScreen(
                     )
                 }
 
-                item(key = "home-community-toggle") {
-                    // Community remains a deliberate choice, not an endless
-                    // autoplay feed intruding into private living-space care.
-                    Surface(
-                        onClick = onOrbitClick,
-                        modifier = Modifier.fillMaxWidth(),
-                        color = PlantupiaColors.paper,
-                        shape = PlantupiaShapes.inset,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, PlantupiaColors.border),
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 17.dp, vertical = 16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                Text("THE CIRCLE", style = PlantupiaText.sectionLabel)
-                                Text(
-                                    "Explore the Circle",
-                                    style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
-                                )
-                                Text(
-                                    "A community you enter when you choose.",
-                                    style = PlantupiaText.supporting,
-                                )
-                            }
-                            Text(
-                                "→",
-                                style = PlantupiaText.editorialHeading,
-                            )
-                        }
+                if (communityOnly) item(key = "circle-feed-heading") {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Shared moments", style = PlantupiaText.pageHeading)
+                        Text("Only what people intentionally share with their audience.", style = PlantupiaText.supporting)
+                        TextButton(onClick = onOrbitClick) { Text("Back to Circle") }
                     }
                 }
                 if (showCommunityFeed) {

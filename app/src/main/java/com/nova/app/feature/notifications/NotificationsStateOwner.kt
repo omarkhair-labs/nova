@@ -229,7 +229,7 @@ class NotificationsStateOwner(
                     state = state.copy(notifications = state.notifications.map { if (it.id == notification.id) it.copy(isRead = true) else it })
                     onUnreadCountChanged(result.value)
                 }
-                is ApiResult.Failure -> if (result.statusCode == 401) onSessionExpired()
+                is ApiResult.Failure -> if (result.statusCode == 401) { onSessionExpired(); return@launch }
             }
             afterRead()
         }

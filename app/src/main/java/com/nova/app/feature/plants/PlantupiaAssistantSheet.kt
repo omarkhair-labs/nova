@@ -53,15 +53,21 @@ private val mist = Color(0xFFEEF1E8)
 private val paper = Color(0xFFFFFDF7)
 private val muted = Color(0xFF4A5A50)
 
-private data class CareChatBubble(
+internal data class CareChatBubble(
     val text: String,
     val fromUser: Boolean,
     val scope: String = "",
 )
 
+/** General dialogue remains conversational without re-forwarding prior private context. */
+internal fun contextSafeAssistantConversation(bubbles: List<CareChatBubble>, includeContext: Boolean): List<PlantupiaAssistantTurn> =
+    bubbles.filter { includeContext || it.scope != "plant_context" }.takeLast(8).map {
+        PlantupiaAssistantTurn(if (it.fromUser) "user" else "assistant", it.text.take(1200))
+    }
+
 /**
  * Live provider conversation. Consent to include a particular plant's context is
- * per-question; a disabled toggle clears prior context-bearing bubbles.
+ * per-question; prior context-bearing turns are excluded without renewed consent.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -108,7 +114,6 @@ internal fun PlantupiaAssistantSheet(
                             enabled = !pending,
                             onCheckedChange = {
                                 includeContext = it
-                                bubbles = emptyList()
                                 error = null
                             },
                         )
@@ -165,13 +170,8 @@ internal fun PlantupiaAssistantSheet(
                             input = ""
                             error = null
                             val consent = includeContext
-                            val dialogue = (if (consent) bubbles.takeLast(8) else emptyList()).map {
-                                PlantupiaAssistantTurn(
-                                    role = if (it.fromUser) "user" else "assistant",
-                                    content = it.text.take(1200),
-                                )
-                            }
-                            bubbles = bubbles + CareChatBubble(question, fromUser = true)
+                            val dialogue = contextSafeAssistantConversation(bubbles, consent)
+                            bubbles = bubbles + CareChatBubble(question, fromUser = true, scope = if (consent && plant != null) "plant_context" else "general")
                             includeContext = false
                             pending = true
                             scope.launch {

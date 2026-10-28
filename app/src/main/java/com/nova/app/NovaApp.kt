@@ -214,7 +214,7 @@ fun NovaApp(
         val plant = target.supportPlantId ?: return@LaunchedEffect
         PlantupiaSupportPushSignal.offer(userId, ticket, plant)
         NovaPushOpenSignal.consume()
-        openRoot(NovaRootTab.Plants)
+        NovaRootNavigationSignal.request(NovaRootTab.Plants)
     }
 
     LaunchedEffect(rootRequestVersion, appState.currentUser?.id) {
@@ -297,6 +297,7 @@ fun NovaApp(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_START) {
                 appState.currentUser?.id?.let(feedOwner::onForeground)
+                scope.launch { refreshNoticeBadge() }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -313,6 +314,66 @@ fun NovaApp(
             backStack.clear()
             backStack.add(if (appState.currentUser == null) NovaRoute.Welcome else NovaRoute.Home)
         }
+    }
+
+    val homeContent: @Composable (Boolean) -> Unit = { communityOnly ->
+    val user = appState.currentUser
+    val homeFeedState = feedOwner.state
+    val homePublishingState = publishingOwner.state
+    LaunchedEffect(user?.id) {
+        if (user == null) feedOwner.reset() else feedOwner.enter(user.id)
+    }
+
+    val feedBelongsToUser = user != null && homeFeedState.userId == user.id
+
+    HomeScreen(
+        communityOnly = communityOnly,
+        displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
+        username = user?.username ?: "nova",
+        avatarUrl = user?.avatarUrl.orEmpty(),
+        userId = user?.id ?: 0L,
+        avatarVariant = user?.plantupiaAvatarVariant ?: -1,
+        posts = homeFeedState.posts.takeIf { feedBelongsToUser }.orEmpty(),
+        isLoading = !feedBelongsToUser || homeFeedState.isLoading,
+        isRefreshing = feedBelongsToUser && homeFeedState.isRefreshing,
+        isLoadingMore = feedBelongsToUser && homeFeedState.isLoadingMore,
+        hasMore = feedBelongsToUser && homeFeedState.hasMore,
+        errorMessage = homeFeedState.errorMessage.takeIf { feedBelongsToUser },
+        deletingPostId = homeFeedState.deletingPostId.takeIf { feedBelongsToUser },
+        likingPostIds = homeFeedState.likingPostIds.takeIf { feedBelongsToUser }.orEmpty(),
+        repostingPostIds = homeFeedState.repostingPostIds.takeIf { feedBelongsToUser }.orEmpty(),
+        actionErrorPostId = homeFeedState.actionErrorPostId.takeIf { feedBelongsToUser },
+        actionErrorMessage = homeFeedState.actionErrorMessage.takeIf { feedBelongsToUser },
+        publishingItems = homePublishingState.items.takeIf {
+            homePublishingState.userId == user?.id
+        }.orEmpty(),
+        onCreatePost = {
+            feedOwner.clearPostError()
+            backStack.add(NovaRoute.CreatePost)
+        },
+        onRetryPublish = publishingOwner::retry,
+        onCancelPublish = publishingOwner::cancel,
+        onRefresh = feedOwner::refreshFeed,
+        onLoadMore = feedOwner::loadMore,
+        onRetry = feedOwner::loadFeed,
+        onDeletePost = feedOwner::deletePost,
+        onLikeToggle = feedOwner::toggleLike,
+        onRepostToggle = feedOwner::toggleRepost,
+        onPostClick = { post -> backStack.add(NovaRoute.PostDetail(post.id)) },
+        onCommentsClick = { post ->
+            backStack.add(NovaRoute.PostComments(post.id))
+        },
+        onResolvePost = postRepository::post,
+        onPersonClick = { username ->
+            backStack.add(NovaRoute.Person(username))
+        },
+        onPeopleClick = { backStack.add(NovaRoute.People) },
+        onOrbitClick = { openRoot(NovaRootTab.Orbit) },
+        onCreateClick = { openRoot(NovaRootTab.Create) },
+        onPulseClick = { backStack.add(NovaRoute.Pulse) },
+        onTonightClick = { backStack.add(NovaRoute.Tonight) },
+        onProfileClick = { backStack.add(NovaRoute.Profile) },
+    )
     }
 
     BackHandler(enabled = backStack.lastOrNull() in plantupiaPrimaryRoutes) {
@@ -515,68 +576,13 @@ fun NovaApp(
                     )
                 }
 
-                NovaRoute.Home -> NavEntry(route) {
-                    val user = appState.currentUser
-                    val homeFeedState = feedOwner.state
-                    val homePublishingState = publishingOwner.state
-                    LaunchedEffect(user?.id) {
-                        if (user == null) feedOwner.reset() else feedOwner.enter(user.id)
-                    }
-
-                    val feedBelongsToUser = user != null && homeFeedState.userId == user.id
-
-                    HomeScreen(
-                        displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
-                        username = user?.username ?: "nova",
-                        avatarUrl = user?.avatarUrl.orEmpty(),
-                        userId = user?.id ?: 0L,
-                        avatarVariant = user?.plantupiaAvatarVariant ?: -1,
-                        posts = homeFeedState.posts.takeIf { feedBelongsToUser }.orEmpty(),
-                        isLoading = !feedBelongsToUser || homeFeedState.isLoading,
-                        isRefreshing = feedBelongsToUser && homeFeedState.isRefreshing,
-                        isLoadingMore = feedBelongsToUser && homeFeedState.isLoadingMore,
-                        hasMore = feedBelongsToUser && homeFeedState.hasMore,
-                        errorMessage = homeFeedState.errorMessage.takeIf { feedBelongsToUser },
-                        deletingPostId = homeFeedState.deletingPostId.takeIf { feedBelongsToUser },
-                        likingPostIds = homeFeedState.likingPostIds.takeIf { feedBelongsToUser }.orEmpty(),
-                        repostingPostIds = homeFeedState.repostingPostIds.takeIf { feedBelongsToUser }.orEmpty(),
-                        actionErrorPostId = homeFeedState.actionErrorPostId.takeIf { feedBelongsToUser },
-                        actionErrorMessage = homeFeedState.actionErrorMessage.takeIf { feedBelongsToUser },
-                        publishingItems = homePublishingState.items.takeIf {
-                            homePublishingState.userId == user?.id
-                        }.orEmpty(),
-                        onCreatePost = {
-                            feedOwner.clearPostError()
-                            backStack.add(NovaRoute.CreatePost)
-                        },
-                        onRetryPublish = publishingOwner::retry,
-                        onCancelPublish = publishingOwner::cancel,
-                        onRefresh = feedOwner::refreshFeed,
-                        onLoadMore = feedOwner::loadMore,
-                        onRetry = feedOwner::loadFeed,
-                        onDeletePost = feedOwner::deletePost,
-                        onLikeToggle = feedOwner::toggleLike,
-                        onRepostToggle = feedOwner::toggleRepost,
-                        onPostClick = { post -> backStack.add(NovaRoute.PostDetail(post.id)) },
-                        onCommentsClick = { post ->
-                            backStack.add(NovaRoute.PostComments(post.id))
-                        },
-                        onResolvePost = postRepository::post,
-                        onPersonClick = { username ->
-                            backStack.add(NovaRoute.Person(username))
-                        },
-                        onPeopleClick = { backStack.add(NovaRoute.People) },
-                        onOrbitClick = { openRoot(NovaRootTab.Orbit) },
-                        onCreateClick = { openRoot(NovaRootTab.Create) },
-                        onPulseClick = { backStack.add(NovaRoute.Pulse) },
-                        onTonightClick = { backStack.add(NovaRoute.Tonight) },
-                        onProfileClick = { backStack.add(NovaRoute.Profile) },
-                    )
-                }
+                NovaRoute.Home -> NavEntry(route) { homeContent(false) }
+                NovaRoute.CircleFeed -> NavEntry(route) { homeContent(true) }
 
                 NovaRoute.Orbit -> NavEntry(route) {
                     val user = appState.currentUser
                     OrbitScreen(
+                        onSharedMoments = { if (backStack.lastOrNull() != NovaRoute.CircleFeed) backStack.add(NovaRoute.CircleFeed) },
                         userId = user?.id ?: 0L,
                         avatarVariant = user?.plantupiaAvatarVariant ?: -1,
                         displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
