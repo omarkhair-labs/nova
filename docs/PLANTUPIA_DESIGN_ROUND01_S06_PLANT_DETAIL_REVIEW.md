@@ -1,8 +1,8 @@
 # Plantupia design workshop — Round 01 / S06 Plant Detail
 
-**Date:** 2026-10-28  
-**Status:** DESIGN REVIEW ONLY (neither variant approved)  
-**Native baseline:** Nova draft PR #241 at `9eb039d2d879b43c0e418fe90b8db4580930f45f`; CI run `40663078245` passed.  
+**Date:** 2026-10-28
+**Status:** DESIGN REVIEW ONLY (neither variant approved)
+**Native baseline:** Nova draft PR #241 at `9eb039d2d879b43c0e418fe90b8db4580930f45f`; CI run `40663078245` passed.
 **No application code, deployment, billing, permission or real plant record changes are authorized.**
 
 ## Owner-origin problem
