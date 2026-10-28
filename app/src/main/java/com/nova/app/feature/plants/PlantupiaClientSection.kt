@@ -1166,25 +1166,50 @@ private fun PlantupiaAccountClientSection(
             }
 
             if (openDetailMode != PlantupiaCreateMode.QUESTION) {
-                OutlinedButton(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = { showAssistant = true },
-                    shape = RoundedCornerShape(15.dp),
-                ) {
-                    com.nova.app.ui.icons.NovaIcon(
-                        asset = com.nova.app.ui.icons.NovaIconAsset.Info,
-                        contentDescription = null,
-                        modifier = Modifier.padding(end = 8.dp),
-                        tint = deepGreen,
-                    )
-                    Text("Ask Plantupia AI", color = deepGreen)
-                }
-                OutlinedButton(
-                    onClick = { supportTicketId = null; showTeam = true },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(15.dp),
-                ) {
-                    Text("Ask the team", color = deepGreen)
+                // Care recording is the primary plant action. Help is secondary.
+                // Two compact choices fit ordinary phones; large text uses a vertical fallback.
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                    val sideBySide = maxWidth >= 280.dp && LocalDensity.current.fontScale <= 1.2f
+                    if (sideBySide) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            OutlinedButton(
+                                onClick = { showAssistant = true },
+                                modifier = Modifier.weight(1f).heightIn(min = 84.dp),
+                                shape = RoundedCornerShape(15.dp),
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("Plantupia AI", color = deepGreen, fontWeight = FontWeight.SemiBold)
+                                    Text("Ask about care", color = muted, fontSize = 11.sp)
+                                }
+                            }
+                            OutlinedButton(
+                                onClick = { supportTicketId = null; showTeam = true },
+                                modifier = Modifier.weight(1f).heightIn(min = 84.dp),
+                                shape = RoundedCornerShape(15.dp),
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("Our team", color = deepGreen, fontWeight = FontWeight.SemiBold)
+                                    Text("Human support", color = muted, fontSize = 11.sp)
+                                }
+                            }
+                        }
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(
+                                onClick = { showAssistant = true },
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                                shape = RoundedCornerShape(15.dp),
+                            ) { Text("Ask Plantupia AI", color = deepGreen) }
+                            OutlinedButton(
+                                onClick = { supportTicketId = null; showTeam = true },
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                                shape = RoundedCornerShape(15.dp),
+                            ) { Text("Talk to our team", color = deepGreen) }
+                        }
+                    }
                 }
             }
             if (openDetailMode == PlantupiaCreateMode.QUESTION) {
