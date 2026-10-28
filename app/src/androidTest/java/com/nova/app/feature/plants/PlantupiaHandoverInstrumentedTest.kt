@@ -59,7 +59,7 @@ class PlantupiaHandoverInstrumentedTest {
                     onClose = { closed = true }, onConnected = {})
             }
         }
-        compose.onNodeWithText("This is not my delivery · remove code").performScrollTo().performClick()
+        compose.onNodeWithText("Not my delivery? Remove code").performScrollTo().performClick()
         compose.runOnIdle {
             assertTrue(closed)
             assertNull(PlantupiaHandoverStore(context).read(null))
