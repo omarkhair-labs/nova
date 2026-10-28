@@ -1,5 +1,6 @@
 """Connected company workspaces for isolated CEO QA. No Admin dependency."""
 import uuid
+import os
 from functools import wraps
 
 from django import forms
@@ -194,7 +195,9 @@ def support_detail(request, ticket_id):
 @demo_portal("plants.view_catalogproduct", methods=("GET",))
 def catalog(request):
     return page(request, "catalog", {"title": "Fictional QA catalog", "section": "catalog",
-        "records": CatalogProduct.objects.order_by("name")[:100]})
+        "records": CatalogProduct.objects.order_by("name")[:100],
+        "can_bulk_import": (request.user.has_perm("plants.add_catalogproduct") and
+                            os.getenv("PLANTUPIA_QA_CATALOG_ZIP_IMPORT_ENABLED", "0") == "1")})
 
 
 @demo_portal("plants.change_catalogproduct")
