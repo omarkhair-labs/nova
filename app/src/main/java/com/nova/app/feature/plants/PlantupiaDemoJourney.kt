@@ -407,6 +407,24 @@ internal fun PlantupiaQaShop(
     var busy by remember { mutableStateOf(false) }
     var refresh by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
+    fun changeCart(productId: String, nextQuantity: Int) {
+        if (busy) return
+        busy = true
+        scope.launch {
+            try {
+                when (val result = repository.demoPost("cart/", JSONObject()
+                    .put("product_id", productId).put("quantity", nextQuantity))) {
+                    is ApiResult.Success -> if (repository.isCurrentSession()) {
+                        cart = result.value
+                        confirmed = false
+                    }
+                    is ApiResult.Failure -> if (repository.isCurrentSession()) error = result.message
+                }
+            } finally {
+                busy = false
+            }
+        }
+    }
     LaunchedEffect(refresh, screen) {
         error = null
         val path = when (screen) { "cart", "review" -> "cart/"; "orders" -> "demo/orders/"; else -> "catalog/" }
@@ -481,15 +499,50 @@ internal fun PlantupiaQaShop(
                     if (quote.demoRows().isEmpty()) Text("Your cart is empty.", style = PlantupiaText.supporting)
                     quote.demoRows().forEach { line ->
                         val product = line.getJSONObject("product")
+                        val productId = product.getString("id")
+                        val qty = line.getInt("quantity")
                         DemoCard {
-                            Text(product.getString("name").removePrefix("FICTIONAL QA · "), fontWeight = FontWeight.SemiBold)
-                            Text("${line.getInt("quantity")} × ${product.getString("currency")} ${product.getString("price")}")
-                            TextButton(enabled = !busy, onClick = { busy = true; scope.launch {
-                                when (val result = repository.demoPost("cart/", JSONObject().put("product_id", product.getString("id")).put("quantity", 0))) {
-                                    is ApiResult.Success -> if (repository.isCurrentSession()) { cart = result.value; confirmed = false }
-                                    is ApiResult.Failure -> if (repository.isCurrentSession()) error = result.message
-                                }; busy = false
-                            } }) { Text("Remove from cart") }
+                            Row(
+                                verticalAlignment = Alignment.Top,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                Box(Modifier.width(84.dp)) {
+                                    if (product.optBoolean("has_image")) {
+                                        PlantupiaCatalogPhoto(productId, repository, thumbnail = true)
+                                    } else {
+                                        PlantupiaCatalogMissingPhoto(compact = true, thumbnail = true)
+                                    }
+                                }
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Text(
+                                        product.getString("name").removePrefix("FICTIONAL QA · ").removePrefix("FICTIONAL QA "),
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = demoForest,
+                                    )
+                                    Text("${product.getString("currency")} ${product.getString("price")}", color = demoForest)
+                                    if (screen == "review") {
+                                        Text("Quantity: ${qty}", style = PlantupiaText.supporting)
+                                    } else {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text("Qty", modifier = Modifier.weight(1f), style = PlantupiaText.supporting)
+                                            TextButton(enabled = !busy && qty > 1,
+                                                onClick = { changeCart(productId, qty - 1) }) { Text("−") }
+                                            Text(qty.toString(), fontWeight = FontWeight.SemiBold)
+                                            TextButton(enabled = !busy && qty < minOf(10, product.optInt("qa_stock", 0)),
+                                                onClick = { changeCart(productId, qty + 1) }) { Text("+") }
+                                        }
+                                    }
+                                }
+                            }
+                            if (screen == "cart") {
+                                TextButton(
+                                    enabled = !busy,
+                                    onClick = { changeCart(productId, 0) },
+                                ) { Text("Remove from cart", color = demoForest) }
+                            }
                         }
                     }
                     Text("Total · EGP ${quote.getString("total_provisional")}", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
@@ -665,9 +718,9 @@ internal fun PlantupiaQaShop(
 }
 
 @Composable
-private fun PlantupiaCatalogMissingPhoto(compact: Boolean) {
+private fun PlantupiaCatalogMissingPhoto(compact: Boolean, thumbnail: Boolean = false) {
     Surface(
-        modifier = Modifier.fillMaxWidth().height(if (compact) 148.dp else 245.dp),
+        modifier = Modifier.fillMaxWidth().height(if (thumbnail) 84.dp else if (compact) 148.dp else 245.dp),
         color = demoSage,
         shape = RoundedCornerShape(13.dp),
     ) {
@@ -720,7 +773,7 @@ private fun PlantupiaCatalogTile(
 }
 
 @Composable
-private fun PlantupiaCatalogPhoto(productId: String, repository: PlantupiaRepository, compact: Boolean = false) {
+private fun PlantupiaCatalogPhoto(productId: String, repository: PlantupiaRepository, compact: Boolean = false, thumbnail: Boolean = false) {
     var bitmap by remember(productId) { mutableStateOf<ImageBitmap?>(null) }
     var failed by remember(productId) { mutableStateOf(false) }
     var revision by remember { mutableIntStateOf(0) }
@@ -738,7 +791,7 @@ private fun PlantupiaCatalogPhoto(productId: String, repository: PlantupiaReposi
             is ApiResult.Failure -> if (repository.isCurrentSession()) failed = true
         }
     }
-    bitmap?.let { Image(it, "Uploaded catalog photograph", modifier = Modifier.fillMaxWidth().height(if (compact) 148.dp else 245.dp).clip(RoundedCornerShape(13.dp)), contentScale = ContentScale.Crop) }
+    bitmap?.let { Image(it, "Uploaded catalog photograph", modifier = Modifier.fillMaxWidth().height(if (thumbnail) 84.dp else if (compact) 148.dp else 245.dp).clip(RoundedCornerShape(13.dp)), contentScale = ContentScale.Crop) }
     if (failed) TextButton(onClick = { revision++ }) { Text("Retry photo") }
     else if (bitmap == null) LinearProgressIndicator(Modifier.fillMaxWidth())
 }
