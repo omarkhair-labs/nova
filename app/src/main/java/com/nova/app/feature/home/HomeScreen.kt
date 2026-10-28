@@ -146,6 +146,7 @@ fun HomeScreen(
         val target = pendingPushTarget ?: return@LaunchedEffect
 
         when (target.kind) {
+            "plantupia_support_reply" -> return@LaunchedEffect
             "follow" -> {
                 NovaPushOpenSignal.consume()
                 if (target.actorUsername.isNotBlank()) {

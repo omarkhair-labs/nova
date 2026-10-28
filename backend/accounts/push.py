@@ -423,3 +423,61 @@ def send_call_state_push(call_id, target_user_id):
             logger.exception("Nova failed to send a call-state FCM push.")
 
     return sent
+
+
+def send_plantupia_support_reply_push(*, recipient_id, ticket_id, plant_id, message_id):
+    """Send a privacy-safe service reply alert, separate from Nova social Inbox.
+
+    Service-request conversations intentionally have no group memberships.
+    Never route them through social send_message_push or reveal the message,
+    plant identity, room or address in an OS notification.
+    """
+    from .privacy_models import NotificationPreference
+
+    prefs, _ = NotificationPreference.objects.get_or_create(user_id=recipient_id)
+    if not prefs.messages:
+        return 0
+    tokens = list(DevicePushToken.objects.filter(
+        user_id=recipient_id, active=True,
+    ).values_list("token", flat=True))
+    if not tokens:
+        return 0
+    app = _firebase_app()
+    if app is None:
+        return 0
+    try:
+        from firebase_admin import messaging
+    except Exception:
+        logger.exception("Plantupia support push provider unavailable.")
+        return 0
+
+    data = {
+        "kind": "plantupia_support_reply",
+        "ticket_id": str(ticket_id),
+        "plant_id": str(plant_id),
+        "message_id": str(message_id),
+    }
+    count = 0
+    for token in tokens:
+        alert = messaging.Message(
+            token=token,
+            notification=messaging.Notification(
+                title="Plantupia team",
+                body="You have a new reply to your support request.",
+            ),
+            data=data,
+            android=messaging.AndroidConfig(
+                priority="high",
+                notification=messaging.AndroidNotification(
+                    channel_id="nova_messages",
+                ),
+            ),
+        )
+        try:
+            messaging.send(alert, app=app)
+            count += 1
+        except messaging.UnregisteredError:
+            DevicePushToken.objects.filter(token=token).update(active=False)
+        except Exception:
+            logger.exception("Plantupia support reply push failed.")
+    return count

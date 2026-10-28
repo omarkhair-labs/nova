@@ -31,6 +31,8 @@ import androidx.navigation3.ui.NavDisplay
 import com.nova.app.app.AppContainer
 import com.nova.app.app.AppViewModel
 import com.nova.app.core.network.ApiResult
+import com.nova.app.core.push.NovaPushOpenSignal
+import com.nova.app.feature.plants.PlantupiaSupportPushSignal
 import com.nova.app.feature.auth.CreateAccountScreen
 import com.nova.app.feature.auth.LoginScreen
 import com.nova.app.feature.create.CreateHubScreen
@@ -162,6 +164,20 @@ fun NovaApp(
                 clearSessionUi()
             }
         }
+    }
+
+    // Support reply pushes stay outside Nova social Activity and require the
+    // currently authenticated customer before opening a private ticket.
+    val supportPush = NovaPushOpenSignal.pendingTarget
+    LaunchedEffect(supportPush, appState.currentUser?.id, appState.isBootstrapping) {
+        val target = supportPush ?: return@LaunchedEffect
+        if (target.kind != "plantupia_support_reply") return@LaunchedEffect
+        val userId = appState.currentUser?.id?.takeIf { it > 0 } ?: return@LaunchedEffect
+        val ticket = target.supportTicketId ?: return@LaunchedEffect
+        val plant = target.supportPlantId ?: return@LaunchedEffect
+        PlantupiaSupportPushSignal.offer(userId, ticket, plant)
+        NovaPushOpenSignal.consume()
+        openRoot(NovaRootTab.Plants)
     }
 
     LaunchedEffect(rootRequestVersion, appState.currentUser?.id) {

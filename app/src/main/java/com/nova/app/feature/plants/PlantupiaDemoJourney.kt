@@ -259,7 +259,7 @@ internal fun PlantupiaInspectionPanel(plant: PlantupiaPlant, repository: Plantup
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun PlantupiaTeamSheet(plant: PlantupiaPlant, repository: PlantupiaRepository, onDismiss: () -> Unit) {
+internal fun PlantupiaTeamSheet(plant: PlantupiaPlant, repository: PlantupiaRepository, onDismiss: () -> Unit, initialTicketId: String? = null) {
     var tickets by remember { mutableStateOf(emptyList<JSONObject>()) }
     var thread by remember { mutableStateOf<JSONObject?>(null) }
     var subject by remember { mutableStateOf("") }
@@ -271,6 +271,17 @@ internal fun PlantupiaTeamSheet(plant: PlantupiaPlant, repository: PlantupiaRepo
     var error by remember { mutableStateOf<String?>(null) }
     var refresh by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
+    LaunchedEffect(initialTicketId) {
+        if (!initialTicketId.isNullOrBlank()) {
+            when (val response = repository.demoGet("service-requests/$initialTicketId/")) {
+                is ApiResult.Success -> if (repository.isCurrentSession() &&
+                    response.value.optString("plant_id") == plant.id) {
+                    thread = response.value
+                }
+                is ApiResult.Failure -> if (repository.isCurrentSession()) error = response.message
+            }
+        }
+    }
     LaunchedEffect(refresh) {
         when (val result = repository.demoGet("service-requests/")) {
             is ApiResult.Success -> if (repository.isCurrentSession()) tickets = result.value.demoRows().filter { it.getString("plant_id") == plant.id }

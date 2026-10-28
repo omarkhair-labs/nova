@@ -341,6 +341,28 @@ class CeoJourneyTests(DemoFixture, TestCase):
         self.api.force_authenticate(self.stranger)
         self.assertEqual(self.api.get(detail).status_code, 404)
 
+    def test_staff_reply_schedules_one_private_push_after_commit(self):
+        self.claim()
+        self.access()
+        created = self.api.post(reverse("plantupia-service-requests"), self.request_body(), format="json")
+        self.assertEqual(created.status_code, 200)
+        ticket = ServiceRequest.objects.get()
+        staff_url = reverse("company:support-detail", args=[ticket.pk])
+        self.assertEqual(self.client.post(staff_url, {"action": "claim"}).status_code, 302)
+        payload = {"body": "Actual staff message (must never appear in push)", "client_id": str(uuid.uuid4())}
+        with patch("accounts.push.send_plantupia_support_reply_push") as deliver:
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post(staff_url, payload)
+                self.assertEqual(response.status_code, 302)
+            deliver.assert_called_once()
+            kwargs = deliver.call_args.kwargs
+            self.assertEqual(kwargs["recipient_id"], self.owner.pk)
+            self.assertEqual(kwargs["ticket_id"], ticket.pk)
+            self.assertEqual(kwargs["plant_id"], self.plant.pk)
+            self.assertIsInstance(kwargs["message_id"], int)
+            self.client.post(staff_url, payload)
+            deliver.assert_called_once()
+
     def test_expired_support_is_read_only_for_customer_and_no_new_request(self):
         self.access(); self.claim()
         response = self.api.post(reverse("plantupia-service-requests"), self.request_body(), format="json")

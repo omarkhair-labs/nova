@@ -228,6 +228,16 @@ def support_reply(user, ticket_id, body, client_id, staff=False):
         locked.status = "replied" if staff else "open"
         locked.save(update_fields=("status", "updated_at"))
         company.audit(user, locked, "CEO QA: actual staff reply persisted" if staff else "CEO QA: customer follow-up persisted")
+        if staff:
+            # Only a real employee response triggers a customer notification.
+            # Idempotent mutation receipts prevent duplicate push on retries.
+            from accounts.push import send_plantupia_support_reply_push
+            transaction.on_commit(lambda: send_plantupia_support_reply_push(
+                recipient_id=locked.customer_id,
+                ticket_id=locked.pk,
+                plant_id=locked.plant_id,
+                message_id=message.pk,
+            ))
         return {"id": str(locked.pk), "message_id": message.pk}
     return mutate(user, client_id, "support:reply:" + str(ticket.pk), {"body": body, "staff": staff}, create)
 

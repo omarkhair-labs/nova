@@ -138,6 +138,7 @@ private fun PlantupiaAccountClientSection(
     var showPlantSharing by remember(currentPlantId) { mutableStateOf(false) }
     var showAssistant by remember { mutableStateOf(false) }
     var showTeam by remember { mutableStateOf(false) }
+    var supportTicketId by remember { mutableStateOf<String?>(null) }
     var photoToView by remember { mutableStateOf<Pair<String, String>?>(null) }
     var focusedSpaceId by rememberSaveable { mutableStateOf<String?>(null) }
     var plantSearch by remember { mutableStateOf("") }
@@ -421,6 +422,18 @@ private fun PlantupiaAccountClientSection(
     val handoverTarget = PlantupiaHandoverNavigation.target
     LaunchedEffect(handoverTarget) {
         refresh()
+    }
+    val supportPush = PlantupiaSupportPushSignal.target
+    LaunchedEffect(supportPush, plants, loading) {
+        val push = supportPush ?: return@LaunchedEffect
+        if (push.accountId != accountId || loading || error != null) return@LaunchedEffect
+        val plant = plants.firstOrNull { it.id == push.plantId } ?: return@LaunchedEffect
+        PlantupiaSupportPushSignal.consume()
+        openPlant(plant)
+        if (lifetime.isCurrent()) {
+            supportTicketId = push.ticketId
+            showTeam = true
+        }
     }
     LaunchedEffect(PlantupiaCreateIntent.pending, plants, loading) {
         if (!loading && error == null && PlantupiaCreateIntent.pending.needsPlantSelection()) {
@@ -1107,7 +1120,7 @@ private fun PlantupiaAccountClientSection(
                     Text("Ask Plantupia AI", color = deepGreen)
                 }
                 OutlinedButton(
-                    onClick = { showTeam = true },
+                    onClick = { supportTicketId = null; showTeam = true },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     shape = RoundedCornerShape(15.dp),
                 ) {
@@ -1823,7 +1836,7 @@ private fun PlantupiaAccountClientSection(
         }
     }
     if (showTeam && selectedPlant != null) {
-        PlantupiaTeamSheet(selectedPlant, repository, onDismiss = { showTeam = false })
+        PlantupiaTeamSheet(selectedPlant, repository, onDismiss = { showTeam = false; supportTicketId = null }, initialTicketId = supportTicketId)
     }
     if (showAssistant) {
         PlantupiaAssistantSheet(

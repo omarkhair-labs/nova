@@ -135,7 +135,7 @@ class NovaMessagingService : FirebaseMessagingService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
-        val channelId = if (kind == "message") {
+        val channelId = if (kind == "message" || kind == "plantupia_support_reply") {
             NovaPushRegistration.MESSAGE_CHANNEL_ID
         } else {
             NovaPushRegistration.CHANNEL_ID
@@ -174,6 +174,7 @@ class NovaMessagingService : FirebaseMessagingService() {
             "reel_repost" -> "New Reel repost"
             "reel_reply" -> "New Reel reply"
             "message" -> actor
+            "plantupia_support_reply" -> "Plantupia team"
             else -> "Nova activity"
         }
     }
@@ -194,6 +195,7 @@ class NovaMessagingService : FirebaseMessagingService() {
             "reel_repost" -> "$actor reposted your Reel"
             "reel_reply" -> "$actor replied to your Reel comment"
             "message" -> messagePreview.ifBlank { "$actor sent you a message" }
+            "plantupia_support_reply" -> "You have a new reply to your support request."
             else -> "$actor interacted with you"
         }
     }
