@@ -29,6 +29,7 @@ import com.nova.app.SettingsActivity
 import com.nova.app.SocialGraphActivity
 import com.nova.app.feature.plants.PlantupiaProfileSpaces
 import com.nova.app.feature.plants.PlantupiaMembershipSheet
+import com.nova.app.feature.plants.PlantupiaShopOpenSignal
 import com.nova.app.feature.plants.PlantupiaColors
 import com.nova.app.feature.plants.PlantupiaText
 import com.nova.app.core.messaging.NovaMessagingNavigator
@@ -162,6 +163,12 @@ fun ProfileScreen(
                 onClick = { showCarePlans = true },
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("Plantupia Care · Plans and access") }
+            Spacer(modifier = Modifier.height(NovaSpacing.sm))
+            OutlinedButton(
+                onClick = { PlantupiaShopOpenSignal.openOrders(userId) },
+                enabled = userId > 0L,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("My orders") }
 
             Spacer(modifier = Modifier.height(NovaSpacing.lg))
             PlantupiaProfileSectionHeading(
