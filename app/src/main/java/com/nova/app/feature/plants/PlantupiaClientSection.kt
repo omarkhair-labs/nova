@@ -588,7 +588,6 @@ private fun PlantupiaAccountClientSection(
                     plants = plants,
                     onOpenPlant = { plant -> scope.launch { openPlant(plant) } },
                 )
-                PlantupiaDemoHome(repository, plants, refreshVersion = refreshVersion, onOpenPlant = { plant -> scope.launch { openPlant(plant) } })
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(9.dp),
@@ -615,6 +614,14 @@ private fun PlantupiaAccountClientSection(
                         Text("+ Add plant", color = deepGreen)
                     }
                 }
+            }
+            // Source-backed inspection plans remain available below the daily
+            // action, rather than pushing Record care out of the first viewport.
+            if (!loading && error == null && section == PlantupiaPrimarySection.TODAY) {
+                PlantupiaDemoHome(
+                    repository, plants, refreshVersion = refreshVersion,
+                    onOpenPlant = { plant -> scope.launch { openPlant(plant) } },
+                )
             }
             if (!loading && error == null && section == PlantupiaPrimarySection.TODAY) {
                 TextButton(onClick = { NovaRootNavigationSignal.request(NovaRootTab.Plants) }) {
@@ -715,42 +722,6 @@ private fun PlantupiaAccountClientSection(
                     repository = repository,
                     onSaved = { scope.launch { refresh() } },
                 )
-            }
-            PlantupiaSelfServiceForms(
-                spaces = spaces,
-                repository = repository,
-                onCreated = { scope.launch { refresh() } },
-                onRefreshSpaces = { scope.launch { refresh() } },
-                onPlantCreated = { plantId, spaceId ->
-                    // Completing onboarding opens the real new plant, rather
-                    // than dropping a first-time owner back into a generic list.
-                    if (!lifetime.isCurrent()) return@PlantupiaSelfServiceForms
-                    val generation = detailRequestGeneration
-                    val current = { lifetime.isCurrent() && generation == detailRequestGeneration && currentPlantId == null }
-                    focusedSpaceId = spaceId
-                    plantSearch = ""
-                    scope.launch {
-                        refresh(current)
-                        if (current()) plants.firstOrNull { it.id == plantId }?.let { openPlant(it) }
-                    }
-                },
-                preferredSpaceId = focusedSpaceId,
-                enabled = !loading && error == null,
-                creationRequest = PlantupiaCreateIntent.pending,
-                onRequestConsumed = { PlantupiaCreateIntent.clear() },
-            )
-            OutlinedButton(
-                onClick = { showAssistant = true },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(15.dp),
-            ) {
-                com.nova.app.ui.icons.NovaIcon(
-                    asset = com.nova.app.ui.icons.NovaIconAsset.Info,
-                    contentDescription = null,
-                    modifier = Modifier.padding(end = 10.dp),
-                    tint = deepGreen,
-                )
-                Text("Ask the Plantupia assistant", color = deepGreen)
             }
             if (loading) {
                 Text("Loading your spaces…", color = muted, fontSize = 13.sp)
@@ -858,6 +829,47 @@ private fun PlantupiaAccountClientSection(
                         }
                     }
                 }
+            }
+            }
+            // The real plant inventory should be the first thing an owner sees.
+            // The existing creation editors stay mounted below the list, so
+            // Create intents, drafts and their BringIntoViewRequester still work.
+            if (section == PlantupiaPrimarySection.PLANTS) {
+            PlantupiaSelfServiceForms(
+                spaces = spaces,
+                repository = repository,
+                onCreated = { scope.launch { refresh() } },
+                onRefreshSpaces = { scope.launch { refresh() } },
+                onPlantCreated = { plantId, spaceId ->
+                    // Completing onboarding opens the real new plant, rather
+                    // than dropping a first-time owner back into a generic list.
+                    if (!lifetime.isCurrent()) return@PlantupiaSelfServiceForms
+                    val generation = detailRequestGeneration
+                    val current = { lifetime.isCurrent() && generation == detailRequestGeneration && currentPlantId == null }
+                    focusedSpaceId = spaceId
+                    plantSearch = ""
+                    scope.launch {
+                        refresh(current)
+                        if (current()) plants.firstOrNull { it.id == plantId }?.let { openPlant(it) }
+                    }
+                },
+                preferredSpaceId = focusedSpaceId,
+                enabled = !loading && error == null,
+                creationRequest = PlantupiaCreateIntent.pending,
+                onRequestConsumed = { PlantupiaCreateIntent.clear() },
+            )
+            OutlinedButton(
+                onClick = { showAssistant = true },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(15.dp),
+            ) {
+                com.nova.app.ui.icons.NovaIcon(
+                    asset = com.nova.app.ui.icons.NovaIconAsset.Info,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = 10.dp),
+                    tint = deepGreen,
+                )
+                Text("Ask the Plantupia assistant", color = deepGreen)
             }
             }
             if (error != null) Text(error.orEmpty(), color = Color(0xFF9A4A31), fontSize = 12.sp)
