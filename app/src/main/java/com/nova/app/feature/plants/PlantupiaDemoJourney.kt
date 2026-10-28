@@ -477,7 +477,7 @@ internal fun PlantupiaQaShop(
                 Text("QA checkout only · illustrative prices · no payment or delivery", style = PlantupiaText.supporting)
             }
             when (screen) {
-                "cart" -> cart?.let { quote ->
+                "cart", "review" -> cart?.let { quote ->
                     if (quote.demoRows().isEmpty()) Text("Your cart is empty.", style = PlantupiaText.supporting)
                     quote.demoRows().forEach { line ->
                         val product = line.getJSONObject("product")
@@ -493,16 +493,30 @@ internal fun PlantupiaQaShop(
                         }
                     }
                     Text("Total · EGP ${quote.getString("total_provisional")}", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(confirmed, { confirmed = it }, modifier = Modifier.semantics { contentDescription = "Confirm preview-only order" })
-                        Text("Preview order only · no charge or delivery", modifier = Modifier.weight(1f), style = PlantupiaText.supporting)
+                    if (screen == "cart") {
+                        Button(
+                            enabled = !busy && quote.demoRows().isNotEmpty(),
+                            onClick = { confirmed = false; screen = "review" },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = demoForest),
+                        ) { Text("Review preview order") }
+                    } else {
+                        Text("Nothing is charged or delivered. This confirms only a QA order request.",
+                            style = PlantupiaText.supporting)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(confirmed, { confirmed = it }, modifier = Modifier.semantics { contentDescription = "Confirm preview-only order" })
+                            Text("Preview order only · no charge or delivery", modifier = Modifier.weight(1f), style = PlantupiaText.supporting)
+                        }
+                        Button(enabled = !busy && confirmed && quote.demoRows().isNotEmpty(), onClick = { busy = true; scope.launch {
+                            when (val result = repository.demoMutation("checkout", "demo/orders/", JSONObject().put("cart_fingerprint", quote.getString("fingerprint")).put("confirm_no_charge", true))) {
+                                is ApiResult.Success -> if (repository.isCurrentSession()) { receipt = result.value.getString("id"); screen = "orders"; refresh++ }
+                                is ApiResult.Failure -> if (repository.isCurrentSession()) { error = result.message; if (result.statusCode == 409) refresh++ }
+                            }; busy = false
+                        } }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), colors = ButtonDefaults.buttonColors(containerColor = demoForest)) { Text("Place preview order") }
+                        TextButton(onClick = { confirmed = false; screen = "cart" }) {
+                            Text("Edit cart", color = demoForest)
+                        }
                     }
-                    Button(enabled = !busy && confirmed && quote.demoRows().isNotEmpty(), onClick = { busy = true; scope.launch {
-                        when (val result = repository.demoMutation("checkout", "demo/orders/", JSONObject().put("cart_fingerprint", quote.getString("fingerprint")).put("confirm_no_charge", true))) {
-                            is ApiResult.Success -> if (repository.isCurrentSession()) { receipt = result.value.getString("id"); screen = "orders"; refresh++ }
-                            is ApiResult.Failure -> if (repository.isCurrentSession()) { error = result.message; if (result.statusCode == 409) refresh++ }
-                        }; busy = false
-                    } }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), colors = ButtonDefaults.buttonColors(containerColor = demoForest)) { Text("Place preview order") }
                 }
                 "orders" -> {
                     receipt?.let { Text("Preview order received · " + it.take(8), fontWeight = FontWeight.SemiBold, color = demoForest) }
