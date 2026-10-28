@@ -18,7 +18,7 @@ from .company_views import portal, page, paginated
 from .media import sanitize_public_plant_photo
 from .models import (CareInspectionPlan, CareGuideVersion, BotanicalSpecies, PlantUnit,
                      Space, InstallationBatch, ServiceRequest, CatalogProduct, DemoOrder,
-                     DemoOffer, DemoEntitlement)
+                     DemoOffer, DemoEntitlement, CatalogProductPhoto)
 
 
 def demo_portal(*permissions, methods=("GET", "POST")):
@@ -72,9 +72,15 @@ class InspectionForm(forms.ModelForm):
 class CatalogForm(forms.ModelForm):
     class Meta:
         model = CatalogProduct
-        fields = ("name", "description", "kind", "image", "proposed_price", "currency", "qa_stock", "active")
+        fields = ("name", "sku", "family_key", "variant_label", "description", "kind",
+                  "image", "image_description", "proposed_price", "currency", "qa_stock", "active")
         widgets = {"description": forms.Textarea(attrs={"rows": 3})}
-        help_texts = {"proposed_price": "Concept QA price only. No charge or commercial offer.", "qa_stock": "Fictional test stock; no real inventory reservation."}
+        help_texts = {"sku": "Unique sellable code (optional for existing QA rows).",
+            "family_key": "Shared identifier across related SKUs, e.g. planter-classic.",
+            "variant_label": "Exact option, e.g. Small / Terracotta.",
+            "image_description": "Accessible description of the actual cover photograph.",
+            "proposed_price": "Concept QA price only. No charge or commercial offer.",
+            "qa_stock": "Fictional test stock; no real inventory reservation."}
 
     def clean_name(self):
         value = self.cleaned_data["name"]
@@ -93,6 +99,21 @@ class CatalogForm(forms.ModelForm):
             except ValueError as exc:
                 raise forms.ValidationError(str(exc)) from exc
         return image
+
+
+class CatalogPhotoForm(forms.Form):
+    photo = forms.ImageField(label="Approved catalogue photograph")
+    alt_text = forms.CharField(max_length=180, label="Describe the actual product photograph")
+    position = forms.IntegerField(min_value=0, max_value=99, initial=0)
+
+    def clean_photo(self):
+        try:
+            result = sanitize_public_plant_photo(self.cleaned_data["photo"])
+            if result.size > 2 * 1024 * 1024:
+                raise ValueError("Use a photo smaller than 2 MiB after normalization.")
+            return result
+        except ValueError as exc:
+            raise forms.ValidationError(str(exc)) from exc
 
 
 class OfferForm(forms.ModelForm):
@@ -198,6 +219,45 @@ def catalog(request):
         "records": CatalogProduct.objects.order_by("name")[:100],
         "can_bulk_import": (request.user.has_perm("plants.add_catalogproduct") and
                             os.getenv("PLANTUPIA_QA_CATALOG_ZIP_IMPORT_ENABLED", "0") == "1")})
+
+
+@demo_portal("plants.change_catalogproduct")
+def product_photos(request, product_id):
+    """Staff-only gallery; never display unrelated user plant photos."""
+    product = get_object_or_404(CatalogProduct, pk=product_id)
+    form = CatalogPhotoForm(request.POST or None, request.FILES or None)
+    if request.method == "POST":
+        if request.POST.get("action") == "remove":
+            try:
+                photo_id = uuid.UUID(request.POST.get("photo_id", ""))
+            except ValueError as exc:
+                raise ValidationError("Select a valid photo.") from exc
+            with transaction.atomic():
+                photo = get_object_or_404(CatalogProductPhoto.objects.select_for_update(),
+                    pk=photo_id, product=product)
+                name, storage = photo.image.name, photo.image.storage
+                photo.delete()
+                company.audit(request.user, product, "QA catalogue photo removed")
+                transaction.on_commit(lambda: storage.delete(name))
+            messages.success(request, "Catalogue photo removed.")
+            return redirect("company:catalog-photos", product_id=product.pk)
+        if form.is_valid():
+            if product.gallery.count() >= 8:
+                raise ValidationError("A SKU can contain no more than eight additional photos.")
+            photo = CatalogProductPhoto(product=product, alt_text=form.cleaned_data["alt_text"],
+                position=form.cleaned_data["position"])
+            photo.image.save("product-gallery.jpg", form.cleaned_data["photo"], save=False)
+            try:
+                photo.full_clean()
+                photo.save()
+                company.audit(request.user, product, "QA catalogue approved photograph added")
+            except Exception:
+                photo.image.delete(save=False)
+                raise
+            messages.success(request, "Authorized photograph added.")
+            return redirect("company:catalog-photos", product_id=product.pk)
+    return page(request, "catalog_photos", {"title": "QA product gallery", "section": "catalog",
+        "product": product, "photos": product.gallery.all(), "form": form})
 
 
 @demo_portal("plants.change_catalogproduct")

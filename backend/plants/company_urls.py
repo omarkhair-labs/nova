@@ -13,6 +13,7 @@ urlpatterns = [
     path("catalog/", demo.catalog, name="catalog"),
     path("catalog/new/", demo.product_edit, name="product-create"),
     path("catalog/import/", catalog_import.catalog_zip_import, name="catalog-zip-import"),
+    path("catalog/<uuid:product_id>/photos/", demo.product_photos, name="catalog-photos"),
     path("catalog/<uuid:product_id>/", demo.product_edit, name="product-edit"),
     path("orders/", demo.orders, name="orders"),
     path("orders/<uuid:order_id>/", demo.order_detail, name="order-detail"),
