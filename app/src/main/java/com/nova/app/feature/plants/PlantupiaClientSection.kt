@@ -140,6 +140,7 @@ private fun PlantupiaAccountClientSection(
     var creationAccessNotice by remember { mutableStateOf<String?>(null) }
     var showPlantManagement by remember(currentPlantId) { mutableStateOf(false) }
     var showPlantSharing by remember(currentPlantId) { mutableStateOf(false) }
+    var showFullHistory by remember(currentPlantId) { mutableStateOf(false) }
     var showAssistant by remember { mutableStateOf(false) }
     var showTeam by remember { mutableStateOf(false) }
     var supportTicketId by remember { mutableStateOf<String?>(null) }
@@ -925,8 +926,6 @@ private fun PlantupiaAccountClientSection(
             if (!selectedPlant.active) {
                 Text("Archived · history is read-only", color = muted, fontSize = 12.sp)
             }
-            PlantupiaCareGuidePanel(selectedPlant.id, repository)
-            PlantupiaInspectionPanel(selectedPlant, repository, onRecorded = { scope.launch { reloadPlantRecords(selectedPlant.id) } })
 
             pendingPrivateSaves.filter { it.plant == selectedPlant.id }.forEach { pending ->
                 PlantupiaPanel {
@@ -1166,27 +1165,250 @@ private fun PlantupiaAccountClientSection(
             }
 
             if (openDetailMode != PlantupiaCreateMode.QUESTION) {
-                OutlinedButton(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = { showAssistant = true },
-                    shape = RoundedCornerShape(15.dp),
-                ) {
-                    com.nova.app.ui.icons.NovaIcon(
-                        asset = com.nova.app.ui.icons.NovaIconAsset.Info,
-                        contentDescription = null,
-                        modifier = Modifier.padding(end = 8.dp),
-                        tint = deepGreen,
+                // Human support and AI are secondary to recording real care.
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                    val compactHelp = maxWidth >= 280.dp && LocalDensity.current.fontScale <= 1.2f
+                    if (compactHelp) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            OutlinedButton(
+                                onClick = { showAssistant = true },
+                                modifier = Modifier.weight(1f).heightIn(min = 58.dp),
+                                shape = RoundedCornerShape(15.dp),
+                            ) { Text("Plantupia AI", color = deepGreen) }
+                            OutlinedButton(
+                                onClick = { supportTicketId = null; showTeam = true },
+                                modifier = Modifier.weight(1f).heightIn(min = 58.dp),
+                                shape = RoundedCornerShape(15.dp),
+                            ) { Text("Our team", color = deepGreen) }
+                        }
+                    } else {
+                        OutlinedButton(
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            onClick = { showAssistant = true },
+                        ) { Text("Ask Plantupia AI", color = deepGreen) }
+                        OutlinedButton(
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            onClick = { supportTicketId = null; showTeam = true },
+                        ) { Text("Talk to our team", color = deepGreen) }
+                    }
+                }
+                // Administration and public sharing are contextual destinations.
+                // Neither is a giant accordion stranded after the private history.
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    TextButton(onClick = { showPlantManagement = !showPlantManagement }) {
+                        Text(if (showPlantManagement) "Close settings ↑" else "Plant settings ⚙", color = deepGreen)
+                    }
+                    TextButton(onClick = { showPlantSharing = !showPlantSharing }) {
+                        Text(if (showPlantSharing) "Close Circle ↑" else "Ask the Circle ↗", color = deepGreen)
+                    }
+                }
+            if (showPlantManagement) {
+                PlantupiaPanel {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text("YOUR PLANT NAME", color = muted, fontSize = 11.sp)
+                            Text(selectedPlant.name, color = deepGreen, fontWeight = FontWeight.Medium, fontSize = 19.sp)
+                        }
+                        TextButton(onClick = { showNameEditor = !showNameEditor }) {
+                            Text(if (showNameEditor) "Cancel" else "Rename", color = deepGreen)
+                        }
+                    }
+                    if (showNameEditor) {
+                    OutlinedTextField(
+                        value = plantName,
+                        onValueChange = { plantName = it.take(80) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Plant name") },
+                        singleLine = true,
+                        enabled = !saving,
                     )
-                    Text("Ask Plantupia AI", color = deepGreen)
+                    Button(
+                        enabled = !saving && plantName.trim().isNotBlank(),
+                        onClick = {
+                            val generation = detailRequestGeneration
+                            val submittedName = plantName.trim()
+                            scope.launch {
+                                runPlantupiaMutation(
+                                    isAccountCurrent = lifetime::isCurrent,
+                                    isDetailCurrent = { isCurrentRequest(selectedPlant.id, generation) },
+                                    request = { repository.nickname(selectedPlant.id, submittedName) },
+                                    onStarted = { saving = true },
+                                    onSuccess = {
+                                        plants = plants.map { if (it.id == selectedPlant.id) it.copy(name = submittedName) else it }
+                                        error = null
+                                        showNameEditor = false
+                                    },
+                                    onFailure = { error = it.message },
+                                    onFinished = { saving = false },
+                                )
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
+                    ) { Text("Save name", color = white) }
+                    }
                 }
-                OutlinedButton(
-                    onClick = { supportTicketId = null; showTeam = true },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(15.dp),
-                ) {
-                    Text("Ask the team", color = deepGreen)
+
+                if (spaces.any { it.id == selectedPlant.spaceId && it.canAddPlant }) {
+                    PlantupiaPanel {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("SHARED PLANT CONTEXT", color = muted, fontSize = 11.sp)
+                                Text(
+                                    listOf(
+                                        selectedPlant.species.ifBlank { "Species not specified" },
+                                        selectedPlant.placement.ifBlank { "Placement not specified" },
+                                    ).joinToString(" · "),
+                                    color = forestText, fontSize = 13.sp,
+                                )
+                            }
+                            TextButton(
+                                onClick = {
+                                    showSharedDetailsEditor = !showSharedDetailsEditor
+                                    if (showSharedDetailsEditor) {
+                                        sharedPlantLabel = selectedPlant.label
+                                        sharedSpecies = selectedPlant.species
+                                        sharedPlacement = selectedPlant.placement
+                                    }
+                                },
+                            ) {
+                                Text(if (showSharedDetailsEditor) "Cancel" else "Edit", color = deepGreen)
+                            }
+                        }
+                        if (showSharedDetailsEditor) {
+                            Text(
+                                "Changes here are visible to authorized space members and recorded in the plant's private history. Your personal nickname remains separate.",
+                                color = muted, fontSize = 12.sp, lineHeight = 18.sp,
+                            )
+                            OutlinedTextField(
+                                value = sharedPlantLabel,
+                                onValueChange = { sharedPlantLabel = it.take(120) },
+                                label = { Text("Shared plant name") },
+                                modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !saving,
+                            )
+                            OutlinedTextField(
+                                value = sharedSpecies,
+                                onValueChange = { sharedSpecies = it.take(180) },
+                                label = { Text("Species (if known)") },
+                                modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !saving,
+                            )
+                            OutlinedTextField(
+                                value = sharedPlacement,
+                                onValueChange = { sharedPlacement = it.take(180) },
+                                label = { Text("Placement in this space") },
+                                modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !saving,
+                            )
+                            Button(
+                                enabled = !saving && sharedPlantLabel.isNotBlank() &&
+                                    (sharedPlantLabel.trim() != selectedPlant.label ||
+                                     sharedSpecies.trim() != selectedPlant.species ||
+                                     sharedPlacement.trim() != selectedPlant.placement),
+                                onClick = {
+                                    val generation = detailRequestGeneration
+                                    val submittedLabel = sharedPlantLabel
+                                    val submittedSpecies = sharedSpecies
+                                    val submittedPlacement = sharedPlacement
+                                    val current = { isCurrentRequest(selectedPlant.id, generation) }
+                                    scope.launch {
+                                        runPlantupiaMutation(
+                                            isAccountCurrent = lifetime::isCurrent,
+                                            isDetailCurrent = current,
+                                            request = { repository.updatePlantDetails(selectedPlant.id, submittedLabel, submittedSpecies, submittedPlacement) },
+                                            onStarted = { saving = true },
+                                            onSuccess = {
+                                                showSharedDetailsEditor = false
+                                                reloadPlantRecords(selectedPlant.id)
+                                            },
+                                            onFailure = { error = it.message },
+                                            onFinished = { saving = false },
+                                        )
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
+                            ) { Text(if (saving) "Saving…" else "Save shared details", color = white) }
+                        }
+                    }
                 }
+
+                if (spaces.any { it.id == selectedPlant.spaceId && it.canAddPlant }) {
+                    PlantupiaPanel {
+                        Text("RECORD STATUS", color = muted, fontSize = 11.sp)
+                        Text(
+                            if (selectedPlant.active) "Keep a plant's history if it leaves your active space."
+                            else "Restore this plant to resume new care and optional check-ins.",
+                            color = forestText, fontSize = 12.sp,
+                        )
+                        OutlinedButton(
+                            onClick = { pendingArchiveAction = selectedPlant.active },
+                            enabled = !saving,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                if (selectedPlant.active) "Archive plant" else "Restore plant",
+                                color = deepGreen,
+                            )
+                        }
+                    }
+                }
+
             }
+            if (showPlantSharing) {
+                val questionGeneration = detailRequestGeneration
+                PlantupiaQuestionsPanel(
+                    isParentCurrent = { isCurrentRequest(selectedPlant.id, questionGeneration) },
+                    requestGeneration = questionGeneration,
+                    plantId = selectedPlant.id,
+                    repository = repository,
+                    compactHeader = true,
+                    canPublish = selectedPlant.canRecord,
+                    onOpenPost = { postId ->
+                        onOpenLinkedPost(postId) { isCurrentRequest(selectedPlant.id, questionGeneration) }
+                    },
+                    onOutcomeSaved = {
+                        val plantId = selectedPlant.id
+                        val generation = questionGeneration
+                        if (!isCurrentRequest(plantId, generation)) return@PlantupiaQuestionsPanel
+                        val response = repository.historyPage(plantId)
+                        if (!isCurrentRequest(plantId, generation)) return@PlantupiaQuestionsPanel
+                        when (response) {
+                            is ApiResult.Success -> {
+                                events = response.value.events
+                                nextHistoryOffset = response.value.nextOffset
+                                historyLoadFailed = false
+                                error = null
+                            }
+                            is ApiResult.Failure -> {
+                                historyLoadFailed = true
+                                error = response.message
+                            }
+                        }
+                    },
+                )
+                TextButton(onClick = onCommunityCreateClick) {
+                    Text("Create a separate public post →", color = deepGreen)
+                }
+                Text(
+                    "Only the question, text and photo you approve are shared publicly. Private history stays in this plant.",
+                    color = muted,
+                    fontSize = 11.sp,
+                )
+            }
+
+            }
+            // The complete company-authored guide stays readable on demand,
+            // after the daily care action, never clipped into an invented summary.
+            PlantupiaCareGuidePanel(selectedPlant.id, repository)
+            PlantupiaInspectionPanel(selectedPlant, repository, onRecorded = { scope.launch { reloadPlantRecords(selectedPlant.id) } })
             if (openDetailMode == PlantupiaCreateMode.QUESTION) {
                 val questionGeneration = detailRequestGeneration
                 PlantupiaQuestionsPanel(
@@ -1623,226 +1845,6 @@ private fun PlantupiaAccountClientSection(
                         color = deepGreen,
                     )
                 }
-            }
-            // Secondary record administration follows care, chosen check-ins and real history.
-            HorizontalDivider(color = sage)
-            OutlinedButton(
-                onClick = { showPlantManagement = !showPlantManagement },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    if (showPlantManagement) "Hide plant details & settings ↑"
-                    else "Plant details & settings ↓",
-                    color = deepGreen,
-                )
-            }
-            if (showPlantManagement) {
-                PlantupiaPanel {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Text("YOUR PLANT NAME", color = muted, fontSize = 11.sp)
-                            Text(selectedPlant.name, color = deepGreen, fontWeight = FontWeight.Medium, fontSize = 19.sp)
-                        }
-                        TextButton(onClick = { showNameEditor = !showNameEditor }) {
-                            Text(if (showNameEditor) "Cancel" else "Rename", color = deepGreen)
-                        }
-                    }
-                    if (showNameEditor) {
-                    OutlinedTextField(
-                        value = plantName,
-                        onValueChange = { plantName = it.take(80) },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Plant name") },
-                        singleLine = true,
-                        enabled = !saving,
-                    )
-                    Button(
-                        enabled = !saving && plantName.trim().isNotBlank(),
-                        onClick = {
-                            val generation = detailRequestGeneration
-                            val submittedName = plantName.trim()
-                            scope.launch {
-                                runPlantupiaMutation(
-                                    isAccountCurrent = lifetime::isCurrent,
-                                    isDetailCurrent = { isCurrentRequest(selectedPlant.id, generation) },
-                                    request = { repository.nickname(selectedPlant.id, submittedName) },
-                                    onStarted = { saving = true },
-                                    onSuccess = {
-                                        plants = plants.map { if (it.id == selectedPlant.id) it.copy(name = submittedName) else it }
-                                        error = null
-                                        showNameEditor = false
-                                    },
-                                    onFailure = { error = it.message },
-                                    onFinished = { saving = false },
-                                )
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
-                    ) { Text("Save name", color = white) }
-                    }
-                }
-
-                if (spaces.any { it.id == selectedPlant.spaceId && it.canAddPlant }) {
-                    PlantupiaPanel {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text("SHARED PLANT CONTEXT", color = muted, fontSize = 11.sp)
-                                Text(
-                                    listOf(
-                                        selectedPlant.species.ifBlank { "Species not specified" },
-                                        selectedPlant.placement.ifBlank { "Placement not specified" },
-                                    ).joinToString(" · "),
-                                    color = forestText, fontSize = 13.sp,
-                                )
-                            }
-                            TextButton(
-                                onClick = {
-                                    showSharedDetailsEditor = !showSharedDetailsEditor
-                                    if (showSharedDetailsEditor) {
-                                        sharedPlantLabel = selectedPlant.label
-                                        sharedSpecies = selectedPlant.species
-                                        sharedPlacement = selectedPlant.placement
-                                    }
-                                },
-                            ) {
-                                Text(if (showSharedDetailsEditor) "Cancel" else "Edit", color = deepGreen)
-                            }
-                        }
-                        if (showSharedDetailsEditor) {
-                            Text(
-                                "Changes here are visible to authorized space members and recorded in the plant's private history. Your personal nickname remains separate.",
-                                color = muted, fontSize = 12.sp, lineHeight = 18.sp,
-                            )
-                            OutlinedTextField(
-                                value = sharedPlantLabel,
-                                onValueChange = { sharedPlantLabel = it.take(120) },
-                                label = { Text("Shared plant name") },
-                                modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !saving,
-                            )
-                            OutlinedTextField(
-                                value = sharedSpecies,
-                                onValueChange = { sharedSpecies = it.take(180) },
-                                label = { Text("Species (if known)") },
-                                modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !saving,
-                            )
-                            OutlinedTextField(
-                                value = sharedPlacement,
-                                onValueChange = { sharedPlacement = it.take(180) },
-                                label = { Text("Placement in this space") },
-                                modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !saving,
-                            )
-                            Button(
-                                enabled = !saving && sharedPlantLabel.isNotBlank() &&
-                                    (sharedPlantLabel.trim() != selectedPlant.label ||
-                                     sharedSpecies.trim() != selectedPlant.species ||
-                                     sharedPlacement.trim() != selectedPlant.placement),
-                                onClick = {
-                                    val generation = detailRequestGeneration
-                                    val submittedLabel = sharedPlantLabel
-                                    val submittedSpecies = sharedSpecies
-                                    val submittedPlacement = sharedPlacement
-                                    val current = { isCurrentRequest(selectedPlant.id, generation) }
-                                    scope.launch {
-                                        runPlantupiaMutation(
-                                            isAccountCurrent = lifetime::isCurrent,
-                                            isDetailCurrent = current,
-                                            request = { repository.updatePlantDetails(selectedPlant.id, submittedLabel, submittedSpecies, submittedPlacement) },
-                                            onStarted = { saving = true },
-                                            onSuccess = {
-                                                showSharedDetailsEditor = false
-                                                reloadPlantRecords(selectedPlant.id)
-                                            },
-                                            onFailure = { error = it.message },
-                                            onFinished = { saving = false },
-                                        )
-                                    }
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
-                            ) { Text(if (saving) "Saving…" else "Save shared details", color = white) }
-                        }
-                    }
-                }
-
-                if (spaces.any { it.id == selectedPlant.spaceId && it.canAddPlant }) {
-                    PlantupiaPanel {
-                        Text("RECORD STATUS", color = muted, fontSize = 11.sp)
-                        Text(
-                            if (selectedPlant.active) "Keep a plant's history if it leaves your active space."
-                            else "Restore this plant to resume new care and optional check-ins.",
-                            color = forestText, fontSize = 12.sp,
-                        )
-                        OutlinedButton(
-                            onClick = { pendingArchiveAction = selectedPlant.active },
-                            enabled = !saving,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(
-                                if (selectedPlant.active) "Archive plant" else "Restore plant",
-                                color = deepGreen,
-                            )
-                        }
-                    }
-                }
-
-            }
-            // Keep optional public composition separate from everyday care.
-            OutlinedButton(
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                onClick = { showPlantSharing = !showPlantSharing },
-            ) {
-                Text(
-                    if (showPlantSharing) "Hide community options ↑" else "Community & sharing (optional) ↓",
-                    color = deepGreen,
-                )
-            }
-            if (showPlantSharing) {
-                val questionGeneration = detailRequestGeneration
-                PlantupiaQuestionsPanel(
-                    isParentCurrent = { isCurrentRequest(selectedPlant.id, questionGeneration) },
-                    requestGeneration = questionGeneration,
-                    plantId = selectedPlant.id,
-                    repository = repository,
-                    compactHeader = true,
-                    canPublish = selectedPlant.canRecord,
-                    onOpenPost = { postId ->
-                        onOpenLinkedPost(postId) { isCurrentRequest(selectedPlant.id, questionGeneration) }
-                    },
-                    onOutcomeSaved = {
-                        val plantId = selectedPlant.id
-                        val generation = questionGeneration
-                        if (!isCurrentRequest(plantId, generation)) return@PlantupiaQuestionsPanel
-                        val response = repository.historyPage(plantId)
-                        if (!isCurrentRequest(plantId, generation)) return@PlantupiaQuestionsPanel
-                        when (response) {
-                            is ApiResult.Success -> {
-                                events = response.value.events
-                                nextHistoryOffset = response.value.nextOffset
-                                historyLoadFailed = false
-                                error = null
-                            }
-                            is ApiResult.Failure -> {
-                                historyLoadFailed = true
-                                error = response.message
-                            }
-                        }
-                    },
-                )
-                TextButton(onClick = onCommunityCreateClick) {
-                    Text("Create a separate public post →", color = deepGreen)
-                }
-                Text(
-                    "Only the question, text and photo you approve are shared publicly. Private history stays in this plant.",
-                    color = muted,
-                    fontSize = 11.sp,
-                )
             }
             } // End of the normal private plant detail (not the Ask Circle flow).
         }
