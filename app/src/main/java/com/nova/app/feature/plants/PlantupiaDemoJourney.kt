@@ -367,7 +367,7 @@ internal fun PlantupiaTeamSheet(plant: PlantupiaPlant, repository: PlantupiaRepo
             }
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            
+
             Spacer(Modifier.height(20.dp))
         }
     }
@@ -382,6 +382,7 @@ private fun PlantupiaQaShop(repository: PlantupiaRepository, onDismiss: () -> Un
     var cart by remember { mutableStateOf<JSONObject?>(null) }
     var orders by remember { mutableStateOf(emptyList<JSONObject>()) }
     var screen by remember { mutableStateOf("catalog") }
+    var category by remember { mutableStateOf("all") }
     var confirmed by remember { mutableStateOf(false) }
     var receipt by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -402,8 +403,23 @@ private fun PlantupiaQaShop(repository: PlantupiaRepository, onDismiss: () -> Un
     }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = demoPaper) {
         Column(Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(if (selected == null) "Shop" else "Product", fontFamily = FontFamily.Serif, fontSize = 30.sp, color = demoForest)
-            Text("Preview · no payment or delivery", style = PlantupiaText.supporting)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Surface(shape = RoundedCornerShape(14.dp), color = PlantupiaColors.softSage) {
+                    Text("P", modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                        fontFamily = FontFamily.Serif, fontSize = 25.sp, color = demoForest)
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("PLANTUPIA · SHOP", style = PlantupiaText.sectionLabel)
+                    Text(if (selected == null) "Plants & essentials" else "Product details",
+                        style = PlantupiaText.editorialHeading)
+                }
+                TextButton(onClick = onDismiss) { Text("Close", color = demoForest) }
+            }
+            Text("Preview collection · no payment or delivery", style = PlantupiaText.supporting)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -468,8 +484,30 @@ private fun PlantupiaQaShop(repository: PlantupiaRepository, onDismiss: () -> Un
                 else -> {
                     val product = selected
                     if (product == null) {
-                        if (products.isEmpty()) Text("Products coming soon.", style = PlantupiaText.supporting)
-                        products.chunked(2).forEach { group ->
+                        Text("Find something for your space.", style = PlantupiaText.body)
+                        Row(modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf("all" to "All", "plant" to "Plants", "planter" to "Pots",
+                                "accessory" to "Care").forEach { (filter, label) ->
+                                Surface(
+                                    onClick = { category = filter },
+                                    modifier = Modifier.weight(1f),
+                                    color = if (category == filter) demoForest else demoSage,
+                                    shape = RoundedCornerShape(12.dp),
+                                ) {
+                                    Text(label, modifier = Modifier.padding(vertical = 11.dp),
+                                        fontSize = 12.sp, fontWeight = FontWeight.Medium,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        color = if (category == filter) demoPaper else demoForest)
+                                }
+                            }
+                        }
+                        val visible = products.filter { category == "all" || it.optString("kind") == category }
+                        if (visible.isEmpty()) Text(
+                            if (products.isEmpty()) "Products coming soon." else "Nothing in this category yet.",
+                            style = PlantupiaText.supporting,
+                        )
+                        visible.chunked(2).forEach { group ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -600,6 +638,8 @@ private fun PlantupiaCatalogTile(
                 "${item.getString("currency")} ${item.getString("price")}",
                 fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = demoForest,
             )
+            Text("Explore product →", fontSize = 11.sp, fontWeight = FontWeight.Medium,
+                color = demoForest)
         }
     }
 }
