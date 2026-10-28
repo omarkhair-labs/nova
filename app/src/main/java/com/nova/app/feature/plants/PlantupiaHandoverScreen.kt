@@ -41,7 +41,7 @@ object PlantupiaHandoverNavigation {
 internal fun PlantupiaHandoverScreen(
     accountId: Long?, accountName: String, onLogin: () -> Unit, onRegister: () -> Unit,
     onClose: () -> Unit, onConnected: (String) -> Unit,
-    onOwnPlants: () -> Unit,
+    onOwnPlants: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val store = remember { PlantupiaHandoverStore(context) }
