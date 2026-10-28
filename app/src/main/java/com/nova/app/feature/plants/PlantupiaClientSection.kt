@@ -1199,10 +1199,10 @@ private fun PlantupiaAccountClientSection(
                 // Neither is a giant accordion stranded after the private history.
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     TextButton(onClick = { showPlantManagement = !showPlantManagement }) {
-                        Text(if (showPlantManagement) "Close settings ↑" else "Plant settings ⚙", color = deepGreen)
+                        Text(if (showPlantManagement) "Close settings" else "Settings", color = deepGreen)
                     }
                     TextButton(onClick = { showPlantSharing = !showPlantSharing }) {
-                        Text(if (showPlantSharing) "Close Circle ↑" else "Ask the Circle ↗", color = deepGreen)
+                        Text(if (showPlantSharing) "Close Circle" else "Ask Circle", color = deepGreen)
                     }
                 }
             if (showPlantManagement) {
