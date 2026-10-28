@@ -26,7 +26,7 @@ import org.junit.Test
 
 class NotificationsStateOwnerTest {
     @Test
-    fun `reset loads follow requests then activity and marks unread notifications read`() {
+    fun `opening the center preserves unread notices until an explicit read action`() {
         val order = mutableListOf<String>()
         val request = followRequest(8, "pending")
         val followRequests = FakeFollowRequestRepository(
@@ -55,11 +55,11 @@ class NotificationsStateOwnerTest {
 
         owner.start()
 
-        assertEquals(listOf("followRequests", "notifications:null", "markAllRead"), order)
+        assertEquals(listOf("followRequests", "notifications:null"), order)
         assertEquals(listOf(request), owner.state.followRequests)
         assertEquals(listOf(1L), owner.state.notifications.map { it.id })
         assertEquals("next", owner.state.nextCursor)
-        assertEquals(listOf(3, 0), unreadCounts)
+        assertEquals(listOf(3), unreadCounts)
         assertFalse(owner.state.isLoading)
         assertFalse(owner.state.requestsLoading)
     }
@@ -124,6 +124,8 @@ class NotificationsStateOwnerTest {
 
         owner.loadActivityRequestNow(reset = true, cursor = null)
 
+        assertFalse(owner.state.notifications.single().isRead)
+        owner.markAllRead()
         assertTrue(owner.state.notifications.single().isRead)
     }
 
@@ -165,6 +167,7 @@ class NotificationsStateOwnerTest {
             onSessionExpired = { terminalEvents += "expired" },
         )
         non401.loadActivityRequestNow(reset = true, cursor = null)
+        non401.markAllRead()
 
         assertNull(non401.state.errorMessage)
         assertTrue(terminalEvents.isEmpty())
@@ -177,6 +180,7 @@ class NotificationsStateOwnerTest {
             onSessionExpired = { terminalEvents += "expired" },
         )
         terminal.loadActivityRequestNow(reset = true, cursor = null)
+        terminal.markAllRead()
 
         assertEquals(listOf("expired"), terminalEvents)
     }
@@ -332,6 +336,20 @@ class NotificationsStateOwnerTest {
         )
     }
 
+    @Test
+    fun `reading a team notice preserves unread social and order rows`() = runBlocking {
+        val repo = FakeNotificationsRepository(pageResults = mutableListOf(ApiResult.Success(
+            NovaNotificationPage(listOf(notification(1, "plant_team"), notification(2, "like"), notification(3, "plant_order")), null, 3)
+        )), markResults = mutableListOf(ApiResult.Success(2)))
+        val counts = mutableListOf<Int>()
+        val owner = owner(notifications = repo, onUnreadCountChanged = counts::add)
+        owner.loadActivityRequestNow(true, null)
+        owner.markRead(owner.state.notifications.first())
+        assertEquals(listOf(true, false, false), owner.state.notifications.map { it.isRead })
+        assertEquals(listOf(3, 2), counts)
+        assertEquals(NotificationOpenTarget.Unavailable, owner.openTarget(notification(1, "plant_team")))
+    }
+
     private fun owner(
         notifications: NotificationsRepository = FakeNotificationsRepository(),
         followRequests: FollowRequestRepository = FakeFollowRequestRepository(),
@@ -362,6 +380,11 @@ private class FakeNotificationsRepository(
     override suspend fun notifications(cursor: String?): ApiResult<NovaNotificationPage> {
         order?.add("notifications:$cursor")
         return pageResults.removeFirst()
+    }
+
+    override suspend fun markRead(notificationId: Long): ApiResult<Int> {
+        order?.add("markRead:$notificationId")
+        return markResults.removeFirst()
     }
 
     override suspend fun markAllRead(): ApiResult<Int> {

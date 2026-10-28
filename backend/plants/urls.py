@@ -1,7 +1,7 @@
 from django.urls import path
 from .assistant import PlantAssistantView
 from .demo_api import (DemoAccessView, InspectionPlansView, InspectionActionView, ServiceRequestsView,
-                       ServiceRequestView, CatalogView, CatalogImageView, CartView, DemoOrdersView)
+                       ServiceRequestView, CatalogView, CatalogImageView, CartView, DemoOrdersView, DemoOrderView)
 from .views import HandoverClaimView, HandoverPreviewView
 from .views import PlantCareGuideView
 from .views import PlantEventSubmissionsView, PlantQuestionSubmissionsView
@@ -17,6 +17,7 @@ urlpatterns = [
     path("catalog/<uuid:product_id>/image/", CatalogImageView.as_view(), name="plantupia-catalog-image"),
     path("cart/", CartView.as_view(), name="plantupia-cart"),
     path("demo/orders/", DemoOrdersView.as_view(), name="plantupia-demo-orders"),
+    path("demo/orders/<uuid:order_id>/", DemoOrderView.as_view(), name="plantupia-demo-order"),
     path("plants/<uuid:plant_id>/care-guide/", PlantCareGuideView.as_view(), name="plantupia-care-guide"),
     path("handovers/preview/", HandoverPreviewView.as_view(), name="plantupia-handover-preview"),
     path("handovers/claim/", HandoverClaimView.as_view(), name="plantupia-handover-claim"),

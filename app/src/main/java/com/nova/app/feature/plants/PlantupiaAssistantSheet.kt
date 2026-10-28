@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -69,34 +70,25 @@ internal fun PlantupiaAssistantSheet(
     repository: PlantupiaRepository,
     onDismiss: () -> Unit,
 ) {
-    var input by remember(plant?.id) { mutableStateOf("") }
+    var input by rememberSaveable(plant?.id) { mutableStateOf("") }
     var includeContext by remember(plant?.id) { mutableStateOf(false) }
     var pending by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var bubbles by remember(plant?.id) { mutableStateOf(emptyList<CareChatBubble>()) }
     val scope = rememberCoroutineScope()
     val chatListState = rememberLazyListState()
-    LaunchedEffect(bubbles.size) {
-        if (bubbles.isNotEmpty()) chatListState.animateScrollToItem(bubbles.lastIndex)
+    LaunchedEffect(bubbles.size, pending) {
+        if (bubbles.isNotEmpty()) chatListState.animateScrollToItem(if (pending) bubbles.size else bubbles.lastIndex)
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = PlantupiaColors.paper,
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().imePadding()
-                .verticalScroll(rememberScrollState()).padding(horizontal = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
+    PlantupiaConversationSheet(onDismiss) {
             PlantupiaConversationHeader(
                 category = "AI · PLANT CARE",
                 title = "Plantupia AI",
                 subtitle = if (plant == null) "Ask about plant care" else "Here for " + plant.name,
                 onClose = onDismiss,
             )
-            PlantupiaDemoAccessGate(repository, human = false) { accessLost ->
+            PlantupiaDemoAccessGate(repository, human = false, scrollPaywall = true, paywallModifier = Modifier.weight(1f)) { accessLost ->
                 if (plant != null) Surface(
                     color = PlantupiaColors.softSage,
                     shape = RoundedCornerShape(16.dp),
@@ -124,7 +116,7 @@ internal fun PlantupiaAssistantSheet(
                 }
                 LazyColumn(
                     state = chatListState,
-                    modifier = Modifier.fillMaxWidth().height(305.dp),
+                    modifier = Modifier.fillMaxWidth().weight(1f),
                     verticalArrangement = Arrangement.spacedBy(13.dp),
                 ) {
                     if (bubbles.isEmpty()) item {
@@ -214,6 +206,5 @@ internal fun PlantupiaAssistantSheet(
                 )
             }
             Spacer(Modifier.height(12.dp))
-        }
     }
 }

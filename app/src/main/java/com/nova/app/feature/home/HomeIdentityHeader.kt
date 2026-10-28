@@ -42,41 +42,16 @@ internal fun HomeIdentityHeader(
     onProfileClick: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(NovaSpacing.md)) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Row(horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
-                PlantupiaBrandGlyph(modifier = Modifier.size(30.dp))
-                Text(text = "PLANTUPIA", color = PlantupiaColors.forestText, style = NovaType.display.copy(fontFamily = FontFamily.Serif, fontSize = 26.sp, fontWeight = FontWeight.SemiBold))
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(NovaSpacing.xs), verticalAlignment = Alignment.CenterVertically) {
-                NovaIconButton(asset = NovaIconAsset.Search, contentDescription = "Search people", onClick = onSearchClick, size = 48.dp, iconSize = 24.dp, containerColor = Color.Transparent, borderColor = Color.Transparent, contentColor = PlantupiaColors.forest)
-                Box {
-                    NovaIconButton(asset = NovaIconAsset.Notifications, contentDescription = "Activity", onClick = onActivityClick, size = 48.dp, iconSize = 23.dp, containerColor = Color.Transparent, borderColor = Color.Transparent, contentColor = PlantupiaColors.forest)
-                    if (unreadCount > 0) NovaUnreadDot(modifier = Modifier.align(Alignment.TopEnd).offset(x = (-2).dp, y = 2.dp))
-                }
-                Surface(onClick = onProfileClick, color = PlantupiaColors.paper, shape = androidx.compose.foundation.shape.CircleShape) {
-                    NovaAvatar(
-                        source = avatarUrl,
-                        fallbackText = displayName.ifBlank { username }.ifBlank { "Plantupia" },
-                        size = 42.dp,
-                        plantupiaUserId = userId.takeIf { it > 0L },
-                        plantupiaAvatarVariant = avatarVariant,
-                    )
-                }
-            }
-        }
+        com.nova.app.feature.plants.PlantupiaAccountHeader(
+            displayName, username, avatarUrl, userId, avatarVariant, onProfileClick,
+            onNotifications = onActivityClick,
+        )
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
                 text = if (firstName.isNotBlank()) "${currentGreeting()}, $firstName" else currentGreeting(),
                 style = PlantupiaText.sectionLabel,
             )
-            Text(
-                text = "Your living world",
-                style = PlantupiaText.editorialHeading,
-            )
-            Text(
-                text = "Notice what is growing. Choose what matters today.",
-                style = PlantupiaText.supporting,
-            )
+
         }
     }
 }

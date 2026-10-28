@@ -412,6 +412,9 @@ class NotificationSerializer(serializers.ModelSerializer):
             "comment_preview",
             "created_at",
             "is_read",
+            "plantupia_ticket_id",
+            "plantupia_plant_id",
+            "plantupia_order_id",
         )
         read_only_fields = fields
 

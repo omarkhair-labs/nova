@@ -13,6 +13,9 @@ data class NovaNotification(
     val commentPreview: String,
     val createdAt: String,
     val isRead: Boolean,
+    val plantupiaTicketId: String? = null,
+    val plantupiaPlantId: String? = null,
+    val plantupiaOrderId: String? = null,
 )
 
 

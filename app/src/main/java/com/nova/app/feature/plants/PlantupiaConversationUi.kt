@@ -3,6 +3,9 @@ package com.nova.app.feature.plants
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,6 +19,15 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,6 +36,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
+
+/** A bounded conversation viewport. Callers keep the composer outside the message scroller. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun PlantupiaConversationSheet(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    ModalBottomSheet(onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = PlantupiaColors.paper) {
+        Column(Modifier.fillMaxWidth().fillMaxHeight(0.94f).imePadding().padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp), content = content)
+    }
+}
 
 /**
  * Shared conversation surfaces. Preserve the difference between a model answer
@@ -122,11 +145,13 @@ internal fun PlantupiaConversationComposer(
         OutlinedTextField(
             value = value,
             onValueChange = onChange,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).semantics { contentDescription = "Message" },
             placeholder = { Text(placeholder, style = PlantupiaText.supporting) },
             enabled = enabled,
             shape = RoundedCornerShape(18.dp),
             minLines = 1, maxLines = 4,
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Send),
+            keyboardActions = KeyboardActions(onSend = { if (enabled && value.isNotBlank()) onSend() }),
         )
         Button(
             modifier = Modifier.heightIn(min = 56.dp),

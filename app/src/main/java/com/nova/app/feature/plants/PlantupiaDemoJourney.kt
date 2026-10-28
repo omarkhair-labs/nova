@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import com.nova.app.navigation.NovaRootNavigationSignal
 import com.nova.app.navigation.NovaRootTab
@@ -53,6 +54,8 @@ private fun DemoCard(content: @Composable ColumnScope.() -> Unit) {
 internal fun PlantupiaDemoAccessGate(
     repository: PlantupiaRepository,
     human: Boolean,
+    scrollPaywall: Boolean = false,
+    paywallModifier: Modifier = Modifier,
     content: @Composable (onAccessLost: () -> Unit) -> Unit,
 ) {
     var access by remember { mutableStateOf<JSONObject?>(null) }
@@ -73,9 +76,10 @@ internal fun PlantupiaDemoAccessGate(
         if (!human && access?.optBoolean("ai_configured") != true) Text("The AI provider is not configured on this QA server. No model response is available. Your free care guide and history still work.", fontWeight = FontWeight.SemiBold)
         content { access = null; refresh++ }
     } else {
+        Column(paywallModifier.then(if (scrollPaywall) Modifier.verticalScroll(rememberScrollState()) else Modifier), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Care, when you need it.", fontFamily = FontFamily.Serif, fontSize = 28.sp, color = demoForest)
         Text("Your plants and care schedule are always free.", color = demoForest)
-        Text("Preview only · no payment will be collected", style = PlantupiaText.supporting)
+        Text("Provisional concept prices · QA only · no payment", style = PlantupiaText.supporting)
         if (access == null && error == null) LinearProgressIndicator(Modifier.fillMaxWidth())
         access?.let { state ->
             val offers = state.demoRows("offers")
@@ -148,6 +152,7 @@ internal fun PlantupiaDemoAccessGate(
             }
         }
         error?.let { Text(it, color = MaterialTheme.colorScheme.error); TextButton(onClick = { refresh++ }) { Text("Retry access check") } }
+        }
     }
 }
 
@@ -169,15 +174,17 @@ internal fun PlantupiaDemoHome(repository: PlantupiaRepository, plants: List<Pla
     }
     if (available) {
         DemoCard {
-            Text("YOUR CARE & SHOP", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            Text("APPROVED INSPECTIONS", style = PlantupiaText.sectionLabel)
             val optedIn = plans.filter { it.optBoolean("enabled") && it.optBoolean("valid") }
-            if (optedIn.isEmpty()) Text("Explore plants & essentials.", fontSize = 13.sp)
+            if (optedIn.isEmpty()) {
+                Text("No inspection plan is active. Care proposals stay optional.", style = PlantupiaText.supporting)
+                TextButton(onClick = { NovaRootNavigationSignal.request(NovaRootTab.Plants) }) { Text("Review your plants →") }
+            }
             optedIn.sortedBy { it.getString("next_due_on") }.take(4).forEach { plan ->
                 TextButton(onClick = { plants.firstOrNull { it.id == plan.getString("plant_id") }?.let(onOpenPlant) }) {
                     Text("${if (plan.optBoolean("due")) "Due · " else "Next · "}${plan.getString("plant_name")} · ${plan.getString("action")} · ${plan.getString("next_due_on")}")
                 }
             }
-            OutlinedButton(onClick = { NovaRootNavigationSignal.request(NovaRootTab.Shop) }, modifier = Modifier.fillMaxWidth()) { Text("Shop plants & essentials") }
             pending.forEach { intent ->
                 Button(onClick = {
                     scope.launch {
@@ -261,89 +268,61 @@ internal fun PlantupiaInspectionPanel(plant: PlantupiaPlant, repository: Plantup
 @Composable
 internal fun PlantupiaTeamSheet(plant: PlantupiaPlant, repository: PlantupiaRepository, onDismiss: () -> Unit, initialTicketId: String? = null) {
     var tickets by remember { mutableStateOf(emptyList<JSONObject>()) }
+    var selectedId by rememberSaveable(plant.id) { mutableStateOf(initialTicketId) }
     var thread by remember { mutableStateOf<JSONObject?>(null) }
-    var subject by remember { mutableStateOf("") }
-    var body by remember { mutableStateOf("") }
-    var reply by remember { mutableStateOf("") }
+    var subject by rememberSaveable(plant.id) { mutableStateOf("") }
+    var body by rememberSaveable(plant.id) { mutableStateOf("") }
+    var reply by rememberSaveable(plant.id) { mutableStateOf("") }
     var share by remember { mutableStateOf(false) }
     var placement by remember { mutableStateOf(false) }
+    var humanAccess by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
+    var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var refresh by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
-    LaunchedEffect(initialTicketId) {
-        if (!initialTicketId.isNullOrBlank()) {
-            when (val response = repository.demoGet("service-requests/$initialTicketId/")) {
-                is ApiResult.Success -> if (repository.isCurrentSession() &&
-                    response.value.optString("plant_id") == plant.id) {
-                    thread = response.value
-                }
-                is ApiResult.Failure -> if (repository.isCurrentSession()) error = response.message
-            }
-        }
-    }
-    LaunchedEffect(refresh) {
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    LaunchedEffect(initialTicketId) { if (!initialTicketId.isNullOrBlank()) selectedId = initialTicketId }
+    LaunchedEffect(refresh, selectedId) {
+        loading = true; error = null
         when (val result = repository.demoGet("service-requests/")) {
             is ApiResult.Success -> if (repository.isCurrentSession()) tickets = result.value.demoRows().filter { it.getString("plant_id") == plant.id }
             is ApiResult.Failure -> if (repository.isCurrentSession()) error = result.message
         }
-        val ticket = thread
-        if (ticket != null) when (val result = repository.demoGet("service-requests/${ticket.getString("id")}/")) {
-            is ApiResult.Success -> if (repository.isCurrentSession()) thread = result.value
-            is ApiResult.Failure -> if (repository.isCurrentSession()) error = result.message
+        when (val result = repository.demoGet("demo/access/")) {
+            is ApiResult.Success -> if (repository.isCurrentSession()) humanAccess = result.value.optBoolean("human_access")
+            is ApiResult.Failure -> if (repository.isCurrentSession()) humanAccess = false
         }
+        val id = selectedId
+        if (id != null) when (val result = repository.demoGet("service-requests/$id/")) {
+            is ApiResult.Success -> if (repository.isCurrentSession() && result.value.optString("plant_id") == plant.id) thread = result.value
+            is ApiResult.Failure -> if (repository.isCurrentSession()) { thread = null; error = result.message }
+        } else thread = null
+        loading = false
     }
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = demoPaper) {
-        Column(Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            PlantupiaConversationHeader(category = "HUMAN SUPPORT", title = "Plantupia team",
-                subtitle = plant.name + " · Private messages", onClose = onDismiss)
-            Text("A team member replies when available.", style = PlantupiaText.supporting)
-            // Existing shared threads remain readable after expiry; new writes require access.
-            if (thread == null) tickets.forEach { ticket ->
-                Surface(onClick = { thread = ticket; refresh++ }, modifier = Modifier.fillMaxWidth(),
-                    color = PlantupiaColors.softSage, shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.dp, PlantupiaColors.border)) {
-                    Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(ticket.getString("subject"), style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
-                            Text(ticket.getString("status"), style = PlantupiaText.supporting)
-                        }
-                        Text("Open →", style = PlantupiaText.sectionLabel)
+    val messages = thread?.optJSONArray("messages")?.let { array -> (0 until array.length()).map { array.getJSONObject(it) } }.orEmpty()
+    LaunchedEffect(selectedId, messages.size) { if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex) }
+    PlantupiaConversationSheet(onDismiss) {
+        PlantupiaConversationHeader("HUMAN SUPPORT", "Plantupia team", plant.name + " · Private request", onDismiss)
+        if (selectedId == null) {
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Actual staff replies, when available. No response time is promised.", style = PlantupiaText.supporting)
+                tickets.forEach { ticket ->
+                    OutlinedButton(onClick = { selectedId = ticket.getString("id") }, modifier = Modifier.fillMaxWidth()) {
+                        Text(ticket.getString("subject") + " · " + supportStatusLabel(ticket.getString("status")))
                     }
                 }
-            }
-            thread?.let { ticket ->
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(ticket.getString("subject"), style = PlantupiaText.editorialHeading)
-                    Text(if (ticket.getString("status") == "closed") "Closed · read-only"
-                        else "Open · waiting for a team reply", style = PlantupiaText.supporting)
-                    ticket.optJSONArray("messages")?.let { messages ->
-                        Column(
-                            modifier = Modifier.fillMaxWidth().height(300.dp).verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                        for (i in 0 until messages.length()) {
-                            val message = messages.getJSONObject(i)
-                            PlantupiaConversationMessage(
-                                body = message.getString("body"),
-                                mine = !message.getBoolean("from_staff"),
-                                sender = if (message.getBoolean("from_staff")) "Plantupia team" else "You",
-                                detail = message.getString("created_at").take(16).replace("T", " · "),
-                            )
-                        }
-                        }
-                    }
-                    TextButton(onClick = { refresh++ }) { Text("Refresh replies") }
-                    TextButton(onClick = { thread = null; reply = "" }) { Text("All requests") }
-                }
-            }
-            PlantupiaDemoAccessGate(repository, human = true) { accessLost ->
-                if (thread == null) {
+                PlantupiaDemoAccessGate(repository, human = true) { _ ->
                     OutlinedTextField(subject, { subject = it.take(140) }, label = { Text("Request subject") }, modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(body, { body = it.take(2000) }, label = { Text("What do you want the team to know?") }, minLines = 3, modifier = Modifier.fillMaxWidth())
-                    Row { Checkbox(share, { share = it }, modifier = Modifier.semantics { contentDescription = "Share this request and plant label with authorized support staff" }); Text("Share this message and plant name with the team.", modifier = Modifier.weight(1f), style = PlantupiaText.supporting) }
-                    Row { Checkbox(placement, { placement = it }, modifier = Modifier.semantics { contentDescription = "Also share recorded placement" }); Text("Include placement (optional). No photos or history.", modifier = Modifier.weight(1f), style = PlantupiaText.supporting) }
+                    Row {
+                        Checkbox(share, { share = it }, modifier = Modifier.semantics { contentDescription = "Share this request and plant label with authorized support staff" })
+                        Text("Share this message and plant name with authorized staff.", Modifier.weight(1f), style = PlantupiaText.supporting)
+                    }
+                    Row {
+                        Checkbox(placement, { placement = it }, modifier = Modifier.semantics { contentDescription = "Also share recorded placement" })
+                        Text("Include placement (optional). No photos or history.", Modifier.weight(1f), style = PlantupiaText.supporting)
+                    }
                     Button(enabled = !busy && share && subject.isNotBlank() && body.isNotBlank(), onClick = {
                         busy = true; error = null
                         scope.launch {
@@ -351,56 +330,78 @@ internal fun PlantupiaTeamSheet(plant: PlantupiaPlant, repository: PlantupiaRepo
                                 .put("plant_id", plant.id).put("subject", subject.trim()).put("body", body.trim())
                                 .put("share_context", share).put("share_placement", placement))
                             if (repository.isCurrentSession()) when (result) {
-                                is ApiResult.Success -> { subject = ""; body = ""; share = false; placement = false; refresh++ }
-                                is ApiResult.Failure -> { error = result.message; if (result.statusCode == 402) accessLost() }
+                                is ApiResult.Success -> { selectedId = result.value.getString("id"); subject = ""; body = ""; share = false; placement = false; refresh++ }
+                                is ApiResult.Failure -> error = result.message
                             }
                             busy = false
                         }
                     }) { Text("Send request") }
-                } else if (thread?.getString("status") != "closed") {
-                    PlantupiaConversationComposer(
-                        value = reply,
-                        onChange = { reply = it.take(2000) },
-                        enabled = !busy,
-                        placeholder = "Reply to the team…",
-                        onSend = {
-                        val id = thread!!.getString("id")
-                        busy = true
-                        scope.launch {
-                            when (val result = repository.demoMutation("support-reply-$id", "service-requests/$id/", JSONObject().put("body", reply.trim()))) {
-                                is ApiResult.Success -> if (repository.isCurrentSession()) { reply = ""; refresh++ }
-                                is ApiResult.Failure -> if (repository.isCurrentSession()) { error = result.message; if (result.statusCode == 402) accessLost() }
-                            }
-                            busy = false
-                        }
-                    })
+                }
+                error?.let { Text(it, color = PlantupiaColors.errorText); TextButton(onClick = { refresh++ }) { Text("Retry support") } }
+            }
+        } else {
+            thread?.let { ticket ->
+                Text(ticket.getString("subject"), style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
+                Text(supportStatusLabel(ticket.getString("status")), style = PlantupiaText.supporting)
+            }
+            if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            androidx.compose.foundation.lazy.LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(messages.size) { index ->
+                    val message = messages[index]
+                    PlantupiaConversationMessage(message.getString("body"), !message.getBoolean("from_staff"),
+                        if (message.getBoolean("from_staff")) "Team · @" + message.getString("sender") else "You",
+                        message.getString("created_at").take(16).replace("T", " · ") + " UTC")
                 }
             }
-            if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-
-            Spacer(Modifier.height(20.dp))
+            error?.let { Text(it, color = PlantupiaColors.errorText, style = PlantupiaText.supporting) }
+            Row {
+                TextButton(onClick = { refresh++ }) { Text("Refresh replies") }
+                TextButton(onClick = { selectedId = null; thread = null }) { Text("All requests") }
+            }
+            if (humanAccess && thread?.getString("status") != "closed") {
+                PlantupiaConversationComposer(reply, { reply = it.take(2000) }, enabled = !busy && !loading, placeholder = "Reply to the team…", onSend = {
+                    val id = selectedId ?: return@PlantupiaConversationComposer
+                    busy = true
+                    scope.launch {
+                        when (val result = repository.demoMutation("support-reply-$id", "service-requests/$id/", JSONObject().put("body", reply.trim()))) {
+                            is ApiResult.Success -> if (repository.isCurrentSession()) { reply = ""; refresh++ }
+                            is ApiResult.Failure -> if (repository.isCurrentSession()) { error = result.message; if (result.statusCode == 402) humanAccess = false }
+                        }
+                        busy = false
+                    }
+                })
+            } else if (!loading && thread?.getString("status") != "closed") TextButton(onClick = { selectedId = null }) { Text("Optional care access for new replies") }
         }
+        Spacer(Modifier.height(8.dp))
     }
+}
+
+internal fun supportStatusLabel(status: String): String = when (status) {
+    "replied" -> "Team replied"
+    "closed" -> "Closed · read-only"
+    else -> "Awaiting a team reply"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PlantupiaQaShop(
     repository: PlantupiaRepository,
+    accountId: Long = 0L,
     onDismiss: () -> Unit,
     fullPage: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     var products by remember { mutableStateOf(emptyList<JSONObject>()) }
-    var selected by remember { mutableStateOf<JSONObject?>(null) }
-    var quantity by remember { mutableIntStateOf(1) }
+    var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
+    val selected = products.firstOrNull { it.optString("id") == selectedId }
+    var linkedOrder by remember { mutableStateOf<JSONObject?>(null) }
+    var quantity by rememberSaveable { mutableIntStateOf(1) }
     var cart by remember { mutableStateOf<JSONObject?>(null) }
     var orders by remember { mutableStateOf(emptyList<JSONObject>()) }
-    var screen by remember { mutableStateOf("catalog") }
-    var category by remember { mutableStateOf("all") }
+    var screen by rememberSaveable { mutableStateOf("catalog") }
+    var category by rememberSaveable { mutableStateOf("all") }
     var confirmed by remember { mutableStateOf(false) }
-    var receipt by remember { mutableStateOf<String?>(null) }
+    var receipt by rememberSaveable { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     var refresh by remember { mutableIntStateOf(0) }
@@ -415,6 +416,21 @@ internal fun PlantupiaQaShop(
                 else -> products = result.value.demoRows()
             }
             is ApiResult.Failure -> if (repository.isCurrentSession()) error = result.message
+        }
+    }
+    androidx.activity.compose.BackHandler(enabled = fullPage && (selectedId != null || screen != "catalog")) {
+        if (selectedId != null) selectedId = null else screen = "catalog"
+    }
+    val orderTarget = PlantupiaShopOpenSignal.target
+    LaunchedEffect(orderTarget) {
+        val target = orderTarget ?: return@LaunchedEffect
+        if (target.first != accountId) return@LaunchedEffect
+        PlantupiaShopOpenSignal.consume()
+        when (val result = repository.demoGet("demo/orders/${target.second}/")) {
+            is ApiResult.Success -> if (repository.isCurrentSession()) {
+                linkedOrder = result.value; selectedId = null; screen = "orders"; refresh++
+            }
+            is ApiResult.Failure -> if (repository.isCurrentSession()) error = "This order is unavailable for the current account."
         }
     }
     val shopContent: @Composable () -> Unit = {
@@ -434,16 +450,16 @@ internal fun PlantupiaQaShop(
                     Text(if (selected == null) "Plants & essentials" else "Product details",
                         style = PlantupiaText.editorialHeading)
                 }
-                TextButton(onClick = onDismiss) { Text("Close", color = demoForest) }
+                if (!fullPage) TextButton(onClick = onDismiss) { Text("Close", color = demoForest) }
             }
-            Text("Preview collection · no payment or delivery", style = PlantupiaText.supporting)
+            Text("Fictional QA collection · provisional prices · no payment or delivery", style = PlantupiaText.supporting)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 listOf("catalog" to "Shop", "cart" to "Cart", "orders" to "My orders").forEach { (destination, label) ->
                     Surface(
-                        onClick = { screen = destination; selected = null },
+                        onClick = { screen = destination; selectedId = null },
                         modifier = Modifier.weight(1f),
                         color = if (screen == destination) demoForest else demoSage,
                         shape = RoundedCornerShape(12.dp),
@@ -490,7 +506,7 @@ internal fun PlantupiaQaShop(
                 "orders" -> {
                     receipt?.let { Text("Preview order received · " + it.take(8), fontWeight = FontWeight.SemiBold, color = demoForest) }
                     if (orders.isEmpty()) Text("No orders yet.", style = PlantupiaText.supporting)
-                    orders.forEach { order -> DemoCard {
+                    (orders + listOfNotNull(linkedOrder)).distinctBy { it.getString("id") }.forEach { order -> DemoCard {
                         Text("Order " + order.getString("id").take(8), fontWeight = FontWeight.SemiBold)
                         Text("${order.getString("status")} · ${order.getString("created_at").take(10)}", style = PlantupiaText.supporting)
                         order.demoRows("lines").forEach { line -> Text("${line.getInt("quantity")} × ${line.getString("name")}") }
@@ -534,7 +550,7 @@ internal fun PlantupiaQaShop(
                                         item = item,
                                         repository = repository,
                                         modifier = Modifier.weight(1f),
-                                        onOpen = { selected = item; quantity = 1 },
+                                        onOpen = { selectedId = item.getString("id"); quantity = 1 },
                                     )
                                 }
                                 if (group.size == 1) Spacer(Modifier.weight(1f))
@@ -584,7 +600,7 @@ internal fun PlantupiaQaShop(
                                         )) {
                                             is ApiResult.Success -> if (repository.isCurrentSession()) {
                                                 cart = result.value
-                                                selected = null
+                                                selectedId = null
                                                 screen = "cart"
                                             }
                                             is ApiResult.Failure -> if (repository.isCurrentSession()) error = result.message
@@ -593,7 +609,7 @@ internal fun PlantupiaQaShop(
                                     }
                                 },
                             ) { Text("Add to cart") }
-                            TextButton(onClick = { selected = null }) { Text("← Back to shop") }
+                            TextButton(onClick = { selectedId = null }) { Text("← Back to shop") }
                         }
                     }
                 }
@@ -623,7 +639,7 @@ private fun PlantupiaCatalogMissingPhoto(compact: Boolean) {
         shape = RoundedCornerShape(13.dp),
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Text("Photo coming soon", style = PlantupiaText.supporting)
+            Text("Photograph not supplied", style = PlantupiaText.supporting)
         }
     }
 }

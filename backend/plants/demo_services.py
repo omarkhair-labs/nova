@@ -229,6 +229,11 @@ def support_reply(user, ticket_id, body, client_id, staff=False):
         locked.save(update_fields=("status", "updated_at"))
         company.audit(user, locked, "CEO QA: actual staff reply persisted" if staff else "CEO QA: customer follow-up persisted")
         if staff:
+            from accounts.models import Notification
+            Notification.objects.get_or_create(dedupe_key=f"plant-team:{message.pk}", defaults={
+                "recipient_id": locked.customer_id, "actor": user, "kind": "plant_team",
+                "plantupia_ticket_id": locked.pk, "plantupia_plant_id": locked.plant_id,
+            })
             # Only a real employee response triggers a customer notification.
             # Idempotent mutation receipts prevent duplicate push on retries.
             from accounts.push import send_plantupia_support_reply_push
@@ -307,4 +312,11 @@ def convert_order(user, order_id):
     order.installation, order.status = batch, "draft_prepared"
     order.save(update_fields=("installation", "status"))
     company.audit(user, order, "CEO QA: explicit conversion to fresh DRAFT; no handover or delivery")
+    from accounts.models import Notification
+    notice, created = Notification.objects.get_or_create(dedupe_key=f"plant-order:{order.pk}:draft", defaults={
+        "recipient_id": order.customer_id, "actor": user, "kind": "plant_order", "plantupia_order_id": order.pk,
+    })
+    if created:
+        from accounts.push import send_plantupia_order_update_push
+        transaction.on_commit(lambda: send_plantupia_order_update_push(recipient_id=order.customer_id, order_id=order.pk, notification_id=notice.pk))
     return batch

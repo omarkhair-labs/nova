@@ -232,17 +232,18 @@ for seam in ("NovaCard(", "NovaType.screenTitle", "NovaSpacing.xxl", "SettingsSe
         errors.append(f"Settings bypassed Nova container/type/spacing seam: {seam}")
 
 profile_text = PROFILE_SCREEN.read_text(encoding="utf-8")
-# Inbox remains functional but is reached from contextual Plantupia
-# destinations instead of a fifth compulsory primary tab.
+# Contextual Inbox moved into the shared authenticated header on all five roots.
 circle_text = (MAIN / "com/nova/app/feature/orbit/OrbitScreen.kt").read_text(encoding="utf-8")
-for file_name, surface_text in (
-    ("ProfileScreen.kt", profile_text),
-    ("OrbitScreen.kt", circle_text),
-):
-    if "NovaMessagingNavigator.openInbox" not in surface_text:
-        errors.append(f"Plantupia contextual messages entry missing from {file_name}")
-    if "NovaIconAsset.Inbox" not in surface_text:
-        errors.append(f"Inbox icon missing from contextual entry {file_name}")
+shared_header_path = MAIN / "com/nova/app/feature/plants/PlantupiaAccountHeader.kt"
+shared_header = shared_header_path.read_text(encoding="utf-8") if shared_header_path.exists() else ""
+for seam in ("NovaMessagingNavigator.openInbox", "NovaIconAsset.Inbox", "NovaIconAsset.Notifications", "NovaAvatar(", "NovaUnreadDot(", "PlantupiaBrandGlyph(", 'contentDescription = "Open your profile"', "size = 48.dp", "LocalPlantupiaNoticeCount.current"):
+    if seam not in shared_header:
+        errors.append(f"Shared authenticated header lost a real navigation/identity/accessibility seam: {seam}")
+for path in (MAIN / "com/nova/app/feature/home/HomeIdentityHeader.kt", MAIN / "com/nova/app/feature/plants/PlantupiaPrimaryRoutes.kt", MAIN / "com/nova/app/feature/create/CreateHubScreen.kt", MAIN / "com/nova/app/feature/orbit/OrbitScreen.kt"):
+    if "PlantupiaAccountHeader(" not in path.read_text(encoding="utf-8"):
+        errors.append(f"Primary customer surface bypassed its authenticated header: {path.name}")
+if "NovaMessagingNavigator.openInbox" not in profile_text or "NovaIconAsset.Inbox" not in profile_text:
+    errors.append("Contextual Profile Inbox entry must remain functional")
 # Plantupia Me intentionally replaces the legacy violet Nova identity slab while
 # keeping the real authenticated avatar, profile content, follow graph and UI tokens.
 # Protect the NEW owning component and native composition, not an obsolete look.
@@ -286,21 +287,11 @@ if not HOME_IDENTITY_HEADER.is_file():
     errors.append("missing Home identity header owner")
 else:
     home_identity_text = HOME_IDENTITY_HEADER.read_text(encoding="utf-8")
-    # Brand-led, compact Plantupia header supersedes Nova's animated Orbit halo
-    # and the two-paragraph marketing header; keep search, activity, real avatar.
-    for seam in (
-        "PlantupiaBrandGlyph(",
-        "NovaType.display",
-        "PlantupiaText.editorialHeading",
-        "NovaIconAsset.Search",
-        "NovaIconAsset.Notifications",
-        "NovaAvatar(",
-        "NovaUnreadDot(",
-        "NovaSpacing.",
-        "size = 42.dp",
-    ):
+    # Visual ownership moved to the shared account header; preserve the actual
+    # identity and callback forwarding instead of freezing obsolete pixel sizes.
+    for seam in ("PlantupiaAccountHeader(", "displayName", "username", "avatarUrl", "userId", "avatarVariant", "onProfileClick", "onActivityClick", "currentGreeting()"):
         if seam not in home_identity_text:
-            errors.append(f"Home header bypassed Plantupia brand/actions/accessibility seam: {seam}")
+            errors.append(f"Home header lost a real account/callback seam: {seam}")
 
 if not CREATE_HUB.is_file():
     errors.append("missing truthful central Create destination")

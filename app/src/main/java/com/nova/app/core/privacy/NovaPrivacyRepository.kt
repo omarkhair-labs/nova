@@ -207,6 +207,8 @@ class NovaPrivacyRepository(
         reelsStories = json.optBoolean("reels_stories", true),
         eventsSpaces = json.optBoolean("events_spaces", true),
         productUpdates = json.optBoolean("product_updates", true),
+        plantupiaTeam = json.optBoolean("plantupia_team", true),
+        plantupiaOrders = json.optBoolean("plantupia_orders", true),
     )
 
     private suspend fun requestDecision(requestId: Long, action: String): ApiResult<Unit> = authenticatedCall { token ->

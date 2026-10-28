@@ -425,7 +425,19 @@ def send_call_state_push(call_id, target_user_id):
     return sent
 
 
+def send_plantupia_order_update_push(*, recipient_id, order_id, notification_id):
+    return _send_private_plantupia_push(recipient_id=recipient_id, category="orders",
+        title="Plantupia QA order", body="A separate preparation draft is ready for review. No delivery was initiated.",
+        data={"kind": "plantupia_order_update", "recipient_id": str(recipient_id), "order_id": str(order_id), "notification_id": str(notification_id)})
+
+
 def send_plantupia_support_reply_push(*, recipient_id, ticket_id, plant_id, message_id):
+    return _send_private_plantupia_push(recipient_id=recipient_id, category="team",
+        title="Plantupia team", body="You have a new reply to your support request.",
+        data={"kind": "plantupia_support_reply", "recipient_id": str(recipient_id), "ticket_id": str(ticket_id), "plant_id": str(plant_id), "message_id": str(message_id)})
+
+
+def _send_private_plantupia_push(*, recipient_id, category, title, body, data):
     """Send a privacy-safe service reply alert, separate from Nova social Inbox.
 
     Service-request conversations intentionally have no group memberships.
@@ -435,7 +447,9 @@ def send_plantupia_support_reply_push(*, recipient_id, ticket_id, plant_id, mess
     from .privacy_models import NotificationPreference
 
     prefs, _ = NotificationPreference.objects.get_or_create(user_id=recipient_id)
-    if not prefs.messages:
+    if category == "team" and (not prefs.messages or not prefs.plantupia_team):
+        return 0
+    if category == "orders" and not prefs.plantupia_orders:
         return 0
     tokens = list(DevicePushToken.objects.filter(
         user_id=recipient_id, active=True,
@@ -451,25 +465,19 @@ def send_plantupia_support_reply_push(*, recipient_id, ticket_id, plant_id, mess
         logger.exception("Plantupia support push provider unavailable.")
         return 0
 
-    data = {
-        "kind": "plantupia_support_reply",
-        "ticket_id": str(ticket_id),
-        "plant_id": str(plant_id),
-        "message_id": str(message_id),
-    }
     count = 0
     for token in tokens:
         alert = messaging.Message(
             token=token,
             notification=messaging.Notification(
-                title="Plantupia team",
-                body="You have a new reply to your support request.",
+                title=title,
+                body=body,
             ),
             data=data,
             android=messaging.AndroidConfig(
                 priority="high",
                 notification=messaging.AndroidNotification(
-                    channel_id="nova_messages",
+                    channel_id="nova_messages" if category == "team" else "nova_activity",
                 ),
             ),
         )

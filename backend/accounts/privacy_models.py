@@ -47,6 +47,8 @@ class NotificationPreference(models.Model):
     reels_stories = models.BooleanField(default=True)
     events_spaces = models.BooleanField(default=True)
     product_updates = models.BooleanField(default=True)
+    plantupia_team = models.BooleanField(default=True)
+    plantupia_orders = models.BooleanField(default=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

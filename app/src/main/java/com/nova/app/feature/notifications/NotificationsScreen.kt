@@ -25,6 +25,16 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.TextButton
+import com.nova.app.feature.plants.PlantupiaCareActivity
+import com.nova.app.feature.plants.PlantupiaSupportPushSignal
+import com.nova.app.feature.plants.PlantupiaShopOpenSignal
+import com.nova.app.feature.plants.LocalPlantupiaNoticeCountChanged
+import com.nova.app.navigation.NovaRootNavigationSignal
+import com.nova.app.navigation.NovaRootTab
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
@@ -72,6 +82,7 @@ import java.time.Instant
 
 @Composable
 fun NotificationsScreen(
+    accountId: Long = 0L,
     onBack: () -> Unit,
     onPersonClick: (String) -> Unit,
     onPostClick: (NovaPost) -> Unit,
@@ -82,7 +93,8 @@ fun NotificationsScreen(
     val appContainer = context.appContainer
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
-    val unreadCallback = rememberUpdatedState(onUnreadCountChanged)
+    val updateBadge = LocalPlantupiaNoticeCountChanged.current
+    val unreadCallback = rememberUpdatedState<(Int) -> Unit> { count -> updateBadge(count); onUnreadCountChanged(count) }
     val sessionExpiredCallback = rememberUpdatedState(onSessionExpired)
     val postClickCallback = rememberUpdatedState(onPostClick)
     val owner = remember(appContainer, scope) {
@@ -97,12 +109,18 @@ fun NotificationsScreen(
         )
     }
     val state = owner.state
+    val category = state.category
+    val visibleNotifications = state.notifications.filter {
+        when (category) { "Team" -> it.kind == "plant_team"; "Orders" -> it.kind == "plant_order"
+            "Circle" -> it.kind !in setOf("plant_team", "plant_order"); "Care" -> false; else -> true }
+    }
 
     LaunchedEffect(owner) {
         owner.start()
     }
 
     LaunchedEffect(
+        category,
         listState,
         state.nextCursor,
         state.isLoading,
@@ -116,7 +134,7 @@ fun NotificationsScreen(
         }
             .distinctUntilChanged()
             .collect { (lastVisible, totalItems) ->
-                if (owner.shouldLoadMore(lastVisible, totalItems)) {
+                if (category in setOf("All", "Circle") && owner.shouldLoadMore(lastVisible, totalItems)) {
                     owner.loadActivity(reset = false)
                 }
             }
@@ -156,12 +174,12 @@ fun NotificationsScreen(
                             .padding(bottom = NovaSpacing.lg),
                     ) {
                         Text(
-                            text = "Activity",
+                            text = "Notifications",
                             color = NovaInk,
                             style = NovaType.screenTitle,
                         )
                         Text(
-                            text = "Follow requests and moments from people you connect with.",
+                            text = "Care, team replies, QA orders and your Circle.",
                             color = NovaMuted,
                             style = NovaType.meta,
                         )
@@ -169,7 +187,19 @@ fun NotificationsScreen(
                 }
             }
 
-            if (state.followRequests.isNotEmpty()) {
+            item(key = "notification-categories") {
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("All", "Care", "Team", "Orders", "Circle").forEach { name ->
+                        FilterChip(selected = category == name, onClick = { owner.selectCategory(name) }, label = { Text(name) })
+                    }
+                }
+                Row {
+                    TextButton(onClick = owner::markAllRead) { Text("Mark all read") }
+                    TextButton(onClick = { context.startActivity(android.content.Intent(context, com.nova.app.NotificationPreferencesActivity::class.java)) }) { Text("Preferences") }
+                }
+            }
+            if (category == "Care") item(key = "care-schedules") { PlantupiaCareActivity(accountId) }
+            if (category in setOf("All", "Circle") && state.followRequests.isNotEmpty()) {
                 item(key = "follow-requests-title") {
                     Row(
                         modifier = Modifier
@@ -211,11 +241,11 @@ fun NotificationsScreen(
                         )
                     }
                 }
-            } else if (state.requestsLoading) {
+            } else if (category in setOf("All", "Circle") && state.requestsLoading) {
                 item(key = "follow-requests-loading") {
                     NovaInlineLoading(message = "Checking follow requests…")
                 }
-            } else if (!state.requestError.isNullOrBlank()) {
+            } else if (category in setOf("All", "Circle") && !state.requestError.isNullOrBlank()) {
                 item(key = "follow-requests-error") {
                     NovaInlineRetry(
                         message = state.requestError.orEmpty(),
@@ -250,14 +280,14 @@ fun NotificationsScreen(
                         )
                     }
                 }
-            } else if (state.notifications.isEmpty() && state.followRequests.isEmpty() && !state.requestsLoading) {
+            } else if (category != "Care" && visibleNotifications.isEmpty() && !state.requestsLoading) {
                 item {
                     NovaEmptyState(
                         title = "Quiet for now.",
-                        message = "Follow requests, follows, likes, comments, replies and Reel reposts will show up here.",
+                        message = "No updates in this category. Your other activity keeps its own unread state.",
                     )
                 }
-            } else if (state.notifications.isNotEmpty()) {
+            } else if (visibleNotifications.isNotEmpty()) {
                 item {
                     Text(
                         text = "Recent",
@@ -268,14 +298,21 @@ fun NotificationsScreen(
                 }
 
                 items(
-                    items = state.notifications,
+                    items = visibleNotifications,
                     key = { it.id },
                 ) { notification ->
                     NotificationRow(
                         notification = notification,
                         isOpening = state.openingNotificationId == notification.id,
                         onClick = {
+                            owner.markRead(notification) {
                             when (val target = owner.openTarget(notification)) {
+                                is NotificationOpenTarget.Team -> if (accountId > 0) {
+                                    PlantupiaSupportPushSignal.offer(accountId, target.ticketId, target.plantId)
+                                    NovaRootNavigationSignal.request(NovaRootTab.Plants)
+                                }
+                                is NotificationOpenTarget.QaOrder -> if (accountId > 0) PlantupiaShopOpenSignal.open(accountId, target.orderId)
+                                NotificationOpenTarget.Unavailable -> Unit
                                 is NotificationOpenTarget.Person -> onPersonClick(target.username)
                                 is NotificationOpenTarget.Post -> owner.openPost(notification.id, target.postId)
                                 is NotificationOpenTarget.Reel -> NovaReelsNavigator.openProfile(
@@ -283,6 +320,7 @@ fun NotificationsScreen(
                                     username = target.username,
                                     initialReelId = target.reelId,
                                 )
+                            }
                             }
                         },
                     )
@@ -308,6 +346,9 @@ fun NotificationsScreen(
                         )
                     }
                 }
+            }
+            if (category in setOf("Team", "Orders") && state.nextCursor != null) item(key = "older-filtered-updates") {
+                TextButton(enabled = !state.isLoadingMore, onClick = { owner.loadActivity(reset = false) }) { Text("Load older updates") }
             }
         }
     }
@@ -488,6 +529,8 @@ private fun notificationText(notification: NovaNotification) = buildAnnotatedStr
     }
     append(" ")
     append(when (notification.kind) {
+        "plant_team" -> "replied to your private support request"
+        "plant_order" -> "prepared a separate QA order draft · no delivery initiated"
         "follow" -> "started following you"
         "like" -> "liked your post"
         "comment" -> {

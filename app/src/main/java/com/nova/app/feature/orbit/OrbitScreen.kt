@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -94,6 +95,8 @@ fun OrbitScreen(
     displayName: String,
     username: String,
     avatarUrl: String,
+    userId: Long = 0L,
+    avatarVariant: Int = -1,
     onPersonClick: (String) -> Unit,
     onPostClick: (Long) -> Unit,
     onDiscoveryClick: () -> Unit,
@@ -107,8 +110,8 @@ fun OrbitScreen(
     val scope = rememberCoroutineScope()
     val owner = remember(repository, scope) { OrbitStateOwner(repository, scope) }
     val state = owner.state
-    var selectedSection by remember { mutableStateOf(CircleSection.PlantQuestions) }
-    var selectedFilter by remember { mutableStateOf(OrbitFilter.All) }
+    var selectedSection by rememberSaveable { mutableStateOf(CircleSection.PlantQuestions) }
+    var selectedFilter by rememberSaveable { mutableStateOf(OrbitFilter.All) }
     var selectedUsername by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(owner, selectedSection) {
@@ -148,49 +151,11 @@ fun OrbitScreen(
             verticalArrangement = Arrangement.spacedBy(NovaSpacing.lg),
         ) {
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("PLANTUPIA / CIRCLE", color = NovaAccent, style = NovaType.micro)
-                        Text("Circle", color = NovaInk, style = NovaType.screenTitle)
-                        Text("Questions, people and shared experience.", color = NovaMuted, style = NovaType.meta)
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(NovaSpacing.xs)) {
-                        Box {
-                            Surface(
-                                onClick = { NovaMessagingNavigator.openInbox(context = context) },
-                                shape = CircleShape,
-                                color = NovaSurface,
-                                border = BorderStroke(1.dp, NovaBorder),
-                            ) {
-                                NovaIcon(
-                                    asset = NovaIconAsset.Inbox,
-                                    contentDescription = "Messages",
-                                    tint = NovaInk,
-                                    modifier = Modifier.padding(NovaSpacing.md).size(21.dp),
-                                )
-                            }
-                            if (NovaMessagesSignal.unreadCount > 0) {
-                                NovaUnreadDot(modifier = Modifier.align(Alignment.TopEnd))
-                            }
-                        }
-                        Surface(
-                            onClick = onDiscoveryClick,
-                            shape = CircleShape,
-                            color = NovaSurface,
-                            border = BorderStroke(1.dp, NovaBorder),
-                        ) {
-                            NovaIcon(
-                                asset = NovaIconAsset.Search,
-                                contentDescription = "Explore people",
-                                tint = NovaInk,
-                                modifier = Modifier.padding(NovaSpacing.md).size(21.dp),
-                            )
-                        }
-                    }
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    com.nova.app.feature.plants.PlantupiaAccountHeader(displayName, username, avatarUrl, userId, avatarVariant, onProfileClick)
+                    Text("Circle", style = com.nova.app.feature.plants.PlantupiaText.pageHeading)
+                    Text("Questions, people and shared experience.", style = com.nova.app.feature.plants.PlantupiaText.supporting)
+                    androidx.compose.material3.TextButton(onClick = onDiscoveryClick) { Text("Explore people") }
                 }
             }
 

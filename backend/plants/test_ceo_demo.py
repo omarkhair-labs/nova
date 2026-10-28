@@ -115,6 +115,62 @@ class DemoFixture:
 
 @override_settings(**SETTINGS)
 class CeoJourneyTests(DemoFixture, TestCase):
+    def test_real_team_reply_has_one_private_notice_and_selective_read_is_account_scoped(self):
+        from accounts.models import Notification
+        self.claim(); self.access()
+        self.api.post(reverse("plantupia-service-requests"), self.request_body(), format="json")
+        ticket = ServiceRequest.objects.get()
+        self.assertFalse(Notification.objects.exists())  # No alert for one's own request.
+        ticket.assigned_to = self.staff; ticket.save()
+        identity = uuid.uuid4()
+        demo.support_reply(self.staff, ticket.pk, "ACTUAL QA RESPONSE NEVER COPIED INTO AN ALERT", identity, staff=True)
+        demo.support_reply(self.staff, ticket.pk, "ACTUAL QA RESPONSE NEVER COPIED INTO AN ALERT", identity, staff=True)
+        notice = Notification.objects.get()
+        self.assertEqual(notice.recipient, self.owner)
+        self.assertEqual(notice.plantupia_ticket_id, ticket.pk)
+        self.assertEqual(notice.plantupia_plant_id, self.plant.pk)
+        social = Notification.objects.create(recipient=self.owner, actor=self.stranger, kind="follow", dedupe_key="qa-social-separate")
+        foreign = Notification.objects.create(recipient=self.stranger, actor=self.owner, kind="follow", dedupe_key="qa-foreign-notice")
+        listing = self.api.get(reverse("notifications")).json()
+        self.assertEqual(listing["unread_count"], 2)
+        self.assertNotIn("ACTUAL QA RESPONSE", str(listing))
+        read = self.api.post(reverse("notifications-read"), {"ids": [notice.pk, foreign.pk]}, format="json")
+        self.assertEqual(read.json(), {"marked_read": 1, "unread_count": 1})
+        social.refresh_from_db(); foreign.refresh_from_db()
+        self.assertIsNone(social.read_at); self.assertIsNone(foreign.read_at)
+        self.assertEqual(self.api.post(reverse("notifications-read"), {"ids": []}, format="json").status_code, 400)
+        self.api.force_authenticate(self.stranger)
+        self.assertNotIn(str(ticket.pk), str(self.api.get(reverse("notifications")).json()))
+
+    def test_order_detail_and_staff_preparation_notice_are_scoped_and_idempotent(self):
+        from accounts.models import Notification
+        quote = self.add_cart()
+        self.api.post(reverse("plantupia-demo-orders"), self.checkout_body(quote), format="json")
+        order = DemoOrder.objects.get()
+        self.assertFalse(Notification.objects.exists())
+        with patch("accounts.push.send_plantupia_order_update_push") as delivery:
+            with self.captureOnCommitCallbacks(execute=True):
+                demo.convert_order(self.staff, order.pk)
+            delivery.assert_called_once()
+            with self.captureOnCommitCallbacks(execute=True):
+                demo.convert_order(self.staff, order.pk)
+            delivery.assert_called_once()
+        notice = Notification.objects.get(kind="plant_order")
+        self.assertEqual(notice.plantupia_order_id, order.pk)
+        url = reverse("plantupia-demo-order", args=[order.pk])
+        self.assertEqual(self.api.get(url).json()["status"], "draft_prepared")
+        self.api.force_authenticate(self.stranger)
+        self.assertEqual(self.api.get(url).status_code, 404)
+
+    def test_muted_private_push_preferences_do_not_call_provider(self):
+        from accounts.privacy_models import NotificationPreference
+        from accounts.push import send_plantupia_support_reply_push, send_plantupia_order_update_push
+        NotificationPreference.objects.create(user=self.owner, plantupia_team=False, plantupia_orders=False)
+        with patch("accounts.push._firebase_app") as provider:
+            self.assertEqual(send_plantupia_support_reply_push(recipient_id=self.owner.pk, ticket_id=uuid.uuid4(), plant_id=self.plant.pk, message_id=7), 0)
+            self.assertEqual(send_plantupia_order_update_push(recipient_id=self.owner.pk, order_id=uuid.uuid4(), notification_id=8), 0)
+            provider.assert_not_called()
+
     def test_optional_catalog_photo_is_normalized_authenticated_and_not_a_storage_url(self):
         photo = BytesIO()
         image = Image.new("RGB", (32, 24), "green")  # Technical fixture, never demo merchandise imagery.

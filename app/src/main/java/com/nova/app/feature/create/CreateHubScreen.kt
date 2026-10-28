@@ -23,6 +23,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -82,8 +83,8 @@ fun CreateHubScreen(
 ) {
     // Private care and public media require different intentional entry points.
     // Nova engines remain functional; secondary formats are opened on demand.
-    var activeFormat by remember { mutableStateOf<String?>(null) }
-    var showOtherFormats by remember { mutableStateOf(false) }
+    var activeFormat by rememberSaveable { mutableStateOf<String?>(null) }
+    var showOtherFormats by rememberSaveable { mutableStateOf(false) }
     var formatOpenRevision by remember { mutableIntStateOf(0) }
     val createListState = rememberLazyListState()
     // Secondary Nova formats render after the existing five primary sections.
@@ -158,24 +159,10 @@ fun CreateHubScreen(
             verticalArrangement = Arrangement.spacedBy(NovaSpacing.lg),
         ) {
             item(key = "living-create-heading") {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(NovaSpacing.xxs)) {
-                        Text("PLANTUPIA / CREATE", color = NovaAccent, style = NovaType.micro)
-                        Text("What would you like to do?", color = NovaInk, style = NovaType.sectionTitle)
-                    }
-                    Surface(onClick = onProfileClick, shape = CircleShape, color = NovaAccentSoft) {
-                        NovaAvatar(
-                            source = avatarUrl,
-                            fallbackText = displayName.ifBlank { username }.ifBlank { "Plantupia" },
-                            size = 40.dp,
-                            plantupiaUserId = userId.takeIf { it > 0L },
-                            plantupiaAvatarVariant = avatarVariant,
-                        )
-                    }
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    com.nova.app.feature.plants.PlantupiaAccountHeader(displayName, username, avatarUrl, userId, avatarVariant, onProfileClick)
+                    Text("Create", style = com.nova.app.feature.plants.PlantupiaText.pageHeading)
+                    Text("Choose a private record or an intentional public story.", style = com.nova.app.feature.plants.PlantupiaText.supporting)
                 }
             }
             item(key = "living-create-private") {

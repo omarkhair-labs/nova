@@ -102,9 +102,10 @@ fun PlantupiaClientSection(
     onOpenLinkedPost: (Long, () -> Boolean) -> Unit,
     onOpenPlant: () -> Unit = {},
     section: PlantupiaPrimarySection = PlantupiaPrimarySection.TODAY,
+    onClosePlant: () -> Unit = {},
 ) {
     key(accountId, section) {
-        PlantupiaAccountClientSection(accountId, onCommunityCreateClick, onOpenLinkedPost, onOpenPlant, section)
+        PlantupiaAccountClientSection(accountId, onCommunityCreateClick, onOpenLinkedPost, onOpenPlant, section, onClosePlant)
     }
 }
 
@@ -115,6 +116,7 @@ private fun PlantupiaAccountClientSection(
     onOpenLinkedPost: (Long, () -> Boolean) -> Unit,
     onOpenPlant: () -> Unit = {},
     section: PlantupiaPrimarySection,
+    onClosePlant: () -> Unit,
 ) {
     val context = LocalContext.current
     val repository = remember(context) { PlantupiaRepository(context.applicationContext) }
@@ -123,7 +125,7 @@ private fun PlantupiaAccountClientSection(
     DisposableEffect(lifetime) { onDispose { lifetime.dispose() } }
     var spaces by remember { mutableStateOf<List<PlantupiaSpace>>(emptyList()) }
     var plants by remember { mutableStateOf<List<PlantupiaPlant>>(emptyList()) }
-    var currentPlantId by remember { mutableStateOf<String?>(null) }
+    var currentPlantId by rememberSaveable { mutableStateOf<String?>(null) }
     // Invalidate slower in-flight history calls when a user opens another plant or goes Back.
     var detailRequestGeneration by remember { mutableIntStateOf(0) }
     var openDetailMode by remember { mutableStateOf<PlantupiaCreateMode?>(null) }
@@ -132,7 +134,7 @@ private fun PlantupiaAccountClientSection(
     var sharedPlantLabel by remember { mutableStateOf("") }
     var sharedSpecies by remember { mutableStateOf("") }
     var sharedPlacement by remember { mutableStateOf("") }
-    var showCareEditor by remember { mutableStateOf(false) }
+    var showCareEditor by rememberSaveable { mutableStateOf(false) }
     var creationAccessNotice by remember { mutableStateOf<String?>(null) }
     var showPlantManagement by remember(currentPlantId) { mutableStateOf(false) }
     var showPlantSharing by remember(currentPlantId) { mutableStateOf(false) }
@@ -141,9 +143,9 @@ private fun PlantupiaAccountClientSection(
     var supportTicketId by remember { mutableStateOf<String?>(null) }
     var photoToView by remember { mutableStateOf<Pair<String, String>?>(null) }
     var focusedSpaceId by rememberSaveable { mutableStateOf<String?>(null) }
-    var plantSearch by remember { mutableStateOf("") }
-    var archiveSearch by remember { mutableStateOf("") }
-    var showArchived by remember { mutableStateOf(false) }
+    var plantSearch by rememberSaveable { mutableStateOf("") }
+    var archiveSearch by rememberSaveable { mutableStateOf("") }
+    var showArchived by rememberSaveable { mutableStateOf(false) }
     var visibleArchivedCount by remember { mutableStateOf(8) }
     var pendingArchiveAction by remember { mutableStateOf<Boolean?>(null) }
     var visiblePlantCount by remember { mutableStateOf(8) }
@@ -191,11 +193,12 @@ private fun PlantupiaAccountClientSection(
     var historyRetryLoading by remember { mutableStateOf(false) }
     var historyLoadFailed by remember(currentPlantId) { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
+    var confirmDiscard by remember { mutableStateOf(false) }
     var plantName by remember { mutableStateOf("") }
-    var note by remember { mutableStateOf("") }
-    var selectedCareAction by remember { mutableStateOf<PlantupiaCareAction?>(null) }
+    var note by rememberSaveable { mutableStateOf("") }
+    var selectedCareAction by rememberSaveable { mutableStateOf<PlantupiaCareAction?>(null) }
     var pendingPrivateSaves by remember { mutableStateOf<List<com.nova.app.feature.plants.data.PlantupiaSubmission>>(emptyList()) }
-    var carePhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var carePhotoUri by rememberSaveable { mutableStateOf<Uri?>(null) }
     var carePhotoRequestGeneration by remember { mutableStateOf<Int?>(null) }
     val carePhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (lifetime.isCurrent() && carePhotoRequestGeneration == detailRequestGeneration) carePhotoUri = uri
@@ -246,6 +249,10 @@ private fun PlantupiaAccountClientSection(
 
     suspend fun openPlant(plant: PlantupiaPlant) {
         if (!lifetime.isCurrent()) return
+        if (section == PlantupiaPrimarySection.TODAY) {
+            PlantupiaPlantOpenSignal.open(accountId, plant.id)
+            return
+        }
         if (PlantupiaCreateIntent.pending.needsPlantSelection() &&
             plant !in actionablePlantChoices(plants)
         ) {
@@ -400,12 +407,24 @@ private fun PlantupiaAccountClientSection(
         detailLoading = false
         error = null
         scope.launch { refresh() }
+        onClosePlant()
     }
+
+    fun requestClosePlant() {
+        if (showCareEditor && (note.isNotBlank() || carePhotoUri != null || selectedCareAction != null)) confirmDiscard = true
+        else closePlant()
+    }
+
+    if (confirmDiscard) AlertDialog(onDismissRequest = { confirmDiscard = false },
+        title = { Text("Leave this draft?") },
+        text = { Text("Your unsaved care text or photo will be discarded. Saved records and pending retries stay intact.") },
+        confirmButton = { TextButton(onClick = { confirmDiscard = false; note = ""; carePhotoUri = null; selectedCareAction = null; showCareEditor = false; closePlant() }) { Text("Discard draft") } },
+        dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text("Keep editing") } })
 
     BackHandler(enabled = selectedPlant != null) {
         // The first Android Back returns to the customer's living space,
         // instead of unexpectedly leaving the existing Nova tab.
-        closePlant()
+        requestClosePlant()
     }
 
     LaunchedEffect(currentPlantId, saving, detailRequestGeneration) {
@@ -424,6 +443,21 @@ private fun PlantupiaAccountClientSection(
         refresh()
     }
     val supportPush = PlantupiaSupportPushSignal.target
+    val plantOpen = PlantupiaPlantOpenSignal.target
+    LaunchedEffect(plantOpen, loading) {
+        val requested = plantOpen ?: return@LaunchedEffect
+        if (section != PlantupiaPrimarySection.PLANTS || loading || error != null) return@LaunchedEffect
+        PlantupiaPlantOpenSignal.consume()
+        if (requested.first == accountId) plants.firstOrNull { it.id == requested.second }?.let { openPlant(it) }
+    }
+    var restoredDetailId by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(loading, currentPlantId) {
+        val id = currentPlantId ?: return@LaunchedEffect
+        if (!loading && !detailLoading && restoredDetailId != id && selectedPlant != null) {
+            restoredDetailId = id
+            reloadPlantRecords(id)
+        }
+    }
     LaunchedEffect(supportPush, plants, loading) {
         val push = supportPush ?: return@LaunchedEffect
         if (section != PlantupiaPrimarySection.PLANTS || push.accountId != accountId || loading || error != null) return@LaunchedEffect
@@ -436,7 +470,7 @@ private fun PlantupiaAccountClientSection(
         }
     }
     LaunchedEffect(PlantupiaCreateIntent.pending, plants, loading) {
-        if (!loading && error == null && PlantupiaCreateIntent.pending.needsPlantSelection()) {
+        if (section == PlantupiaPrimarySection.PLANTS && !loading && error == null && PlantupiaCreateIntent.pending.needsPlantSelection()) {
             val available = actionablePlantChoices(plants)
             if (available.size == 1) openPlant(available.first())
         }
@@ -480,7 +514,7 @@ private fun PlantupiaAccountClientSection(
                     color = muted, fontSize = 13.sp,
                 )
             }
-            TextButton(onClick = { PlantupiaHandoverNavigation.open() }) {
+            if (section == PlantupiaPrimarySection.PLANTS || plants.none { it.active }) TextButton(onClick = { PlantupiaHandoverNavigation.open() }) {
                 Text(if (plants.any { it.active }) "Connect another delivery" else "Connect your plants", color = deepGreen)
             }
             if (PlantupiaCreateIntent.pending.needsPlantSelection()) {
@@ -537,7 +571,10 @@ private fun PlantupiaAccountClientSection(
                 ) {
                     if (plants.any { it.active && it.canRecord }) {
                         Button(
-                            onClick = { PlantupiaCreateIntent.request(PlantupiaCreateMode.OBSERVATION) },
+                            onClick = {
+                                PlantupiaCreateIntent.request(PlantupiaCreateMode.OBSERVATION)
+                                NovaRootNavigationSignal.request(NovaRootTab.Plants)
+                            },
                             modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
                         ) {
@@ -804,7 +841,7 @@ private fun PlantupiaAccountClientSection(
                 Text("Refresh records", color = deepGreen)
             }
         } else {
-            TextButton(onClick = { closePlant() }) {
+            TextButton(onClick = { requestClosePlant() }) {
                 Text("← Back to space", color = deepGreen)
             }
             BrandEyebrow(

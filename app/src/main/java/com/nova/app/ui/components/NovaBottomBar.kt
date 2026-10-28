@@ -24,6 +24,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.Role
 import com.nova.app.navigation.NovaRootNavigationSignal
 import com.nova.app.navigation.NovaRootTab
 import com.nova.app.ui.icons.NovaIcon
@@ -66,6 +70,7 @@ fun NovaBottomBar(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             NovaTabItem(
+                modifier = Modifier.weight(1f),
                 label = "Today",
                 icon = NovaIconAsset.Today,
                 selected = selected == NovaTab.Home,
@@ -73,6 +78,7 @@ fun NovaBottomBar(
                 onClick = onHomeClick,
             )
             NovaTabItem(
+                modifier = Modifier.weight(1f),
                 label = "Plants",
                 icon = NovaIconAsset.Plants,
                 selected = selected == NovaTab.Plants,
@@ -80,10 +86,12 @@ fun NovaBottomBar(
                 onClick = { NovaRootNavigationSignal.request(NovaRootTab.Plants) },
             )
             NovaCreateTabItem(
+                modifier = Modifier.weight(1f),
                 selected = selected == NovaTab.Create,
                 onClick = onCreateClick,
             )
             NovaTabItem(
+                modifier = Modifier.weight(1f),
                 label = "Shop",
                 icon = NovaIconAsset.Shop,
                 selected = selected == NovaTab.Shop,
@@ -91,6 +99,7 @@ fun NovaBottomBar(
                 onClick = { NovaRootNavigationSignal.request(NovaRootTab.Shop) },
             )
             NovaTabItem(
+                modifier = Modifier.weight(1f),
                 label = "Circle",
                 icon = NovaIconAsset.Orbit,
                 selected = selected == NovaTab.Orbit,
@@ -104,6 +113,7 @@ fun NovaBottomBar(
 
 @Composable
 private fun NovaCreateTabItem(
+    modifier: Modifier = Modifier,
     selected: Boolean,
     onClick: () -> Unit,
 ) {
@@ -116,37 +126,26 @@ private fun NovaCreateTabItem(
         label = "nova-create-tab-color",
     )
 
-    Box(
-        modifier = Modifier.widthIn(min = 58.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Surface(
-            onClick = onClick,
-            modifier = Modifier
-                .size(52.dp)
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                },
-            shape = CircleShape,
-            color = containerColor,
-            shadowElevation = NovaElevation.raised,
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                NovaIcon(
-                    asset = NovaIconAsset.Create,
-                    contentDescription = "Record a private moment or share publicly",
-                    tint = Color.White,
-                    modifier = Modifier.size(25.dp),
-                )
+    Surface(onClick = onClick, modifier = modifier.semantics { this.selected = selected; role = Role.Tab },
+        color = Color.Transparent, shape = MaterialTheme.shapes.medium) {
+        Column(Modifier.padding(vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Surface(modifier = Modifier.size(48.dp).graphicsLayer { scaleX = scale; scaleY = scale },
+                shape = CircleShape, color = containerColor, shadowElevation = NovaElevation.raised) {
+                Box(contentAlignment = Alignment.Center) {
+                    NovaIcon(asset = NovaIconAsset.Create, contentDescription = "Record a private moment or share publicly",
+                        tint = Color.White, modifier = Modifier.size(25.dp))
+                }
             }
+            Text("Create", color = NovaAccent, style = NovaType.navigationLabel)
         }
     }
+
 }
 
 
 @Composable
 private fun NovaTabItem(
+    modifier: Modifier = Modifier,
     label: String,
     displayLabel: String = label,
     icon: NovaIconAsset,
@@ -166,12 +165,12 @@ private fun NovaTabItem(
 
     Surface(
         onClick = onClick,
-        modifier = Modifier.widthIn(min = 58.dp),
+        modifier = modifier.semantics { this.selected = selected; role = Role.Tab },
         color = Color.Transparent,
         shape = MaterialTheme.shapes.medium,
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = NovaSpacing.sm, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 2.dp, vertical = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(

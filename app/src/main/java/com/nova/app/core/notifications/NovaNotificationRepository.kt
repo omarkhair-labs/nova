@@ -37,6 +37,8 @@ class NovaNotificationRepository(
         }
     }
 
+    override suspend fun markRead(notificationId: Long): ApiResult<Int> = authenticatedCall { api.markRead(it, notificationId) }
+
     private suspend fun <T> authenticatedCall(
         call: suspend (String) -> ApiResult<T>,
     ): ApiResult<T> {
@@ -105,6 +107,14 @@ class NovaNotificationApiClient(
         }
     }
 
+    suspend fun markRead(accessToken: String, notificationId: Long): ApiResult<Int> {
+        return when (val response = requestJson("notifications/read/", "POST",
+            JSONObject().put("ids", JSONArray().put(notificationId)), accessToken)) {
+            is ApiResult.Success -> ApiResult.Success(response.value.optInt("unread_count"))
+            is ApiResult.Failure -> response
+        }
+    }
+
     private fun parseNotification(json: JSONObject): NovaNotification {
         val actor = json.optJSONObject("actor") ?: JSONObject()
         val rawPostId = json.opt("post_id")
@@ -135,6 +145,9 @@ class NovaNotificationApiClient(
             commentPreview = json.optString("comment_preview"),
             createdAt = json.optString("created_at"),
             isRead = json.optBoolean("is_read", false),
+            plantupiaTicketId = json.optString("plantupia_ticket_id").takeIf { it.isNotBlank() && it != "null" },
+            plantupiaPlantId = json.optString("plantupia_plant_id").takeIf { it.isNotBlank() && it != "null" },
+            plantupiaOrderId = json.optString("plantupia_order_id").takeIf { it.isNotBlank() && it != "null" },
         )
     }
 

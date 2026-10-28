@@ -146,7 +146,7 @@ fun HomeScreen(
         val target = pendingPushTarget ?: return@LaunchedEffect
 
         when (target.kind) {
-            "plantupia_support_reply" -> return@LaunchedEffect
+            "plantupia_support_reply", "plantupia_order_update" -> return@LaunchedEffect
             "follow" -> {
                 NovaPushOpenSignal.consume()
                 if (target.actorUsername.isNotBlank()) {
@@ -189,6 +189,7 @@ fun HomeScreen(
             refreshUnreadCount()
         }
         NotificationsScreen(
+            accountId = userId,
             onBack = {
                 showActivity = false
                 refreshUnreadCount()

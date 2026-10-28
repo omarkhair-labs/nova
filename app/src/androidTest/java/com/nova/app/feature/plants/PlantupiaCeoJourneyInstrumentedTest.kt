@@ -155,7 +155,7 @@ class PlantupiaCeoJourneyInstrumentedTest {
     }
 
     @Test fun stage2_reopenActualStaffReplyAndPersistNoChargeOrder() {
-        click("My Space")
+        click("Plants")
         openPlant("FICTIONAL QA supplied plant 01")
         click("Ask the team")
         click("CEO QA inspection question", true)
@@ -164,7 +164,7 @@ class PlantupiaCeoJourneyInstrumentedTest {
         click("Close")
         // Returning through the existing selected-plant Back action preserves My Space.
         click("← Back to space")
-        click("Shop plants & essentials")
+        click("Shop")
         val catalog = runBlocking { repository.demoGet("catalog/") }
         assertTrue(catalog is ApiResult.Success)
         val plantProduct = (catalog as ApiResult.Success).value.demoRows().first { it.getString("kind") == "plant" }
@@ -190,14 +190,14 @@ class PlantupiaCeoJourneyInstrumentedTest {
         val orders = runBlocking { repository.demoGet("demo/orders/") }
         assertTrue(orders is ApiResult.Success && orders.value.demoRows().isNotEmpty())
         scenario!!.recreate()
-        click("Shop plants & essentials")
+        click("Shop")
         click("My orders")
         node("charged: no", true).assertExists()
         capture("08-order-after-relaunch")
     }
 
     @Test fun stage3_readOnlyReopenAndRevokedPaywall() {
-        click("My Space")
+        click("Plants")
         val plants = runBlocking { repository.plants() }
         assertTrue(plants is ApiResult.Success)
         val actual = (plants as ApiResult.Success).value
@@ -215,7 +215,7 @@ class PlantupiaCeoJourneyInstrumentedTest {
         capture("11-revoked-paywall-${width}dp")
         click("Close")
         click("← Back to space")
-        click("Shop plants & essentials")
+        click("Shop")
         click("My orders")
         node("charged: no", true).assertExists()
         capture("12-orders-${width}dp")

@@ -53,9 +53,9 @@ internal fun PlantupiaTodayPanel(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Today", style = PlantupiaText.editorialHeading)
+            Text("Your check-ins", style = PlantupiaText.editorialHeading)
             Text(
-                if (due.isEmpty()) "ALL CAUGHT UP" else "${due.size} TO CHECK",
+                if (due.isEmpty()) "NO DUE CHECK-INS" else "${due.size} TO CHECK",
                 style = PlantupiaText.sectionLabel,
             )
         }

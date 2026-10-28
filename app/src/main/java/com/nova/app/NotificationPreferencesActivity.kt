@@ -158,7 +158,10 @@ private fun NotificationPreferencesScreen(
             NotificationToggle("Live sessions", "Calls and live invitations.", "live_sessions", preferences?.liveSessions == true, busyKey, ::update)
             NotificationToggle("Reels & stories", "Updates from people you follow.", "reels_stories", preferences?.reelsStories == true, busyKey, ::update)
             NotificationToggle("Events & spaces", "Rooms, plans and reminders.", "events_spaces", preferences?.eventsSpaces == true, busyKey, ::update)
-            NotificationToggle("Product updates", "Important changes to Nova.", "product_updates", preferences?.productUpdates == true, busyKey, ::update)
+            NotificationToggle("Plantupia team", "Private support reply alerts. The Messages preference also applies.", "plantupia_team", preferences?.plantupiaTeam == true, busyKey, ::update)
+            NotificationToggle("QA orders", "Preparation updates only. No shipping or delivery is implied.", "plantupia_orders", preferences?.plantupiaOrders == true, busyKey, ::update)
+            Text("Care reminders are chosen for each check-in. Inspection schedules never enable alerts automatically.", color = NovaMuted)
+            NotificationToggle("Product updates", "Important changes to Plantupia.", "product_updates", preferences?.productUpdates == true, busyKey, ::update)
             if (error != null) {
                 Spacer(Modifier.height(4.dp))
                 NovaInlineRetry(

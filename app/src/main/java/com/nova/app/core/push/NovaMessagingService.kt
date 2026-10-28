@@ -51,6 +51,7 @@ class NovaMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
         val kind = message.data["kind"].orEmpty()
+        if (kind in setOf("plantupia_support_reply", "plantupia_order_update") && !authorizedPlantupiaPushRecipient(message.data["recipient_id"]?.toLongOrNull(), NovaSessionStore(applicationContext).load()?.cachedUser?.id)) return
 
         if (kind == "incoming_call") {
             handleIncomingCall(message)
@@ -175,6 +176,7 @@ class NovaMessagingService : FirebaseMessagingService() {
             "reel_reply" -> "New Reel reply"
             "message" -> actor
             "plantupia_support_reply" -> "Plantupia team"
+            "plantupia_order_update" -> "Plantupia QA order"
             else -> "Nova activity"
         }
     }
@@ -196,6 +198,7 @@ class NovaMessagingService : FirebaseMessagingService() {
             "reel_reply" -> "$actor replied to your Reel comment"
             "message" -> messagePreview.ifBlank { "$actor sent you a message" }
             "plantupia_support_reply" -> "You have a new reply to your support request."
+            "plantupia_order_update" -> "A separate preparation draft is ready for review. No delivery was initiated."
             else -> "$actor interacted with you"
         }
     }

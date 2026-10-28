@@ -202,3 +202,8 @@ class DemoOrdersView(DemoView):
 
     def post(self, request):
         return Response(service.checkout(request.user, parsed(CheckoutInput, request)))
+
+
+class DemoOrderView(DemoView):
+    def get(self, request, order_id):
+        return Response(order_json(get_object_or_404(DemoOrder.objects.prefetch_related("lines"), pk=order_id, customer=request.user)))

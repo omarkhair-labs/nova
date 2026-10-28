@@ -7,6 +7,10 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.staticCompositionLocalOf
+
+internal val LocalPlantupiaNoticeCount = staticCompositionLocalOf { 0 }
+internal val LocalPlantupiaNoticeCountChanged = staticCompositionLocalOf<(Int) -> Unit> { {} }
 
 /**
  * Shared native Plantupia visual roles, derived from the approved brand direction.
@@ -35,6 +39,7 @@ internal object PlantupiaShapes {
 }
 
 internal object PlantupiaText {
+    val pageHeading = TextStyle(fontFamily = FontFamily.Serif, fontSize = 31.sp, lineHeight = 38.sp, color = PlantupiaColors.forestText)
     val editorialHeading = TextStyle(
         fontFamily = FontFamily.Serif,
         fontSize = 24.sp,

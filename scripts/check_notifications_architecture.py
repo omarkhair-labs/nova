@@ -200,7 +200,7 @@ for forbidden in (
         errors.append(f"NotificationsStateOwner must depend only on stable/data seams: {forbidden}")
 
 for test_name in (
-    "reset loads follow requests then activity and marks unread notifications read",
+    "opening the center preserves unread notices until an explicit read action",
     "load more deduplicates existing and repeated incoming notifications",
     "load more cannot replace the global unread count with a cursor page count",
     "successful mark all read reconciles visible unread rows immediately",
@@ -212,6 +212,7 @@ for test_name in (
     "open post clears busy before success callback and keeps failure semantics",
     "load more threshold stays four items from the end",
     "notification click routing preserves post reel and actor fallbacks",
+    "reading a team notice preserves unread social and order rows",
 ):
     if test_name not in owner_test:
         errors.append(f"Notifications state characterization is missing test: {test_name}")

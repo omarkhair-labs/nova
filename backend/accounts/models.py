@@ -215,6 +215,8 @@ class Notification(models.Model):
         FOLLOW = "follow", "Follow"
         LIKE = "like", "Like"
         COMMENT = "comment", "Comment"
+        PLANT_TEAM = "plant_team", "Private Plantupia team reply"
+        PLANT_ORDER = "plant_order", "QA order preparation update"
 
     recipient = models.ForeignKey(
         User,
@@ -242,6 +244,9 @@ class Notification(models.Model):
         blank=True,
     )
     dedupe_key = models.CharField(max_length=100, unique=True)
+    plantupia_ticket_id = models.UUIDField(null=True, blank=True)
+    plantupia_plant_id = models.UUIDField(null=True, blank=True)
+    plantupia_order_id = models.UUIDField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     read_at = models.DateTimeField(null=True, blank=True)
 
