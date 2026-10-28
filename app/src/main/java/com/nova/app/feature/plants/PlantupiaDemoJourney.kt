@@ -438,7 +438,9 @@ internal fun PlantupiaQaShop(
         }
     }
     androidx.activity.compose.BackHandler(enabled = fullPage && (selectedId != null || screen != "catalog")) {
-        if (selectedId != null) selectedId = null else screen = "catalog"
+        if (selectedId != null) selectedId = null
+        else if (screen == "review") { confirmed = false; screen = "cart" }
+        else screen = "catalog"
     }
     val orderTarget = PlantupiaShopOpenSignal.target
     LaunchedEffect(orderTarget) {
@@ -582,8 +584,10 @@ internal fun PlantupiaQaShop(
                             else -> "Status unavailable"
                         }
                         Text("$statusLabel · ${order.getString("created_at").take(10)}", style = PlantupiaText.supporting)
-                        order.demoRows("lines").forEach { line -> Text("${line.getInt("quantity")} × ${line.getString("name")}") }
-                        Text("EGP ${order.getString("total_provisional")} · charged: no", color = demoForest)
+                        order.demoRows("lines").forEach { line ->
+                            Text("${line.getInt("quantity")} × ${line.getString("name").removePrefix("FICTIONAL QA · ").removePrefix("FICTIONAL QA ")}")
+                        }
+                        Text("Total · EGP ${order.getString("total_provisional")}", color = demoForest)
                         Text("No payment or delivery was initiated.", style = PlantupiaText.supporting)
                     } }
                 }
@@ -591,6 +595,7 @@ internal fun PlantupiaQaShop(
                     val product = selected
                     if (product == null) {
                         Text("Find something for your space.", style = PlantupiaText.body)
+                        Text("Preview collection · illustrative prices only", style = PlantupiaText.supporting)
                         OutlinedTextField(
                             value = searchText,
                             onValueChange = { searchText = it.take(80) },
