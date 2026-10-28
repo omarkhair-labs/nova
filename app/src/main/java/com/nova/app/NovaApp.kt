@@ -40,6 +40,8 @@ import com.nova.app.feature.legal.PrivacyScreen
 import com.nova.app.feature.legal.TermsScreen
 import com.nova.app.feature.onboarding.ProfileSetupScreen
 import com.nova.app.feature.orbit.OrbitScreen
+import com.nova.app.feature.plants.PlantupiaPlantsRoute
+import com.nova.app.feature.plants.PlantupiaShopRoute
 import com.nova.app.feature.people.PeopleScreen
 import com.nova.app.feature.people.PeopleStateOwner
 import com.nova.app.feature.people.PersonScreen
@@ -121,6 +123,8 @@ fun NovaApp(
         backStack.add(
             when (tab) {
                 NovaRootTab.Home -> NovaRoute.Home
+                NovaRootTab.Plants -> NovaRoute.Plants
+                NovaRootTab.Shop -> NovaRoute.Shop
                 NovaRootTab.Orbit -> NovaRoute.Orbit
                 NovaRootTab.Create -> NovaRoute.Create
                 NovaRootTab.Profile -> NovaRoute.Profile
@@ -395,6 +399,37 @@ fun NovaApp(
                                 }
                             }
                         },
+                    )
+                }
+
+                NovaRoute.Plants -> NavEntry(route) {
+                    val plantScope = rememberCoroutineScope()
+                    PlantupiaPlantsRoute(
+                        accountId = appState.currentUser?.id ?: 0L,
+                        onCreatePost = { backStack.add(NovaRoute.CreatePost) },
+                        onOpenLinkedPost = { postId, stillCurrent ->
+                            plantScope.launch {
+                                when (val result = postRepository.post(postId)) {
+                                    is ApiResult.Success -> if (stillCurrent()) {
+                                        backStack.add(NovaRoute.PostDetail(result.value.id))
+                                    }
+                                    is ApiResult.Failure -> Unit
+                                }
+                            }
+                        },
+                        onToday = ::openHome,
+                        onCircle = { openRoot(NovaRootTab.Orbit) },
+                        onCreate = { openRoot(NovaRootTab.Create) },
+                        onProfile = { openRoot(NovaRootTab.Profile) },
+                    )
+                }
+
+                NovaRoute.Shop -> NavEntry(route) {
+                    PlantupiaShopRoute(
+                        onToday = ::openHome,
+                        onCircle = { openRoot(NovaRootTab.Orbit) },
+                        onCreate = { openRoot(NovaRootTab.Create) },
+                        onProfile = { openRoot(NovaRootTab.Profile) },
                     )
                 }
 

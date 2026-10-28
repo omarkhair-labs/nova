@@ -31,6 +31,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import com.nova.app.feature.plants.PlantupiaCreateIntent
+import com.nova.app.navigation.NovaRootNavigationSignal
+import com.nova.app.navigation.NovaRootTab
 import com.nova.app.feature.plants.PlantupiaCreateMode
 import com.nova.app.feature.memories.MemoriesRail
 import com.nova.app.feature.pulse.PulseRail
@@ -98,7 +100,7 @@ fun CreateHubScreen(
 
     fun enterPlant(mode: PlantupiaCreateMode) {
         PlantupiaCreateIntent.request(mode)
-        onHomeClick()
+        NovaRootNavigationSignal.request(NovaRootTab.Plants)
     }
 
     // Public creation is intentional; the inherited infinite Reels feed is not

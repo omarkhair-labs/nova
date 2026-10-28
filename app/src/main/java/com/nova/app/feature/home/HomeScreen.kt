@@ -315,7 +315,7 @@ fun HomeScreen(
                     // Community remains a deliberate choice, not an endless
                     // autoplay feed intruding into private living-space care.
                     Surface(
-                        onClick = { showCommunityFeed = !showCommunityFeed },
+                        onClick = onOrbitClick,
                         modifier = Modifier.fillMaxWidth(),
                         color = PlantupiaColors.paper,
                         shape = PlantupiaShapes.inset,
@@ -332,7 +332,7 @@ fun HomeScreen(
                             ) {
                                 Text("THE CIRCLE", style = PlantupiaText.sectionLabel)
                                 Text(
-                                    if (showCommunityFeed) "Close shared moments" else "Explore shared moments",
+                                    "Explore the Circle",
                                     style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
                                 )
                                 Text(
@@ -341,7 +341,7 @@ fun HomeScreen(
                                 )
                             }
                             Text(
-                                if (showCommunityFeed) "↑" else "↓",
+                                "→",
                                 style = PlantupiaText.editorialHeading,
                             )
                         }

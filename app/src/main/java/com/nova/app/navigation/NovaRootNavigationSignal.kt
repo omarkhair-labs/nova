@@ -8,6 +8,8 @@ import androidx.compose.runtime.setValue
 
 enum class NovaRootTab {
     Home,
+    Plants,
+    Shop,
     Orbit,
     Create,
     Profile,

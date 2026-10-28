@@ -24,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
+import com.nova.app.navigation.NovaRootNavigationSignal
+import com.nova.app.navigation.NovaRootTab
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
@@ -34,9 +36,9 @@ import com.nova.app.ui.theme.NovaSurface
 import com.nova.app.ui.theme.NovaType
 
 
-/** Primary Plantupia navigation: Space / Circle / Create / You.
- * Inbox remains a separate working Nova destination, reached contextually
- * from Circle and the self profile instead of occupying a primary tab.
+/** Plantupia primary navigation: Today / Plants / Create / Shop / Circle.
+ * Me remains available through the top-right avatar on primary routes.
+ * Create stays an intentional hub, not a second, ambiguous feed destination.
  */
 @Composable
 fun NovaBottomBar(
@@ -64,32 +66,36 @@ fun NovaBottomBar(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             NovaTabItem(
-                label = "Home",
-                displayLabel = "My Space",
-                icon = NovaIconAsset.Home,
+                label = "Today",
+                icon = NovaIconAsset.Today,
                 selected = selected == NovaTab.Home,
                 inactiveContentColor = inactiveContentColor,
                 onClick = onHomeClick,
             )
             NovaTabItem(
-                label = "Circle",
-                displayLabel = "Circle",
-                icon = NovaIconAsset.Orbit,
-                selected = selected == NovaTab.Orbit,
+                label = "Plants",
+                icon = NovaIconAsset.Plants,
+                selected = selected == NovaTab.Plants,
                 inactiveContentColor = inactiveContentColor,
-                onClick = onOrbitClick,
+                onClick = { NovaRootNavigationSignal.request(NovaRootTab.Plants) },
             )
             NovaCreateTabItem(
                 selected = selected == NovaTab.Create,
                 onClick = onCreateClick,
             )
             NovaTabItem(
-                label = "Profile",
-                displayLabel = "Me",
-                icon = NovaIconAsset.Profile,
-                selected = selected == NovaTab.Profile,
+                label = "Shop",
+                icon = NovaIconAsset.Shop,
+                selected = selected == NovaTab.Shop,
                 inactiveContentColor = inactiveContentColor,
-                onClick = onProfileClick,
+                onClick = { NovaRootNavigationSignal.request(NovaRootTab.Shop) },
+            )
+            NovaTabItem(
+                label = "Circle",
+                icon = NovaIconAsset.Orbit,
+                selected = selected == NovaTab.Orbit,
+                inactiveContentColor = inactiveContentColor,
+                onClick = onOrbitClick,
             )
         }
     }
@@ -207,6 +213,8 @@ private fun NovaTabItem(
 
 enum class NovaTab {
     Home,
+    Plants,
+    Shop,
     Orbit,
     Create,
     Inbox,

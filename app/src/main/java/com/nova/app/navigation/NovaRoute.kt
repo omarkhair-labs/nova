@@ -8,6 +8,8 @@ sealed interface NovaRoute {
     data object Login : NovaRoute
     data object ProfileSetup : NovaRoute
     data object Home : NovaRoute
+    data object Plants : NovaRoute
+    data object Shop : NovaRoute
     data object Orbit : NovaRoute
     data object Create : NovaRoute
     data object Pulse : NovaRoute

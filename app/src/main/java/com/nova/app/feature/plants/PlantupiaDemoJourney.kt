@@ -11,6 +11,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import com.nova.app.navigation.NovaRootNavigationSignal
+import com.nova.app.navigation.NovaRootTab
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -156,7 +158,6 @@ internal fun PlantupiaDemoHome(repository: PlantupiaRepository, plants: List<Pla
     var available by remember { mutableStateOf(false) }
     var pending by remember { mutableStateOf(emptyList<JSONObject>()) }
     var message by remember { mutableStateOf<String?>(null) }
-    var shop by remember { mutableStateOf(false) }
     var refresh by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
     LaunchedEffect(refresh) {
@@ -176,7 +177,7 @@ internal fun PlantupiaDemoHome(repository: PlantupiaRepository, plants: List<Pla
                     Text("${if (plan.optBoolean("due")) "Due · " else "Next · "}${plan.getString("plant_name")} · ${plan.getString("action")} · ${plan.getString("next_due_on")}")
                 }
             }
-            OutlinedButton(onClick = { shop = true }, modifier = Modifier.fillMaxWidth()) { Text("Shop plants & essentials") }
+            OutlinedButton(onClick = { NovaRootNavigationSignal.request(NovaRootTab.Shop) }, modifier = Modifier.fillMaxWidth()) { Text("Shop plants & essentials") }
             pending.forEach { intent ->
                 Button(onClick = {
                     scope.launch {
@@ -191,7 +192,6 @@ internal fun PlantupiaDemoHome(repository: PlantupiaRepository, plants: List<Pla
         }
     }
     message?.let { Text(it, color = demoForest); TextButton(onClick = { refresh++ }) { Text("Refresh inspection plans") } }
-    if (shop) PlantupiaQaShop(repository, onDismiss = { shop = false; refresh++ })
 }
 
 @Composable
@@ -375,7 +375,12 @@ internal fun PlantupiaTeamSheet(plant: PlantupiaPlant, repository: PlantupiaRepo
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PlantupiaQaShop(repository: PlantupiaRepository, onDismiss: () -> Unit) {
+internal fun PlantupiaQaShop(
+    repository: PlantupiaRepository,
+    onDismiss: () -> Unit,
+    fullPage: Boolean = false,
+    modifier: Modifier = Modifier,
+) {
     var products by remember { mutableStateOf(emptyList<JSONObject>()) }
     var selected by remember { mutableStateOf<JSONObject?>(null) }
     var quantity by remember { mutableIntStateOf(1) }
@@ -401,8 +406,9 @@ private fun PlantupiaQaShop(repository: PlantupiaRepository, onDismiss: () -> Un
             is ApiResult.Failure -> if (repository.isCurrentSession()) error = result.message
         }
     }
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = demoPaper) {
-        Column(Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    val shopContent: @Composable () -> Unit = {
+        Column(Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -586,6 +592,15 @@ private fun PlantupiaQaShop(repository: PlantupiaRepository, onDismiss: () -> Un
             TextButton(onClick = onDismiss) { Text("Back to My Space") }
             Spacer(Modifier.height(24.dp))
         }
+    }
+    if (fullPage) {
+        Surface(modifier = modifier.fillMaxSize(), color = demoPaper) { shopContent() }
+    } else {
+        ModalBottomSheet(
+            onDismissRequest = onDismiss,
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = demoPaper,
+        ) { shopContent() }
     }
 }
 

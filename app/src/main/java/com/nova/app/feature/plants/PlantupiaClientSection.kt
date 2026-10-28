@@ -71,6 +71,8 @@ import com.nova.app.feature.plants.data.PlantupiaSpace
 import com.nova.app.feature.plants.data.findSpacePlants
 import com.nova.app.feature.plants.data.findArchivedPlants
 import com.nova.app.feature.plants.data.resolveFocusedSpace
+import com.nova.app.navigation.NovaRootNavigationSignal
+import com.nova.app.navigation.NovaRootTab
 import com.nova.app.feature.plants.data.isCurrentPlantDetailRequest
 import com.nova.app.feature.plants.data.spacePlantCountSummary
 import com.nova.app.feature.plants.data.spaceHeroMediaEyebrow
@@ -86,6 +88,8 @@ private val forestText = Color(0xFF16302A)
 private val muted = Color(0xFF4A5A50)
 private val white = Color(0xFFFFFDF7)
 
+internal enum class PlantupiaPrimarySection { TODAY, PLANTS }
+
 /**
  * Actual Plantupia client-space experience inside the existing Nova Home.
  * Pulls signed-in customer data from the Oracle-hosted API. NO demo plants.
@@ -97,9 +101,10 @@ fun PlantupiaClientSection(
     onCommunityCreateClick: () -> Unit,
     onOpenLinkedPost: (Long, () -> Boolean) -> Unit,
     onOpenPlant: () -> Unit = {},
+    section: PlantupiaPrimarySection = PlantupiaPrimarySection.TODAY,
 ) {
-    key(accountId) {
-        PlantupiaAccountClientSection(accountId, onCommunityCreateClick, onOpenLinkedPost, onOpenPlant)
+    key(accountId, section) {
+        PlantupiaAccountClientSection(accountId, onCommunityCreateClick, onOpenLinkedPost, onOpenPlant, section)
     }
 }
 
@@ -109,6 +114,7 @@ private fun PlantupiaAccountClientSection(
     onCommunityCreateClick: () -> Unit,
     onOpenLinkedPost: (Long, () -> Boolean) -> Unit,
     onOpenPlant: () -> Unit = {},
+    section: PlantupiaPrimarySection,
 ) {
     val context = LocalContext.current
     val repository = remember(context) { PlantupiaRepository(context.applicationContext) }
@@ -453,7 +459,7 @@ private fun PlantupiaAccountClientSection(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         if (selectedPlant == null) {
-            Text("My space", fontFamily = FontFamily.Serif, fontSize = 31.sp, color = deepGreen)
+            Text(if (section == PlantupiaPrimarySection.TODAY) "Today" else "My plants", fontFamily = FontFamily.Serif, fontSize = 31.sp, color = deepGreen)
             if (!loading) {
                 Text(
                     if (plants.any { it.active }) "${plants.count { it.active }} plants in your care"
@@ -506,7 +512,7 @@ private fun PlantupiaAccountClientSection(
                 }
             }
             // Quiet Care: real persisted inspections and check-ins before optional help.
-            if (!loading && error == null) {
+            if (!loading && error == null && section == PlantupiaPrimarySection.TODAY) {
                 PlantupiaTodayPanel(
                     plants = plants,
                     onOpenPlant = { plant -> scope.launch { openPlant(plant) } },
@@ -533,6 +539,12 @@ private fun PlantupiaAccountClientSection(
                     }
                 }
             }
+            if (!loading && error == null && section == PlantupiaPrimarySection.TODAY) {
+                TextButton(onClick = { NovaRootNavigationSignal.request(NovaRootTab.Plants) }) {
+                    Text("View all plants →", color = deepGreen)
+                }
+            }
+            if (section == PlantupiaPrimarySection.PLANTS) {
             // Pass 07: show the authentic place before AI and creation controls.
             // An empty or failed API must never display stock customer imagery.
             if (!loading && error == null && spaces.isNotEmpty()) {
@@ -769,6 +781,7 @@ private fun PlantupiaAccountClientSection(
                         }
                     }
                 }
+            }
             }
             if (error != null) Text(error.orEmpty(), color = Color(0xFF9A4A31), fontSize = 12.sp)
             TextButton(onClick = { scope.launch { refresh() } }) {
