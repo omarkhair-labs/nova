@@ -383,4 +383,4 @@ class InventoryImportReceipt(models.Model):
 # Django discovers these additive domain models through this app's model entrypoint.
 from .demo_models import (CareInspectionPlan, CarePlanEnrollment, CarePlanDecision,
                          DemoOffer, DemoEntitlement, DemoMutation, ServiceRequest,
-                         CatalogProduct, DemoCartLine, DemoOrder, DemoOrderLine)  # noqa: E402,F401
+                         CatalogProduct, CatalogProductPhoto, DemoCartLine, DemoOrder, DemoOrderLine)  # noqa: E402,F401
