@@ -88,7 +88,7 @@ private val forestText = Color(0xFF16302A)
 private val muted = Color(0xFF4A5A50)
 private val white = Color(0xFFFFFDF7)
 
-internal enum class PlantupiaPrimarySection { TODAY, PLANTS }
+enum class PlantupiaPrimarySection { TODAY, PLANTS }
 
 /**
  * Actual Plantupia client-space experience inside the existing Nova Home.
@@ -532,7 +532,10 @@ private fun PlantupiaAccountClientSection(
                         }
                     }
                     OutlinedButton(
-                        onClick = { PlantupiaCreateIntent.request(PlantupiaCreateMode.ADD_PLANT) },
+                        onClick = {
+                            PlantupiaCreateIntent.request(PlantupiaCreateMode.ADD_PLANT)
+                            NovaRootNavigationSignal.request(NovaRootTab.Plants)
+                        },
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                     ) {
                         Text("+ Add plant", color = deepGreen)
