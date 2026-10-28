@@ -41,6 +41,7 @@ object PlantupiaHandoverNavigation {
 internal fun PlantupiaHandoverScreen(
     accountId: Long?, accountName: String, onLogin: () -> Unit, onRegister: () -> Unit,
     onClose: () -> Unit, onConnected: (String) -> Unit,
+    onOwnPlants: () -> Unit,
 ) {
     val context = LocalContext.current
     val store = remember { PlantupiaHandoverStore(context) }
@@ -55,6 +56,7 @@ internal fun PlantupiaHandoverScreen(
     var delivery by remember { mutableStateOf<PlantupiaDelivery?>(null) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var confirmsRecipient by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         // Bind a pre-login intent to the first signed-in account, without claiming it.
         if (accountId != null && code.isNotBlank() && current() && !store.save(code, accountId)) {
@@ -68,7 +70,7 @@ internal fun PlantupiaHandoverScreen(
             val scanned = deliveryCode(result.contents)
             if (scanned == null) error = "This QR isn't a Plantupia delivery code. Enter the code supplied with your plants."
             else {
-                code = scanned; delivery = null
+                code = scanned; delivery = null; confirmsRecipient = false
                 error = if (store.save(scanned, accountId)) null else "The code couldn't be stored securely. Please retry."
             }
         }
@@ -107,7 +109,10 @@ internal fun PlantupiaHandoverScreen(
             if (!current()) return@launch
             busy = false
             when (result) {
-                is ApiResult.Success -> delivery = result.value
+                is ApiResult.Success -> {
+                    delivery = result.value
+                    confirmsRecipient = false
+                }
                 is ApiResult.Failure -> { error = result.message; delivery = null }
             }
         }
@@ -120,9 +125,13 @@ internal fun PlantupiaHandoverScreen(
             Column(Modifier.fillMaxSize().imePadding().safeDrawingPadding()
                 .verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 TextButton(onClick = onClose) { Text("← Back") }
-                Text("WELCOME HOME", style = PlantupiaText.sectionLabel)
-                Text("Bring your plants home.", style = MaterialTheme.typography.headlineLarge, color = PlantupiaColors.forest)
-                Text("Scan the QR from your Plantupia delivery.", style = PlantupiaText.body)
+                Text("PLANTUPIA · DELIVERY", style = PlantupiaText.sectionLabel)
+                Text("Your plants, in your care.", style = MaterialTheme.typography.headlineLarge, color = PlantupiaColors.forest)
+                Text(
+                    if (delivery == null) "Have a Plantupia delivery? Scan its QR or enter the code to check what the team prepared."
+                    else "Review the delivery details before connecting any plants to your space.",
+                    style = PlantupiaText.body,
+                )
                 if (accountId != null) Text("Account · $accountName", style = PlantupiaText.supporting)
                 if (delivery == null) {
                     Button(enabled = !busy, onClick = {
@@ -131,7 +140,7 @@ internal fun PlantupiaHandoverScreen(
                     }, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = PlantupiaColors.forest)) { Text("Scan QR code") }
                     OutlinedTextField(value = code, onValueChange = {
-                        code = it; error = null
+                        code = it; error = null; confirmsRecipient = false
                         deliveryCode(it)?.let { token ->
                             if (current() && !store.save(token, accountId)) error = "The code couldn't be stored securely. Please retry."
                         }
@@ -144,21 +153,44 @@ internal fun PlantupiaHandoverScreen(
                         Button(onClick = { if (preserve()) onLogin() }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Continue to log in") }
                         OutlinedButton(onClick = { if (preserve()) onRegister() }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Create account and continue") }
                     } else {
-                        Button(enabled = !busy, onClick = { request(false) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Review my delivery") }
+                        Button(enabled = !busy && deliveryCode(code) != null, onClick = { request(false) },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Review delivery details") }
                     }
                 } else {
                     val summary = requireNotNull(delivery)
                     Text(if (summary.spaceId != null) "Your plants are connected." else "Your plants are waiting.", style = MaterialTheme.typography.titleLarge)
                     Text(summary.spaceLabel, style = MaterialTheme.typography.titleMedium)
-                    Text("${summary.plantCount} plants prepared")
+                    Text("${summary.plantCount} individual plants prepared", style = PlantupiaText.body)
                     if (summary.spaceId != null) {
                         Button(onClick = { if (current()) { store.clear(); onConnected(requireNotNull(summary.spaceId)) } },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Open My Space") }
                     } else {
-                        Text("Only confirm if this delivery belongs to you.", style = PlantupiaText.supporting)
-                        Button(enabled = !busy, onClick = { request(true) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                            Text(if (summary.claimed) "Confirm and reopen my plants" else "Confirm and connect my plants")
+                        Text(
+                            "Checking a delivery does not add plants to your account. Confirm only after checking the account, space and plant count.",
+                            style = PlantupiaText.supporting,
+                        )
+                        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = confirmsRecipient,
+                                onCheckedChange = { confirmsRecipient = it },
+                                enabled = !busy,
+                            )
+                            Text("This is my delivery and this is the right account.",
+                                modifier = Modifier.weight(1f), style = PlantupiaText.body)
                         }
+                        Button(
+                            enabled = !busy && confirmsRecipient,
+                            onClick = { request(true) },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = PlantupiaColors.forest),
+                        ) {
+                            Text("Confirm and connect my plants")
+                        }
+                    }
+                }
+                if (accountId != null && delivery == null) {
+                    TextButton(onClick = onOwnPlants, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+                        Text("No delivery? Go to my plants")
                     }
                 }
                 if (busy) { LinearProgressIndicator(Modifier.fillMaxWidth()); Text("Confirming with Plantupia…") }
