@@ -530,7 +530,32 @@ private fun PlantupiaAccountClientSection(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         if (selectedPlant == null) {
-            Text(if (section == PlantupiaPrimarySection.TODAY) "Today" else "My plants", fontFamily = FontFamily.Serif, fontSize = 31.sp, color = deepGreen)
+            if (section == PlantupiaPrimarySection.PLANTS) {
+                // The primary entry is visible before the collection; existing
+                // server-backed Create editors handle the actual write below.
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                    val horizontal = maxWidth >= 300.dp && LocalDensity.current.fontScale <= 1.2f
+                    if (horizontal) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text("My plants", fontFamily = FontFamily.Serif, fontSize = 31.sp, color = deepGreen)
+                            if (!loading && error == null) TextButton(onClick = {
+                                PlantupiaCreateIntent.request(PlantupiaCreateMode.ADD_PLANT)
+                            }) { Text("+ Add plant", color = deepGreen) }
+                        }
+                    } else {
+                        Text("My plants", fontFamily = FontFamily.Serif, fontSize = 31.sp, color = deepGreen)
+                        if (!loading && error == null) TextButton(onClick = {
+                            PlantupiaCreateIntent.request(PlantupiaCreateMode.ADD_PLANT)
+                        }) { Text("+ Add plant", color = deepGreen) }
+                    }
+                }
+            } else {
+                Text("Today", fontFamily = FontFamily.Serif, fontSize = 31.sp, color = deepGreen)
+            }
             if (!loading) {
                 Text(
                     if (plants.any { it.active }) "${plants.count { it.active }} plants in your care"
