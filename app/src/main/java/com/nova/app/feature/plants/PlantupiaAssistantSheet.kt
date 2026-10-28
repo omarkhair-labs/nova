@@ -83,8 +83,10 @@ internal fun PlantupiaAssistantSheet(
     var bubbles by remember(plant?.id) { mutableStateOf(emptyList<CareChatBubble>()) }
     val scope = rememberCoroutineScope()
     val chatListState = rememberLazyListState()
-    LaunchedEffect(bubbles.size, pending) {
-        if (bubbles.isNotEmpty()) chatListState.animateScrollToItem(if (pending) bubbles.size else bubbles.lastIndex)
+    LaunchedEffect(bubbles.size, pending, error) {
+        val rows = (if (plant != null) 1 else 0) + (if (bubbles.isEmpty()) 1 else bubbles.size) +
+            (if (pending) 1 else 0) + (if (error != null) 1 else 0) + 1
+        if (bubbles.isNotEmpty() || error != null) chatListState.animateScrollToItem(rows - 1)
     }
 
     PlantupiaConversationSheet(onDismiss) {
@@ -95,7 +97,12 @@ internal fun PlantupiaAssistantSheet(
                 onClose = onDismiss,
             )
             PlantupiaDemoAccessGate(repository, human = false, scrollPaywall = true, paywallModifier = Modifier.weight(1f)) { accessLost ->
-                if (plant != null) Surface(
+                LazyColumn(
+                    state = chatListState,
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(13.dp),
+                ) {
+                if (plant != null) item { Surface(
                     color = PlantupiaColors.softSage,
                     shape = RoundedCornerShape(16.dp),
                     border = BorderStroke(1.dp, PlantupiaColors.border),
@@ -118,12 +125,7 @@ internal fun PlantupiaAssistantSheet(
                             },
                         )
                     }
-                }
-                LazyColumn(
-                    state = chatListState,
-                    modifier = Modifier.fillMaxWidth().weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(13.dp),
-                ) {
+                } }
                     if (bubbles.isEmpty()) item {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("What's happening with your plant?", style = PlantupiaText.editorialHeading)
@@ -153,11 +155,15 @@ internal fun PlantupiaAssistantSheet(
                     if (pending) item {
                         Text("Plantupia is thinking…", style = PlantupiaText.supporting)
                     }
-                }
-                error?.let { problem ->
+                error?.let { problem -> item {
                     Surface(color = Color(0xFFFFEDE9), shape = RoundedCornerShape(12.dp)) {
                         Text(problem, modifier = Modifier.fillMaxWidth().padding(12.dp), color = PlantupiaColors.errorText, style = PlantupiaText.supporting)
                     }
+                } }
+                item { Text(
+                    "AI guidance, not a confirmed diagnosis. No care record is created automatically.",
+                    style = PlantupiaText.supporting,
+                ) }
                 }
                 PlantupiaConversationComposer(
                     value = input,
@@ -199,10 +205,6 @@ internal fun PlantupiaAssistantSheet(
                             }
                         }
                     },
-                )
-                Text(
-                    "AI guidance, not a confirmed diagnosis. No care record is created automatically.",
-                    style = PlantupiaText.supporting,
                 )
             }
             Spacer(Modifier.height(12.dp))

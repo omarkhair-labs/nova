@@ -32,6 +32,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.ui.icons.NovaIcon
@@ -59,12 +61,13 @@ internal fun PlantupiaConversationHeader(
     subtitle: String,
     onClose: () -> Unit,
 ) {
+    val largeText = LocalDensity.current.fontScale > 1.3f
     Row(
         modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Surface(color = PlantupiaColors.softSage, shape = RoundedCornerShape(15.dp)) {
+        if (!largeText) Surface(color = PlantupiaColors.softSage, shape = RoundedCornerShape(15.dp)) {
             NovaIcon(
                 asset = if (category.startsWith("AI")) NovaIconAsset.Info else NovaIconAsset.Messages,
                 contentDescription = null,
@@ -74,8 +77,8 @@ internal fun PlantupiaConversationHeader(
         }
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(category, style = PlantupiaText.sectionLabel)
-            Text(title, style = PlantupiaText.editorialHeading)
-            Text(subtitle, style = PlantupiaText.supporting, maxLines = 2)
+            Text(title, style = if (largeText) PlantupiaText.editorialHeading.copy(fontSize = 20.sp) else PlantupiaText.editorialHeading)
+            Text(subtitle, style = PlantupiaText.supporting, maxLines = if (largeText) 1 else 2, overflow = TextOverflow.Ellipsis)
         }
         TextButton(onClick = onClose) {
             Text("Close", color = PlantupiaColors.forest)
@@ -149,7 +152,7 @@ internal fun PlantupiaConversationComposer(
             placeholder = { Text(placeholder, style = PlantupiaText.supporting) },
             enabled = enabled,
             shape = RoundedCornerShape(18.dp),
-            minLines = 1, maxLines = 4,
+            minLines = 1, maxLines = if (LocalDensity.current.fontScale > 1.3f) 2 else 4,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Send),
             keyboardActions = KeyboardActions(onSend = { if (enabled && value.isNotBlank()) onSend() }),
         )

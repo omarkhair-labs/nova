@@ -301,7 +301,7 @@ internal fun PlantupiaTeamSheet(plant: PlantupiaPlant, repository: PlantupiaRepo
         loading = false
     }
     val messages = thread?.optJSONArray("messages")?.let { array -> (0 until array.length()).map { array.getJSONObject(it) } }.orEmpty()
-    LaunchedEffect(selectedId, messages.size) { if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex) }
+    LaunchedEffect(selectedId, messages.size) { if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size) }
     PlantupiaConversationSheet(onDismiss) {
         PlantupiaConversationHeader("HUMAN SUPPORT", "Plantupia team", plant.name + " · Private request", onDismiss)
         if (selectedId == null) {
@@ -340,12 +340,12 @@ internal fun PlantupiaTeamSheet(plant: PlantupiaPlant, repository: PlantupiaRepo
                 error?.let { Text(it, color = PlantupiaColors.errorText); TextButton(onClick = { refresh++ }) { Text("Retry support") } }
             }
         } else {
-            thread?.let { ticket ->
-                Text(ticket.getString("subject"), style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
-                Text(supportStatusLabel(ticket.getString("status")), style = PlantupiaText.supporting)
-            }
+            thread?.let { Text(supportStatusLabel(it.getString("status")), style = PlantupiaText.supporting) }
             if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
             androidx.compose.foundation.lazy.LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                item { thread?.let { ticket ->
+                    Text(ticket.getString("subject"), style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
+                } }
                 items(messages.size) { index ->
                     val message = messages[index]
                     PlantupiaConversationMessage(message.getString("body"), !message.getBoolean("from_staff"),

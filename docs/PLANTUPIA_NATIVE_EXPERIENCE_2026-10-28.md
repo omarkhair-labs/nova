@@ -33,6 +33,7 @@ support retain their existing engines and appropriate context.
 | General AI questions discarded prior dialogue unless private context was selected | Retain bounded general conversation; exclude prior context-bearing questions and answers without renewed per-question consent. |
 | Changing plant or recording a separate inspection could erase a care draft | Confirm discarding before opening another plant; reload records after inspections/outcomes while retaining the separate observation draft. |
 | Today check-in heading crowded its status on 320dp | Stack the editorial heading and actual due status; preserve full readable text. |
+| At 2x system text, fixed consent/error/subject panels consumed the transcript | Put those details in the actual message scroller, reduce decorative header chrome, and bound the large-text composer to two internally scrollable lines. Keep consent language and full message content accessible. |
 
 The existing global Nova palette is already Plantupia's forest/cream/sage palette.
 It is preserved. Shared account headers, conversation surfaces, editorial roles,
