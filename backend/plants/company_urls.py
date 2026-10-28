@@ -1,6 +1,7 @@
 from django.urls import path
 from . import company_views as views
 from . import company_demo as demo
+from . import catalog_bulk_import as catalog_import
 
 app_name = "company"
 urlpatterns = [
@@ -11,6 +12,7 @@ urlpatterns = [
     path("support/<uuid:ticket_id>/", demo.support_detail, name="support-detail"),
     path("catalog/", demo.catalog, name="catalog"),
     path("catalog/new/", demo.product_edit, name="product-create"),
+    path("catalog/import/", catalog_import.catalog_zip_import, name="catalog-zip-import"),
     path("catalog/<uuid:product_id>/", demo.product_edit, name="product-edit"),
     path("orders/", demo.orders, name="orders"),
     path("orders/<uuid:order_id>/", demo.order_detail, name="order-detail"),

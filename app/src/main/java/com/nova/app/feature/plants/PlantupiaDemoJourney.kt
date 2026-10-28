@@ -400,18 +400,37 @@ internal fun PlantupiaQaShop(
     var orders by remember { mutableStateOf(emptyList<JSONObject>()) }
     var screen by rememberSaveable { mutableStateOf("catalog") }
     var category by rememberSaveable { mutableStateOf("all") }
+    var searchText by rememberSaveable { mutableStateOf("") }
     var confirmed by remember { mutableStateOf(false) }
     var receipt by rememberSaveable { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     var refresh by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
+    fun changeCart(productId: String, nextQuantity: Int) {
+        if (busy) return
+        busy = true
+        scope.launch {
+            try {
+                when (val result = repository.demoPost("cart/", JSONObject()
+                    .put("product_id", productId).put("quantity", nextQuantity))) {
+                    is ApiResult.Success -> if (repository.isCurrentSession()) {
+                        cart = result.value
+                        confirmed = false
+                    }
+                    is ApiResult.Failure -> if (repository.isCurrentSession()) error = result.message
+                }
+            } finally {
+                busy = false
+            }
+        }
+    }
     LaunchedEffect(refresh, screen) {
         error = null
-        val path = when (screen) { "cart" -> "cart/"; "orders" -> "demo/orders/"; else -> "catalog/" }
+        val path = when (screen) { "cart", "review" -> "cart/"; "orders" -> "demo/orders/"; else -> "catalog/" }
         when (val result = repository.demoGet(path)) {
             is ApiResult.Success -> if (repository.isCurrentSession()) when (screen) {
-                "cart" -> { cart = result.value; confirmed = false }
+                "cart", "review" -> { cart = result.value; confirmed = false }
                 "orders" -> orders = result.value.demoRows()
                 else -> products = result.value.demoRows()
             }
@@ -419,7 +438,9 @@ internal fun PlantupiaQaShop(
         }
     }
     androidx.activity.compose.BackHandler(enabled = fullPage && (selectedId != null || screen != "catalog")) {
-        if (selectedId != null) selectedId = null else screen = "catalog"
+        if (selectedId != null) selectedId = null
+        else if (screen == "review") { confirmed = false; screen = "cart" }
+        else screen = "catalog"
     }
     val orderTarget = PlantupiaShopOpenSignal.target
     LaunchedEffect(orderTarget) {
@@ -440,70 +461,117 @@ internal fun PlantupiaQaShop(
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Surface(shape = RoundedCornerShape(14.dp), color = PlantupiaColors.softSage) {
-                    Text("P", modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                        fontFamily = FontFamily.Serif, fontSize = 25.sp, color = demoForest)
-                }
                 Column(modifier = Modifier.weight(1f)) {
                     Text("PLANTUPIA · SHOP", style = PlantupiaText.sectionLabel)
-                    Text(if (selected == null) "Plants & essentials" else "Product details",
-                        style = PlantupiaText.editorialHeading)
+                    Text(
+                        when {
+                            selected != null -> "Product details"
+                            screen == "cart" -> "Your cart"
+                            screen == "review" -> "Review your order"
+                            screen == "orders" -> "Your orders"
+                            else -> "Plants & essentials"
+                        },
+                        style = PlantupiaText.editorialHeading,
+                    )
+                }
+                if (screen != "catalog" || selected != null) {
+                    TextButton(onClick = { selectedId = null; screen = "catalog" }) {
+                        Text("Shop", color = demoForest)
+                    }
+                }
+            }
+            // One Shop destination; cart and orders are contextual routes, not permanent tabs.
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = { selectedId = null; screen = "cart" }) {
+                    Text("Cart", color = demoForest)
+                }
+                TextButton(onClick = { selectedId = null; screen = "orders" }) {
+                    Text("My orders", color = demoForest)
                 }
                 if (!fullPage) TextButton(onClick = onDismiss) { Text("Close", color = demoForest) }
             }
-            Text("Fictional QA collection · provisional prices · no payment or delivery", style = PlantupiaText.supporting)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                listOf("catalog" to "Shop", "cart" to "Cart", "orders" to "My orders").forEach { (destination, label) ->
-                    Surface(
-                        onClick = { screen = destination; selectedId = null },
-                        modifier = Modifier.weight(1f),
-                        color = if (screen == destination) demoForest else demoSage,
-                        shape = RoundedCornerShape(12.dp),
-                    ) {
-                        Text(
-                            label,
-                            modifier = Modifier.padding(vertical = 11.dp),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            color = if (screen == destination) demoPaper else demoForest,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                        )
-                    }
-                }
+            if (screen == "review" || screen == "cart") {
+                Text("QA checkout only · illustrative prices · no payment or delivery", style = PlantupiaText.supporting)
             }
             when (screen) {
-                "cart" -> cart?.let { quote ->
+                "cart", "review" -> cart?.let { quote ->
                     if (quote.demoRows().isEmpty()) Text("Your cart is empty.", style = PlantupiaText.supporting)
                     quote.demoRows().forEach { line ->
                         val product = line.getJSONObject("product")
+                        val productId = product.getString("id")
+                        val qty = line.getInt("quantity")
                         DemoCard {
-                            Text(product.getString("name").removePrefix("FICTIONAL QA · "), fontWeight = FontWeight.SemiBold)
-                            Text("${line.getInt("quantity")} × ${product.getString("currency")} ${product.getString("price")}")
-                            TextButton(enabled = !busy, onClick = { busy = true; scope.launch {
-                                when (val result = repository.demoPost("cart/", JSONObject().put("product_id", product.getString("id")).put("quantity", 0))) {
-                                    is ApiResult.Success -> if (repository.isCurrentSession()) { cart = result.value; confirmed = false }
-                                    is ApiResult.Failure -> if (repository.isCurrentSession()) error = result.message
-                                }; busy = false
-                            } }) { Text("Remove from cart") }
+                            Row(
+                                verticalAlignment = Alignment.Top,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                Box(Modifier.width(84.dp)) {
+                                    if (product.optBoolean("has_image")) {
+                                        PlantupiaCatalogPhoto(productId, repository, thumbnail = true)
+                                    } else {
+                                        PlantupiaCatalogMissingPhoto(compact = true, thumbnail = true)
+                                    }
+                                }
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Text(
+                                        product.getString("name").removePrefix("FICTIONAL QA · ").removePrefix("FICTIONAL QA "),
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = demoForest,
+                                    )
+                                    Text("${product.getString("currency")} ${product.getString("price")}", color = demoForest)
+                                    if (screen == "review") {
+                                        Text("Quantity: ${qty}", style = PlantupiaText.supporting)
+                                    } else {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text("Qty", modifier = Modifier.weight(1f), style = PlantupiaText.supporting)
+                                            TextButton(enabled = !busy && qty > 1,
+                                                onClick = { changeCart(productId, qty - 1) }) { Text("−") }
+                                            Text(qty.toString(), fontWeight = FontWeight.SemiBold)
+                                            TextButton(enabled = !busy && qty < minOf(10, product.optInt("qa_stock", 0)),
+                                                onClick = { changeCart(productId, qty + 1) }) { Text("+") }
+                                        }
+                                    }
+                                }
+                            }
+                            if (screen == "cart") {
+                                TextButton(
+                                    enabled = !busy,
+                                    onClick = { changeCart(productId, 0) },
+                                ) { Text("Remove from cart", color = demoForest) }
+                            }
                         }
                     }
                     Text("Total · EGP ${quote.getString("total_provisional")}", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(confirmed, { confirmed = it }, modifier = Modifier.semantics { contentDescription = "Confirm preview-only order" })
-                        Text("Preview order only · no charge or delivery", modifier = Modifier.weight(1f), style = PlantupiaText.supporting)
+                    if (screen == "cart") {
+                        Button(
+                            enabled = !busy && quote.demoRows().isNotEmpty(),
+                            onClick = { confirmed = false; screen = "review" },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = demoForest),
+                        ) { Text("Review preview order") }
+                    } else {
+                        Text("Nothing is charged or delivered. This confirms only a QA order request.",
+                            style = PlantupiaText.supporting)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(confirmed, { confirmed = it }, modifier = Modifier.semantics { contentDescription = "Confirm preview-only order" })
+                            Text("Preview order only · no charge or delivery", modifier = Modifier.weight(1f), style = PlantupiaText.supporting)
+                        }
+                        Button(enabled = !busy && confirmed && quote.demoRows().isNotEmpty(), onClick = { busy = true; scope.launch {
+                            when (val result = repository.demoMutation("checkout", "demo/orders/", JSONObject().put("cart_fingerprint", quote.getString("fingerprint")).put("confirm_no_charge", true))) {
+                                is ApiResult.Success -> if (repository.isCurrentSession()) { receipt = result.value.getString("id"); screen = "orders"; refresh++ }
+                                is ApiResult.Failure -> if (repository.isCurrentSession()) { error = result.message; if (result.statusCode == 409) refresh++ }
+                            }; busy = false
+                        } }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), colors = ButtonDefaults.buttonColors(containerColor = demoForest)) { Text("Place preview order") }
+                        TextButton(onClick = { confirmed = false; screen = "cart" }) {
+                            Text("Edit cart", color = demoForest)
+                        }
                     }
-                    Button(enabled = !busy && confirmed && quote.demoRows().isNotEmpty(), onClick = { busy = true; scope.launch {
-                        when (val result = repository.demoMutation("checkout", "demo/orders/", JSONObject().put("cart_fingerprint", quote.getString("fingerprint")).put("confirm_no_charge", true))) {
-                            is ApiResult.Success -> if (repository.isCurrentSession()) { receipt = result.value.getString("id"); screen = "orders"; refresh++ }
-                            is ApiResult.Failure -> if (repository.isCurrentSession()) { error = result.message; if (result.statusCode == 409) refresh++ }
-                        }; busy = false
-                    } }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), colors = ButtonDefaults.buttonColors(containerColor = demoForest)) { Text("Place preview order") }
                 }
                 "orders" -> {
                     receipt?.let { Text("Preview order received · " + it.take(8), fontWeight = FontWeight.SemiBold, color = demoForest) }
@@ -516,8 +584,10 @@ internal fun PlantupiaQaShop(
                             else -> "Status unavailable"
                         }
                         Text("$statusLabel · ${order.getString("created_at").take(10)}", style = PlantupiaText.supporting)
-                        order.demoRows("lines").forEach { line -> Text("${line.getInt("quantity")} × ${line.getString("name")}") }
-                        Text("EGP ${order.getString("total_provisional")} · charged: no", color = demoForest)
+                        order.demoRows("lines").forEach { line ->
+                            Text("${line.getInt("quantity")} × ${line.getString("name").removePrefix("FICTIONAL QA · ").removePrefix("FICTIONAL QA ")}")
+                        }
+                        Text("Total · EGP ${order.getString("total_provisional")}", color = demoForest)
                         Text("No payment or delivery was initiated.", style = PlantupiaText.supporting)
                     } }
                 }
@@ -525,6 +595,14 @@ internal fun PlantupiaQaShop(
                     val product = selected
                     if (product == null) {
                         Text("Find something for your space.", style = PlantupiaText.body)
+                        Text("Preview collection · illustrative prices only", style = PlantupiaText.supporting)
+                        OutlinedTextField(
+                            value = searchText,
+                            onValueChange = { searchText = it.take(80) },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Search plants, pots and care") },
+                            singleLine = true,
+                        )
                         Row(modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             listOf("all" to "All", "plant" to "Plants", "planter" to "Pots",
@@ -542,9 +620,15 @@ internal fun PlantupiaQaShop(
                                 }
                             }
                         }
-                        val visible = products.filter { category == "all" || it.optString("kind") == category }
+                        val visible = products.filter { item ->
+                            (category == "all" || item.optString("kind") == category) &&
+                                (searchText.isBlank() || listOf(item.optString("name"),
+                                    item.optString("description")).any {
+                                    it.contains(searchText.trim(), ignoreCase = true)
+                                })
+                        }
                         if (visible.isEmpty()) Text(
-                            if (products.isEmpty()) "No active QA products." else "Nothing in this category yet.",
+                            if (products.isEmpty()) "Products coming soon." else "No products match this search.",
                             style = PlantupiaText.supporting,
                         )
                         visible.chunked(2).forEach { group ->
@@ -623,8 +707,8 @@ internal fun PlantupiaQaShop(
             }
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             error?.let { Text(if (it.contains("nonstaff customer account", ignoreCase = true)) "Switch to a customer account to shop." else it, color = MaterialTheme.colorScheme.error); TextButton(onClick = { refresh++ }) { Text("Retry") } }
-            TextButton(onClick = onDismiss) { Text("Back to Plants") }
-            Spacer(Modifier.height(24.dp))
+            if (!fullPage) TextButton(onClick = onDismiss) { Text("Back to Plants") }
+            Spacer(Modifier.height(if (fullPage) 112.dp else 24.dp))
         }
     }
     if (fullPage) {
@@ -639,9 +723,9 @@ internal fun PlantupiaQaShop(
 }
 
 @Composable
-private fun PlantupiaCatalogMissingPhoto(compact: Boolean) {
+private fun PlantupiaCatalogMissingPhoto(compact: Boolean, thumbnail: Boolean = false) {
     Surface(
-        modifier = Modifier.fillMaxWidth().height(if (compact) 148.dp else 245.dp),
+        modifier = Modifier.fillMaxWidth().height(if (thumbnail) 84.dp else if (compact) 148.dp else 245.dp),
         color = demoSage,
         shape = RoundedCornerShape(13.dp),
     ) {
@@ -694,7 +778,7 @@ private fun PlantupiaCatalogTile(
 }
 
 @Composable
-private fun PlantupiaCatalogPhoto(productId: String, repository: PlantupiaRepository, compact: Boolean = false) {
+private fun PlantupiaCatalogPhoto(productId: String, repository: PlantupiaRepository, compact: Boolean = false, thumbnail: Boolean = false) {
     var bitmap by remember(productId) { mutableStateOf<ImageBitmap?>(null) }
     var failed by remember(productId) { mutableStateOf(false) }
     var revision by remember { mutableIntStateOf(0) }
@@ -712,7 +796,7 @@ private fun PlantupiaCatalogPhoto(productId: String, repository: PlantupiaReposi
             is ApiResult.Failure -> if (repository.isCurrentSession()) failed = true
         }
     }
-    bitmap?.let { Image(it, "Uploaded catalog photograph", modifier = Modifier.fillMaxWidth().height(if (compact) 148.dp else 245.dp).clip(RoundedCornerShape(13.dp)), contentScale = ContentScale.Crop) }
+    bitmap?.let { Image(it, "Uploaded catalog photograph", modifier = Modifier.fillMaxWidth().height(if (thumbnail) 84.dp else if (compact) 148.dp else 245.dp).clip(RoundedCornerShape(13.dp)), contentScale = ContentScale.Crop) }
     if (failed) TextButton(onClick = { revision++ }) { Text("Retry photo") }
     else if (bitmap == null) LinearProgressIndicator(Modifier.fillMaxWidth())
 }

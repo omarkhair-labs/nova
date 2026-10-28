@@ -14,8 +14,13 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -23,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import com.nova.app.SettingsActivity
 import com.nova.app.SocialGraphActivity
 import com.nova.app.feature.plants.PlantupiaProfileSpaces
+import com.nova.app.feature.plants.PlantupiaMembershipSheet
 import com.nova.app.feature.plants.PlantupiaColors
 import com.nova.app.feature.plants.PlantupiaText
 import com.nova.app.core.messaging.NovaMessagingNavigator
@@ -65,6 +71,7 @@ fun ProfileScreen(
     onEditProfile: () -> Unit,
 ) {
     val context = LocalContext.current
+    var showCarePlans by remember(userId) { mutableStateOf(false) }
 
     fun openSocialGraph(mode: String) {
         context.startActivity(
@@ -150,6 +157,11 @@ fun ProfileScreen(
             // care records must never be injected into public Nova posts
             // or another user's PersonScreen.
             PlantupiaProfileSpaces(accountId = userId, onOpenSpaces = onHomeClick)
+            Spacer(modifier = Modifier.height(NovaSpacing.md))
+            OutlinedButton(
+                onClick = { showCarePlans = true },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Plantupia Care · Plans and access") }
 
             Spacer(modifier = Modifier.height(NovaSpacing.lg))
             PlantupiaProfileSectionHeading(
@@ -177,4 +189,5 @@ fun ProfileScreen(
             Spacer(modifier = Modifier.height(NovaSpacing.xl))
         }
     }
+    if (showCarePlans) PlantupiaMembershipSheet(onDismiss = { showCarePlans = false })
 }
