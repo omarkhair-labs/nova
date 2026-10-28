@@ -284,32 +284,55 @@ internal fun PlantupiaTeamSheet(plant: PlantupiaPlant, repository: PlantupiaRepo
     }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = demoPaper) {
         Column(Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Ask the Plantupia team", fontFamily = FontFamily.Serif, fontSize = 27.sp, color = demoForest)
-            Text(plant.name + " · a private service request, separate from Circle and social DMs.")
-            Text("A real employee must reply. No staff presence or response time is promised.", fontSize = 12.sp)
+            PlantupiaConversationHeader(category = "HUMAN SUPPORT", title = "Plantupia team",
+                subtitle = plant.name + " · Private messages", onClose = onDismiss)
+            Text("A team member replies when available.", style = PlantupiaText.supporting)
             // Existing shared threads remain readable after expiry; new writes require access.
-            tickets.forEach { ticket -> OutlinedButton(onClick = { thread = ticket; refresh++ }, modifier = Modifier.fillMaxWidth()) { Text("${ticket.getString("subject")} · ${ticket.getString("status")}") } }
+            if (thread == null) tickets.forEach { ticket ->
+                Surface(onClick = { thread = ticket; refresh++ }, modifier = Modifier.fillMaxWidth(),
+                    color = PlantupiaColors.softSage, shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, PlantupiaColors.border)) {
+                    Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(ticket.getString("subject"), style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
+                            Text(ticket.getString("status"), style = PlantupiaText.supporting)
+                        }
+                        Text("Open →", style = PlantupiaText.sectionLabel)
+                    }
+                }
+            }
             thread?.let { ticket ->
-                DemoCard {
-                    Text(ticket.getString("subject"), fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
-                    Text("Status: ${ticket.getString("status")}")
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(ticket.getString("subject"), style = PlantupiaText.editorialHeading)
+                    Text(if (ticket.getString("status") == "closed") "Closed · read-only"
+                        else "Open · waiting for a team reply", style = PlantupiaText.supporting)
                     ticket.optJSONArray("messages")?.let { messages ->
+                        Column(
+                            modifier = Modifier.fillMaxWidth().height(300.dp).verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
                         for (i in 0 until messages.length()) {
                             val message = messages.getJSONObject(i)
-                            Text("${if (message.getBoolean("from_staff")) "Staff reply" else "You"} · ${message.getString("sender")} · ${message.getString("created_at").take(16)}", fontSize = 11.sp)
-                            Text(message.getString("body"))
+                            PlantupiaConversationMessage(
+                                body = message.getString("body"),
+                                mine = !message.getBoolean("from_staff"),
+                                sender = if (message.getBoolean("from_staff")) "Plantupia team" else "You",
+                                detail = message.getString("created_at").take(16).replace("T", " · "),
+                            )
+                        }
                         }
                     }
-                    TextButton(onClick = { refresh++ }) { Text("Refresh actual replies") }
-                    TextButton(onClick = { thread = null; reply = "" }) { Text("Back to request form") }
+                    TextButton(onClick = { refresh++ }) { Text("Refresh replies") }
+                    TextButton(onClick = { thread = null; reply = "" }) { Text("All requests") }
                 }
             }
             PlantupiaDemoAccessGate(repository, human = true) { accessLost ->
                 if (thread == null) {
                     OutlinedTextField(subject, { subject = it.take(140) }, label = { Text("Request subject") }, modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(body, { body = it.take(2000) }, label = { Text("What do you want the team to know?") }, minLines = 3, modifier = Modifier.fillMaxWidth())
-                    Row { Checkbox(share, { share = it }, modifier = Modifier.semantics { contentDescription = "Share this request and plant label with authorized support staff" }); Text("Share this message and selected plant label with authorized support staff.", modifier = Modifier.weight(1f)) }
-                    Row { Checkbox(placement, { placement = it }, modifier = Modifier.semantics { contentDescription = "Also share recorded placement" }); Text("Also share the recorded placement. No history or photos are shared.", modifier = Modifier.weight(1f)) }
+                    Row { Checkbox(share, { share = it }, modifier = Modifier.semantics { contentDescription = "Share this request and plant label with authorized support staff" }); Text("Share this message and plant name with the team.", modifier = Modifier.weight(1f), style = PlantupiaText.supporting) }
+                    Row { Checkbox(placement, { placement = it }, modifier = Modifier.semantics { contentDescription = "Also share recorded placement" }); Text("Include placement (optional). No photos or history.", modifier = Modifier.weight(1f), style = PlantupiaText.supporting) }
                     Button(enabled = !busy && share && subject.isNotBlank() && body.isNotBlank(), onClick = {
                         busy = true; error = null
                         scope.launch {
@@ -322,10 +345,14 @@ internal fun PlantupiaTeamSheet(plant: PlantupiaPlant, repository: PlantupiaRepo
                             }
                             busy = false
                         }
-                    }) { Text("Send real support request") }
+                    }) { Text("Send request") }
                 } else if (thread?.getString("status") != "closed") {
-                    OutlinedTextField(reply, { reply = it.take(2000) }, label = { Text("Your follow-up message") }, modifier = Modifier.fillMaxWidth())
-                    Button(enabled = !busy && reply.isNotBlank(), onClick = {
+                    PlantupiaConversationComposer(
+                        value = reply,
+                        onChange = { reply = it.take(2000) },
+                        enabled = !busy,
+                        placeholder = "Reply to the team…",
+                        onSend = {
                         val id = thread!!.getString("id")
                         busy = true
                         scope.launch {
@@ -335,12 +362,12 @@ internal fun PlantupiaTeamSheet(plant: PlantupiaPlant, repository: PlantupiaRepo
                             }
                             busy = false
                         }
-                    }) { Text("Send follow-up") }
+                    })
                 }
             }
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            TextButton(onClick = onDismiss) { Text("Back to " + plant.name) }
+            
             Spacer(Modifier.height(20.dp))
         }
     }

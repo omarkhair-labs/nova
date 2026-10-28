@@ -138,7 +138,7 @@ class PlantupiaCeoJourneyInstrumentedTest {
         activate.performClick()
         node("The AI provider is not configured on this QA server.", true).assertExists()
         capture("04-honest-ai-unavailable")
-        click("Back to FICTIONAL QA supplied plant 01 · free care guide")
+        click("Close")
         click("Ask the team")
         node("Care, when you need it.").assertExists()
         val expert = compose.onAllNodes(hasText("Try this plan · no charge") and isEnabled()).onLast()
@@ -149,7 +149,7 @@ class PlantupiaCeoJourneyInstrumentedTest {
         val consent = compose.onAllNodes(isToggleable()).onFirst()
         runCatching { consent.performScrollTo() }
         consent.performClick()
-        click("Send real support request")
+        click("Send request")
         node("CEO QA inspection question", true).assertExists()
         capture("05-awaiting-actual-staff")
     }
@@ -161,7 +161,7 @@ class PlantupiaCeoJourneyInstrumentedTest {
         click("CEO QA inspection question", true)
         node("QA staff reply: I can see your explicitly shared request. This is an actual typed QA response, not botanical advice.").assertExists()
         capture("06-actual-staff-reply")
-        click("Back to FICTIONAL QA supplied plant 01")
+        click("Close")
         // Returning through the existing selected-plant Back action preserves My Space.
         click("← Back to space")
         click("Shop plants & essentials")
@@ -213,7 +213,7 @@ class PlantupiaCeoJourneyInstrumentedTest {
         click("Ask Plantupia AI")
         node("Care, when you need it.").assertExists()
         capture("11-revoked-paywall-${width}dp")
-        click("Back to FICTIONAL QA supplied plant 01 · free care guide")
+        click("Close")
         click("← Back to space")
         click("Shop plants & essentials")
         click("My orders")

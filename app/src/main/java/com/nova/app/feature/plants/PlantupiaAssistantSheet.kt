@@ -59,11 +59,8 @@ private data class CareChatBubble(
 )
 
 /**
- * Authentic AI provider flow, NOT a scripted demo. The server is read-only and
- * disabled until a secured API account is configured. Each message explicitly
- * opts in or out of sharing the user's authorized plant data.
- *
- * Human-to-human Inbox remains Nova's existing messaging system.
+ * Live provider conversation. Consent to include a particular plant's context is
+ * per-question; a disabled toggle clears prior context-bearing bubbles.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,167 +83,137 @@ internal fun PlantupiaAssistantSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = paper,
+        containerColor = PlantupiaColors.paper,
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(13.dp),
+            modifier = Modifier.fillMaxWidth().imePadding()
+                .verticalScroll(rememberScrollState()).padding(horizontal = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                NovaIcon(
-                    asset = NovaIconAsset.Info,
-                    contentDescription = null,
-                    tint = forest,
-                )
-                Text(if (plant == null) "Ask Plantupia Assistant" else "Ask about " + plant.name, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = forest)
-            }
-            Text(
-                "An AI plant companion for observations and next checks—not a confirmed diagnosis or company support.",
-                fontSize = 12.sp, color = muted, lineHeight = 20.sp,
+            PlantupiaConversationHeader(
+                category = "AI · PLANT CARE",
+                title = "Plantupia AI",
+                subtitle = if (plant == null) "Ask about plant care" else "Here for " + plant.name,
+                onClose = onDismiss,
             )
-            TextButton(onClick = onDismiss) { Text(if (plant != null) "Back to ${plant.name} · free care guide" else "Back to My Space") }
             PlantupiaDemoAccessGate(repository, human = false) { accessLost ->
-            if (plant != null) Surface(
-                color = mist,
-                shape = RoundedCornerShape(15.dp),
-                border = BorderStroke(1.dp, Color(0xFFD4DFD1)),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                if (plant != null) Surface(
+                    color = PlantupiaColors.softSage,
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, PlantupiaColors.border),
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Include my plant's history", color = forest, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                        Text(
-                            "Optional for each question: share the plant name, species, placement and recent notes. Plant photos and home address are not sent.",
-                            color = muted, fontSize = 11.sp, lineHeight = 17.sp,
-                        )
-                    }
-                    Switch(
-                        checked = includeContext,
-                        enabled = !pending,
-                        onCheckedChange = {
-                            includeContext = it
-                            // Do not replay a previous AI answer containing plant details
-                            // when this person changes their context-sharing preference.
-                            bubbles = emptyList()
-                            error = null
-                        },
-                    )
-                }
-            }
-            LazyColumn(
-                state = chatListState,
-                modifier = Modifier.fillMaxWidth().height(215.dp),
-                verticalArrangement = Arrangement.spacedBy(9.dp),
-                reverseLayout = false,
-            ) {
-                if (bubbles.isEmpty()) {
-                    item {
-                        Text(
-                            "What changed? Describe leaf color, light, your last watering, and whether the soil feels dry or damp.",
-                            color = muted, fontSize = 14.sp, lineHeight = 23.sp,
-                        )
-                    }
-                }
-                itemsIndexed(bubbles) { _, item ->
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        color = if (item.fromUser) mist else Color.White,
-                        shape = RoundedCornerShape(14.dp),
-                        border = if (item.fromUser) null else BorderStroke(1.dp, Color(0xFFD4DFD1)),
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Text(
-                                text = if (item.fromUser) "Your question" else
-                                    "AI response · " + (if (item.scope == "plant_context") "plant context" else "general information"),
-                                color = forest, fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                            )
-                            Text(item.text, color = forest, fontSize = 13.sp, lineHeight = 21.sp)
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Share plant context", style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
+                            Text("Optional for each question · name, placement and recent notes. No photos or address.", style = PlantupiaText.supporting)
                         }
+                        Switch(
+                            checked = includeContext,
+                            enabled = !pending,
+                            onCheckedChange = {
+                                includeContext = it
+                                bubbles = emptyList()
+                                error = null
+                            },
+                        )
                     }
                 }
-            }
-            error?.let {
-                Surface(color = Color(0xFFFFEDE9), shape = RoundedCornerShape(10.dp)) {
-                    Column(Modifier.fillMaxWidth().padding(12.dp)) {
-                        Text(it, color = Color(0xFF8F3023), fontSize = 12.sp)
-                    }
-                }
-            }
-            if (pending) LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = forest)
-            OutlinedTextField(
-                value = input,
-                onValueChange = { input = it.take(1000) },
-                label = { Text(if (plant == null) "Ask about plants…" else "Ask about this plant…") },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !pending,
-                minLines = 2,
-                maxLines = 4,
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                TextButton(onClick = onDismiss, enabled = !pending) {
-                    Text("Close", color = muted)
-                }
-                Spacer(Modifier.weight(1f))
-                Button(
-                    enabled = !pending && input.isNotBlank(),
-                    colors = ButtonDefaults.buttonColors(containerColor = forest),
-                    onClick = {
-                        val question = input.trim()
-                        if (question.isEmpty()) return@Button
-                        input = ""
-                        error = null
-                        val consent = includeContext
-                        val dialogue = (if (consent) bubbles.takeLast(8) else emptyList()).map {
-                            PlantupiaAssistantTurn(
-                                role = if (it.fromUser) "user" else "assistant",
-                                content = it.text.take(1200),
-                            )
-                        }
-                        bubbles = bubbles + CareChatBubble(question, fromUser = true)
-                        includeContext = false // Consent is a separate choice for each request.
-                        pending = true
-                        scope.launch {
-                            when (val result = repository.askAssistant(
-                                message = question,
-                                plantId = plant?.id,
-                                includeContext = consent && plant != null,
-                                conversation = dialogue,
-                            )) {
-                                is ApiResult.Success -> {
-                                    bubbles = bubbles + CareChatBubble(
-                                        result.value.answer, fromUser = false,
-                                        scope = result.value.scope,
-                                    )
-                                }
-                                is ApiResult.Failure -> {
-                                    input = question
-                                    bubbles = bubbles.dropLast(1)
-                                    if (result.statusCode == 402) accessLost()
-                                    error = if (result.statusCode == 503)
-                                        "The AI assistant is not enabled on this server or is temporarily unavailable. Your question wasn't saved to the plant's care record."
-                                    else result.message
+                LazyColumn(
+                    state = chatListState,
+                    modifier = Modifier.fillMaxWidth().height(305.dp),
+                    verticalArrangement = Arrangement.spacedBy(13.dp),
+                ) {
+                    if (bubbles.isEmpty()) item {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("What's happening with your plant?", style = PlantupiaText.editorialHeading)
+                            Text("Describe a change, or choose a question.", style = PlantupiaText.supporting)
+                            listOf(
+                                "What should I check before watering?",
+                                "Why are the leaf tips turning brown?",
+                            ).forEach { idea ->
+                                Surface(
+                                    onClick = { input = idea },
+                                    color = PlantupiaColors.softSage,
+                                    shape = RoundedCornerShape(12.dp),
+                                ) {
+                                    Text(idea, modifier = Modifier.fillMaxWidth().padding(13.dp), style = PlantupiaText.body)
                                 }
                             }
-                            pending = false
+                        }
+                    }
+                    itemsIndexed(bubbles) { _, message ->
+                        PlantupiaConversationMessage(
+                            body = message.text,
+                            mine = message.fromUser,
+                            sender = if (message.fromUser) "You" else "Plantupia AI",
+                            detail = if (message.fromUser) "" else if (message.scope == "plant_context") "Plant context included" else "General guidance",
+                        )
+                    }
+                    if (pending) item {
+                        Text("Plantupia is thinking…", style = PlantupiaText.supporting)
+                    }
+                }
+                error?.let { problem ->
+                    Surface(color = Color(0xFFFFEDE9), shape = RoundedCornerShape(12.dp)) {
+                        Text(problem, modifier = Modifier.fillMaxWidth().padding(12.dp), color = PlantupiaColors.errorText, style = PlantupiaText.supporting)
+                    }
+                }
+                PlantupiaConversationComposer(
+                    value = input,
+                    onChange = { input = it.take(1000) },
+                    enabled = !pending,
+                    placeholder = if (plant == null) "Ask Plantupia…" else "Ask about " + plant.name + "…",
+                    onSend = {
+                        val question = input.trim()
+                        if (question.isNotEmpty()) {
+                            input = ""
+                            error = null
+                            val consent = includeContext
+                            val dialogue = (if (consent) bubbles.takeLast(8) else emptyList()).map {
+                                PlantupiaAssistantTurn(
+                                    role = if (it.fromUser) "user" else "assistant",
+                                    content = it.text.take(1200),
+                                )
+                            }
+                            bubbles = bubbles + CareChatBubble(question, fromUser = true)
+                            includeContext = false
+                            pending = true
+                            scope.launch {
+                                when (val result = repository.askAssistant(
+                                    message = question, plantId = plant?.id,
+                                    includeContext = consent && plant != null,
+                                    conversation = dialogue,
+                                )) {
+                                    is ApiResult.Success -> {
+                                        bubbles = bubbles + CareChatBubble(
+                                            result.value.answer, fromUser = false,
+                                            scope = result.value.scope,
+                                        )
+                                    }
+                                    is ApiResult.Failure -> {
+                                        input = question
+                                        bubbles = bubbles.dropLast(1)
+                                        if (result.statusCode == 402) accessLost()
+                                        error = if (result.statusCode == 503)
+                                            "Plantupia AI is unavailable right now. Your question wasn't added to your care history."
+                                        else result.message
+                                    }
+                                }
+                                pending = false
+                            }
                         }
                     },
-                ) {
-                    Text(if (pending) "Thinking…" else "Send question", color = paper)
-                }
+                )
+                Text(
+                    "AI guidance, not a confirmed diagnosis. No care record is created automatically.",
+                    style = PlantupiaText.supporting,
+                )
             }
-            Text(
-                "Responses are informational and never automatically create care records. Plantupia has no plant sensors or live soil readings.",
-                color = muted, fontSize = 10.sp, lineHeight = 15.sp,
-            )
-            }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
         }
     }
 }
