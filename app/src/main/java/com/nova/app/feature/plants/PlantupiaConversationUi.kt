@@ -22,6 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nova.app.ui.icons.NovaIcon
+import com.nova.app.ui.icons.NovaIconAsset
 
 /**
  * Shared conversation surfaces. Preserve the difference between a model answer
@@ -40,11 +42,11 @@ internal fun PlantupiaConversationHeader(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Surface(color = PlantupiaColors.softSage, shape = RoundedCornerShape(15.dp)) {
-            Text(
-                if (category.startsWith("AI")) "✳" else "P",
-                modifier = Modifier.padding(horizontal = 15.dp, vertical = 12.dp),
-                fontSize = 22.sp, color = PlantupiaColors.forest,
-                fontWeight = FontWeight.SemiBold,
+            NovaIcon(
+                asset = if (category.startsWith("AI")) NovaIconAsset.Info else NovaIconAsset.Messages,
+                contentDescription = null,
+                tint = PlantupiaColors.forest,
+                modifier = Modifier.padding(14.dp).size(24.dp),
             )
         }
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -133,7 +135,13 @@ internal fun PlantupiaConversationComposer(
             colors = ButtonDefaults.buttonColors(containerColor = PlantupiaColors.forest),
             shape = RoundedCornerShape(18.dp),
         ) {
-            Text("Send")
+            NovaIcon(
+                asset = NovaIconAsset.Send,
+                contentDescription = null,
+                tint = PlantupiaColors.paper,
+                modifier = Modifier.size(17.dp),
+            )
+            Text("Send", modifier = Modifier.padding(start = 5.dp))
         }
     }
 }
