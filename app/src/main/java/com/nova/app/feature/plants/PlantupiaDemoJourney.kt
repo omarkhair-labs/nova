@@ -530,8 +530,15 @@ internal fun PlantupiaQaShop(
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
                                 Box(Modifier.width(84.dp)) {
-                                    if (product.optBoolean("has_image")) {
-                                        PlantupiaCatalogPhoto(productId, repository, thumbnail = true)
+                                    val firstGalleryPhoto = product.optJSONArray("photos")?.optJSONObject(0)
+                                    if (product.optBoolean("has_image") || firstGalleryPhoto != null) {
+                                        PlantupiaCatalogPhoto(
+                                            productId, repository, thumbnail = true,
+                                            photoId = if (product.optBoolean("has_image")) null else firstGalleryPhoto?.optString("id"),
+                                            photoAlt = product.optString("image_description").ifBlank {
+                                                firstGalleryPhoto?.optString("alt_text").orEmpty()
+                                            },
+                                        )
                                     } else {
                                         PlantupiaCatalogMissingPhoto(compact = true, thumbnail = true)
                                     }
@@ -893,8 +900,15 @@ private fun PlantupiaCatalogTile(
             modifier = Modifier.padding(9.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (item.optBoolean("has_image")) {
-                PlantupiaCatalogPhoto(item.getString("id"), repository, compact = true)
+            val firstGalleryPhoto = item.optJSONArray("photos")?.optJSONObject(0)
+            if (item.optBoolean("has_image") || firstGalleryPhoto != null) {
+                PlantupiaCatalogPhoto(
+                    item.getString("id"), repository, compact = true,
+                    photoId = if (item.optBoolean("has_image")) null else firstGalleryPhoto?.optString("id"),
+                    photoAlt = item.optString("image_description").ifBlank {
+                        firstGalleryPhoto?.optString("alt_text").orEmpty()
+                    },
+                )
             } else {
                 PlantupiaCatalogMissingPhoto(compact = true)
             }
