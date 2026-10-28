@@ -440,6 +440,15 @@ internal fun PlantupiaQaShop(
         else if (screen == "review") { confirmed = false; screen = "cart" }
         else screen = "catalog"
     }
+    val ordersAccount = PlantupiaShopOpenSignal.ordersAccount
+    LaunchedEffect(ordersAccount, accountId) {
+        if (ordersAccount != null && ordersAccount == accountId) {
+            PlantupiaShopOpenSignal.consumeOrders()
+            selectedId = null
+            screen = "orders"
+            refresh++
+        }
+    }
     val orderTarget = PlantupiaShopOpenSignal.target
     LaunchedEffect(orderTarget) {
         val target = orderTarget ?: return@LaunchedEffect
