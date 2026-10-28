@@ -129,3 +129,16 @@ All implementation branches start **independently** at Codex's successful `9eb03
 These are the **first three of many system-connected increments**, not complete implementation of every 28-state wireframe. Remaining work: Today/My Plants/Welcome/QR physical device pass, connected Shop data schema and real approved photographs, recipient verified order-to-handover fulfillment, final Create/Circle/Inbox/Groups/Profile visual polish, notification FCM verification and full journey acceptance.
 
 **Handoff gate:** do not cherry-pick PR #248 or merge #247, #250–#252 without evaluating conflicts, evidence, accessibility and schema invariants against exactly one current native base. Preserve no-payment QA limitations.
+
+## 12. Connected UX wave 02 — Today, My Plants and Profile navigation
+
+**Implementation branch:** `feature/plantupia-unified-experience-20261028`, draft PR #253, built on #241 `9eb039d`. Still not merged or deployed.
+
+- **Today**: present the current authorized plant check-ins and Record Care / Add Plant actions before optional approved-inspection panels. Hide a vacant approved-inspection card, but retain actual due plans and replayable pending QA requests. This changes layout only, not watering semantics, dates or plant ownership.
+- **My Plants**: reveal real space/photo and the authorized plant inventory before creation and general AI controls. Preserve original `PlantupiaSelfServiceForms` editors, their Create-intent handoff, permissions, drafts and automatic BringIntoView behavior. Add an accessible top-of-list Add Plant entry that opens the same form; scale down to vertical title/button when 320dp or enlarged font demands it.
+- **Profile → My Orders**: a new account-scoped intent opens the existing authenticated Shop Orders screen. Reuse `demo/orders/`; do not create a shadow order list, mutate orders or imply commercial delivery.
+- **App shell**: preserve root Today / Plants / Create / Shop / Circle, native Back, activity messages and original Nova social engine unchanged.
+
+**Verification required:** one exact-head Android + Django CI green after all changes, real-device creation handoff and return to former scroll position, 320/390/430/tablet + 2x text, first-plant and read-only cases, account switching, notification-to-order links, and owner acceptance. Passing source tests is not launch approval.
+
+**Further screens**: precise Welcome/QR and care permission states, real Catalog imagery and variant schema, company commercial order-to-handover after verified delivery, Circle/Create/Inbox/Groups and notification live device validation; these are not represented as completed by wave 02.
