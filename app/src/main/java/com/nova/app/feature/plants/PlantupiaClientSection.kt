@@ -426,7 +426,7 @@ private fun PlantupiaAccountClientSection(
     val supportPush = PlantupiaSupportPushSignal.target
     LaunchedEffect(supportPush, plants, loading) {
         val push = supportPush ?: return@LaunchedEffect
-        if (push.accountId != accountId || loading || error != null) return@LaunchedEffect
+        if (section != PlantupiaPrimarySection.PLANTS || push.accountId != accountId || loading || error != null) return@LaunchedEffect
         val plant = plants.firstOrNull { it.id == push.plantId } ?: return@LaunchedEffect
         PlantupiaSupportPushSignal.consume()
         openPlant(plant)
