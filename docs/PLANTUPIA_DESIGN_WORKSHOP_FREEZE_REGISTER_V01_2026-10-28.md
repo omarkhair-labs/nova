@@ -113,3 +113,19 @@ The full structured source is `PLANTUPIA_DESIGN_MASTER_v01.md` in the owner pack
 **Design baseline decision:** use `9eb039d` for all forthcoming code-to-wireframe gap comparisons. PR #247 remains a separate import draft; PR #248 is a provisional style draft; PR #249 documents design only. No cherry-pick/merge/redeploy until screen decisions and integration tests are explicitly approved.
 
 **Next design review:** S06 Plant Detail (first viewport, care/AI/team positioning, history/Community/Settings) → Today/My Plants → Shop/Cart/Orders/Handover → Membership → Circle/Nova Messaging. Capture exact original-device evidence and approved frame IDs before issuing implementation instructions.
+
+## 11. Owner-authorized implementation wave — 2026-10-28
+
+The owner requested to **begin converting the agreed visual/product decisions to native code**, preserving the original Nova engine and the complete company-authored Care Guide. This authorizes a *reversible design/implementation increment*, not production launch.
+
+All implementation branches start **independently** at Codex's successful `9eb039d2d879b43c0e418fe90b8db4580930f45f`. No branch is merged or deployed by this record.
+
+| Draft PR | Owner decision addressed | Scope and acceptance gate |
+| --- | --- | --- |
+| #250 | Plant Detail should not be a list of disconnected accordions; approved Care Guide stays intact | Record Care / AI / team / Circle / settings repositioned; guide retains full authored instructions/context/source; latest 2 history entries with full timeline expansion. Kotlin CI, 320/390/430, 2x text, native/back/relaunch/privacy QA **pending**. |
+| #251 | Shop should be one browse destination with contextual cart, not three equal top tabs | Catalogue search, persisted cart photos/quantity, separate no-charge Review screen and honest receipts. Backend remains strictly QA-only; no real checkout/fulfillment. Kotlin CI and physical QA **pending**. |
+| #252 | Memberships must be discoverable without first hitting an AI paywall | Native Profile entry and current QA entitlement/offers/expiry/limits using existing authenticated `demo/access/` API with affirmative no-charge consent. No recurring billing. Kotlin CI and device QA **pending**. |
+
+These are the **first three of many system-connected increments**, not complete implementation of every 28-state wireframe. Remaining work: Today/My Plants/Welcome/QR physical device pass, connected Shop data schema and real approved photographs, recipient verified order-to-handover fulfillment, final Create/Circle/Inbox/Groups/Profile visual polish, notification FCM verification and full journey acceptance.
+
+**Handoff gate:** do not cherry-pick PR #248 or merge #247, #250–#252 without evaluating conflicts, evidence, accessibility and schema invariants against exactly one current native base. Preserve no-payment QA limitations.
