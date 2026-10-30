@@ -371,11 +371,13 @@ for kotlin_file in (ROOT / "app/src").rglob("*.kt"):
         )
 
 # All three entrypoints must respect the build-variant server selector.
+# Unified Plantupia QA builds use PR #253. Keep the Nova production host EXACTLY unchanged;
+# this static gate intentionally rejects accidental regression to #241 or production.
 server_config = read(ROOT / "app/src/main/java/com/nova/app/core/network/NovaServerConfig.kt")
 require_all(server_config, "QA endpoint isolation", (
     'BuildConfig.BUILD_TYPE == "qa"',
     'productionHost = "zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io"',
-    'qaHost = "241.zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io"',
+    'qaHost = "253.zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io"',
 ))
 production_ctor = 'NovaApiClient(com.nova.app.core.network.NovaServerConfig.API_URL)'
 for text, name in (
