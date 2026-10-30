@@ -1,4 +1,4 @@
-"""Fixed-identity Oracle Preview #241 handover gate.
+"""Fixed-identity Oracle Preview #241 and unified #253 handover gate.
 
 Even when public Django is hardened as production, a copied flag must not
 turn on client handover for Nova or an unrecognized database/preview.
@@ -12,6 +12,7 @@ from django.test import SimpleTestCase, override_settings
 from .handovers import pilot_enabled
 
 QA_HOST = "241.zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io"
+QA_HOST_UNIFIED = "253.zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io"
 QA_DATABASE = "imfiwc6cb0pkuyuzu1y1rxsu"
 QA_SETTINGS = {
     "ENGINE": "django.db.backends.postgresql", "HOST": QA_DATABASE,
@@ -38,6 +39,19 @@ class HostedPreviewHandoverConfigurationTests(SimpleTestCase):
 
     def test_explicit_hardened_oracle_241_preview_can_issue(self):
         self.assert_gate(True)
+
+    def test_unified_253_preview_on_existing_verified_qa_db_can_issue(self):
+        self.assert_gate(True, allowed_hosts=[QA_HOST_UNIFIED])
+        self.assert_gate(True, allowed_hosts=[QA_HOST, QA_HOST_UNIFIED])
+
+    def test_unified_253_cannot_use_nova_or_unrecognized_databases(self):
+        self.assert_gate(False, allowed_hosts=[QA_HOST_UNIFIED], host="unrecognized-prod-db")
+        self.assert_gate(False, allowed_hosts=[QA_HOST_UNIFIED], host="ptrfqssosjhwn99g1ogfzlhf")
+
+    def test_unified_253_remains_off_without_both_explicit_flags_or_in_debug(self):
+        self.assert_gate(False, allowed_hosts=[QA_HOST_UNIFIED], preview_flag="0")
+        self.assert_gate(False, allowed_hosts=[QA_HOST_UNIFIED], qa_flag="0")
+        self.assert_gate(False, allowed_hosts=[QA_HOST_UNIFIED], debug=True)
 
     def test_both_flags_must_be_enabled(self):
         self.assert_gate(False, qa_flag="0")

@@ -25,10 +25,16 @@ class HandoverError(Exception):
         super().__init__(code)
 
 
-# The sole hosted handover QA exception belongs to the VERIFIED Oracle PR #241
-# preview and its own Postgres host. Never authorize a shared Nova database,
-# generic production deployment, or another preview using a copied flag.
-_ORACLE_QA_HOST = "241.zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io"
+# Only the verified Oracle QA PostgreSQL instance may host the preview pilot.
+# PR #253 consolidates #240/#241 into a single review branch. Preserve existing
+# #241 access while allowing #253's distinct hostname on the very same QA DB.
+# Adding an ALLOWED_HOST is not sufficient without BOTH explicit QA flags, the
+# production-hardened Django settings and the exact allowlisted QA DB identity.
+# Never authorize a generic production deployment or Nova production database.
+_ORACLE_QA_HOSTS = frozenset({
+    "241.zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io",
+    "253.zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io",
+})
 _ORACLE_QA_DB_HOST = "imfiwc6cb0pkuyuzu1y1rxsu"
 
 
@@ -48,7 +54,7 @@ def pilot_enabled():
         and not settings.DEBUG
         and database.get("ENGINE") == "django.db.backends.postgresql"
         and database.get("HOST") == _ORACLE_QA_DB_HOST
-        and _ORACLE_QA_HOST in settings.ALLOWED_HOSTS
+        and any(host in settings.ALLOWED_HOSTS for host in _ORACLE_QA_HOSTS)
     )
 
 
