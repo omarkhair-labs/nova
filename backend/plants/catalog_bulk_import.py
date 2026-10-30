@@ -91,7 +91,9 @@ def parse_pack(upload) -> list[ProposedProduct]:
                 if "Products" not in workbook.sheetnames:
                     raise CatalogPackError("Workbook must contain a Products sheet.")
                 worksheet = workbook["Products"]
-                if worksheet.max_row > 101:
+                # Streaming XLSX files may omit row dimension metadata (max_row=None).
+                # The loop below independently enforces the 100-product limit.
+                if worksheet.max_row is not None and worksheet.max_row > 101:
                     raise CatalogPackError("Maximum 100 catalogue rows per import.")
                 values = worksheet.iter_rows(values_only=True)
                 header = tuple(str(v).strip() if v is not None else "" for v in next(values, ()))
