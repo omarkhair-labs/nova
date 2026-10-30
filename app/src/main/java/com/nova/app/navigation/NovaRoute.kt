@@ -1,6 +1,6 @@
 package com.nova.app.navigation
 
-sealed interface NovaRoute {
+sealed interface NovaRoute : java.io.Serializable {
     data object Welcome : NovaRoute
     data object Terms : NovaRoute
     data object Privacy : NovaRoute
@@ -8,7 +8,11 @@ sealed interface NovaRoute {
     data object Login : NovaRoute
     data object ProfileSetup : NovaRoute
     data object Home : NovaRoute
+    data object Plants : NovaRoute
+    data object Shop : NovaRoute
+    data object Activity : NovaRoute
     data object Orbit : NovaRoute
+    data object CircleFeed : NovaRoute
     data object Create : NovaRoute
     data object Pulse : NovaRoute
     data object Tonight : NovaRoute

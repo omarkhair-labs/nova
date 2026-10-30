@@ -97,6 +97,40 @@ class AuthFlowTests(APITestCase):
         self.assertEqual(response.data["username"], "omar.nova")
         self.assertEqual(response.data["avatar_url"], "")
 
+    def test_plantupia_avatar_choice_is_server_saved_public_and_validated(self):
+        created = self.register(self.payload)
+        self.assertEqual(created.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(created.data["user"]["plantupia_avatar_variant"], -1)
+        self.authenticate(created.data["access"])
+
+        changed = self.client.patch(
+            self.me_url, {"plantupia_avatar_variant": 5}, format="json"
+        )
+        self.assertEqual(changed.status_code, 200)
+        self.assertEqual(changed.data["plantupia_avatar_variant"], 5)
+        self.assertEqual(self.client.get(self.me_url).data["plantupia_avatar_variant"], 5)
+
+        other = get_user_model().objects.create_user(
+            email="viewer@example.com", username="viewer",
+            password="SecureAvatarPass2026!",
+        )
+        person = self.client.get(reverse("person-detail", kwargs={"username": "omar"}))
+        self.assertEqual(person.status_code, 200)
+        self.assertEqual(person.data["plantupia_avatar_variant"], 5)
+
+        for invalid in (-2, 8, 500):
+            rejected = self.client.patch(
+                self.me_url, {"plantupia_avatar_variant": invalid}, format="json"
+            )
+            self.assertEqual(rejected.status_code, 400)
+            self.assertIn("plantupia_avatar_variant", rejected.data)
+
+        restored = self.client.patch(
+            self.me_url, {"plantupia_avatar_variant": -1}, format="json"
+        )
+        self.assertEqual(restored.status_code, 200)
+        self.assertEqual(restored.data["plantupia_avatar_variant"], -1)
+
     def test_duplicate_username_is_rejected(self):
         first = self.register(self.payload)
         self.assertEqual(first.status_code, status.HTTP_201_CREATED)

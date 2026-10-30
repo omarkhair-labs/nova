@@ -1,0 +1,7 @@
+{% extends 'plants/company/base.html' %}
+{% block content %}
+<a class="back-link" href="{% url 'company:orders' %}">← QA orders</a><p class="eyebrow">{{ order.get_status_display }}</p><h1>No-charge QA order</h1><p class="lead">{{ order.customer.username }} · {{ order.created_at }} · {{ order.pk }}</p>
+<section class="panel padded">{% for line in order.lines.all %}<div class="record-row"><span class="grow"><strong>{{ line.name_snapshot }}</strong>{% if line.sku_snapshot %}<small>SKU {{ line.sku_snapshot }}</small>{% endif %}{% if line.variant_snapshot %}<small>Option: {{ line.variant_snapshot }}</small>{% endif %}<small>{{ line.quantity }} × EGP {{ line.unit_price_provisional }} · provisional</small></span></div>{% endfor %}<h2>Concept total: EGP {{ order.total_provisional }}</h2><p>No payment, delivery or real stock commitment was made.</p>
+{% if order.installation_id %}<a class="button" href="{% url 'company:installation' order.installation_id %}">Open separately prepared DRAFT →</a>
+{% elif perms.plants.change_demoorder %}<p>Only plant items become new unverified plant units. Accessories remain order lines. This creates a fresh DRAFT with new UUIDs; it does not verify, deliver or hand over anything.</p><form method="post" class="fields">{% csrf_token %}{{ form.as_div }}<button class="button primary">Confirm separate DRAFT preparation →</button></form>{% endif %}</section>
+{% endblock %}

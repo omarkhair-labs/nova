@@ -9,6 +9,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 ENVIRONMENT = os.getenv("DJANGO_ENV", "development").strip().lower()
 IS_PRODUCTION = ENVIRONMENT == "production"
+PLANTUPIA_COMPANY_DASHBOARD_ENABLED = os.getenv("PLANTUPIA_COMPANY_DASHBOARD_ENABLED", "0") == "1"
+PLANTUPIA_CEO_DEMO_ENABLED = os.getenv("PLANTUPIA_CEO_DEMO_ENABLED", "0") == "1"
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "nova-dev-only-secret")
 DEBUG = os.getenv("DJANGO_DEBUG", "0") == "1"
@@ -28,7 +30,7 @@ ALLOWED_HOSTS = allowed_hosts
 
 INSTALLED_APPS = [
     "daphne",
-    "django.contrib.admin",
+    "plants.admin_config.PlantupiaAdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -38,6 +40,7 @@ INSTALLED_APPS = [
     "storages",
     "channels",
     "accounts",
+    "plants",
 ]
 
 MIDDLEWARE = [
@@ -95,6 +98,17 @@ else:
         }
     }
 
+# Separate rate-limit cache for the optional Plantupia paid AI endpoint.
+# A shared Redis backend is required before enabling it for real users.
+CACHES = {
+    "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    "plantupia_ai": (
+        {"BACKEND": "django.core.cache.backends.redis.RedisCache", "LOCATION": REDIS_URL}
+        if REDIS_URL else
+        {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "plantupia-ai-dev"}
+    ),
+}
+
 database_url = os.getenv("DATABASE_URL", "").strip()
 if database_url:
     DATABASES = {
@@ -135,6 +149,15 @@ STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+# Only disposable, opt-in, local SQLite handover QA may keep uploaded photos
+# outside the repository. This cannot redirect hosted/production media.
+if (
+    not IS_PRODUCTION
+    and DATABASES["default"]["ENGINE"] == "django.db.backends.sqlite3"
+    and os.getenv("PLANTUPIA_HANDOVER_QA_ENABLED", "0") == "1"
+    and os.getenv("PLANTUPIA_LOCAL_QA_MEDIA_ROOT", "").strip()
+):
+    MEDIA_ROOT = Path(os.environ["PLANTUPIA_LOCAL_QA_MEDIA_ROOT"]).expanduser().resolve()
 
 STORAGES = {
     "default": {

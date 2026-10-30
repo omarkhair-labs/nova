@@ -24,10 +24,12 @@ class NovaRootNavigationPolicyTest {
     }
 
     @Test
-    fun approvedSocialRootsAreHomeOrbitCreateAndProfile() {
+    fun approvedPrimaryRootsAreTodayPlantsShopCircleCreateAndProfile() {
         assertEquals(
             listOf(
                 NovaRootTab.Home,
+                NovaRootTab.Plants,
+                NovaRootTab.Shop,
                 NovaRootTab.Orbit,
                 NovaRootTab.Create,
                 NovaRootTab.Profile,

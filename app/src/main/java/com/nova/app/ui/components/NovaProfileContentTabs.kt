@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -43,10 +44,32 @@ fun NovaProfileContentTabs(
     onPostClick: (NovaPost) -> Unit,
     postsEmptyTitle: String,
     postsEmptyMessage: String,
+    // Plantupia is built around deliberately shared moments, not the
+    // inherited Nova Reels / Posts / Reposts destination selector.
+    plantupiaMomentsOnly: Boolean = false,
 ) {
     val context = LocalContext.current
     val isOwnProfile = remember(context, username) {
         NovaSessionStore(context.applicationContext).load()?.cachedUser?.username == username
+    }
+
+    if (plantupiaMomentsOnly) {
+        LaunchedEffect(username, state.selectedTab) {
+            if (state.selectedTab != ProfileContentTab.Posts) {
+                onTabSelected(ProfileContentTab.Posts)
+            }
+        }
+        Column(modifier = Modifier.fillMaxWidth()) {
+            ProfilePosts(
+                state = state,
+                onRetry = onRetryPosts,
+                onLoadMore = onLoadMorePosts,
+                onPostClick = onPostClick,
+                emptyTitle = postsEmptyTitle,
+                emptyMessage = postsEmptyMessage,
+            )
+        }
+        return
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {

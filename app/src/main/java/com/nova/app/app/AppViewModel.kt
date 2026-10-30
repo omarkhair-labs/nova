@@ -17,8 +17,9 @@ import com.nova.app.navigation.NovaRootTab
 class AppViewModel internal constructor(
     private val restoreCachedUser: () -> NovaUser?,
     private val restoreSession: suspend () -> ApiResult<NovaUser?>,
-    private val logout: () -> Unit,
+    private val hasStoredSession: () -> Boolean,
     private val requestSocialRoot: (NovaRootTab) -> Unit,
+    private val cleanupExpiredSession: () -> Boolean = { true },
 ) : ViewModel(), AppNavigator {
     var state by mutableStateOf(AppState())
         private set
@@ -51,7 +52,14 @@ class AppViewModel internal constructor(
             )
 
             is ApiResult.Failure -> state.copy(
-                currentUser = null,
+                // A temporary QA/network failure is NOT a logout. Preserve a
+                // valid hydrated account while local credentials still exist.
+                // 401 and 409 (invalid or switched login) must fail closed.
+                currentUser = if (
+                    restored.statusCode == 401 ||
+                    restored.statusCode == 409 ||
+                    !hasStoredSession()
+                ) null else state.currentUser,
                 isBootstrapping = false,
             )
         }
@@ -59,11 +67,13 @@ class AppViewModel internal constructor(
 
     /** Returns false only when refresh expired and cleared the active session. */
     suspend fun refreshSession(): Boolean {
-        return when (val refreshed = restoreSession()) {
+        val expectedGeneration = sessionGeneration
+        val refreshed = restoreSession()
+        if (expectedGeneration != sessionGeneration) return state.currentUser != null
+        return when (refreshed) {
             is ApiResult.Success -> {
                 if (refreshed.value == null) {
-                    expireSession()
-                    false
+                    !expireSession()
                 } else {
                     sessionGeneration += 1
                     state = state.copy(currentUser = refreshed.value)
@@ -73,8 +83,7 @@ class AppViewModel internal constructor(
 
             is ApiResult.Failure -> {
                 if (refreshed.statusCode == 401) {
-                    expireSession()
-                    false
+                    !expireSession()
                 } else {
                     true
                 }
@@ -87,10 +96,13 @@ class AppViewModel internal constructor(
         state = state.copy(currentUser = user, isBootstrapping = false)
     }
 
-    fun expireSession() {
+    /** Transport already invalidated its originating login. An old UI event cannot log out B. */
+    fun expireSession(): Boolean {
+        if (hasStoredSession()) return false
+        if (!cleanupExpiredSession()) return false
         sessionGeneration += 1
-        logout()
         state = state.copy(primaryOverlay = null, currentUser = null)
+        return true
     }
 
     fun clearPrimaryOverlay() {
@@ -123,7 +135,8 @@ class AppViewModel internal constructor(
                     return AppViewModel(
                         restoreCachedUser = container.authRepository::cachedUser,
                         restoreSession = container.authRepository::restoreSession,
-                        logout = container.authRepository::logout,
+                        hasStoredSession = container.authRepository::hasStoredSession,
+                        cleanupExpiredSession = container.authRepository::cleanupExpiredSession,
                         requestSocialRoot = NovaRootNavigationSignal::request,
                     ) as T
                 }

@@ -58,11 +58,11 @@ fun ProfileSetupScreen(
 
     NovaKeyboardAwareFormPage(
         title = "Make it yours",
-        subtitle = "This is how people will recognize you around Nova.",
+        subtitle = "This is how people will recognize you in Plantupia.",
         onBack = ::back,
         action = {
             NovaPrimaryButton(
-                text = if (isLoading) "Creating account…" else "Enter Nova",
+                text = if (isLoading) "Creating account…" else "Enter Plantupia",
                 onClick = { onFinish(name.trim(), username.trim()) },
                 enabled = !isLoading && name.trim().length >= 2 && username.trim().length >= 3,
             )

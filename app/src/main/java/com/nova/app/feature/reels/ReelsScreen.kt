@@ -78,9 +78,9 @@ import com.nova.app.ui.theme.NovaSurface
 import kotlinx.coroutines.delay
 
 
-private val ReelBackground = Color(0xFF0A0B14)
-private val ReelInk = Color(0xFFE9E6FF)
-private val ReelMuted = Color(0xFFB9B4CE)
+private val ReelBackground = Color(0xFF10281F)
+private val ReelInk = Color(0xFFF3EEDE)
+private val ReelMuted = Color(0xFFD7D2C1)
 
 
 @Composable
@@ -169,7 +169,7 @@ fun ReelsScreen(
 
     fun shareReelOutsideNova(reel: NovaReel) {
         val shareText = buildString {
-            append("Watch @${reel.author.username} on Nova")
+            append("Watch @${reel.author.username} on Plantupia")
             if (reel.caption.isNotBlank()) append("\n\n${reel.caption}")
             if (reel.videoUrl.isNotBlank()) append("\n\n${reel.videoUrl}")
         }
@@ -239,7 +239,7 @@ fun ReelsScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Reels", color = ReelInk, fontSize = 31.sp, fontWeight = FontWeight.Bold)
+                        Text("Living moments", color = ReelInk, fontSize = 31.sp, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = error ?: "No Reels yet. Share the first one.",
@@ -674,6 +674,8 @@ private fun ReelPage(
                     source = reel.author.avatarUrl,
                     fallbackText = reel.author.displayName,
                     size = 38.dp,
+                    plantupiaUserId = reel.author.id.takeIf { it > 0L },
+                    plantupiaAvatarVariant = reel.author.plantupiaAvatarVariant,
                 )
                 Text(
                     text = "@${reel.author.username}",
@@ -716,9 +718,9 @@ private fun ReelDeleteDialog(
                 Spacer(modifier = Modifier.height(7.dp))
                 Text(
                     text = if (reel.caption.isBlank()) {
-                        "This Reel will be permanently removed from Nova."
+                        "This Reel will be permanently removed from Plantupia."
                     } else {
-                        "This Reel and its interactions will be permanently removed from Nova."
+                        "This Reel and its interactions will be permanently removed from Plantupia."
                     },
                     color = NovaMuted,
                     fontSize = 13.sp,
@@ -796,7 +798,7 @@ private fun ReelComposerDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("New Reel", color = NovaInk, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                    Text("New living moment", color = NovaInk, fontSize = 21.sp, fontWeight = FontWeight.Bold)
                     NovaIcon(
                         asset = NovaIconAsset.Reels,
                         contentDescription = null,

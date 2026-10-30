@@ -370,13 +370,88 @@ for kotlin_file in (ROOT / "app/src").rglob("*.kt"):
             f"Phase 5 exit restored core NovaPostAuthor import: {kotlin_file.relative_to(ROOT)}"
         )
 
-production_ctor = 'NovaApiClient("https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/")'
+# All three entrypoints must respect the build-variant server selector.
+# Unified Plantupia QA builds use PR #253. Keep the Nova production host EXACTLY unchanged;
+# this static gate intentionally rejects accidental regression to #241 or production.
+server_config = read(ROOT / "app/src/main/java/com/nova/app/core/network/NovaServerConfig.kt")
+require_all(server_config, "QA endpoint isolation", (
+    'BuildConfig.BUILD_TYPE == "qa"',
+    'productionHost = "zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io"',
+    'qaHost = "253.zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io"',
+))
+production_ctor = 'NovaApiClient(com.nova.app.core.network.NovaServerConfig.API_URL)'
 for text, name in (
     (auth_repository, "NovaAuthRepository.kt"),
     (feed_repository, "NovaFeedRepository.kt"),
     (social_repository, "NovaSocialRepository.kt"),
 ):
-    require_all(text, f"{name} production API base URL", (production_ctor,))
+    require_all(text, f"{name} variant-aware API base URL", (production_ctor,))
+
+# Integrity Sprint 02: repositories delegate ownership/refresh/retry to one session coordinator.
+session_store = read(ROOT / "app/src/main/java/com/nova/app/core/auth/NovaSessionStore.kt")
+coordinator = read(ROOT / "app/src/main/java/com/nova/app/core/auth/NovaSessionCoordinator.kt")
+require_all(session_store, "atomic encrypted session ownership", (
+    'data class LoginIdentity',
+    'synchronized(NovaSessionCoordinator.lock)',
+    'fun beginLogin(): LoginIdentity',
+    'fun logoutSession(): Pair<StoredSession?, LoginIdentity>',
+    'fun updateAccessToken(owner: LoginIdentity, accessToken: String)',
+    'fun updateUser(owner: LoginIdentity, user: NovaUser)',
+    'fun clear(owner: LoginIdentity)',
+    'fun save(owner: LoginIdentity, session: AuthSession)',
+    'fun replaceSession(owner: LoginIdentity, session: AuthSession)',
+    'const val KEY_GENERATION = "login_generation"',
+    'const val TRANSFORMATION = "AES/GCM/NoPadding"',
+))
+forbid_all(session_store, "unconditional asynchronous session writes", (
+    'fun updateAccessToken(accessToken:', 'fun updateUser(user:',
+    'fun clear()', 'fun save(session:',
+))
+require_all(coordinator, "shared refresh and response ownership", (
+    'internal object NovaSessionCoordinator', 'val lock = Any()',
+    'private val flights = mutableMapOf<NovaSessionStore.LoginIdentity, Flight>()',
+    'currentCoroutineContext().ensureActive()', 'store.updateAccessToken(owner, response.value)',
+    'if (!isCurrent(stored.identity)) return changedSession()',
+    'if (store.isCurrent(delivery.identity)) delivery.result else changedSession()',
+))
+for repository in (ROOT / "app/src/main/java").rglob("*.kt"):
+    text = repository.read_text(encoding="utf-8")
+    if 'sessionStore = NovaSessionStore(' in text and '.refresh(' in text:
+        require_all(text, f"{repository.name} shared login coordination", ('sessionStore.authenticatedRequest(',))
+
+app_owner = read(ROOT / "app/src/main/java/com/nova/app/app/AppViewModel.kt")
+require_all(app_owner, "stale UI expiry protection", (
+    'if (hasStoredSession()) return false',
+    'if (expectedGeneration != sessionGeneration) return state.currentUser != null',
+))
+forbid_all(app_owner, "unconditional UI session clearing", ('logout()', 'authRepository.logout('))
+for relative in (
+    'core/feed/NovaFeedRepository.kt', 'core/messaging/NovaMessagingRepository.kt',
+    'core/stories/NovaStoriesRepository.kt', 'core/reels/NovaReelsRepository.kt',
+    'feature/pulse/data/remote/PulseRemoteRepository.kt',
+    'feature/memories/data/remote/MemoryRemoteRepository.kt',
+    'feature/rooms/data/remote/RoomRemoteRepository.kt',
+):
+    media_owner = read(ROOT / "app/src/main/java/com/nova/app" / relative)
+    require_all(media_owner, f"{relative} media preparation login capture", (
+        'val origin = sessionStore.load()', 'origin = origin', 'val stored = origin',
+    ))
+
+# Integrity Sprint 03: new saves must fail closed on an older server and retain
+# an account-scoped snapshot instead of assigning an identity on every request.
+plant_repository = read(ROOT / "app/src/main/java/com/nova/app/feature/plants/data/PlantupiaRepository.kt")
+plant_journal = read(ROOT / "app/src/main/java/com/nova/app/feature/plants/data/PlantupiaSubmissionJournal.kt")
+require_all(plant_repository, "Plantupia reliable submission boundary", (
+    'noBackupFilesDir', 'submissions.prepare(', 'submissions.acknowledge(',
+    '"client_submission_id" to submission.id', '${submission.operation}-submissions/',
+    'publicConsentConfirmed', 'result.errorCode == "submission_rejected"',
+    'result.requestId == submission.id', 'submission.account != submissionAccount',
+))
+require_all(plant_journal, "durable Plantupia submission identity", (
+    'UUID.randomUUID()', 'synchronized(lock)', 'it.fd.sync()',
+    'StandardCopyOption.ATOMIC_MOVE', 'private fun directory(account: Long)',
+    'current.acknowledgedResult != result',
+))
 
 if errors:
     print("Network architecture exit check failed:")

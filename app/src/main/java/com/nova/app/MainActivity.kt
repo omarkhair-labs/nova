@@ -6,8 +6,10 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.app.KeyguardManager
+import android.graphics.Color
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.ActivityResult
@@ -62,7 +64,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // Cream Plantupia screens require dark system-bar glyphs for readable
+        // time/battery indicators; keep edge-to-edge media and Nova navigation.
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+        )
 
         inAppUpdateController = NovaInAppUpdateController(
             activity = this,
@@ -109,7 +116,7 @@ class MainActivity : ComponentActivity() {
         if (!appLock.requiresUnlock() || appLockPromptOpen) return
         val keyguard = getSystemService(KeyguardManager::class.java)
         val prompt = keyguard.createConfirmDeviceCredentialIntent(
-            "Unlock Nova",
+            "Unlock Plantupia",
             "Confirm your device screen lock to continue.",
         )
         if (prompt == null) {

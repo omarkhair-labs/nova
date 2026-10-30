@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><defs><clipPath id="portrait"><circle cx="500" cy="500" r="500"/></clipPath></defs><g clip-path="url(#portrait)">
+<path d="M0 0H1000V1000H0Z" fill="#E5E4DB"/>
+<path d="M130 900V200H844V909" fill="none" stroke="#324640" stroke-width="29" stroke-linecap="round" stroke-linejoin="round" opacity="0.21"/>
+<path d="M141 1055H878V941H141Z" fill="#A4B4A0" opacity="0.18"/>
+<path d="M133 1045Q174 815 388 724L477 758L578 737Q827 807 858 1045Z" fill="#324640"/>
+<path d="M344 781Q499 842 652 776L628 888L556 938L486 893L393 950Z" fill="#53665C"/>
+<path d="M443 620L442 773Q512 818 600 773L578 626Z" fill="#A9735E"/>
+<path d="M393 373Q410 290 511 268Q628 271 662 384L672 520Q645 651 543 709Q431 695 382 577Z" fill="#A9735E"/>
+<path d="M341 488Q301 357 346 285Q403 211 516 231Q612 204 671 267Q744 350 675 488L638 445Q628 379 597 354Q487 420 403 356L366 482Z" fill="#3E5048"/>
+<path d="M398 732Q512 800 625 722" fill="none" stroke="#E5E4DB" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+</g></svg>

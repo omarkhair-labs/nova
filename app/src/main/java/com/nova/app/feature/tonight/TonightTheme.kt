@@ -8,7 +8,7 @@ import com.nova.app.ui.theme.NovaBaseLive
  * Deliberate Tonight presentation palette.
  *
  * Tonight is allowed to feel darker and more atmospheric than ordinary Nova
- * surfaces, but all of that feature mood must be owned here instead of being
+ * surfaces; the Plantupia identity still applies, with feature mood owned here instead of
  * scattered across composables.
  */
 data class TonightPalette(
@@ -28,17 +28,17 @@ data class TonightPalette(
 
 object TonightTheme {
     val live = TonightPalette(
-        background = Color(0xFF0B1020),
-        surface = Color(0xFF12172A),
-        ink = Color(0xFFF8F7FD),
-        muted = Color(0xFFB7B9C8),
+        background = Color(0xFF0D2018),
+        surface = Color(0xFF183B2D),
+        ink = Color(0xFFF3EEDE),
+        muted = Color(0xFFD7D2C1),
         divider = Color.White.copy(alpha = 0.08f),
         cardBorder = NovaBaseAccent.copy(alpha = 0.34f),
-        mediaVideoBackground = Color(0xFF070A13),
-        mediaTextBackground = Color(0xFF171B31),
+        mediaVideoBackground = Color(0xFF091912),
+        mediaTextBackground = Color(0xFF1D4232),
         liveSignal = NovaBaseLive,
         orbit = NovaBaseAccent,
-        heroBottom = Color(0xFF17152E),
-        heroGlow = Color(0xFF28204A),
+        heroBottom = Color(0xFF153726),
+        heroGlow = Color(0xFF325A40),
     )
 }

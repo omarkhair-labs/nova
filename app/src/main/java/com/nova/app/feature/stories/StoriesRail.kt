@@ -89,9 +89,9 @@ import com.nova.app.ui.theme.NovaSurface
 import kotlinx.coroutines.delay
 
 
-private val StoryBackground = Color(0xFF0A0B14)
-private val StoryInk = Color(0xFFE9E6FF)
-private val StoryMuted = Color(0xFFB9B4CE)
+private val StoryBackground = Color(0xFF10281F)
+private val StoryInk = Color(0xFFF3EEDE)
+private val StoryMuted = Color(0xFFD7D2C1)
 private val StoryReactions = listOf("❤️", "😂", "😮", "😢", "🔥", "👏")
 private const val STORY_FRAME_MS = 5_500L
 private const val STORY_TICK_MS = 55L
@@ -185,6 +185,7 @@ fun StoriesRail(
                         symbol = "+",
                         avatarUrl = if (myGroup == null) avatarUrl else "",
                         fallback = displayName.ifBlank { username },
+                        userId = currentUserId,
                         onClick = { picker.launch(arrayOf("image/*", "video/*")) },
                     )
                 }
@@ -279,6 +280,7 @@ private fun StoryCreateRailItem(
     symbol: String,
     avatarUrl: String,
     fallback: String,
+    userId: Long? = null,
     onClick: () -> Unit,
 ) {
     Column(
@@ -292,8 +294,8 @@ private fun StoryCreateRailItem(
             border = BorderStroke(1.5.dp, NovaAccent.copy(alpha = 0.55f)),
         ) {
             Box(contentAlignment = Alignment.Center) {
-                if (avatarUrl.isNotBlank()) {
-                    NovaAvatar(source = avatarUrl, fallbackText = fallback, size = 52.dp)
+                if (avatarUrl.isNotBlank() || userId != null) {
+                    NovaAvatar(source = avatarUrl, fallbackText = fallback, size = 52.dp, plantupiaUserId = userId)
                     Surface(
                         modifier = Modifier.align(Alignment.BottomEnd).size(21.dp),
                         shape = CircleShape,
@@ -334,6 +336,8 @@ private fun StoryGroupRailItem(group: NovaStoryGroup, label: String, onClick: ()
                     source = group.author.avatarUrl,
                     fallbackText = group.author.displayName,
                     size = 50.dp,
+                    plantupiaUserId = group.author.id,
+                    plantupiaAvatarVariant = group.author.plantupiaAvatarVariant,
                 )
             }
         }
@@ -680,7 +684,7 @@ private fun StoryViewer(
                 }
                 Spacer(Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    NovaAvatar(source = story.author.avatarUrl, fallbackText = story.author.displayName, size = 38.dp)
+                    NovaAvatar(source = story.author.avatarUrl, fallbackText = story.author.displayName, size = 38.dp, plantupiaUserId = story.author.id, plantupiaAvatarVariant = story.author.plantupiaAvatarVariant)
                     Spacer(Modifier.width(9.dp))
                     Column(Modifier.weight(1f)) {
                         Text(story.author.displayName, color = StoryInk, fontSize = 13.sp, fontWeight = FontWeight.Bold)
@@ -1044,7 +1048,7 @@ private fun StoryViewersDialog(owner: StoryViewerStateOwner) {
                 ) {
                     items(state.viewers, key = { it.user.id }) { viewer ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            NovaAvatar(source = viewer.user.avatarUrl, fallbackText = viewer.user.displayName, size = 36.dp)
+                            NovaAvatar(source = viewer.user.avatarUrl, fallbackText = viewer.user.displayName, size = 36.dp, plantupiaUserId = viewer.user.id, plantupiaAvatarVariant = viewer.user.plantupiaAvatarVariant)
                             Spacer(Modifier.width(9.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(viewer.user.displayName, color = NovaInk, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
@@ -1073,5 +1077,5 @@ private fun storyBackgroundBrush(style: String): Brush = when (style) {
     "sunset" -> Brush.linearGradient(listOf(Color(0xFF5B1A55), Color(0xFFE06A46), Color(0xFFF0B35A)))
     "ocean" -> Brush.linearGradient(listOf(Color(0xFF092B4A), Color(0xFF0D6E8A), Color(0xFF31A6A0)))
     "forest" -> Brush.linearGradient(listOf(Color(0xFF102A24), Color(0xFF1D5943), Color(0xFF5A7D45)))
-    else -> Brush.linearGradient(listOf(Color(0xFF0A0B14), Color(0xFF25233B), Color(0xFF5A3E72)))
+    else -> Brush.linearGradient(listOf(Color(0xFF10281F), Color(0xFF123B2E), Color(0xFF406D4D)))
 }

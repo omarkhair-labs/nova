@@ -2,6 +2,7 @@ package com.nova.app.core.notifications
 
 import android.content.Context
 import com.nova.app.core.auth.NovaSessionStore
+import com.nova.app.core.auth.authenticatedRequest
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.feature.notifications.data.NotificationsRepository
@@ -36,44 +37,22 @@ class NovaNotificationRepository(
         }
     }
 
+    override suspend fun markRead(notificationId: Long): ApiResult<Int> = authenticatedCall { api.markRead(it, notificationId) }
+
     private suspend fun <T> authenticatedCall(
         call: suspend (String) -> ApiResult<T>,
     ): ApiResult<T> {
         val stored = sessionStore.load()
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
-
-        when (val first = call(stored.accessToken)) {
-            is ApiResult.Success -> return first
-            is ApiResult.Failure -> {
-                if (first.statusCode != 401) return first
-            }
-        }
-
-        return when (val refreshed = authApi.refresh(stored.refreshToken)) {
-            is ApiResult.Success -> {
-                sessionStore.updateAccessToken(refreshed.value)
-                when (val retried = call(refreshed.value)) {
-                    is ApiResult.Success -> retried
-                    is ApiResult.Failure -> {
-                        if (retried.statusCode == 401) sessionStore.clear()
-                        retried
-                    }
-                }
-            }
-
-            is ApiResult.Failure -> {
-                if (refreshed.statusCode == 400 || refreshed.statusCode == 401) {
-                    sessionStore.clear()
-                    ApiResult.Failure("Your session expired. Please log in again.", 401)
-                } else {
-                    refreshed
-                }
-            }
-        }
+        return sessionStore.authenticatedRequest(
+            stored = stored,
+            refresh = { authApi.refresh(stored.refreshToken) },
+            request = call,
+        )
     }
 
     private companion object {
-        const val PRODUCTION_API_URL = "https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/"
+        val PRODUCTION_API_URL = com.nova.app.core.network.NovaServerConfig.API_URL
     }
 }
 
@@ -128,6 +107,14 @@ class NovaNotificationApiClient(
         }
     }
 
+    suspend fun markRead(accessToken: String, notificationId: Long): ApiResult<Int> {
+        return when (val response = requestJson("notifications/read/", "POST",
+            JSONObject().put("ids", JSONArray().put(notificationId)), accessToken)) {
+            is ApiResult.Success -> ApiResult.Success(response.value.optInt("unread_count"))
+            is ApiResult.Failure -> response
+        }
+    }
+
     private fun parseNotification(json: JSONObject): NovaNotification {
         val actor = json.optJSONObject("actor") ?: JSONObject()
         val rawPostId = json.opt("post_id")
@@ -158,6 +145,9 @@ class NovaNotificationApiClient(
             commentPreview = json.optString("comment_preview"),
             createdAt = json.optString("created_at"),
             isRead = json.optBoolean("is_read", false),
+            plantupiaTicketId = json.optString("plantupia_ticket_id").takeIf { it.isNotBlank() && it != "null" },
+            plantupiaPlantId = json.optString("plantupia_plant_id").takeIf { it.isNotBlank() && it != "null" },
+            plantupiaOrderId = json.optString("plantupia_order_id").takeIf { it.isNotBlank() && it != "null" },
         )
     }
 

@@ -64,11 +64,15 @@ MIGRATED_COMPONENT_SEAMS = {
         "NovaElevation.floating",
         "NovaType.navigationLabel",
         "NovaType.badge",
-        "NovaIconAsset.Home",
+        "NovaIconAsset.Today",
+        "NovaIconAsset.Plants",
         "NovaIconAsset.Orbit",
         "NovaIconAsset.Create",
-        "NovaIconAsset.Inbox",
-        'label = "Profile"',
+        "NovaIconAsset.Shop",
+        'label = "Today"',
+        'label = "Plants"',
+        'label = "Shop"',
+        'label = "Circle"',
     ),
     "NovaFeedback.kt": ("MaterialTheme.shapes.extraLarge", "NovaType.bodyCompact", "NovaSpacing.xxxl"),
     "NovaCard.kt": ("MaterialTheme.shapes.large", "NovaSurface", "NovaBorder"),
@@ -228,14 +232,47 @@ for seam in ("NovaCard(", "NovaType.screenTitle", "NovaSpacing.xxl", "SettingsSe
         errors.append(f"Settings bypassed Nova container/type/spacing seam: {seam}")
 
 profile_text = PROFILE_SCREEN.read_text(encoding="utf-8")
-for seam in ("NovaProfileIdentity(", "NovaPagedProfilePostsGrid(", "NovaType.pageTitle", "NovaSpacing.xxl"):
+# Contextual Inbox moved into the shared authenticated header on all five roots.
+circle_text = (MAIN / "com/nova/app/feature/orbit/OrbitScreen.kt").read_text(encoding="utf-8")
+shared_header_path = MAIN / "com/nova/app/feature/plants/PlantupiaAccountHeader.kt"
+shared_header = shared_header_path.read_text(encoding="utf-8") if shared_header_path.exists() else ""
+for seam in ("NovaMessagingNavigator.openInbox", "NovaIconAsset.Inbox", "NovaIconAsset.Notifications", "NovaAvatar(", "NovaUnreadDot(", "PlantupiaBrandGlyph(", 'contentDescription = "Open your profile"', "size = 48.dp", "LocalPlantupiaNoticeCount.current"):
+    if seam not in shared_header:
+        errors.append(f"Shared authenticated header lost a real navigation/identity/accessibility seam: {seam}")
+for path in (MAIN / "com/nova/app/feature/home/HomeIdentityHeader.kt", MAIN / "com/nova/app/feature/plants/PlantupiaPrimaryRoutes.kt", MAIN / "com/nova/app/feature/create/CreateHubScreen.kt", MAIN / "com/nova/app/feature/orbit/OrbitScreen.kt"):
+    if "PlantupiaAccountHeader(" not in path.read_text(encoding="utf-8"):
+        errors.append(f"Primary customer surface bypassed its authenticated header: {path.name}")
+if "NovaMessagingNavigator.openInbox" not in profile_text or "NovaIconAsset.Inbox" not in profile_text:
+    errors.append("Contextual Profile Inbox entry must remain functional")
+# Plantupia Me intentionally replaces the legacy violet Nova identity slab while
+# keeping the real authenticated avatar, profile content, follow graph and UI tokens.
+# Protect the NEW owning component and native composition, not an obsolete look.
+for seam in (
+    "PlantupiaMeIdentity(",
+    "PlantupiaProfileSpaces(",
+    "PlantupiaProfileSectionHeading(",
+    "PlantupiaProfileSocialStats(",
+    "plantupiaMomentsOnly = true",
+    "NovaPagedProfilePostsGrid(",
+    "NovaSpacing.lg",
+):
     if seam not in profile_text:
-        errors.append(f"Profile bypassed Nova identity/content/type/spacing seam: {seam}")
+        errors.append(f"Profile bypassed Plantupia Me/privacy/community composition: {seam}")
+new_identity = MAIN / "com/nova/app/feature/profile/PlantupiaMeIdentity.kt"
+if not new_identity.is_file():
+    errors.append("missing Plantupia Me identity owner")
+else:
+    identity_text = new_identity.read_text(encoding="utf-8")
+    for seam in ("NovaAvatar(", "normalizedProfileExternalUrl(", "NovaIconAsset.Verified", "NovaType.sectionTitle"):
+        if seam not in identity_text:
+            errors.append(f"Plantupia Me lost real identity or safe profile metadata: {seam}")
 
 home_text = HOME_SCREEN.read_text(encoding="utf-8")
 for seam in (
     "HomeIdentityHeader(",
-    "NovaCard(",
+    "PlantupiaColors.cream",
+    "PlantupiaShapes.inset",
+    "communityOnly",
     "NovaLoadingState(",
     "NovaErrorState(",
     "NovaEmptyState(",
@@ -250,19 +287,11 @@ if not HOME_IDENTITY_HEADER.is_file():
     errors.append("missing Home identity header owner")
 else:
     home_identity_text = HOME_IDENTITY_HEADER.read_text(encoding="utf-8")
-    for seam in (
-        "NovaType.display",
-        "NovaType.screenTitle",
-        "NovaType.subtitle",
-        "NovaIconAsset.Search",
-        "NovaIconAsset.Notifications",
-        "NovaOrbitRing(",
-        "NovaUnreadDot(",
-        "NovaSpacing.",
-        "Modifier.size(48.dp)",
-    ):
+    # Visual ownership moved to the shared account header; preserve the actual
+    # identity and callback forwarding instead of freezing obsolete pixel sizes.
+    for seam in ("PlantupiaAccountHeader(", "displayName", "username", "avatarUrl", "userId", "avatarVariant", "onProfileClick", "onActivityClick", "currentGreeting()"):
         if seam not in home_identity_text:
-            errors.append(f"Home identity header bypassed approved visual-identity seam: {seam}")
+            errors.append(f"Home header lost a real account/callback seam: {seam}")
 
 if not CREATE_HUB.is_file():
     errors.append("missing truthful central Create destination")
@@ -276,10 +305,13 @@ else:
         "RoomsRail(",
         "MemoriesRail(",
         "onCreatePost",
-        "onOpenReels",
     ):
         if seam not in create_text:
             errors.append(f"Create destination lost truthful existing-flow seam: {seam}")
+    # The Plantupia product decision removed the generic endless Reels feed
+    # from Create; real posted videos and 24h Stories still keep their engines.
+    if "onOpenReels" in create_text:
+        errors.append("Plantupia Create must not restore generic Reels navigation")
 
 app_host_text = APP_HOST.read_text(encoding="utf-8")
 for seam in (
@@ -306,11 +338,15 @@ for stale_destination in ("data object People", "data object Messages"):
         errors.append(f"typed navigation contract restored stale primary destination: {stale_destination}")
 
 people_text = PEOPLE_SCREEN.read_text(encoding="utf-8")
+# People retains shared row/feedback/navigation foundations, but the visible
+# header now uses Plantupia's authored editorial type, not Nova's title style.
 for seam in (
     "NovaPersonRow(",
     "NovaLoadingState(",
     "NovaEmptyState(",
-    "NovaType.pageTitle",
+    "PlantupiaText.editorialHeading",
+    "PlantupiaEmptyPeopleArt(",
+    "plantupiaStyle = true",
     "NovaSpacing.xl",
 ):
     if seam not in people_text:
@@ -374,6 +410,31 @@ for legacy_usage in (
 ):
     if legacy_usage in activity:
         errors.append(f"CallActivity restored legacy communication icon usage: {legacy_usage}")
+
+# Plantupia's public-facing profile contract is one intentionally shared
+# moments section. The Nova Reels/Reposts implementation may remain for data
+# compatibility, but must not be surfaced by Me or visited Person routes.
+PERSON_SCREEN = MAIN / "com/nova/app/feature/people/PersonScreen.kt"
+visitor_profile_text = PERSON_SCREEN.read_text(encoding="utf-8")
+for seam in (
+    "PlantupiaProfileSectionHeading(",
+    "PlantupiaProfileSocialStats(",
+    "plantupiaMomentsOnly = true",
+    "privacyResolved && privacyState.canViewContent",
+):
+    if seam not in visitor_profile_text:
+        errors.append(f"Visitor profile lost Plantupia shared experience or privacy gate: {seam}")
+CONTENT_TABS = MAIN / "com/nova/app/ui/components/NovaProfileContentTabs.kt"
+PAGED_GRID = MAIN / "com/nova/app/ui/components/NovaPagedProfilePostsGrid.kt"
+for profile_path in (PROFILE_SCREEN, PERSON_SCREEN):
+    source = profile_path.read_text(encoding="utf-8")
+    if "plantupiaMomentsOnly = true" not in source:
+        errors.append(f"{profile_path.name} restored Nova's Reels/Posts/Reposts profile tabs")
+tabs_source = CONTENT_TABS.read_text(encoding="utf-8")
+if "if (plantupiaMomentsOnly)" not in tabs_source or "ProfilePosts(" not in tabs_source:
+    errors.append("Plantupia single-moments display path is missing")
+if PAGED_GRID.read_text(encoding="utf-8").count("plantupiaMomentsOnly = plantupiaMomentsOnly") != 2:
+    errors.append("Both owner and visitor paging wrappers must forward Plantupia moments mode")
 
 if errors:
     print("Shared UI architecture check failed:")

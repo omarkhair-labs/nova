@@ -86,10 +86,25 @@ fun CreatePostScreen(
             .padding(horizontal = 22.dp, vertical = 18.dp),
     ) {
         NovaHeader(
-            title = "New post",
-            subtitle = "Share one moment into your Nova feed.",
+            title = "Public moment",
+            subtitle = "A photo or video you choose to share with others.",
             onBack = { if (!isLoading) onBack() },
         )
+
+        Spacer(modifier = Modifier.height(14.dp))
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = NovaAccentSoft,
+            shape = RoundedCornerShape(16.dp),
+        ) {
+            Text(
+                text = "PUBLIC / This post is visible to others. Your private plant history and spaces are never shared automatically.",
+                modifier = Modifier.padding(14.dp),
+                color = NovaInk,
+                fontSize = 12.sp,
+                lineHeight = 18.sp,
+            )
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -228,7 +243,7 @@ fun CreatePostScreen(
         Spacer(modifier = Modifier.height(22.dp))
 
         NovaPrimaryButton(
-            text = if (isLoading) "Sharing…" else "Share post",
+            text = if (isLoading) "Publishing…" else "Publish moment",
             onClick = {
                 val media = selectedMedia
                 if (media != null && !isLoading) onShare(media, caption)
@@ -238,7 +253,7 @@ fun CreatePostScreen(
 
         Spacer(modifier = Modifier.height(14.dp))
         Text(
-            text = "Publishing continues safely if you move around Nova or leave the app. Home will show progress and any retry needed.",
+            text = "Publishing continues if you navigate Plantupia or leave the app. Home will show progress and retry options.",
             color = NovaMuted,
             fontSize = 12.sp,
             lineHeight = 18.sp,

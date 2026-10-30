@@ -1,0 +1,6 @@
+{% extends 'plants/company/base.html' %}
+{% block content %}
+<p class="eyebrow">NO CHARGE · NO DELIVERY INITIATED</p><h1>QA orders</h1><p class="lead">Customer confirmations persist. Preparing an installation is a separate staff decision.</p>
+<section class="panel">{% for order in records %}<a class="record-row" href="{% url 'company:order-detail' order.pk %}"><span class="grow"><strong>{{ order.customer.username }} · {{ order.created_at }}</strong><small>QA order {{ order.pk }}</small></span><span class="badge">{{ order.get_status_display }}</span><span>EGP {{ order.total_provisional }} provisional →</span></a>{% empty %}<div class="empty"><h2>No QA orders yet.</h2><p>A customer must choose an item, review the cart and explicitly confirm the no-charge order.</p></div>{% endfor %}</section>
+{% include 'plants/company/pagination.html' %}
+{% endblock %}
