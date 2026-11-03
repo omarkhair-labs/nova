@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.utils import timezone
-from .models import PlantEvent, PlantUnit, Space, SpaceMember
+from .models import BotanicalSpecies, PlantEvent, PlantUnit, Space, SpaceMember
 
 
 class SpaceSerializer(serializers.ModelSerializer):
@@ -46,6 +46,8 @@ class SpaceUpdateSerializer(serializers.ModelSerializer):
 
 class PlantSerializer(serializers.ModelSerializer):
     my_name = serializers.SerializerMethodField()
+    identity_state = serializers.SerializerMethodField()
+    selected_species_key = serializers.CharField(source="selected_species.key", allow_null=True, read_only=True)
     can_record = serializers.SerializerMethodField()
     last_event_kind = serializers.CharField(read_only=True, allow_null=True)
     last_event_at = serializers.DateTimeField(read_only=True, allow_null=True)
@@ -53,7 +55,12 @@ class PlantSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PlantUnit
-        fields = ("id", "space", "unit_type", "label", "cover_photo", "my_name", "species_label", "placement_note", "is_active", "can_record", "last_event_kind", "last_event_at", "next_follow_up_on")
+        fields = ("id", "space", "unit_type", "label", "cover_photo", "my_name", "species_label", "selected_species_key", "identity_state", "placement_note", "is_active", "can_record", "last_event_kind", "last_event_at", "next_follow_up_on")
+
+    def get_identity_state(self, obj):
+        if obj.verified_species_id:
+            return "staff_verified"
+        return "user_selected" if obj.selected_species_id else "unknown"
 
     def get_can_record(self, obj):
         return obj.is_active and obj.space_id in self.context.get("editable_space_ids", set())
@@ -80,13 +87,14 @@ class SpaceCreateSerializer(serializers.ModelSerializer):
 
 
 class PlantCreateSerializer(serializers.ModelSerializer):
+    selected_species_key = serializers.SlugField(required=False, allow_blank=True, max_length=100, write_only=True)
     # Take an ID rather than a Space object. The view strictly resolves it
     # against spaces the requester owns or manages.
     space = serializers.UUIDField()
 
     class Meta:
         model = PlantUnit
-        fields = ("id", "space", "unit_type", "label", "species_label", "placement_note", "cover_photo")
+        fields = ("id", "space", "unit_type", "label", "species_label", "selected_species_key", "placement_note", "cover_photo")
         read_only_fields = ("id",)
 
     def validate_label(self, value):
@@ -94,6 +102,22 @@ class PlantCreateSerializer(serializers.ModelSerializer):
         if not value:
             raise serializers.ValidationError("Give your plant a name.")
         return value
+
+    def validate_selected_species_key(self, key):
+        if not key:
+            return ""
+        if not BotanicalSpecies.objects.filter(key=key, guides__published=True).exists():
+            raise serializers.ValidationError("Choose a published species from the library or leave it unknown.")
+        return key
+
+    def create(self, validated_data):
+        key = validated_data.pop("selected_species_key", "")
+        if key:
+            # Never grant verification based on client-submitted taxonomy.
+            species = BotanicalSpecies.objects.get(key=key)
+            validated_data["selected_species"] = species
+            validated_data["species_label"] = species.scientific_name
+        return super().create(validated_data)
 
     def validate_cover_photo(self, photo):
         if not photo:
