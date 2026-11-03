@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import com.nova.app.navigation.NovaRootNavigationSignal
 import com.nova.app.navigation.NovaRootTab
 import androidx.compose.ui.graphics.Color
@@ -37,6 +38,12 @@ import org.json.JSONObject
 private val demoForest = Color(0xFF123B2E)
 private val demoPaper = Color(0xFFFFFDF7)
 private val demoSage = Color(0xFFEEF1E8)
+
+/** Care subtype affects discovery only; SKU/cart/order identities stay unchanged. */
+internal fun matchesShopCategory(
+    kind: String, subcategory: String, main: String, care: String,
+): Boolean = (main == "all" || kind == main) &&
+    (main != "accessory" || care == "all" || subcategory == care)
 
 internal fun JSONObject.demoRows(key: String = "results"): List<JSONObject> {
     val rows = getJSONArray(key)
@@ -511,6 +518,8 @@ internal fun PlantupiaQaShop(
     var orders by remember { mutableStateOf(emptyList<JSONObject>()) }
     var screen by rememberSaveable { mutableStateOf("catalog") }
     var category by rememberSaveable { mutableStateOf("all") }
+    var careSubcategory by rememberSaveable { mutableStateOf("all") }
+    val uriHandler = LocalUriHandler.current
     var searchText by rememberSaveable { mutableStateOf("") }
     var confirmed by remember { mutableStateOf(false) }
     var receipt by rememberSaveable { mutableStateOf<String?>(null) }
@@ -809,8 +818,38 @@ internal fun PlantupiaQaShop(
                                 }
                             }
                         }
+                        if (category == "accessory") {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                listOf(
+                                    "all" to "All care",
+                                    "tools" to "Tools",
+                                    "substrate" to "Soil & Substrates",
+                                    "nutrition" to "Plant Nutrition",
+                                ).forEach { (choice, title) ->
+                                    Surface(
+                                        onClick = { careSubcategory = choice },
+                                        color = if (careSubcategory == choice) demoForest else demoSage,
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier.heightIn(min = 48.dp),
+                                    ) {
+                                        Text(
+                                            title,
+                                            modifier = Modifier.padding(horizontal = 13.dp, vertical = 13.dp),
+                                            color = if (careSubcategory == choice) demoPaper else demoForest,
+                                            style = PlantupiaText.supporting,
+                                        )
+                                    }
+                                }
+                            }
+                        }
                         val visible = products.filter { item ->
-                            (category == "all" || item.optString("kind") == category) &&
+                            matchesShopCategory(
+                                item.optString("kind"), item.optString("subcategory"),
+                                category, careSubcategory,
+                            ) &&
                                 (searchText.isBlank() || listOf(item.optString("name"),
                                     item.optString("description"), item.optString("sku"),
                                     item.optString("variant_label")).any {
@@ -890,6 +929,32 @@ internal fun PlantupiaQaShop(
                             )
                             if (!product.getString("description").startsWith("Fictional Plantupia software QA product")) {
                                 Text(product.getString("description"), style = PlantupiaText.body)
+                            }
+                            val nutrition = product.optJSONObject("nutrition")
+                            if (product.optString("subcategory") == "nutrition" && nutrition != null) {
+                                Text("PLANT NUTRITION · MANUFACTURER PRODUCT INFORMATION", style = PlantupiaText.sectionLabel)
+                                Text(nutrition.optString("label"), style = PlantupiaText.body)
+                                if (nutrition.optString("use_notes").isNotBlank()) {
+                                    Text("Manufacturer's label directions", style = PlantupiaText.sectionLabel)
+                                    Text(nutrition.optString("use_notes"), style = PlantupiaText.supporting)
+                                }
+                                if (nutrition.optString("cautions").isNotBlank()) {
+                                    Text("Precautions", style = PlantupiaText.sectionLabel)
+                                    Text(nutrition.optString("cautions"), style = PlantupiaText.supporting)
+                                }
+                                val sourceLink = nutrition.optString("source_url")
+                                if (sourceLink.startsWith("https://")) {
+                                    TextButton(onClick = {
+                                        runCatching { uriHandler.openUri(sourceLink) }
+                                            .onFailure { error = "The manufacturer's source couldn't be opened." }
+                                    }) {
+                                        Text("Source: " + nutrition.optString("source_reference"), color = demoForest)
+                                    }
+                                }
+                                Text(
+                                    "Buying a fertilizer does not mean your plant needs feeding today. Follow verified label guidance.",
+                                    style = PlantupiaText.supporting,
+                                )
                             }
                             val familyKey = product.optString("family_key")
                             val sameFamily = if (familyKey.isNotBlank()) products.filter {
@@ -1024,7 +1089,8 @@ private fun PlantupiaCatalogTile(
                 PlantupiaCatalogMissingPhoto(compact = true)
             }
             Text(
-                item.getString("kind").uppercase(),
+                if (item.optString("subcategory") == "nutrition") "PLANT NUTRITION"
+                else item.getString("kind").uppercase(),
                 fontSize = 10.sp, color = PlantupiaColors.secondaryText,
             )
             Text(
