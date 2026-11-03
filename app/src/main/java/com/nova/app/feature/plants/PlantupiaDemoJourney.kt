@@ -1007,6 +1007,18 @@ internal fun PlantupiaQaShop(
                             if (!product.getString("description").startsWith("Fictional Plantupia software QA product")) {
                                 Text(product.getString("description"), style = PlantupiaText.body)
                             }
+                            if (product.optString("kind") == "plant") {
+                                product.optJSONObject("reference_species")?.let { species ->
+                                    Text(
+                                        "Botanical catalogue reference · " + species.optString("scientific_name"),
+                                        style = PlantupiaText.supporting,
+                                    )
+                                    Text(
+                                        "This is the Shop product type, not verification of the individual plant you'll receive.",
+                                        style = PlantupiaText.supporting,
+                                    )
+                                }
+                            }
                             val nutrition = product.optJSONObject("nutrition")
                             if (product.optString("subcategory") == "nutrition" && nutrition != null) {
                                 Text("PLANT NUTRITION · MANUFACTURER PRODUCT INFORMATION", style = PlantupiaText.sectionLabel)

@@ -72,7 +72,7 @@ class InspectionForm(forms.ModelForm):
 class CatalogForm(forms.ModelForm):
     class Meta:
         model = CatalogProduct
-        fields = ("name", "sku", "family_key", "variant_label", "description", "kind", "subcategory",
+        fields = ("name", "sku", "family_key", "variant_label", "description", "kind", "reference_species", "subcategory",
                   "nutrition_label", "nutrition_use_notes", "nutrition_cautions", "nutrition_source_url",
                   "nutrition_source_reference", "image", "image_description",
                   "proposed_price", "currency", "qa_stock", "active")
@@ -84,6 +84,7 @@ class CatalogForm(forms.ModelForm):
             "proposed_price": "Concept QA price only. No charge or commercial offer.",
             "qa_stock": "Fictional test stock; no real inventory reservation.",
             "subcategory": "Inside Care: Tools, Soil & Substrates or Plant Nutrition. Leave blank for existing accessories.",
+            "reference_species": "Optional reviewed botanical type for plant SKUs only. Not verification of a delivered individual.",
             "nutrition_label": "Exact manufacturer label / formulation only; no invented fertilizer benefits.",
             "nutrition_use_notes": "Only verified manufacturer directions. Don't calculate personal dosage.",
             "nutrition_cautions": "Manufacturer's precautions and limits, when supplied.",

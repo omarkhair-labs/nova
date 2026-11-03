@@ -134,6 +134,11 @@ class CatalogProduct(models.Model):
     name = models.CharField(max_length=120)
     description = models.CharField(max_length=1500)
     kind = models.CharField(max_length=16, choices=[("plant", "Plant"), ("planter", "Planter"), ("accessory", "Care accessory")])
+    reference_species = models.ForeignKey(
+        "plants.BotanicalSpecies", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="catalogue_references",
+        help_text="Curated SKU reference only. A physical plant is NOT verified by its Shop listing.",
+    )
     # An additive category inside Care. Legacy accessories remain valid as uncategorized.
     subcategory = models.CharField(
         max_length=16, blank=True, default="",
@@ -165,6 +170,8 @@ class CatalogProduct(models.Model):
 
     def clean(self):
         super().clean()
+        if self.reference_species_id and self.kind != "plant":
+            raise ValidationError({"reference_species": "Only plant SKUs can reference a botanical species."})
         if self.kind != "accessory" and self.subcategory:
             raise ValidationError({"subcategory": "Subcategories apply only to Care accessories."})
         nutrition_fields = ("nutrition_label", "nutrition_use_notes", "nutrition_cautions",
