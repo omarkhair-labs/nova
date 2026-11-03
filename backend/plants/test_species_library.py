@@ -1,6 +1,7 @@
 """Plantupia V2 library discovery never grants staff-verified identity."""
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from unittest.mock import patch
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -114,6 +115,27 @@ class BotanicalLibraryTrustTests(TestCase):
         self.assertEqual(response.status_code, 404, response.content)
         self.assertEqual(PlantUnit.objects.filter(label="Not created").count(), 0)
         self.assertEqual(PlantUnit.objects.filter(label="Not yours").count(), 0)
+
+    def test_company_authorized_curator_can_add_search_alias_but_customer_cannot(self):
+        curator = get_user_model().objects.create_superuser(
+            username="library-curator", email="library-curator@example.test", password="unused",
+        )
+        path = reverse("company:species-alias-create")
+        with patch("plants.company_views.service.enabled", return_value=True):
+            self.client.force_login(self.owner)
+            self.assertEqual(self.client.post(path, {
+                "species": self.species.pk, "name": "Ficus rubber", "language": "en",
+            }).status_code, 403)
+            self.client.force_login(curator)
+            response = self.client.post(path, {
+                "species": self.species.pk, "name": "  شجرة المطاط  ", "language": "ar",
+            })
+        self.assertEqual(response.status_code, 302, response.content)
+        alias = BotanicalSpeciesAlias.objects.get(species=self.species, language="ar")
+        self.assertEqual(alias.name, "شجرة المطاط")
+        response = self.api.get(self.library_url, {"q": "المطاط"})
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.data["results"][0]["key"], self.species.key)
 
     def test_library_auth_and_bounded_query(self):
         self.assertEqual(self.api.get(self.library_url, {"offset": "-1"}).status_code, 400)
