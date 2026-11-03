@@ -47,6 +47,7 @@ data class PlantupiaCareGuide(
     val sourceReference: String = "",
     val reviewer: String = "",
     val reviewedAt: String = "",
+    val identityBasis: String = "unknown",
 )
 
 internal fun parseCareGuide(json: JSONObject, plantId: String): PlantupiaCareGuide {
@@ -54,13 +55,20 @@ internal fun parseCareGuide(json: JSONObject, plantId: String): PlantupiaCareGui
     require(json.opt("identity_verified") is Boolean)
     val verified = json.getBoolean("identity_verified")
     val state = requiredPlantupiaString(json, "state")
-    require(state in setOf("unverified", "available"))
+    require(state in setOf("unverified", "available", "general"))
+    val basis = json.optString("identity_basis").ifBlank {
+        // Older backend versions did not include basis, but still only
+        // permitted guide access for a verified individual plant.
+        if (verified) "staff_verified" else "unknown"
+    }
+    require(basis in setOf("staff_verified", "user_selected", "unknown"))
+    require(verified == (basis == "staff_verified"))
     val placement = json.getString("placement")
     if (state == "unverified") {
         require(json.has("guide") && json.isNull("guide"))
-        return PlantupiaCareGuide(verified, placement)
+        return PlantupiaCareGuide(verified, placement, identityBasis = basis)
     }
-    require(verified)
+    require((state == "available" && verified) || (state == "general" && basis == "user_selected"))
     val guide = json.getJSONObject("guide")
     val version = requiredPlantupiaLong(guide, "version")
     require(version <= Int.MAX_VALUE)
@@ -69,5 +77,5 @@ internal fun parseCareGuide(json: JSONObject, plantId: String): PlantupiaCareGui
     return PlantupiaCareGuide(verified, placement, version.toInt(), requiredPlantupiaString(guide, "species"),
         requiredPlantupiaString(guide, "instructions"), guide.getString("context_notes"), source,
         requiredPlantupiaString(guide, "source_reference"), requiredPlantupiaString(guide, "reviewer"),
-        requiredPlantupiaString(guide, "reviewed_at"))
+        requiredPlantupiaString(guide, "reviewed_at"), identityBasis = basis)
 }
