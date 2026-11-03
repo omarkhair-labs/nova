@@ -134,6 +134,22 @@ class CatalogProduct(models.Model):
     name = models.CharField(max_length=120)
     description = models.CharField(max_length=1500)
     kind = models.CharField(max_length=16, choices=[("plant", "Plant"), ("planter", "Planter"), ("accessory", "Care accessory")])
+    reference_species = models.ForeignKey(
+        "plants.BotanicalSpecies", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="catalogue_references",
+        help_text="Curated SKU reference only. A physical plant is NOT verified by its Shop listing.",
+    )
+    # An additive category inside Care. Legacy accessories remain valid as uncategorized.
+    subcategory = models.CharField(
+        max_length=16, blank=True, default="",
+        choices=[("", "Other care supplies"), ("tools", "Tools"),
+                 ("substrate", "Soil & Substrates"), ("nutrition", "Plant Nutrition")],
+    )
+    nutrition_label = models.CharField(max_length=350, blank=True, help_text="Source-checked manufacturer product formulation/label.")
+    nutrition_use_notes = models.TextField(blank=True, max_length=1200, help_text="Exact usage text from the manufacturer's label; not a plant-specific recommendation.")
+    nutrition_cautions = models.TextField(blank=True, max_length=1200)
+    nutrition_source_url = models.URLField(max_length=500, blank=True)
+    nutrition_source_reference = models.CharField(max_length=240, blank=True)
     image = models.ImageField(upload_to="plantupia/catalog/%Y/%m/", blank=True)
     image_description = models.CharField(max_length=180, blank=True)
     # Every choice is a sellable SKU, so the existing cart/order locks still
@@ -151,6 +167,24 @@ class CatalogProduct(models.Model):
             models.UniqueConstraint(fields=("sku",),
                 condition=~models.Q(sku=""), name="plant_catalog_unique_nonblank_sku"),
         ]
+
+    def clean(self):
+        super().clean()
+        if self.reference_species_id and self.kind != "plant":
+            raise ValidationError({"reference_species": "Only plant SKUs can reference a botanical species."})
+        if self.kind != "accessory" and self.subcategory:
+            raise ValidationError({"subcategory": "Subcategories apply only to Care accessories."})
+        nutrition_fields = ("nutrition_label", "nutrition_use_notes", "nutrition_cautions",
+                            "nutrition_source_url", "nutrition_source_reference")
+        if self.subcategory != "nutrition" and any(getattr(self, name) for name in nutrition_fields):
+            raise ValidationError({"subcategory": "Nutrition label information requires Plant Nutrition."})
+        if self.nutrition_source_url and not self.nutrition_source_url.startswith("https://"):
+            raise ValidationError({"nutrition_source_url": "Use the manufacturer's HTTPS source."})
+        if self.subcategory == "nutrition" and self.active and (
+            not self.nutrition_label.strip() or not self.nutrition_source_url.startswith("https://")
+            or not self.nutrition_source_reference.strip()
+        ):
+            raise ValidationError("Active Plant Nutrition QA listings require verified manufacturer label and HTTPS source.")
 
 
 class CatalogProductPhoto(models.Model):

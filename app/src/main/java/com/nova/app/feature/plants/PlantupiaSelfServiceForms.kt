@@ -76,6 +76,8 @@ fun PlantupiaSelfServiceForms(
     var spaceDescription by remember { mutableStateOf("") }
     var plantName by remember { mutableStateOf("") }
     var species by remember { mutableStateOf("") }
+    var selectedSpeciesKey by remember { mutableStateOf<String?>(null) }
+    var unknownPlantType by remember { mutableStateOf(false) }
     var placement by remember { mutableStateOf("") }
     var selectedSpaceId by remember { mutableStateOf<String?>(null) }
     // The newly returned UUID is authorized, but may precede the refreshing list.
@@ -285,6 +287,27 @@ fun PlantupiaSelfServiceForms(
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("New plant", modifier = Modifier.bringIntoViewRequester(creationEditorHeading), color = ink, fontSize = 22.sp)
                     Text("Every plant has a name, a place, and a history that grows over time.", color = textMuted, fontSize = 12.sp)
+                    PlantupiaSpeciesPicker(
+                        repository = repository,
+                        selectedKey = selectedSpeciesKey,
+                        selectedName = species,
+                        unknownMode = unknownPlantType,
+                        enabled = !saving,
+                        onSelected = { key, scientificName ->
+                            selectedSpeciesKey = key
+                            species = scientificName
+                            unknownPlantType = false
+                        },
+                        onUnknown = {
+                            selectedSpeciesKey = null
+                            species = ""
+                            unknownPlantType = true
+                        },
+                        onBrowse = {
+                            unknownPlantType = false
+                            species = ""
+                        },
+                    )
                     OutlinedButton(
                         onClick = { spaceMenuOpen = true },
                         modifier = Modifier.fillMaxWidth(), enabled = !saving,
@@ -310,11 +333,13 @@ fun PlantupiaSelfServiceForms(
                         label = { Text("Plant name *") }, singleLine = true,
                         modifier = Modifier.fillMaxWidth(), enabled = !saving,
                     )
-                    OutlinedTextField(
-                        value = species, onValueChange = { species = it.take(180) },
-                        label = { Text("Species (if known)") }, singleLine = true,
-                        modifier = Modifier.fillMaxWidth(), enabled = !saving,
-                    )
+                    if (unknownPlantType) {
+                        OutlinedTextField(
+                            value = species, onValueChange = { species = it.take(180) },
+                            label = { Text("Type you suspect (optional, not verified)") }, singleLine = true,
+                            modifier = Modifier.fillMaxWidth(), enabled = !saving,
+                        )
+                    }
                     OutlinedTextField(
                         value = placement, onValueChange = { placement = it.take(180) },
                         label = { Text("Placement within the space") }, singleLine = true,
@@ -336,11 +361,13 @@ fun PlantupiaSelfServiceForms(
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Button(
-                            enabled = !saving && plantName.isNotBlank() && selectedSpaceId != null,
+                            enabled = !saving && plantName.isNotBlank() && selectedSpaceId != null &&
+                                (selectedSpeciesKey != null || unknownPlantType),
                             onClick = {
                                 val targetSpace = selectedSpaceId ?: return@Button
                                 val submittedName = plantName
                                 val submittedSpecies = species
+                                val submittedSpeciesKey = selectedSpeciesKey
                                 val submittedPlacement = placement
                                 val submittedPhoto = plantPhoto
                                 scope.launch {
@@ -348,6 +375,7 @@ fun PlantupiaSelfServiceForms(
                                     error = null
                                     val result = repository.createPlant(
                                         targetSpace, submittedName, submittedSpecies, submittedPlacement, submittedPhoto,
+                                        selectedSpeciesKey = submittedSpeciesKey,
                                     )
                                     if (!repository.isCurrentSession()) return@launch
                                     when (result) {
@@ -355,6 +383,8 @@ fun PlantupiaSelfServiceForms(
                                         is ApiResult.Success -> {
                                             plantName = ""
                                             species = ""
+                                            selectedSpeciesKey = null
+                                            unknownPlantType = false
                                             placement = ""
                                             plantPhoto = null
                                             plantOpen = false

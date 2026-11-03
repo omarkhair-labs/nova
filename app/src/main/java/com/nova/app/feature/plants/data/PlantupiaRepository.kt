@@ -26,6 +26,14 @@ data class PlantupiaSpace(
     val canAddPlantPermissionReported: Boolean = true,
 )
 
+/** A curated reference type; not evidence verifying a customer's physical plant. */
+data class PlantupiaLibrarySpecies(
+    val key: String,
+    val scientificName: String,
+    val aliases: List<String>,
+    val reviewedGuideAvailable: Boolean,
+)
+
 data class PlantupiaPlant(
     val id: String,
     val spaceId: String,
@@ -39,6 +47,7 @@ data class PlantupiaPlant(
     val lastEventKind: String,
     val lastEventAt: String,
     val nextFollowUpOn: String = "",
+    val identityState: String = "unknown",
 )
 
 /** An actual server-generated answer. No scripted/mock reply is used in the UI. */
@@ -227,14 +236,16 @@ class PlantupiaRepository(
         species: String,
         placement: String,
         photoUri: Uri?,
+        selectedSpeciesKey: String? = null,
     ): ApiResult<String> = authorized { token ->
-        val fields = mapOf(
+        val fields = mutableMapOf(
             "space" to spaceId,
             "label" to name.trim(),
             "species_label" to species.trim(),
             "placement_note" to placement.trim(),
             "unit_type" to "individual",
         )
+        selectedSpeciesKey?.takeIf { it.isNotBlank() }?.let { fields["selected_species_key"] = it }
         val response = if (photoUri == null) {
             api.requestJson(
                 path = "plantupia/plants/",
@@ -325,6 +336,18 @@ class PlantupiaRepository(
         return ApiResult.Success(UploadFile(bytes = bytes, fileName = "plant-cover.$ext", mimeType = mimeType))
     }
 
+    /** Only published, source-reviewed species are returned; selecting one is NOT verification. */
+    suspend fun librarySpecies(query: String = ""): ApiResult<List<PlantupiaLibrarySpecies>> =
+        authorized { token ->
+            val term = query.trim().take(80)
+            val path = "plantupia/library/species/" + if (term.isBlank()) "" else
+                "?q=" + java.net.URLEncoder.encode(term, "UTF-8")
+            when (val response = api.requestJson(path = path, bearerToken = token)) {
+                is ApiResult.Failure -> response
+                is ApiResult.Success -> parsePlantupiaSpeciesList(response.value)
+            }
+        }
+
     suspend fun spaces(): ApiResult<List<PlantupiaSpace>> =
         authorized { token ->
             parseList("plantupia/spaces/", token) { raw ->
@@ -355,6 +378,9 @@ class PlantupiaRepository(
                     lastEventKind = raw.optString("last_event_kind").takeUnless { it == "null" }.orEmpty(),
                     lastEventAt = raw.optString("last_event_at").takeUnless { it == "null" }.orEmpty(),
                     nextFollowUpOn = raw.optString("next_follow_up_on").takeUnless { it == "null" }.orEmpty(),
+                    identityState = raw.optString("identity_state").takeIf {
+                        it in setOf("unknown", "user_selected", "staff_verified")
+                    } ?: "unknown",
                 )
             }
         }

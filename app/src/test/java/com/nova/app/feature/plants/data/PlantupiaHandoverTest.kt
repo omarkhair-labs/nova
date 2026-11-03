@@ -2,6 +2,7 @@ package com.nova.app.feature.plants.data
 
 import com.nova.app.core.network.ApiResult
 import org.json.JSONObject
+import org.json.JSONArray
 import org.junit.Assert.*
 import org.junit.Test
 import com.google.zxing.BarcodeFormat
@@ -73,6 +74,88 @@ class PlantupiaHandoverTest {
         assertEquals("window", guide.placement)
         assertTrue(parsePlantupiaResponse(body) { parseCareGuide(it, "other") } is ApiResult.Failure)
         body.put("state", "available")
+        assertTrue(parsePlantupiaResponse(body) { parseCareGuide(it, "plant") } is ApiResult.Failure)
+    }
+
+    @Test fun userSelectedSpeciesGetsOnlyClearlyQualifiedGeneralGuidance() {
+        val guide = JSONObject()
+            .put("version", 1).put("species", "Synthetic QA type")
+            .put("instructions", "Synthetic general guidance")
+            .put("context_notes", "").put("source_url", "https://example.test/qa")
+            .put("source_reference", "Synthetic QA reference")
+            .put("reviewer", "qa-reviewer")
+            .put("reviewed_at", "2026-11-03T08:00:00Z")
+        val body = JSONObject().put("plant_id", "plant")
+            .put("state", "general").put("identity_verified", false)
+            .put("identity_basis", "user_selected")
+            .put("placement", "indoor").put("guide", guide)
+        val parsed = parseCareGuide(body, "plant")
+        assertEquals("user_selected", parsed.identityBasis)
+        assertFalse(parsed.verifiedIdentity)
+        assertEquals(1, parsed.version)
+        // Neither a forged staff verification nor an incorrectly labeled
+        // "available" guide may be accepted for a user-reported type.
+        body.put("identity_basis", "staff_verified")
+        assertTrue(parsePlantupiaResponse(body) { parseCareGuide(it, "plant") } is ApiResult.Failure)
+        body.put("identity_basis", "user_selected").put("state", "available")
+        assertTrue(parsePlantupiaResponse(body) { parseCareGuide(it, "plant") } is ApiResult.Failure)
+    }
+
+    @Test fun publishedCareTopicsAreTypedOrderedAndPreserveFullLegacyText() {
+        val section = JSONObject()
+            .put("topic", "water").put("title", "Water inspection")
+            .put("instructions", "Synthetic observed conditions, not an instruction to water.")
+            .put("context_notes", "Synthetic QA only.")
+            .put("source_url", "https://example.test/qa-section")
+            .put("source_reference", "Synthetic section source")
+            .put("position", 2)
+        val second = JSONObject(section.toString())
+            .put("topic", "fertilizing").put("title", "Fertilizing context")
+            .put("position", 1)
+        val guide = JSONObject()
+            .put("version", 3).put("species", "Synthetic test plant")
+            .put("instructions", "Full reviewed synthetic narrative")
+            .put("legacy_instructions", "Original authored synthetic narrative")
+            .put("sections", JSONArray().put(section).put(second))
+            .put("context_notes", "")
+            .put("source_url", "https://example.test/reviewer-guide")
+            .put("source_reference", "Synthetic source")
+            .put("reviewer", "qa-reviewer").put("reviewed_at", "2026-11-03T08:00:00Z")
+        val body = JSONObject().put("plant_id", "my-plant")
+            .put("state", "general").put("identity_verified", false)
+            .put("identity_basis", "user_selected")
+            .put("placement", "window").put("guide", guide)
+        val parsed = parseCareGuide(body, "my-plant")
+        assertFalse(parsed.verifiedIdentity)
+        assertEquals("user_selected", parsed.identityBasis)
+        assertEquals(listOf("fertilizing", "water"), parsed.topics.map { it.topic })
+        assertEquals("Original authored synthetic narrative", parsed.legacyInstructions)
+        assertEquals("Synthetic QA only.", parsed.topics.last().contextNotes)
+    }
+
+    @Test fun malformedOrUnsafePublishedCareTopicsFailClosed() {
+        val item = JSONObject().put("topic", "water").put("title", "Synthetic water")
+            .put("instructions", "Only a synthetic fixture")
+            .put("context_notes", "").put("source_url", "http://unsafe.test/")
+            .put("source_reference", "test").put("position", 0)
+        val guide = JSONObject()
+            .put("version", 1).put("species", "Synthetic plant")
+            .put("instructions", "Synthetic fallback")
+            .put("context_notes", "").put("source_url", "https://example.test")
+            .put("source_reference", "test")
+            .put("reviewer", "qa-reviewer")
+            .put("reviewed_at", "2026-11-03T08:00:00Z")
+            .put("sections", JSONArray().put(item))
+        val body = JSONObject().put("plant_id", "plant")
+            .put("state", "available").put("identity_verified", true)
+            .put("identity_basis", "staff_verified")
+            .put("placement", "indoor").put("guide", guide)
+        assertTrue(parsePlantupiaResponse(body) { parseCareGuide(it, "plant") } is ApiResult.Failure)
+        item.put("source_url", "https://example.test/topic")
+        item.put("topic", "not-a-topic")
+        assertTrue(parsePlantupiaResponse(body) { parseCareGuide(it, "plant") } is ApiResult.Failure)
+        item.put("topic", "water")
+        guide.put("sections", JSONArray().put(item).put(JSONObject(item.toString())))
         assertTrue(parsePlantupiaResponse(body) { parseCareGuide(it, "plant") } is ApiResult.Failure)
     }
 

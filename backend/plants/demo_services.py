@@ -124,7 +124,8 @@ def plan_json(plan, user):
     enrollment = CarePlanEnrollment.objects.filter(plan=plan, responsible=user).first()
     today = timezone.now().astimezone(ZoneInfo(plan.timezone)).date()
     return {"id": str(plan.pk), "plant_id": str(plan.plant_id), "plant_name": plan.plant.label,
-            "action": plan.get_action_display(), "instructions": plan.instructions,
+            "action": plan.get_action_display(), "action_key": plan.action,
+            "instructions": plan.instructions,
             "every_days": plan.every_days, "timezone": plan.timezone,
             "placement_context": plan.placement_context, "guide_version": plan.guide.version,
             "reviewer": plan.approved_by.username, "source_url": plan.guide.source_url,
@@ -133,6 +134,15 @@ def plan_json(plan, user):
             "next_due_on": str(enrollment.next_due_on) if enrollment else str(max(plan.start_on, today)),
             "due": bool(enrollment and enrollment.enabled and enrollment.next_due_on <= today),
             "valid": plan_valid(plan)}
+
+
+# A finding records what somebody saw, not what treatment they performed.
+INSPECTION_FINDINGS = {
+    "soil": {"dry": "Soil felt dry", "moist": "Soil felt moist", "unsure": "Soil condition uncertain"},
+    "leaves": {"leaves_ok": "No visible leaf changes", "leaves_changed": "Visible leaf changes noticed", "unsure": "Leaf condition uncertain"},
+    "drainage": {"drainage_ok": "Drainage appeared clear", "drainage_concern": "Drainage concern noticed", "unsure": "Drainage uncertain"},
+    "rotation": {"light_ok": "Light/position checked", "light_changed": "Lighting or position changed", "unsure": "Light condition uncertain"},
+}
 
 
 def plan_action(user, plan_id, data):
@@ -166,10 +176,25 @@ def plan_action(user, plan_id, data):
             if not enrollment.enabled:
                 raise DemoProblem("Opt into this inspection plan first.")
             if action == "complete":
-                if not data.get("note", "").strip():
-                    raise ValidationError("Record what you actually observed; no watering is inferred.")
-                event = PlantEvent.objects.create(plant=locked.plant, actor=user, kind="observation", evidence_type="observed",
-                    note=data["note"].strip(), observed_at=timezone.now())
+                finding = data.get("finding")
+                note = data.get("note", "").strip()
+                if finding:
+                    accepted = INSPECTION_FINDINGS.get(locked.action, {})
+                    if finding not in accepted:
+                        raise ValidationError("This finding does not match the approved inspection action.")
+                    summary = accepted[finding]
+                    recorded = f"Inspection — {locked.get_action_display()}: {summary}"
+                    if note:
+                        recorded += f"\n{note}"
+                elif note:
+                    # Backward-compatible free-text observation for old Android clients.
+                    recorded = note
+                else:
+                    raise ValidationError("Choose what you observed or enter a note. No watering is inferred.")
+                event = PlantEvent.objects.create(
+                    plant=locked.plant, actor=user, kind="observation",
+                    evidence_type="observed", note=recorded, observed_at=timezone.now(),
+                )
             if action == "reschedule":
                 enrollment.next_due_on = data["next_due_on"]
                 if enrollment.next_due_on < today or enrollment.next_due_on > today + timedelta(days=365):
@@ -248,8 +273,14 @@ def support_reply(user, ticket_id, body, client_id, staff=False):
 
 
 def product_json(product):
-    return {"id": str(product.pk), "name": product.name, "description": product.description,
-            "kind": product.kind, "price": str(product.proposed_price), "currency": product.currency,
+    result = {"id": str(product.pk), "name": product.name, "description": product.description,
+            "kind": product.kind, "subcategory": product.subcategory,
+            "reference_species": {
+                "key": product.reference_species.key,
+                "scientific_name": product.reference_species.scientific_name,
+                "identity_verified": False,
+            } if product.reference_species_id else None,
+            "price": str(product.proposed_price), "currency": product.currency,
             "qa_stock": product.qa_stock, "has_image": bool(product.image),
             "image_description": product.image_description,
             "sku": product.sku, "family_key": product.family_key,
@@ -257,6 +288,16 @@ def product_json(product):
             "photos": [{"id": str(photo.pk), "alt_text": photo.alt_text}
                        for photo in product.gallery.all() if photo.image],
             "qa_only": True}
+    if product.subcategory == "nutrition":
+        result["nutrition"] = {
+            "label": product.nutrition_label,
+            "use_notes": product.nutrition_use_notes,
+            "cautions": product.nutrition_cautions,
+            "source_url": product.nutrition_source_url,
+            "source_reference": product.nutrition_source_reference,
+            "plant_specific_recommendation": False,
+        }
+    return result
 
 
 def cart_json(user):

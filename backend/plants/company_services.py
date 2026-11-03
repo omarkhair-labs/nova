@@ -79,7 +79,15 @@ def inventory_state(batch):
 
 
 def guide_state(guide):
-    return list(CareGuideVersion.objects.filter(pk=guide.pk).values())
+    # Review token binds to BOTH header and the exact sections the staff saw.
+    # A parallel draft editor must invalidate the first review submission.
+    return {
+        "guide": list(CareGuideVersion.objects.filter(pk=guide.pk).values()),
+        "sections": list(guide.sections.order_by("position", "pk").values(
+            "pk", "topic", "title", "instructions", "context_notes",
+            "source_url", "source_reference", "position",
+        )),
+    }
 
 
 def invitation_state(batch):

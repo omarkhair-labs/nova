@@ -142,6 +142,7 @@ object PlantupiaCareReminderScheduler {
         val app = context.applicationContext
         val prefs = app.getSharedPreferences(REMINDER_PREFS, Context.MODE_PRIVATE)
         reminderIdsForPlant(prefs.all, plantId).forEach { eventId -> cancel(app, eventId) }
+        PlantupiaInspectionReminderScheduler.cancelForPlant(app, plantId)
     }
 
     fun isScheduled(context: Context, eventId: String): Boolean {
@@ -156,6 +157,7 @@ object PlantupiaCareReminderScheduler {
         // workers. A pending callback may never surface private app context.
         app.getSharedPreferences(REMINDER_PREFS, Context.MODE_PRIVATE).edit().clear().commit()
         runCatching { WorkManager.getInstance(app).cancelAllWorkByTag(REMINDER_TAG) }
+        PlantupiaInspectionReminderScheduler.clearForLogout(app)
     }
 
     internal fun consumeIfAuthorized(context: Context, eventId: String, userId: Long, generation: String? = null): Boolean {
