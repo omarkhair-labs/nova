@@ -202,6 +202,7 @@ private fun PlantupiaAccountClientSection(
     var plantName by remember { mutableStateOf("") }
     var note by rememberSaveable { mutableStateOf("") }
     var selectedCareAction by rememberSaveable { mutableStateOf<PlantupiaCareAction?>(null) }
+    var careDetailsExpanded by rememberSaveable { mutableStateOf(false) }
     var pendingPrivateSaves by remember { mutableStateOf<List<com.nova.app.feature.plants.data.PlantupiaSubmission>>(emptyList()) }
     var carePhotoUri by rememberSaveable { mutableStateOf<Uri?>(null) }
     var carePhotoRequestGeneration by remember { mutableStateOf<Int?>(null) }
@@ -291,6 +292,7 @@ private fun PlantupiaAccountClientSection(
         plantName = plant.name
         note = ""
         selectedCareAction = null
+        careDetailsExpanded = false
         carePhotoUri = null
         carePhotoRequestGeneration = null
         checkAgainInDays = null
@@ -1015,7 +1017,7 @@ private fun PlantupiaAccountClientSection(
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
                     ) {
-                        Text(if (showCareEditor) "Close care form ↑" else "Record care", color = white)
+                        Text(if (showCareEditor) "Close care actions ↑" else "Record care", color = white)
                     }
                 if (showCareEditor) PlantupiaPanel {
                     Text("What did you do?", color = forestText, fontWeight = FontWeight.Medium, fontSize = 13.sp)
@@ -1048,7 +1050,31 @@ private fun PlantupiaAccountClientSection(
                             }
                         }
                     }
-                    Text("These record actual actions, not watering recommendations.", color = muted, fontSize = 11.sp)
+                    Text("These record real actions, never predicted watering or feeding.", color = muted, fontSize = 11.sp)
+                    if (selectedCareAction != null && !careDetailsExpanded) {
+                        Button(
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            enabled = !saving && isValidCheckInDate(customFollowUpDate, LocalDate.now()),
+                            onClick = { saveMoment(selectedPlant, "care", buildPlantupiaCareNote(selectedCareAction, note)) },
+                            colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
+                        ) {
+                            Text("Save · ${selectedCareAction?.label.orEmpty()}", color = white)
+                        }
+                        Text("One action recorded to private Living History; no check-in date or photo required.",
+                            color = muted, fontSize = 11.sp)
+                    }
+                    TextButton(
+                        onClick = { careDetailsExpanded = !careDetailsExpanded },
+                        enabled = !saving,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    ) {
+                        Text(
+                            if (careDetailsExpanded) "Hide extra details ↑"
+                            else "Add a note, photo, follow-up date or concern ↓",
+                            color = deepGreen,
+                        )
+                    }
+                    if (careDetailsExpanded) {
                     OutlinedTextField(
                         value = note,
                         onValueChange = { note = it.take(1500) },
@@ -1191,7 +1217,7 @@ private fun PlantupiaAccountClientSection(
                         ) { Text("Save observation", color = deepGreen) }
                         Button(
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                            enabled = !saving && validFollowUpDate && (selectedCareAction != null || note.isNotBlank() || carePhotoUri != null),
+                            enabled = !saving && validFollowUpDate && selectedCareAction != null,
                             onClick = { saveMoment(selectedPlant, "care", buildPlantupiaCareNote(selectedCareAction, note)) },
                             colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
                         ) { Text("Save care", color = white) }
@@ -1205,6 +1231,7 @@ private fun PlantupiaAccountClientSection(
                         "Record what you actually noticed. You don't need to diagnose the cause.",
                         color = muted, fontSize = 11.sp,
                     )
+                    }
                 }
                 } else {
                     Text("You have read-only access to this plant's history. Ask a space manager for recording permission.", color = muted, fontSize = 12.sp)
