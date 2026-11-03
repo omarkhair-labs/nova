@@ -12,7 +12,9 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from PIL import Image
 
-from .models import CatalogProduct, CatalogProductPhoto, DemoOrderLine
+from .models import (BotanicalSpecies, CatalogProduct, CatalogProductPhoto, DemoOrderLine,
+                     DemoOrder, PlantUnit, HandoverInvitation)
+from . import demo_services as demo
 from .test_ceo_demo import DemoFixture, SETTINGS
 
 
@@ -130,6 +132,54 @@ class CatalogProductUxTests(DemoFixture, TestCase):
         self.product.refresh_from_db()
         self.assertEqual(self.product.subcategory, "")
         self.assertEqual(self.api.get(reverse("plantupia-catalog")).data["results"][0]["subcategory"], "")
+
+    def test_catalog_species_reference_never_verifies_physical_plant_or_skips_handover(self):
+        species = BotanicalSpecies.objects.create(
+            key="synthetic-shop-reference", scientific_name="Synthetic catalogue type",
+        )
+        self.product.reference_species = species
+        self.product.sku = "QA-PLANT-TAXON-01"
+        self.product.full_clean()
+        self.product.save()
+        response = self.api.get(reverse("plantupia-catalog"))
+        self.assertEqual(response.status_code, 200)
+        item = next(x for x in response.data["results"] if x["id"] == str(self.product.pk))
+        self.assertEqual(item["reference_species"]["key"], species.key)
+        self.assertFalse(item["reference_species"]["identity_verified"])
+
+        owned_before = PlantUnit.objects.filter(space__owner=self.owner).count()
+        cart = self.add_cart(quantity=2)
+        checkout = self.api.post(reverse("plantupia-demo-orders"),
+            self.checkout_body(cart), format="json")
+        self.assertEqual(checkout.status_code, 200, checkout.content)
+        self.assertEqual(PlantUnit.objects.filter(space__owner=self.owner).count(), owned_before)
+        order = DemoOrder.objects.get(pk=checkout.data["id"])
+        batch = demo.convert_order(self.staff, order.pk)
+        self.assertEqual(batch.status, "draft")
+        self.assertEqual(batch.space.plants.count(), 2)
+        self.assertFalse(batch.space.plants.filter(verified_species__isnull=False).exists())
+        self.assertFalse(batch.space.plants.filter(selected_species__isnull=False).exists())
+        self.assertFalse(HandoverInvitation.objects.filter(batch=batch).exists())
+
+    def test_only_plant_sku_can_have_curated_reference_species(self):
+        species = BotanicalSpecies.objects.create(
+            key="synthetic-only-plant", scientific_name="Synthetic reference",
+        )
+        accessory = CatalogProduct(
+            name="FICTIONAL QA · Soil scoop", description="Synthetic supply",
+            kind="accessory", proposed_price="15.00", reference_species=species,
+        )
+        with self.assertRaises(ValidationError):
+            accessory.full_clean()
+        planter = CatalogProduct(
+            name="FICTIONAL QA · Pot", description="Synthetic planter",
+            kind="planter", proposed_price="20.00", reference_species=species,
+        )
+        with self.assertRaises(ValidationError):
+            planter.full_clean()
+        self.product.refresh_from_db()
+        self.assertIsNone(self.product.reference_species)
+        self.assertIsNone(self.api.get(reverse("plantupia-catalog")).data["results"][0]["reference_species"])
 
     def test_gallery_endpoint_scoped_to_requested_product(self):
         photo = CatalogProductPhoto.objects.create(
