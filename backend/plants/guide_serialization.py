@@ -28,6 +28,7 @@ def serialize_published_guide(guide):
         "version": guide.version,
         "species": guide.species.scientific_name,
         "instructions": narrative,
+        "legacy_instructions": guide.instructions,
         "context_notes": guide.context_notes,
         "source_url": guide.source_url,
         "source_reference": guide.source_reference,
