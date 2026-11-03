@@ -11,9 +11,9 @@ from .models import BotanicalSpecies, BotanicalSpeciesAlias, CareGuideVersion, P
 class BotanicalLibraryTrustTests(TestCase):
     def setUp(self):
         User = get_user_model()
-        self.owner = User.objects.create_user(username="library-owner", password="unused")
-        self.other = User.objects.create_user(username="library-other", password="unused")
-        self.reviewer = User.objects.create_user(username="library-reviewer", password="unused", is_staff=True)
+        self.owner = User.objects.create_user(username="library-owner", email="library-owner@example.test", password="unused")
+        self.other = User.objects.create_user(username="library-other", email="library-other@example.test", password="unused")
+        self.reviewer = User.objects.create_user(username="library-reviewer", email="library-reviewer@example.test", password="unused", is_staff=True)
         self.space = Space.objects.create(owner=self.owner, name="Library QA Space")
         self.species = BotanicalSpecies.objects.create(
             key="ficus-elastica-qa", scientific_name="Ficus elastica (synthetic QA)",
