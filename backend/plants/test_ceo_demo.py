@@ -237,6 +237,50 @@ class CeoJourneyTests(DemoFixture, TestCase):
         self.assertEqual(self.client.get(reverse("company:plan-review", args=[self.plan.pk])).status_code, 404)
         self.assertEqual(self.client.get(reverse("company:inventory")).status_code, 200)
 
+    def test_quick_leaf_finding_is_an_observation_not_fertilizing_or_watering(self):
+        self.approve()
+        self.claim()
+        self.assertEqual(self.action("opt_in", 0).status_code, 200)
+        first = self.action("complete", 1, finding="leaves_ok")
+        self.assertEqual(first.status_code, 200, first.data)
+        event = PlantEvent.objects.get(pk=first.data["event_id"])
+        self.assertEqual(event.kind, "observation")
+        self.assertEqual(event.evidence_type, "observed")
+        self.assertIn("No visible leaf changes", event.note)
+        self.assertNotIn("Watered", event.note)
+        self.assertNotIn("Fertilized", event.note)
+        self.assertEqual(CarePlanDecision.objects.filter(action="complete").count(), 1)
+        self.assertEqual(self.api.get(reverse("plantupia-inspection-plans")).data["results"][0]["action_key"], "leaves")
+        # A soil finding cannot be asserted for a plan approved to inspect leaves.
+        wrong = self.action("complete", 2, finding="dry")
+        self.assertEqual(wrong.status_code, 400)
+        self.assertEqual(PlantEvent.objects.count(), 1)
+        self.assertEqual(CarePlanEnrollment.objects.get().revision, 2)
+        # A written free-text observation still works for legacy app versions.
+        older = self.action("complete", 2, note="Tester inspected one leaf directly.")
+        self.assertEqual(older.status_code, 200, older.data)
+        self.assertEqual(PlantEvent.objects.count(), 2)
+
+    def test_quick_leaf_finding_replay_is_idempotent_and_unknown_is_not_fabricated(self):
+        self.approve()
+        self.claim()
+        self.action("opt_in", 0)
+        url = reverse("plantupia-inspection-action", args=[self.plan.pk])
+        body = {
+            "action": "complete", "revision": 1, "finding": "unsure",
+            "client_id": str(uuid.uuid4()),
+        }
+        first = self.api.post(url, body, format="json")
+        self.assertEqual(first.status_code, 200, first.data)
+        second = self.api.post(url, body, format="json")
+        self.assertEqual(second.json(), first.json())
+        self.assertEqual(PlantEvent.objects.count(), 1)
+        event = PlantEvent.objects.first()
+        self.assertEqual(event.kind, "observation")
+        self.assertIn("uncertain", event.note.lower())
+        self.assertEqual(self.action("complete", 2).status_code, 400)
+        self.assertEqual(PlantEvent.objects.count(), 1)
+
     def test_plan_creation_is_real_company_form_and_unknown_identity_has_no_schedule(self):
         url = reverse("company:plan-create")
         data = {"plant": self.plant.pk, "guide": self.guide.pk, "action": "soil", "every_days": 7,
