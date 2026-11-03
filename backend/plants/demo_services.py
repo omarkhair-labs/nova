@@ -124,7 +124,8 @@ def plan_json(plan, user):
     enrollment = CarePlanEnrollment.objects.filter(plan=plan, responsible=user).first()
     today = timezone.now().astimezone(ZoneInfo(plan.timezone)).date()
     return {"id": str(plan.pk), "plant_id": str(plan.plant_id), "plant_name": plan.plant.label,
-            "action": plan.get_action_display(), "instructions": plan.instructions,
+            "action": plan.get_action_display(), "action_key": plan.action,
+            "instructions": plan.instructions,
             "every_days": plan.every_days, "timezone": plan.timezone,
             "placement_context": plan.placement_context, "guide_version": plan.guide.version,
             "reviewer": plan.approved_by.username, "source_url": plan.guide.source_url,
