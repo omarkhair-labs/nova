@@ -919,6 +919,17 @@ private fun PlantupiaAccountClientSection(
             Text(selectedPlant.name, fontFamily = FontFamily.Serif, fontSize = 32.sp, color = deepGreen)
             val meta = listOf(selectedPlant.placement, selectedPlant.species).filter(String::isNotBlank).joinToString(" · ")
             if (meta.isNotBlank()) Text(meta, fontSize = 13.sp, color = muted)
+            when (selectedPlant.identityState) {
+                "staff_verified" -> Text(
+                    "Botanical identity verified by Plantupia",
+                    style = PlantupiaText.supporting, color = deepGreen,
+                )
+                "user_selected" -> Text(
+                    "Species selected by you · individual plant not verified",
+                    style = PlantupiaText.supporting,
+                )
+                else -> Text("Species not confirmed", style = PlantupiaText.supporting)
+            }
             if (selectedPlant.coverPhoto.isNotBlank()) {
                 PlantupiaEvidencePhoto(
                     photoUrl = selectedPlant.coverPhoto,
