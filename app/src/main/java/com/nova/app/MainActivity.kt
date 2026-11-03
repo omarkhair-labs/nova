@@ -21,6 +21,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.nova.app.app.NovaAppHost
 import com.nova.app.app.appContainer
+import com.nova.app.core.auth.NovaSessionStore
+import com.nova.app.feature.plants.PlantupiaPlantOpenSignal
 import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.core.network.ApiResult
@@ -147,6 +149,17 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun routePushIntent(intent: Intent?) {
+        if (intent?.getStringExtra("kind") == "plantupia_inspection_due") {
+            // Navigation is a hint only: the Plants screen resolves the
+            // authenticated plant again before showing any private content.
+            val recipient = intent.getStringExtra("recipient_id")?.toLongOrNull()
+            val current = NovaSessionStore(this).load()?.cachedUser?.id
+            val plant = intent.getStringExtra("plant_id").orEmpty()
+            if (recipient != null && current == recipient) {
+                PlantupiaPlantOpenSignal.open(current, plant)
+            }
+            return
+        }
         when (val decision = DeepLinkRouter.decide(intent)) {
             is NovaDeepLinkDecision.Conversation -> {
                 NovaMessagingNavigator.openConversation(
