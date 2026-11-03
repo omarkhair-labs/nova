@@ -1,7 +1,13 @@
 package com.nova.app.feature.plants
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.graphics.BitmapFactory
 import android.util.Base64
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
@@ -14,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.LocalContext
 import com.nova.app.navigation.NovaRootNavigationSignal
 import com.nova.app.navigation.NovaRootTab
 import androidx.compose.ui.graphics.Color
@@ -222,6 +229,7 @@ internal fun PlantupiaInspectionPanel(
     repository: PlantupiaRepository,
     onRecorded: () -> Unit,
 ) {
+    val context = LocalContext.current
     var plans by remember(plant.id) { mutableStateOf(emptyList<JSONObject>()) }
     var error by remember(plant.id) { mutableStateOf<String?>(null) }
     var refresh by remember(plant.id) { mutableIntStateOf(0) }
@@ -231,6 +239,14 @@ internal fun PlantupiaInspectionPanel(
             is ApiResult.Success -> if (repository.isCurrentSession()) {
                 available = true
                 plans = result.value.demoRows()
+                plans.forEach { activePlan ->
+                    PlantupiaInspectionReminderScheduler.reconcile(
+                        context, activePlan.optString("id"), plant.id,
+                        activePlan.optString("next_due_on"), activePlan.optString("timezone"),
+                        activePlan.optInt("revision"), activePlan.optBoolean("enabled"),
+                        activePlan.optBoolean("valid"),
+                    )
+                }
                 error = null
             }
             is ApiResult.Failure -> if (repository.isCurrentSession() && result.statusCode != 404) {
@@ -251,7 +267,25 @@ internal fun PlantupiaInspectionPanel(
             var busy by remember { mutableStateOf(false) }
             var open by remember { mutableStateOf(false) }
             var manage by remember { mutableStateOf(false) }
+            var reminderFeedback by remember { mutableStateOf<String?>(null) }
+            var reminderVersion by remember { mutableIntStateOf(0) }
             val scope = rememberCoroutineScope()
+            fun enableReminder() {
+                val accepted = PlantupiaInspectionReminderScheduler.optIn(
+                    context, plan.getString("id"), plant.id,
+                    plan.optString("next_due_on"), plan.optString("timezone"),
+                    plan.getInt("revision"),
+                )
+                reminderFeedback = if (accepted) "Reminder enabled for this approved check. Android timing may vary."
+                    else "Could not schedule the morning reminder. Check permission and next due date."
+                reminderVersion++
+            }
+            val requestPermission = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestPermission(),
+            ) { accepted ->
+                if (accepted) enableReminder()
+                else reminderFeedback = "Notifications are off. Your check remains visible in the app."
+            }
             fun submit(action: String) {
                 if (busy) return
                 busy = true
@@ -270,6 +304,16 @@ internal fun PlantupiaInspectionPanel(
                         "inspection-$planId", "care-plans/$planId/actions/", payload,
                     )) {
                         is ApiResult.Success -> if (repository.isCurrentSession()) {
+                            if (action == "decline") {
+                                PlantupiaInspectionReminderScheduler.cancel(context, planId)
+                            } else {
+                                PlantupiaInspectionReminderScheduler.reconcile(
+                                    context, planId, plant.id,
+                                    result.value.optString("next_due_on"),
+                                    plan.optString("timezone"), result.value.optInt("revision"),
+                                    enabled = true, valid = plan.optBoolean("valid"),
+                                )
+                            }
                             finding = null
                             note = ""
                             open = false
@@ -310,6 +354,28 @@ internal fun PlantupiaInspectionPanel(
                             "${if (plan.optBoolean("due")) "Due" else "Next check"} · ${plan.optString("next_due_on")}",
                             style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
                         )
+                        // Read the preference in composition; explicit local state causes a refresh.
+                        val reminderOptedIn = remember(reminderVersion, refresh) {
+                            PlantupiaInspectionReminderScheduler.isOptedIn(context, plan.getString("id"))
+                        }
+                        if (reminderOptedIn) {
+                            Text("Morning check reminder: on", style = PlantupiaText.supporting)
+                            TextButton(enabled = !busy, onClick = {
+                                PlantupiaInspectionReminderScheduler.cancel(context, plan.getString("id"))
+                                reminderFeedback = "Reminder off. The in-app care schedule remains."
+                                reminderVersion++
+                            }) { Text("Turn off reminder") }
+                        } else {
+                            TextButton(enabled = !busy, onClick = {
+                                val permissionGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                                    ContextCompat.checkSelfPermission(
+                                        context, Manifest.permission.POST_NOTIFICATIONS,
+                                    ) == PackageManager.PERMISSION_GRANTED
+                                if (permissionGranted) enableReminder()
+                                else requestPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            }) { Text("Remind me to check this plant") }
+                        }
+                        reminderFeedback?.let { Text(it, style = PlantupiaText.supporting) }
                         OutlinedButton(
                             enabled = !busy,
                             onClick = { open = !open; manage = false },
