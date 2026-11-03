@@ -39,6 +39,12 @@ private val demoForest = Color(0xFF123B2E)
 private val demoPaper = Color(0xFFFFFDF7)
 private val demoSage = Color(0xFFEEF1E8)
 
+/** Care subtype affects discovery only; SKU/cart/order identities stay unchanged. */
+internal fun matchesShopCategory(
+    kind: String, subcategory: String, main: String, care: String,
+): Boolean = (main == "all" || kind == main) &&
+    (main != "accessory" || care == "all" || subcategory == care)
+
 internal fun JSONObject.demoRows(key: String = "results"): List<JSONObject> {
     val rows = getJSONArray(key)
     return (0 until rows.length()).map { rows.getJSONObject(it) }
@@ -840,9 +846,10 @@ internal fun PlantupiaQaShop(
                             }
                         }
                         val visible = products.filter { item ->
-                            (category == "all" || item.optString("kind") == category) &&
-                                (category != "accessory" || careSubcategory == "all" ||
-                                    item.optString("subcategory") == careSubcategory) &&
+                            matchesShopCategory(
+                                item.optString("kind"), item.optString("subcategory"),
+                                category, careSubcategory,
+                            ) &&
                                 (searchText.isBlank() || listOf(item.optString("name"),
                                     item.optString("description"), item.optString("sku"),
                                     item.optString("variant_label")).any {
