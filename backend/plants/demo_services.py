@@ -275,6 +275,11 @@ def support_reply(user, ticket_id, body, client_id, staff=False):
 def product_json(product):
     result = {"id": str(product.pk), "name": product.name, "description": product.description,
             "kind": product.kind, "subcategory": product.subcategory,
+            "reference_species": {
+                "key": product.reference_species.key,
+                "scientific_name": product.reference_species.scientific_name,
+                "identity_verified": False,
+            } if product.reference_species_id else None,
             "price": str(product.proposed_price), "currency": product.currency,
             "qa_stock": product.qa_stock, "has_image": bool(product.image),
             "image_description": product.image_description,
