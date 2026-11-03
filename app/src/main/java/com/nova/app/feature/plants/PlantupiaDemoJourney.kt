@@ -36,6 +36,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.plants.data.PlantupiaPlant
 import com.nova.app.feature.plants.data.PlantupiaRepository
@@ -266,6 +267,16 @@ internal fun PlantupiaInspectionPanel(
             var date by rememberSaveable(plan.getString("next_due_on")) { mutableStateOf(plan.getString("next_due_on")) }
             var busy by remember { mutableStateOf(false) }
             var open by remember { mutableStateOf(false) }
+            val inspectionDeepLink = PlantupiaInspectionOpenSignal.target
+            LaunchedEffect(inspectionDeepLink) {
+                val target = inspectionDeepLink ?: return@LaunchedEffect
+                val activeAccountId = NovaSessionStore(context).load()?.cachedUser?.id
+                if (target.first == activeAccountId && target.second == plant.id &&
+                    target.third == plan.getString("id")) {
+                    open = true
+                    PlantupiaInspectionOpenSignal.consume()
+                }
+            }
             var manage by remember { mutableStateOf(false) }
             var reminderFeedback by remember { mutableStateOf<String?>(null) }
             var reminderVersion by remember { mutableIntStateOf(0) }
