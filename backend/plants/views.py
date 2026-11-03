@@ -39,12 +39,19 @@ class PlantCareGuideView(APIView):
 
     def get(self, request, plant_id):
         plant = get_object_or_404(accessible_plants(request.user), pk=plant_id)
-        guide = (CareGuideVersion.objects.filter(species_id=plant.verified_species_id, published=True)
-                 .select_related("species").order_by("-version").first()) if plant.verified_species_id else None
+        # A company-verified physical plant has priority; a user-selected species
+        # is ONLY a reference to general source-reviewed knowledge.
+        species_id = plant.verified_species_id or plant.selected_species_id
+        basis = ("staff_verified" if plant.verified_species_id else
+                 "user_selected" if plant.selected_species_id else "unknown")
+        guide = (CareGuideVersion.objects.filter(species_id=species_id, published=True)
+                 .select_related("species").order_by("-version").first()) if species_id else None
+        state = ("available" if guide and basis == "staff_verified" else
+                 "general" if guide else "unverified")
         result = {
             "plant_id": str(plant.pk), "placement": plant.placement_note,
-            "state": "available" if guide else "unverified",
-            "identity_verified": bool(plant.verified_species_id),
+            "state": state, "identity_basis": basis,
+            "identity_verified": basis == "staff_verified",
             "guide": None,
         }
         if guide:
