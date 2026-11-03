@@ -155,7 +155,7 @@ class MainActivity : ComponentActivity() {
             val recipient = intent.getStringExtra("recipient_id")?.toLongOrNull()
             val current = NovaSessionStore(this).load()?.cachedUser?.id
             val plant = intent.getStringExtra("plant_id").orEmpty()
-            if (recipient != null && current == recipient) {
+            if (recipient != null && current != null && current == recipient) {
                 PlantupiaInspectionOpenSignal.open(current, plant, intent.getStringExtra("plan_id").orEmpty())
             }
             return
