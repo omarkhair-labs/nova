@@ -385,8 +385,10 @@ def guide_section_edit(request, guide_id, section_id=None):
             raise ImportProblem("No section to remove.")
         try:
             with transaction.atomic():
-                section.delete()
+                # Django clears a model PK after delete; audit the original
+                # immutable section identity before the deletion in one transaction.
                 service.audit(request.user, section, "Company dashboard: draft care section removed")
+                section.delete()
             messages.success(request, "Draft topic removed; publication review must be repeated.")
             return redirect("company:guide", guide_id=guide.pk)
         except ValidationError as exc:
