@@ -5,7 +5,7 @@ from django.core.validators import MaxLengthValidator
 
 from .company_services import ACCESS, PUBLISH
 from .media import sanitize_public_plant_photo
-from .models import BotanicalSpecies, CareGuideVersion, HandoverInvitation, PlantUnit
+from .models import BotanicalSpecies, BotanicalSpeciesAlias, CareGuideVersion, HandoverInvitation, PlantUnit
 
 
 class StaffAuthenticationForm(AuthenticationForm):
@@ -51,6 +51,23 @@ class SpeciesForm(forms.ModelForm):
     class Meta:
         model = BotanicalSpecies
         fields = ("key", "scientific_name")
+
+
+class SpeciesAliasForm(forms.ModelForm):
+    language = forms.ChoiceField(choices=[("en", "English"), ("ar", "Arabic"), ("la", "Latin synonym")])
+
+    class Meta:
+        model = BotanicalSpeciesAlias
+        fields = ("species", "name", "language")
+        help_texts = {
+            "name": "Curated search name. This never confirms the identity of a customer's physical plant.",
+        }
+
+    def clean_name(self):
+        value = self.cleaned_data["name"].strip()
+        if not value:
+            raise forms.ValidationError("Give the alias a name.")
+        return value
 
 
 class GuideForm(forms.ModelForm):
