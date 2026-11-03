@@ -34,6 +34,7 @@ urlpatterns = [
     path("inventory/", views.inventory, name="inventory"),
     path("care/", views.care_library, name="care"),
     path("care/species/new/", views.species_create, name="species-create"),
+    path("care/species/aliases/new/", views.species_alias_create, name="species-alias-create"),
     path("care/new/", views.guide_edit, name="guide-create"),
     path("care/<int:guide_id>/", views.guide_detail, name="guide"),
     path("care/<int:guide_id>/edit/", views.guide_edit, name="guide-edit"),
