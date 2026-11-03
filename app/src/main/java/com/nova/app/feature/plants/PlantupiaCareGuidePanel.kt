@@ -78,12 +78,23 @@ internal fun PlantupiaCareGuidePanel(plantId: String, repository: PlantupiaRepos
                             Text("Care guidance not yet verified", style = MaterialTheme.typography.titleMedium)
                             Text(
                                 if (value.verifiedIdentity) "This identity has no published, reviewed guide yet."
+                                else if (value.identityBasis == "user_selected") "No reviewed guide is published for the species you selected yet."
                                 else "Species not confirmed. We can't give species-specific instructions yet.",
                             )
                             Text("You can record what you notice and choose your own check-in day.")
                         } else {
                             Text(value.species, style = MaterialTheme.typography.titleMedium)
-                            Text("Reviewed care instructions", style = PlantupiaText.sectionLabel)
+                            if (value.identityBasis == "user_selected") {
+                                Text(
+                                    "General care for the type you selected. Plantupia has not verified the identity of your individual plant.",
+                                    style = PlantupiaText.supporting,
+                                )
+                            }
+                            Text(
+                                if (value.verifiedIdentity) "Reviewed care instructions"
+                                else "Reviewed general care information",
+                                style = PlantupiaText.sectionLabel,
+                            )
                             // Never limit lines or replace the company's published guide with a summary.
                             Text(value.instructions)
                             if (value.contextNotes.isNotBlank()) {
