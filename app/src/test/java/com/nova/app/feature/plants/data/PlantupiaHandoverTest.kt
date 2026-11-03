@@ -76,6 +76,30 @@ class PlantupiaHandoverTest {
         assertTrue(parsePlantupiaResponse(body) { parseCareGuide(it, "plant") } is ApiResult.Failure)
     }
 
+    @Test fun userSelectedSpeciesGetsOnlyClearlyQualifiedGeneralGuidance() {
+        val guide = JSONObject()
+            .put("version", 1).put("species", "Synthetic QA type")
+            .put("instructions", "Synthetic general guidance")
+            .put("context_notes", "").put("source_url", "https://example.test/qa")
+            .put("source_reference", "Synthetic QA reference")
+            .put("reviewer", "qa-reviewer")
+            .put("reviewed_at", "2026-11-03T08:00:00Z")
+        val body = JSONObject().put("plant_id", "plant")
+            .put("state", "general").put("identity_verified", false)
+            .put("identity_basis", "user_selected")
+            .put("placement", "indoor").put("guide", guide)
+        val parsed = parseCareGuide(body, "plant")
+        assertEquals("user_selected", parsed.identityBasis)
+        assertFalse(parsed.verifiedIdentity)
+        assertEquals(1, parsed.version)
+        // Neither a forged staff verification nor an incorrectly labeled
+        // "available" guide may be accepted for a user-reported type.
+        body.put("identity_basis", "staff_verified")
+        assertTrue(parsePlantupiaResponse(body) { parseCareGuide(it, "plant") } is ApiResult.Failure)
+        body.put("identity_basis", "user_selected").put("state", "available")
+        assertTrue(parsePlantupiaResponse(body) { parseCareGuide(it, "plant") } is ApiResult.Failure)
+    }
+
     @Test fun errorsOfferBoundedRecoveryWithoutExposingServerDetails() {
         assertTrue(handoverFailure(404).contains("another account"))
         assertTrue(handoverFailure(410).contains("expired"))
