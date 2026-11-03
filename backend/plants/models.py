@@ -74,7 +74,7 @@ class CareGuideVersion(models.Model):
     version = models.PositiveIntegerField()
     source_url = models.URLField(max_length=500)
     source_reference = models.CharField(max_length=240)
-    instructions = models.TextField()
+    instructions = models.TextField(blank=True, help_text="Legacy narrative. New versions can be authored in reviewed topic sections.")
     context_notes = models.TextField(blank=True)
     reviewer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
@@ -98,6 +98,10 @@ class CareGuideVersion(models.Model):
         super().clean()
         if self.published and (not self.reviewer_id or not self.reviewed_at):
             raise ValidationError("Publication requires an actual staff review.")
+        if self.published and not self.instructions.strip() and not (
+            self.pk and self.sections.exists()
+        ):
+            raise ValidationError("Publish a reviewed care section or preserve an existing narrative first.")
         if not self.source_url.startswith("https://"):
             raise ValidationError({"source_url": "An HTTPS source is required."})
         if self.reviewer_id and not self.reviewer.is_staff:
@@ -133,6 +137,76 @@ class CareGuideVersion(models.Model):
 
     def __str__(self):
         return f"{self.species} v{self.version}"
+
+
+
+class CareGuideSection(models.Model):
+    """Topic guidance belongs to an immutable source-reviewed guide version.
+
+    A section describes advice and context only; it NEVER schedules actions or
+    claims that a particular owned plant was identified by company staff.
+    """
+    class Topic(models.TextChoices):
+        WATER = "water", "Water"
+        LIGHT = "light", "Light"
+        SOIL = "soil", "Soil"
+        HUMIDITY = "humidity", "Humidity"
+        FERTILIZING = "fertilizing", "Fertilizing"
+        PRUNING = "pruning", "Pruning"
+        REPOTTING = "repotting", "Repotting"
+        INSPECTION = "inspection", "Inspection"
+        WARNINGS = "warnings", "Warnings"
+
+    guide = models.ForeignKey(
+        CareGuideVersion, on_delete=models.PROTECT, related_name="sections",
+    )
+    topic = models.CharField(max_length=16, choices=Topic.choices)
+    title = models.CharField(max_length=120)
+    instructions = models.TextField(max_length=8000)
+    context_notes = models.TextField(blank=True, max_length=2000)
+    source_url = models.URLField(max_length=500, blank=True, help_text="Optional additional HTTPS source; guide source remains the default.")
+    source_reference = models.CharField(max_length=240, blank=True)
+    position = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ("position", "topic", "pk")
+        constraints = [
+            models.UniqueConstraint(fields=("guide", "topic"), name="plant_care_section_unique_topic_per_version"),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.source_url and not self.source_url.startswith("https://"):
+            raise ValidationError({"source_url": "Use an HTTPS source URL."})
+        if not self.instructions.strip():
+            raise ValidationError({"instructions": "Provide reviewed topic content."})
+        if self.guide_id:
+            # Published content is immutable, including additions and deletions.
+            if CareGuideVersion.objects.filter(
+                pk=self.guide_id,
+            ).filter(models.Q(published=True) | models.Q(ever_published=True)).exists():
+                raise ValidationError("Published care guide sections are immutable; create a new version.")
+
+    def save(self, *args, **kwargs):
+        with transaction.atomic():
+            if self.guide_id:
+                list(CareGuideVersion.objects.select_for_update().filter(pk=self.guide_id))
+            self.full_clean()
+            super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        with transaction.atomic():
+            list(CareGuideVersion.objects.select_for_update().filter(pk=self.guide_id))
+            if CareGuideVersion.objects.filter(pk=self.guide_id).filter(
+                models.Q(published=True) | models.Q(ever_published=True)
+            ).exists():
+                raise ValidationError("Published sections cannot be deleted.")
+            return super().delete(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.guide_id} / {self.topic}"
+
+
 
 
 class PlantUnit(models.Model):

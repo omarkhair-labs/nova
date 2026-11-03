@@ -36,6 +36,16 @@ internal fun handoverFailure(status: Int?): String = when (status) {
     else -> "We couldn't confirm your delivery. Check your connection and retry the same code. Nothing is shown as connected until the server confirms it."
 }
 
+data class PlantupiaCareTopic(
+    val topic: String,
+    val title: String,
+    val instructions: String,
+    val contextNotes: String,
+    val sourceUrl: String,
+    val sourceReference: String,
+    val position: Int,
+)
+
 data class PlantupiaCareGuide(
     val verifiedIdentity: Boolean,
     val placement: String,
@@ -48,6 +58,8 @@ data class PlantupiaCareGuide(
     val reviewer: String = "",
     val reviewedAt: String = "",
     val identityBasis: String = "unknown",
+    val topics: List<PlantupiaCareTopic> = emptyList(),
+    val legacyInstructions: String = "",
 )
 
 internal fun parseCareGuide(json: JSONObject, plantId: String): PlantupiaCareGuide {
@@ -74,8 +86,36 @@ internal fun parseCareGuide(json: JSONObject, plantId: String): PlantupiaCareGui
     require(version <= Int.MAX_VALUE)
     val source = requiredPlantupiaString(guide, "source_url")
     require(source.startsWith("https://"))
+    val sections = guide.optJSONArray("sections")
+    require(!guide.has("sections") || sections != null)
+    require(sections == null || sections.length() <= 9)
+    val knownTopics = setOf(
+        "water", "light", "soil", "humidity", "fertilizing",
+        "pruning", "repotting", "inspection", "warnings",
+    )
+    val topics = buildList<PlantupiaCareTopic> {
+        if (sections != null) for (i in 0 until sections.length()) {
+            val row = sections.optJSONObject(i)
+                ?: throw IllegalArgumentException("Invalid care section")
+            val topic = requiredPlantupiaString(row, "topic")
+            require(topic in knownTopics && none { it.topic == topic })
+            val sectionUrl = requiredPlantupiaString(row, "source_url")
+            require(sectionUrl.startsWith("https://"))
+            val pos = row.optInt("position", -1)
+            require(pos in 0..65535)
+            add(PlantupiaCareTopic(
+                topic = topic, title = requiredPlantupiaString(row, "title"),
+                instructions = requiredPlantupiaString(row, "instructions"),
+                contextNotes = row.optString("context_notes"),
+                sourceUrl = sectionUrl,
+                sourceReference = requiredPlantupiaString(row, "source_reference"),
+                position = pos,
+            ))
+        }
+    }.sortedWith(compareBy(PlantupiaCareTopic::position, PlantupiaCareTopic::topic))
     return PlantupiaCareGuide(verified, placement, version.toInt(), requiredPlantupiaString(guide, "species"),
         requiredPlantupiaString(guide, "instructions"), guide.getString("context_notes"), source,
         requiredPlantupiaString(guide, "source_reference"), requiredPlantupiaString(guide, "reviewer"),
-        requiredPlantupiaString(guide, "reviewed_at"), identityBasis = basis)
+        requiredPlantupiaString(guide, "reviewed_at"), identityBasis = basis,
+        topics = topics, legacyInstructions = guide.optString("legacy_instructions"))
 }

@@ -66,15 +66,9 @@ class BotanicalSpeciesLibraryDetailView(APIView):
                  .select_related("reviewer").order_by("-version").first())
         if guide is None:
             raise Http404
+        from .guide_serialization import serialize_published_guide
         return Response({
             **species_summary(item),
-            "guide": {
-                "version": guide.version,
-                "instructions": guide.instructions,
-                "context_notes": guide.context_notes,
-                "source_reference": guide.source_reference,
-                "source_url": guide.source_url,
-                "reviewed_at": guide.reviewed_at.isoformat(),
-            },
+            "guide": serialize_published_guide(guide),
             "notice": "General, source-reviewed information based on the selected type; an individual plant is not verified.",
         }, headers={"Cache-Control": "private, no-store"})

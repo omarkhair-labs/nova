@@ -23,11 +23,11 @@ from django.views.decorators.http import require_http_methods
 
 from . import company_services as service
 from .company_forms import (GuideForm, ImportApprovalForm, InstallationForm, InvitationForm,
-                            PlantForm, ReviewForm, SpeciesForm, SpeciesAliasForm, StaffAuthenticationForm, UploadForm)
+                            PlantForm, ReviewForm, SpeciesForm, SpeciesAliasForm, CareGuideSectionForm, StaffAuthenticationForm, UploadForm)
 from .handovers import HandoverError, pilot_enabled
 from .inventory_import import (ImportProblem, PERMISSIONS, apply_preview, digest,
                                make_preview, parse_upload, template_bytes)
-from .models import (BotanicalSpecies, CareGuideVersion, HandoverInvitation,
+from .models import (BotanicalSpecies, CareGuideVersion, CareGuideSection, HandoverInvitation,
                      InstallationBatch, InstallationManifestRow, PlantUnit, Space)
 
 
@@ -371,6 +371,46 @@ def guide_edit(request, guide_id=None):
             form.add_error(None, "This version changed or conflicts with an existing guide. Reload and review; published content cannot be overwritten.")
     return page(request, "form", {"title": "Edit care-guide draft" if guide else "Create a care-guide version", "section": "care",
         "form": form, "submit": "Save unpublished draft", "description": "Record the actual source and contextual guidance. A reviewer assignment is not botanical approval; publication is a separate confirmation."})
+
+
+@portal("plants.view_careguideversion", "plants.view_botanicalspecies")
+def guide_section_edit(request, guide_id, section_id=None):
+    service.require(request.user, "plants.change_careguideversion")
+    guide = get_object_or_404(CareGuideVersion, pk=guide_id)
+    if guide.published or guide.ever_published:
+        raise ImportProblem("Published content is immutable. Create a new care-guide version.")
+    section = get_object_or_404(CareGuideSection, pk=section_id, guide=guide) if section_id else None
+    if request.method == "POST" and request.POST.get("action") == "delete":
+        if section is None:
+            raise ImportProblem("No section to remove.")
+        try:
+            with transaction.atomic():
+                # Django clears a model PK after delete; audit the original
+                # immutable section identity before the deletion in one transaction.
+                service.audit(request.user, section, "Company dashboard: draft care section removed")
+                section.delete()
+            messages.success(request, "Draft topic removed; publication review must be repeated.")
+            return redirect("company:guide", guide_id=guide.pk)
+        except ValidationError as exc:
+            raise ImportProblem(str(exc))
+    form = CareGuideSectionForm(request.POST or None, instance=section)
+    if request.method == "POST" and form.is_valid():
+        try:
+            with transaction.atomic():
+                obj = form.save(commit=False)
+                obj.guide = guide
+                obj.save()
+                service.audit(request.user, obj, "Company dashboard: reviewed-source topic draft saved")
+            messages.success(request, "Draft topic saved. Publication still needs an explicit review.")
+            return redirect("company:guide", guide_id=guide.pk)
+        except (ValidationError, IntegrityError):
+            form.add_error(None, "This topic conflicts with another section or the guide changed; reload before retrying.")
+    return page(request, "form", {
+        "title": "Edit draft care topic" if section else "Add care topic",
+        "section": "care", "form": form,
+        "submit": "Save draft topic",
+        "description": "Each topic is reviewed alongside its source before publication. Advice never auto-creates reminders or care events.",
+    })
 
 
 @portal("plants.view_careguideversion", "plants.view_botanicalspecies")

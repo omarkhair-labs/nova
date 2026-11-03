@@ -55,12 +55,8 @@ class PlantCareGuideView(APIView):
             "guide": None,
         }
         if guide:
-            result["guide"] = {
-                "version": guide.version, "species": guide.species.scientific_name,
-                "instructions": guide.instructions, "context_notes": guide.context_notes,
-                "source_url": guide.source_url, "source_reference": guide.source_reference,
-                "reviewer": guide.reviewer.username, "reviewed_at": guide.reviewed_at.isoformat(),
-            }
+            from .guide_serialization import serialize_published_guide
+            result["guide"] = serialize_published_guide(guide)
         return Response(result, headers={"Cache-Control": "private, no-store"})
 
 

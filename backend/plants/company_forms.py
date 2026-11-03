@@ -5,7 +5,7 @@ from django.core.validators import MaxLengthValidator
 
 from .company_services import ACCESS, PUBLISH
 from .media import sanitize_public_plant_photo
-from .models import BotanicalSpecies, BotanicalSpeciesAlias, CareGuideVersion, HandoverInvitation, PlantUnit
+from .models import BotanicalSpecies, BotanicalSpeciesAlias, CareGuideVersion, CareGuideSection, HandoverInvitation, PlantUnit
 
 
 class StaffAuthenticationForm(AuthenticationForm):
@@ -75,7 +75,7 @@ class GuideForm(forms.ModelForm):
         model = CareGuideVersion
         fields = ("species", "version", "source_url", "source_reference", "instructions", "context_notes", "assigned_reviewer")
         widgets = {"instructions": forms.Textarea(attrs={"rows": 7}), "context_notes": forms.Textarea(attrs={"rows": 3})}
-        help_texts = {"assigned_reviewer": "Assignment is not botanical approval. Only authorized active reviewers are listed."}
+        help_texts = {"assigned_reviewer": "Assignment is not botanical approval. Only authorized active reviewers are listed.", "instructions": "Optional full legacy narrative. For new guides, add reviewed topic sections before publishing."}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -88,6 +88,23 @@ class GuideForm(forms.ModelForm):
             self.fields[name].max_length = 8000
             self.fields[name].validators.append(MaxLengthValidator(8000))
             self.fields[name].widget.attrs["maxlength"] = 8000
+
+
+class CareGuideSectionForm(forms.ModelForm):
+    class Meta:
+        model = CareGuideSection
+        fields = ("topic", "title", "instructions", "context_notes", "source_url", "source_reference", "position")
+        widgets = {
+            "instructions": forms.Textarea(attrs={"rows": 6}),
+            "context_notes": forms.Textarea(attrs={"rows": 3}),
+        }
+        help_texts = {
+            "instructions": "Staff-authored source-checked guidance for this topic; no invented fixed care intervals.",
+            "context_notes": "Conditions and cautions. Do not assume a calendar interval applies to every individual.",
+            "source_url": "Additional HTTPS source for this topic, or leave blank to inherit the guide source.",
+            "source_reference": "Source title or page reference, or inherit the guide source.",
+            "position": "Display order; lower numbers appear first.",
+        }
 
 
 class ReviewForm(forms.Form):
