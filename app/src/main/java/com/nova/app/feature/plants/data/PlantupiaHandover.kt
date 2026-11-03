@@ -116,5 +116,6 @@ internal fun parseCareGuide(json: JSONObject, plantId: String): PlantupiaCareGui
     return PlantupiaCareGuide(verified, placement, version.toInt(), requiredPlantupiaString(guide, "species"),
         requiredPlantupiaString(guide, "instructions"), guide.getString("context_notes"), source,
         requiredPlantupiaString(guide, "source_reference"), requiredPlantupiaString(guide, "reviewer"),
-        requiredPlantupiaString(guide, "reviewed_at"), identityBasis = basis, topics = topics)
+        requiredPlantupiaString(guide, "reviewed_at"), identityBasis = basis,
+        topics = topics, legacyInstructions = guide.optString("legacy_instructions"))
 }
