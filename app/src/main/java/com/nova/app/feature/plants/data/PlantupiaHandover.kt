@@ -93,7 +93,7 @@ internal fun parseCareGuide(json: JSONObject, plantId: String): PlantupiaCareGui
         "water", "light", "soil", "humidity", "fertilizing",
         "pruning", "repotting", "inspection", "warnings",
     )
-    val topics = buildList {
+    val topics = buildList<PlantupiaCareTopic> {
         if (sections != null) for (i in 0 until sections.length()) {
             val row = sections.optJSONObject(i)
                 ?: throw IllegalArgumentException("Invalid care section")
