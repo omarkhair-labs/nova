@@ -341,18 +341,31 @@ class PlantupiaRepository(
             val term = query.trim().take(80)
             val path = "plantupia/library/species/" + if (term.isBlank()) "" else
                 "?q=" + java.net.URLEncoder.encode(term, "UTF-8")
-            parseList(path, token) { raw ->
-                val aliases = raw.optJSONArray("aliases")
-                PlantupiaLibrarySpecies(
-                    key = requiredPlantupiaString(raw, "key"),
-                    scientificName = requiredPlantupiaString(raw, "scientific_name"),
-                    aliases = buildList {
-                        if (aliases != null) for (i in 0 until aliases.length()) {
-                            aliases.optJSONObject(i)?.optString("name")?.takeIf { it.isNotBlank() }?.let(::add)
-                        }
-                    },
-                    reviewedGuideAvailable = raw.optBoolean("has_published_guide"),
-                )
+            when (val result = api.requestJson(path = path, bearerToken = token)) {
+                is ApiResult.Failure -> result
+                is ApiResult.Success -> parsePlantupiaResponse(result.value) { body ->
+                    // Species are addressed by a curated slug, not a per-plant UUID.
+                    // The generic PlantUnit list parser intentionally requires "id".
+                    val rows = body.optJSONArray("results")
+                        ?: throw IllegalArgumentException("Missing species results")
+                    require(rows.length() <= 25)
+                    List(rows.length()) { index ->
+                        val raw = rows.optJSONObject(index)
+                            ?: throw IllegalArgumentException("Invalid species result")
+                        val aliases = raw.optJSONArray("aliases")
+                        PlantupiaLibrarySpecies(
+                            key = requiredPlantupiaString(raw, "key"),
+                            scientificName = requiredPlantupiaString(raw, "scientific_name"),
+                            aliases = buildList {
+                                if (aliases != null) for (i in 0 until aliases.length()) {
+                                    aliases.optJSONObject(i)?.optString("name")
+                                        ?.takeIf { it.isNotBlank() }?.let(::add)
+                                }
+                            },
+                            reviewedGuideAvailable = raw.optBoolean("has_published_guide"),
+                        )
+                    }
+                }
             }
         }
 
