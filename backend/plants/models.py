@@ -51,6 +51,24 @@ class BotanicalSpecies(models.Model):
         return self.scientific_name
 
 
+
+class BotanicalSpeciesAlias(models.Model):
+    """Company-curated name for search; never an identity verification."""
+    species = models.ForeignKey(BotanicalSpecies, on_delete=models.CASCADE, related_name="aliases")
+    name = models.CharField(max_length=180)
+    language = models.CharField(max_length=12, default="en")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("species", "name", "language"), name="plant_species_alias_unique"
+            ),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
 class CareGuideVersion(models.Model):
     species = models.ForeignKey(BotanicalSpecies, on_delete=models.PROTECT, related_name="guides")
     version = models.PositiveIntegerField()
@@ -133,6 +151,11 @@ class PlantUnit(models.Model):
         help_text="Assign only after botanical identity verification; free-text species is not verification.",
     )
     placement_note = models.CharField(max_length=180, blank=True)
+    selected_species = models.ForeignKey(
+        BotanicalSpecies, null=True, blank=True, on_delete=models.PROTECT,
+        related_name="customer_selected_plants",
+        help_text="User selection for reference only; does NOT verify the physical plant.",
+    )
     identity_reference = models.CharField(max_length=500, blank=True)
     identity_verified_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT,
