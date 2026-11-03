@@ -59,6 +59,7 @@ data class PlantupiaCareGuide(
     val reviewedAt: String = "",
     val identityBasis: String = "unknown",
     val topics: List<PlantupiaCareTopic> = emptyList(),
+    val legacyInstructions: String = "",
 )
 
 internal fun parseCareGuide(json: JSONObject, plantId: String): PlantupiaCareGuide {
