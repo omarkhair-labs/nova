@@ -23,7 +23,7 @@ from django.views.decorators.http import require_http_methods
 
 from . import company_services as service
 from .company_forms import (GuideForm, ImportApprovalForm, InstallationForm, InvitationForm,
-                            PlantForm, ReviewForm, SpeciesForm, StaffAuthenticationForm, UploadForm)
+                            PlantForm, ReviewForm, SpeciesForm, SpeciesAliasForm, StaffAuthenticationForm, UploadForm)
 from .handovers import HandoverError, pilot_enabled
 from .inventory_import import (ImportProblem, PERMISSIONS, apply_preview, digest,
                                make_preview, parse_upload, template_bytes)
@@ -319,7 +319,7 @@ def care_library(request):
         qs = qs.filter(Q(species__scientific_name__icontains=query) | Q(source_reference__icontains=query))
     return page(request, "care", {"title": "Botanical care library", "section": "care", "state": state, "query": query,
         "records": paginated(request, qs.order_by("species__scientific_name", "-version")),
-        "species": BotanicalSpecies.objects.annotate(guide_total=Count("guides")).order_by("scientific_name")[:100]})
+        "species": BotanicalSpecies.objects.annotate(guide_total=Count("guides")).prefetch_related("aliases").order_by("scientific_name")[:100]})
 
 
 @portal("plants.add_botanicalspecies", "plants.view_botanicalspecies")
@@ -331,6 +331,25 @@ def species_create(request):
         messages.success(request, "Species saved. This does not verify any individual plant.")
         return redirect("company:care")
     return page(request, "form", {"title": "Curate a species", "section": "care", "form": form, "submit": "Save species", "description": "A reusable botanical identity, distinct from a personal plant name or unverified species label."})
+
+
+@portal("plants.add_botanicalspecies", "plants.view_botanicalspecies")
+def species_alias_create(request):
+    form = SpeciesAliasForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            with transaction.atomic():
+                alias = form.save()
+                service.audit(request.user, alias, "Company dashboard: botanical search alias curated")
+            messages.success(request, "Search name saved. No individual plant identity was verified.")
+            return redirect("company:care")
+        except (ValidationError, IntegrityError):
+            form.add_error(None, "This alias conflicts with an existing name or is not valid.")
+    return page(request, "form", {
+        "title": "Add a curated search name", "section": "care", "form": form,
+        "submit": "Save search name",
+        "description": "For English/Arabic names and Latin synonyms. Choose the correct botanical type first. An alias does not verify any individual plant.",
+    })
 
 
 @portal("plants.view_careguideversion", "plants.view_botanicalspecies")
