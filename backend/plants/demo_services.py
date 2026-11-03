@@ -273,8 +273,9 @@ def support_reply(user, ticket_id, body, client_id, staff=False):
 
 
 def product_json(product):
-    return {"id": str(product.pk), "name": product.name, "description": product.description,
-            "kind": product.kind, "price": str(product.proposed_price), "currency": product.currency,
+    result = {"id": str(product.pk), "name": product.name, "description": product.description,
+            "kind": product.kind, "subcategory": product.subcategory,
+            "price": str(product.proposed_price), "currency": product.currency,
             "qa_stock": product.qa_stock, "has_image": bool(product.image),
             "image_description": product.image_description,
             "sku": product.sku, "family_key": product.family_key,
@@ -282,6 +283,16 @@ def product_json(product):
             "photos": [{"id": str(photo.pk), "alt_text": photo.alt_text}
                        for photo in product.gallery.all() if photo.image],
             "qa_only": True}
+    if product.subcategory == "nutrition":
+        result["nutrition"] = {
+            "label": product.nutrition_label,
+            "use_notes": product.nutrition_use_notes,
+            "cautions": product.nutrition_cautions,
+            "source_url": product.nutrition_source_url,
+            "source_reference": product.nutrition_source_reference,
+            "plant_specific_recommendation": False,
+        }
+    return result
 
 
 def cart_json(user):
