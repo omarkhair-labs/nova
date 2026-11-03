@@ -80,10 +80,14 @@ class BotanicalLibraryTrustTests(TestCase):
         self.assertIsNone(plant.verified_species_id)
         self.assertEqual(plant.species_label, self.species.scientific_name)
         self.assertEqual(response.data["identity_state"], "user_selected")
-        # Legacy per-plant verified guide remains protected until a trust-aware UI ships.
+        # Published general knowledge is visible, but must never claim
+        # the actual physical plant has been identified by staff.
         guide = self.api.get(reverse("plantupia-care-guide", args=[plant.pk]))
         self.assertFalse(guide.data["identity_verified"])
-        self.assertIsNone(guide.data["guide"])
+        self.assertEqual(guide.data["identity_basis"], "user_selected")
+        self.assertEqual(guide.data["state"], "general")
+        self.assertEqual(guide.data["guide"]["version"], 1)
+        self.assertEqual(guide.data["guide"]["source_reference"], self.guide.source_reference)
 
     def test_unknown_species_and_legacy_text_work_without_false_claims(self):
         response = self.api.post(self.create_url, {
