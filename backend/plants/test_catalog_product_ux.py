@@ -86,6 +86,51 @@ class CatalogProductUxTests(DemoFixture, TestCase):
         with self.assertRaises(ValidationError):
             duplicate.full_clean()
 
+    def test_plant_nutrition_requires_source_provenance_before_qa_activation(self):
+        item = CatalogProduct(
+            name="FICTIONAL QA · Test fertilizer", kind="accessory",
+            subcategory="nutrition", description="Synthetic QA testing only.",
+            proposed_price="12.00", qa_stock=2, active=False,
+        )
+        item.full_clean()
+        item.save()
+        item.active = True
+        with self.assertRaises(ValidationError):
+            item.full_clean()
+        item.nutrition_label = "Synthetic label for test only; no real product recommendation"
+        item.nutrition_source_url = "http://example.test/not-secure"
+        item.nutrition_source_reference = "Synthetic QA label"
+        with self.assertRaises(ValidationError):
+            item.full_clean()
+        item.nutrition_source_url = "https://example.test/fictional-fertilizer"
+        item.nutrition_use_notes = "Synthetic source text, NOT actual dosing advice"
+        item.nutrition_cautions = "Synthetic precautions, no real usage recommended"
+        item.full_clean()
+        item.save()
+        response = self.api.get(reverse("plantupia-catalog"))
+        self.assertEqual(response.status_code, 200)
+        returned = next(p for p in response.data["results"] if p["id"] == str(item.pk))
+        self.assertEqual(returned["subcategory"], "nutrition")
+        self.assertFalse(returned["nutrition"]["plant_specific_recommendation"])
+        self.assertEqual(returned["nutrition"]["source_url"], item.nutrition_source_url)
+        self.assertEqual(returned["nutrition"]["label"], item.nutrition_label)
+
+    def test_nutrition_metadata_cannot_be_attached_to_unrelated_kind(self):
+        item = CatalogProduct(
+            name="FICTIONAL QA · Plant with fertilizer metadata", kind="plant",
+            subcategory="nutrition", description="Synthetic invalid record",
+            proposed_price="25.00", qa_stock=1,
+        )
+        with self.assertRaises(ValidationError):
+            item.full_clean()
+        item.subcategory = ""
+        item.nutrition_label = "Wrongly attached label"
+        with self.assertRaises(ValidationError):
+            item.full_clean()
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.subcategory, "")
+        self.assertEqual(self.api.get(reverse("plantupia-catalog")).data["results"][0]["subcategory"], "")
+
     def test_gallery_endpoint_scoped_to_requested_product(self):
         photo = CatalogProductPhoto.objects.create(
             product=self.product, image=sample_photo(), alt_text="Synthetic QA studio pot", position=0)
