@@ -47,6 +47,7 @@ data class PlantupiaPlant(
     val lastEventKind: String,
     val lastEventAt: String,
     val nextFollowUpOn: String = "",
+    val identityState: String = "unknown",
 )
 
 /** An actual server-generated answer. No scripted/mock reply is used in the UI. */
@@ -399,6 +400,9 @@ class PlantupiaRepository(
                     lastEventKind = raw.optString("last_event_kind").takeUnless { it == "null" }.orEmpty(),
                     lastEventAt = raw.optString("last_event_at").takeUnless { it == "null" }.orEmpty(),
                     nextFollowUpOn = raw.optString("next_follow_up_on").takeUnless { it == "null" }.orEmpty(),
+                    identityState = raw.optString("identity_state").takeIf {
+                        it in setOf("unknown", "user_selected", "staff_verified")
+                    } ?: "unknown",
                 )
             }
         }
