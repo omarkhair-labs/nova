@@ -44,9 +44,11 @@ internal fun PlantupiaSpeciesPicker(
     repository: PlantupiaRepository,
     selectedKey: String?,
     selectedName: String,
+    unknownMode: Boolean,
     enabled: Boolean,
     onSelected: (key: String, scientificName: String) -> Unit,
     onUnknown: () -> Unit,
+    onBrowse: () -> Unit,
 ) {
     var query by remember(repository) { mutableStateOf("") }
     var species by remember(repository) { mutableStateOf<List<PlantupiaLibrarySpecies>>(emptyList()) }
@@ -54,8 +56,8 @@ internal fun PlantupiaSpeciesPicker(
     var unavailable by remember(repository) { mutableStateOf<String?>(null) }
     var retry by remember(repository) { mutableStateOf(0) }
 
-    LaunchedEffect(repository, selectedKey, query, retry) {
-        if (selectedKey != null) return@LaunchedEffect
+    LaunchedEffect(repository, selectedKey, unknownMode, query, retry) {
+        if (selectedKey != null || unknownMode) return@LaunchedEffect
         busy = true
         unavailable = null
         if (query.isNotBlank()) delay(300)
@@ -85,6 +87,17 @@ internal fun PlantupiaSpeciesPicker(
                         color = quiet, fontSize = 12.sp)
                     TextButton(enabled = enabled, onClick = { onUnknown() }) {
                         Text("Change plant type", color = forest)
+                    }
+                }
+            }
+        } else if (unknownMode) {
+            Surface(color = sage, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Type not confirmed", color = forest, fontWeight = FontWeight.SemiBold)
+                    Text("You can still name your plant and keep its care history. No species-specific guide will be assumed.",
+                        color = quiet, fontSize = 12.sp)
+                    TextButton(enabled = enabled, onClick = onBrowse) {
+                        Text("Browse plant library instead", color = forest)
                     }
                 }
             }
