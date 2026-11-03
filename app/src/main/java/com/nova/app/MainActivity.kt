@@ -22,7 +22,7 @@ import androidx.compose.ui.Modifier
 import com.nova.app.app.NovaAppHost
 import com.nova.app.app.appContainer
 import com.nova.app.core.auth.NovaSessionStore
-import com.nova.app.feature.plants.PlantupiaPlantOpenSignal
+import com.nova.app.feature.plants.PlantupiaInspectionOpenSignal
 import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.core.network.ApiResult
@@ -156,7 +156,7 @@ class MainActivity : ComponentActivity() {
             val current = NovaSessionStore(this).load()?.cachedUser?.id
             val plant = intent.getStringExtra("plant_id").orEmpty()
             if (recipient != null && current == recipient) {
-                PlantupiaPlantOpenSignal.open(current, plant)
+                PlantupiaInspectionOpenSignal.open(current, plant, intent.getStringExtra("plan_id").orEmpty())
             }
             return
         }
