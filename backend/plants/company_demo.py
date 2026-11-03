@@ -72,15 +72,23 @@ class InspectionForm(forms.ModelForm):
 class CatalogForm(forms.ModelForm):
     class Meta:
         model = CatalogProduct
-        fields = ("name", "sku", "family_key", "variant_label", "description", "kind",
-                  "image", "image_description", "proposed_price", "currency", "qa_stock", "active")
+        fields = ("name", "sku", "family_key", "variant_label", "description", "kind", "subcategory",
+                  "nutrition_label", "nutrition_use_notes", "nutrition_cautions", "nutrition_source_url",
+                  "nutrition_source_reference", "image", "image_description",
+                  "proposed_price", "currency", "qa_stock", "active")
         widgets = {"description": forms.Textarea(attrs={"rows": 3})}
         help_texts = {"sku": "Unique sellable code (optional for existing QA rows).",
             "family_key": "Shared identifier across related SKUs, e.g. planter-classic.",
             "variant_label": "Exact option, e.g. Small / Terracotta.",
             "image_description": "Accessible description of the actual cover photograph.",
             "proposed_price": "Concept QA price only. No charge or commercial offer.",
-            "qa_stock": "Fictional test stock; no real inventory reservation."}
+            "qa_stock": "Fictional test stock; no real inventory reservation.",
+            "subcategory": "Inside Care: Tools, Soil & Substrates or Plant Nutrition. Leave blank for existing accessories.",
+            "nutrition_label": "Exact manufacturer label / formulation only; no invented fertilizer benefits.",
+            "nutrition_use_notes": "Only verified manufacturer directions. Don't calculate personal dosage.",
+            "nutrition_cautions": "Manufacturer's precautions and limits, when supplied.",
+            "nutrition_source_url": "HTTPS link to the source of the exact product label.",
+            "nutrition_source_reference": "Identify manufacturer, product, document/version."}
 
     def clean_name(self):
         value = self.cleaned_data["name"]
