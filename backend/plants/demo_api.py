@@ -60,6 +60,11 @@ class InspectionInput(MutationInput):
     action = serializers.ChoiceField(choices=("opt_in", "decline", "complete", "skip", "reschedule"))
     revision = serializers.IntegerField(min_value=0)
     note = serializers.CharField(max_length=2000, required=False, allow_blank=True)
+    finding = serializers.ChoiceField(
+        choices=("dry", "moist", "unsure", "leaves_ok", "leaves_changed",
+                 "drainage_ok", "drainage_concern", "light_ok", "light_changed"),
+        required=False,
+    )
     next_due_on = serializers.DateField(required=False)
 
     def validate(self, data):

@@ -200,67 +200,178 @@ internal fun PlantupiaDemoHome(repository: PlantupiaRepository, plants: List<Pla
     message?.let { Text(it, color = demoForest); TextButton(onClick = { refresh++ }) { Text("Refresh inspection plans") } }
 }
 
+/** A deliberate observed finding; never records Watered or Fertilized. */
+internal fun inspectionFindingChoices(action: String): List<Pair<String, String>> = when (action) {
+    "soil" -> listOf("dry" to "Soil is dry", "moist" to "Soil is moist", "unsure" to "Not sure")
+    "leaves" -> listOf("leaves_ok" to "No visible changes", "leaves_changed" to "Changes noticed", "unsure" to "Not sure")
+    "drainage" -> listOf("drainage_ok" to "Drainage looks clear", "drainage_concern" to "Concern noticed", "unsure" to "Not sure")
+    "rotation" -> listOf("light_ok" to "Light checked", "light_changed" to "Placement changed", "unsure" to "Not sure")
+    else -> emptyList()
+}
+
 @Composable
-internal fun PlantupiaInspectionPanel(plant: PlantupiaPlant, repository: PlantupiaRepository, onRecorded: () -> Unit) {
+internal fun PlantupiaInspectionPanel(
+    plant: PlantupiaPlant,
+    repository: PlantupiaRepository,
+    onRecorded: () -> Unit,
+) {
     var plans by remember(plant.id) { mutableStateOf(emptyList<JSONObject>()) }
     var error by remember(plant.id) { mutableStateOf<String?>(null) }
     var refresh by remember(plant.id) { mutableIntStateOf(0) }
     var available by remember(plant.id) { mutableStateOf(false) }
     LaunchedEffect(plant.id, refresh) {
         when (val result = repository.demoGet("care-plans/?plant_id=${plant.id}")) {
-            is ApiResult.Success -> if (repository.isCurrentSession()) { available = true; plans = result.value.demoRows(); error = null }
-            is ApiResult.Failure -> if (repository.isCurrentSession() && result.statusCode != 404) error = result.message
+            is ApiResult.Success -> if (repository.isCurrentSession()) {
+                available = true
+                plans = result.value.demoRows()
+                error = null
+            }
+            is ApiResult.Failure -> if (repository.isCurrentSession() && result.statusCode != 404) {
+                error = result.message
+            }
         }
     }
     if (available) {
-        Text("Inspection care plans", fontFamily = FontFamily.Serif, fontSize = 24.sp, color = demoForest)
-        if (plans.isEmpty()) Text("No approved inspection proposal for this plant. You can still record observations and choose a personal check-in.")
+        Text("Care checks", style = PlantupiaText.editorialHeading)
+        if (plans.isEmpty()) {
+            Text("No approved check is scheduled for this plant. You can still record your own observations.",
+                style = PlantupiaText.supporting)
+        }
         plans.forEach { plan -> key(plan.getString("id")) {
-            var note by remember { mutableStateOf("") }
-            var date by remember(plan.getString("next_due_on")) { mutableStateOf(plan.getString("next_due_on")) }
+            var note by rememberSaveable { mutableStateOf("") }
+            var finding by rememberSaveable { mutableStateOf<String?>(null) }
+            var date by rememberSaveable(plan.getString("next_due_on")) { mutableStateOf(plan.getString("next_due_on")) }
             var busy by remember { mutableStateOf(false) }
-            var expanded by remember { mutableStateOf(false) }
+            var open by remember { mutableStateOf(false) }
+            var manage by remember { mutableStateOf(false) }
             val scope = rememberCoroutineScope()
-            fun act(action: String) {
-                busy = true; error = null
+            fun submit(action: String) {
+                if (busy) return
+                busy = true
+                error = null
                 scope.launch {
-                    val payload = JSONObject().put("action", action).put("revision", plan.getInt("revision"))
-                    if (action == "complete") payload.put("note", note.trim())
+                    val payload = JSONObject()
+                        .put("action", action)
+                        .put("revision", plan.getInt("revision"))
+                    if (action == "complete") {
+                        finding?.let { payload.put("finding", it) }
+                        if (note.isNotBlank()) payload.put("note", note.trim())
+                    }
                     if (action == "reschedule") payload.put("next_due_on", date.trim())
-                    when (val result = repository.demoMutation("inspection-${plan.getString("id")}", "care-plans/${plan.getString("id")}/actions/", payload)) {
-                        is ApiResult.Success -> if (repository.isCurrentSession()) { note = ""; refresh++; if (action == "complete") onRecorded() }
-                        is ApiResult.Failure -> if (repository.isCurrentSession()) { error = result.message; if (result.statusCode == 409) refresh++ }
+                    val planId = plan.getString("id")
+                    when (val result = repository.demoMutation(
+                        "inspection-$planId", "care-plans/$planId/actions/", payload,
+                    )) {
+                        is ApiResult.Success -> if (repository.isCurrentSession()) {
+                            finding = null
+                            note = ""
+                            open = false
+                            manage = false
+                            refresh++
+                            if (action == "complete") onRecorded()
+                        }
+                        is ApiResult.Failure -> if (repository.isCurrentSession()) {
+                            error = result.message
+                            if (result.statusCode == 409) refresh++
+                        }
                     }
                     busy = false
                 }
             }
             DemoCard {
-                Text(plan.getString("action"), fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                if (!plan.optBoolean("valid")) Text("Paused: the source, identity or approval is no longer current. No inspection can be recorded from this proposal.")
-                else {
-                    Text(plan.getString("instructions"))
-                    Text("Every ${plan.getInt("every_days")} day(s) · ${plan.getString("timezone")} · guide v${plan.getInt("guide_version")} · reviewed by ${plan.getString("reviewer")}", fontSize = 11.sp)
-                    if (plant.canRecord) {
-                        if (!plan.optBoolean("enabled")) Button(enabled = !busy, onClick = { act("opt_in") }) { Text("Opt into this inspection plan") }
-                        else {
-                            Text("${if (plan.optBoolean("due")) "Due" else "Next inspection"}: ${plan.getString("next_due_on")}", fontWeight = FontWeight.SemiBold)
-                            TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "Close inspection actions" else "Inspect or change the next check") }
-                            if (expanded) {
-                            OutlinedTextField(note, { note = it.take(2000) }, label = { Text("What did you actually observe?") }, enabled = !busy, modifier = Modifier.fillMaxWidth())
-                            Button(enabled = !busy && note.isNotBlank(), onClick = { act("complete") }, modifier = Modifier.fillMaxWidth()) { Text("Record inspection in Living History") }
-                            Row { TextButton(enabled = !busy, onClick = { act("skip") }) { Text("Skip this check") }; TextButton(enabled = !busy, onClick = { act("decline") }) { Text("Stop plan") } }
-                            OutlinedTextField(date, { date = it.take(10) }, label = { Text("Move next check · YYYY-MM-DD") }, enabled = !busy, modifier = Modifier.fillMaxWidth())
-                            OutlinedButton(enabled = !busy, onClick = { act("reschedule") }) { Text("Confirm new inspection date") }
+                Text(plan.optString("action"), style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
+                if (!plan.optBoolean("valid")) {
+                    Text("This plan is paused. Its source or verified plant identity needs company review.",
+                        style = PlantupiaText.supporting)
+                } else {
+                    Text(plan.optString("instructions"), style = PlantupiaText.supporting)
+                    Text(
+                        "Reviewed guide v${plan.optInt("guide_version")} · ${plan.optString("reviewer")}",
+                        style = PlantupiaText.sectionLabel,
+                    )
+                    if (!plant.canRecord) {
+                        Text("Read-only plant · only an authorized carer can complete checks.",
+                            style = PlantupiaText.supporting)
+                    } else if (!plan.optBoolean("enabled")) {
+                        Text("Optional plan · no phone notification is enabled.",
+                            style = PlantupiaText.supporting)
+                        Button(onClick = { submit("opt_in") }, enabled = !busy) {
+                            Text("Add to my care checks")
+                        }
+                    } else {
+                        Text(
+                            "${if (plan.optBoolean("due")) "Due" else "Next check"} · ${plan.optString("next_due_on")}",
+                            style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
+                        )
+                        OutlinedButton(
+                            enabled = !busy,
+                            onClick = { open = !open; manage = false },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        ) { Text(if (open) "Close check" else "Check now") }
+                        if (open) {
+                            Text("What did you notice?", style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
+                            inspectionFindingChoices(plan.optString("action_key")).forEach { (value, label) ->
+                                Surface(
+                                    onClick = { finding = if (finding == value) null else value },
+                                    enabled = !busy,
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                                    color = if (finding == value) demoForest else demoPaper,
+                                    border = BorderStroke(1.dp, if (finding == value) demoForest else Color(0xFFC8D4C7)),
+                                    shape = RoundedCornerShape(12.dp),
+                                ) {
+                                    Text(
+                                        "${if (finding == value) "✓ " else ""}$label",
+                                        color = if (finding == value) Color.White else demoForest,
+                                        modifier = Modifier.padding(14.dp),
+                                    )
+                                }
+                            }
+                            OutlinedTextField(
+                                value = note, onValueChange = { note = it.take(2000) },
+                                label = { Text("Extra observation (optional)") },
+                                enabled = !busy, modifier = Modifier.fillMaxWidth(),
+                            )
+                            Button(
+                                enabled = !busy && (finding != null || note.isNotBlank()),
+                                onClick = { submit("complete") },
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            ) { Text("Save check to Living History") }
+                            Text(
+                                "Saves only what you observed. Watered and Fertilized remain separate actions.",
+                                style = PlantupiaText.supporting,
+                            )
+                            TextButton(onClick = { manage = !manage }, enabled = !busy) {
+                                Text(if (manage) "Hide schedule options" else "Change or skip this check")
+                            }
+                            if (manage) {
+                                OutlinedButton(
+                                    enabled = !busy, onClick = { submit("skip") },
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                                ) { Text("Skip this occurrence") }
+                                OutlinedTextField(
+                                    value = date, onValueChange = { date = it.take(10) },
+                                    label = { Text("Next check date · YYYY-MM-DD") },
+                                    enabled = !busy, modifier = Modifier.fillMaxWidth(),
+                                )
+                                OutlinedButton(
+                                    enabled = !busy, onClick = { submit("reschedule") },
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                                ) { Text("Reschedule") }
+                                TextButton(
+                                    enabled = !busy, onClick = { submit("decline") },
+                                ) { Text("Stop this plan") }
                             }
                         }
-                    } else Text("Read-only access. A carer or manager chooses and records inspections.")
-                    Text("This prompts an inspection, never automatic watering. No notification was silently enabled.", fontSize = 11.sp)
+                    }
                 }
                 if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             }
         } }
     }
-    error?.let { Text(it, color = MaterialTheme.colorScheme.error); TextButton(onClick = { refresh++ }) { Text("Retry inspection plans") } }
+    error?.let {
+        Text(it, color = MaterialTheme.colorScheme.error)
+        TextButton(onClick = { refresh++ }) { Text("Retry care checks") }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
