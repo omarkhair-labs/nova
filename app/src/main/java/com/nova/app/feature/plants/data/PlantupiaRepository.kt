@@ -26,6 +26,14 @@ data class PlantupiaSpace(
     val canAddPlantPermissionReported: Boolean = true,
 )
 
+/** A curated reference type; not evidence verifying a customer's physical plant. */
+data class PlantupiaLibrarySpecies(
+    val key: String,
+    val scientificName: String,
+    val aliases: List<String>,
+    val reviewedGuideAvailable: Boolean,
+)
+
 data class PlantupiaPlant(
     val id: String,
     val spaceId: String,
@@ -227,14 +235,16 @@ class PlantupiaRepository(
         species: String,
         placement: String,
         photoUri: Uri?,
+        selectedSpeciesKey: String? = null,
     ): ApiResult<String> = authorized { token ->
-        val fields = mapOf(
+        val fields = mutableMapOf(
             "space" to spaceId,
             "label" to name.trim(),
             "species_label" to species.trim(),
             "placement_note" to placement.trim(),
             "unit_type" to "individual",
         )
+        selectedSpeciesKey?.takeIf { it.isNotBlank() }?.let { fields["selected_species_key"] = it }
         val response = if (photoUri == null) {
             api.requestJson(
                 path = "plantupia/plants/",
@@ -324,6 +334,27 @@ class PlantupiaRepository(
         }
         return ApiResult.Success(UploadFile(bytes = bytes, fileName = "plant-cover.$ext", mimeType = mimeType))
     }
+
+    /** Only published, source-reviewed species are returned; selecting one is NOT verification. */
+    suspend fun librarySpecies(query: String = ""): ApiResult<List<PlantupiaLibrarySpecies>> =
+        authorized { token ->
+            val term = query.trim().take(80)
+            val path = "plantupia/library/species/" + if (term.isBlank()) "" else
+                "?q=" + java.net.URLEncoder.encode(term, "UTF-8")
+            parseList(path, token) { raw ->
+                val aliases = raw.optJSONArray("aliases")
+                PlantupiaLibrarySpecies(
+                    key = requiredPlantupiaString(raw, "key"),
+                    scientificName = requiredPlantupiaString(raw, "scientific_name"),
+                    aliases = buildList {
+                        if (aliases != null) for (i in 0 until aliases.length()) {
+                            aliases.optJSONObject(i)?.optString("name")?.takeIf { it.isNotBlank() }?.let(::add)
+                        }
+                    },
+                    reviewedGuideAvailable = raw.optBoolean("has_published_guide"),
+                )
+            }
+        }
 
     suspend fun spaces(): ApiResult<List<PlantupiaSpace>> =
         authorized { token ->
