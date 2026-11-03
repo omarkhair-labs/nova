@@ -238,7 +238,9 @@ class PlantupiaExperienceInstrumentedTest {
             node("Space name *").performScrollTo().performTextInput("SOFTWARE QA private starter space")
             closeSoftKeyboard(); click("Create and add a plant")
             node("Plant name *").performScrollTo().performTextInput("SOFTWARE QA first private plant")
-            closeSoftKeyboard(); click("Add plant")
+            closeSoftKeyboard()
+            click("I don't know the type — add my plant anyway")
+            click("Add plant")
         } else {
             val description = "Open plant: SOFTWARE QA first private plant"
             compose.waitUntil(30_000) { compose.onAllNodes(hasContentDescription(description)).fetchSemanticsNodes().isNotEmpty() }
