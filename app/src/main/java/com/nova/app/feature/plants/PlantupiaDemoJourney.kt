@@ -310,7 +310,7 @@ internal fun PlantupiaInspectionPanel(
                         ) { Text(if (open) "Close check" else "Check now") }
                         if (open) {
                             Text("What did you notice?", style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
-                            inspectionFindingChoices(plan.optString("action")).forEach { (value, label) ->
+                            inspectionFindingChoices(plan.optString("action_key")).forEach { (value, label) ->
                                 Surface(
                                     onClick = { finding = if (finding == value) null else value },
                                     enabled = !busy,
