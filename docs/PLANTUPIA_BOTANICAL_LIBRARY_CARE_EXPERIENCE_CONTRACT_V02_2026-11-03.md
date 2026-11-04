@@ -1,9 +1,9 @@
 # Plantupia — Botanical Library × Care Experience × Shop
 ## Canonical product, UX, architecture and acceptance contract (V02)
-**Date:** 2026-11-03  
-**Status:** PRODUCT DIRECTION FROZEN FOR IMPLEMENTATION — not implemented by this document, no production approval.  
-**Delivery location:** Draft PR #253, feature/plantupia-unified-experience-20261028 (never merge predecessor #240/#241 separately).  
-**Stack:** Android native Kotlin / Jetpack Compose; Django / DRF; PostgreSQL; existing authenticated media + QA MinIO; Android WorkManager; Company Workspace.  
+**Date:** 2026-11-03
+**Status:** PRODUCT DIRECTION FROZEN FOR IMPLEMENTATION — not implemented by this document, no production approval.
+**Delivery location:** Draft PR #253, feature/plantupia-unified-experience-20261028 (never merge predecessor #240/#241 separately).
+**Stack:** Android native Kotlin / Jetpack Compose; Django / DRF; PostgreSQL; existing authenticated media + QA MinIO; Android WorkManager; Company Workspace.
 **Origin:** Owner feedback from 2026-11-03 meeting: less manual maintenance input; a curated species library (~100 was an illustrative number); plant-specific reviewed guide; one-tap actions and reminders; fertilizer products in Shop; existing purchase/handover integration; contextual header, not repeated logo.
 
 ### 0 — Decision and non-negotiable product truth
