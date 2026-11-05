@@ -11,6 +11,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -925,13 +927,36 @@ private fun PlantupiaAccountClientSection(
                 Text("Refresh records", color = deepGreen)
             }
         } else {
+            val overviewAnchor = remember(selectedPlant.id) { BringIntoViewRequester() }
+            val careAnchor = remember(selectedPlant.id) { BringIntoViewRequester() }
+            val historyAnchor = remember(selectedPlant.id) { BringIntoViewRequester() }
             TextButton(onClick = { requestClosePlant() }) {
                 Text("← Back to space", color = deepGreen)
             }
-            BrandEyebrow(
+            if (openDetailMode != PlantupiaCreateMode.QUESTION) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(7.dp),
+                ) {
+                    listOf(
+                        "Overview" to overviewAnchor,
+                        "Care" to careAnchor,
+                        "History" to historyAnchor,
+                    ).forEach { (label, anchor) ->
+                        OutlinedButton(
+                            onClick = { scope.launch { anchor.bringIntoView() } },
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                            shape = RoundedCornerShape(13.dp),
+                        ) { Text(label, color = deepGreen) }
+                    }
+                }
+            }
+            Box(modifier = Modifier.bringIntoViewRequester(overviewAnchor)) {
+                BrandEyebrow(
                 if (openDetailMode == PlantupiaCreateMode.QUESTION) "ASK THE CIRCLE"
                 else "MY PLANTS"
-            )
+                )
+            }
             if (openDetailMode == PlantupiaCreateMode.QUESTION) {
                 Text(
                     "Choose what to share. Your care records and place stay private.",
@@ -1031,7 +1056,9 @@ private fun PlantupiaAccountClientSection(
             // record-action composer near the identity, not after
             // rename + pending results + lengthy timeline.
             if (openDetailMode != PlantupiaCreateMode.QUESTION) {
-                BrandEyebrow("CARE & OBSERVATIONS")
+                Box(modifier = Modifier.bringIntoViewRequester(careAnchor)) {
+                    BrandEyebrow("CARE & OBSERVATIONS")
+                }
                 if (selectedPlant.canRecord) {
                     Button(
                         onClick = { showCareEditor = !showCareEditor },
@@ -1777,7 +1804,7 @@ private fun PlantupiaAccountClientSection(
                 }
             }
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().bringIntoViewRequester(historyAnchor),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
