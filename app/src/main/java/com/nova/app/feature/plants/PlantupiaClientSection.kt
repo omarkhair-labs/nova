@@ -1287,6 +1287,15 @@ private fun PlantupiaAccountClientSection(
                 if (error != null) Text(error.orEmpty(), color = Color(0xFF9A4A31), fontSize = 12.sp)
             }
 
+            // In the new care journey, the reviewed field guide and the next
+            // real inspection live immediately after Record care. Do not bury
+            // them after settings, space administration and community sharing.
+            PlantupiaCareGuidePanel(selectedPlant.id, repository)
+            PlantupiaInspectionPanel(
+                selectedPlant, repository,
+                onRecorded = { scope.launch { reloadPlantRecords(selectedPlant.id) } },
+            )
+
             if (openDetailMode != PlantupiaCreateMode.QUESTION) {
                 // Human support and AI are secondary to recording real care.
                 BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -1528,10 +1537,6 @@ private fun PlantupiaAccountClientSection(
             }
 
             }
-            // The complete company-authored guide stays readable on demand,
-            // after the daily care action, never clipped into an invented summary.
-            PlantupiaCareGuidePanel(selectedPlant.id, repository)
-            PlantupiaInspectionPanel(selectedPlant, repository, onRecorded = { scope.launch { reloadPlantRecords(selectedPlant.id) } })
             if (openDetailMode == PlantupiaCreateMode.QUESTION) {
                 val questionGeneration = detailRequestGeneration
                 PlantupiaQuestionsPanel(
