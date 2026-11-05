@@ -1,0 +1,44 @@
+{% extends 'plants/company/base.html' %}
+{% block content %}
+<a class="back-link" href="{% url 'company:commerce-products' %}">← Commercial draft catalogue</a>
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">INTERNAL COMMERCE / NOT YET PUBLISHED</p>
+    <h1>{{ product.name }}</h1>
+    <p class="lead">{{ product.description|default:"Awaiting approved product copy." }}</p>
+  </div>
+  <span class="badge draft">Draft · no checkout</span>
+</div>
+<div class="two-column">
+  <section class="panel padded">
+    <p class="eyebrow">PRODUCT TRUTH</p>
+    <h2>{{ product.get_kind_display }}</h2>
+    <p class="fine">{% if product.reference_species %}Botanical reference: {{ product.reference_species.scientific_name }} (not physical plant verification){% else %}No botanical reference supplied.{% endif %}</p>
+    <p class="fine">Product photograph: {% if product.cover_photo %}Present — {{ product.image_description }}{% else %}No authorized photo uploaded{% endif %}</p>
+    <p class="fine">Created by {{ product.created_by.username }} · {{ product.created_at|date:'j M Y' }}</p>
+    <div class="notice warning">No buyer sees this catalogue yet. Approval, inventory reservation, shipping and payment are separate future release gates.</div>
+  </section>
+  <section class="panel padded">
+    <div class="panel-heading">
+      <div><p class="eyebrow">SKU OPTIONS</p><h2>Variants</h2></div>
+      {% if perms.plants.add_commercesku %}
+        <a href="{% url 'company:commerce-sku-create' product.pk %}">Add SKU +</a>
+      {% endif %}
+    </div>
+    {% for sku in variants %}
+      <div class="record-row">
+        <div class="grow">
+          <strong>{{ sku.code }}</strong>
+          <small>{{ sku.option_label|default:"Standard option" }} · {{ sku.currency }} {{ sku.price }}</small>
+          <small>{{ sku.counted_balance }} counted units, not reserved stock</small>
+        </div>
+        {% if perms.plants.add_commercestockmovement and perms.plants.view_commercestockmovement %}
+          <a href="{% url 'company:commerce-stock-count' sku.pk %}">Record count →</a>
+        {% endif %}
+      </div>
+    {% empty %}
+      <div class="empty compact"><p>No sellable SKU recorded. Add a real variant before stock counting.</p></div>
+    {% endfor %}
+  </section>
+</div>
+{% endblock %}
