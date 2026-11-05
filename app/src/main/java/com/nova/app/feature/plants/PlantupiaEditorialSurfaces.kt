@@ -130,44 +130,43 @@ internal val plantupiaShopShelfCategories = listOf(
 
 @Composable
 internal fun PlantupiaShopCategoryShelf(selected: String, onSelect: (String) -> Unit) {
-    BoxWithConstraints {
-        val columns = if (maxWidth >= 400.dp && LocalDensity.current.fontScale <= 1.2f) 4 else 2
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            plantupiaShopShelfCategories.chunked(columns).forEach { row ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    row.forEach { category ->
-                        val active = selected == category.key
-                        val background by animateColorAsState(
-                            targetValue = if (active) PlantupiaColors.forest else category.tint,
-                            label = "shop-shelf-color-" + category.key,
-                        )
-                        val scale by animateFloatAsState(
-                            targetValue = if (active) 1.015f else 1f,
-                            animationSpec = spring(dampingRatio = .88f, stiffness = 560f),
-                            label = "shop-shelf-focus-" + category.key,
-                        )
-                        val foreground = if (active) PlantupiaColors.paper else PlantupiaColors.forest
-                        Surface(
-                            onClick = { onSelect(category.key) },
-                            modifier = Modifier.weight(1f).heightIn(min = 107.dp)
-                                .graphicsLayer { scaleX=scale; scaleY=scale }
-                                .semantics { this.selected = active; contentDescription = "Shop " + category.label },
-                            color = background,
-                            border = BorderStroke(if (active) 2.dp else 1.dp,
-                                foreground.copy(alpha = if (active) .8f else .16f)),
-                            shape = RoundedCornerShape(19.dp),
-                        ) {
-                            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                PlantupiaEditorialMark(
-                                    category.key, Modifier.size(34.dp), foreground,
-                                )
-                                Text(category.label, style = PlantupiaText.body.copy(
-                                    fontWeight = FontWeight.SemiBold, color = foreground))
-                                Text(category.sublabel, style = PlantupiaText.supporting.copy(color = foreground))
-                            }
-                        }
-                    }
-                    if (row.size < columns) repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+    // Product photography must be visible on the first screen. Categories are
+    // discovery controls, NOT four oversized hero cards that hide inventory.
+    androidx.compose.foundation.lazy.LazyRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        items(plantupiaShopShelfCategories.size) { index ->
+            val category = plantupiaShopShelfCategories[index]
+            val active = selected == category.key
+            val background by animateColorAsState(
+                targetValue = if (active) PlantupiaColors.forest else category.tint,
+                label = "shop-filter-" + category.key,
+            )
+            val ink = if (active) PlantupiaColors.paper else PlantupiaColors.forest
+            Surface(
+                onClick = { onSelect(category.key) },
+                modifier = Modifier.heightIn(min = 52.dp)
+                    .semantics {
+                        this.selected = active
+                        contentDescription = "Filter Shop by " + category.label
+                    },
+                color = background,
+                border = BorderStroke(1.dp, ink.copy(alpha = if (active) .75f else .16f)),
+                shape = RoundedCornerShape(15.dp),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
+                    horizontalArrangement = Arrangement.spacedBy(7.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    PlantupiaEditorialMark(category.key, Modifier.size(23.dp), ink)
+                    Text(
+                        category.label,
+                        style = PlantupiaText.body.copy(
+                            fontWeight = FontWeight.SemiBold, color = ink,
+                        ),
+                    )
                 }
             }
         }
