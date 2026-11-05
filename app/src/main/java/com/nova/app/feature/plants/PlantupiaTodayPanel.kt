@@ -49,10 +49,14 @@ internal fun PlantupiaTodayPanel(
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Your check-ins", style = PlantupiaText.editorialHeading)
+            Text("Care, in your own rhythm", style = PlantupiaText.editorialHeading)
             Text(
-                if (due.isEmpty()) "NO DUE CHECK-INS" else "${due.size} TO CHECK",
+                if (due.isEmpty()) "NO CHECK-INS DUE" else "${due.size} SAVED CHECK-INS DUE",
                 style = PlantupiaText.sectionLabel,
+            )
+            Text(
+                "Only dates you chose and checks approved for your plants. No guessed watering schedule.",
+                style = PlantupiaText.supporting,
             )
         }
         if (due.isNotEmpty()) {
