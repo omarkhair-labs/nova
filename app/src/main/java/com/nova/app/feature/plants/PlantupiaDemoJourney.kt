@@ -21,6 +21,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import com.nova.app.navigation.NovaRootNavigationSignal
 import com.nova.app.navigation.NovaRootTab
 import androidx.compose.ui.graphics.Color
@@ -619,8 +620,12 @@ internal fun PlantupiaQaShop(
     var screen by rememberSaveable { mutableStateOf("catalog") }
     var category by rememberSaveable { mutableStateOf("all") }
     var careSubcategory by rememberSaveable { mutableStateOf("all") }
+    var visibleFamilyCount by rememberSaveable { mutableIntStateOf(8) }
     val uriHandler = LocalUriHandler.current
     var searchText by rememberSaveable { mutableStateOf("") }
+    LaunchedEffect(category, careSubcategory, searchText) {
+        visibleFamilyCount = 8
+    }
     var confirmed by remember { mutableStateOf(false) }
     var receipt by rememberSaveable { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -965,20 +970,43 @@ internal fun PlantupiaQaShop(
                                 "family:" + item.optString("kind") + ":" + it
                             } ?: "sku:" + item.getString("id")
                         }
-                        familyPreview.chunked(2).forEach { group ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                group.forEach { item ->
-                                    PlantupiaCatalogTile(
-                                        item = item,
-                                        repository = repository,
-                                        modifier = Modifier.weight(1f),
-                                        onOpen = { selectedId = item.getString("id"); quantity = 1 },
-                                    )
+                        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                            val columns = plantupiaShopProductColumns(
+                                maxWidth.value, LocalDensity.current.fontScale,
+                            )
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                familyPreview.take(
+                                    plantupiaVisibleFamilies(familyPreview.size, visibleFamilyCount),
+                                ).chunked(columns).forEach { group ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    ) {
+                                        group.forEach { item ->
+                                            PlantupiaCatalogTile(
+                                                item = item,
+                                                repository = repository,
+                                                modifier = Modifier.weight(1f),
+                                                onOpen = {
+                                                    selectedId = item.getString("id")
+                                                    quantity = 1
+                                                },
+                                            )
+                                        }
+                                        if (group.size < columns) Spacer(Modifier.weight(1f))
+                                    }
                                 }
-                                if (group.size == 1) Spacer(Modifier.weight(1f))
+                                if (familyPreview.size > visibleFamilyCount) {
+                                    TextButton(
+                                        onClick = { visibleFamilyCount += 8 },
+                                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                                    ) {
+                                        Text(
+                                            "See more products · ${familyPreview.size - visibleFamilyCount} remaining",
+                                            color = demoForest,
+                                        )
+                                    }
+                                }
                             }
                         }
                     } else {
