@@ -1,6 +1,6 @@
 # Plantupia / After the meeting — Native Experience V03
-**Date:** 2026-11-05  
-**Target:** Android Kotlin/Jetpack Compose + existing Django/Company backend.  
+**Date:** 2026-11-05
+**Target:** Android Kotlin/Jetpack Compose + existing Django/Company backend.
 **Base:** Draft #253. **New design implementation:** Draft #269. No production promotion.
 
 ## A. Meeting truth vs what the last APK actually showed
@@ -10,7 +10,7 @@
 Source of scope: product design master, original 13-screen V2 blueprint dated 2026-11-03, user's meeting feedback, review of actual Compose source. This document is an implementation audit, not claim of client sign-off.
 
 ### Navigation decision — supersedes the older five-tab line in V02
-**Primary:** Today / Plants / Create / Shop / AI.  
+**Primary:** Today / Plants / Create / Shop / AI.
 **Contextual:** Circle / Inbox / Notifications / Profile / Orders / Team.
 - Circle is NOT deleted or replaced in the backend. It stays a full real public/community route accessible via Today (community shelf), Create (Explore Circle), AI (Prefer people?), and plant-specific "Ask the Circle" composer. Existing posts, stories and people graph must survive.
 - AI is a real full-screen destination using the existing authorized assistant endpoint, source/uncertainty display and per-question consent. Not an inaccessible duplicate sheet and not an imagined diagnostic capability. Plant Detail still has contextual Ask AI for *this* plant.
