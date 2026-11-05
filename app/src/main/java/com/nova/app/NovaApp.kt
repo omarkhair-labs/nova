@@ -53,6 +53,7 @@ import com.nova.app.feature.legal.PrivacyScreen
 import com.nova.app.feature.legal.TermsScreen
 import com.nova.app.feature.onboarding.ProfileSetupScreen
 import com.nova.app.feature.orbit.OrbitScreen
+import com.nova.app.feature.plants.PlantupiaAiRoute
 import com.nova.app.feature.plants.PlantupiaPlantsRoute
 import com.nova.app.feature.plants.PlantupiaShopRoute
 import com.nova.app.feature.people.PeopleScreen
@@ -150,6 +151,7 @@ fun NovaApp(
                 NovaRootTab.Home -> NovaRoute.Home
                 NovaRootTab.Plants -> NovaRoute.Plants
                 NovaRootTab.Shop -> NovaRoute.Shop
+                NovaRootTab.AI -> NovaRoute.AI
                 NovaRootTab.Orbit -> NovaRoute.Orbit
                 NovaRootTab.Create -> NovaRoute.Create
                 NovaRootTab.Profile -> NovaRoute.Profile
@@ -576,6 +578,14 @@ fun NovaApp(
                     )
                 }
 
+                NovaRoute.AI -> NavEntry(route) {
+                    PlantupiaAiRoute(
+                        onToday = ::openHome,
+                        onCircle = { openRoot(NovaRootTab.Orbit) },
+                        onCreate = { openRoot(NovaRootTab.Create) },
+                        onProfile = { openRoot(NovaRootTab.Profile) },
+                    )
+                }
                 NovaRoute.Home -> NavEntry(route) { homeContent(false) }
                 NovaRoute.CircleFeed -> NavEntry(route) { homeContent(true) }
 
