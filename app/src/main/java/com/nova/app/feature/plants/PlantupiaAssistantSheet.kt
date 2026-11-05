@@ -5,6 +5,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -75,6 +77,8 @@ internal fun PlantupiaAssistantSheet(
     plant: PlantupiaPlant?,
     repository: PlantupiaRepository,
     onDismiss: () -> Unit,
+    fullPage: Boolean = false,
+    onCircle: () -> Unit = {},
 ) {
     var input by rememberSaveable(plant?.id) { mutableStateOf("") }
     var includeContext by remember(plant?.id) { mutableStateOf(false) }
@@ -89,7 +93,7 @@ internal fun PlantupiaAssistantSheet(
         if (bubbles.isNotEmpty() || error != null) chatListState.animateScrollToItem(rows - 1)
     }
 
-    PlantupiaConversationSheet(onDismiss) {
+    val conversation: @Composable ColumnScope.() -> Unit = {
             PlantupiaConversationHeader(
                 category = "AI · PLANT CARE",
                 title = "Plantupia AI",
@@ -140,6 +144,11 @@ internal fun PlantupiaAssistantSheet(
                                     shape = RoundedCornerShape(12.dp),
                                 ) {
                                     Text(idea, modifier = Modifier.fillMaxWidth().padding(13.dp), style = PlantupiaText.body)
+                                }
+                            }
+                            if (plant == null) {
+                                TextButton(onClick = onCircle) {
+                                    Text("Prefer people? Explore the Circle →", color = PlantupiaColors.forest)
                                 }
                             }
                         }
@@ -208,5 +217,13 @@ internal fun PlantupiaAssistantSheet(
                 )
             }
             Spacer(Modifier.height(12.dp))
+    }
+    if (fullPage) {
+        Column(
+            modifier = Modifier.fillMaxSize().imePadding().padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) { conversation() }
+    } else {
+        PlantupiaConversationSheet(onDismiss) { conversation() }
     }
 }
