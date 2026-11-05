@@ -1,7 +1,9 @@
 package com.nova.app.feature.plants
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -92,13 +93,12 @@ internal fun PlantupiaAiRoute(
                 Text("ASK · WITH CONTEXT, NOT ASSUMPTIONS", style = PlantupiaText.sectionLabel)
                 TextButton(onClick = onProfile) { Text("My profile") }
             }
-            Row(
-                modifier = Modifier.fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp),
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Surface(
+                item { Surface(
                     onClick = { selectedPlantId = null },
                     modifier = Modifier.heightIn(min = 48.dp),
                     color = if (selectedPlantId == null) PlantupiaColors.forest else PlantupiaColors.softSage,
@@ -113,8 +113,8 @@ internal fun PlantupiaAiRoute(
                             else PlantupiaColors.forest,
                         ),
                     )
-                }
-                plants.forEach { plant ->
+                } }
+                items(plants, key = { it.id }) { plant ->
                     val chosen = chosenPlant?.id == plant.id
                     Surface(
                         onClick = { selectedPlantId = plant.id },
