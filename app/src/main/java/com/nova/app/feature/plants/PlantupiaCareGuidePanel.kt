@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
@@ -32,6 +33,7 @@ internal fun PlantupiaCareGuidePanel(plantId: String, repository: PlantupiaRepos
         var provenanceOpen by remember { mutableStateOf(false) }
         var expandedTopic by remember { mutableStateOf<String?>(null) }
         var narrativeOpen by remember { mutableStateOf(false) }
+        var legacyOpen by remember { mutableStateOf(false) }
         var loading by remember { mutableStateOf(false) }
         var guide by remember { mutableStateOf<PlantupiaCareGuide?>(null) }
         var error by remember { mutableStateOf<String?>(null) }
@@ -134,9 +136,16 @@ internal fun PlantupiaCareGuidePanel(plantId: String, repository: PlantupiaRepos
                                     style = PlantupiaText.supporting,
                                 )
                             }
+                            val pilotPending = value.contextNotes.contains(
+                                "not yet Plantupia-approved", ignoreCase = true,
+                            )
                             Text(
-                                if (value.verifiedIdentity) "Reviewed care instructions"
-                                else "Reviewed general care information",
+                                when {
+                                    pilotPending -> "PILOT REFERENCE · BOTANICAL APPROVAL PENDING"
+                                    value.topics.isEmpty() -> "SINGLE REFERENCE NOTE"
+                                    value.verifiedIdentity -> "PUBLISHED CARE CHAPTERS"
+                                    else -> "PUBLISHED GENERAL CARE CHAPTERS"
+                                },
                                 style = PlantupiaText.sectionLabel,
                             )
                             if (value.topics.isEmpty()) {
@@ -160,13 +169,32 @@ internal fun PlantupiaCareGuidePanel(plantId: String, repository: PlantupiaRepos
                                                 Modifier.size(56.dp),
                                             )
                                             Column {
-                                                Text("SOURCE-REVIEWED NOTES", style = PlantupiaText.sectionLabel)
-                                                Text("The complete guide", style = PlantupiaText.editorialHeading)
+                                                Text("CARE REFERENCE", style = PlantupiaText.sectionLabel)
+                                                Text("Care notes", style = PlantupiaText.editorialHeading)
                                             }
                                         }
-                                        Text(value.instructions, style = PlantupiaText.body)
+                                        Text(
+                                            value.instructions,
+                                            style = PlantupiaText.body,
+                                            maxLines = if (legacyOpen) Int.MAX_VALUE else 4,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                        TextButton(
+                                            onClick = { legacyOpen = !legacyOpen },
+                                            modifier = Modifier.heightIn(min = 48.dp),
+                                        ) {
+                                            Text(
+                                                if (legacyOpen) "Show less" else "Read complete care notes",
+                                                color = PlantupiaColors.forest,
+                                            )
+                                        }
                                     }
                                 }
+                                Text(
+                                    "This reference is one source note. Individual illustrated chapters " +
+                                        "will appear when the company publishes their reviewed content.",
+                                    style = PlantupiaText.supporting,
+                                )
                             } else {
                                 Text(
                                     "Explore care by topic. These are reviewed instructions, not automatic reminders.",

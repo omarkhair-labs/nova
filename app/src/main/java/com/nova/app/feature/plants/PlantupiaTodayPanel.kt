@@ -55,7 +55,7 @@ internal fun PlantupiaTodayPanel(
                 style = PlantupiaText.sectionLabel,
             )
             Text(
-                "Only dates you chose and checks approved for your plants. No guessed watering schedule.",
+                "Personal check-ins use the dates you chose. Company-approved checks are listed above.",
                 style = PlantupiaText.supporting,
             )
         }
