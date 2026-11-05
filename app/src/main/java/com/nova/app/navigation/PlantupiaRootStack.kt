@@ -1,7 +1,7 @@
 package com.nova.app.navigation
 
 internal val plantupiaPrimaryRoutes = setOf(
-    NovaRoute.Home, NovaRoute.Plants, NovaRoute.Create, NovaRoute.Shop, NovaRoute.Orbit,
+    NovaRoute.Home, NovaRoute.Plants, NovaRoute.Create, NovaRoute.Shop, NovaRoute.AI, NovaRoute.Orbit,
 )
 
 /** Retain each primary entry's saveable state without retaining unrelated subroutes. */
