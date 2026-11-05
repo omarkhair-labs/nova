@@ -28,6 +28,7 @@ internal fun PlantupiaAccountHeader(
     displayName: String, username: String, avatarUrl: String,
     userId: Long, avatarVariant: Int, onProfile: () -> Unit,
     onNotifications: () -> Unit = { NovaRootNavigationSignal.requestActivity() },
+    compactBrand: Boolean = false,
 ) {
     val context = LocalContext.current
     val largeText = LocalDensity.current.fontScale > 1.3f
@@ -35,7 +36,7 @@ internal fun PlantupiaAccountHeader(
         horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
             PlantupiaBrandGlyph(Modifier.size(26.dp))
-            if (!largeText) Text("Plantupia", fontFamily = FontFamily.Serif, fontSize = 20.sp, color = PlantupiaColors.forest)
+            if (!largeText && !compactBrand) Text("Plantupia", fontFamily = FontFamily.Serif, fontSize = 20.sp, color = PlantupiaColors.forest)
         }
         Box {
         NovaIconButton(asset = NovaIconAsset.Inbox, contentDescription = "Social inbox",
