@@ -559,7 +559,18 @@ private fun PlantupiaAccountClientSection(
                     }
                 }
             } else {
-                Text("Today", fontFamily = FontFamily.Serif, fontSize = 31.sp, color = deepGreen)
+                // Never call unavailable/loading data an empty collection.
+                if (!loading && error == null) {
+                    val dueCount = scheduledPlantCheckIns(plants).count {
+                        !LocalDate.parse(it.nextFollowUpOn).isAfter(LocalDate.now())
+                    }
+                    PlantupiaTodayMasthead(
+                        activeCount = plants.count { it.active },
+                        dueCount = dueCount,
+                    )
+                } else {
+                    Text("Today", fontFamily = FontFamily.Serif, fontSize = 31.sp, color = deepGreen)
+                }
             }
             if (!loading) {
                 Text(
