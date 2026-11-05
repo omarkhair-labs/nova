@@ -237,6 +237,88 @@ class CeoJourneyTests(DemoFixture, TestCase):
         self.assertEqual(self.client.get(reverse("company:plan-review", args=[self.plan.pk])).status_code, 404)
         self.assertEqual(self.client.get(reverse("company:inventory")).status_code, 200)
 
+    def test_inspection_optional_photo_attaches_to_exact_observation_and_replays_safely(self):
+        self.approve()
+        self.claim()
+        self.assertEqual(self.action("opt_in", 0).status_code, 200)
+        completed = self.action("complete", 1, finding="leaves_ok")
+        self.assertEqual(completed.status_code, 200, completed.data)
+        event_id = completed.data["event_id"]
+        url = reverse("plantupia-inspection-photo", args=[self.plant.pk, event_id])
+        photo_bytes = BytesIO()
+        photo = Image.new("RGB", (38, 36), "green")
+        exif = Image.Exif()
+        exif[0x010E] = "Sensitive source camera metadata"
+        photo.save(photo_bytes, format="JPEG", exif=exif)
+        payload = photo_bytes.getvalue()
+        client_id = str(uuid.uuid4())
+
+        def send(raw=payload, key=client_id, sender=None):
+            api = sender or self.api
+            return api.post(url, {
+                "client_id": key,
+                "photo": SimpleUploadedFile("camera-private.jpg", raw, content_type="image/jpeg"),
+            }, format="multipart")
+
+        with TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media):
+            response = send()
+            self.assertEqual(response.status_code, 200, response.data)
+            self.assertEqual(response.data["event_id"], event_id)
+            self.assertTrue(response.data["photo_attached"])
+            event = PlantEvent.objects.get(pk=event_id)
+            self.assertTrue(event.photo)
+            with Image.open(event.photo.path) as saved_image:
+                self.assertFalse(saved_image.getexif())
+                self.assertEqual(saved_image.size, (38, 36))
+            original_storage_name = event.photo.name
+            repeat = send()
+            self.assertEqual(repeat.status_code, 200, repeat.data)
+            self.assertEqual(repeat.json(), response.json())
+            event.refresh_from_db()
+            self.assertEqual(event.photo.name, original_storage_name)
+            self.assertEqual(PlantEvent.objects.filter(pk=event_id).count(), 1)
+            self.assertEqual(PlantEvent.objects.count(), 1)
+            self.assertEqual(CarePlanDecision.objects.filter(event_id=event_id, action="complete").count(), 1)
+            self.assertEqual(send(key=str(uuid.uuid4())).status_code, 409)
+
+            # The same mutation identity cannot be reused for different bytes.
+            different = BytesIO()
+            Image.new("RGB", (38, 36), "blue").save(different, format="JPEG")
+            self.assertEqual(send(raw=different.getvalue()).status_code, 409)
+
+            stranger = APIClient()
+            stranger.force_authenticate(self.stranger)
+            self.assertEqual(send(key=str(uuid.uuid4()), sender=stranger).status_code, 404)
+
+            unrelated = PlantEvent.objects.create(
+                plant=self.plant, actor=self.owner, kind="observation",
+                evidence_type="observed", note="Unrelated private note",
+                observed_at=timezone.now(),
+            )
+            other_url = reverse("plantupia-inspection-photo", args=[self.plant.pk, unrelated.pk])
+            rejected = self.api.post(other_url, {
+                "client_id": str(uuid.uuid4()),
+                "photo": SimpleUploadedFile("note.jpg", payload, content_type="image/jpeg"),
+            }, format="multipart")
+            self.assertEqual(rejected.status_code, 403)
+            unrelated.refresh_from_db()
+            self.assertFalse(unrelated.photo)
+            self.assertEqual(PlantEvent.objects.count(), 2)
+
+    def test_invalid_inspection_photo_cannot_alter_completed_event(self):
+        self.approve()
+        self.claim()
+        self.action("opt_in", 0)
+        completed = self.action("complete", 1, finding="unsure")
+        event_id = completed.data["event_id"]
+        url = reverse("plantupia-inspection-photo", args=[self.plant.pk, event_id])
+        self.assertEqual(self.api.post(url, {
+            "client_id": str(uuid.uuid4()),
+            "photo": SimpleUploadedFile("broken.jpg", b"not an image", content_type="image/jpeg"),
+        }, format="multipart").status_code, 400)
+        self.assertFalse(PlantEvent.objects.get(pk=event_id).photo)
+        self.assertEqual(PlantEvent.objects.count(), 1)
+
     def test_quick_leaf_finding_is_an_observation_not_fertilizing_or_watering(self):
         self.approve()
         self.claim()
