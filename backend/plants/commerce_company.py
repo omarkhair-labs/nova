@@ -186,3 +186,41 @@ def stock_count(request, sku_id):
         "description": f"{sku.code} · Current total across locations: {commerce.stock_balance(sku.pk)}. "
                        "No checkout, reservation or allocation occurs here.",
     })
+
+
+@portal("plants.change_commerceproduct")
+def product_edit(request, product_id):
+    company.require(request.user, "plants.view_commerceproduct")
+    product = get_object_or_404(CommerceProduct, pk=product_id)
+    form = CommerceProductForm(request.POST or None, request.FILES or None, instance=product)
+    if request.method == "POST" and form.is_valid():
+        revised = form.save(commit=False)
+        revised.full_clean()
+        revised.save()
+        company.audit(request.user, revised, "Edited internal commercial product draft; not published")
+        messages.success(request, "Product draft updated. No customer listing has changed.")
+        return redirect("company:commerce-product", product_id=revised.pk)
+    return page(request, "form", {
+        "title": "Edit product draft", "section": "commerce_products", "form": form,
+        "multipart": True, "submit": "Save draft changes",
+        "description": "Internal catalogue only. This does not affect published QA items or any historic order.",
+    })
+
+
+@portal("plants.change_commercesku")
+def sku_edit(request, sku_id):
+    company.require(request.user, "plants.view_commerceproduct")
+    sku = get_object_or_404(CommerceSKU.objects.select_related("product"), pk=sku_id)
+    form = CommerceSKUForm(request.POST or None, instance=sku)
+    if request.method == "POST" and form.is_valid():
+        updated = form.save(commit=False)
+        updated.full_clean()
+        updated.save()
+        company.audit(request.user, updated, "Edited internal draft SKU; no commercial checkout")
+        messages.success(request, "Variant updated. No customer orders exist in this draft catalogue.")
+        return redirect("company:commerce-product", product_id=updated.product_id)
+    return page(request, "form", {
+        "title": "Edit SKU / variant", "section": "commerce_products", "form": form,
+        "submit": "Save SKU changes",
+        "description": "Only a draft option. Existing counted stock remains attached to the same SKU identity.",
+    })
