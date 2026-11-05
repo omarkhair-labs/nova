@@ -105,6 +105,13 @@ internal fun PlantupiaEditorialMark(kind: String, modifier: Modifier = Modifier,
     }
 }
 
+/** Status text is derived only from real user-chosen check-ins. */
+internal fun todayCareBrief(activeCount: Int, dueCount: Int): String = when {
+    activeCount == 0 -> "Your living space starts with a real plant."
+    dueCount > 0 -> "$dueCount personal check-in${if (dueCount == 1) "" else "s"} due."
+    else -> "No personal check-ins due. Your plants are here when you need them."
+}
+
 internal data class ShopShelfCategory(val key: String, val label: String, val sublabel: String, val tint: Color)
 
 internal val plantupiaShopShelfCategories = listOf(
@@ -183,11 +190,7 @@ internal fun PlantupiaTodayMasthead(
                 )
                 Text("A quieter way to care", style = PlantupiaText.editorialHeading.copy(color = PlantupiaColors.paper))
                 Text(
-                    when {
-                        activeCount == 0 -> "Your living space starts with a real plant."
-                        dueCount > 0 -> "$dueCount personal check-in${if (dueCount == 1) "" else "s"} due."
-                        else -> "No personal check-ins due. Your plants are here when you need them."
-                    },
+                    todayCareBrief(activeCount, dueCount),
                     style = PlantupiaText.supporting.copy(color = PlantupiaColors.cream),
                 )
             }
@@ -217,6 +220,80 @@ internal fun PlantupiaCircleEditorialIntro() {
                 )
             }
             PlantupiaEditorialMark("circle", Modifier.size(68.dp), PlantupiaColors.forest)
+        }
+    }
+}
+
+/**
+ * A source-authorized inspection occurrence is NOT the same as a customer's
+ * dated freeform check-in, a diagnosis, or an instruction to water.
+ */
+@Composable
+internal fun PlantupiaApprovedInspectionTodayCard(
+    plantName: String,
+    action: String,
+    dueOn: String,
+    due: Boolean,
+    canOpenPlant: Boolean,
+    onOpenPlant: () -> Unit,
+) {
+    val accent = if (due) Color(0xFF8A5734) else PlantupiaColors.forest
+    val background = if (due) Color(0xFFF5E7D8) else Color(0xFFE7EDE4)
+    val description = when (action) {
+        "soil" -> "Check the soil"
+        "leaves" -> "Observe the leaves"
+        "drainage" -> "Inspect drainage"
+        "rotation" -> "Check placement and light"
+        else -> "Review approved inspection"
+    }
+    Surface(
+        onClick = onOpenPlant,
+        enabled = canOpenPlant,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 82.dp),
+        color = background,
+        border = BorderStroke(1.dp, accent.copy(alpha = .24f)),
+        shape = RoundedCornerShape(18.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            PlantupiaEditorialMark("today", Modifier.size(45.dp), accent)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(plantName, style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
+                Text(description, style = PlantupiaText.supporting)
+                Text((if (due) "DUE · " else "NEXT · ") + dueOn,
+                    style = PlantupiaText.sectionLabel.copy(color = accent))
+            }
+            Text(if (canOpenPlant) "Open →" else "Unavailable", style = PlantupiaText.sectionLabel.copy(color = accent))
+        }
+    }
+}
+
+@Composable
+internal fun PlantupiaShopEmptyResults(hasAnyProducts: Boolean, searchActive: Boolean) {
+    Surface(
+        color = PlantupiaColors.softSage,
+        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(17.dp),
+            horizontalArrangement = Arrangement.spacedBy(15.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            PlantupiaEditorialMark("plant", Modifier.size(56.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Text(if (!hasAnyProducts) "The collection is growing" else "Nothing in this view",
+                    style = PlantupiaText.editorialHeading)
+                Text(
+                    if (!hasAnyProducts) "No catalogue products have been published in this QA collection yet."
+                    else if (searchActive) "Try a different search or clear your category filter."
+                    else "Explore another category to see the available products.",
+                    style = PlantupiaText.supporting,
+                )
+            }
         }
     }
 }
