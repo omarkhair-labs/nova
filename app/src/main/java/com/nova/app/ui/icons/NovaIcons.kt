@@ -20,6 +20,7 @@ enum class NovaIconAsset(@param:DrawableRes val drawableRes: Int) {
     Plants(R.drawable.ic_plantupia_plants),
     Shop(R.drawable.ic_plantupia_shop),
     Orbit(R.drawable.ic_nova_orbit),
+    AI(R.drawable.ic_plantupia_ai),
     Create(R.drawable.ic_nova_add),
     Search(R.drawable.ic_nova_search),
     People(R.drawable.ic_nova_search),
