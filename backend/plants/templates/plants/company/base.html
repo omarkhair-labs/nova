@@ -10,9 +10,14 @@
 <p class="nav-group-label">PROJECTS &amp; INSTALLATIONS</p>
 <a href="{% url 'company:installations' %}" {% if section == 'installations' %}aria-current="page"{% endif %}><span aria-hidden="true">▤</span> Installations</a>
 {% if can_inventory %}<a href="{% url 'company:inventory' %}" {% if section == 'inventory' %}aria-current="page"{% endif %}><span aria-hidden="true">❧</span> Installed plant inventory</a>{% endif %}
+{% if can_handovers %}<a href="{% url 'company:handovers' %}" {% if section == 'handovers' %}aria-current="page"{% endif %}><span aria-hidden="true">↗</span> QR handovers</a>{% endif %}
 <p class="nav-group-label">CARE &amp; SUPPORT</p>
 {% if can_care %}<a href="{% url 'company:care' %}" {% if section == 'care' %}aria-current="page"{% endif %}><span aria-hidden="true">▱</span> Care library</a>{% endif %}
-{% if can_handovers %}<a href="{% url 'company:handovers' %}" {% if section == 'handovers' %}aria-current="page"{% endif %}><span aria-hidden="true">↗</span> QR handovers</a>{% endif %}
+{% if perms.plants.view_commerceproduct or perms.plants.view_commercestockmovement %}
+<p class="nav-group-label">COMMERCIAL CATALOGUE · INTERNAL</p>
+{% if perms.plants.view_commerceproduct %}<a href="{% url 'company:commerce-products' %}" {% if section == 'commerce_products' %}aria-current="page"{% endif %}>Product drafts / SKUs</a>{% endif %}
+{% if perms.plants.view_commercestockmovement %}<a href="{% url 'company:commerce-stock' %}" {% if section == 'commerce_stock' %}aria-current="page"{% endif %}>Counted warehouse stock</a>{% endif %}
+{% endif %}
 {% if ceo_demo_enabled %}
 {% if perms.plants.view_careinspectionplan %}<a href="{% url 'company:plans' %}" {% if section == 'plans' %}aria-current="page"{% endif %}>Inspection plans</a>{% endif %}
 {% if perms.plants.manage_service_requests %}<a href="{% url 'company:support' %}" {% if section == 'support' %}aria-current="page"{% endif %}>Shared service requests</a>{% endif %}

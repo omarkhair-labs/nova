@@ -1235,3 +1235,6 @@ dd {
     display:none
   }
 }
+
+/* Keep section labels in the desktop rail, not inside the horizontal mobile link strip. */
+@media(max-width:860px) { .sidebar .nav-group-label { display:none; } }
