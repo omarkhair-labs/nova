@@ -627,6 +627,12 @@ private fun PlantupiaAccountClientSection(
             }
             // Quiet Care: real persisted inspections and check-ins before optional help.
             if (!loading && error == null && section == PlantupiaPrimarySection.TODAY) {
+                // Actual company-approved inspections take priority over a
+                // duplicated empty personal check-in message on the first fold.
+                PlantupiaDemoHome(
+                    repository, plants, refreshVersion = refreshVersion,
+                    onOpenPlant = { plant -> scope.launch { openPlant(plant) } },
+                )
                 PlantupiaTodayPanel(
                     plants = plants,
                     onOpenPlant = { plant -> scope.launch { openPlant(plant) } },
@@ -678,14 +684,6 @@ private fun PlantupiaAccountClientSection(
                         Text("Explore →", style = PlantupiaText.sectionLabel)
                     }
                 }
-            }
-            // Source-backed inspection plans remain available below the daily
-            // action, rather than pushing Record care out of the first viewport.
-            if (!loading && error == null && section == PlantupiaPrimarySection.TODAY) {
-                PlantupiaDemoHome(
-                    repository, plants, refreshVersion = refreshVersion,
-                    onOpenPlant = { plant -> scope.launch { openPlant(plant) } },
-                )
             }
             if (!loading && error == null && section == PlantupiaPrimarySection.TODAY) {
                 TextButton(onClick = { NovaRootNavigationSignal.request(NovaRootTab.Plants) }) {
@@ -951,20 +949,38 @@ private fun PlantupiaAccountClientSection(
                 Text("← Back to space", color = deepGreen)
             }
             if (openDetailMode != PlantupiaCreateMode.QUESTION) {
-                Row(
+                var activeAnchor by remember(selectedPlant.id) { mutableStateOf("Overview") }
+                val anchors = listOf(
+                    "Overview" to overviewAnchor,
+                    "Care" to careAnchor,
+                    "History" to historyAnchor,
+                )
+                // Real 48dp surfaces avoid Material button default padding,
+                // which previously split Overview and History across two lines.
+                LazyRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(7.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    listOf(
-                        "Overview" to overviewAnchor,
-                        "Care" to careAnchor,
-                        "History" to historyAnchor,
-                    ).forEach { (label, anchor) ->
-                        OutlinedButton(
-                            onClick = { scope.launch { anchor.bringIntoView() } },
-                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                            shape = RoundedCornerShape(13.dp),
-                        ) { Text(label, color = deepGreen) }
+                    items(anchors.size) { index ->
+                        val (label, anchor) = anchors[index]
+                        val active = activeAnchor == label
+                        Surface(
+                            onClick = {
+                                activeAnchor = label
+                                scope.launch { anchor.bringIntoView() }
+                            },
+                            modifier = Modifier.heightIn(min = 48.dp),
+                            color = if (active) deepGreen else Color(0xFFE8EDE3),
+                            border = BorderStroke(1.dp, if (active) deepGreen else PlantupiaColors.border),
+                            shape = RoundedCornerShape(15.dp),
+                        ) {
+                            Text(
+                                label, maxLines = 1, softWrap = false,
+                                color = if (active) white else deepGreen,
+                                fontSize = 14.sp, fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(horizontal = 17.dp, vertical = 13.dp),
+                            )
+                        }
                     }
                 }
             }
