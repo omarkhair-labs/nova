@@ -64,6 +64,7 @@ import androidx.compose.ui.draw.clip
 import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.fillMaxSize
 import coil3.compose.AsyncImage
+import com.nova.app.BuildConfig
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.plants.data.PlantupiaCareAction
 import com.nova.app.feature.plants.data.buildPlantupiaCareNote
@@ -1002,7 +1003,9 @@ private fun PlantupiaAccountClientSection(
             if (meta.isNotBlank()) Text(meta, fontSize = 13.sp, color = muted)
             when (selectedPlant.identityState) {
                 "staff_verified" -> Text(
-                    "Botanical identity verified by Plantupia",
+                    if (BuildConfig.BUILD_TYPE == "qa")
+                        "Company-recorded type · QA specimen. Confirm the photo and real identity."
+                    else "Botanical identity verified by Plantupia",
                     style = PlantupiaText.supporting, color = deepGreen,
                 )
                 "user_selected" -> Text(
