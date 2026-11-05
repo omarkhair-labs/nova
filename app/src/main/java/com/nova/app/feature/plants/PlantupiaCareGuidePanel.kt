@@ -96,13 +96,36 @@ internal fun PlantupiaCareGuidePanel(plantId: String, repository: PlantupiaRepos
                 } else guide?.let { value ->
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         if (value.version == null) {
-                            Text("Care guidance not yet verified", style = MaterialTheme.typography.titleMedium)
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                color = Color(0xFFFFF0D3),
+                                shape = RoundedCornerShape(22.dp),
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(17.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    CareChapterIllustration(
+                                        "inspection", Color(0xFF966019), Modifier.size(64.dp),
+                                    )
+                                    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                                        Text("THE GUIDE IS GROWING", style = PlantupiaText.sectionLabel)
+                                        Text("No reviewed guide yet", style = PlantupiaText.editorialHeading)
+                                        Text(
+                                            if (value.verifiedIdentity) "This type has no published, reviewed guide yet."
+                                            else if (value.identityBasis == "user_selected")
+                                                "No reviewed guide is published for the type you selected yet."
+                                            else "The plant type is not confirmed yet.",
+                                            style = PlantupiaText.body,
+                                        )
+                                    }
+                                }
+                            }
                             Text(
-                                if (value.verifiedIdentity) "This identity has no published, reviewed guide yet."
-                                else if (value.identityBasis == "user_selected") "No reviewed guide is published for the species you selected yet."
-                                else "Species not confirmed. We can't give species-specific instructions yet.",
+                                "You can record what you notice and choose a check-in date.",
+                                style = PlantupiaText.supporting,
                             )
-                            Text("You can record what you notice and choose your own check-in day.")
                         } else {
                             Text(value.species, style = MaterialTheme.typography.titleMedium)
                             if (value.identityBasis == "user_selected") {
@@ -117,8 +140,33 @@ internal fun PlantupiaCareGuidePanel(plantId: String, repository: PlantupiaRepos
                                 style = PlantupiaText.sectionLabel,
                             )
                             if (value.topics.isEmpty()) {
-                                // Legacy versions always retain their complete reviewed narrative.
-                                Text(value.instructions)
+                                // Legacy approved versions receive the new visual reading experience,
+                                // but their original content stays complete and unchanged.
+                                Surface(
+                                    color = Color(0xFFE8F0E4),
+                                    shape = RoundedCornerShape(22.dp),
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(17.dp),
+                                        verticalArrangement = Arrangement.spacedBy(15.dp),
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(13.dp),
+                                        ) {
+                                            CareChapterIllustration(
+                                                "repotting", PlantupiaColors.forest,
+                                                Modifier.size(56.dp),
+                                            )
+                                            Column {
+                                                Text("SOURCE-REVIEWED NOTES", style = PlantupiaText.sectionLabel)
+                                                Text("The complete guide", style = PlantupiaText.editorialHeading)
+                                            }
+                                        }
+                                        Text(value.instructions, style = PlantupiaText.body)
+                                    }
+                                }
                             } else {
                                 Text(
                                     "Explore care by topic. These are reviewed instructions, not automatic reminders.",
