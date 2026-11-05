@@ -8,6 +8,9 @@ import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.expandVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
@@ -21,6 +24,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import com.nova.app.navigation.NovaRootNavigationSignal
 import com.nova.app.navigation.NovaRootTab
 import androidx.compose.ui.graphics.Color
@@ -180,12 +184,17 @@ internal fun PlantupiaDemoHome(repository: PlantupiaRepository, plants: List<Pla
     var pending by remember { mutableStateOf(emptyList<JSONObject>()) }
     var message by remember { mutableStateOf<String?>(null) }
     var refresh by remember { mutableIntStateOf(0) }
+    var visibleInspectionCount by rememberSaveable { mutableIntStateOf(3) }
     val scope = rememberCoroutineScope()
     LaunchedEffect(refresh, refreshVersion) {
         pending = repository.pendingDemoMutations()
         when (val result = repository.demoGet("care-plans/")) {
             is ApiResult.Success -> if (repository.isCurrentSession()) { available = true; plans = result.value.demoRows() }
-            is ApiResult.Failure -> if (repository.isCurrentSession() && result.statusCode != 404) message = "Inspection plans couldn't load. Retry when connected."
+            is ApiResult.Failure -> if (repository.isCurrentSession()) {
+                available = false
+                plans = emptyList()
+                if (result.statusCode != 404) message = "Inspection plans couldn't load. Retry when connected."
+            }
         }
     }
     val optedIn = plans.filter { it.optBoolean("enabled") && it.optBoolean("valid") }
@@ -194,9 +203,27 @@ internal fun PlantupiaDemoHome(repository: PlantupiaRepository, plants: List<Pla
     if (available && (optedIn.isNotEmpty() || pending.isNotEmpty())) {
         DemoCard {
             Text("APPROVED INSPECTIONS", style = PlantupiaText.sectionLabel)
-            optedIn.sortedBy { it.getString("next_due_on") }.take(4).forEach { plan ->
-                TextButton(onClick = { plants.firstOrNull { it.id == plan.getString("plant_id") }?.let(onOpenPlant) }) {
-                    Text("${if (plan.optBoolean("due")) "Due · " else "Next · "}${plan.getString("plant_name")} · ${plan.getString("action")} · ${plan.getString("next_due_on")}")
+            val ordered = optedIn.sortedWith(
+                compareByDescending<JSONObject> { it.optBoolean("due") }
+                    .thenBy { it.optString("next_due_on") },
+            )
+            ordered.take(visibleInspectionCount).forEach { plan ->
+                val plant = plants.firstOrNull { it.id == plan.optString("plant_id") }
+                PlantupiaApprovedInspectionTodayCard(
+                    plantName = plan.optString("plant_name"),
+                    action = plan.optString("action"),
+                    dueOn = plan.optString("next_due_on"),
+                    due = plan.optBoolean("due"),
+                    canOpenPlant = plant != null,
+                    onOpenPlant = { plant?.let(onOpenPlant) },
+                )
+            }
+            if (ordered.size > visibleInspectionCount) {
+                TextButton(
+                    onClick = { visibleInspectionCount += 5 },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                ) {
+                    Text("Show more · ${ordered.size - visibleInspectionCount} remaining", color = demoForest)
                 }
             }
             pending.forEach { intent ->
@@ -264,6 +291,7 @@ internal fun PlantupiaInspectionPanel(
         plans.forEach { plan -> key(plan.getString("id")) {
             var note by rememberSaveable { mutableStateOf("") }
             var finding by rememberSaveable { mutableStateOf<String?>(null) }
+            var noteExpanded by rememberSaveable { mutableStateOf(note.isNotBlank()) }
             var date by rememberSaveable(plan.getString("next_due_on")) { mutableStateOf(plan.getString("next_due_on")) }
             var busy by remember { mutableStateOf(false) }
             var open by remember { mutableStateOf(false) }
@@ -327,6 +355,7 @@ internal fun PlantupiaInspectionPanel(
                             }
                             finding = null
                             note = ""
+                            noteExpanded = false
                             open = false
                             manage = false
                             refresh++
@@ -393,28 +422,36 @@ internal fun PlantupiaInspectionPanel(
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         ) { Text(if (open) "Close check" else "Check now") }
                         if (open) {
-                            Text("What did you notice?", style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
-                            inspectionFindingChoices(plan.optString("action_key")).forEach { (value, label) ->
-                                Surface(
-                                    onClick = { finding = if (finding == value) null else value },
-                                    enabled = !busy,
-                                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                                    color = if (finding == value) demoForest else demoPaper,
-                                    border = BorderStroke(1.dp, if (finding == value) demoForest else Color(0xFFC8D4C7)),
-                                    shape = RoundedCornerShape(12.dp),
-                                ) {
-                                    Text(
-                                        "${if (finding == value) "✓ " else ""}$label",
-                                        color = if (finding == value) Color.White else demoForest,
-                                        modifier = Modifier.padding(14.dp),
-                                    )
-                                }
-                            }
-                            OutlinedTextField(
-                                value = note, onValueChange = { note = it.take(2000) },
-                                label = { Text("Extra observation (optional)") },
-                                enabled = !busy, modifier = Modifier.fillMaxWidth(),
+                            Text("What did you notice?", style = PlantupiaText.editorialHeading)
+                            Text(
+                                "Choose a real observation. It won't mark watering, feeding or a diagnosis.",
+                                style = PlantupiaText.supporting,
                             )
+                            PlantupiaInspectionChoiceGrid(
+                                choices = inspectionFindingChoices(plan.optString("action_key")),
+                                selected = finding,
+                                enabled = !busy,
+                                onChoose = { next -> finding = if (finding == next) null else next },
+                            )
+                            TextButton(
+                                enabled = !busy,
+                                onClick = { noteExpanded = !noteExpanded },
+                                modifier = Modifier.heightIn(min = 48.dp),
+                            ) {
+                                Text(
+                                    if (noteExpanded) "Hide optional note"
+                                    else if (note.isNotBlank()) "Edit your note"
+                                    else "Add a note instead (optional)",
+                                    color = demoForest,
+                                )
+                            }
+                            AnimatedVisibility(visible = noteExpanded, enter = fadeIn() + expandVertically()) {
+                                OutlinedTextField(
+                                    value = note, onValueChange = { note = it.take(2000) },
+                                    label = { Text("What you saw (optional)") },
+                                    enabled = !busy, modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
                             Button(
                                 enabled = !busy && (finding != null || note.isNotBlank()),
                                 onClick = { submit("complete") },
@@ -586,6 +623,7 @@ internal fun PlantupiaQaShop(
     modifier: Modifier = Modifier,
 ) {
     var products by remember { mutableStateOf(emptyList<JSONObject>()) }
+    var catalogLoaded by remember { mutableStateOf(false) }
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
     val selected = products.firstOrNull { it.optString("id") == selectedId }
     var linkedOrder by remember { mutableStateOf<JSONObject?>(null) }
@@ -596,8 +634,12 @@ internal fun PlantupiaQaShop(
     var screen by rememberSaveable { mutableStateOf("catalog") }
     var category by rememberSaveable { mutableStateOf("all") }
     var careSubcategory by rememberSaveable { mutableStateOf("all") }
+    var visibleFamilyCount by rememberSaveable { mutableIntStateOf(8) }
     val uriHandler = LocalUriHandler.current
     var searchText by rememberSaveable { mutableStateOf("") }
+    LaunchedEffect(category, careSubcategory, searchText) {
+        visibleFamilyCount = 8
+    }
     var confirmed by remember { mutableStateOf(false) }
     var receipt by rememberSaveable { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -624,6 +666,7 @@ internal fun PlantupiaQaShop(
     }
     LaunchedEffect(refresh, screen) {
         error = null
+        if (screen == "catalog") catalogLoaded = false
         val path = when (screen) {
             "cart", "review" -> "cart/"
             "orders" -> "demo/orders/"
@@ -638,9 +681,15 @@ internal fun PlantupiaQaShop(
                     if (result.value.has("lines")) linkedOrder = result.value
                     else orders = result.value.demoRows()
                 }
-                else -> products = result.value.demoRows()
+                else -> { products = result.value.demoRows(); catalogLoaded = true }
             }
-            is ApiResult.Failure -> if (repository.isCurrentSession()) error = result.message
+            is ApiResult.Failure -> if (repository.isCurrentSession()) {
+                error = result.message
+                if (screen == "catalog") {
+                    catalogLoaded = false
+                    products = emptyList()
+                }
+            }
         }
     }
     androidx.activity.compose.BackHandler(enabled = fullPage && (selectedId != null || screen != "catalog")) {
@@ -869,8 +918,12 @@ internal fun PlantupiaQaShop(
                 else -> {
                     val product = selected
                     if (product == null) {
-                        Text("Find something for your space.", style = PlantupiaText.body)
-                        Text("Preview collection · illustrative prices only", style = PlantupiaText.supporting)
+                        Text("Objects for a living space", style = PlantupiaText.editorialHeading)
+                        Text(
+                            "Browse the available collection. Product names, media and label details come from the Shop catalogue.",
+                            style = PlantupiaText.supporting,
+                        )
+                        Text("QA preview · illustrative prices, no payment or delivery", style = PlantupiaText.sectionLabel)
                         OutlinedTextField(
                             value = searchText,
                             onValueChange = { searchText = it.take(80) },
@@ -878,23 +931,15 @@ internal fun PlantupiaQaShop(
                             label = { Text("Search plants, pots and care") },
                             singleLine = true,
                         )
-                        Row(modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            listOf("all" to "All", "plant" to "Plants", "planter" to "Pots",
-                                "accessory" to "Care").forEach { (filter, label) ->
-                                Surface(
-                                    onClick = { category = filter },
-                                    modifier = Modifier.weight(1f),
-                                    color = if (category == filter) demoForest else demoSage,
-                                    shape = RoundedCornerShape(12.dp),
-                                ) {
-                                    Text(label, modifier = Modifier.padding(vertical = 11.dp),
-                                        fontSize = 12.sp, fontWeight = FontWeight.Medium,
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                        color = if (category == filter) demoPaper else demoForest)
-                                }
-                            }
-                        }
+                        PlantupiaShopCategoryShelf(
+                            selected = category,
+                            onSelect = { next ->
+                                category = next
+                                // A nutrition filter from a previous Care visit must
+                                // not invisibly filter a newly chosen Shop category.
+                                careSubcategory = "all"
+                            },
+                        )
                         if (category == "accessory") {
                             Row(
                                 modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -933,10 +978,17 @@ internal fun PlantupiaQaShop(
                                     it.contains(searchText.trim(), ignoreCase = true)
                                 })
                         }
-                        if (visible.isEmpty()) Text(
-                            if (products.isEmpty()) "Products coming soon." else "No products match this search.",
-                            style = PlantupiaText.supporting,
-                        )
+                        if (visible.isEmpty() && error == null) {
+                            if (!catalogLoaded) {
+                                LinearProgressIndicator(Modifier.fillMaxWidth())
+                                Text("Loading catalogue…", style = PlantupiaText.supporting)
+                            } else {
+                                PlantupiaShopEmptyResults(
+                                    hasAnyProducts = products.isNotEmpty(),
+                                    searchActive = searchText.isNotBlank(),
+                                )
+                            }
+                        }
                         // One product family in discovery; selection of its exact
                         // priced SKU happens inside the detail page.
                         val familyPreview = visible.distinctBy { item ->
@@ -944,20 +996,43 @@ internal fun PlantupiaQaShop(
                                 "family:" + item.optString("kind") + ":" + it
                             } ?: "sku:" + item.getString("id")
                         }
-                        familyPreview.chunked(2).forEach { group ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                group.forEach { item ->
-                                    PlantupiaCatalogTile(
-                                        item = item,
-                                        repository = repository,
-                                        modifier = Modifier.weight(1f),
-                                        onOpen = { selectedId = item.getString("id"); quantity = 1 },
-                                    )
+                        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                            val columns = plantupiaShopProductColumns(
+                                maxWidth.value, LocalDensity.current.fontScale,
+                            )
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                familyPreview.take(
+                                    plantupiaVisibleFamilies(familyPreview.size, visibleFamilyCount),
+                                ).chunked(columns).forEach { group ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    ) {
+                                        group.forEach { item ->
+                                            PlantupiaCatalogTile(
+                                                item = item,
+                                                repository = repository,
+                                                modifier = Modifier.weight(1f),
+                                                onOpen = {
+                                                    selectedId = item.getString("id")
+                                                    quantity = 1
+                                                },
+                                            )
+                                        }
+                                        if (group.size < columns) Spacer(Modifier.weight(1f))
+                                    }
                                 }
-                                if (group.size == 1) Spacer(Modifier.weight(1f))
+                                if (familyPreview.size > visibleFamilyCount) {
+                                    TextButton(
+                                        onClick = { visibleFamilyCount += 8 },
+                                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                                    ) {
+                                        Text(
+                                            "See more products · ${familyPreview.size - visibleFamilyCount} remaining",
+                                            color = demoForest,
+                                        )
+                                    }
+                                }
                             }
                         }
                     } else {
@@ -1021,28 +1096,17 @@ internal fun PlantupiaQaShop(
                             }
                             val nutrition = product.optJSONObject("nutrition")
                             if (product.optString("subcategory") == "nutrition" && nutrition != null) {
-                                Text("PLANT NUTRITION · MANUFACTURER PRODUCT INFORMATION", style = PlantupiaText.sectionLabel)
-                                Text(nutrition.optString("label"), style = PlantupiaText.body)
-                                if (nutrition.optString("use_notes").isNotBlank()) {
-                                    Text("Manufacturer's label directions", style = PlantupiaText.sectionLabel)
-                                    Text(nutrition.optString("use_notes"), style = PlantupiaText.supporting)
-                                }
-                                if (nutrition.optString("cautions").isNotBlank()) {
-                                    Text("Precautions", style = PlantupiaText.sectionLabel)
-                                    Text(nutrition.optString("cautions"), style = PlantupiaText.supporting)
-                                }
                                 val sourceLink = nutrition.optString("source_url")
-                                if (sourceLink.startsWith("https://")) {
-                                    TextButton(onClick = {
+                                PlantupiaNutritionEvidenceCard(
+                                    label = nutrition.optString("label"),
+                                    directions = nutrition.optString("use_notes"),
+                                    cautions = nutrition.optString("cautions"),
+                                    sourceReference = nutrition.optString("source_reference"),
+                                    hasSourceLink = sourceLink.startsWith("https://"),
+                                    onOpenSource = {
                                         runCatching { uriHandler.openUri(sourceLink) }
                                             .onFailure { error = "The manufacturer's source couldn't be opened." }
-                                    }) {
-                                        Text("Source: " + nutrition.optString("source_reference"), color = demoForest)
-                                    }
-                                }
-                                Text(
-                                    "Buying a fertilizer does not mean your plant needs feeding today. Follow verified label guidance.",
-                                    style = PlantupiaText.supporting,
+                                    },
                                 )
                             }
                             val familyKey = product.optString("family_key")
@@ -1073,9 +1137,10 @@ internal fun PlantupiaQaShop(
                             }
                             if (product.optString("sku").isNotBlank())
                                 Text("SKU · " + product.optString("sku"), style = PlantupiaText.supporting)
-                            Text(
-                                "${product.getString("currency")} ${product.getString("price")}",
-                                fontSize = 21.sp, fontWeight = FontWeight.SemiBold, color = demoForest,
+                            PlantupiaShopPriceBand(
+                                currency = product.optString("currency"),
+                                price = product.optString("price"),
+                                qaStock = product.optInt("qa_stock", 0),
                             )
                             Row(
                                 modifier = Modifier.fillMaxWidth(),

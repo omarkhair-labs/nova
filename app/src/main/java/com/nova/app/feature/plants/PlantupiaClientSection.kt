@@ -131,6 +131,7 @@ private fun PlantupiaAccountClientSection(
     var spaces by remember { mutableStateOf<List<PlantupiaSpace>>(emptyList()) }
     var plants by remember { mutableStateOf<List<PlantupiaPlant>>(emptyList()) }
     var currentPlantId by rememberSaveable { mutableStateOf<String?>(null) }
+    var newlyAddedPlantId by remember { mutableStateOf<String?>(null) }
     // Invalidate slower in-flight history calls when a user opens another plant or goes Back.
     var detailRequestGeneration by remember { mutableIntStateOf(0) }
     var openDetailMode by remember { mutableStateOf<PlantupiaCreateMode?>(null) }
@@ -404,6 +405,7 @@ private fun PlantupiaAccountClientSection(
 
     fun closePlant() {
         detailRequestGeneration += 1
+        newlyAddedPlantId = null
         showAssistant = false
         currentPlantId = null
         saving = false
@@ -559,7 +561,18 @@ private fun PlantupiaAccountClientSection(
                     }
                 }
             } else {
-                Text("Today", fontFamily = FontFamily.Serif, fontSize = 31.sp, color = deepGreen)
+                // Never call unavailable/loading data an empty collection.
+                if (!loading && error == null) {
+                    val dueCount = scheduledPlantCheckIns(plants).count {
+                        !LocalDate.parse(it.nextFollowUpOn).isAfter(LocalDate.now())
+                    }
+                    PlantupiaTodayMasthead(
+                        activeCount = plants.count { it.active },
+                        dueCount = dueCount,
+                    )
+                } else {
+                    Text("Today", fontFamily = FontFamily.Serif, fontSize = 31.sp, color = deepGreen)
+                }
             }
             if (!loading) {
                 Text(
@@ -901,7 +914,10 @@ private fun PlantupiaAccountClientSection(
                     plantSearch = ""
                     scope.launch {
                         refresh(current)
-                        if (current()) plants.firstOrNull { it.id == plantId }?.let { openPlant(it) }
+                        if (current()) plants.firstOrNull { it.id == plantId }?.let {
+                            newlyAddedPlantId = it.id
+                            openPlant(it)
+                        }
                     }
                 },
                 preferredSpaceId = focusedSpaceId,
@@ -1003,6 +1019,17 @@ private fun PlantupiaAccountClientSection(
                         Text("Add a photo of this plant", style = PlantupiaText.supporting)
                     }
                 }
+            }
+            if (selectedPlant.id == newlyAddedPlantId) {
+                PlantupiaArrivalCard(
+                    onOpenCare = {
+                        scope.launch {
+                            careAnchor.bringIntoView()
+                            newlyAddedPlantId = null
+                        }
+                    },
+                    onDismiss = { newlyAddedPlantId = null },
+                )
             }
             if (selectedPlant.nextFollowUpOn.isNotBlank()) {
                 Surface(
