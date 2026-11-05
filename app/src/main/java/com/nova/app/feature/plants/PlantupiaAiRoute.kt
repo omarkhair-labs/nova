@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.nova.app.core.network.ApiResult
+import com.nova.app.feature.auth.domain.model.NovaUser
 import com.nova.app.feature.plants.data.PlantupiaPlant
 import com.nova.app.feature.plants.data.PlantupiaRepository
 import com.nova.app.ui.components.NovaBottomBar
@@ -43,6 +44,7 @@ import com.nova.app.ui.components.NovaTab
  */
 @Composable
 internal fun PlantupiaAiRoute(
+    user: NovaUser?,
     onToday: () -> Unit,
     onCircle: () -> Unit,
     onCreate: () -> Unit,
@@ -85,13 +87,13 @@ internal fun PlantupiaAiRoute(
             modifier = Modifier.fillMaxSize().padding(padding).statusBarsPadding(),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 17.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            Column(modifier = Modifier.padding(horizontal = 17.dp)) {
+                PlantupiaAccountHeader(
+                    user?.name.orEmpty(), user?.username.orEmpty(), user?.avatarUrl.orEmpty(),
+                    user?.id ?: 0L, user?.plantupiaAvatarVariant ?: -1,
+                    onProfile = onProfile, compactBrand = true,
+                )
                 Text("ASK · WITH CONTEXT, NOT ASSUMPTIONS", style = PlantupiaText.sectionLabel)
-                TextButton(onClick = onProfile) { Text("My profile") }
             }
             LazyRow(
                 modifier = Modifier.fillMaxWidth(),
