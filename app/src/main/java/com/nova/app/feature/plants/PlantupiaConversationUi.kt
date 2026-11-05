@@ -32,6 +32,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -86,6 +89,31 @@ internal fun PlantupiaConversationHeader(
     }
 }
 
+/**
+ * Preserve real Arabic/English content while rendering the very small Markdown
+ * subset the assistant actually uses. Never show literal ** in guidance.
+ * No network, HTML rendering or untrusted clickable Markdown links.
+ */
+internal fun plantupiaReadableAssistantText(raw: String): AnnotatedString {
+    val header = Regex("""^\s{0,3}#{1,6}\s+""")
+    val bullets = Regex("""^(\s*)[-*]\s+(?=\S)""")
+    val normalized = raw.lines().joinToString("\n") { line ->
+        line.replace(header, "").replace(bullets, "$1• ")
+    }
+    val bold = Regex("""\*\*(.+?)\*\*""")
+    return buildAnnotatedString {
+        var start = 0
+        for (match in bold.findAll(normalized)) {
+            append(normalized.substring(start, match.range.first))
+            pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+            append(match.groupValues[1])
+            pop()
+            start = match.range.last + 1
+        }
+        append(normalized.substring(start))
+    }
+}
+
 @Composable
 internal fun PlantupiaConversationMessage(
     body: String,
@@ -117,7 +145,8 @@ internal fun PlantupiaConversationMessage(
                     color = if (mine) PlantupiaColors.cream else PlantupiaColors.secondaryText,
                 )
                 Text(
-                    body,
+                    if (!mine && sender == "Plantupia AI") plantupiaReadableAssistantText(body)
+                    else AnnotatedString(body),
                     style = PlantupiaText.body.copy(
                         color = if (mine) PlantupiaColors.paper else PlantupiaColors.forestText,
                     ),
