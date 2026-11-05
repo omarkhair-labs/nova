@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import demo_services as service
+from .media import sanitize_public_plant_photo
 from .models import CareInspectionPlan, ServiceRequest, CatalogProduct, DemoCartLine, DemoOrder
 from .views import accessible_plants
 
@@ -90,6 +91,24 @@ class InspectionPlansView(DemoView):
 class InspectionActionView(DemoView):
     def post(self, request, plan_id):
         return Response(service.plan_action(request.user, plan_id, parsed(InspectionInput, request)))
+
+
+class InspectionPhotoInput(MutationInput):
+    photo = serializers.ImageField(required=True)
+
+
+class InspectionPhotoView(DemoView):
+    """Private evidence on the *existing* real inspection event, not a second event."""
+
+    def post(self, request, plant_id, event_id):
+        data = parsed(InspectionPhotoInput, request)
+        try:
+            photo = sanitize_public_plant_photo(data["photo"])
+        except ValueError as error:
+            raise serializers.ValidationError({"photo": str(error)}) from error
+        return Response(service.attach_inspection_photo(
+            request.user, plant_id, event_id, data["client_id"], photo,
+        ))
 
 
 class SupportInput(MutationInput):

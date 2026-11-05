@@ -638,6 +638,40 @@ class PlantupiaRepository(
         api.requestJson(path = "plantupia/$path", method = "POST", body = body, bearerToken = token)
     }
 
+    /**
+     * Add an optional photograph to an already-saved, authorized observation.
+     * The event ID is produced by completing a real source-approved check;
+     * retrying this upload never repeats the check itself.
+     */
+    internal suspend fun attachInspectionPhoto(
+        plantId: String,
+        eventId: String,
+        clientId: String,
+        photoUri: Uri,
+    ): ApiResult<JSONObject> = authorized { token ->
+        val photo = when (val loaded = loadPrivatePhoto(photoUri)) {
+            is ApiResult.Failure -> return@authorized loaded
+            is ApiResult.Success -> loaded.value
+        }
+        val response = api.requestMultipart(
+            path = "plantupia/plants/$plantId/events/$eventId/inspection-photo/",
+            method = "POST",
+            fields = mapOf("client_id" to clientId),
+            fileField = "photo",
+            file = photo,
+            bearerToken = token,
+        )
+        when (response) {
+            is ApiResult.Failure -> response
+            is ApiResult.Success -> parsePlantupiaResponse(response.value) { body ->
+                require(body.optString("event_id") == eventId && body.optBoolean("photo_attached")) {
+                    "Inspection evidence was not acknowledged by the server."
+                }
+                body
+            }
+        }
+    }
+
     internal suspend fun demoMutation(slot: String, path: String, body: JSONObject): ApiResult<JSONObject> {
         if (!isCurrentSession()) return changedSession()
         val intent = try { withContext(Dispatchers.IO) {
