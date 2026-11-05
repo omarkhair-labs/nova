@@ -180,12 +180,17 @@ internal fun PlantupiaDemoHome(repository: PlantupiaRepository, plants: List<Pla
     var pending by remember { mutableStateOf(emptyList<JSONObject>()) }
     var message by remember { mutableStateOf<String?>(null) }
     var refresh by remember { mutableIntStateOf(0) }
+    var visibleInspectionCount by rememberSaveable { mutableIntStateOf(3) }
     val scope = rememberCoroutineScope()
     LaunchedEffect(refresh, refreshVersion) {
         pending = repository.pendingDemoMutations()
         when (val result = repository.demoGet("care-plans/")) {
             is ApiResult.Success -> if (repository.isCurrentSession()) { available = true; plans = result.value.demoRows() }
-            is ApiResult.Failure -> if (repository.isCurrentSession() && result.statusCode != 404) message = "Inspection plans couldn't load. Retry when connected."
+            is ApiResult.Failure -> if (repository.isCurrentSession()) {
+                available = false
+                plans = emptyList()
+                if (result.statusCode != 404) message = "Inspection plans couldn't load. Retry when connected."
+            }
         }
     }
     val optedIn = plans.filter { it.optBoolean("enabled") && it.optBoolean("valid") }
@@ -194,9 +199,27 @@ internal fun PlantupiaDemoHome(repository: PlantupiaRepository, plants: List<Pla
     if (available && (optedIn.isNotEmpty() || pending.isNotEmpty())) {
         DemoCard {
             Text("APPROVED INSPECTIONS", style = PlantupiaText.sectionLabel)
-            optedIn.sortedBy { it.getString("next_due_on") }.take(4).forEach { plan ->
-                TextButton(onClick = { plants.firstOrNull { it.id == plan.getString("plant_id") }?.let(onOpenPlant) }) {
-                    Text("${if (plan.optBoolean("due")) "Due · " else "Next · "}${plan.getString("plant_name")} · ${plan.getString("action")} · ${plan.getString("next_due_on")}")
+            val ordered = optedIn.sortedWith(
+                compareByDescending<JSONObject> { it.optBoolean("due") }
+                    .thenBy { it.optString("next_due_on") },
+            )
+            ordered.take(visibleInspectionCount).forEach { plan ->
+                val plant = plants.firstOrNull { it.id == plan.optString("plant_id") }
+                PlantupiaApprovedInspectionTodayCard(
+                    plantName = plan.optString("plant_name"),
+                    action = plan.optString("action"),
+                    dueOn = plan.optString("next_due_on"),
+                    due = plan.optBoolean("due"),
+                    canOpenPlant = plant != null,
+                    onOpenPlant = { plant?.let(onOpenPlant) },
+                )
+            }
+            if (ordered.size > visibleInspectionCount) {
+                TextButton(
+                    onClick = { visibleInspectionCount += 5 },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                ) {
+                    Text("Show more · ${ordered.size - visibleInspectionCount} remaining", color = demoForest)
                 }
             }
             pending.forEach { intent ->
@@ -929,10 +952,12 @@ internal fun PlantupiaQaShop(
                                     it.contains(searchText.trim(), ignoreCase = true)
                                 })
                         }
-                        if (visible.isEmpty()) Text(
-                            if (products.isEmpty()) "Products coming soon." else "No products match this search.",
-                            style = PlantupiaText.supporting,
-                        )
+                        if (visible.isEmpty()) {
+                            PlantupiaShopEmptyResults(
+                                hasAnyProducts = products.isNotEmpty(),
+                                searchActive = searchText.isNotBlank(),
+                            )
+                        }
                         // One product family in discovery; selection of its exact
                         // priced SKU happens inside the detail page.
                         val familyPreview = visible.distinctBy { item ->
