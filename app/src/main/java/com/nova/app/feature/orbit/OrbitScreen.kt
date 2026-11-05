@@ -65,6 +65,8 @@ import com.nova.app.ui.theme.NovaMuted
 import com.nova.app.ui.theme.NovaSpacing
 import com.nova.app.ui.theme.NovaSurface
 import com.nova.app.ui.theme.NovaType
+import com.nova.app.feature.plants.PlantupiaCircleEditorialIntro
+import com.nova.app.feature.plants.PlantupiaColors
 import com.nova.app.feature.plants.PlantupiaCirclePanel
 import com.nova.app.feature.plants.PlantupiaCreateIntent
 import com.nova.app.feature.plants.PlantupiaCreateMode
@@ -154,8 +156,7 @@ fun OrbitScreen(
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     com.nova.app.feature.plants.PlantupiaAccountHeader(displayName, username, avatarUrl, userId, avatarVariant, onProfileClick)
-                    Text("Circle", style = com.nova.app.feature.plants.PlantupiaText.pageHeading)
-                    Text("Questions, people and shared experience.", style = com.nova.app.feature.plants.PlantupiaText.supporting)
+                    PlantupiaCircleEditorialIntro()
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         androidx.compose.material3.TextButton(onClick = onSharedMoments, modifier = Modifier.weight(1f)) { Text("Shared moments") }
                         androidx.compose.material3.TextButton(onClick = onDiscoveryClick, modifier = Modifier.weight(1f)) { Text("Explore people") }
@@ -174,16 +175,16 @@ fun OrbitScreen(
                             onClick = { selectedSection = section },
                             modifier = Modifier.weight(1f),
                             shape = CircleShape,
-                            color = if (isSelected) NovaAccent else NovaSurface,
+                            color = if (isSelected) PlantupiaColors.forest else PlantupiaColors.paper,
                             border = BorderStroke(
                                 1.dp,
-                                if (isSelected) NovaAccent else NovaBorder,
+                                if (isSelected) PlantupiaColors.forest else PlantupiaColors.border,
                             ),
                         ) {
                             Text(
                                 text = section.label,
                                 modifier = Modifier.padding(horizontal = NovaSpacing.sm, vertical = 12.dp),
-                                color = if (isSelected) Color.White else NovaInk,
+                                color = if (isSelected) PlantupiaColors.paper else PlantupiaColors.forest,
                                 style = NovaType.meta.copy(fontWeight = FontWeight.SemiBold),
                             )
                         }
@@ -201,8 +202,8 @@ fun OrbitScreen(
                             onHomeClick()
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        color = NovaAccentSoft,
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                        color = PlantupiaColors.softSage,
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
                     ) {
                         Row(
                             modifier = Modifier.padding(NovaSpacing.md),
