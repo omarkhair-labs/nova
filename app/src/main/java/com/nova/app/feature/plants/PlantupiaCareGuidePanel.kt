@@ -1,5 +1,10 @@
 package com.nova.app.feature.plants
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -7,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -46,28 +52,41 @@ internal fun PlantupiaCareGuidePanel(plantId: String, repository: PlantupiaRepos
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Surface(
                 onClick = { open = !open },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 62.dp),
-                color = PlantupiaColors.softSage,
-                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 92.dp),
+                color = Color(0xFFE6EDE3),
+                shape = RoundedCornerShape(22.dp),
                 border = BorderStroke(1.dp, PlantupiaColors.border),
             ) {
                 Row(
-                    modifier = Modifier.padding(14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 13.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Care guide", style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
+                    Surface(shape = RoundedCornerShape(17.dp), color = Color(0xFFFFF1CC)) {
+                        CareChapterIllustration(
+                            "light", Color(0xFF966019),
+                            Modifier.padding(10.dp).size(51.dp),
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Text("THE FIELD GUIDE", style = PlantupiaText.sectionLabel)
                         Text(
-                            if (open) "Full guide and source information"
-                            else "Read this plant's available care instructions",
+                            "Care guide",
+                            style = PlantupiaText.editorialHeading,
+                        )
+                        Text(
+                            "Water, light and the details that matter.",
                             style = PlantupiaText.supporting,
                         )
                     }
-                    Text(if (open) "↑" else "→", style = PlantupiaText.body)
+                    Text(if (open) "−" else "+", style = PlantupiaText.editorialHeading)
                 }
             }
-            if (open) {
+            AnimatedVisibility(
+                visible = open,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically(),
+            ) {
                 if (loading) {
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                     Text("Loading care guidance…", style = PlantupiaText.supporting)
@@ -105,54 +124,15 @@ internal fun PlantupiaCareGuidePanel(plantId: String, repository: PlantupiaRepos
                                     "Explore care by topic. These are reviewed instructions, not automatic reminders.",
                                     style = PlantupiaText.supporting,
                                 )
-                                value.topics.forEach { topic ->
-                                    val expanded = expandedTopic == topic.topic
-                                    Surface(
-                                        onClick = { expandedTopic = if (expanded) null else topic.topic },
-                                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-                                        color = PlantupiaColors.softSage,
-                                        shape = RoundedCornerShape(15.dp),
-                                        border = BorderStroke(1.dp, PlantupiaColors.border),
-                                    ) {
-                                        Column(
-                                            modifier = Modifier.padding(15.dp),
-                                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                                        ) {
-                                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                                Column(Modifier.weight(1f)) {
-                                                    Text(
-                                                        topic.topic.replaceFirstChar { it.uppercase() },
-                                                        style = PlantupiaText.sectionLabel,
-                                                    )
-                                                    Text(
-                                                        topic.title,
-                                                        style = PlantupiaText.body.copy(
-                                                            fontWeight = FontWeight.SemiBold,
-                                                        ),
-                                                    )
-                                                }
-                                                Text(if (expanded) "−" else "+", style = PlantupiaText.body)
-                                            }
-                                            if (expanded) {
-                                                Text(topic.instructions)
-                                                if (topic.contextNotes.isNotBlank()) {
-                                                    Text("Context and cautions", style = PlantupiaText.sectionLabel)
-                                                    Text(topic.contextNotes)
-                                                }
-                                                TextButton(
-                                                    onClick = {
-                                                        try { uriHandler.openUri(topic.sourceUrl) }
-                                                        catch (_: Exception) {
-                                                            error = "The topic source couldn't open on this device."
-                                                        }
-                                                    },
-                                                ) {
-                                                    Text("Source: ${topic.sourceReference}")
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
+                                PlantupiaCareChapterGallery(
+                                    topics = value.topics,
+                                    selectedTopic = expandedTopic,
+                                    onSelect = { topic -> expandedTopic = if (expandedTopic == topic) null else topic },
+                                    onOpenSource = { source ->
+                                        try { uriHandler.openUri(source) }
+                                        catch (_: Exception) { error = "The topic source couldn't open on this device." }
+                                    },
+                                )
                                 if (value.legacyInstructions.isNotBlank()) {
                                     OutlinedButton(
                                         onClick = { narrativeOpen = !narrativeOpen },
