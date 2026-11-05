@@ -1083,28 +1083,17 @@ internal fun PlantupiaQaShop(
                             }
                             val nutrition = product.optJSONObject("nutrition")
                             if (product.optString("subcategory") == "nutrition" && nutrition != null) {
-                                Text("PLANT NUTRITION · MANUFACTURER PRODUCT INFORMATION", style = PlantupiaText.sectionLabel)
-                                Text(nutrition.optString("label"), style = PlantupiaText.body)
-                                if (nutrition.optString("use_notes").isNotBlank()) {
-                                    Text("Manufacturer's label directions", style = PlantupiaText.sectionLabel)
-                                    Text(nutrition.optString("use_notes"), style = PlantupiaText.supporting)
-                                }
-                                if (nutrition.optString("cautions").isNotBlank()) {
-                                    Text("Precautions", style = PlantupiaText.sectionLabel)
-                                    Text(nutrition.optString("cautions"), style = PlantupiaText.supporting)
-                                }
                                 val sourceLink = nutrition.optString("source_url")
-                                if (sourceLink.startsWith("https://")) {
-                                    TextButton(onClick = {
+                                PlantupiaNutritionEvidenceCard(
+                                    label = nutrition.optString("label"),
+                                    directions = nutrition.optString("use_notes"),
+                                    cautions = nutrition.optString("cautions"),
+                                    sourceReference = nutrition.optString("source_reference"),
+                                    hasSourceLink = sourceLink.startsWith("https://"),
+                                    onOpenSource = {
                                         runCatching { uriHandler.openUri(sourceLink) }
                                             .onFailure { error = "The manufacturer's source couldn't be opened." }
-                                    }) {
-                                        Text("Source: " + nutrition.optString("source_reference"), color = demoForest)
-                                    }
-                                }
-                                Text(
-                                    "Buying a fertilizer does not mean your plant needs feeding today. Follow verified label guidance.",
-                                    style = PlantupiaText.supporting,
+                                    },
                                 )
                             }
                             val familyKey = product.optString("family_key")
@@ -1135,9 +1124,10 @@ internal fun PlantupiaQaShop(
                             }
                             if (product.optString("sku").isNotBlank())
                                 Text("SKU · " + product.optString("sku"), style = PlantupiaText.supporting)
-                            Text(
-                                "${product.getString("currency")} ${product.getString("price")}",
-                                fontSize = 21.sp, fontWeight = FontWeight.SemiBold, color = demoForest,
+                            PlantupiaShopPriceBand(
+                                currency = product.optString("currency"),
+                                price = product.optString("price"),
+                                qaStock = product.optInt("qa_stock", 0),
                             )
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
