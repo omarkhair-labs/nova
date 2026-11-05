@@ -147,6 +147,7 @@ small {
   color:white;
   text-decoration:none
 }
+.sidebar .nav-group-label { color:#b6c7ad; font-size:10px; font-weight:700; letter-spacing:1.1px; line-height:1.6; margin:20px 10px 3px; padding-top:14px; border-top:1px solid #ffffff25; }
 .sidebar-note {
   margin-top:auto;
   border-top:1px solid #ffffff25;
