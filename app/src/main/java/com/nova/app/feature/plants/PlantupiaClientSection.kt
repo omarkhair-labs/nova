@@ -641,6 +641,27 @@ private fun PlantupiaAccountClientSection(
                         Text("+ Add plant", color = deepGreen)
                     }
                 }
+                // Community is a contextual relationship, no longer a permanent bottom tab.
+                // Nothing from My Plants is shared without the separate public composer.
+                Surface(
+                    onClick = { NovaRootNavigationSignal.request(NovaRootTab.Orbit) },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                    color = Color(0xFFE9EBDF),
+                    shape = RoundedCornerShape(15.dp),
+                    border = BorderStroke(1.dp, PlantupiaColors.border),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 15.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("THE CIRCLE", style = PlantupiaText.sectionLabel)
+                            Text("Questions, people and shared experiences", style = PlantupiaText.supporting)
+                        }
+                        Text("Explore →", style = PlantupiaText.sectionLabel)
+                    }
+                }
             }
             // Source-backed inspection plans remain available below the daily
             // action, rather than pushing Record care out of the first viewport.
