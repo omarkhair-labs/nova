@@ -66,13 +66,13 @@ MIGRATED_COMPONENT_SEAMS = {
         "NovaType.badge",
         "NovaIconAsset.Today",
         "NovaIconAsset.Plants",
-        "NovaIconAsset.Orbit",
+        "NovaIconAsset.AI",
         "NovaIconAsset.Create",
         "NovaIconAsset.Shop",
         'label = "Today"',
         'label = "Plants"',
         'label = "Shop"',
-        'label = "Circle"',
+        'label = "AI"',
     ),
     "NovaFeedback.kt": ("MaterialTheme.shapes.extraLarge", "NovaType.bodyCompact", "NovaSpacing.xxxl"),
     "NovaCard.kt": ("MaterialTheme.shapes.large", "NovaSurface", "NovaBorder"),
@@ -158,6 +158,13 @@ for file_name, seams in MIGRATED_COMPONENT_SEAMS.items():
         if seam not in component_text:
             errors.append(f"shared component bypassed Nova design-system foundation: {file_name} -> {seam}")
 
+# Plantupia's agreed hierarchy is AI as a primary route, with Circle kept in context.
+bottom_bar = (SHARED_COMPONENTS / "NovaBottomBar.kt").read_text(encoding="utf-8")
+if 'label = "Circle"' in bottom_bar:
+    errors.append("Circle must remain contextual rather than a fifth primary tab")
+if 'NovaRootNavigationSignal.request(NovaRootTab.AI)' not in bottom_bar:
+    errors.append("Fifth Plantupia tab must actually navigate to AI")
+
 if not ICON_CATALOG.is_file():
     errors.append("missing app-owned Nova icon catalog")
 else:
@@ -167,6 +174,7 @@ else:
         "fun NovaIcon(",
         "Home(R.drawable.ic_nova_home)",
         "Orbit(R.drawable.ic_nova_orbit)",
+        "AI(R.drawable.ic_plantupia_ai)",
         "Create(R.drawable.ic_nova_add)",
         "Search(R.drawable.ic_nova_search)",
         "Notifications(R.drawable.ic_nova_notifications)",
