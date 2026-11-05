@@ -10,6 +10,7 @@ enum class NovaRootTab {
     Home,
     Plants,
     Shop,
+    AI,
     Orbit,
     Create,
     Profile,
