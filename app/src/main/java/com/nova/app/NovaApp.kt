@@ -580,6 +580,7 @@ fun NovaApp(
 
                 NovaRoute.AI -> NavEntry(route) {
                     PlantupiaAiRoute(
+                        user = appState.currentUser,
                         onToday = ::openHome,
                         onCircle = { openRoot(NovaRootTab.Orbit) },
                         onCreate = { openRoot(NovaRootTab.Create) },
