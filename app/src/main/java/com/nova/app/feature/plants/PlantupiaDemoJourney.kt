@@ -8,6 +8,9 @@ import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.expandVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
@@ -288,6 +291,7 @@ internal fun PlantupiaInspectionPanel(
         plans.forEach { plan -> key(plan.getString("id")) {
             var note by rememberSaveable { mutableStateOf("") }
             var finding by rememberSaveable { mutableStateOf<String?>(null) }
+            var noteExpanded by rememberSaveable { mutableStateOf(note.isNotBlank()) }
             var date by rememberSaveable(plan.getString("next_due_on")) { mutableStateOf(plan.getString("next_due_on")) }
             var busy by remember { mutableStateOf(false) }
             var open by remember { mutableStateOf(false) }
@@ -351,6 +355,7 @@ internal fun PlantupiaInspectionPanel(
                             }
                             finding = null
                             note = ""
+                            noteExpanded = false
                             open = false
                             manage = false
                             refresh++
@@ -417,28 +422,36 @@ internal fun PlantupiaInspectionPanel(
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         ) { Text(if (open) "Close check" else "Check now") }
                         if (open) {
-                            Text("What did you notice?", style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
-                            inspectionFindingChoices(plan.optString("action_key")).forEach { (value, label) ->
-                                Surface(
-                                    onClick = { finding = if (finding == value) null else value },
-                                    enabled = !busy,
-                                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                                    color = if (finding == value) demoForest else demoPaper,
-                                    border = BorderStroke(1.dp, if (finding == value) demoForest else Color(0xFFC8D4C7)),
-                                    shape = RoundedCornerShape(12.dp),
-                                ) {
-                                    Text(
-                                        "${if (finding == value) "✓ " else ""}$label",
-                                        color = if (finding == value) Color.White else demoForest,
-                                        modifier = Modifier.padding(14.dp),
-                                    )
-                                }
-                            }
-                            OutlinedTextField(
-                                value = note, onValueChange = { note = it.take(2000) },
-                                label = { Text("Extra observation (optional)") },
-                                enabled = !busy, modifier = Modifier.fillMaxWidth(),
+                            Text("What did you notice?", style = PlantupiaText.editorialHeading)
+                            Text(
+                                "Choose a real observation. It won't mark watering, feeding or a diagnosis.",
+                                style = PlantupiaText.supporting,
                             )
+                            PlantupiaInspectionChoiceGrid(
+                                choices = inspectionFindingChoices(plan.optString("action_key")),
+                                selected = finding,
+                                enabled = !busy,
+                                onChoose = { next -> finding = if (finding == next) null else next },
+                            )
+                            TextButton(
+                                enabled = !busy,
+                                onClick = { noteExpanded = !noteExpanded },
+                                modifier = Modifier.heightIn(min = 48.dp),
+                            ) {
+                                Text(
+                                    if (noteExpanded) "Hide optional note"
+                                    else if (note.isNotBlank()) "Edit your note"
+                                    else "Add a note instead (optional)",
+                                    color = demoForest,
+                                )
+                            }
+                            AnimatedVisibility(visible = noteExpanded, enter = fadeIn() + expandVertically()) {
+                                OutlinedTextField(
+                                    value = note, onValueChange = { note = it.take(2000) },
+                                    label = { Text("What you saw (optional)") },
+                                    enabled = !busy, modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
                             Button(
                                 enabled = !busy && (finding != null || note.isNotBlank()),
                                 onClick = { submit("complete") },
