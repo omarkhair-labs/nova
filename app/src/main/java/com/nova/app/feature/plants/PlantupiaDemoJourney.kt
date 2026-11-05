@@ -869,8 +869,12 @@ internal fun PlantupiaQaShop(
                 else -> {
                     val product = selected
                     if (product == null) {
-                        Text("Find something for your space.", style = PlantupiaText.body)
-                        Text("Preview collection · illustrative prices only", style = PlantupiaText.supporting)
+                        Text("Objects for a living space", style = PlantupiaText.editorialHeading)
+                        Text(
+                            "Browse the available collection. Product names, media and label details come from the Shop catalogue.",
+                            style = PlantupiaText.supporting,
+                        )
+                        Text("QA preview · illustrative prices, no payment or delivery", style = PlantupiaText.sectionLabel)
                         OutlinedTextField(
                             value = searchText,
                             onValueChange = { searchText = it.take(80) },
@@ -878,23 +882,15 @@ internal fun PlantupiaQaShop(
                             label = { Text("Search plants, pots and care") },
                             singleLine = true,
                         )
-                        Row(modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            listOf("all" to "All", "plant" to "Plants", "planter" to "Pots",
-                                "accessory" to "Care").forEach { (filter, label) ->
-                                Surface(
-                                    onClick = { category = filter },
-                                    modifier = Modifier.weight(1f),
-                                    color = if (category == filter) demoForest else demoSage,
-                                    shape = RoundedCornerShape(12.dp),
-                                ) {
-                                    Text(label, modifier = Modifier.padding(vertical = 11.dp),
-                                        fontSize = 12.sp, fontWeight = FontWeight.Medium,
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                        color = if (category == filter) demoPaper else demoForest)
-                                }
-                            }
-                        }
+                        PlantupiaShopCategoryShelf(
+                            selected = category,
+                            onSelect = { next ->
+                                category = next
+                                // A nutrition filter from a previous Care visit must
+                                // not invisibly filter a newly chosen Shop category.
+                                careSubcategory = "all"
+                            },
+                        )
                         if (category == "accessory") {
                             Row(
                                 modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
