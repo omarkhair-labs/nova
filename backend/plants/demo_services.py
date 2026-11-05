@@ -211,6 +211,45 @@ def plan_action(user, plan_id, data):
     return mutate(user, data["client_id"], "inspection:" + str(plan_id), payload, create)
 
 
+def attach_inspection_photo(user, plant_id, event_id, client_id, normalized_photo):
+    """Attach optional evidence to the SAME completed plan observation, once.
+
+    Replays use the existing DemoMutation receipt and a byte-content fingerprint;
+    they cannot replace the photo or manufacture a second PlantEvent.
+    """
+    from .views import accessible_plants, can_record
+
+    plant = get_object_or_404(accessible_plants(user), pk=plant_id)
+    if not can_record(user, plant):
+        raise PermissionDenied("Only an authorized carer may attach private inspection evidence.")
+    sha256 = hashlib.sha256(normalized_photo.read()).hexdigest()
+    normalized_photo.seek(0)
+    payload = {"plant_id": str(plant_id), "event_id": str(event_id), "sha256": sha256}
+
+    def create():
+        event = get_object_or_404(
+            PlantEvent.objects.select_for_update().select_related("plant"),
+            pk=event_id, plant_id=plant_id, actor=user,
+            kind=PlantEvent.Kind.OBSERVATION,
+        )
+        if (not accessible_plants(user).filter(pk=plant_id).exists()
+                or not can_record(user, event.plant)):
+            raise PermissionDenied
+        if not event.plant.is_active:
+            raise DemoProblem("Archived plant history is read-only.")
+        if not CarePlanDecision.objects.filter(
+            event=event, action="complete", enrollment__responsible=user,
+        ).exists():
+            raise PermissionDenied("Only a genuine completed inspection can receive this photo.")
+        if event.photo:
+            raise DemoProblem("This inspection already has an evidence photo.")
+        event.photo.save(f"inspection-{event.pk}.jpg", normalized_photo, save=False)
+        event.save(update_fields=["photo"])
+        return {"event_id": str(event.pk), "photo_attached": True}
+
+    return mutate(user, client_id, "inspection-photo:" + str(event_id), payload, create)
+
+
 def create_request(user, data):
     from accounts.models import Conversation, Message
     from .views import accessible_plants
