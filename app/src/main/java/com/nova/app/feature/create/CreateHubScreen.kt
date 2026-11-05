@@ -113,6 +113,12 @@ fun CreateHubScreen(
             NovaIconAsset.Orbit,
         ) { enterPlant(PlantupiaCreateMode.QUESTION) },
         CreateHubAction(
+            "Explore the Circle",
+            "Browse public plant questions and people's experiences",
+            NovaIconAsset.Orbit,
+            onOrbitClick,
+        ),
+        CreateHubAction(
             "Share an experience",
             "Publish an experience to your community",
             NovaIconAsset.Create,
