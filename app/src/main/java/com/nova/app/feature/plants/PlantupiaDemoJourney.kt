@@ -48,11 +48,16 @@ import com.nova.app.feature.plants.data.PlantupiaPlant
 import com.nova.app.feature.plants.data.PlantupiaRepository
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import java.time.LocalDate
 import java.util.UUID
 
 private val demoForest = Color(0xFF123B2E)
 private val demoPaper = Color(0xFFFFFDF7)
 private val demoSage = Color(0xFFEEF1E8)
+
+/** Do not offer a morning alert for an already-due or overdue inspection. */
+internal fun canScheduleUpcomingInspection(dueOn: String, today: LocalDate): Boolean =
+    runCatching { LocalDate.parse(dueOn).isAfter(today) }.getOrDefault(false)
 
 /** Care subtype affects discovery only; SKU/cart/order identities stay unchanged. */
 internal fun matchesShopCategory(
@@ -487,7 +492,16 @@ internal fun PlantupiaInspectionPanel(
                             "${if (plan.optBoolean("due")) "Due" else "Next check"} · ${plan.optString("next_due_on")}",
                             style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
                         )
-                        // Read the preference in composition; explicit local state causes a refresh.
+                        Button(
+                            enabled = !busy,
+                            onClick = { open = !open; manage = false },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = demoForest),
+                        ) {
+                            Text(if (open) "Close check" else "Check now · record what you notice", color = demoPaper)
+                        }
+                        // Notification permission is secondary to doing a real check.
+                        // Overdue plans cannot schedule a morning that has already passed.
                         val reminderOptedIn = remember(reminderVersion, refresh) {
                             PlantupiaInspectionReminderScheduler.isOptedIn(context, plan.getString("id"))
                         }
@@ -498,7 +512,7 @@ internal fun PlantupiaInspectionPanel(
                                 reminderFeedback = "Reminder off. The in-app care schedule remains."
                                 reminderVersion++
                             }) { Text("Turn off reminder") }
-                        } else {
+                        } else if (canScheduleUpcomingInspection(plan.optString("next_due_on"), LocalDate.now())) {
                             TextButton(enabled = !busy, onClick = {
                                 val permissionGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
                                     ContextCompat.checkSelfPermission(
@@ -506,14 +520,15 @@ internal fun PlantupiaInspectionPanel(
                                     ) == PackageManager.PERMISSION_GRANTED
                                 if (permissionGranted) enableReminder()
                                 else requestPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                            }) { Text("Remind me to check this plant") }
+                            }) { Text("Remind me on the next check day") }
+                        } else {
+                            Text(
+                                "This check is already due. Record it first; you can set a reminder " +
+                                    "for the next approved date.",
+                                style = PlantupiaText.supporting,
+                            )
                         }
                         reminderFeedback?.let { Text(it, style = PlantupiaText.supporting) }
-                        OutlinedButton(
-                            enabled = !busy,
-                            onClick = { open = !open; manage = false },
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                        ) { Text(if (open) "Close check" else "Check now") }
                         if (open) {
                             Text("What did you notice?", style = PlantupiaText.editorialHeading)
                             Text(
