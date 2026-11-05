@@ -40,7 +40,7 @@ import com.nova.app.ui.theme.NovaSurface
 import com.nova.app.ui.theme.NovaType
 
 
-/** Plantupia primary navigation: Today / Plants / Create / Shop / Circle.
+/** Plantupia primary navigation: Today / Plants / Create / Shop / AI.
  * Me remains available through the top-right avatar on primary routes.
  * Create stays an intentional hub, not a second, ambiguous feed destination.
  */
@@ -100,11 +100,11 @@ fun NovaBottomBar(
             )
             NovaTabItem(
                 modifier = Modifier.weight(1f),
-                label = "Circle",
-                icon = NovaIconAsset.Orbit,
-                selected = selected == NovaTab.Orbit,
+                label = "AI",
+                icon = NovaIconAsset.AI,
+                selected = selected == NovaTab.AI,
                 inactiveContentColor = inactiveContentColor,
-                onClick = onOrbitClick,
+                onClick = { NovaRootNavigationSignal.request(NovaRootTab.AI) },
             )
         }
     }
@@ -215,6 +215,7 @@ enum class NovaTab {
     Plants,
     Shop,
     Orbit,
+    AI,
     Create,
     Inbox,
     Profile,
