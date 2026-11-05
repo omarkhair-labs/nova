@@ -114,9 +114,9 @@ internal fun PlantupiaEditorialMark(kind: String, modifier: Modifier = Modifier,
 
 /** Status text is derived only from real user-chosen check-ins. */
 internal fun todayCareBrief(activeCount: Int, dueCount: Int): String = when {
-    activeCount == 0 -> "Your living space starts with a real plant."
-    dueCount > 0 -> "$dueCount personal check-in${if (dueCount == 1) "" else "s"} due."
-    else -> "No personal check-ins due. Your plants are here when you need them."
+    activeCount == 0 -> "Start with a real plant. Its record begins here."
+    dueCount > 0 -> "Your next check is ready to open below."
+    else -> "A place for the small moments you actually notice."
 }
 
 internal data class ShopShelfCategory(val key: String, val label: String, val sublabel: String, val tint: Color)
