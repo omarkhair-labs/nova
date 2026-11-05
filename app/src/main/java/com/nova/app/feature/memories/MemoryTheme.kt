@@ -2,7 +2,7 @@ package com.nova.app.feature.memories
 
 import androidx.compose.ui.graphics.Color
 
-/** Deliberate reflective palette used when Nova has a memory ready to replay. */
+/** Reflective Plantupia parchment palette; the original Nova memory engine stays intact. */
 data class MemoryPalette(
     val background: Color,
     val ink: Color,
@@ -13,10 +13,10 @@ data class MemoryPalette(
 
 object MemoryTheme {
     val ready = MemoryPalette(
-        background = Color(0xFFFFF7EC),
-        ink = Color(0xFF6F4528),
-        muted = Color(0xFF976D4E),
-        border = Color(0xFFE8D2B7),
-        videoBackground = Color(0xFF0E1118),
+        background = Color(0xFFF3EEDE),
+        ink = Color(0xFF16302A),
+        muted = Color(0xFF4A5A50),
+        border = Color(0xFFD7D2C1),
+        videoBackground = Color(0xFF10281F),
     )
 }

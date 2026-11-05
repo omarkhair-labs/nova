@@ -25,6 +25,7 @@ internal fun parseNovaPerson(
             }
         },
         profileTheme = json.optString("profile_theme", "violet"),
+        plantupiaAvatarVariant = json.optInt("plantupia_avatar_variant", -1),
         showOrbit = json.optBoolean("show_orbit", true),
         isVerified = json.optBoolean("is_verified", false),
         followersCount = json.optInt("followers_count", 0),

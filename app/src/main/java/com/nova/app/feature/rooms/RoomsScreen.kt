@@ -95,7 +95,7 @@ fun RoomsScreen(
                     modifier = Modifier.weight(1f).padding(horizontal = 14.dp),
                 ) {
                     Text(
-                        text = "Rooms",
+                        text = "Gatherings",
                         color = NovaInk,
                         style = NovaType.screenTitle,
                     )
@@ -107,7 +107,7 @@ fun RoomsScreen(
                 }
                 NovaIconButton(
                     asset = NovaIconAsset.Create,
-                    contentDescription = "Create a Room",
+                    contentDescription = "Create a gathering",
                     onClick = { showCreate = true },
                     size = 48.dp,
                     containerColor = NovaAccent,
@@ -122,7 +122,7 @@ fun RoomsScreen(
                 modifier = Modifier.fillMaxWidth().padding(bottom = NovaSpacing.md),
                 horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
             ) {
-                listOf("mine" to "My Rooms", "discover" to "Discover", "following" to "Following").forEach { (key, label) ->
+                listOf("mine" to "My Gatherings", "discover" to "Discover", "following" to "Following").forEach { (key, label) ->
                     val selected = state.selectedList == key
                     Surface(
                         onClick = { owner.selectList(key) },
@@ -145,14 +145,14 @@ fun RoomsScreen(
             when {
                 state.loading && state.rooms.isEmpty() -> {
                     NovaLoadingState(
-                        message = "Loading your Rooms…",
+                        message = "Loading your gatherings…",
                         modifier = Modifier.weight(1f),
                     )
                 }
 
                 !state.error.isNullOrBlank() && state.rooms.isEmpty() -> {
                     NovaErrorState(
-                        title = "Rooms couldn't load",
+                        title = "Gatherings couldn't load",
                         message = state.error ?: "Check your connection and try again.",
                         onRetry = { owner.load(showSpinner = true) },
                         modifier = Modifier.weight(1f),
@@ -162,17 +162,17 @@ fun RoomsScreen(
                 state.rooms.isEmpty() -> {
                     NovaEmptyState(
                         title = when (state.selectedList) {
-                            "discover" -> "No public Rooms to discover yet"
-                            "following" -> "You aren't following a Room yet"
-                            else -> "Your first Room starts here"
+                            "discover" -> "No public gatherings to discover yet"
+                            "following" -> "You aren't following a gathering yet"
+                            else -> "Your first gathering starts here"
                         },
                         message = when (state.selectedList) {
-                            "discover" -> "Public Rooms created by people outside your blocked network will appear here."
-                            "following" -> "Follow a public Room to keep it close without joining."
+                            "discover" -> "Public gatherings from people outside your blocked network will appear here."
+                            "following" -> "Follow a public gathering to stay connected without joining."
                             else -> "Choose your people once. Chat, plans, media and memories can live in the same place."
                         },
                         modifier = Modifier.weight(1f),
-                        actionLabel = if (state.selectedList == "mine") "Create a Room" else null,
+                        actionLabel = if (state.selectedList == "mine") "Create a gathering" else null,
                         onAction = if (state.selectedList == "mine") ({ showCreate = true }) else null,
                     )
                 }
@@ -187,7 +187,7 @@ fun RoomsScreen(
                         if (!state.error.isNullOrBlank()) {
                             item {
                                 NovaInlineRetry(
-                                    message = state.error ?: "Couldn't refresh Rooms.",
+                                    message = state.error ?: "Couldn't refresh gatherings.",
                                     onRetry = { owner.load(showSpinner = false) },
                                 )
                             }

@@ -86,6 +86,8 @@ class NotificationPreferencesView(APIView):
         "reels_stories",
         "events_spaces",
         "product_updates",
+        "plantupia_team",
+        "plantupia_orders",
     )
 
     def _payload(self, preferences):

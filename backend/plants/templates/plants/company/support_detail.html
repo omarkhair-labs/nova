@@ -1,0 +1,11 @@
+{% extends 'plants/company/base.html' %}
+{% block content %}
+<a class="back-link" href="{% url 'company:support' %}">← Shared service queue</a>
+<p class="eyebrow">{{ ticket.get_status_display }}</p><h1>{{ ticket.subject }}</h1>
+<div class="two-column"><section class="panel padded"><h2>The actual conversation</h2>
+{% for message in thread %}<article class="subtle-panel"><p class="fine">{{ message.sender.username }} · {{ message.created_at }}{% if message.sender_id != ticket.customer_id %} · actual staff reply{% endif %}</p><p class="authored-text">{{ message.body|linebreaksbr }}</p></article>{% endfor %}
+{% if ticket.status != 'closed' and ticket.assigned_to_id == request.user.pk %}<form method="post" class="fields">{% csrf_token %}{{ form.as_div }}<button class="button primary" type="submit">Send my real reply →</button></form>{% endif %}</section>
+<aside><section class="panel padded"><p class="eyebrow">EXPLICITLY SHARED</p><h2>{{ ticket.shared_plant_label }}</h2><p>{{ ticket.shared_context|default:'Placement was not shared.' }}</p><p class="fine">Customer: {{ ticket.customer.username }}. Private photos, history and the current customer-owned inventory are not available here.</p><p>Assigned: {{ ticket.assigned_to.username|default:'No one yet' }}</p>
+{% if not ticket.assigned_to_id %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="claim"><button class="button primary">Claim this request</button></form>{% endif %}
+{% if ticket.assigned_to_id == request.user.pk and ticket.status != 'closed' %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="close"><button class="button">Close this request</button></form>{% endif %}</section></aside></div>
+{% endblock %}

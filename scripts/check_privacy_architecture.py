@@ -151,7 +151,7 @@ for required in (
     "connectTimeout = 12_000",
     "readTimeout = 20_000",
     "authApi.refresh(stored.refreshToken)",
-    "if (retried.statusCode == 401) sessionStore.clear()",
+    "stored = stored,",
 ):
     if required not in core_repository:
         errors.append(f"Privacy transport-sensitive seam changed or disappeared: {required}")
@@ -282,7 +282,15 @@ for forbidden in (
 for required in (
     "val privacyRepository = context.appContainer.privacyRepository",
     "privacyRepository.personState(selected.username)",
-    "is ApiResult.Success -> privacyState = result.value",
+    # The successful server response remains the sole authority; neither a
+    # loading state nor a network failure may expose private posts/connections.
+    "is ApiResult.Success -> {",
+    "privacyState = result.value",
+    "privacyResolved = true",
+    "canViewContent = false",
+    "if (privacyResolved && privacyState.canViewContent)",
+    "if (!privacyResolved || !privacyState.canViewContent) return",
+    "Retry access check",
     "is ApiResult.Failure -> messageError = result.message",
     "socialRepository.setFollowing(selectedPerson.username, false)",
     'safetyMessage = "Follow request canceled."',

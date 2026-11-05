@@ -10,6 +10,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.MainActivity
 import com.nova.app.R
 import com.nova.app.core.calls.NovaCallNotification
@@ -29,23 +30,28 @@ class NovaMessagingService : FirebaseMessagingService() {
         super.onRegistered(installationId)
         NovaPushStore(applicationContext).saveInstallationId(installationId)
 
+        val owner = NovaSessionStore(applicationContext).load()?.identity ?: return
         serviceScope.launch {
-            NovaPushRepository(applicationContext).register(installationId)
+            NovaPushRepository(applicationContext, expectedLogin = owner).register(installationId)
         }
     }
 
     override fun onUnregistered(installationId: String) {
         super.onUnregistered(installationId)
 
-        serviceScope.launch {
-            NovaPushRepository(applicationContext).remove(installationId)
+        // Explicit logout removes using its captured old token. A delayed device callback
+        // must never issue that removal using a subsequently signed-in account.
+        if (NovaSessionStore(applicationContext).load() != null) {
+            NovaPushRegistration.activate(applicationContext)
+        } else if (NovaPushStore(applicationContext).installationId() == installationId) {
+            NovaPushStore(applicationContext).clear()
         }
-        NovaPushStore(applicationContext).clear()
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
         val kind = message.data["kind"].orEmpty()
+        if (kind in setOf("plantupia_support_reply", "plantupia_order_update") && !authorizedPlantupiaPushRecipient(message.data["recipient_id"]?.toLongOrNull(), NovaSessionStore(applicationContext).load()?.cachedUser?.id)) return
 
         if (kind == "incoming_call") {
             handleIncomingCall(message)
@@ -130,7 +136,7 @@ class NovaMessagingService : FirebaseMessagingService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
-        val channelId = if (kind == "message") {
+        val channelId = if (kind == "message" || kind == "plantupia_support_reply") {
             NovaPushRegistration.MESSAGE_CHANNEL_ID
         } else {
             NovaPushRegistration.CHANNEL_ID
@@ -169,6 +175,8 @@ class NovaMessagingService : FirebaseMessagingService() {
             "reel_repost" -> "New Reel repost"
             "reel_reply" -> "New Reel reply"
             "message" -> actor
+            "plantupia_support_reply" -> "Plantupia team"
+            "plantupia_order_update" -> "Plantupia QA order"
             else -> "Nova activity"
         }
     }
@@ -189,6 +197,8 @@ class NovaMessagingService : FirebaseMessagingService() {
             "reel_repost" -> "$actor reposted your Reel"
             "reel_reply" -> "$actor replied to your Reel comment"
             "message" -> messagePreview.ifBlank { "$actor sent you a message" }
+            "plantupia_support_reply" -> "You have a new reply to your support request."
+            "plantupia_order_update" -> "A separate preparation draft is ready for review. No delivery was initiated."
             else -> "$actor interacted with you"
         }
     }

@@ -117,6 +117,68 @@ class InboxViewModelTest {
         assertTrue(viewModel.state.conversations.isEmpty())
     }
 
+    @Test
+    fun changingSearchHidesPreviousConversationsEvenBeforeRequestResolves() = runBlocking {
+        val fake = FakeInboxRepository().apply {
+            conversationsResult = successPage(ids = listOf(10L), nextCursor = "old-page")
+        }
+        val owner = InboxViewModel(
+            repository = fake, workScope = this, searchDebounceMillis = 0L, autoLoad = false,
+        )
+        owner.loadInbox(search = "", reset = true, showSpinner = true)
+        assertEquals(listOf(10L), owner.state.conversations.map { it.id })
+
+        owner.onQueryChanged("a new search")
+        // The first query's rows and pagination are not results for this query.
+        assertTrue(owner.state.conversations.isEmpty())
+        assertNull(owner.state.nextCursor)
+        assertTrue(owner.state.isLoading)
+        yield()
+        assertEquals("a new search", owner.state.query)
+    }
+
+    @Test
+    fun changingFilterHidesOldInboxImmediatelyAndFailureKeepsItHidden() = runBlocking {
+        val fake = FakeInboxRepository().apply {
+            conversationsResult = successPage(ids = listOf(22L))
+        }
+        val owner = InboxViewModel(
+            repository = fake, workScope = this, searchDebounceMillis = 0L, autoLoad = false,
+        )
+        owner.loadInbox(search = "", reset = true, showSpinner = true)
+        fake.conversationsResult = ApiResult.Failure("Network unavailable", statusCode = 503)
+
+        owner.onFilterChanged(InboxFilter.Unread)
+        assertTrue(owner.state.conversations.isEmpty())
+        assertEquals(InboxFilter.Unread, owner.state.filter)
+        yield()
+        assertTrue(owner.state.conversations.isEmpty())
+        assertEquals("Network unavailable", owner.state.errorMessage)
+    }
+
+    @Test
+    fun changingSearchInvalidatesAnInFlightResponseBeforeDebounce() = runBlocking {
+        val initial = CompletableDeferred<ApiResult<NovaConversationPage>>()
+        val latest = CompletableDeferred<ApiResult<NovaConversationPage>>()
+        val repository = ControlledInboxRepository(listOf(initial, latest))
+        val owner = InboxViewModel(
+            repository = repository, workScope = this, searchDebounceMillis = 0L,
+            autoLoad = false,
+        )
+        val job = launch { owner.loadInbox(search = "previous", reset = true, showSpinner = true) }
+        yield()
+
+        owner.onQueryChanged("current")
+        yield()
+        initial.complete(successPage(ids = listOf(44L)))
+        job.join()
+        assertTrue(owner.state.conversations.isEmpty())
+        assertEquals("current", owner.state.query)
+        latest.complete(successPage(ids = listOf(55L)))
+        yield()
+        assertEquals(listOf(55L), owner.state.conversations.map { it.id })
+    }
+
     private fun viewModel(repository: InboxRepository) = InboxViewModel(
         repository = repository,
         autoLoad = false,

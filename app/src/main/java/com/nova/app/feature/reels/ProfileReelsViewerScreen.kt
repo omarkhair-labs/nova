@@ -545,6 +545,8 @@ private fun ProfileViewerReelPage(
                     source = reel.author.avatarUrl,
                     fallbackText = reel.author.displayName,
                     size = 34.dp,
+                    plantupiaUserId = reel.author.id.takeIf { it > 0L },
+                    plantupiaAvatarVariant = reel.author.plantupiaAvatarVariant,
                 )
                 Column {
                     Text(

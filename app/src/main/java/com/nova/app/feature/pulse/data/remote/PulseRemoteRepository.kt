@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import com.nova.app.core.auth.NovaSessionStore
+import com.nova.app.core.auth.authenticatedRequest
 import com.nova.app.core.media.NovaVideoPreparer
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
@@ -239,7 +240,8 @@ class PulseRemoteRepository(
         onProgress: (Int?) -> Unit = {},
         expectedUserId: Long? = null,
     ): ApiResult<NovaPulse> {
-        if (!pulsePublishAccountMatches(expectedUserId, sessionStore.load()?.cachedUser?.id)) {
+        val origin = sessionStore.load() ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
+        if (!pulsePublishAccountMatches(expectedUserId, origin.cachedUser?.id)) {
             return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)
         }
         val cleanNote = note.trim()
@@ -252,7 +254,7 @@ class PulseRemoteRepository(
         }
 
         return try {
-            authenticatedCall(expectedUserId) { token ->
+            authenticatedCall(expectedUserId, origin = origin) { token ->
                 when (
                     val response = api.requestMultipart(
                         path = path,
@@ -428,46 +430,19 @@ class PulseRemoteRepository(
 
     private suspend fun <T> authenticatedCall(
         expectedUserId: Long? = null,
+        origin: NovaSessionStore.StoredSession? = sessionStore.load(),
         call: suspend (String) -> ApiResult<T>,
     ): ApiResult<T> {
-        val stored = sessionStore.load()
+        val stored = origin
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
         if (!pulsePublishAccountMatches(expectedUserId, stored.cachedUser?.id)) {
             return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)
         }
-
-        when (val first = call(stored.accessToken)) {
-            is ApiResult.Success -> return first
-            is ApiResult.Failure -> if (first.statusCode != 401) return first
-        }
-
-        return when (val refreshed = api.refresh(stored.refreshToken)) {
-            is ApiResult.Success -> {
-                if (!pulsePublishAccountMatches(expectedUserId, sessionStore.load()?.cachedUser?.id)) {
-                    return ApiResult.Failure(
-                        "This publish belongs to a different signed-in account.",
-                        409,
-                    )
-                }
-                sessionStore.updateAccessToken(refreshed.value)
-                when (val retried = call(refreshed.value)) {
-                    is ApiResult.Success -> retried
-                    is ApiResult.Failure -> {
-                        if (retried.statusCode == 401) sessionStore.clear()
-                        retried
-                    }
-                }
-            }
-
-            is ApiResult.Failure -> {
-                if (refreshed.statusCode == 400 || refreshed.statusCode == 401) {
-                    sessionStore.clear()
-                    ApiResult.Failure("Your session expired. Please log in again.", 401)
-                } else {
-                    refreshed
-                }
-            }
-        }
+        return sessionStore.authenticatedRequest(
+            stored = stored,
+            refresh = { api.refresh(stored.refreshToken) },
+            request = call,
+        )
     }
 }
 

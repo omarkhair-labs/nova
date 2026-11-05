@@ -39,6 +39,7 @@ def _author_payload(request, user):
         "username": user.username,
         "name": user.name,
         "avatar_url": _absolute_media_url(request, user.avatar),
+        "plantupia_avatar_variant": user.plantupia_avatar_variant,
     }
 
 

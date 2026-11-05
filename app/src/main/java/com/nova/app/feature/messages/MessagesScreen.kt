@@ -45,6 +45,7 @@ import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.feature.messages.inbox.InboxViewModel
 import com.nova.app.feature.messages.inbox.InboxFilter
 import com.nova.app.ui.components.NovaAvatar
+import com.nova.app.ui.components.PlantupiaAvatar
 import com.nova.app.ui.components.NovaBottomBar
 import com.nova.app.ui.components.NovaEmptyState
 import com.nova.app.ui.components.NovaErrorState
@@ -446,11 +447,21 @@ private fun ConversationRow(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                NovaAvatar(
-                    source = avatarSource,
-                    fallbackText = conversation.displayName,
-                    size = 50.dp,
-                )
+                if (conversation.isGroup) {
+                    NovaAvatar(
+                        source = avatarSource,
+                        fallbackText = conversation.displayName,
+                        size = 50.dp,
+                    )
+                } else {
+                    PlantupiaAvatar(
+                        userId = conversation.otherUser.id,
+                        displayName = conversation.displayName,
+                        photoUrl = conversation.otherUser.avatarUrl,
+                        size = 50.dp,
+                        chosenVariant = conversation.otherUser.plantupiaAvatarVariant,
+                    )
+                }
 
                 Column(modifier = Modifier.weight(1f)) {
                     Row(
