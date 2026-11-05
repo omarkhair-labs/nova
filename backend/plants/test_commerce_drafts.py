@@ -119,6 +119,26 @@ class CommerceDraftIsolationTests(DemoFixture, TestCase):
         self.assertEqual(receipt.status_code, 302, receipt.content)
         self.assertEqual(stock_balance(self.sku.pk), 4)
 
+    def test_staff_can_edit_draft_but_not_change_existing_count_identity(self):
+        self.client.force_login(self.staff)
+        self.count(3, reason="opening")
+        edited = self.client.post(reverse("company:commerce-product-edit", args=[self.product_draft.pk]), {
+            "name": "Authorized revised draft", "description": "Still internal only",
+            "kind": "plant", "reference_species": "", "image_description": "",
+        })
+        self.assertEqual(edited.status_code, 302, edited.content)
+        self.product_draft.refresh_from_db()
+        self.assertEqual(self.product_draft.name, "Authorized revised draft")
+        variant = self.client.post(reverse("company:commerce-sku-edit", args=[self.sku.pk]), {
+            "code": "P-COM-001", "option_label": "Revised medium",
+            "price": "465.00", "currency": "EGP",
+        })
+        self.assertEqual(variant.status_code, 302, variant.content)
+        self.sku.refresh_from_db()
+        self.assertEqual(self.sku.option_label, "Revised medium")
+        self.assertEqual(stock_balance(self.sku.pk), 3)
+        self.assertFalse(DemoOrder.objects.exists())
+
     def test_photo_alt_and_botanical_reference_rules_remain_strict(self):
         self.product_draft.kind = "planter"
         self.product_draft.reference_species = self.species
