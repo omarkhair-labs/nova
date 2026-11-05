@@ -1,5 +1,8 @@
 package com.nova.app.feature.plants
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -18,6 +21,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -373,6 +380,51 @@ internal fun PlantupiaNutritionEvidenceCard(
                 "This is product information, not a recommendation to feed your plant today.",
                 style = PlantupiaText.supporting,
             )
+        }
+    }
+}
+
+/**
+ * First-visit acknowledgment appears ONLY after the real server create returns
+ * a new plant ID. It does not impersonate staff botanical verification.
+ */
+@Composable
+internal fun PlantupiaArrivalCard(onOpenCare: () -> Unit, onDismiss: () -> Unit) {
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+    AnimatedVisibility(visible = visible, enter = fadeIn() + expandVertically()) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = Color(0xFFE6EDE2),
+            border = BorderStroke(1.dp, PlantupiaColors.border),
+            shape = RoundedCornerShape(21.dp),
+        ) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(13.dp),
+                ) {
+                    PlantupiaEditorialMark("plant", Modifier.size(59.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("A RECORD BEGINS", style = PlantupiaText.sectionLabel)
+                        Text("A place for this plant", style = PlantupiaText.editorialHeading)
+                        Text(
+                            "Your plant is saved in your private space. You can add a real observation or choose a check-in day.",
+                            style = PlantupiaText.supporting,
+                        )
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.material3.TextButton(
+                        onClick = onOpenCare,
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    ) { Text("Explore care →", color = PlantupiaColors.forest) }
+                    androidx.compose.material3.TextButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    ) { Text("Not now", color = PlantupiaColors.secondaryText) }
+                }
+            }
         }
     }
 }
