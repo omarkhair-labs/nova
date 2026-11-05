@@ -610,6 +610,7 @@ internal fun PlantupiaQaShop(
     modifier: Modifier = Modifier,
 ) {
     var products by remember { mutableStateOf(emptyList<JSONObject>()) }
+    var catalogLoaded by remember { mutableStateOf(false) }
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
     val selected = products.firstOrNull { it.optString("id") == selectedId }
     var linkedOrder by remember { mutableStateOf<JSONObject?>(null) }
@@ -652,6 +653,7 @@ internal fun PlantupiaQaShop(
     }
     LaunchedEffect(refresh, screen) {
         error = null
+        if (screen == "catalog") catalogLoaded = false
         val path = when (screen) {
             "cart", "review" -> "cart/"
             "orders" -> "demo/orders/"
@@ -666,9 +668,15 @@ internal fun PlantupiaQaShop(
                     if (result.value.has("lines")) linkedOrder = result.value
                     else orders = result.value.demoRows()
                 }
-                else -> products = result.value.demoRows()
+                else -> { products = result.value.demoRows(); catalogLoaded = true }
             }
-            is ApiResult.Failure -> if (repository.isCurrentSession()) error = result.message
+            is ApiResult.Failure -> if (repository.isCurrentSession()) {
+                error = result.message
+                if (screen == "catalog") {
+                    catalogLoaded = false
+                    products = emptyList()
+                }
+            }
         }
     }
     androidx.activity.compose.BackHandler(enabled = fullPage && (selectedId != null || screen != "catalog")) {
@@ -957,11 +965,16 @@ internal fun PlantupiaQaShop(
                                     it.contains(searchText.trim(), ignoreCase = true)
                                 })
                         }
-                        if (visible.isEmpty()) {
-                            PlantupiaShopEmptyResults(
-                                hasAnyProducts = products.isNotEmpty(),
-                                searchActive = searchText.isNotBlank(),
-                            )
+                        if (visible.isEmpty() && error == null) {
+                            if (!catalogLoaded) {
+                                LinearProgressIndicator(Modifier.fillMaxWidth())
+                                Text("Loading catalogue…", style = PlantupiaText.supporting)
+                            } else {
+                                PlantupiaShopEmptyResults(
+                                    hasAnyProducts = products.isNotEmpty(),
+                                    searchActive = searchText.isNotBlank(),
+                                )
+                            }
                         }
                         // One product family in discovery; selection of its exact
                         // priced SKU happens inside the detail page.
