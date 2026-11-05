@@ -2,9 +2,17 @@ from django.urls import path
 from . import company_views as views
 from . import company_demo as demo
 from . import catalog_bulk_import as catalog_import
+from . import commerce_company as commerce
 
 app_name = "company"
 urlpatterns = [
+    path("commerce/products/", commerce.products, name="commerce-products"),
+    path("commerce/products/new/", commerce.product_create, name="commerce-product-create"),
+    path("commerce/products/<uuid:product_id>/", commerce.product_detail, name="commerce-product"),
+    path("commerce/products/<uuid:product_id>/variants/new/", commerce.sku_create, name="commerce-sku-create"),
+    path("commerce/stock/", commerce.stock_ledger, name="commerce-stock"),
+    path("commerce/stock/locations/new/", commerce.location_create, name="commerce-location-create"),
+    path("commerce/stock/<uuid:sku_id>/count/", commerce.stock_count, name="commerce-stock-count"),
     path("plans/", demo.plans, name="plans"),
     path("plans/new/", demo.plan_create, name="plan-create"),
     path("plans/<uuid:plan_id>/", demo.plan_review, name="plan-review"),
