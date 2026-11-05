@@ -7,7 +7,8 @@
     <h1>{{ product.name }}</h1>
     <p class="lead">{{ product.description|default:"Awaiting approved product copy." }}</p>
   </div>
-  <span class="badge draft">Draft · no checkout</span>
+  <div class="actions"><span class="badge draft">Draft · no checkout</span>
+    {% if perms.plants.change_commerceproduct %}<a class="button" href="{% url 'company:commerce-product-edit' product.pk %}">Edit product</a>{% endif %}</div>
 </div>
 <div class="two-column">
   <section class="panel padded">
@@ -31,6 +32,7 @@
           <strong>{{ sku.code }}</strong>
           <small>{{ sku.option_label|default:"Standard option" }} · {{ sku.currency }} {{ sku.price }}</small>
           <small>{{ sku.counted_balance }} counted units, not reserved stock</small>
+          {% if perms.plants.change_commercesku %}<a href="{% url 'company:commerce-sku-edit' sku.pk %}">Edit draft variant →</a>{% endif %}
         </div>
         {% if perms.plants.add_commercestockmovement and perms.plants.view_commercestockmovement %}
           <a href="{% url 'company:commerce-stock-count' sku.pk %}">Record count →</a>
