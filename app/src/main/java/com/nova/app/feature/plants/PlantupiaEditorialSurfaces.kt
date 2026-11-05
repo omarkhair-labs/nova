@@ -297,3 +297,82 @@ internal fun PlantupiaShopEmptyResults(hasAnyProducts: Boolean, searchActive: Bo
         }
     }
 }
+
+@Composable
+internal fun PlantupiaShopPriceBand(currency: String, price: String, qaStock: Int) {
+    Surface(
+        color = Color(0xFFE9EDE3),
+        shape = RoundedCornerShape(18.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("PREVIEW PRODUCT PRICE", style = PlantupiaText.sectionLabel)
+                Text("$currency $price", style = PlantupiaText.editorialHeading)
+            }
+            Text(
+                if (qaStock > 0) "$qaStock in QA stock" else "Unavailable in QA",
+                style = PlantupiaText.supporting,
+            )
+        }
+    }
+}
+
+/** Label-led product content; never a prescription for the customer's plant. */
+@Composable
+internal fun PlantupiaNutritionEvidenceCard(
+    label: String,
+    directions: String,
+    cautions: String,
+    sourceReference: String,
+    hasSourceLink: Boolean,
+    onOpenSource: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = Color(0xFFF0F0DD),
+        shape = RoundedCornerShape(22.dp),
+        border = BorderStroke(1.dp, Color(0xFFD9DAB8)),
+    ) {
+        Column(
+            Modifier.padding(17.dp),
+            verticalArrangement = Arrangement.spacedBy(11.dp),
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                PlantupiaEditorialMark("care", Modifier.size(51.dp), Color(0xFF657844))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("PLANT NUTRITION · PRODUCT LABEL", style = PlantupiaText.sectionLabel)
+                    Text("Read before using", style = PlantupiaText.editorialHeading)
+                }
+            }
+            if (label.isNotBlank()) Text(label, style = PlantupiaText.body)
+            if (directions.isNotBlank()) {
+                Text("MANUFACTURER'S DIRECTIONS", style = PlantupiaText.sectionLabel)
+                Text(directions, style = PlantupiaText.body)
+            }
+            if (cautions.isNotBlank()) {
+                Text("PRECAUTIONS", style = PlantupiaText.sectionLabel.copy(color = Color(0xFF8A5734)))
+                Text(cautions, style = PlantupiaText.body)
+            }
+            if (sourceReference.isNotBlank()) {
+                if (hasSourceLink) {
+                    androidx.compose.material3.TextButton(
+                        onClick = onOpenSource,
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    ) { Text("Manufacturer source · $sourceReference", color = PlantupiaColors.forest) }
+                } else Text("Source · $sourceReference", style = PlantupiaText.supporting)
+            }
+            Text(
+                "This is product information, not a recommendation to feed your plant today.",
+                style = PlantupiaText.supporting,
+            )
+        }
+    }
+}
