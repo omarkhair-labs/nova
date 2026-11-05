@@ -132,8 +132,9 @@ internal fun PlantupiaAssistantSheet(
                 } }
                     if (bubbles.isEmpty()) item {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("What's happening with your plant?", style = PlantupiaText.editorialHeading)
-                            Text("Describe a change, or choose a question.", style = PlantupiaText.supporting)
+                            if (plant == null) PlantupiaAiIntro()
+                            else Text("What's happening with " + plant.name + "?", style = PlantupiaText.editorialHeading)
+                            Text("Describe what you see, or start with a question.", style = PlantupiaText.supporting)
                             listOf(
                                 "What should I check before watering?",
                                 "Why are the leaf tips turning brown?",
