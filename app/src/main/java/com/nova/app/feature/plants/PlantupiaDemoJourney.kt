@@ -1,6 +1,8 @@
 package com.nova.app.feature.plants
 
 import android.Manifest
+import android.content.Intent
+import android.net.Uri
 import android.content.pm.PackageManager
 import android.os.Build
 import android.graphics.BitmapFactory
@@ -46,6 +48,7 @@ import com.nova.app.feature.plants.data.PlantupiaPlant
 import com.nova.app.feature.plants.data.PlantupiaRepository
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import java.util.UUID
 
 private val demoForest = Color(0xFF123B2E)
 private val demoPaper = Color(0xFFFFFDF7)
@@ -292,6 +295,24 @@ internal fun PlantupiaInspectionPanel(
             var note by rememberSaveable { mutableStateOf("") }
             var finding by rememberSaveable { mutableStateOf<String?>(null) }
             var noteExpanded by rememberSaveable { mutableStateOf(note.isNotBlank()) }
+            var photoUriString by rememberSaveable { mutableStateOf<String?>(null) }
+            var photoClientId by rememberSaveable { mutableStateOf(UUID.randomUUID().toString()) }
+            var pendingPhotoEventId by rememberSaveable { mutableStateOf<String?>(null) }
+            var evidenceFeedback by rememberSaveable { mutableStateOf<String?>(null) }
+            val photoPicker = rememberLauncherForActivityResult(
+                ActivityResultContracts.OpenDocument(),
+            ) { picked ->
+                if (picked != null) {
+                    runCatching {
+                        context.contentResolver.takePersistableUriPermission(
+                            picked, Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                        )
+                    }
+                    photoUriString = picked.toString()
+                    evidenceFeedback = null
+                    photoClientId = UUID.randomUUID().toString()
+                }
+            }
             var date by rememberSaveable(plan.getString("next_due_on")) { mutableStateOf(plan.getString("next_due_on")) }
             var busy by remember { mutableStateOf(false) }
             var open by remember { mutableStateOf(false) }
@@ -325,6 +346,28 @@ internal fun PlantupiaInspectionPanel(
                 if (accepted) enableReminder()
                 else reminderFeedback = "Notifications are off. Your check remains visible in the app."
             }
+            suspend fun uploadPendingEvidence(eventId: String): Boolean {
+                val uri = photoUriString?.let(Uri::parse) ?: return true
+                val result = repository.attachInspectionPhoto(
+                    plant.id, eventId, photoClientId, uri,
+                )
+                if (!repository.isCurrentSession()) return false
+                return when (result) {
+                    is ApiResult.Success -> {
+                        photoUriString = null
+                        pendingPhotoEventId = null
+                        evidenceFeedback = "Photo attached to the same saved observation."
+                        photoClientId = UUID.randomUUID().toString()
+                        onRecorded()
+                        true
+                    }
+                    is ApiResult.Failure -> {
+                        evidenceFeedback = "Observation saved, but the photo was not attached. " +
+                            "Retry only the photo, not the inspection. " + result.message
+                        false
+                    }
+                }
+            }
             fun submit(action: String) {
                 if (busy) return
                 busy = true
@@ -353,13 +396,24 @@ internal fun PlantupiaInspectionPanel(
                                     enabled = true, valid = plan.optBoolean("valid"),
                                 )
                             }
+                            if (action == "complete") {
+                                val eventId = result.value.optString("event_id")
+                                onRecorded() // The observation itself is already persisted.
+                                if (photoUriString != null && eventId.isNotBlank()) {
+                                    pendingPhotoEventId = eventId
+                                    uploadPendingEvidence(eventId)
+                                } else if (photoUriString != null) {
+                                    evidenceFeedback = "Observation saved. Photo acknowledgement is missing; " +
+                                        "reopen Living History before selecting a new inspection."
+                                    photoUriString = null
+                                }
+                            }
                             finding = null
                             note = ""
                             noteExpanded = false
                             open = false
                             manage = false
                             refresh++
-                            if (action == "complete") onRecorded()
                         }
                         is ApiResult.Failure -> if (repository.isCurrentSession()) {
                             error = result.message
@@ -371,6 +425,45 @@ internal fun PlantupiaInspectionPanel(
             }
             DemoCard {
                 Text(plan.optString("action"), style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
+                pendingPhotoEventId?.let { eventId ->
+                    Surface(
+                        color = Color(0xFFFFF0D7),
+                        shape = RoundedCornerShape(16.dp),
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(13.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                "Your inspection is saved. Its optional photo still needs attention.",
+                                style = PlantupiaText.body,
+                            )
+                            Text(evidenceFeedback.orEmpty(), style = PlantupiaText.supporting)
+                            TextButton(
+                                enabled = !busy,
+                                onClick = {
+                                    busy = true
+                                    scope.launch {
+                                        uploadPendingEvidence(eventId)
+                                        busy = false
+                                    }
+                                },
+                            ) { Text("Retry photo only") }
+                            TextButton(
+                                enabled = !busy,
+                                onClick = {
+                                    pendingPhotoEventId = null
+                                    photoUriString = null
+                                    evidenceFeedback = "Photo omitted. Saved observation remains in Living History."
+                                    photoClientId = UUID.randomUUID().toString()
+                                },
+                            ) { Text("Keep observation without photo") }
+                        }
+                    }
+                }
+                if (pendingPhotoEventId == null && !evidenceFeedback.isNullOrBlank()) {
+                    Text(evidenceFeedback.orEmpty(), style = PlantupiaText.supporting)
+                }
                 if (!plan.optBoolean("valid")) {
                     Text("This plan is paused. Its source or verified plant identity needs company review.",
                         style = PlantupiaText.supporting)
@@ -452,8 +545,41 @@ internal fun PlantupiaInspectionPanel(
                                     enabled = !busy, modifier = Modifier.fillMaxWidth(),
                                 )
                             }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(9.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                TextButton(
+                                    enabled = !busy && pendingPhotoEventId == null,
+                                    onClick = {
+                                        photoPicker.launch(arrayOf("image/jpeg", "image/png", "image/webp"))
+                                    },
+                                    modifier = Modifier.heightIn(min = 48.dp),
+                                ) {
+                                    Text(
+                                        if (photoUriString == null) "Add an evidence photo (optional)"
+                                        else "Change selected photo",
+                                        color = demoForest,
+                                    )
+                                }
+                                if (photoUriString != null && pendingPhotoEventId == null) {
+                                    TextButton(
+                                        enabled = !busy,
+                                        onClick = { photoUriString = null; evidenceFeedback = null },
+                                        modifier = Modifier.heightIn(min = 48.dp),
+                                    ) { Text("Remove", color = demoForest) }
+                                }
+                            }
+                            if (photoUriString != null) {
+                                Text(
+                                    "Selected photo stays private. It will be attached to this real observation after it saves.",
+                                    style = PlantupiaText.supporting,
+                                )
+                            }
                             Button(
-                                enabled = !busy && (finding != null || note.isNotBlank()),
+                                enabled = !busy && pendingPhotoEventId == null &&
+                                    (finding != null || note.isNotBlank()),
                                 onClick = { submit("complete") },
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                             ) { Text("Save check to Living History") }
