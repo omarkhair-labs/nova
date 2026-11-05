@@ -1044,12 +1044,10 @@ internal fun PlantupiaQaShop(
                 else -> {
                     val product = selected
                     if (product == null) {
-                        Text("Objects for a living space", style = PlantupiaText.editorialHeading)
                         Text(
-                            "Browse the available collection. Product names, media and label details come from the Shop catalogue.",
+                            "QA preview · catalogue items only, no payment or delivery",
                             style = PlantupiaText.supporting,
                         )
-                        Text("QA preview · illustrative prices, no payment or delivery", style = PlantupiaText.sectionLabel)
                         OutlinedTextField(
                             value = searchText,
                             onValueChange = { searchText = it.take(80) },
@@ -1121,6 +1119,20 @@ internal fun PlantupiaQaShop(
                             item.optString("family_key").takeIf { it.isNotBlank() }?.let {
                                 "family:" + item.optString("kind") + ":" + it
                             } ?: "sku:" + item.getString("id")
+                        }
+                        if (catalogLoaded && error == null && familyPreview.isNotEmpty()) {
+                            Text(
+                                "${familyPreview.size} ${if (category == "plant") "plant" else "product"} " +
+                                    "listing${if (familyPreview.size == 1) "" else "s"}",
+                                style = PlantupiaText.sectionLabel,
+                            )
+                        }
+                        if (catalogLoaded && category == "plant" && familyPreview.isEmpty() && error == null) {
+                            Text(
+                                "Plant products haven't been added to this QA catalogue. " +
+                                    "The plants in My Plants are personal records, not Shop stock.",
+                                style = PlantupiaText.supporting,
+                            )
                         }
                         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                             val columns = plantupiaShopProductColumns(
