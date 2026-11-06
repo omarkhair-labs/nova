@@ -37,7 +37,7 @@ def qa_requests(request):
         qs = qs.filter(Q(contact_name__icontains=query) | Q(city__icontains=query) |
                        Q(customer__username__icontains=query))
     return page(request, "commerce_qa_requests", {
-        "title": "B2C request review (QA)", "section": "commerce_qa_requests",
+        "title": "B2C request review (QA)", "section": "commerce_qa_requests", "commerce_qa_requests_enabled": True,
         "records": paginated(request, qs.order_by("-created_at")), "state": state, "query": query,
     })
 
@@ -72,5 +72,5 @@ def qa_request_detail(request, order_id):
                 return redirect("company:commerce-qa-request", order_id=order.pk)
     return page(request, "commerce_qa_request", {
         "title": f"QA customer request {str(order.pk)[:8]}",
-        "section": "commerce_qa_requests", "order": order, "form": form,
+        "section": "commerce_qa_requests", "order": order, "form": form, "commerce_qa_requests_enabled": True,
     })
