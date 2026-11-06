@@ -3,6 +3,7 @@ from django import forms
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db.models import Q
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
 
@@ -50,6 +51,15 @@ class QAProgressForm(forms.Form):
         self.fields["action"].choices = [
             (key, names[key] + " (QA)") for key in available
         ]
+
+
+@portal("plants.view_commerceorderrequest", methods=("GET",))
+def qa_updates(request):
+    """Tiny same-account inbox alert, with no customer names, address or payment data."""
+    checkout.require_qa()
+    count = CommerceOrderRequest.objects.filter(staff_first_seen_at__isnull=True).count()
+    return JsonResponse({"new_requests": count, "qa_only": True})
+
 
 
 @portal("plants.view_commerceorderrequest", methods=("GET",))
