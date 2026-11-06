@@ -4,6 +4,7 @@ from django.db.models import Count
 from . import company_services as company
 from .company_views import page, portal
 from .commerce_checkout import enabled as qa_orders_enabled
+from .commerce_models import CommerceBusinessRFQ
 from .commerce_models import CommerceProduct, CommerceSKU, CommerceStockMovement, CommerceOrderRequest
 
 
@@ -19,6 +20,9 @@ def projects_home(request):
         "title": "B2B / Projects", "section": "projects_home",
         "counts": counts,
         "recent": batches.select_related("space").order_by("-created_at")[:5],
+        "rfq_new_count": CommerceBusinessRFQ.objects.filter(
+            staff_first_seen_at__isnull=True).count()
+            if qa_orders_enabled() and request.user.has_perm("plants.view_commercebusinessrfq") else None,
     })
 
 
