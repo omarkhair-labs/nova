@@ -101,3 +101,30 @@ class QACommerceRequestView(QARequestView):
         return Response(checkout.customer_order_json(
             checkout.get_customer_request(request.user, order_id)
         ))
+
+
+class QACommerceCatalogView(QARequestView):
+    """Minimal opt-in QA catalogue for Android form testing; never a public offer."""
+    def get(self, request):
+        from .commerce_models import CommerceSKU
+        from .commerce_services import stock_balance
+        checkout.require_qa()
+        if request.user.is_staff or not request.user.is_active:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        skus = CommerceSKU.objects.select_related("product").order_by("code")[:100]
+        results = []
+        for sku in skus:
+            balance = stock_balance(sku.pk)
+            if balance < 1:
+                continue
+            results.append({
+                "id": str(sku.pk), "sku": sku.code, "product_name": sku.product.name,
+                "option": sku.option_label, "price": str(sku.price),
+                "currency": sku.currency, "qa_counted_stock": balance,
+                "kind": sku.product.kind, "qa_only": True,
+            })
+        return Response({
+            "results": results, "qa_only": True,
+            "notice": "Internal QA catalogue only. Prices are provisional; no checkout, payment or delivery."
+        })
