@@ -98,7 +98,7 @@ class CommerceQARequestsTests(DemoFixture, TestCase):
         self.assertEqual(CommerceOrderRequest.objects.count(), 1)
 
     def test_customer_can_only_read_own_request_not_another_account(self):
-        order_id = self.submit()["data"]["id"] if False else self.submit().data["id"]
+        order_id = self.submit().data["id"]
         detail_url = reverse("plantupia-commerce-qa-request", args=[order_id])
         self.assertEqual(self.api.get(detail_url).status_code, 200)
         self.api.force_authenticate(self.stranger)
