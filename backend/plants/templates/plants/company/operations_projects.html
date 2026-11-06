@@ -1,0 +1,47 @@
+{% extends "plants/company/base.html" %}
+{% block content %}
+<div class="page-heading">
+  <div><p class="eyebrow">01 / B2B · PROJECT DELIVERY</p><h1>Projects &amp; installations.</h1>
+    <p class="lead">One operational workspace for real site preparation, exact plant manifests, review and account-bound handover. RFQs and quotation acceptance are not live yet.</p></div>
+  {% if perms.plants.add_installationbatch %}<a class="button primary" href="{% url 'company:installation-create' %}">New installation +</a>{% endif %}
+</div>
+<div class="metrics">
+  <a class="metric" href="{% url 'company:installations' %}?status=draft"><span class="small-label">PREPARING</span><strong>{{ counts.draft }}</strong><span>Draft installations ↗</span></a>
+  <a class="metric" href="{% url 'company:installations' %}?status=ready"><span class="small-label">REVIEWED</span><strong>{{ counts.ready }}</strong><span>Ready for handover ↗</span></a>
+  <a class="metric" href="{% url 'company:installations' %}?status=claimed"><span class="small-label">CONNECTED</span><strong>{{ counts.claimed }}</strong><span>Claimed by recipient ↗</span></a>
+</div>
+<div class="installation-grid">
+  {% if rfq_new_count != None %}
+  <article class="installation-card">
+    <p class="small-label">B2B · QUOTES</p>
+    <h2>{{ rfq_new_count }} new RFQs</h2>
+    <p>Short customer enquiries and nonbinding QA quotations. Review in one place.</p>
+    <div class="card-bottom"><span>Awaiting your response</span>
+      <a href="{% url 'company:business-rfqs' %}">Open business RFQs →</a></div>
+  </article>{% endif %}
+  <article class="installation-card">
+    <p class="small-label">STEP 01 / PREPARE</p><h2>Installations</h2><p>Create a project space and bring in the actual plants. No fictional inventory.</p>
+    <div class="card-bottom"><span>Live workspace</span><a href="{% url 'company:installations' %}">Open installations →</a></div>
+  </article>
+  {% if can_inventory %}<article class="installation-card">
+    <p class="small-label">STEP 02 / VERIFY</p><h2>Plant inventory</h2><p>Physical site plants, their recorded placement and independent species review.</p>
+    <div class="card-bottom"><span>Installed plants only</span><a href="{% url 'company:inventory' %}">Open inventory →</a></div>
+  </article>{% endif %}
+  {% if can_handovers %}<article class="installation-card">
+    <p class="small-label">STEP 03 / CONNECT</p><h2>QR handovers</h2><p>Issue a one-use invitation only after reviewing real site inventory.</p>
+    <div class="card-bottom"><span>Recipient-bound</span><a href="{% url 'company:handovers' %}">Open handovers →</a></div>
+  </article>{% endif %}
+</div>
+<section class="panel padded history">
+  <p class="eyebrow">RECENT REAL INSTALLATION RECORDS</p><h2>What's in progress</h2>
+  {% for batch in recent %}
+    <a class="record-row" href="{% url 'company:installation' batch.pk %}">
+      <span class="grow"><strong>{{ batch.space.name }}</strong><small>{{ batch.reference_code }}</small></span>
+      <span class="badge">{{ batch.get_status_display }}</span>
+    </a>
+  {% empty %}
+    <div class="empty compact"><p>No installation records in your authorized workspace.</p></div>
+  {% endfor %}
+</section>
+<div class="notice">B2B RFQ, quotations, purchase orders, multi-site scheduling and commercial fulfillment are separate planned workflows; no operational records are invented for them.</div>
+{% endblock %}

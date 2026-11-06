@@ -1,0 +1,62 @@
+{% extends 'plants/company/base.html' %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">WAREHOUSE COUNT / INTERNAL ONLY</p>
+    <h1>Counted SKU stock.</h1>
+    <p class="lead">Physical warehouse quantities of draft commerce SKUs. This is NOT installed PlantUnit inventory, an order reservation, a payment record or proof of shipment.</p>
+  </div>
+  {% if perms.plants.add_commercestocklocation %}
+    <a class="button primary" href="{% url 'company:commerce-location-create' %}">New stock location +</a>
+  {% endif %}
+</div>
+<div class="notice warning">Stock counts can be adjusted by authorized staff only. Commercial checkout remains disabled.</div>
+<div class="two-column">
+  <section class="panel">
+    <div class="panel-heading"><div><p class="eyebrow">EXACT SKU</p><h2>Stock balance</h2></div></div>
+    {% for sku in stock %}
+      <div class="record-row">
+        <span class="record-icon botanical">❧</span>
+        <span class="grow">
+          <strong>{{ sku.code }} · {{ sku.product.name }}</strong>
+          <small>{{ sku.option_label|default:"Standard option" }}</small>
+        </span>
+        <span class="badge">{{ sku.counted_balance|default_if_none:0 }} counted</span>
+        {% if perms.plants.add_commercestockmovement %}
+          <a href="{% url 'company:commerce-stock-count' sku.pk %}">Count →</a>
+        {% endif %}
+      </div>
+    {% empty %}
+      <div class="empty compact"><p>No commercial SKU yet. Create a draft product and variant first.</p></div>
+    {% endfor %}
+    {% include 'plants/company/pagination.html' %}
+  </section>
+  <section class="panel padded">
+    <p class="eyebrow">ACTIVE / INACTIVE LOCATIONS</p>
+    <h2>Stock locations</h2>
+    {% for location in locations %}
+      <div class="record-row">
+        <span class="grow"><strong>{{ location.name }}</strong><small>{{ location.code }}</small></span>
+        <span class="badge">{% if location.active %}Active{% else %}Inactive{% endif %}</span>
+      </div>
+    {% empty %}
+      <p class="fine">No count location yet. A warehouse or stock point must be registered first.</p>
+    {% endfor %}
+  </section>
+</div>
+<section class="panel">
+  <div class="panel-heading"><div><p class="eyebrow">AUDIT TRAIL</p><h2>Recent count movements</h2></div></div>
+  {% for entry in recent %}
+    <div class="record-row">
+      <span class="grow">
+        <strong>{{ entry.sku.code }} · {{ entry.get_reason_display }}</strong>
+        <small>{{ entry.location.name }} · {{ entry.reference_note }} · {{ entry.recorded_by.username }}</small>
+      </span>
+      <span class="badge">{{ entry.quantity_delta|stringformat:"+d" }} units</span>
+      <small>{{ entry.created_at|date:"j M Y H:i" }}</small>
+    </div>
+  {% empty %}
+    <div class="empty compact"><p>No stock movement has been recorded.</p></div>
+  {% endfor %}
+</section>
+{% endblock %}

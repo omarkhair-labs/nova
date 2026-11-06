@@ -477,6 +477,12 @@ class InventoryImportReceipt(models.Model):
         constraints = [models.UniqueConstraint(fields=("batch", "digest"), name="plant_inventory_import_identity")]
 
 
+# Commercial catalogue drafts and sellable stock are independent of DemoOrder and installed PlantUnit.
+from .commerce_models import (CommerceProduct, CommerceSKU, CommerceStockLocation,
+                              CommerceStockMovement, CommerceOrderRequest,
+                              CommerceOrderRequestLine, CommerceOrderStatusEvent,
+                              CommerceBusinessRFQ)  # noqa: E402,F401
+
 # Django discovers these additive domain models through this app's model entrypoint.
 from .demo_models import (CareInspectionPlan, CarePlanEnrollment, CarePlanDecision,
                          DemoOffer, DemoEntitlement, DemoMutation, ServiceRequest,

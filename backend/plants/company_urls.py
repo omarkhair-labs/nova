@@ -2,9 +2,29 @@ from django.urls import path
 from . import company_views as views
 from . import company_demo as demo
 from . import catalog_bulk_import as catalog_import
+from . import commerce_company as commerce
+from . import company_operations as operations
+from . import commerce_requests_company as commerce_requests
+from . import commerce_rfq_company as business
 
 app_name = "company"
 urlpatterns = [
+    path("projects/", operations.projects_home, name="projects-home"),
+    path("projects/rfqs/", business.rfq_list, name="business-rfqs"),
+    path("projects/rfqs/<uuid:rfq_id>/", business.rfq_detail, name="business-rfq"),
+    path("commerce/", operations.commerce_home, name="commerce-home"),
+    path("commerce/qa/updates/", commerce_requests.qa_updates, name="commerce-qa-updates"),
+    path("commerce/qa/requests/", commerce_requests.qa_requests, name="commerce-qa-requests"),
+    path("commerce/qa/requests/<uuid:order_id>/", commerce_requests.qa_request_detail, name="commerce-qa-request"),
+    path("commerce/products/", commerce.products, name="commerce-products"),
+    path("commerce/products/new/", commerce.product_create, name="commerce-product-create"),
+    path("commerce/products/<uuid:product_id>/", commerce.product_detail, name="commerce-product"),
+    path("commerce/products/<uuid:product_id>/edit/", commerce.product_edit, name="commerce-product-edit"),
+    path("commerce/products/<uuid:product_id>/variants/new/", commerce.sku_create, name="commerce-sku-create"),
+    path("commerce/skus/<uuid:sku_id>/edit/", commerce.sku_edit, name="commerce-sku-edit"),
+    path("commerce/stock/", commerce.stock_ledger, name="commerce-stock"),
+    path("commerce/stock/locations/new/", commerce.location_create, name="commerce-location-create"),
+    path("commerce/stock/<uuid:sku_id>/count/", commerce.stock_count, name="commerce-stock-count"),
     path("plans/", demo.plans, name="plans"),
     path("plans/new/", demo.plan_create, name="plan-create"),
     path("plans/<uuid:plan_id>/", demo.plan_review, name="plan-review"),
