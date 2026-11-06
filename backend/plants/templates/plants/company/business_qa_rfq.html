@@ -1,0 +1,30 @@
+{% extends 'plants/company/base.html' %}
+{% block content %}
+<a class="back-link" href="{% url 'company:business-rfqs' %}">← Business RFQ inbox</a>
+<div class="page-heading"><div><p class="eyebrow">B2B · QA QUOTE ENQUIRY</p>
+<h1>{{ rfq.company_name }}</h1><p class="lead">{{ rfq.get_status_display }} · {{ rfq.created_at|date:"j M Y H:i" }}</p></div>
+<span class="badge draft">Nonbinding QA</span></div>
+<div class="two-column">
+<section class="panel padded"><p class="eyebrow">WHAT THE BUSINESS REQUESTED</p>
+<h2>{{ rfq.sku_snapshot|default:"Custom requirement" }}</h2>
+<p>Quantity: {{ rfq.quantity }} · City: {{ rfq.city }}</p>
+<p>{{ rfq.scope }}</p>
+<p class="fine">Optional product identity is a SKU, not a verified plant or an installation.</p></section>
+<section class="panel padded"><p class="eyebrow">CONTACT · AUTHORIZED STAFF</p>
+<h2>{{ rfq.contact_name }}</h2><p>{{ rfq.phone }}</p>
+{% if rfq.email %}<p>{{ rfq.email }}</p>{% endif %}
+<p class="fine">Requested by account {{ rfq.requester.username }}</p>
+</section></div>
+<section class="panel padded"><p class="eyebrow">REPLY WITH A SIMPLE QUOTE</p>
+{% if form and perms.plants.change_commercebusinessrfq %}
+<form class="fields form-panel" method="post">{% csrf_token %}{{ form.as_div }}
+<div class="form-actions"><button class="button primary" type="submit">Save QA reply</button></div></form>
+{% else %}
+<h2>{{ rfq.get_status_display }}</h2>
+{% if rfq.quoted_amount != None %}<p>QA estimate: EGP {{ rfq.quoted_amount }}</p>{% endif %}
+<p>{{ rfq.quote_note|default:"No notes." }}</p>
+{% if rfq.accepted_at %}<p>Customer acknowledged this quote on {{ rfq.accepted_at|date:"j M Y" }}.</p>{% endif %}
+{% endif %}
+<div class="notice warning">A quote reply or customer acknowledgment is not a binding purchase order. Staff may separately prepare an installation and QR only after physical plant inventory review.</div>
+</section>
+{% endblock %}
