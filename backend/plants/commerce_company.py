@@ -8,6 +8,7 @@ from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404, redirect
 
 from . import company_services as company, commerce_services as commerce
+from .commerce_checkout import enabled as qa_requests_enabled
 from .commerce_models import CommerceProduct, CommerceSKU, CommerceStockLocation, CommerceStockMovement
 from .company_views import page, paginated, portal
 from .media import sanitize_public_plant_photo
@@ -82,7 +83,7 @@ def products(request):
         qs = qs.filter(Q(name__icontains=q) | Q(variants__code__icontains=q)).distinct()
     return page(request, "commerce_catalog", {
         "title": "Commercial product drafts", "section": "commerce_products",
-        "records": paginated(request, qs.order_by("name", "id")), "query": q,
+        "records": paginated(request, qs.order_by("name", "id")), "query": q, "commerce_qa_requests_enabled": qa_requests_enabled(),
     })
 
 
@@ -143,7 +144,7 @@ def stock_ledger(request):
     return page(request, "commerce_stock", {
         "title": "Counted commercial stock", "section": "commerce_stock",
         "stock": paginated(request, stock), "recent": history.order_by("-created_at")[:20],
-        "locations": CommerceStockLocation.objects.order_by("code")[:30],
+        "locations": CommerceStockLocation.objects.order_by("code")[:30], "commerce_qa_requests_enabled": qa_requests_enabled(),
     })
 
 
