@@ -10,6 +10,7 @@
 
 <p class="nav-group-label">B2B · PROJECTS</p>
 <a href="{% url 'company:projects-home' %}" {% if section == 'projects_home' %}aria-current="page"{% endif %}>Projects workspace</a>
+{% if show_b2b_rfqs %}<a href="{% url 'company:business-rfqs' %}" {% if section == 'business_rfqs' %}aria-current="page"{% endif %}>Business RFQs · QA</a>{% endif %}
 <a href="{% url 'company:installations' %}" {% if section == 'installations' %}aria-current="page"{% endif %}>Installations</a>
 {% if can_inventory %}<a href="{% url 'company:inventory' %}" {% if section == 'inventory' %}aria-current="page"{% endif %}>Installed plant inventory</a>{% endif %}
 {% if can_handovers %}<a href="{% url 'company:handovers' %}" {% if section == 'handovers' %}aria-current="page"{% endif %}>QR handovers</a>{% endif %}
