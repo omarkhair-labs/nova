@@ -21,6 +21,9 @@
 {% if ceo_demo_enabled %}
 {% if perms.plants.view_careinspectionplan %}<a href="{% url 'company:plans' %}" {% if section == 'plans' %}aria-current="page"{% endif %}>Inspection plans</a>{% endif %}
 {% if perms.plants.manage_service_requests %}<a href="{% url 'company:support' %}" {% if section == 'support' %}aria-current="page"{% endif %}>Shared service requests</a>{% endif %}
+{% if commerce_qa_requests_enabled and perms.plants.view_commerceorderrequest %}
+<a href="{% url 'company:commerce-qa-requests' %}" {% if section == 'commerce_qa_requests' %}aria-current="page"{% endif %}>New B2C QA requests</a>
+{% endif %}
 <p class="nav-group-label">B2C COMMERCE · QA ONLY</p>
 {% if perms.plants.view_catalogproduct %}<a href="{% url 'company:catalog' %}" {% if section == 'catalog' %}aria-current="page"{% endif %}>QA catalog</a>{% endif %}
 {% if perms.plants.view_demoorder %}<a href="{% url 'company:orders' %}" {% if section == 'orders' %}aria-current="page"{% endif %}>QA orders</a>{% endif %}
