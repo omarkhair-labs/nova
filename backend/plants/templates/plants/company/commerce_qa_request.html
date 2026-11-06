@@ -32,6 +32,16 @@
     <p class="fine">Customer account: {{ order.customer.username }}</p>
     <p class="fine">Contact phone: {{ order.contact_phone }}</p>
     <p class="fine">Requested destination: {{ order.city }} — {{ order.delivery_address }}</p>
+    {% if order.building_details %}<p class="fine">Building / floor / apartment: {{ order.building_details }}</p>{% endif %}
+    {% if order.landmark %}<p class="fine">Nearby landmark: {{ order.landmark }}</p>{% endif %}
+    {% if order.delivery_pin_confirmed and order.delivery_latitude != None and order.delivery_longitude != None %}
+      <div class="subtle-panel">
+        <p class="eyebrow">CUSTOMER-CONFIRMED MAP PIN</p>
+        <p class="fine">Latitude {{ order.delivery_latitude }} · Longitude {{ order.delivery_longitude }}</p>
+        <a class="button" target="_blank" rel="noopener noreferrer" href="https://www.openstreetmap.org/?mlat={{ order.delivery_latitude }}&amp;mlon={{ order.delivery_longitude }}#map=17/{{ order.delivery_latitude }}/{{ order.delivery_longitude }}">View delivery pin on map ↗</a>
+        <p class="fine">The customer placed this pin. Staff must still validate the address before actual shipment.</p>
+      </div>
+    {% else %}<p class="fine">No map pin recorded for this older QA request.</p>{% endif %}
     <p class="fine">Requested payment method: {{ order.get_payment_preference_display }}</p>
     <p class="fine">Customer note: {{ order.customer_note|default:"None" }}</p>
     <p class="fine">No shipping coverage, cash collection, InstaPay beneficiary, courier or delivery schedule has been confirmed.</p>

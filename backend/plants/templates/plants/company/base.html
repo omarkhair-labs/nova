@@ -6,28 +6,30 @@
 {% block shell %}
 <aside class="sidebar"><a class="wordmark" href="{% url 'company:overview' %}"><span class="brand-mark" aria-hidden="true">p</span>Plantupia<span class="wordmark-sub">COMPANY WORKSPACE</span></a>
 <nav aria-label="Company navigation">
-<a href="{% url 'company:overview' %}" {% if section == 'overview' %}aria-current="page"{% endif %}><span aria-hidden="true">◫</span> Overview</a>
-<p class="nav-group-label">PROJECTS &amp; INSTALLATIONS</p>
-<a href="{% url 'company:installations' %}" {% if section == 'installations' %}aria-current="page"{% endif %}><span aria-hidden="true">▤</span> Installations</a>
-{% if can_inventory %}<a href="{% url 'company:inventory' %}" {% if section == 'inventory' %}aria-current="page"{% endif %}><span aria-hidden="true">❧</span> Installed plant inventory</a>{% endif %}
-{% if can_handovers %}<a href="{% url 'company:handovers' %}" {% if section == 'handovers' %}aria-current="page"{% endif %}><span aria-hidden="true">↗</span> QR handovers</a>{% endif %}
-<p class="nav-group-label">CARE &amp; SUPPORT</p>
-{% if can_care %}<a href="{% url 'company:care' %}" {% if section == 'care' %}aria-current="page"{% endif %}><span aria-hidden="true">▱</span> Care library</a>{% endif %}
-{% if perms.plants.view_commerceproduct or perms.plants.view_commercestockmovement %}
-<p class="nav-group-label">COMMERCIAL CATALOGUE · INTERNAL</p>
+<a href="{% url 'company:overview' %}" {% if section == 'overview' %}aria-current="page"{% endif %}><span aria-hidden="true">◫</span> Company overview</a>
+
+<p class="nav-group-label">B2B · PROJECTS</p>
+<a href="{% url 'company:projects-home' %}" {% if section == 'projects_home' %}aria-current="page"{% endif %}>Projects workspace</a>
+<a href="{% url 'company:installations' %}" {% if section == 'installations' %}aria-current="page"{% endif %}>Installations</a>
+{% if can_inventory %}<a href="{% url 'company:inventory' %}" {% if section == 'inventory' %}aria-current="page"{% endif %}>Installed plant inventory</a>{% endif %}
+{% if can_handovers %}<a href="{% url 'company:handovers' %}" {% if section == 'handovers' %}aria-current="page"{% endif %}>QR handovers</a>{% endif %}
+
+<p class="nav-group-label">B2C · SHOP &amp; ORDERS</p>
+<a href="{% url 'company:commerce-home' %}" {% if section == 'commerce_home' %}aria-current="page"{% endif %}>Commerce workspace</a>
 {% if perms.plants.view_commerceproduct %}<a href="{% url 'company:commerce-products' %}" {% if section == 'commerce_products' %}aria-current="page"{% endif %}>Product drafts / SKUs</a>{% endif %}
-{% if perms.plants.view_commercestockmovement %}<a href="{% url 'company:commerce-stock' %}" {% if section == 'commerce_stock' %}aria-current="page"{% endif %}>Counted warehouse stock</a>{% endif %}
+{% if perms.plants.view_commercestockmovement %}<a href="{% url 'company:commerce-stock' %}" {% if section == 'commerce_stock' %}aria-current="page"{% endif %}>Warehouse stock</a>{% endif %}
+{% if ceo_demo_enabled %}
+{% if commerce_qa_requests_enabled and perms.plants.view_commerceorderrequest %}<a href="{% url 'company:commerce-qa-requests' %}" {% if section == 'commerce_qa_requests' %}aria-current="page"{% endif %}>B2C request inbox · QA</a>{% endif %}
+{% if perms.plants.view_catalogproduct %}<a href="{% url 'company:catalog' %}" {% if section == 'catalog' %}aria-current="page"{% endif %}>Original QA catalog</a>{% endif %}
+{% if perms.plants.view_demoorder %}<a href="{% url 'company:orders' %}" {% if section == 'orders' %}aria-current="page"{% endif %}>Original QA orders</a>{% endif %}
 {% endif %}
+
+<p class="nav-group-label">CARE &amp; SUPPORT</p>
+{% if can_care %}<a href="{% url 'company:care' %}" {% if section == 'care' %}aria-current="page"{% endif %}>Botanical care library</a>{% endif %}
 {% if ceo_demo_enabled %}
 {% if perms.plants.view_careinspectionplan %}<a href="{% url 'company:plans' %}" {% if section == 'plans' %}aria-current="page"{% endif %}>Inspection plans</a>{% endif %}
-{% if perms.plants.manage_service_requests %}<a href="{% url 'company:support' %}" {% if section == 'support' %}aria-current="page"{% endif %}>Shared service requests</a>{% endif %}
-{% if commerce_qa_requests_enabled and perms.plants.view_commerceorderrequest %}
-<a href="{% url 'company:commerce-qa-requests' %}" {% if section == 'commerce_qa_requests' %}aria-current="page"{% endif %}>New B2C QA requests</a>
-{% endif %}
-<p class="nav-group-label">B2C COMMERCE · QA ONLY</p>
-{% if perms.plants.view_catalogproduct %}<a href="{% url 'company:catalog' %}" {% if section == 'catalog' %}aria-current="page"{% endif %}>QA catalog</a>{% endif %}
-{% if perms.plants.view_demoorder %}<a href="{% url 'company:orders' %}" {% if section == 'orders' %}aria-current="page"{% endif %}>QA orders</a>{% endif %}
-{% if perms.plants.view_demoentitlement %}<a href="{% url 'company:demo-access' %}" {% if section == 'access' %}aria-current="page"{% endif %}>QA access / plans</a>{% endif %}
+{% if perms.plants.manage_service_requests %}<a href="{% url 'company:support' %}" {% if section == 'support' %}aria-current="page"{% endif %}>Service requests</a>{% endif %}
+{% if perms.plants.view_demoentitlement %}<a href="{% url 'company:demo-access' %}" {% if section == 'access' %}aria-current="page"{% endif %}>QA access plans</a>{% endif %}
 {% endif %}
 </nav><div class="sidebar-note"><span class="small-label">A CONTINUOUS LIVING RECORD</span><p>Prepare carefully.<br>Review honestly.<br>Hand over with confidence.</p><span class="small-label">Transforming Spaces.<br>Inspiring People.</span></div></aside>
 <div class="workspace"><header class="topbar"><span class="environment"><span class="status-dot"></span>Isolated QA workspace</span><div class="account"><span>{{ request.user.username }}</span>{% if request.user.is_authenticated %}<form method="post" action="{% url 'company:logout' %}">{% csrf_token %}<button class="text-button" type="submit">Sign out</button></form>{% endif %}</div></header>

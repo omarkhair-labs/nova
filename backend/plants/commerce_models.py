@@ -141,6 +141,13 @@ class CommerceOrderRequest(models.Model):
     contact_phone = models.CharField(max_length=32)
     city = models.CharField(max_length=120)
     delivery_address = models.CharField(max_length=320)
+    # Customer-confirmed pin. Optional for compatibility with earlier QA requests;
+    # both coordinates must be present together, and are never inferred from free text.
+    delivery_latitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    delivery_longitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    delivery_pin_confirmed = models.BooleanField(default=False)
+    building_details = models.CharField(max_length=180, blank=True)
+    landmark = models.CharField(max_length=180, blank=True)
     customer_note = models.CharField(max_length=500, blank=True)
     payment_preference = models.CharField(max_length=20, choices=PaymentPreference.choices)
     provisional_subtotal = models.DecimalField(max_digits=12, decimal_places=2)
@@ -164,6 +171,17 @@ class CommerceOrderRequest(models.Model):
 
     def clean(self):
         super().clean()
+        has_lat = self.delivery_latitude is not None
+        has_lon = self.delivery_longitude is not None
+        if has_lat != has_lon:
+            raise ValidationError("Both pin coordinates are required together.")
+        if has_lat:
+            if not (-90 <= self.delivery_latitude <= 90 and -180 <= self.delivery_longitude <= 180):
+                raise ValidationError("The selected map location is outside valid coordinates.")
+            if not self.delivery_pin_confirmed:
+                raise ValidationError("Confirm the exact pin before submitting it.")
+        elif self.delivery_pin_confirmed:
+            raise ValidationError("A confirmed pin requires both map coordinates.")
         if self.provisional_subtotal is not None and self.provisional_subtotal < 0:
             raise ValidationError({"provisional_subtotal": "Subtotal cannot be negative."})
         if self.status != self.Status.SUBMITTED and (

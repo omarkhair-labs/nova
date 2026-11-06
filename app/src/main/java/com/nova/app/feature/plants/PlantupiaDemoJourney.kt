@@ -765,6 +765,7 @@ internal fun PlantupiaQaShop(
 ) {
     var products by remember { mutableStateOf(emptyList<JSONObject>()) }
     var catalogLoaded by remember { mutableStateOf(false) }
+    var commerceQaAvailable by remember { mutableStateOf(false) }
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
     val selected = products.firstOrNull { it.optString("id") == selectedId }
     var linkedOrder by remember { mutableStateOf<JSONObject?>(null) }
@@ -787,6 +788,9 @@ internal fun PlantupiaQaShop(
     var busy by remember { mutableStateOf(false) }
     var refresh by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
+    LaunchedEffect(accountId) {
+        commerceQaAvailable = repository.demoGet("commerce/qa/catalog/") is ApiResult.Success
+    }
     fun changeCart(productId: String, nextQuantity: Int) {
         if (busy) return
         busy = true
@@ -806,6 +810,7 @@ internal fun PlantupiaQaShop(
         }
     }
     LaunchedEffect(refresh, screen) {
+        if (screen == "commerce-qa") return@LaunchedEffect
         error = null
         if (screen == "catalog") catalogLoaded = false
         val path = when (screen) {
@@ -880,6 +885,7 @@ internal fun PlantupiaQaShop(
                             screen == "review" -> "Review your order"
                             screen == "orders" -> "Your orders"
                             screen == "order-detail" -> "Order details"
+                            screen == "commerce-qa" -> "Delivery request · QA"
                             else -> "Plants & essentials"
                         },
                         style = PlantupiaText.editorialHeading,
@@ -899,12 +905,16 @@ internal fun PlantupiaQaShop(
                 TextButton(onClick = { selectedId = null; screen = "orders" }) {
                     Text("My orders", color = demoForest)
                 }
+                if (commerceQaAvailable) TextButton(onClick = { selectedId = null; screen = "commerce-qa" }) {
+                    Text("Delivery request · QA", color = demoForest)
+                }
                 if (!fullPage) TextButton(onClick = onDismiss) { Text("Close", color = demoForest) }
             }
             if (screen == "review" || screen == "cart") {
                 Text("QA checkout only · illustrative prices · no payment or delivery", style = PlantupiaText.supporting)
             }
             when (screen) {
+                "commerce-qa" -> PlantupiaCommerceQaJourney(repository)
                 "cart", "review" -> cart?.let { quote ->
                     if (quote.demoRows().isEmpty()) Text("Your cart is empty.", style = PlantupiaText.supporting)
                     quote.demoRows().forEach { line ->

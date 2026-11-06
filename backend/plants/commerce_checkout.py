@@ -36,6 +36,11 @@ def _fingerprint(data):
         "city": data["city"].strip(),
         "delivery_address": data["delivery_address"].strip(),
         "customer_note": data.get("customer_note", "").strip(),
+        "delivery_latitude": str(data["delivery_latitude"]) if data.get("delivery_latitude") is not None else None,
+        "delivery_longitude": str(data["delivery_longitude"]) if data.get("delivery_longitude") is not None else None,
+        "delivery_pin_confirmed": data.get("delivery_pin_confirmed", False),
+        "building_details": data.get("building_details", "").strip(),
+        "landmark": data.get("landmark", "").strip(),
         "payment_preference": data["payment_preference"],
         "lines": sorted(
             [{"sku_id": str(line["sku_id"]), "quantity": int(line["quantity"])}
@@ -56,6 +61,10 @@ def customer_order_json(order):
         "customer": {
             "name": order.contact_name, "phone": order.contact_phone,
             "city": order.city, "address": order.delivery_address,
+            "building_details": order.building_details, "landmark": order.landmark,
+            "latitude": str(order.delivery_latitude) if order.delivery_latitude is not None else None,
+            "longitude": str(order.delivery_longitude) if order.delivery_longitude is not None else None,
+            "pin_confirmed": order.delivery_pin_confirmed,
         },
         "provisional_subtotal": str(order.provisional_subtotal),
         "shipping_fee": None, "final_total": None,
@@ -130,6 +139,11 @@ def submit_qa_request(user, data):
             city=data["city"].strip(),
             delivery_address=data["delivery_address"].strip(),
             customer_note=data.get("customer_note", "").strip(),
+            delivery_latitude=data.get("delivery_latitude"),
+            delivery_longitude=data.get("delivery_longitude"),
+            delivery_pin_confirmed=data.get("delivery_pin_confirmed", False),
+            building_details=data.get("building_details", "").strip(),
+            landmark=data.get("landmark", "").strip(),
             payment_preference=data["payment_preference"],
             provisional_subtotal=total,
         )

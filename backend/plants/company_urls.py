@@ -3,10 +3,13 @@ from . import company_views as views
 from . import company_demo as demo
 from . import catalog_bulk_import as catalog_import
 from . import commerce_company as commerce
+from . import company_operations as operations
 from . import commerce_requests_company as commerce_requests
 
 app_name = "company"
 urlpatterns = [
+    path("projects/", operations.projects_home, name="projects-home"),
+    path("commerce/", operations.commerce_home, name="commerce-home"),
     path("commerce/qa/requests/", commerce_requests.qa_requests, name="commerce-qa-requests"),
     path("commerce/qa/requests/<uuid:order_id>/", commerce_requests.qa_request_detail, name="commerce-qa-request"),
     path("commerce/products/", commerce.products, name="commerce-products"),

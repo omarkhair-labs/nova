@@ -37,6 +37,11 @@ class QAOrderRequestInput(serializers.Serializer):
     city = serializers.CharField(max_length=120, min_length=2, trim_whitespace=True)
     delivery_address = serializers.CharField(max_length=320, min_length=5, trim_whitespace=True)
     customer_note = serializers.CharField(max_length=500, allow_blank=True, required=False, trim_whitespace=True)
+    delivery_latitude = serializers.DecimalField(max_digits=10, decimal_places=7, required=False)
+    delivery_longitude = serializers.DecimalField(max_digits=10, decimal_places=7, required=False)
+    delivery_pin_confirmed = serializers.BooleanField(default=False)
+    building_details = serializers.CharField(max_length=180, required=False, allow_blank=True, trim_whitespace=True)
+    landmark = serializers.CharField(max_length=180, required=False, allow_blank=True, trim_whitespace=True)
     payment_preference = serializers.ChoiceField(choices=("cod", "manual_transfer"))
     confirm_qa_no_payment = serializers.BooleanField()
 
@@ -51,6 +56,20 @@ class QAOrderRequestInput(serializers.Serializer):
                 "Confirm this is an isolated QA request, not a purchase or payment."
             )
         return value
+
+    def validate(self, attrs):
+        lat = attrs.get("delivery_latitude")
+        lon = attrs.get("delivery_longitude")
+        if (lat is None) != (lon is None):
+            raise serializers.ValidationError("A selected map pin needs both coordinates.")
+        if lat is not None:
+            if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                raise serializers.ValidationError("Invalid geographic coordinate range.")
+            if not attrs.get("delivery_pin_confirmed"):
+                raise serializers.ValidationError("Confirm your exact pin before submission.")
+        elif attrs.get("delivery_pin_confirmed"):
+            raise serializers.ValidationError("Pin confirmation requires a map location.")
+        return attrs
 
     def validate_lines(self, value):
         ids = [entry["sku_id"] for entry in value]
@@ -82,3 +101,30 @@ class QACommerceRequestView(QARequestView):
         return Response(checkout.customer_order_json(
             checkout.get_customer_request(request.user, order_id)
         ))
+
+
+class QACommerceCatalogView(QARequestView):
+    """Minimal opt-in QA catalogue for Android form testing; never a public offer."""
+    def get(self, request):
+        from .commerce_models import CommerceSKU
+        from .commerce_services import stock_balance
+        checkout.require_qa()
+        if request.user.is_staff or not request.user.is_active:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        skus = CommerceSKU.objects.select_related("product").order_by("code")[:100]
+        results = []
+        for sku in skus:
+            balance = stock_balance(sku.pk)
+            if balance < 1:
+                continue
+            results.append({
+                "id": str(sku.pk), "sku": sku.code, "product_name": sku.product.name,
+                "option": sku.option_label, "price": str(sku.price),
+                "currency": sku.currency, "qa_counted_stock": balance,
+                "kind": sku.product.kind, "qa_only": True,
+            })
+        return Response({
+            "results": results, "qa_only": True,
+            "notice": "Internal QA catalogue only. Prices are provisional; no checkout, payment or delivery."
+        })
