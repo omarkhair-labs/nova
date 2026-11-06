@@ -1,6 +1,6 @@
 from django.urls import path
 from .assistant import PlantAssistantView
-from .commerce_api import QACommerceRequestsView, QACommerceRequestView, QACommerceCatalogView, QACommerceRequestActionView
+from .commerce_api import QACommerceRequestsView, QACommerceRequestView, QACommerceCatalogView, QACommerceRequestActionView, QACommerceRFQsView, QACommerceRFQAcceptView
 from .species_library import BotanicalSpeciesLibraryView, BotanicalSpeciesLibraryDetailView
 from .demo_api import (DemoAccessView, InspectionPlansView, InspectionActionView, InspectionPhotoView, ServiceRequestsView,
                        ServiceRequestView, CatalogView, CatalogImageView, CartView, DemoOrdersView, DemoOrderView)
@@ -19,6 +19,8 @@ urlpatterns = [
     path("service-requests/", ServiceRequestsView.as_view(), name="plantupia-service-requests"),
     path("service-requests/<uuid:ticket_id>/", ServiceRequestView.as_view(), name="plantupia-service-request"),
     path("commerce/qa/catalog/", QACommerceCatalogView.as_view(), name="plantupia-commerce-qa-catalog"),
+    path("commerce/qa/business/rfqs/", QACommerceRFQsView.as_view(), name="plantupia-commerce-b2b-qa-rfqs"),
+    path("commerce/qa/business/rfqs/<uuid:rfq_id>/accept/", QACommerceRFQAcceptView.as_view(), name="plantupia-commerce-b2b-qa-accept"),
     path("commerce/qa/requests/", QACommerceRequestsView.as_view(), name="plantupia-commerce-qa-requests"),
     path("commerce/qa/requests/<uuid:order_id>/", QACommerceRequestView.as_view(), name="plantupia-commerce-qa-request"),
     path("commerce/qa/requests/<uuid:order_id>/actions/", QACommerceRequestActionView.as_view(), name="plantupia-commerce-qa-request-action"),
