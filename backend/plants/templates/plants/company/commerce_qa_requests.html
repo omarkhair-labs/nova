@@ -3,12 +3,13 @@
 <div class="page-heading">
   <div>
     <p class="eyebrow">B2C / INTERNAL QA ONLY</p>
-    <h1>Customer request review.</h1>
+    <h1>Orders & tracking.</h1>
     <p class="lead">No-charge customer requests received from the separately gated QA API. Every price is provisional, and delivery availability has not been assessed.</p>
   </div>
   <span class="badge draft">Not commercial orders</span>
 </div>
-<div class="notice warning"><strong>No payment or fulfillment:</strong> COD and manual-transfer selections here are preferences only. No deposit, bank transfer, order acceptance or dispatch is supported.</div>
+<div class="notice"><strong id="new-order-alert">New requests to open: {{ new_alert_count }}</strong>. This is the Company in-app inbox for new QA orders. Open a request to clear its new marker. <a href="{% url 'company:commerce-qa-requests' %}">Refresh inbox</a>.</div>
+<div class="notice warning">Tracking statuses are QA-only. COD and manual transfer are preferences; no funds or actual delivery are registered.</div>
 <form class="filter-bar" method="get">
   <label for="commerce-qa-request-search">Find</label>
   <input id="commerce-qa-request-search" type="search" name="q" value="{{ query }}" placeholder="Contact / City / Account" maxlength="120">
@@ -17,6 +18,12 @@
     <option value="">All QA states</option>
     <option value="qa_submitted" {% if state == "qa_submitted" %}selected{% endif %}>Submitted</option>
     <option value="qa_reviewed" {% if state == "qa_reviewed" %}selected{% endif %}>Staff reviewed</option>
+    <option value="qa_preparing" {% if state == "qa_preparing" %}selected{% endif %}>Preparing</option>
+    <option value="qa_out_for_delivery" {% if state == "qa_out_for_delivery" %}selected{% endif %}>Out for delivery</option>
+    <option value="qa_delivered" {% if state == "qa_delivered" %}selected{% endif %}>Delivered</option>
+    <option value="qa_cancelled" {% if state == "qa_cancelled" %}selected{% endif %}>Cancelled</option>
+    <option value="qa_return_requested" {% if state == "qa_return_requested" %}selected{% endif %}>Return requested</option>
+    <option value="qa_returned" {% if state == "qa_returned" %}selected{% endif %}>Returned</option>
     <option value="qa_declined" {% if state == "qa_declined" %}selected{% endif %}>Declined</option>
   </select>
   <button class="button" type="submit">Filter</button>
@@ -27,6 +34,9 @@
       <span class="grow">
         <strong>{{ order.contact_name }} · {{ order.city }}</strong>
         <small>QA {{ order.pk|slice:":8" }} · {{ order.customer.username }} · {{ order.created_at|date:"j M Y H:i" }}</small>
+        {% if order.staff_first_seen_at == None %}<small><strong>● New request</strong></small>{% endif %}
+        {% if order.customer_cancel_requested_at %}<small>Cancellation requested</small>{% endif %}
+        {% if order.customer_return_requested_at %}<small>Return requested</small>{% endif %}
         <small>{{ order.lines.count }} SKU line{{ order.lines.count|pluralize }} · {{ order.get_payment_preference_display }}</small>
       </span>
       <span class="badge {% if order.status == "qa_submitted" %}draft{% endif %}">{{ order.get_status_display }}</span>
