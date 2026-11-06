@@ -198,8 +198,10 @@ internal fun PlantupiaDeliveryPinPicker(
                 .target(LatLng(startLat, startLon)).zoom(14.0).build()
             readyMap.addOnCameraIdleListener {
                 val center = readyMap.cameraPosition.target
-                latitude = center.latitude
-                longitude = center.longitude
+                if (center != null && validDeliveryPin(center.latitude, center.longitude)) {
+                    latitude = center.latitude
+                    longitude = center.longitude
+                }
             }
             readyMap.setStyle(MAP_STYLE) {
                 mapReady = true
