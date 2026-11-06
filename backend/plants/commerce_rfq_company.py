@@ -1,4 +1,5 @@
 """Business QA enquiries: one inbox, one staff quote action."""
+from decimal import Decimal
 from django import forms
 from django.contrib import messages
 from django.core.exceptions import ValidationError
@@ -14,7 +15,7 @@ from .company_views import page, portal, paginated
 class QuoteForm(forms.Form):
     token = forms.CharField(widget=forms.HiddenInput)
     action = forms.ChoiceField(choices=(("quote", "Send QA quote"), ("decline", "Decline request")))
-    amount = forms.DecimalField(required=False, min_value="0.01", max_digits=12,
+    amount = forms.DecimalField(required=False, min_value=Decimal("0.01"), max_digits=12,
         decimal_places=2, label="Quoted EGP amount",
         help_text="Required when sending a quote; draft nonbinding amount.")
     note = forms.CharField(required=False, max_length=800,
