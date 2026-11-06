@@ -1,0 +1,40 @@
+{% extends 'plants/company/base.html' %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">B2C / INTERNAL QA ONLY</p>
+    <h1>Customer request review.</h1>
+    <p class="lead">No-charge customer requests received from the separately gated QA API. Every price is provisional, and delivery availability has not been assessed.</p>
+  </div>
+  <span class="badge draft">Not commercial orders</span>
+</div>
+<div class="notice warning"><strong>No payment or fulfillment:</strong> COD and manual-transfer selections here are preferences only. No deposit, bank transfer, order acceptance or dispatch is supported.</div>
+<form class="filter-bar" method="get">
+  <label for="commerce-qa-request-search">Find</label>
+  <input id="commerce-qa-request-search" type="search" name="q" value="{{ query }}" placeholder="Contact / City / Account" maxlength="120">
+  <label for="commerce-qa-request-state">Status</label>
+  <select id="commerce-qa-request-state" name="status">
+    <option value="">All QA states</option>
+    <option value="qa_submitted" {% if state == "qa_submitted" %}selected{% endif %}>Submitted</option>
+    <option value="qa_reviewed" {% if state == "qa_reviewed" %}selected{% endif %}>Staff reviewed</option>
+    <option value="qa_declined" {% if state == "qa_declined" %}selected{% endif %}>Declined</option>
+  </select>
+  <button class="button" type="submit">Filter</button>
+</form>
+<section class="panel" aria-label="QA customer requests">
+  {% for order in records %}
+    <a class="record-row" href="{% url 'company:commerce-qa-request' order.pk %}">
+      <span class="grow">
+        <strong>{{ order.contact_name }} · {{ order.city }}</strong>
+        <small>QA {{ order.pk|slice:":8" }} · {{ order.customer.username }} · {{ order.created_at|date:"j M Y H:i" }}</small>
+        <small>{{ order.lines.count }} SKU line{{ order.lines.count|pluralize }} · {{ order.get_payment_preference_display }}</small>
+      </span>
+      <span class="badge {% if order.status == "qa_submitted" %}draft{% endif %}">{{ order.get_status_display }}</span>
+      <span>{{ order.provisional_subtotal }} EGP (excl. delivery) →</span>
+    </a>
+  {% empty %}
+    <div class="empty compact"><h2>No QA requests found.</h2><p>No customer has submitted an enabled QA intake request in this scope.</p></div>
+  {% endfor %}
+</section>
+{% include 'plants/company/pagination.html' %}
+{% endblock %}

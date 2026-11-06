@@ -3,9 +3,12 @@ from . import company_views as views
 from . import company_demo as demo
 from . import catalog_bulk_import as catalog_import
 from . import commerce_company as commerce
+from . import commerce_requests_company as commerce_requests
 
 app_name = "company"
 urlpatterns = [
+    path("commerce/qa/requests/", commerce_requests.qa_requests, name="commerce-qa-requests"),
+    path("commerce/qa/requests/<uuid:order_id>/", commerce_requests.qa_request_detail, name="commerce-qa-request"),
     path("commerce/products/", commerce.products, name="commerce-products"),
     path("commerce/products/new/", commerce.product_create, name="commerce-product-create"),
     path("commerce/products/<uuid:product_id>/", commerce.product_detail, name="commerce-product"),
