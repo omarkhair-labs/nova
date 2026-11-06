@@ -5,10 +5,13 @@ from . import catalog_bulk_import as catalog_import
 from . import commerce_company as commerce
 from . import company_operations as operations
 from . import commerce_requests_company as commerce_requests
+from . import commerce_rfq_company as business
 
 app_name = "company"
 urlpatterns = [
     path("projects/", operations.projects_home, name="projects-home"),
+    path("projects/rfqs/", business.rfq_list, name="business-rfqs"),
+    path("projects/rfqs/<uuid:rfq_id>/", business.rfq_detail, name="business-rfq"),
     path("commerce/", operations.commerce_home, name="commerce-home"),
     path("commerce/qa/updates/", commerce_requests.qa_updates, name="commerce-qa-updates"),
     path("commerce/qa/requests/", commerce_requests.qa_requests, name="commerce-qa-requests"),
