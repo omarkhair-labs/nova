@@ -165,6 +165,62 @@ class CommerceQARequestsTests(DemoFixture, TestCase):
         self.assertEqual(self.client.get(reverse("company:commerce-qa-requests")).status_code, 403)
         self.assertFalse(CommerceOrderRequest.objects.exists())
 
+    def test_map_pin_is_snapshotted_and_visible_to_owner_and_authorized_staff(self):
+        response = self.submit(
+            delivery_latitude="30.0444200", delivery_longitude="31.2357100",
+            delivery_pin_confirmed=True, building_details="QA building floor 2",
+            landmark="QA side entrance",
+        )
+        self.assertEqual(response.data["customer"]["latitude"], "30.0444200")
+        self.assertEqual(response.data["customer"]["longitude"], "31.2357100")
+        self.assertTrue(response.data["customer"]["pin_confirmed"])
+        order = CommerceOrderRequest.objects.get(pk=response.data["id"])
+        self.assertEqual(order.building_details, "QA building floor 2")
+        self.assertEqual(order.landmark, "QA side entrance")
+        self.client.force_login(self.staff)
+        details = self.client.get(reverse("company:commerce-qa-request", args=[order.pk]))
+        self.assertEqual(details.status_code, 200)
+        self.assertContains(details, "View delivery pin on map")
+        self.assertContains(details, "30.0444200")
+
+    def test_invalid_or_unconfirmed_location_is_rejected_without_request(self):
+        for payload in (
+            {"delivery_latitude": "30.0", "delivery_pin_confirmed": True},
+            {"delivery_latitude": "91.0", "delivery_longitude": "31.0", "delivery_pin_confirmed": True},
+            {"delivery_latitude": "30.0", "delivery_longitude": "181.0", "delivery_pin_confirmed": True},
+            {"delivery_latitude": "30.0", "delivery_longitude": "31.0", "delivery_pin_confirmed": False},
+            {"delivery_pin_confirmed": True},
+        ):
+            response = self.api.post(reverse("plantupia-commerce-qa-requests"),
+                self.body(**payload), format="json")
+            self.assertEqual(response.status_code, 400, response.data)
+        self.assertFalse(CommerceOrderRequest.objects.exists())
+
+    def test_replaying_id_with_different_pin_is_not_a_second_order(self):
+        request_id = str(uuid.uuid4())
+        one = self.submit(client_id=request_id, delivery_latitude="30.0000000",
+            delivery_longitude="31.0000000", delivery_pin_confirmed=True)
+        again = self.submit(client_id=request_id, delivery_latitude="30.0000000",
+            delivery_longitude="31.0000000", delivery_pin_confirmed=True)
+        self.assertEqual(one.data["id"], again.data["id"])
+        change_pin = self.api.post(reverse("plantupia-commerce-qa-requests"),
+            self.body(client_id=request_id, delivery_latitude="30.1000000",
+                delivery_longitude="31.0000000", delivery_pin_confirmed=True), format="json")
+        self.assertEqual(change_pin.status_code, 400)
+        self.assertEqual(CommerceOrderRequest.objects.count(), 1)
+
+    def test_qa_skus_are_visible_only_while_enabled_and_do_not_include_delivery_data(self):
+        response = self.api.get(reverse("plantupia-commerce-qa-catalog"))
+        self.assertEqual(response.status_code, 200)
+        row = response.data["results"][0]
+        self.assertEqual(row["sku"], "INT-QA-001")
+        self.assertTrue(row["qa_only"])
+        self.assertNotIn("delivery_address", str(response.data))
+        self.api.force_authenticate(self.staff)
+        self.assertEqual(self.api.get(reverse("plantupia-commerce-qa-catalog")).status_code, 403)
+        with patch.dict(os.environ, {"PLANTUPIA_COMMERCE_QA_REQUESTS_ENABLED": "0"}):
+            self.assertEqual(self.api.get(reverse("plantupia-commerce-qa-catalog")).status_code, 404)
+
     def test_staff_without_order_permission_cannot_view_or_review(self):
         self.submit()
         self.client.force_login(self.reviewer)
