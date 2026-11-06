@@ -480,7 +480,7 @@ class InventoryImportReceipt(models.Model):
 # Commercial catalogue drafts and sellable stock are independent of DemoOrder and installed PlantUnit.
 from .commerce_models import (CommerceProduct, CommerceSKU, CommerceStockLocation,
                               CommerceStockMovement, CommerceOrderRequest,
-                              CommerceOrderRequestLine)  # noqa: E402,F401
+                              CommerceOrderRequestLine, CommerceOrderStatusEvent)  # noqa: E402,F401
 
 # Django discovers these additive domain models through this app's model entrypoint.
 from .demo_models import (CareInspectionPlan, CarePlanEnrollment, CarePlanDecision,
