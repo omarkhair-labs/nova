@@ -810,7 +810,7 @@ internal fun PlantupiaQaShop(
         }
     }
     LaunchedEffect(refresh, screen) {
-        if (screen == "commerce-qa") return@LaunchedEffect
+        if (screen == "commerce-qa" || screen == "business-qa") return@LaunchedEffect
         error = null
         if (screen == "catalog") catalogLoaded = false
         val path = when (screen) {
@@ -886,6 +886,7 @@ internal fun PlantupiaQaShop(
                             screen == "orders" -> "Your orders"
                             screen == "order-detail" -> "Order details"
                             screen == "commerce-qa" -> "Delivery request · QA"
+                            screen == "business-qa" -> "For business · RFQ"
                             else -> "Plants & essentials"
                         },
                         style = PlantupiaText.editorialHeading,
@@ -908,6 +909,9 @@ internal fun PlantupiaQaShop(
                 if (commerceQaAvailable) TextButton(onClick = { selectedId = null; screen = "commerce-qa" }) {
                     Text("Delivery request · QA", color = demoForest)
                 }
+                if (commerceQaAvailable) TextButton(onClick = { selectedId = null; screen = "business-qa" }) {
+                    Text("For business · RFQ", color = demoForest)
+                }
                 if (!fullPage) TextButton(onClick = onDismiss) { Text("Close", color = demoForest) }
             }
             if (screen == "review" || screen == "cart") {
@@ -915,6 +919,7 @@ internal fun PlantupiaQaShop(
             }
             when (screen) {
                 "commerce-qa" -> PlantupiaCommerceQaJourney(repository)
+                "business-qa" -> PlantupiaBusinessQaJourney(repository)
                 "cart", "review" -> cart?.let { quote ->
                     if (quote.demoRows().isEmpty()) Text("Your cart is empty.", style = PlantupiaText.supporting)
                     quote.demoRows().forEach { line ->
