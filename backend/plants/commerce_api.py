@@ -128,3 +128,23 @@ class QACommerceCatalogView(QARequestView):
             "results": results, "qa_only": True,
             "notice": "Internal QA catalogue only. Prices are provisional; no checkout, payment or delivery."
         })
+
+
+class QACustomerOrderActionInput(serializers.Serializer):
+    action = serializers.ChoiceField(choices=("cancel", "return"))
+
+
+class QACommerceRequestActionView(QARequestView):
+    """Owner-scoped in-app cancellation/return request. No money is moved."""
+    def post(self, request, order_id):
+        from .commerce_tracking import customer_request_action
+        serializer = QACustomerOrderActionInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            order = customer_request_action(
+                customer=request.user, order_id=order_id,
+                action=serializer.validated_data["action"],
+            )
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages) from exc
+        return Response(checkout.customer_order_json(order))
