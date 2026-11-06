@@ -127,7 +127,13 @@ class CommerceOrderRequest(models.Model):
 
     class Status(models.TextChoices):
         SUBMITTED = "qa_submitted", "QA request submitted"
-        REVIEWED = "qa_reviewed", "QA staff reviewed — no sale accepted"
+        REVIEWED = "qa_reviewed", "QA reviewed"
+        PREPARING = "qa_preparing", "QA preparing"
+        OUT_FOR_DELIVERY = "qa_out_for_delivery", "QA out for delivery"
+        DELIVERED = "qa_delivered", "QA delivered"
+        CANCELLED = "qa_cancelled", "QA cancelled"
+        RETURN_REQUESTED = "qa_return_requested", "QA return requested"
+        RETURNED = "qa_returned", "QA returned"
         DECLINED = "qa_declined", "QA request declined"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -151,8 +157,16 @@ class CommerceOrderRequest(models.Model):
     customer_note = models.CharField(max_length=500, blank=True)
     payment_preference = models.CharField(max_length=20, choices=PaymentPreference.choices)
     provisional_subtotal = models.DecimalField(max_digits=12, decimal_places=2)
-    status = models.CharField(max_length=15, choices=Status.choices, default=Status.SUBMITTED)
+    status = models.CharField(max_length=22, choices=Status.choices, default=Status.SUBMITTED)
     review_note = models.CharField(max_length=500, blank=True)
+    # Staff-entered QA shipping quote; NULL always means "not yet quoted", never free.
+    qa_shipping_fee = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+        validators=[MinValueValidator(Decimal("0.00"))])
+    qa_tracking_reference = models.CharField(max_length=120, blank=True)
+    staff_first_seen_at = models.DateTimeField(null=True, blank=True)
+    customer_cancel_requested_at = models.DateTimeField(null=True, blank=True)
+    customer_return_requested_at = models.DateTimeField(null=True, blank=True)
+    last_status_at = models.DateTimeField(null=True, blank=True)
     reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
         related_name="plantupia_commerce_requests_reviewed",
@@ -182,6 +196,8 @@ class CommerceOrderRequest(models.Model):
                 raise ValidationError("Confirm the exact pin before submitting it.")
         elif self.delivery_pin_confirmed:
             raise ValidationError("A confirmed pin requires both map coordinates.")
+        if self.qa_shipping_fee is not None and self.qa_shipping_fee < 0:
+            raise ValidationError({"qa_shipping_fee": "Shipping cannot be negative."})
         if self.provisional_subtotal is not None and self.provisional_subtotal < 0:
             raise ValidationError({"provisional_subtotal": "Subtotal cannot be negative."})
         if self.status != self.Status.SUBMITTED and (
@@ -191,6 +207,24 @@ class CommerceOrderRequest(models.Model):
 
     def __str__(self):
         return f"QA commerce request {self.pk}"
+
+
+class CommerceOrderStatusEvent(models.Model):
+    """Customer-visible in-app timeline, never a payment or delivery proof."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.ForeignKey(CommerceOrderRequest, on_delete=models.PROTECT, related_name="status_events")
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="plantupia_commerce_order_status_events")
+    kind = models.CharField(max_length=40)
+    label = models.CharField(max_length=120)
+    note = models.CharField(max_length=320, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("created_at", "pk")
+
+    def __str__(self):
+        return f"{self.order_id}: {self.kind}"
 
 
 class CommerceOrderRequestLine(models.Model):

@@ -1238,3 +1238,13 @@ dd {
 
 /* Keep section labels in the desktop rail, not inside the horizontal mobile link strip. */
 @media(max-width:860px) { .sidebar .nav-group-label { display:none; } }
+
+/* Tiny in-account order notification: private count only, not a push claim. */
+.commerce-alert { display:inline-flex; gap:7px; align-items:center; padding:8px 12px;
+  border-radius:99px; color:#234433; background:#e6ebe3; text-decoration:none;
+  font-size:12px; font-weight:650; }
+.commerce-alert strong { min-width:20px; padding:2px 6px; text-align:center;
+  border-radius:99px; background:#d2ddcf; }
+.commerce-alert.has-new { background:#ecf3dd; color:#28492c; }
+.commerce-alert.has-new strong { background:#34533d; color:white; }
+@media (max-width:700px) { .commerce-alert { font-size:11px; padding:6px 8px; } }

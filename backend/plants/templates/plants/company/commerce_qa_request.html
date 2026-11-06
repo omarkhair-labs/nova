@@ -23,7 +23,12 @@
         <strong>EGP {{ line.line_subtotal_snapshot }}</strong>
       </div>
     {% endfor %}
-    <div class="notice"><strong>Provisional subtotal: EGP {{ order.provisional_subtotal }}</strong><p>Shipping: not calculated. Final payable amount: not available. Payment received: none.</p></div>
+    <div class="notice">
+      <strong>Provisional subtotal: EGP {{ order.provisional_subtotal }}</strong>
+      <p>QA delivery fee: {% if order.qa_shipping_fee != None %}EGP {{ order.qa_shipping_fee }}{% else %}Awaiting company estimate{% endif %}</p>
+      <p>QA quoted total: {% if qa_total != None %}EGP {{ qa_total }}{% else %}Pending estimate{% endif %}</p>
+      <p>Payment collected: none. This is an internal request preview.</p>
+    </div>
     <p class="fine">SKU changes after submission do not rewrite these request snapshots. Stock is NOT reserved.</p>
   </section>
   <section class="panel padded">
@@ -48,23 +53,29 @@
   </section>
 </div>
 <section class="panel padded">
-  <p class="eyebrow">STAFF QA REVIEW · DOES NOT ACCEPT AN ORDER</p>
-  {% if order.status == "qa_submitted" %}
-    {% if perms.plants.change_commerceorderrequest %}
-      <h2>Review the exact request</h2>
-      <form class="fields form-panel" method="post">
-        {% csrf_token %}
-        {{ form.as_div }}
-        <div class="form-actions"><button class="button primary" type="submit">Record QA decision</button></div>
-      </form>
-    {% else %}
-      <p class="fine">Your role can view this request but cannot record a review decision.</p>
-    {% endif %}
+  <p class="eyebrow">ORDER TRACKING · LIVE QA RECORD</p>
+  <h2>{{ order.get_status_display }}</h2>
+  {% if order.qa_tracking_reference %}<p class="fine">QA dispatch reference: {{ order.qa_tracking_reference }}</p>{% endif %}
+  {% if order.customer_cancel_requested_at %}<p class="notice warning">Customer requested cancellation. Review before continuing.</p>{% endif %}
+  {% if order.customer_return_requested_at %}<p class="notice warning">Customer requested a return. No refund is inferred.</p>{% endif %}
+  {% for event in order.status_events.all %}
+    <div class="record-row"><span class="grow"><strong>{{ event.label }}</strong><small>{{ event.note|default:"Status recorded." }}</small></span><small>{{ event.created_at|date:"j M Y H:i" }}</small></div>
+  {% empty %}<p class="fine">This older request has no recorded timeline events yet.</p>{% endfor %}
+</section>
+<section class="panel padded">
+  <p class="eyebrow">ONE ACTION AT A TIME · COMPANY INBOX</p>
+  <h2>{% if order.status == "qa_submitted" %}Review this request{% else %}Update tracking{% endif %}</h2>
+  {% if form and perms.plants.change_commerceorderrequest %}
+    <form class="fields form-panel" method="post">
+      {% csrf_token %}
+      {{ form.as_div }}
+      <div class="form-actions"><button class="button primary" type="submit">Save update</button></div>
+    </form>
+  {% elif not perms.plants.change_commerceorderrequest %}
+    <p class="fine">Your role can view but not change tracking.</p>
   {% else %}
-    <h2>{{ order.get_status_display }}</h2>
-    <p class="fine">Reviewed by {{ order.reviewed_by.username }} · {{ order.reviewed_at|date:"j M Y H:i" }}</p>
-    <p>{{ order.review_note|default:"No review note." }}</p>
+    <p class="fine">No further tracking action is available for this QA state.</p>
   {% endif %}
-  <div class="notice warning">The only available staff actions are mark-reviewed and decline. Neither creates an invoice, paid receipt, delivery, installation or handover QR.</div>
+  <div class="notice warning">These stages are QA simulations, not proof of actual delivery. Neither these controls nor the displayed price collect COD/InstaPay payments, issue a refund or generate an installation QR.</div>
 </section>
 {% endblock %}

@@ -221,6 +221,121 @@ class CommerceQARequestsTests(DemoFixture, TestCase):
         with patch.dict(os.environ, {"PLANTUPIA_COMMERCE_QA_REQUESTS_ENABLED": "0"}):
             self.assertEqual(self.api.get(reverse("plantupia-commerce-qa-catalog")).status_code, 404)
 
+    def test_full_staff_tracking_updates_reach_customer_and_never_mark_paid(self):
+        response = self.submit()
+        order_id = response.data["id"]
+        inbox = reverse("company:commerce-qa-requests")
+        detail = reverse("company:commerce-qa-request", args=[order_id])
+        alerts = reverse("company:commerce-qa-updates")
+        self.client.force_login(self.staff)
+        self.assertEqual(self.client.get(alerts).json()["new_requests"], 1)
+        initial = self.client.get(detail)
+        self.assertEqual(initial.status_code, 200)
+        self.assertEqual(self.client.get(alerts).json()["new_requests"], 0)
+        form = initial.context["form"]
+        self.assertEqual(self.client.post(detail, {
+            "review_token": form.initial["review_token"], "action": "review",
+            "qa_shipping_fee": "45.00", "review_note": "Delivery fee estimated for QA",
+            "confirmed": "on",
+        }).status_code, 302)
+        for action, target in (("prepare", "qa_preparing"),
+                               ("dispatch", "qa_out_for_delivery"),
+                               ("deliver", "qa_delivered")):
+            screen = self.client.get(detail)
+            self.assertEqual(screen.status_code, 200)
+            signed = screen.context["form"].initial["review_token"]
+            update = self.client.post(detail, {
+                "review_token": signed, "action": action,
+                "review_note": "QA status progressed", "confirmed": "on",
+                "tracking_reference": "LOCAL-QA-12" if action == "dispatch" else "",
+            })
+            self.assertEqual(update.status_code, 302, update.content)
+            self.assertEqual(CommerceOrderRequest.objects.get(pk=order_id).status, target)
+        self.api.force_authenticate(self.owner)
+        tracked = self.api.get(reverse("plantupia-commerce-qa-request", args=[order_id]))
+        self.assertEqual(tracked.status_code, 200)
+        self.assertEqual(tracked.data["status"], "qa_delivered")
+        self.assertEqual(tracked.data["shipping_fee"], "45.00")
+        self.assertEqual(tracked.data["final_total"], "286.00")
+        self.assertEqual(tracked.data["qa_tracking_reference"], "LOCAL-QA-12")
+        self.assertEqual([x["status"] for x in tracked.data["tracking"]],
+            ["qa_submitted", "qa_reviewed", "qa_preparing", "qa_out_for_delivery", "qa_delivered"])
+        self.assertFalse(tracked.data["charged"])
+        self.assertFalse(tracked.data["delivery_initiated"])
+        self.assertEqual(tracked.data["payment_status"], "not_collected")
+        self.assertEqual(stock_balance(self.sku.pk), 7)
+        self.assertFalse(DemoOrder.objects.exists())
+
+        requested = self.api.post(reverse("plantupia-commerce-qa-request-action", args=[order_id]),
+                                  {"action": "return"}, format="json")
+        self.assertEqual(requested.status_code, 200, requested.data)
+        self.assertEqual(requested.data["status"], "qa_return_requested")
+        self.client.force_login(self.staff)
+        screen = self.client.get(detail)
+        self.assertContains(screen, "Customer requested a return")
+        submitted = self.client.post(detail, {
+            "review_token": screen.context["form"].initial["review_token"],
+            "action": "return", "review_note": "QA return completed",
+            "confirmed": "on",
+        })
+        self.assertEqual(submitted.status_code, 302, submitted.content)
+        self.assertEqual(CommerceOrderRequest.objects.get(pk=order_id).status, "qa_returned")
+
+    def test_no_skipping_tracking_steps_or_reusing_stale_staff_tokens(self):
+        order_id = self.submit().data["id"]
+        detail = reverse("company:commerce-qa-request", args=[order_id])
+        self.client.force_login(self.staff)
+        first = self.client.get(detail)
+        token = first.context["form"].initial["review_token"]
+        self.assertEqual(self.client.post(detail, {
+            "review_token": token, "action": "review", "confirmed": "on",
+        }).status_code, 302)
+        skipped = self.client.post(detail, {
+            "review_token": token, "action": "deliver", "confirmed": "on",
+        })
+        self.assertEqual(skipped.status_code, 200)
+        self.assertEqual(CommerceOrderRequest.objects.get(pk=order_id).status, "qa_reviewed")
+        current = self.client.get(detail)
+        form = current.context["form"]
+        self.assertIn("prepare", dict(form.fields["action"].choices))
+        self.assertNotIn("deliver", dict(form.fields["action"].choices))
+        current_token = form.initial["review_token"]
+        self.assertEqual(self.client.post(detail, {
+            "review_token": current_token, "action": "prepare", "confirmed": "on",
+        }).status_code, 302)
+        replay = self.client.post(detail, {
+            "review_token": current_token, "action": "prepare", "confirmed": "on",
+        })
+        self.assertEqual(replay.status_code, 200)
+        self.assertEqual(CommerceOrderRequest.objects.get(pk=order_id).status, "qa_preparing")
+
+    def test_customer_cancel_is_idempotent_and_cannot_act_as_another_user(self):
+        order_id = self.submit().data["id"]
+        action = reverse("plantupia-commerce-qa-request-action", args=[order_id])
+        self.api.force_authenticate(self.stranger)
+        self.assertEqual(self.api.post(action, {"action": "cancel"}, format="json").status_code, 404)
+        self.api.force_authenticate(self.owner)
+        first = self.api.post(action, {"action": "cancel"}, format="json")
+        self.assertEqual(first.status_code, 200, first.data)
+        self.assertTrue(first.data["cancel_requested"])
+        second = self.api.post(action, {"action": "cancel"}, format="json")
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(first.data["tracking"], second.data["tracking"])
+        self.assertFalse(CommerceOrderRequest.objects.get(pk=order_id).reviewed_by_id)
+
+    def test_only_staff_receives_private_new_order_count(self):
+        self.submit()
+        alert = reverse("company:commerce-qa-updates")
+        self.client.force_login(self.owner)
+        self.assertEqual(self.client.get(alert).status_code, 403)
+        self.client.force_login(self.reviewer)
+        self.assertEqual(self.client.get(alert).status_code, 403)
+        self.client.force_login(self.staff)
+        response = self.client.get(alert)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["new_requests"], 1)
+        self.assertNotIn("Test QA Customer", response.content.decode())
+
     def test_staff_without_order_permission_cannot_view_or_review(self):
         self.submit()
         self.client.force_login(self.reviewer)

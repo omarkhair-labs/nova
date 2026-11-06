@@ -33,8 +33,17 @@ from .models import (BotanicalSpecies, CareGuideVersion, CareGuideSection, Hando
 
 def page(request, template, context=None, status=200):
     from .demo_services import enabled as demo_enabled
+    from .commerce_checkout import enabled as commerce_qa_enabled
+    from .commerce_models import CommerceOrderRequest
     user = request.user
-    context = {"ceo_demo_enabled": demo_enabled(), "can_import": user.has_perms(PERMISSIONS),
+    show_commerce_alert = (
+        commerce_qa_enabled() and user.is_authenticated and user.is_active
+        and user.is_staff and user.has_perm("plants.view_commerceorderrequest")
+    )
+    new_qa_orders = CommerceOrderRequest.objects.filter(
+        staff_first_seen_at__isnull=True
+    ).count() if show_commerce_alert else 0
+    context = {"show_commerce_alert": show_commerce_alert, "new_qa_orders": new_qa_orders, "ceo_demo_enabled": demo_enabled(), "can_import": user.has_perms(PERMISSIONS),
                "can_inventory": user.has_perm("plants.view_plantunit"),
                "can_care": user.has_perms(("plants.view_careguideversion", "plants.view_botanicalspecies")),
                "can_handovers": user.has_perm("plants.view_handoverinvitation"),

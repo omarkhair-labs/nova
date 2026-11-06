@@ -1,6 +1,6 @@
 from django.urls import path
 from .assistant import PlantAssistantView
-from .commerce_api import QACommerceRequestsView, QACommerceRequestView, QACommerceCatalogView
+from .commerce_api import QACommerceRequestsView, QACommerceRequestView, QACommerceCatalogView, QACommerceRequestActionView
 from .species_library import BotanicalSpeciesLibraryView, BotanicalSpeciesLibraryDetailView
 from .demo_api import (DemoAccessView, InspectionPlansView, InspectionActionView, InspectionPhotoView, ServiceRequestsView,
                        ServiceRequestView, CatalogView, CatalogImageView, CartView, DemoOrdersView, DemoOrderView)
@@ -21,6 +21,7 @@ urlpatterns = [
     path("commerce/qa/catalog/", QACommerceCatalogView.as_view(), name="plantupia-commerce-qa-catalog"),
     path("commerce/qa/requests/", QACommerceRequestsView.as_view(), name="plantupia-commerce-qa-requests"),
     path("commerce/qa/requests/<uuid:order_id>/", QACommerceRequestView.as_view(), name="plantupia-commerce-qa-request"),
+    path("commerce/qa/requests/<uuid:order_id>/actions/", QACommerceRequestActionView.as_view(), name="plantupia-commerce-qa-request-action"),
     path("catalog/", CatalogView.as_view(), name="plantupia-catalog"),
     path("catalog/<uuid:product_id>/image/", CatalogImageView.as_view(), name="plantupia-catalog-image"),
     path("cart/", CartView.as_view(), name="plantupia-cart"),

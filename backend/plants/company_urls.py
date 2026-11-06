@@ -10,6 +10,7 @@ app_name = "company"
 urlpatterns = [
     path("projects/", operations.projects_home, name="projects-home"),
     path("commerce/", operations.commerce_home, name="commerce-home"),
+    path("commerce/qa/updates/", commerce_requests.qa_updates, name="commerce-qa-updates"),
     path("commerce/qa/requests/", commerce_requests.qa_requests, name="commerce-qa-requests"),
     path("commerce/qa/requests/<uuid:order_id>/", commerce_requests.qa_request_detail, name="commerce-qa-request"),
     path("commerce/products/", commerce.products, name="commerce-products"),
