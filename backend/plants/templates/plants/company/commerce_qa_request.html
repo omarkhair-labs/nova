@@ -1,0 +1,60 @@
+{% extends 'plants/company/base.html' %}
+{% block content %}
+<a class="back-link" href="{% url 'company:commerce-qa-requests' %}">← QA request inbox</a>
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">QA REQUEST / NO CHARGE</p>
+    <h1>Request {{ order.pk|slice:":8" }}</h1>
+    <p class="lead">Submitted {{ order.created_at|date:"j M Y H:i" }} · {{ order.get_status_display }}</p>
+  </div>
+  <span class="badge draft">Not a commercial sale</span>
+</div>
+<div class="two-column">
+  <section class="panel padded">
+    <p class="eyebrow">REQUESTED PRODUCTS</p>
+    <h2>Frozen SKU snapshots</h2>
+    {% for line in order.lines.all %}
+      <div class="record-row">
+        <span class="grow">
+          <strong>{{ line.product_name_snapshot }}</strong>
+          <small>SKU {{ line.sku_code_snapshot }} · {{ line.option_snapshot|default:"Standard" }}</small>
+          <small>{{ line.quantity }} × EGP {{ line.unit_price_snapshot }}</small>
+        </span>
+        <strong>EGP {{ line.line_subtotal_snapshot }}</strong>
+      </div>
+    {% endfor %}
+    <div class="notice"><strong>Provisional subtotal: EGP {{ order.provisional_subtotal }}</strong><p>Shipping: not calculated. Final payable amount: not available. Payment received: none.</p></div>
+    <p class="fine">SKU changes after submission do not rewrite these request snapshots. Stock is NOT reserved.</p>
+  </section>
+  <section class="panel padded">
+    <p class="eyebrow">CUSTOMER REQUEST DETAILS · AUTHORIZED STAFF ONLY</p>
+    <h2>{{ order.contact_name }}</h2>
+    <p class="fine">Customer account: {{ order.customer.username }}</p>
+    <p class="fine">Contact phone: {{ order.contact_phone }}</p>
+    <p class="fine">Requested destination: {{ order.city }} — {{ order.delivery_address }}</p>
+    <p class="fine">Requested payment method: {{ order.get_payment_preference_display }}</p>
+    <p class="fine">Customer note: {{ order.customer_note|default:"None" }}</p>
+    <p class="fine">No shipping coverage, cash collection, InstaPay beneficiary, courier or delivery schedule has been confirmed.</p>
+  </section>
+</div>
+<section class="panel padded">
+  <p class="eyebrow">STAFF QA REVIEW · DOES NOT ACCEPT AN ORDER</p>
+  {% if order.status == "qa_submitted" %}
+    {% if perms.plants.change_commerceorderrequest %}
+      <h2>Review the exact request</h2>
+      <form class="fields form-panel" method="post">
+        {% csrf_token %}
+        {{ form.as_div }}
+        <div class="form-actions"><button class="button primary" type="submit">Record QA decision</button></div>
+      </form>
+    {% else %}
+      <p class="fine">Your role can view this request but cannot record a review decision.</p>
+    {% endif %}
+  {% else %}
+    <h2>{{ order.get_status_display }}</h2>
+    <p class="fine">Reviewed by {{ order.reviewed_by.username }} · {{ order.reviewed_at|date:"j M Y H:i" }}</p>
+    <p>{{ order.review_note|default:"No review note." }}</p>
+  {% endif %}
+  <div class="notice warning">The only available staff actions are mark-reviewed and decline. Neither creates an invoice, paid receipt, delivery, installation or handover QR.</div>
+</section>
+{% endblock %}
