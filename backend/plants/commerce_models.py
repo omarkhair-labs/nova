@@ -157,7 +157,7 @@ class CommerceOrderRequest(models.Model):
     customer_note = models.CharField(max_length=500, blank=True)
     payment_preference = models.CharField(max_length=20, choices=PaymentPreference.choices)
     provisional_subtotal = models.DecimalField(max_digits=12, decimal_places=2)
-    status = models.CharField(max_length=15, choices=Status.choices, default=Status.SUBMITTED)
+    status = models.CharField(max_length=22, choices=Status.choices, default=Status.SUBMITTED)
     review_note = models.CharField(max_length=500, blank=True)
     # Staff-entered QA shipping quote; NULL always means "not yet quoted", never free.
     qa_shipping_fee = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
