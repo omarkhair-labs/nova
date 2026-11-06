@@ -52,8 +52,15 @@ def _fingerprint(data):
 
 def customer_order_json(order):
     """Only call after scoped account permission check."""
+    from .commerce_tracking import timeline_json, quoted_total, STATUS_LABEL
     return {
         "id": str(order.pk), "status": order.status,
+        "status_label": STATUS_LABEL.get(order.status, order.status),
+        "tracking": timeline_json(order),
+        "updated_at": (order.last_status_at or order.created_at).isoformat(),
+        "qa_tracking_reference": order.qa_tracking_reference,
+        "cancel_requested": bool(order.customer_cancel_requested_at),
+        "return_requested": bool(order.customer_return_requested_at),
         "created_at": order.created_at.isoformat(),
         "payment_preference": order.payment_preference,
         "payment_status": "not_collected",
@@ -67,7 +74,8 @@ def customer_order_json(order):
             "pin_confirmed": order.delivery_pin_confirmed,
         },
         "provisional_subtotal": str(order.provisional_subtotal),
-        "shipping_fee": None, "final_total": None,
+        "shipping_fee": str(order.qa_shipping_fee) if order.qa_shipping_fee is not None else None,
+        "final_total": str(quoted_total(order)) if quoted_total(order) is not None else None,
         "review_note": order.review_note if order.status != order.Status.SUBMITTED else "",
         "lines": [
             {"sku": line.sku_code_snapshot, "name": line.product_name_snapshot,
@@ -152,6 +160,8 @@ def submit_qa_request(user, data):
         CommerceOrderRequestLine.objects.bulk_create([
             CommerceOrderRequestLine(order=order, **snapshot) for snapshot in snapshots
         ])
+        from .commerce_tracking import append_event
+        append_event(order, user, order.Status.SUBMITTED)
         company.audit(user, order, "New B2C QA request; no charge, stock reservation or delivery")
         return order
 
@@ -160,7 +170,7 @@ def list_customer_requests(user):
     require_qa()
     if user.is_staff or not user.is_active:
         raise PermissionDenied
-    return CommerceOrderRequest.objects.filter(customer=user).prefetch_related("lines").order_by("-created_at")[:100]
+    return CommerceOrderRequest.objects.filter(customer=user).prefetch_related("lines", "status_events").order_by("-created_at")[:100]
 
 
 def get_customer_request(user, order_id):
@@ -168,7 +178,7 @@ def get_customer_request(user, order_id):
     if user.is_staff or not user.is_active:
         raise PermissionDenied
     return get_object_or_404(
-        CommerceOrderRequest.objects.prefetch_related("lines"),
+        CommerceOrderRequest.objects.prefetch_related("lines", "status_events"),
         pk=order_id, customer=user,
     )
 
@@ -177,6 +187,9 @@ def review_state(order):
     return {
         "order_id": str(order.pk),
         "status": order.status,
+        "shipping_fee": str(order.qa_shipping_fee) if order.qa_shipping_fee is not None else None,
+        "tracking_reference": order.qa_tracking_reference,
+        "last_status_at": order.last_status_at.isoformat() if order.last_status_at else None,
         "reviewed_at": order.reviewed_at.isoformat() if order.reviewed_at else None,
         "subtotal": str(order.provisional_subtotal),
         "lines": list(order.lines.order_by("pk").values(
@@ -186,7 +199,7 @@ def review_state(order):
 
 
 @transaction.atomic
-def review_qa_request(*, staff, order_id, action, review_note, review_token):
+def review_qa_request(*, staff, order_id, action, review_note, review_token, shipping_fee=None):
     require_qa()
     company.require(staff, "plants.change_commerceorderrequest")
     if action not in ("review", "decline"):
@@ -205,7 +218,13 @@ def review_qa_request(*, staff, order_id, action, review_note, review_token):
     order.review_note = note
     order.reviewed_by = staff
     order.reviewed_at = timezone.now()
+    order.last_status_at = timezone.now()
+    from .commerce_tracking import quote_shipping, append_event
+    if action == "review":
+        order.qa_shipping_fee = quote_shipping(shipping_fee)
     order.full_clean()
-    order.save(update_fields=("status", "review_note", "reviewed_by", "reviewed_at"))
+    order.save(update_fields=("status", "review_note", "reviewed_by", "reviewed_at",
+                              "last_status_at", "qa_shipping_fee"))
+    append_event(order, staff, order.status, note)
     company.audit(staff, order, "Reviewed noncommercial QA request; no buyer payment or dispatch")
     return order
