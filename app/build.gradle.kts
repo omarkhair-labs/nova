@@ -120,6 +120,8 @@ dependencies {
     implementation("androidx.core:core-telecom:1.0.0")
     implementation("androidx.work:work-runtime-ktx:2.10.1")
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+    // Keyless QA map renderer; tile style and attribution are OpenFreeMap/OSM.
+    implementation("org.maplibre.gl:android-sdk:13.7.1")
     implementation("io.github.webrtc-sdk:android:144.7559.08")
     testImplementation(libs.junit)
     // Exercise the real response parser on the JVM rather than Android's JSON stubs.
