@@ -117,3 +117,88 @@ class CommerceStockMovement(models.Model):
 
     def __str__(self):
         return f"{self.sku.code}: {self.quantity_delta:+d}"
+
+
+class CommerceOrderRequest(models.Model):
+    """A noncommercial request for company review; not a paid or dispatched sale."""
+    class PaymentPreference(models.TextChoices):
+        COD = "cod", "Cash on delivery — preference only"
+        MANUAL_TRANSFER = "manual_transfer", "Manual InstaPay/bank transfer — preference only"
+
+    class Status(models.TextChoices):
+        SUBMITTED = "qa_submitted", "QA request submitted"
+        REVIEWED = "qa_reviewed", "QA staff reviewed — no sale accepted"
+        DECLINED = "qa_declined", "QA request declined"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    customer = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="plantupia_commerce_requests",
+    )
+    client_id = models.UUIDField(help_text="Stable customer retry identifier.")
+    fingerprint = models.CharField(max_length=64, editable=False)
+    contact_name = models.CharField(max_length=160)
+    contact_phone = models.CharField(max_length=32)
+    city = models.CharField(max_length=120)
+    delivery_address = models.CharField(max_length=320)
+    customer_note = models.CharField(max_length=500, blank=True)
+    payment_preference = models.CharField(max_length=20, choices=PaymentPreference.choices)
+    provisional_subtotal = models.DecimalField(max_digits=12, decimal_places=2)
+    status = models.CharField(max_length=15, choices=Status.choices, default=Status.SUBMITTED)
+    review_note = models.CharField(max_length=500, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="plantupia_commerce_requests_reviewed",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=("customer", "client_id"),
+                name="plant_commerce_request_idempotency",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.provisional_subtotal is not None and self.provisional_subtotal < 0:
+            raise ValidationError({"provisional_subtotal": "Subtotal cannot be negative."})
+        if self.status != self.Status.SUBMITTED and (
+            not self.reviewed_by_id or not self.reviewed_at
+        ):
+            raise ValidationError({"status": "A QA review decision requires reviewer and timestamp."})
+
+    def __str__(self):
+        return f"QA commerce request {self.pk}"
+
+
+class CommerceOrderRequestLine(models.Model):
+    """Immutable-at-service-boundary price/SKU snapshot of request intent."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.ForeignKey(
+        CommerceOrderRequest, on_delete=models.PROTECT, related_name="lines",
+    )
+    sku = models.ForeignKey(CommerceSKU, on_delete=models.PROTECT)
+    product_name_snapshot = models.CharField(max_length=160)
+    sku_code_snapshot = models.CharField(max_length=64)
+    option_snapshot = models.CharField(max_length=120, blank=True)
+    unit_price_snapshot = models.DecimalField(max_digits=11, decimal_places=2)
+    quantity = models.PositiveSmallIntegerField()
+    line_subtotal_snapshot = models.DecimalField(max_digits=12, decimal_places=2)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("order", "sku"), name="plant_commerce_request_line_unique",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(quantity__gte=1, quantity__lte=10),
+                name="plant_commerce_request_line_qty",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.sku_code_snapshot} × {self.quantity}"
