@@ -148,3 +148,50 @@ class QACommerceRequestActionView(QARequestView):
         except DjangoValidationError as exc:
             raise serializers.ValidationError(exc.messages) from exc
         return Response(checkout.customer_order_json(order))
+
+
+class BusinessRFQInput(serializers.Serializer):
+    client_id = serializers.UUIDField()
+    company_name = serializers.CharField(max_length=180, min_length=2, trim_whitespace=True)
+    contact_name = serializers.CharField(max_length=160, min_length=2, trim_whitespace=True)
+    phone = serializers.CharField(max_length=32, min_length=7, trim_whitespace=True)
+    email = serializers.EmailField(required=False, allow_blank=True)
+    city = serializers.CharField(max_length=120, min_length=2)
+    sku_id = serializers.UUIDField(required=False, allow_null=True)
+    quantity = serializers.IntegerField(min_value=1, max_value=10000)
+    scope = serializers.CharField(max_length=1500, min_length=10)
+    confirm_qa_no_contract = serializers.BooleanField()
+
+    def validate_confirm_qa_no_contract(self, value):
+        if value is not True:
+            raise serializers.ValidationError("Confirm nonbinding QA request.")
+        return value
+
+
+class QACommerceRFQsView(QARequestView):
+    def get(self, request):
+        from .commerce_rfq import customer_list, rfq_json
+        return Response({"qa_only": True,
+            "results": [rfq_json(r) for r in customer_list(request.user)]})
+
+    def post(self, request):
+        from .commerce_rfq import submit, rfq_json
+        payload = BusinessRFQInput(data=request.data)
+        payload.is_valid(raise_exception=True)
+        try:
+            rfq = submit(requester=request.user, data=payload.validated_data)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages) from exc
+        return Response(rfq_json(rfq), status=201)
+
+
+class QACommerceRFQAcceptView(QARequestView):
+    def post(self, request, rfq_id):
+        from .commerce_rfq import accept, rfq_json
+        data = serializers.Serializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        try:
+            rfq = accept(requester=request.user, rfq_id=rfq_id)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages) from exc
+        return Response(rfq_json(rfq))
