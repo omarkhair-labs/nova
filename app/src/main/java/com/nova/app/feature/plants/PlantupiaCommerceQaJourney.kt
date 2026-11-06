@@ -10,6 +10,7 @@ import androidx.compose.ui.unit.dp
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.plants.data.PlantupiaRepository
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -44,6 +45,14 @@ internal fun PlantupiaCommerceQaJourney(repository: PlantupiaRepository) {
     var busy by remember { mutableStateOf(false) }
     var feedback by remember { mutableStateOf<String?>(null) }
     var refresh by remember { mutableIntStateOf(0) }
+    var selectedOrderId by rememberSaveable { mutableStateOf<String?>(null) }
+    // Refresh while this specific QA screen is visible. No background polling or push claims.
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(30_000)
+            if (!busy) refresh++
+        }
+    }
 
     LaunchedEffect(refresh) {
         when (val r = repository.demoGet("commerce/qa/catalog/")) {
@@ -145,12 +154,79 @@ internal fun PlantupiaCommerceQaJourney(repository: PlantupiaRepository) {
         ) { Text(if (busy) "Saving…" else "Submit QA request · no charge") }
         feedback?.let { Text(it, color = shopInk) }
         HorizontalDivider()
-        Text("My QA requests", style = PlantupiaText.sectionLabel)
-        TextButton(onClick = { refresh++ }) { Text("Refresh") }
-        requests.take(10).forEach { order ->
-            Text(order.optString("id").take(8) + " · " + order.optString("status") +
-                " · EGP " + order.optString("provisional_subtotal") + " provisional",
-                style = PlantupiaText.supporting)
+        Text("Your order tracking · QA", style = PlantupiaText.sectionLabel)
+        Text("Company updates appear here. The screen checks for updates while open.",
+            style = PlantupiaText.supporting)
+        TextButton(onClick = { refresh++ }) { Text("Refresh status") }
+        requests.take(20).forEach { order ->
+            val id = order.optString("id")
+            val expanded = selectedOrderId == id
+            Surface(color = Color(0xFFEEF1E8), modifier = Modifier.fillMaxWidth(),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Request #" + id.take(8), color = shopInk)
+                    Text(order.optString("status_label", order.optString("status")),
+                        style = PlantupiaText.body)
+                    Text("EGP " + order.optString("provisional_subtotal") +
+                        " + delivery " + (if (order.isNull("shipping_fee")) "to be confirmed"
+                                        else "EGP " + order.optString("shipping_fee")),
+                        style = PlantupiaText.supporting)
+                    if (!order.isNull("final_total")) Text(
+                        "QA quoted total: EGP " + order.optString("final_total"),
+                        style = PlantupiaText.body)
+                    TextButton(onClick = {
+                        selectedOrderId = if (expanded) null else id
+                    }) { Text(if (expanded) "Hide updates" else "Track this request") }
+                    if (expanded) {
+                        HorizontalDivider()
+                        Text("Tracking updates", style = PlantupiaText.sectionLabel)
+                        val timeline = order.optJSONArray("tracking")
+                        if (timeline == null || timeline.length() == 0) {
+                            Text("Your request has been received.", style = PlantupiaText.supporting)
+                        } else for (index in 0 until timeline.length()) {
+                            val step = timeline.optJSONObject(index) ?: continue
+                            Text("● " + step.optString("label"), color = shopInk)
+                            Text(step.optString("at").take(16).replace('T', ' ') +
+                                (if (step.optString("note").isNotBlank()) " · " + step.optString("note") else ""),
+                                style = PlantupiaText.supporting)
+                        }
+                        if (order.optString("qa_tracking_reference").isNotBlank()) {
+                            Text("QA reference: " + order.optString("qa_tracking_reference"),
+                                style = PlantupiaText.supporting)
+                        }
+                        val canCancel = order.optString("status") in
+                            listOf("qa_submitted", "qa_reviewed") && !order.optBoolean("cancel_requested")
+                        val canReturn = order.optString("status") == "qa_delivered" &&
+                            !order.optBoolean("return_requested")
+                        if (order.optBoolean("cancel_requested")) Text(
+                            "Cancellation requested · Company review pending", style = PlantupiaText.supporting)
+                        if (order.optBoolean("return_requested")) Text(
+                            "Return requested · Company review pending", style = PlantupiaText.supporting)
+                        if (canCancel || canReturn) {
+                            OutlinedButton(enabled = !busy, onClick = {
+                                busy = true
+                                scope.launch {
+                                    val action = if (canCancel) "cancel" else "return"
+                                    when (val result = repository.demoMutation(
+                                        "commerce-qa-action-" + id,
+                                        "commerce/qa/requests/" + id + "/actions/",
+                                        JSONObject().put("action", action),
+                                    )) {
+                                        is ApiResult.Success -> if (repository.isCurrentSession()) {
+                                            feedback = "Request update sent to company inbox."
+                                            refresh++
+                                        }
+                                        is ApiResult.Failure -> if (repository.isCurrentSession()) {
+                                            feedback = result.message
+                                        }
+                                    }
+                                    busy = false
+                                }
+                            }) { Text(if (canCancel) "Request cancellation" else "Request a return") }
+                        }
+                    }
+                }
+            }
         }
     }
     if (showMap) PlantupiaDeliveryPinPicker(lat, lon,
