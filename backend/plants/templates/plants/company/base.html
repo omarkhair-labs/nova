@@ -32,7 +32,14 @@
 {% if perms.plants.view_demoentitlement %}<a href="{% url 'company:demo-access' %}" {% if section == 'access' %}aria-current="page"{% endif %}>QA access plans</a>{% endif %}
 {% endif %}
 </nav><div class="sidebar-note"><span class="small-label">A CONTINUOUS LIVING RECORD</span><p>Prepare carefully.<br>Review honestly.<br>Hand over with confidence.</p><span class="small-label">Transforming Spaces.<br>Inspiring People.</span></div></aside>
-<div class="workspace"><header class="topbar"><span class="environment"><span class="status-dot"></span>Isolated QA workspace</span><div class="account"><span>{{ request.user.username }}</span>{% if request.user.is_authenticated %}<form method="post" action="{% url 'company:logout' %}">{% csrf_token %}<button class="text-button" type="submit">Sign out</button></form>{% endif %}</div></header>
+<div class="workspace"><header class="topbar"><span class="environment"><span class="status-dot"></span>Isolated QA workspace</span>
+{% if show_commerce_alert %}
+<a class="commerce-alert" data-alert-url="{% url 'company:commerce-qa-updates' %}"
+  href="{% url 'company:commerce-qa-requests' %}">
+  <span aria-hidden="true">●</span> New shop requests <strong data-alert-count>{{ new_qa_orders }}</strong>
+</a>
+{% endif %}
+<div class="account"><span>{{ request.user.username }}</span>{% if request.user.is_authenticated %}<form method="post" action="{% url 'company:logout' %}">{% csrf_token %}<button class="text-button" type="submit">Sign out</button></form>{% endif %}</div></header>
 <main id="main" tabindex="-1">
 {% if messages %}<div aria-live="polite">{% for message in messages %}<p class="notice {{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}
 {% block content %}{% endblock %}
