@@ -122,7 +122,8 @@ def customer_request_action(*, customer, order_id, action):
             raise ValidationError("Cancellation requests are available only before preparation.")
         if not order.customer_cancel_requested_at:
             order.customer_cancel_requested_at = timezone.now()
-            order.save(update_fields=["customer_cancel_requested_at"])
+            order.staff_first_seen_at = None
+            order.save(update_fields=["customer_cancel_requested_at", "staff_first_seen_at"])
             CommerceOrderStatusEvent.objects.create(
                 order=order, actor=customer, kind="qa_cancel_requested",
                 label="Customer requested cancellation (QA)",
@@ -133,10 +134,11 @@ def customer_request_action(*, customer, order_id, action):
             raise ValidationError("You can request a return only after the QA delivery stage.")
         if not order.customer_return_requested_at:
             order.customer_return_requested_at = timezone.now()
+            order.staff_first_seen_at = None
             order.status = order.Status.RETURN_REQUESTED
             order.last_status_at = timezone.now()
             order.full_clean()
-            order.save(update_fields=["customer_return_requested_at", "status", "last_status_at"])
+            order.save(update_fields=["customer_return_requested_at", "status", "last_status_at", "staff_first_seen_at"])
             append_event(order, customer, order.Status.RETURN_REQUESTED)
             company.audit(customer, order, "Customer requested QA return; no funds refunded")
     else:

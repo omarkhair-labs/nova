@@ -254,3 +254,59 @@ class CommerceOrderRequestLine(models.Model):
 
     def __str__(self):
         return f"{self.sku_code_snapshot} × {self.quantity}"
+
+
+class CommerceBusinessRFQ(models.Model):
+    """Short nonbinding B2B quote enquiry, not a purchase order."""
+    class Status(models.TextChoices):
+        SUBMITTED = "qa_submitted", "Request received"
+        QUOTED = "qa_quoted", "Quote sent (QA)"
+        ACCEPTED = "qa_accepted", "Quote accepted for follow-up (QA)"
+        DECLINED = "qa_declined", "Declined"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    requester = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="plantupia_business_rfqs")
+    client_id = models.UUIDField()
+    fingerprint = models.CharField(max_length=64, editable=False)
+    company_name = models.CharField(max_length=180)
+    contact_name = models.CharField(max_length=160)
+    phone = models.CharField(max_length=32)
+    email = models.EmailField(blank=True)
+    city = models.CharField(max_length=120)
+    sku = models.ForeignKey(CommerceSKU, null=True, blank=True, on_delete=models.PROTECT)
+    sku_snapshot = models.CharField(max_length=64, blank=True)
+    quantity = models.PositiveIntegerField(default=1)
+    scope = models.TextField(max_length=1500)
+    status = models.CharField(max_length=15, choices=Status.choices, default=Status.SUBMITTED)
+    quoted_amount = models.DecimalField(max_digits=12, decimal_places=2,
+        null=True, blank=True, validators=[MinValueValidator(Decimal("0.01"))])
+    quote_note = models.CharField(max_length=800, blank=True)
+    replied_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.PROTECT, related_name="plantupia_business_rfqs_replied")
+    replied_at = models.DateTimeField(null=True, blank=True)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    staff_first_seen_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        constraints = [
+            models.UniqueConstraint(fields=("requester", "client_id"),
+                name="plant_b2b_rfq_idempotency"),
+            models.CheckConstraint(condition=models.Q(quantity__gte=1, quantity__lte=10000),
+                name="plant_b2b_rfq_quantity"),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.quoted_amount is not None and self.quoted_amount <= 0:
+            raise ValidationError({"quoted_amount": "Quote must be positive."})
+        if self.status == self.Status.QUOTED and (
+            self.quoted_amount is None or not self.replied_by_id or not self.replied_at):
+            raise ValidationError({"status": "A quote requires amount, reviewer and timestamp."})
+        if self.status == self.Status.ACCEPTED and not self.accepted_at:
+            raise ValidationError({"status": "A QA acceptance requires a timestamp."})
+
+    def __str__(self):
+        return f"Business RFQ {self.id}"
