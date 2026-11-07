@@ -1,0 +1,35 @@
+{% extends "plants/company/base.html" %}
+{% block content %}
+<div class="page-heading">
+  <div><p class="eyebrow">02 / B2C · SHOP OPERATIONS</p><h1>Products, stock, requests.</h1>
+  <p class="lead">Build the real product catalogue separately from test orders; review each customer request with its original prices, payment preference and delivery address. No collected funds or dispatch are inferred.</p></div>
+  {% if can_products and perms.plants.add_commerceproduct %}<a class="button primary" href="{% url 'company:commerce-product-create' %}">Create product draft +</a>{% endif %}
+</div>
+<div class="notice warning"><strong>Internal QA workspace:</strong> Prices and physical stock counts are drafts; there is no paid checkout, courier integration or automatic InstaPay settlement.</div>
+<div class="installation-grid">
+  {% if can_products %}<article class="installation-card">
+    <p class="small-label">PRODUCT DATA</p><h2>{{ counts.product_drafts }} drafts</h2>
+    <p>{{ counts.sku_options }} exact SKU options · Photos, product copy and variant prices.</p>
+    <div class="card-bottom"><span>Not published</span><a href="{% url 'company:commerce-products' %}">Open product catalogue →</a></div>
+  </article>{% endif %}
+  {% if can_stock %}<article class="installation-card">
+    <p class="small-label">WAREHOUSE</p><h2>Stock movements</h2>
+    <p>{{ counts.stock_movements }} recorded changes. Physical selling stock is separate from installed plant inventory.</p>
+    <div class="card-bottom"><span>Counted, not reserved</span><a href="{% url 'company:commerce-stock' %}">Open stock ledger →</a></div>
+  </article>{% endif %}
+  {% if can_requests %}<article class="installation-card">
+    <p class="small-label">CUSTOMER INBOX · QA</p><h2>{{ counts.unreviewed_requests }} awaiting review</h2>
+    <p>{{ counts.qa_requests }} total QA submissions. View saved SKU snapshots, customer address and requested payment preference.</p>
+    <div class="card-bottom"><span>Review ≠ payment</span><a href="{% url 'company:commerce-qa-requests' %}">Open QA requests →</a></div>
+  </article>{% endif %}
+  {% if ceo_demo_enabled and perms.plants.view_catalogproduct %}<article class="installation-card">
+    <p class="small-label">LEGACY ANDROID SHOP · QA</p><h2>Existing test shop</h2><p>Separate fictional product listing for the existing Android app.</p>
+    <div class="card-bottom"><span>Noncommercial</span><a href="{% url 'company:catalog' %}">Open original QA shop →</a></div>
+  </article>{% endif %}
+  {% if ceo_demo_enabled and perms.plants.view_demoorder %}<article class="installation-card">
+    <p class="small-label">LEGACY ORDERS · QA</p><h2>Existing test orders</h2><p>Recorded sample carts and order reviews without charge.</p>
+    <div class="card-bottom"><span>No shipping</span><a href="{% url 'company:orders' %}">Open original QA orders →</a></div>
+  </article>{% endif %}
+</div>
+<div class="notice">Upcoming commercial stages: order acceptance and actual stock reservation, shipping zones and fees, COD cash reconciliation, manual transfer reconciliation, dispatch and returns. None is labeled operational until it works.</div>
+{% endblock %}

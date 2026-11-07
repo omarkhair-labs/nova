@@ -69,7 +69,8 @@ internal fun contextSafeAssistantConversation(bubbles: List<CareChatBubble>, inc
 
 /**
  * Live provider conversation. Consent to include a particular plant's context is
- * per-question; prior context-bearing turns are excluded without renewed consent.
+ * explicitly enabled for the current conversation, until switched off or the plant changes.
+ * Prior context-bearing turns are excluded whenever the user switches context off.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -94,12 +95,14 @@ internal fun PlantupiaAssistantSheet(
     }
 
     val conversation: @Composable ColumnScope.() -> Unit = {
-            PlantupiaConversationHeader(
-                category = "AI · PLANT CARE",
-                title = "Plantupia AI",
-                subtitle = if (plant == null) "Ask about plant care" else "Here for " + plant.name,
-                onClose = onDismiss,
-            )
+            if (!fullPage) {
+                PlantupiaConversationHeader(
+                    category = "AI · PLANT CARE",
+                    title = "Plantupia AI",
+                    subtitle = if (plant == null) "Ask about plant care" else "Here for " + plant.name,
+                    onClose = onDismiss,
+                )
+            }
             PlantupiaDemoAccessGate(repository, human = false, scrollPaywall = true, paywallModifier = Modifier.weight(1f)) { accessLost ->
                 LazyColumn(
                     state = chatListState,
@@ -117,8 +120,12 @@ internal fun PlantupiaAssistantSheet(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Share plant context", style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
-                            Text("Optional for each question · name, placement and recent notes. No photos or address.", style = PlantupiaText.supporting)
+                            Text("Share context in this chat", style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
+                            Text(
+                                if (includeContext) "On · plant name, placement and recent notes. Turn off whenever you want."
+                                else "Off · share only if you choose. No photos or address.",
+                                style = PlantupiaText.supporting,
+                            )
                         }
                         Switch(
                             checked = includeContext,
@@ -188,7 +195,8 @@ internal fun PlantupiaAssistantSheet(
                             val consent = includeContext
                             val dialogue = contextSafeAssistantConversation(bubbles, consent)
                             bubbles = bubbles + CareChatBubble(question, fromUser = true, scope = if (consent && plant != null) "plant_context" else "general")
-                            includeContext = false
+                            // Explicit opt-in remains active during THIS chat.
+                            // Selecting another plant recreates this session with consent off.
                             pending = true
                             scope.launch {
                                 when (val result = repository.askAssistant(

@@ -1,5 +1,19 @@
 {% extends 'plants/company/base.html' %}{% block content %}
 <div class="page-heading"><div><p class="eyebrow">THE COMPANY WORKSPACE</p><h1>A considered handover.<br>A continuing story.</h1><p class="lead">Prepare real installations, review their care and connect the right people.</p></div>{% if perms.plants.add_installationbatch and perms.plants.add_space %}<a class="button primary" href="{% url 'company:installation-create' %}">Prepare an installation <span aria-hidden="true">+</span></a>{% endif %}</div>
+<section class="two-column secondary-grid" aria-label="Choose a Company workspace">
+  <article class="panel padded">
+    <p class="eyebrow">01 / B2B · PROJECTS</p>
+    <h2>Installations &amp; handovers</h2>
+    <p class="lead">From physical site inventory to reviewed delivery and account-bound QR.</p>
+    <a class="button primary" href="{% url 'company:projects-home' %}">Open B2B projects →</a>
+  </article>
+  <article class="panel padded">
+    <p class="eyebrow">02 / B2C · COMMERCE</p>
+    <h2>Shop &amp; orders</h2>
+    <p class="lead">Draft products, sellable stock records, and separate QA request review.</p>
+    <a class="button primary" href="{% url 'company:commerce-home' %}">Open B2C operations →</a>
+  </article>
+</section>
 <div class="metrics" aria-label="Persisted installation counts"><a class="metric" href="{% url 'company:installations' %}?status=draft"><span class="small-label">IN PREPARATION</span><strong>{{ counts.draft }}</strong><span>Draft installations <span aria-hidden="true">↗</span></span></a><a class="metric" href="{% url 'company:installations' %}?status=ready"><span class="small-label">INVENTORY REVIEWED</span><strong>{{ counts.ready }}</strong><span>Ready for handover <span aria-hidden="true">↗</span></span></a><a class="metric" href="{% url 'company:installations' %}?status=claimed"><span class="small-label">CONNECTED</span><strong>{{ counts.claimed }}</strong><span>Claimed installations <span aria-hidden="true">↗</span></span></a>{% if pending_guides != None %}<a class="metric care-metric" href="{% url 'company:care' %}?status=draft"><span class="small-label">CARE REVIEW QUEUE</span><strong>{{ pending_guides }}</strong><span>Unpublished versions <span aria-hidden="true">↗</span></span></a>{% endif %}</div>
 <div class="two-column"><section class="panel"><div class="panel-heading"><div><p class="eyebrow">01 / PREPARE</p><h2>Installations in progress</h2></div><a href="{% url 'company:installations' %}">View all →</a></div>
 {% for batch in drafts %}<a class="record-row" href="{% url 'company:installation' batch.pk %}"><span class="record-icon" aria-hidden="true">{{ forloop.counter|stringformat:'02d' }}</span><span class="grow"><strong>{{ batch.space.name }}</strong><small>{{ batch.reference_code }} · {{ batch.plant_total }} manifest plants</small></span><span class="badge draft">Draft</span><span aria-hidden="true">→</span></a>{% empty %}<div class="empty"><span class="empty-mark" aria-hidden="true">▤</span><h3>A new place starts here.</h3><p>Prepare a staff-owned installation, then bring its real plant inventory into the workspace.</p>{% if perms.plants.add_installationbatch %}<a href="{% url 'company:installation-create' %}">Prepare your first installation →</a>{% endif %}</div>{% endfor %}</section>

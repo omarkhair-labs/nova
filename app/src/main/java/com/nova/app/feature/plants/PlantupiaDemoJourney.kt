@@ -48,11 +48,16 @@ import com.nova.app.feature.plants.data.PlantupiaPlant
 import com.nova.app.feature.plants.data.PlantupiaRepository
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import java.time.LocalDate
 import java.util.UUID
 
 private val demoForest = Color(0xFF123B2E)
 private val demoPaper = Color(0xFFFFFDF7)
 private val demoSage = Color(0xFFEEF1E8)
+
+/** Do not offer a morning alert for an already-due or overdue inspection. */
+internal fun canScheduleUpcomingInspection(dueOn: String, today: LocalDate): Boolean =
+    runCatching { LocalDate.parse(dueOn).isAfter(today) }.getOrDefault(false)
 
 /** Care subtype affects discovery only; SKU/cart/order identities stay unchanged. */
 internal fun matchesShopCategory(
@@ -487,7 +492,16 @@ internal fun PlantupiaInspectionPanel(
                             "${if (plan.optBoolean("due")) "Due" else "Next check"} · ${plan.optString("next_due_on")}",
                             style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
                         )
-                        // Read the preference in composition; explicit local state causes a refresh.
+                        Button(
+                            enabled = !busy,
+                            onClick = { open = !open; manage = false },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = demoForest),
+                        ) {
+                            Text(if (open) "Close check" else "Check now · record what you notice", color = demoPaper)
+                        }
+                        // Notification permission is secondary to doing a real check.
+                        // Overdue plans cannot schedule a morning that has already passed.
                         val reminderOptedIn = remember(reminderVersion, refresh) {
                             PlantupiaInspectionReminderScheduler.isOptedIn(context, plan.getString("id"))
                         }
@@ -498,7 +512,7 @@ internal fun PlantupiaInspectionPanel(
                                 reminderFeedback = "Reminder off. The in-app care schedule remains."
                                 reminderVersion++
                             }) { Text("Turn off reminder") }
-                        } else {
+                        } else if (canScheduleUpcomingInspection(plan.optString("next_due_on"), LocalDate.now())) {
                             TextButton(enabled = !busy, onClick = {
                                 val permissionGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
                                     ContextCompat.checkSelfPermission(
@@ -506,14 +520,15 @@ internal fun PlantupiaInspectionPanel(
                                     ) == PackageManager.PERMISSION_GRANTED
                                 if (permissionGranted) enableReminder()
                                 else requestPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                            }) { Text("Remind me to check this plant") }
+                            }) { Text("Remind me on the next check day") }
+                        } else {
+                            Text(
+                                "This check is already due. Record it first; you can set a reminder " +
+                                    "for the next approved date.",
+                                style = PlantupiaText.supporting,
+                            )
                         }
                         reminderFeedback?.let { Text(it, style = PlantupiaText.supporting) }
-                        OutlinedButton(
-                            enabled = !busy,
-                            onClick = { open = !open; manage = false },
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                        ) { Text(if (open) "Close check" else "Check now") }
                         if (open) {
                             Text("What did you notice?", style = PlantupiaText.editorialHeading)
                             Text(
@@ -750,6 +765,7 @@ internal fun PlantupiaQaShop(
 ) {
     var products by remember { mutableStateOf(emptyList<JSONObject>()) }
     var catalogLoaded by remember { mutableStateOf(false) }
+    var commerceQaAvailable by remember { mutableStateOf(false) }
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
     val selected = products.firstOrNull { it.optString("id") == selectedId }
     var linkedOrder by remember { mutableStateOf<JSONObject?>(null) }
@@ -772,6 +788,9 @@ internal fun PlantupiaQaShop(
     var busy by remember { mutableStateOf(false) }
     var refresh by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
+    LaunchedEffect(accountId) {
+        commerceQaAvailable = repository.demoGet("commerce/qa/catalog/") is ApiResult.Success
+    }
     fun changeCart(productId: String, nextQuantity: Int) {
         if (busy) return
         busy = true
@@ -791,6 +810,7 @@ internal fun PlantupiaQaShop(
         }
     }
     LaunchedEffect(refresh, screen) {
+        if (screen == "commerce-qa" || screen == "business-qa") return@LaunchedEffect
         error = null
         if (screen == "catalog") catalogLoaded = false
         val path = when (screen) {
@@ -865,6 +885,8 @@ internal fun PlantupiaQaShop(
                             screen == "review" -> "Review your order"
                             screen == "orders" -> "Your orders"
                             screen == "order-detail" -> "Order details"
+                            screen == "commerce-qa" -> "Delivery request · QA"
+                            screen == "business-qa" -> "For business · RFQ"
                             else -> "Plants & essentials"
                         },
                         style = PlantupiaText.editorialHeading,
@@ -884,12 +906,20 @@ internal fun PlantupiaQaShop(
                 TextButton(onClick = { selectedId = null; screen = "orders" }) {
                     Text("My orders", color = demoForest)
                 }
+                if (commerceQaAvailable) TextButton(onClick = { selectedId = null; screen = "commerce-qa" }) {
+                    Text("Delivery request · QA", color = demoForest)
+                }
+                if (commerceQaAvailable) TextButton(onClick = { selectedId = null; screen = "business-qa" }) {
+                    Text("For business · RFQ", color = demoForest)
+                }
                 if (!fullPage) TextButton(onClick = onDismiss) { Text("Close", color = demoForest) }
             }
             if (screen == "review" || screen == "cart") {
                 Text("QA checkout only · illustrative prices · no payment or delivery", style = PlantupiaText.supporting)
             }
             when (screen) {
+                "commerce-qa" -> PlantupiaCommerceQaJourney(repository)
+                "business-qa" -> PlantupiaBusinessQaJourney(repository)
                 "cart", "review" -> cart?.let { quote ->
                     if (quote.demoRows().isEmpty()) Text("Your cart is empty.", style = PlantupiaText.supporting)
                     quote.demoRows().forEach { line ->
@@ -1044,12 +1074,10 @@ internal fun PlantupiaQaShop(
                 else -> {
                     val product = selected
                     if (product == null) {
-                        Text("Objects for a living space", style = PlantupiaText.editorialHeading)
                         Text(
-                            "Browse the available collection. Product names, media and label details come from the Shop catalogue.",
+                            "QA preview · catalogue items only, no payment or delivery",
                             style = PlantupiaText.supporting,
                         )
-                        Text("QA preview · illustrative prices, no payment or delivery", style = PlantupiaText.sectionLabel)
                         OutlinedTextField(
                             value = searchText,
                             onValueChange = { searchText = it.take(80) },
@@ -1121,6 +1149,20 @@ internal fun PlantupiaQaShop(
                             item.optString("family_key").takeIf { it.isNotBlank() }?.let {
                                 "family:" + item.optString("kind") + ":" + it
                             } ?: "sku:" + item.getString("id")
+                        }
+                        if (catalogLoaded && error == null && familyPreview.isNotEmpty()) {
+                            Text(
+                                "${familyPreview.size} ${if (category == "plant") "plant" else "product"} " +
+                                    "listing${if (familyPreview.size == 1) "" else "s"}",
+                                style = PlantupiaText.sectionLabel,
+                            )
+                        }
+                        if (catalogLoaded && category == "plant" && familyPreview.isEmpty() && error == null) {
+                            Text(
+                                "Plant products haven't been added to this QA catalogue. " +
+                                    "The plants in My Plants are personal records, not Shop stock.",
+                                style = PlantupiaText.supporting,
+                            )
                         }
                         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                             val columns = plantupiaShopProductColumns(

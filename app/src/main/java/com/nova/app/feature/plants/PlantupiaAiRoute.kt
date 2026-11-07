@@ -93,7 +93,7 @@ internal fun PlantupiaAiRoute(
                     user?.id ?: 0L, user?.plantupiaAvatarVariant ?: -1,
                     onProfile = onProfile, compactBrand = true,
                 )
-                Text("ASK · WITH CONTEXT, NOT ASSUMPTIONS", style = PlantupiaText.sectionLabel)
+                Text("ASK ABOUT YOUR PLANTS", style = PlantupiaText.sectionLabel)
             }
             LazyRow(
                 modifier = Modifier.fillMaxWidth(),
@@ -144,7 +144,7 @@ internal fun PlantupiaAiRoute(
                 )
             } else if (chosenPlant != null) {
                 Text(
-                    "Choosing a plant does not share its history. Approve context for each question.",
+                    "Choose whether to share this plant’s context during the chat. You can switch it off anytime.",
                     modifier = Modifier.padding(horizontal = 17.dp),
                     style = PlantupiaText.supporting,
                 )
