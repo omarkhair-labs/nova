@@ -18,6 +18,8 @@ class CommerceProduct(models.Model):
     name = models.CharField(max_length=160)
     catalog_key = models.SlugField(max_length=64, unique=True, null=True, blank=True,
         help_text="Stable identity for reviewed catalogue imports; not a retail SKU.")
+    qa_listed = models.BooleanField(default=False,
+        help_text="Explicitly available in the isolated QA app only; never commercial publication.")
     description = models.TextField(max_length=3000, blank=True)
     kind = models.CharField(max_length=12, choices=Kind.choices)
     reference_species = models.ForeignKey(
