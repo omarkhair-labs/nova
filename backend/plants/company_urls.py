@@ -10,6 +10,7 @@ from . import commerce_rfq_company as business
 app_name = "company"
 urlpatterns = [
     path("projects/", operations.projects_home, name="projects-home"),
+    path("care-workspace/", operations.care_home, name="care-home"),
     path("projects/rfqs/", business.rfq_list, name="business-rfqs"),
     path("projects/rfqs/<uuid:rfq_id>/", business.rfq_detail, name="business-rfq"),
     path("commerce/", operations.commerce_home, name="commerce-home"),
