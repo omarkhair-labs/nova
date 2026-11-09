@@ -5,6 +5,7 @@ from django import forms
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db.models import Q, Sum
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect
 
 from . import company_services as company, commerce_services as commerce
@@ -114,6 +115,28 @@ def product_detail(request, product_id):
     return page(request, "commerce_product", {
         "title": product.name, "section": "commerce_products", "product": product, "variants": variants, "gallery": product.gallery.all(),
     })
+
+
+@portal("plants.view_commerceproduct", methods=("GET",))
+def product_photo(request, product_id):
+    """Same-origin authenticated image for a commercial draft and its gallery."""
+    product = get_object_or_404(CommerceProduct, pk=product_id)
+    identity = request.GET.get("photo", "").strip()
+    if identity:
+        try:
+            gallery_id = uuid.UUID(identity)
+        except (ValueError, AttributeError) as exc:
+            raise Http404 from exc
+        record = get_object_or_404(product.gallery, pk=gallery_id)
+        field = record.image
+    else:
+        field = product.cover_photo
+    if not field:
+        raise Http404
+    try:
+        return FileResponse(field.open("rb"), content_type="image/jpeg")
+    except (OSError, ValueError) as exc:
+        raise Http404 from exc
 
 
 @portal("plants.add_commercesku")
