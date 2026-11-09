@@ -27,8 +27,41 @@ class CompanyWorkspaceNavigationTests(DemoFixture, TestCase):
         self.assertContains(commercial, "B2C")
         self.assertContains(commercial, "Product drafts / SKUs")
         self.assertContains(commercial, "Warehouse stock")
-        self.assertContains(commercial, "B2B · PROJECTS")
-        self.assertContains(commercial, "B2C · SHOP")
+        self.assertNotContains(commercial, "B2B / PROJECTS")
+        self.assertContains(commercial, "B2C / SHOP")
+
+    def test_home_has_three_keyboard_native_expanding_worlds(self):
+        response = self.client.get(reverse("company:overview"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="plantupia-worlds"', count=3)
+        self.assertContains(response, 'A place for every')
+        self.assertContains(response, 'المشروعات والتركيبات')
+        self.assertContains(response, reverse("company:projects-home"))
+        self.assertContains(response, reverse("company:commerce-home"))
+        self.assertContains(response, reverse("company:care-home"))
+        self.assertNotContains(response, 'class="sidebar"')
+
+    def test_navigation_is_scoped_and_qa_records_remain_accessible(self):
+        commerce = self.client.get(reverse("company:commerce-home"))
+        self.assertEqual(commerce.status_code, 200)
+        self.assertContains(commerce, "Products")
+        self.assertContains(commerce, "Orders")
+        self.assertContains(commerce, "Stock &amp; operations")
+        self.assertContains(commerce, "Original QA catalog")
+        self.assertContains(commerce, "Original QA orders")
+        self.assertNotContains(commerce, "Installed plant inventory")
+        projects = self.client.get(reverse("company:projects-home"))
+        self.assertContains(projects, "QR handovers")
+        self.assertNotContains(projects, "Product drafts / SKUs")
+
+    def test_care_has_a_real_home_and_no_new_data_mutation(self):
+        response = self.client.get(reverse("company:care-home"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Botanical library")
+        self.assertContains(response, "Inspection plans")
+        self.assertContains(response, "Service requests")
+        self.assertContains(response, reverse("company:care"))
+        self.assertNotContains(response, "Commercial publishing")
 
     def test_commerce_metrics_are_persisted_drafts_not_qa_store_revenue(self):
         product = CommerceProduct.objects.create(
@@ -45,6 +78,7 @@ class CompanyWorkspaceNavigationTests(DemoFixture, TestCase):
         self.client.force_login(self.owner)
         self.assertEqual(self.client.get(reverse("company:projects-home")).status_code, 403)
         self.assertEqual(self.client.get(reverse("company:commerce-home")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("company:care-home")).status_code, 403)
 
     def test_qa_request_inbox_not_advertised_if_flag_disabled(self):
         with patch.dict(os.environ, {"PLANTUPIA_COMMERCE_QA_REQUESTS_ENABLED": "0"}):
