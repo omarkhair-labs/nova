@@ -18,6 +18,12 @@ class Migration(migrations.Migration):
                 help_text="Stable identity for reviewed catalogue imports; not a retail SKU.",
             ),
         ),
+        migrations.AddField(
+            model_name="commerceproduct",
+            name="qa_listed",
+            field=models.BooleanField(default=False,
+                help_text="Explicitly available in the isolated QA app only; never commercial publication."),
+        ),
         migrations.CreateModel(
             name="CommerceProductPhoto",
             fields=[
