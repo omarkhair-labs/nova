@@ -191,6 +191,32 @@ class CommerceBulkImportTests(DemoFixture, TestCase):
         import os
         self.assertEqual(sum(len(files) for _, _, files in os.walk(self.temp.name)), 0)
 
+    def test_new_imports_do_not_leak_into_qa_shop_or_direct_checkout(self):
+        import uuid
+        from unittest.mock import patch as mock_patch
+        from .commerce_models import CommerceStockLocation
+        from .commerce_services import record_counted_stock
+        digest = self.upload("preview").json()["digest"]
+        self.assertEqual(self.upload("import", digest=digest, confirm=True).status_code, 200)
+        sku = CommerceSKU.objects.get(code="FERN-S")
+        self.assertFalse(sku.product.qa_listed)
+        location = CommerceStockLocation.objects.create(code="test-a", name="Test stock")
+        record_counted_stock(staff=self.staff, sku_id=sku.pk, location_id=location.pk,
+                             quantity_delta=5, reason="opening", reference_note="Test count",
+                             client_id=uuid.uuid4())
+        with mock_patch.dict(os.environ, {"PLANTUPIA_COMMERCE_QA_REQUESTS_ENABLED": "1"}):
+            listing = self.api.get(reverse("plantupia-commerce-qa-catalog"))
+            self.assertEqual(listing.status_code, 200)
+            self.assertNotIn("FERN-S", str(listing.data))
+            request = self.api.post(reverse("plantupia-commerce-qa-requests"), {
+                "client_id": str(uuid.uuid4()), "lines": [{"sku_id": str(sku.pk), "quantity": 1}],
+                "contact_name": "QA customer", "contact_phone": "+201012345678",
+                "city": "Cairo", "delivery_address": "QA-only street address",
+                "payment_preference": "cod", "confirm_qa_no_payment": True,
+            }, format="json")
+            self.assertEqual(request.status_code, 400)
+            self.assertFalse(CommerceOrderRequest.objects.exists())
+
     def test_import_can_reference_existing_botanical_species_without_verifying_specimen(self):
         rows = [list(sample_rows()[0])]
         rows[0][10] = ""
