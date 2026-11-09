@@ -16,7 +16,7 @@ Worksheet name: Products. Exactly these headers, in order:
 - product_key: stable lowercase slug of 3–64 chars. sku: unique uppercase code.
 - kind: plant, planter or care. Currency: EGP, positive price with at most two decimal places.
 - cover_image: images/name.jpg or blank. cover_alt: truthful photo description if cover exists.
-- gallery_images: up to six semicolon-separated pairs, each image path and its description separated by |.
+- gallery_images: up to eight semicolon-separated pairs, each image path and its description separated by |.
 - species_key: optional existing BotanicalSpecies key for a plant. It does not verify a physical installed PlantUnit.
 - ZIP max 50MB, expanded data max 150MB, up to 600 SKU rows, individual input images <=3MB.
 
