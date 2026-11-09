@@ -22,6 +22,7 @@
     <article class="installation-card">
       <div class="card-top"><span class="badge draft">Not published</span><span class="fine">{{ product.get_kind_display }}</span></div>
       <p class="small-label">DRAFT COMMERCIAL CATALOGUE</p>
+      {% if product.cover_photo %}<a class="commerce-product-cover" href="{% url 'company:commerce-product' product.pk %}"><img src="{% url 'company:commerce-product-photo' product.pk %}" alt="{{ product.image_description }}" loading="lazy"></a>{% endif %}
       <h2><a href="{% url 'company:commerce-product' product.pk %}">{{ product.name }}</a></h2>
       <p>{{ product.description|truncatechars:180|default:"No product description recorded yet." }}</p>
       <p class="fine">{{ product.variants.count }} SKU option{{ product.variants.count|pluralize }} · {{ product.gallery.count }} gallery photos · {% if product.cover_photo %}Authorized photo attached{% else %}Real photo missing{% endif %}</p>
