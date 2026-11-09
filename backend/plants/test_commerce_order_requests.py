@@ -27,7 +27,7 @@ class CommerceQARequestsTests(DemoFixture, TestCase):
         self.staff.save(update_fields=["is_superuser"])
         self.product_draft = CommerceProduct.objects.create(
             name="QA intended houseplant", description="Internal draft for order flow testing",
-            kind="plant", created_by=self.staff,
+            kind="plant", created_by=self.staff, qa_listed=True,
         )
         self.sku = CommerceSKU.objects.create(
             product=self.product_draft, code="INT-QA-001",
