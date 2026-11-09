@@ -23,7 +23,7 @@
       {% endfor %}
     </div>
     {% else %}<p class="fine">No authorized product photo uploaded yet.</p>{% endif %}
-    {% if product.catalog_key %}<p class="fine">Imported product key: <code>{{ product.catalog_key }}</code></p>{% endif %>
+    {% if product.catalog_key %}<p class="fine">Imported product key: <code>{{ product.catalog_key }}</code></p>{% endif %}
     <p class="fine">Created by {{ product.created_by.username }} · {{ product.created_at|date:'j M Y' }}</p>
     <div class="notice warning">No buyer sees this catalogue yet. Approval, inventory reservation, shipping and payment are separate future release gates.</div>
   </section>
