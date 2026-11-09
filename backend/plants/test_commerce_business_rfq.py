@@ -21,7 +21,7 @@ class BusinessRFQFlowTests(DemoFixture, TestCase):
         self.staff.is_superuser = True
         self.staff.save(update_fields=["is_superuser"])
         self.product = CommerceProduct.objects.create(
-            name="Business QA plant", kind="plant", created_by=self.staff)
+            name="Business QA plant", kind="plant", created_by=self.staff, qa_listed=True)
         self.sku = CommerceSKU.objects.create(
             code="B2B-QA-001", product=self.product, price="350.00")
         self.url = reverse("plantupia-commerce-b2b-qa-rfqs")

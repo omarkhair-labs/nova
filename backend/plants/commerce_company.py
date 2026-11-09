@@ -5,6 +5,7 @@ from django import forms
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db.models import Q, Sum
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect
 
 from . import company_services as company, commerce_services as commerce
@@ -17,11 +18,12 @@ from .media import sanitize_public_plant_photo
 class CommerceProductForm(forms.ModelForm):
     class Meta:
         model = CommerceProduct
-        fields = ("name", "description", "kind", "reference_species", "cover_photo", "image_description")
+        fields = ("name", "description", "kind", "reference_species", "cover_photo", "image_description", "qa_listed")
         help_texts = {
             "reference_species": "Catalogue type only; never verification of a real delivered plant.",
             "cover_photo": "An authentic authorized photograph only. Draft products never appear in customer Shop.",
             "image_description": "Describe the actual photograph for accessibility.",
+            "qa_listed": "Opt in to this product appearing in isolated QA requests when counted stock exists. No live sales.",
         }
         widgets = {"description": forms.Textarea(attrs={"rows": 4})}
 
@@ -77,7 +79,7 @@ class StockCountForm(forms.Form):
 
 @portal("plants.view_commerceproduct", methods=("GET",))
 def products(request):
-    qs = CommerceProduct.objects.select_related("reference_species", "created_by").prefetch_related("variants")
+    qs = CommerceProduct.objects.select_related("reference_species", "created_by").prefetch_related("variants", "gallery")
     q = request.GET.get("q", "").strip()[:120]
     if q:
         qs = qs.filter(Q(name__icontains=q) | Q(variants__code__icontains=q)).distinct()
@@ -112,8 +114,30 @@ def product_detail(request, product_id):
     for sku in variants:
         sku.counted_balance = commerce.stock_balance(sku.pk)
     return page(request, "commerce_product", {
-        "title": product.name, "section": "commerce_products", "product": product, "variants": variants,
+        "title": product.name, "section": "commerce_products", "product": product, "variants": variants, "gallery": product.gallery.all(),
     })
+
+
+@portal("plants.view_commerceproduct", methods=("GET",))
+def product_photo(request, product_id):
+    """Same-origin authenticated image for a commercial draft and its gallery."""
+    product = get_object_or_404(CommerceProduct, pk=product_id)
+    identity = request.GET.get("photo", "").strip()
+    if identity:
+        try:
+            gallery_id = uuid.UUID(identity)
+        except (ValueError, AttributeError) as exc:
+            raise Http404 from exc
+        record = get_object_or_404(product.gallery, pk=gallery_id)
+        field = record.image
+    else:
+        field = product.cover_photo
+    if not field:
+        raise Http404
+    try:
+        return FileResponse(field.open("rb"), content_type="image/jpeg")
+    except (OSError, ValueError) as exc:
+        raise Http404 from exc
 
 
 @portal("plants.add_commercesku")

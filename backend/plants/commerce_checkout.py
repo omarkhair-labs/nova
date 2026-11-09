@@ -127,6 +127,8 @@ def submit_qa_request(user, data):
         for line in lines:
             sku = skus[str(line["sku_id"])]
             quantity = int(line["quantity"])
+            if not sku.product.qa_listed:
+                raise ValidationError("This product is not enabled for isolated QA requests.")
             if sku.currency != "EGP":
                 raise ValidationError("Mixed currencies are not supported in QA.")
             if commerce_services.stock_balance(sku.pk) < quantity:

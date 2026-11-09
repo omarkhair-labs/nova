@@ -112,7 +112,7 @@ class QACommerceCatalogView(QARequestView):
         if request.user.is_staff or not request.user.is_active:
             from django.core.exceptions import PermissionDenied
             raise PermissionDenied
-        skus = CommerceSKU.objects.select_related("product").order_by("code")[:100]
+        skus = CommerceSKU.objects.select_related("product").filter(product__qa_listed=True).order_by("code")[:100]
         results = []
         for sku in skus:
             balance = stock_balance(sku.pk)

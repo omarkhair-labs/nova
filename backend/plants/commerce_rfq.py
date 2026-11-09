@@ -57,6 +57,8 @@ def submit(*, requester, data):
         return prior
     sku = (get_object_or_404(CommerceSKU, pk=data["sku_id"])
            if data.get("sku_id") else None)
+    if sku is not None and not sku.product.qa_listed:
+        raise ValidationError("This SKU is not enabled for isolated QA enquiries.")
     rfq = CommerceBusinessRFQ(
         requester=requester, client_id=client_id, fingerprint=fingerprint,
         company_name=data["company_name"].strip(),

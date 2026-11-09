@@ -44,3 +44,15 @@ def commerce_home(request):
         "counts": counts, "can_products": can_products, "can_stock": can_stock,
         "can_requests": can_requests, "commerce_qa_requests_enabled": qa_orders_enabled(),
     })
+
+
+@portal(methods=("GET",))
+def care_home(request):
+    """Single entry into real care/content/support operations.
+
+    Do not imply there is an AI diagnostic, paid membership or an approved
+    field service schedule where none exists.
+    """
+    return page(request, "operations_care", {
+        "title": "Care & Support", "section": "care_home",
+    })

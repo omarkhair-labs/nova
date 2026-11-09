@@ -2,6 +2,7 @@
 // Progressive enhancement only. Authentication, validation and approvals are server enforced.
 for (const form of document.forms) {
   if (form.method.toLowerCase() !== "post") continue;
+  if (form.hasAttribute("data-commerce-import")) continue; // Own async validation/confirm flow.
   form.addEventListener("submit", event => {
     const button = event.submitter;
     form.setAttribute("aria-busy", "true");
