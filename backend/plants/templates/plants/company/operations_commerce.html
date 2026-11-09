@@ -1,35 +1,42 @@
 {% extends "plants/company/base.html" %}
 {% block content %}
-<div class="page-heading">
-  <div><p class="eyebrow">02 / B2C · SHOP OPERATIONS</p><h1>Products, stock, requests.</h1>
-  <p class="lead">Build the real product catalogue separately from test orders; review each customer request with its original prices, payment preference and delivery address. No collected funds or dispatch are inferred.</p></div>
-  {% if can_products and perms.plants.add_commerceproduct %}<a class="button primary" href="{% url 'company:commerce-product-create' %}">Create product draft +</a>{% endif %}
-</div>
-<div class="notice warning"><strong>Internal QA workspace:</strong> Prices and physical stock counts are drafts; there is no paid checkout, courier integration or automatic InstaPay settlement.</div>
-<div class="installation-grid">
-  {% if can_products %}<article class="installation-card">
-    <p class="small-label">PRODUCT DATA</p><h2>{{ counts.product_drafts }} drafts</h2>
-    <p>{{ counts.sku_options }} exact SKU options · Photos, product copy and variant prices.</p>
-    <div class="card-bottom"><span>Not published</span><a href="{% url 'company:commerce-products' %}">Open product catalogue →</a></div>
-  </article>{% endif %}
-  {% if can_stock %}<article class="installation-card">
-    <p class="small-label">WAREHOUSE</p><h2>Stock movements</h2>
-    <p>{{ counts.stock_movements }} recorded changes. Physical selling stock is separate from installed plant inventory.</p>
-    <div class="card-bottom"><span>Counted, not reserved</span><a href="{% url 'company:commerce-stock' %}">Open stock ledger →</a></div>
-  </article>{% endif %}
-  {% if can_requests %}<article class="installation-card">
-    <p class="small-label">CUSTOMER INBOX · QA</p><h2>{{ counts.unreviewed_requests }} awaiting review</h2>
-    <p>{{ counts.qa_requests }} total QA submissions. View saved SKU snapshots, customer address and requested payment preference.</p>
-    <div class="card-bottom"><span>Review ≠ payment</span><a href="{% url 'company:commerce-qa-requests' %}">Open QA requests →</a></div>
-  </article>{% endif %}
-  {% if ceo_demo_enabled and perms.plants.view_catalogproduct %}<article class="installation-card">
-    <p class="small-label">LEGACY ANDROID SHOP · QA</p><h2>Existing test shop</h2><p>Separate fictional product listing for the existing Android app.</p>
-    <div class="card-bottom"><span>Noncommercial</span><a href="{% url 'company:catalog' %}">Open original QA shop →</a></div>
-  </article>{% endif %}
-  {% if ceo_demo_enabled and perms.plants.view_demoorder %}<article class="installation-card">
-    <p class="small-label">LEGACY ORDERS · QA</p><h2>Existing test orders</h2><p>Recorded sample carts and order reviews without charge.</p>
-    <div class="card-bottom"><span>No shipping</span><a href="{% url 'company:orders' %}">Open original QA orders →</a></div>
-  </article>{% endif %}
-</div>
-<div class="notice">Upcoming commercial stages: order acceptance and actual stock reservation, shipping zones and fees, COD cash reconciliation, manual transfer reconciliation, dispatch and returns. None is labeled operational until it works.</div>
+<header class="page-heading compact-workspace-heading">
+  <div><p class="eyebrow">B2C · SHOP OPERATIONS / المتجر</p><h1>Commerce, without the clutter.</h1>
+    <p class="lead">Three places to work: products, orders and operations. Each opens the existing records and actions — not another parallel system.</p></div>
+  {% if can_products and perms.plants.add_commerceproduct %}<a class="button primary" href="{% url 'company:commerce-product-create' %}">New product +</a>{% endif %}
+</header>
+<section class="commerce-three" aria-label="Commerce operations">
+{% if can_products %}
+  <article class="commerce-path">
+    <span class="path-figure" aria-hidden="true">01 <span>◧</span></span>
+    <p class="eyebrow">CATALOG / المنتجات</p><h2>Products</h2>
+    <p>Product drafts / SKUs, pricing, variants and photographs. One product home, not scattered editors.</p>
+    <div class="path-bottom"><span><strong>{{ counts.product_drafts }}</strong> product drafts<br><small>{{ counts.sku_options }} exact SKU options</small></span><a class="button primary" href="{% url 'company:commerce-products' %}">Open products ↗</a></div>
+  </article>
+{% endif %}
+  <article class="commerce-path">
+    <span class="path-figure" aria-hidden="true">02 <span>≋</span></span>
+    <p class="eyebrow">ORDER INBOX / الطلبات</p><h2>Orders</h2>
+    <p>Review the customer, lines, address and next QA state from one request. Payment and courier dispatch are not connected.</p>
+    <div class="path-bottom">{% if can_requests %}<span><strong>{{ counts.unreviewed_requests }}</strong> awaiting QA review<br><small>{{ counts.qa_requests }} recorded requests</small></span><a class="button primary" href="{% url 'company:commerce-qa-requests' %}">Open requests ↗</a>{% else %}<span><strong>QA only</strong><br><small>Order intake unavailable for this account or environment.</small></span>{% endif %}</div>
+  </article>
+{% if can_stock %}
+  <article class="commerce-path">
+    <span class="path-figure" aria-hidden="true">03 <span>▦</span></span>
+    <p class="eyebrow">OPERATIONS / التشغيل</p><h2>Stock &amp; operations</h2>
+    <p>Warehouse stock counts, locations and movement history. Installed plant inventory belongs to B2B projects.</p>
+    <div class="path-bottom"><span><strong>{{ counts.stock_movements }}</strong> movements<br><small>Warehouse stock · no reservation yet</small></span><a class="button primary" href="{% url 'company:commerce-stock' %}">Open stock ↗</a></div>
+  </article>
+{% endif %}
+</section>
+<div class="commerce-reality"><strong>Current operating boundary</strong><span>Commercial publishing, payments, stock reservations and courier fulfillment are not live. Customer intake and progress tracking here are QA-only.</span></div>
+{% if ceo_demo_enabled %}
+<details class="qa-archive">
+  <summary><span><strong>Testing tools &amp; archived flows</strong><small>Separate fictional Shop records, kept for compatibility and QA</small></span><span aria-hidden="true">+</span></summary>
+  <div class="qa-archive-links">
+  {% if perms.plants.view_catalogproduct %}<a href="{% url 'company:catalog' %}">Original QA catalog · ZIP import (when enabled) ↗</a>{% endif %}
+  {% if perms.plants.view_demoorder %}<a href="{% url 'company:orders' %}">Original QA orders ↗</a>{% endif %}
+  </div>
+</details>
+{% endif %}
 {% endblock %}
