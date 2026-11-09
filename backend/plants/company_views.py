@@ -50,6 +50,17 @@ def page(request, template, context=None, status=200):
                "can_care": user.has_perms(("plants.view_careguideversion", "plants.view_botanicalspecies")),
                "can_handovers": user.has_perm("plants.view_handoverinvitation"),
                "handover_enabled": pilot_enabled(), **(context or {})}
+    # One contextual workspace navigation, without reclassifying persisted data.
+    section = context.get("section", "")
+    if section in {"projects_home", "business_rfqs", "installations", "inventory", "handovers"}:
+        context["workspace_area"] = "b2b"
+    elif section in {"commerce_home", "commerce_products", "commerce_stock",
+                     "commerce_qa_requests", "catalog", "orders"}:
+        context["workspace_area"] = "b2c"
+    elif section in {"care_home", "care", "plans", "support", "access"}:
+        context["workspace_area"] = "care"
+    else:
+        context["workspace_area"] = "hub"
     return render(request, "plants/company/" + template + ".html", context, status=status)
 
 
