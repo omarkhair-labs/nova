@@ -20,7 +20,7 @@
 <section class="installation-grid" aria-label="Commercial draft products">
   {% for product in records %}
     <article class="installation-card">
-      <div class="card-top"><span class="badge draft">Not published</span><span class="fine">{{ product.get_kind_display }}</span></div>
+      <div class="card-top"><span class="badge draft">Not published</span>{% if product.qa_listed %}<span class="badge">Visible in QA</span>{% endif %}<span class="fine">{{ product.get_kind_display }}</span></div>
       <p class="small-label">DRAFT COMMERCIAL CATALOGUE</p>
       {% if product.cover_photo %}<a class="commerce-product-cover" href="{% url 'company:commerce-product' product.pk %}"><img src="{% url 'company:commerce-product-photo' product.pk %}" alt="{{ product.image_description }}" loading="lazy"></a>{% endif %}
       <h2><a href="{% url 'company:commerce-product' product.pk %}">{{ product.name }}</a></h2>
