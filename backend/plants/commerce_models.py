@@ -16,6 +16,8 @@ class CommerceProduct(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=160)
+    catalog_key = models.SlugField(max_length=64, unique=True, null=True, blank=True,
+        help_text="Stable identity for reviewed catalogue imports; not a retail SKU.")
     description = models.TextField(max_length=3000, blank=True)
     kind = models.CharField(max_length=12, choices=Kind.choices)
     reference_species = models.ForeignKey(
@@ -43,6 +45,27 @@ class CommerceProduct(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class CommerceProductPhoto(models.Model):
+    """Optional ordered commercial draft gallery; no implicit publication."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    product = models.ForeignKey(CommerceProduct, on_delete=models.CASCADE, related_name="gallery")
+    image = models.ImageField(upload_to="plantupia/commerce/gallery/%Y/%m/")
+    alt_text = models.CharField(max_length=180)
+    position = models.PositiveSmallIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("position", "id")
+        constraints = [
+            models.UniqueConstraint(fields=("product", "position"),
+                name="plant_commerce_gallery_position_unique"),
+        ]
+
+    def __str__(self):
+        return f"{self.product.name} · image {self.position}"
 
 
 class CommerceSKU(models.Model):
