@@ -361,7 +361,7 @@ def commercial_template_bytes():
         ("Preview is read-only. Confirm creates unpublished products, SKUs and sanitized photos.",),
         ("Stock counts, publication, actual payment and delivery are separate operations.",),
     ]:
-        notes.append((row,))
+        notes.append(row if isinstance(row, (tuple, list)) else (row,))
     notes.column_dimensions["A"].width = 100
     buffer = BytesIO()
     workbook.save(buffer)
