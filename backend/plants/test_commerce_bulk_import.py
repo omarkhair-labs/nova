@@ -1,4 +1,5 @@
 """Commercial catalogue ZIP import: real draft model, gallery and SKU integrity."""
+import os
 from io import BytesIO
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
