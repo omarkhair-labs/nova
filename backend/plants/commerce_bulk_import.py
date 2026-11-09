@@ -355,7 +355,7 @@ def commercial_template_bytes():
         ("product_key: stable lowercase key 3-64 letters/numbers/hyphens.",),
         ("kind: plant, planter or care. currency: EGP.",),
         ("cover_image: images/name.jpg. cover_alt: a truthful description of that image.",),
-        ("gallery_images: images/detail1.jpg|alt text;images/detail2.webp|alt text (up to 6).",),
+        ("gallery_images: images/detail1.jpg|alt text;images/detail2.webp|alt text (up to 8).",),
         ("species_key: optional existing BotanicalSpecies key; only for plant kind.",),
         ("ZIP layout: products.xlsx at root; images/*.jpg, *.png or *.webp."),
         ("Preview is read-only. Confirm creates unpublished products, SKUs and sanitized photos.",),
