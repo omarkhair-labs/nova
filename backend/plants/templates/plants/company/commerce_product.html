@@ -15,7 +15,15 @@
     <p class="eyebrow">PRODUCT TRUTH</p>
     <h2>{{ product.get_kind_display }}</h2>
     <p class="fine">{% if product.reference_species %}Botanical reference: {{ product.reference_species.scientific_name }} (not physical plant verification){% else %}No botanical reference supplied.{% endif %}</p>
-    <p class="fine">Product photograph: {% if product.cover_photo %}Present — {{ product.image_description }}{% else %}No authorized photo uploaded{% endif %}</p>
+    {% if product.cover_photo %}
+    <div class="commerce-photo-board">
+      <figure><img src="{% url 'company:commerce-product-photo' product.pk %}" alt="{{ product.image_description }}" loading="lazy"><figcaption>Cover photo · {{ product.image_description }}</figcaption></figure>
+      {% for photo in gallery %}
+      <figure><img src="{% url 'company:commerce-product-photo' product.pk %}?photo={{ photo.pk }}" alt="{{ photo.alt_text }}" loading="lazy"><figcaption>{{ photo.alt_text }}</figcaption></figure>
+      {% endfor %}
+    </div>
+    {% else %}<p class="fine">No authorized product photo uploaded yet.</p>{% endif %}
+    {% if product.catalog_key %}<p class="fine">Imported product key: <code>{{ product.catalog_key }}</code></p>{% endif %>
     <p class="fine">Created by {{ product.created_by.username }} · {{ product.created_at|date:'j M Y' }}</p>
     <div class="notice warning">No buyer sees this catalogue yet. Approval, inventory reservation, shipping and payment are separate future release gates.</div>
   </section>
