@@ -77,7 +77,7 @@ class StockCountForm(forms.Form):
 
 @portal("plants.view_commerceproduct", methods=("GET",))
 def products(request):
-    qs = CommerceProduct.objects.select_related("reference_species", "created_by").prefetch_related("variants")
+    qs = CommerceProduct.objects.select_related("reference_species", "created_by").prefetch_related("variants", "gallery")
     q = request.GET.get("q", "").strip()[:120]
     if q:
         qs = qs.filter(Q(name__icontains=q) | Q(variants__code__icontains=q)).distinct()
@@ -112,7 +112,7 @@ def product_detail(request, product_id):
     for sku in variants:
         sku.counted_balance = commerce.stock_balance(sku.pk)
     return page(request, "commerce_product", {
-        "title": product.name, "section": "commerce_products", "product": product, "variants": variants,
+        "title": product.name, "section": "commerce_products", "product": product, "variants": variants, "gallery": product.gallery.all(),
     })
 
 
