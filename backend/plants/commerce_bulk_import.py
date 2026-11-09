@@ -182,6 +182,8 @@ def parse_commercial_pack(upload):
                 skus = []
                 seen_skus = set()
                 for index, row in enumerate(values, 2):
+                    if index > MAX_ROWS + 1000:
+                        raise CommercialCatalogError("Workbook contains too many rows, including empty rows.")
                     if not any(value is not None and str(value).strip() for value in row):
                         continue
                     if len(skus) >= MAX_ROWS:
