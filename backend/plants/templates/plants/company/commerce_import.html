@@ -1,0 +1,49 @@
+{% extends "plants/company/base.html" %}
+{% load static %}
+{% block content %}
+<a class="back-link" href="{% url 'company:commerce-products' %}">← Products / المنتجات</a>
+<header class="page-heading compact-workspace-heading">
+  <div><p class="eyebrow">B2C / PRODUCTS · استيراد المنتجات</p>
+    <h1>One workbook. Every variant.</h1>
+    <p class="lead">Import products, real SKU options and their photographs together. Review the file first; then create unpublished commercial drafts. This does not create sales or counted warehouse stock.</p>
+  </div>
+  <a class="button" href="{% url 'company:commerce-product-template' %}">Download Excel template ↓</a>
+</header>
+<div class="commerce-reality"><strong>ZIP FORMAT</strong><span>Put <code>products.xlsx</code> at the ZIP root and your photographs inside <code>images/</code>. One row per SKU; repeat matching product details for products with multiple variants. Up to 600 SKU rows and 50 MB per batch.</span></div>
+<div class="two-column import-layout">
+  <section class="panel padded">
+    <p class="eyebrow">01 / CHOOSE FILE</p><h2>Upload &amp; validate</h2>
+    <form method="post" enctype="multipart/form-data" action="{% url 'company:commerce-product-import' %}" data-commerce-import>
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="notice warning">{{ form.non_field_errors }}</div>{% endif %}
+      {% if form.upload.errors %}<div class="notice warning">{{ form.upload.errors }}</div>{% endif %}
+      <label class="file-drop" for="id_upload"><span class="file-drop-icon" aria-hidden="true">↥</span>
+        <strong>Excel + images as one ZIP</strong>
+        <span lang="ar" dir="rtl">اختار ملف المنتجات المضغوط وفيه الصور</span>
+        {{ form.upload }}
+      </label>
+      <input type="hidden" name="action" id="commerce-import-action" value="preview">
+      <input type="hidden" name="digest" id="commerce-import-digest" value="">
+      <input type="hidden" name="confirm" id="commerce-import-confirm" value="">
+      <div class="import-controls">
+        <button class="button primary" type="submit" id="commerce-import-preview">Validate file · معاينة</button>
+        <button class="button" type="button" id="commerce-import-save" disabled>Confirm draft import · تأكيد الاستيراد</button>
+      </div>
+      <div id="commerce-import-message" role="status" aria-live="polite" class="import-status">
+        First validate the file. No records will be saved until confirmation.
+      </div>
+    </form>
+  </section>
+  <section class="panel padded">
+    <p class="eyebrow">02 / REVIEW</p><h2>Before import</h2>
+    <p class="lead">Each <code>product_key</code> becomes one product; each SKU row becomes a priced variant. Reusing an existing key/SKU is stopped, never silently overwritten.</p>
+    <div class="import-review" id="commerce-import-results">
+      {% if outcome %}<div class="notice">{{ outcome }}</div>{% endif %}
+      {% if preview %}{% for entry in preview %}<p><strong>{{ entry.name }}</strong> · {{ entry.sku_count }} SKU(s)</p>{% endfor %}{% endif %}
+      {% if not preview %}<p class="fine">The validated products and row counts will appear here. Photos must be real authorized product photos; additional descriptions belong next to their image paths in Excel.</p>{% endif %}
+    </div>
+    <div class="notice import-note">All imported records stay as drafts. Stock counts, publication to Android Shop, payments and shipping are separate actions.</div>
+  </section>
+</div>
+<script src="{% static 'plants/company/commerce_import.js' %}" defer></script>
+{% endblock %}
