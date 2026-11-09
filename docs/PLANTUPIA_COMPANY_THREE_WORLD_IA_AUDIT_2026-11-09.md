@@ -1,5 +1,5 @@
 # Plantupia Company — Three-world Information Architecture & Operational Audit
-Date: 2026-11-09  
+Date: 2026-11-09
 Scope: Isolated preview code based on PR #253 at \`f650137\`. This is **an interaction/IA slice**, not a commercial go-live, payment or backend-model redesign.
 
 ## Product thesis
