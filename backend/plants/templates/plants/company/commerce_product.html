@@ -7,7 +7,7 @@
     <h1>{{ product.name }}</h1>
     <p class="lead">{{ product.description|default:"Awaiting approved product copy." }}</p>
   </div>
-  <div class="actions"><span class="badge draft">Draft · no checkout</span>
+  <div class="actions"><span class="badge draft">Draft · no live checkout</span><span class="badge">{% if product.qa_listed %}QA app listed{% else %}Not shown in QA app{% endif %}</span>
     {% if perms.plants.change_commerceproduct %}<a class="button" href="{% url 'company:commerce-product-edit' product.pk %}">Edit product</a>{% endif %}</div>
 </div>
 <div class="two-column">
