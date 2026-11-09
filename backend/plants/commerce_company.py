@@ -18,11 +18,12 @@ from .media import sanitize_public_plant_photo
 class CommerceProductForm(forms.ModelForm):
     class Meta:
         model = CommerceProduct
-        fields = ("name", "description", "kind", "reference_species", "cover_photo", "image_description")
+        fields = ("name", "description", "kind", "reference_species", "cover_photo", "image_description", "qa_listed")
         help_texts = {
             "reference_species": "Catalogue type only; never verification of a real delivered plant.",
             "cover_photo": "An authentic authorized photograph only. Draft products never appear in customer Shop.",
             "image_description": "Describe the actual photograph for accessibility.",
+            "qa_listed": "Opt in to this product appearing in isolated QA requests when counted stock exists. No live sales.",
         }
         widgets = {"description": forms.Textarea(attrs={"rows": 4})}
 
