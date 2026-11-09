@@ -25,6 +25,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect
 from django.urls import reverse
 from openpyxl import Workbook, load_workbook
+from openpyxl.utils import get_column_letter
 
 from . import company_services as company
 from .commerce_models import CommerceProduct, CommerceProductPhoto, CommerceSKU
@@ -40,7 +41,7 @@ MAX_ZIP_BYTES = 50 * 1024 * 1024
 MAX_UNCOMPRESSED = 150 * 1024 * 1024
 MAX_IMAGE_BYTES = 3 * 1024 * 1024
 MAX_ROWS = 600
-MAX_GALLERY = 6
+MAX_GALLERY = 8
 
 
 class CommercialCatalogError(ValueError):
@@ -345,7 +346,7 @@ def commercial_template_bytes():
     sheet.freeze_panes = "A2"
     sizes = [18, 22, 34, 14, 45, 22, 16, 12, 30, 36, 58, 20]
     for i, size in enumerate(sizes, 1):
-        sheet.column_dimensions[__import__("openpyxl").utils.get_column_letter(i)].width = size
+        sheet.column_dimensions[get_column_letter(i)].width = size
     sheet.auto_filter.ref = "A1:L1"
     notes = workbook.create_sheet("Instructions")
     for row in [
