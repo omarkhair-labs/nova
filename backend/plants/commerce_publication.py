@@ -3,6 +3,7 @@
 Approval is an internal product-data decision. No customer API uses this flag
 until the SAME CommerceSKU-backed cart, checkout and fulfillment are complete.
 """
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.shortcuts import get_object_or_404
@@ -92,3 +93,31 @@ def invalidate_catalog_review(*, staff, product_id, reason):
     ])
     company.audit(staff, product, f"Commercial product returned to review after {reason}.")
     return True
+
+@transaction.atomic
+def set_storefront_publication(*, staff, product_id, action):
+    """Explicit, audited merchant publication. Unpublishing remains available when gated off."""
+    company.require(staff, "plants.change_commerceproduct")
+    if action not in ("publish", "unpublish"):
+        raise ValidationError("Choose publish or unpublish.")
+    product = get_object_or_404(
+        CommerceProduct.objects.select_for_update(), pk=product_id,
+    )
+    if action == "publish":
+        if not getattr(settings, "PLANTUPIA_STOREFRONT_PUBLICATION_ENABLED", False):
+            raise ValidationError("Commercial publication is disabled until operational go-live approval.")
+        if product.catalog_review_status != CommerceProduct.CatalogReviewStatus.APPROVED:
+            raise ValidationError("Review and approve product data before publishing.")
+        issues = product_readiness_issues(product)
+        if issues:
+            raise ValidationError(issues)
+        if product.storefront_published_at is None:
+            product.storefront_published_at = timezone.now()
+            product.save(update_fields=["storefront_published_at", "updated_at"])
+            company.audit(staff, product, "Explicitly published reviewed SKU catalogue to customer Shop.")
+    else:
+        if product.storefront_published_at is not None:
+            product.storefront_published_at = None
+            product.save(update_fields=["storefront_published_at", "updated_at"])
+            company.audit(staff, product, "Unpublished commercial product from customer Shop.")
+    return product
