@@ -30,10 +30,13 @@ class CompanyWorkspaceNavigationTests(DemoFixture, TestCase):
         self.assertNotContains(commercial, "B2B / PROJECTS")
         self.assertContains(commercial, "B2C / SHOP")
 
-    def test_home_has_three_keyboard_native_expanding_worlds(self):
+    def test_home_has_three_one_click_world_destinations(self):
         response = self.client.get(reverse("company:overview"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'name="plantupia-worlds"', count=3)
+        self.assertContains(response, 'class="world-entry"', count=3)
+        self.assertNotContains(response, 'name="plantupia-worlds"')
+        self.assertNotContains(response, 'class="world-actions"')
+        self.assertNotContains(response, '<summary>')
         self.assertContains(response, 'A place for every')
         self.assertContains(response, 'المشروعات والتركيبات')
         self.assertContains(response, reverse("company:projects-home"))
@@ -53,6 +56,33 @@ class CompanyWorkspaceNavigationTests(DemoFixture, TestCase):
         projects = self.client.get(reverse("company:projects-home"))
         self.assertContains(projects, "QR handovers")
         self.assertNotContains(projects, "Product drafts / SKUs")
+
+    def test_project_work_queue_comes_before_summary_cards(self):
+        response = self.client.get(reverse("company:projects-home"))
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertLess(html.index('class="panel padded history work-queue"'),
+                        html.index('class="project-status-summary"'))
+        self.assertContains(response, "Continue where you left off")
+        self.assertContains(response, reverse("company:installation-create"))
+
+    def test_commerce_has_import_action_before_overview_cards(self):
+        response = self.client.get(reverse("company:commerce-home"))
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertLess(html.index('class="task-shortcuts"'), html.index('class="commerce-three"'))
+        self.assertContains(response, reverse("company:commerce-product-import"))
+        self.assertContains(response, "استيراد المنتجات")
+
+    def test_care_keeps_qa_tools_accessible_but_not_primary_navigation(self):
+        response = self.client.get(reverse("company:care-home"))
+        html = response.content.decode()
+        self.assertContains(response, "Testing tools")
+        self.assertContains(response, reverse("company:plans"))
+        self.assertContains(response, reverse("company:demo-access"))
+        self.assertLess(html.index("Botanical care library"), html.index("Testing tools"))
+        self.assertContains(response, 'class="sidebar-qa"')
+        self.assertContains(response, 'class="qa-archive"')
 
     def test_mixed_language_navigation_and_b2c_icons_have_explicit_layout(self):
         response = self.client.get(reverse("company:commerce-home"))
