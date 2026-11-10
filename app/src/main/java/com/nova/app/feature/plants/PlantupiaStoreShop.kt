@@ -95,6 +95,12 @@ internal fun PlantupiaStoreShop(
             "catalog" -> when (val result = repository.demoGet("commerce/catalog/")) {
                 is ApiResult.Success -> if (repository.isCurrentSession()) {
                     products = result.value.demoRows()
+                    // Reuse this ONE cart while browsing; repeated Add increments
+                    // the exact SKU instead of silently resetting the quantity to 1.
+                    when (val current = repository.demoGet("commerce/cart/")) {
+                        is ApiResult.Success -> if (repository.isCurrentSession()) cart = current.value
+                        is ApiResult.Failure -> if (repository.isCurrentSession()) feedback = current.message
+                    }
                     loaded = true
                 }
                 is ApiResult.Failure -> if (repository.isCurrentSession()) {
@@ -265,6 +271,11 @@ internal fun PlantupiaStoreShop(
                                     color = storeInk)
                             }
                             variants.forEach { variant ->
+                                val selectedSku = variant.optString("id")
+                                val inCart = cart?.demoRows()?.firstOrNull { line ->
+                                    line.optJSONObject("product")?.optString("id") == selectedSku
+                                }?.optInt("quantity") ?: 0
+                                val available = variant.optInt("available_units")
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Column(Modifier.weight(1f)) {
@@ -276,10 +287,11 @@ internal fun PlantupiaStoreShop(
                                             style = PlantupiaText.supporting)
                                     }
                                     Button(
-                                        onClick = { updateQuantity(variant.optString("id"), 1) },
-                                        enabled = !busy && variant.optBoolean("in_stock"),
+                                        onClick = { updateQuantity(selectedSku, inCart + 1) },
+                                        enabled = !busy && variant.optBoolean("in_stock") &&
+                                            inCart < 10 && inCart < available,
                                         colors = ButtonDefaults.buttonColors(containerColor = storeInk),
-                                    ) { Text("Add") }
+                                    ) { Text(if (inCart > 0) "+1 · " + inCart + " in cart" else "Add") }
                                 }
                             }
                         }
