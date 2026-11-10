@@ -165,8 +165,7 @@ class RealCustomerOrderTests(DemoFixture, TestCase):
         self.api.force_authenticate(self.stranger)
         denied = self.accept(stranger_order_id)
         self.assertEqual(denied.status_code, 400)
-        self.assertEqual(CommerceStockReservation.objects.aggregate_total() if False else
-                         sum(r.quantity for r in CommerceStockReservation.objects.all()), 5)
+        self.assertEqual(sum(r.quantity for r in CommerceStockReservation.objects.all()), 5)
         self.assertEqual(available_units(self.sku.pk), 2)
         self.assertEqual(CommerceOrder.objects.get(pk=stranger_order_id).status, "quoted")
 
