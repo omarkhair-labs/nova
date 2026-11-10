@@ -109,6 +109,31 @@
   <p class="fine">These operator records do not verify money received, authorize a refund or claim a carrier integration.</p>
 </section>
 <section class="panel padded">
+  <p class="eyebrow">PAYMENT RECONCILIATION / التحصيل</p>
+  <h2>{{ order.get_payment_status_display }} · {{ order.get_payment_preference_display }}</h2>
+  {% if order.transfer_claim %}
+    <p>Customer-submitted transfer reference: <code>{{ order.transfer_claim.reference }}</code></p>
+    <p class="fine">Customer claimed transfer {{ order.transfer_claim.created_at|date:"j M Y, H:i" }}. A claim is not payment proof.</p>
+  {% endif %}
+  {% if order.payment_status == "verified" %}
+    <p>Company finance settlement: EGP {{ order.verified_payment.amount }} · {{ order.verified_payment.settlement_reference }}</p>
+    <p class="fine">Verified by {{ order.verified_payment.verified_by.username }} at {{ order.verified_payment.verified_at|date:"j M Y, H:i" }}.</p>
+  {% elif perms.plants.add_commercepaymentrecord and perms.plants.change_commerceorder %}
+    <p>Finance must independently match the actual bank settlement or delivered COD cash receipt. Customer screenshot alone is not evidence.</p>
+    <form method="post" action="{% url 'company:commerce-order-payment' order.pk %}">
+      {% csrf_token %}
+      <label for="paid-amount">Actually reconciled EGP amount</label>
+      <input id="paid-amount" type="number" name="amount" min="0.01" step=".01" required>
+      <label for="settlement-ref">Official bank statement / COD receipt reference</label>
+      <input id="settlement-ref" name="settlement_reference" maxlength="120" minlength="6" required>
+      <label for="payment-evidence">Independent matching evidence note</label>
+      <textarea id="payment-evidence" name="evidence_note" maxlength="500" minlength="20" required></textarea>
+      <button class="button primary" type="submit">Record verified settlement</button>
+    </form>
+  {% endif %}
+  <p class="fine">No payment gateway connected. Verified means an authorized finance reviewer attested matching independent company records.</p>
+</section>
+<section class="panel padded">
   <p class="eyebrow">ACTUAL ORDER ACTIVITY</p><h2>Timeline / سجل الطلب</h2>
   {% for event in order.status_events.all %}
     <div class="record-row">
