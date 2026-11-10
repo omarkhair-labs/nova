@@ -191,7 +191,7 @@ class PlantupiaCeoJourneyInstrumentedTest {
         assertTrue(orders is ApiResult.Success && orders.value.demoRows().isNotEmpty())
         scenario!!.recreate()
         click("Shop")
-        click("My orders")
+        click("Preview orders")
         node("charged: no", true).assertExists()
         capture("08-order-after-relaunch")
     }
@@ -216,7 +216,7 @@ class PlantupiaCeoJourneyInstrumentedTest {
         click("Close")
         click("← Back to space")
         click("Shop")
-        click("My orders")
+        click("Preview orders")
         node("charged: no", true).assertExists()
         capture("12-orders-${width}dp")
     }
