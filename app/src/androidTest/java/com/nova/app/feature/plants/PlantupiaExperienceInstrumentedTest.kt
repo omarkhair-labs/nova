@@ -116,6 +116,20 @@ class PlantupiaExperienceInstrumentedTest {
         capture("07-today-return")
     }
 
+    @Test fun shopNavigationRemainsReadableAndDeliveryMapRouteIsDiscoverable() {
+        root("Shop")
+        node("Preview cart").assertIsDisplayed()
+        node("Preview orders").assertIsDisplayed()
+        capture("shop-qa-actions-real-phone")
+        val available = runBlocking { repository.demoGet("commerce/qa/catalog/") } is ApiResult.Success
+        if (available) {
+            click("New delivery request · address + map · QA")
+            node("Recipient name").assertExists()
+            node("Set exact delivery pin on map").assertExists()
+            capture("shop-delivery-address-form")
+        }
+    }
+
     @Test fun existingTeamReplyAndAuthorizedOpenIntent() {
         val requests = runBlocking { repository.demoGet("service-requests/") }
         assertTrue(requests is ApiResult.Success)
@@ -148,7 +162,7 @@ class PlantupiaExperienceInstrumentedTest {
         node("Preview order received", true).assertExists(); capture("09-order")
         val orders = runBlocking { repository.demoGet("demo/orders/") }
         assertTrue(orders is ApiResult.Success && orders.value.demoRows().isNotEmpty())
-        scenario!!.recreate(); root("Shop"); click("My orders")
+        scenario!!.recreate(); root("Shop"); click("Preview orders")
         node("charged: no", true).assertExists(); capture("10-reopened-order")
     }
 
