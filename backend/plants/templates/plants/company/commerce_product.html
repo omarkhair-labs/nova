@@ -7,7 +7,7 @@
     <h1>{{ product.name }}</h1>
     <p class="lead">{{ product.description|default:"Awaiting approved product copy." }}</p>
   </div>
-  <div class="actions"><span class="badge draft">Draft · no live checkout</span><span class="badge">{% if product.qa_listed %}QA app listed{% else %}Not shown in QA app{% endif %}</span>
+  <div class="actions"><span class="badge">{% if product.catalog_review_status == "approved" %}Product data approved{% else %}Needs product review{% endif %}</span><span class="badge draft">Shop not live</span>
     {% if perms.plants.change_commerceproduct %}<a class="button" href="{% url 'company:commerce-product-edit' product.pk %}">Edit product</a>{% endif %}</div>
 </div>
 <div class="two-column">
@@ -25,7 +25,30 @@
     {% else %}<p class="fine">No authorized product photo uploaded yet.</p>{% endif %}
     {% if product.catalog_key %}<p class="fine">Imported product key: <code>{{ product.catalog_key }}</code></p>{% endif %}
     <p class="fine">Created by {{ product.created_by.username }} · {{ product.created_at|date:'j M Y' }}</p>
-    <div class="notice warning">No buyer sees this catalogue yet. Approval, inventory reservation, shipping and payment are separate future release gates.</div>
+    <div class="notice warning">Approval means this product's data was reviewed. Customer listing, stock reservation, payment and delivery remain unconnected until the unified Shop release.</div>
+    <section class="catalog-approval" aria-label="Commercial product content review">
+      <p class="eyebrow">CATALOG REVIEW / مراجعة المنتج</p>
+      {% if product.catalog_review_status == "approved" %}
+        <p>Reviewed by {{ product.catalog_reviewed_by.username }} · {{ product.catalog_reviewed_at|date:"j M Y, H:i" }}</p>
+      {% else %}
+        <p>Product checklist before content approval:</p>
+        {% if catalog_readiness_issues %}
+          <ul>{% for issue in catalog_readiness_issues %}<li>{{ issue }}</li>{% endfor %}</ul>
+        {% else %}
+          <p>All required product data is present. Staff may approve its content.</p>
+        {% endif %}
+      {% endif %}
+      {% if perms.plants.change_commerceproduct %}
+        <form action="{% url 'company:commerce-product-review' product.pk %}" method="post">
+          {% csrf_token %}
+          {% if product.catalog_review_status == "approved" %}
+          <button type="submit" class="button" name="action" value="reopen">Reopen product review</button>
+          {% elif not catalog_readiness_issues %}
+          <button type="submit" class="button primary" name="action" value="approve">Approve product data</button>
+          {% endif %}
+        </form>
+      {% endif %}
+    </section>
   </section>
   <section class="panel padded">
     <div class="panel-heading">
