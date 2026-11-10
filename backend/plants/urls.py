@@ -1,4 +1,7 @@
 from django.urls import path
+from .commerce_storefront_api import CommerceCatalogView, CommerceCatalogPhotoView, CommerceCartView
+from .commerce_business_real_api import BusinessInquiriesView, BusinessAcceptQuoteView
+from .commerce_orders_api import CommerceOrdersView, CommerceOrderDetailView, CommerceOrderAcceptQuoteView, CommerceOrderCancelView, CommerceOrderTransferClaimView, CommerceOrderReturnView
 from .assistant import PlantAssistantView
 from .commerce_api import QACommerceRequestsView, QACommerceRequestView, QACommerceCatalogView, QACommerceRequestActionView, QACommerceRFQsView, QACommerceRFQAcceptView
 from .species_library import BotanicalSpeciesLibraryView, BotanicalSpeciesLibraryDetailView
@@ -10,6 +13,18 @@ from .views import PlantEventSubmissionsView, PlantQuestionSubmissionsView
 from .views import SpaceDetailView, PlantDetailView, PlantEventsView, PlantFollowUpDateView, PlantNicknameView, PlantsView, SpacesView, PlantQuestionsView, PlantQuestionResolveView, PlantCircleView
 
 urlpatterns = [
+    # The sole future customer Shop data source; no QA models or active checkout.
+    path("commerce/catalog/", CommerceCatalogView.as_view(), name="plantupia-real-commerce-catalog"),
+    path("commerce/catalog/<uuid:product_id>/image/", CommerceCatalogPhotoView.as_view(), name="plantupia-real-commerce-image"),
+    path("commerce/cart/", CommerceCartView.as_view(), name="plantupia-real-commerce-cart"),
+    path("commerce/business/inquiries/", BusinessInquiriesView.as_view(), name="plantupia-real-business-inquiries"),
+    path("commerce/business/inquiries/<uuid:inquiry_id>/accept/", BusinessAcceptQuoteView.as_view(), name="plantupia-real-business-accept"),
+    path("commerce/orders/", CommerceOrdersView.as_view(), name="plantupia-real-commerce-orders"),
+    path("commerce/orders/<uuid:order_id>/", CommerceOrderDetailView.as_view(), name="plantupia-real-commerce-order"),
+    path("commerce/orders/<uuid:order_id>/accept-quote/", CommerceOrderAcceptQuoteView.as_view(), name="plantupia-real-commerce-accept-quote"),
+    path("commerce/orders/<uuid:order_id>/cancel/", CommerceOrderCancelView.as_view(), name="plantupia-real-commerce-cancel"),
+    path("commerce/orders/<uuid:order_id>/transfer-reference/", CommerceOrderTransferClaimView.as_view(), name="plantupia-real-commerce-transfer-reference"),
+    path("commerce/orders/<uuid:order_id>/return/", CommerceOrderReturnView.as_view(), name="plantupia-real-commerce-return"),
     path("library/species/", BotanicalSpeciesLibraryView.as_view(), name="plantupia-library-species"),
     path("library/species/<slug:key>/", BotanicalSpeciesLibraryDetailView.as_view(), name="plantupia-library-species-detail"),
     path("demo/access/", DemoAccessView.as_view(), name="plantupia-demo-access"),

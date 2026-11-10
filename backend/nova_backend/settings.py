@@ -197,6 +197,12 @@ if use_object_storage:
         },
     }
 
+# Separate operational go-live approval; no catalog item is automatically published.
+# Keep disabled until merchant shipping, payment, stock and support are accepted.
+PLANTUPIA_STOREFRONT_PUBLICATION_ENABLED = os.getenv(
+    "PLANTUPIA_STOREFRONT_PUBLICATION_ENABLED", "0"
+).strip() == "1"
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "accounts.User"
 

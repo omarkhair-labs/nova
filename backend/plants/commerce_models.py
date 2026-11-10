@@ -20,6 +20,23 @@ class CommerceProduct(models.Model):
         help_text="Stable identity for reviewed catalogue imports; not a retail SKU.")
     qa_listed = models.BooleanField(default=False,
         help_text="Explicitly available in the isolated QA app only; never commercial publication.")
+    class CatalogReviewStatus(models.TextChoices):
+        DRAFT = "draft", "Needs product review"
+        APPROVED = "approved", "Product data approved for future storefront"
+
+    catalog_review_status = models.CharField(
+        max_length=12, choices=CatalogReviewStatus.choices, default=CatalogReviewStatus.DRAFT,
+        help_text="Staff content approval only. Does not publish to Android or authorize taking orders.")
+    catalog_reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT,
+        related_name="plantupia_catalog_products_reviewed",
+    )
+    catalog_reviewed_at = models.DateTimeField(null=True, blank=True)
+    storefront_published_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="The product is listed only after a separate actual storefront go-live decision.",
+    )
+
     description = models.TextField(max_length=3000, blank=True)
     kind = models.CharField(max_length=12, choices=Kind.choices)
     reference_species = models.ForeignKey(
@@ -94,6 +111,43 @@ class CommerceSKU(models.Model):
         return self.code
 
 
+class CommerceCartLine(models.Model):
+    """One customer's persisted cart line against the canonical commercial SKU.
+
+    Cart quantities are intentions, not reserved stock or accepted orders.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    customer = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="plantupia_commerce_cart",
+    )
+    sku = models.ForeignKey(
+        CommerceSKU, on_delete=models.PROTECT, related_name="cart_lines",
+    )
+    quantity = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1)],
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("sku__code", "id")
+        constraints = [
+            models.UniqueConstraint(fields=("customer", "sku"), name="plant_commerce_cart_customer_sku_unique"),
+            models.CheckConstraint(
+                condition=models.Q(quantity__gte=1, quantity__lte=10),
+                name="plant_commerce_cart_qty_1_10",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.quantity is not None and not 1 <= self.quantity <= 10:
+            raise ValidationError({"quantity": "Choose between 1 and 10 units of this exact SKU."})
+
+    def __str__(self):
+        return f"{self.sku.code} × {self.quantity}"
+
+
 class CommerceStockLocation(models.Model):
     """Sellable SKU stock location, never an installed-plant Space or manifest."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -114,6 +168,7 @@ class CommerceStockMovement(models.Model):
     class Reason(models.TextChoices):
         OPENING = "opening", "Initial counted stock"
         CORRECTION = "correction", "Stock count correction"
+        DISPATCH = "dispatch", "Stock released to delivery carrier"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     sku = models.ForeignKey(CommerceSKU, on_delete=models.PROTECT, related_name="stock_movements")
@@ -335,3 +390,291 @@ class CommerceBusinessRFQ(models.Model):
 
     def __str__(self):
         return f"Business RFQ {self.id}"
+
+
+class CommerceOrder(models.Model):
+    """Real customer order, first awaiting an exact shipping quote.
+
+    A requested quote is NOT a merchant-accepted, paid or dispatched order.
+    Stock reservations are written atomically only when the customer accepts a
+    current exact shipping quote. Statuses beyond confirmed need real evidence.
+    """
+    class Status(models.TextChoices):
+        QUOTE_PENDING = "quote_pending", "Awaiting delivery quote"
+        QUOTED = "quoted", "Shipping quote ready for customer"
+        CONFIRMED = "confirmed", "Customer accepted exact total"
+        PREPARING = "preparing", "Being prepared"
+        DISPATCHED = "dispatched", "With delivery team"
+        DELIVERED = "delivered", "Delivered with proof"
+        CANCELLED = "cancelled", "Cancelled"
+        DECLINED = "declined", "Cannot fulfill"
+        RETURN_REQUESTED = "return_requested", "Return requested"
+        RETURNED = "returned", "Returned"
+
+    class PaymentPreference(models.TextChoices):
+        COD = "cod", "Cash on delivery"
+        MANUAL_TRANSFER = "manual_transfer", "Manual bank or InstaPay transfer"
+
+    class PaymentStatus(models.TextChoices):
+        UNPAID = "unpaid", "Not paid"
+        VERIFIED = "verified", "Payment verified by company"
+        REFUNDED = "refunded", "Refund verified by company"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    customer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="plantupia_store_orders")
+    client_id = models.UUIDField(help_text="Stable retry identity for this order quote.")
+    fingerprint = models.CharField(max_length=64, editable=False)
+    cart_fingerprint = models.CharField(max_length=64)
+    contact_name = models.CharField(max_length=160)
+    contact_phone = models.CharField(max_length=32)
+    city = models.CharField(max_length=120)
+    delivery_address = models.CharField(max_length=320)
+    building_details = models.CharField(max_length=180, blank=True)
+    landmark = models.CharField(max_length=180, blank=True)
+    delivery_latitude = models.DecimalField(max_digits=10, decimal_places=7, blank=True, null=True)
+    delivery_longitude = models.DecimalField(max_digits=10, decimal_places=7, blank=True, null=True)
+    delivery_pin_confirmed = models.BooleanField(default=False)
+    customer_note = models.CharField(max_length=500, blank=True)
+    payment_preference = models.CharField(max_length=20, choices=PaymentPreference.choices)
+    payment_status = models.CharField(max_length=12, choices=PaymentStatus.choices,
+        default=PaymentStatus.UNPAID)
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2)
+    shipping_fee = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True,
+        validators=[MinValueValidator(Decimal("0.00"))])
+    shipping_quote_version = models.PositiveIntegerField(default=0)
+    shipping_quote_expires_at = models.DateTimeField(blank=True, null=True)
+    status = models.CharField(max_length=22, choices=Status.choices, default=Status.QUOTE_PENDING)
+    quoted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        null=True, blank=True, related_name="plantupia_store_shipping_quotes")
+    quoted_at = models.DateTimeField(blank=True, null=True)
+    confirmed_at = models.DateTimeField(blank=True, null=True)
+    cancelled_at = models.DateTimeField(blank=True, null=True)
+    last_status_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at", "id")
+        constraints = [
+            models.UniqueConstraint(fields=("customer", "client_id"),
+                name="plant_store_order_retry_unique"),
+        ]
+
+    def clean(self):
+        super().clean()
+        lat = self.delivery_latitude is not None
+        lon = self.delivery_longitude is not None
+        if lat != lon:
+            raise ValidationError("Delivery coordinates must be provided together.")
+        if lat and (not (-90 <= self.delivery_latitude <= 90 and
+                        -180 <= self.delivery_longitude <= 180)
+                    or not self.delivery_pin_confirmed):
+            raise ValidationError("Confirm a valid exact delivery location pin.")
+        if not lat and self.delivery_pin_confirmed:
+            raise ValidationError("A confirmed map pin must have both coordinates.")
+        if self.shipping_fee is not None and self.shipping_fee < 0:
+            raise ValidationError("Shipping cannot be negative.")
+
+    def __str__(self):
+        return f"Plantupia store order {self.pk}"
+
+
+class CommerceOrderLine(models.Model):
+    """Immutable SKU/price/quantity snapshot for a genuine merchant order."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.ForeignKey(CommerceOrder, on_delete=models.PROTECT, related_name="lines")
+    sku = models.ForeignKey(CommerceSKU, on_delete=models.PROTECT)
+    product_name_snapshot = models.CharField(max_length=160)
+    sku_code_snapshot = models.CharField(max_length=64)
+    option_snapshot = models.CharField(max_length=120, blank=True)
+    unit_price_snapshot = models.DecimalField(max_digits=11, decimal_places=2)
+    quantity = models.PositiveSmallIntegerField()
+    line_subtotal_snapshot = models.DecimalField(max_digits=12, decimal_places=2)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=("order", "sku"),
+                name="plant_store_order_line_unique"),
+            models.CheckConstraint(condition=models.Q(quantity__gte=1, quantity__lte=10),
+                name="plant_store_order_line_qty"),
+        ]
+
+
+class CommerceRealOrderEvent(models.Model):
+    """Immutable customer-visible history for actual commerce orders only.
+
+    Events describe verified workflow actions; they never infer payment or shipping.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.ForeignKey(CommerceOrder, on_delete=models.PROTECT, related_name="status_events")
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="plantupia_real_order_status_events")
+    kind = models.CharField(max_length=32)
+    label = models.CharField(max_length=160)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("created_at", "id")
+
+
+class CommerceFulfillmentReceipt(models.Model):
+    """One actual operator-attested dispatch and optional delivery confirmation.
+
+    A shipping reference is not payment evidence. A delivery proof reference must
+    identify an independently retained proof document; no document is fabricated here.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.OneToOneField(CommerceOrder, on_delete=models.PROTECT,
+        related_name="fulfillment_receipt")
+    carrier_name = models.CharField(max_length=120)
+    tracking_reference = models.CharField(max_length=120)
+    dispatch_note = models.CharField(max_length=300)
+    dispatched_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="plantupia_store_dispatches_recorded")
+    dispatched_at = models.DateTimeField(auto_now_add=True)
+    delivery_proof_reference = models.CharField(max_length=180, blank=True)
+    delivered_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        null=True, blank=True, related_name="plantupia_store_deliveries_recorded")
+    delivered_at = models.DateTimeField(null=True, blank=True)
+
+
+class CommerceTransferClaim(models.Model):
+    """Customer-supplied bank/InstaPay reference, never proof of payment."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.OneToOneField(CommerceOrder, on_delete=models.PROTECT,
+        related_name="transfer_claim")
+    reference = models.CharField(max_length=120)
+    claimed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="plantupia_transfer_claims")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class CommercePaymentRecord(models.Model):
+    """Manual settlement that a separately authorized company finance reviewer attests.
+
+    A customer's claim alone cannot create this record. Operator must match
+    independent company bank/cash evidence and the exact order total.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.OneToOneField(CommerceOrder, on_delete=models.PROTECT,
+        related_name="verified_payment")
+    method = models.CharField(max_length=20, choices=CommerceOrder.PaymentPreference.choices)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    settlement_reference = models.CharField(max_length=120)
+    evidence_note = models.CharField(max_length=500)
+    verified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="plantupia_payments_verified")
+    verified_at = models.DateTimeField(auto_now_add=True)
+
+
+class CommerceReturnCase(models.Model):
+    """One complete-order return intake, operator decision and physical receipt.
+
+    Physical return does not imply automatic restock or a financial refund.
+    """
+    class Decision(models.TextChoices):
+        REQUESTED = "requested", "Awaiting return review"
+        APPROVED = "approved", "Return approved for intake"
+        DECLINED = "declined", "Return declined"
+        RECEIVED = "received", "Physical return received"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.OneToOneField(CommerceOrder, on_delete=models.PROTECT,
+        related_name="return_case")
+    reason = models.CharField(max_length=40)
+    customer_note = models.CharField(max_length=500)
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="plantupia_returns_requested")
+    requested_at = models.DateTimeField(auto_now_add=True)
+    decision = models.CharField(max_length=12, choices=Decision.choices, default=Decision.REQUESTED)
+    staff_note = models.CharField(max_length=500, blank=True)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        null=True, blank=True, related_name="plantupia_returns_reviewed")
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    received_evidence_reference = models.CharField(max_length=180, blank=True)
+    received_at = models.DateTimeField(null=True, blank=True)
+
+
+class CommerceRefundRecord(models.Model):
+    """A separately authorized human review of an actual external refund.
+
+    No gateway payout occurs from saving this model.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.OneToOneField(CommerceOrder, on_delete=models.PROTECT,
+        related_name="verified_refund")
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    refund_reference = models.CharField(max_length=120)
+    evidence_note = models.CharField(max_length=500)
+    verified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="plantupia_refunds_verified")
+    verified_at = models.DateTimeField(auto_now_add=True)
+
+
+class CommerceBusinessInquiry(models.Model):
+    """Real nonbinding B2B enquiry; NOT QA RFQ, order, payment or installation."""
+    class Kind(models.TextChoices):
+        WHOLESALE = "wholesale", "Wholesale supply"
+        INSTALLATION = "installation", "Supply and installation project"
+
+    class Status(models.TextChoices):
+        RECEIVED = "received", "Company reviewing request"
+        QUOTED = "quoted", "Actual nonbinding quote sent"
+        ACCEPTED = "accepted", "Customer accepts quote for follow-up"
+        DECLINED = "declined", "Company unable to quote"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    requester = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="plantupia_real_business_inquiries")
+    client_id = models.UUIDField()
+    fingerprint = models.CharField(max_length=64, editable=False)
+    kind = models.CharField(max_length=16, choices=Kind.choices)
+    company_name = models.CharField(max_length=180)
+    contact_name = models.CharField(max_length=160)
+    phone = models.CharField(max_length=32)
+    email = models.EmailField(blank=True)
+    city = models.CharField(max_length=120)
+    sku = models.ForeignKey(CommerceSKU, on_delete=models.PROTECT, null=True, blank=True)
+    sku_code_snapshot = models.CharField(max_length=64, blank=True)
+    quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
+    scope = models.TextField(max_length=2000)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.RECEIVED)
+    quoted_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    quote_version = models.PositiveIntegerField(default=0)
+    quoted_at = models.DateTimeField(null=True, blank=True)
+    quoted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        null=True, blank=True, related_name="plantupia_real_b2b_quotes")
+    quote_note = models.CharField(max_length=800, blank=True)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at", "id")
+        constraints = [
+            models.UniqueConstraint(fields=("requester", "client_id"),
+                name="plant_real_b2b_retry_unique"),
+        ]
+
+
+class CommerceStockReservation(models.Model):
+    """Actual on-hand stock held at an exact location for a confirmed order."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.ForeignKey(CommerceOrder, on_delete=models.PROTECT,
+        related_name="stock_reservations")
+    sku = models.ForeignKey(CommerceSKU, on_delete=models.PROTECT,
+        related_name="active_reservations")
+    location = models.ForeignKey(CommerceStockLocation, on_delete=models.PROTECT,
+        related_name="stock_reservations")
+    quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+    released_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=("order", "sku", "location"),
+                name="plant_store_reservation_unique"),
+            models.CheckConstraint(condition=models.Q(quantity__gte=1),
+                name="plant_store_reservation_positive"),
+        ]

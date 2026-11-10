@@ -6,15 +6,27 @@ from . import commerce_bulk_import as commercial_import
 from . import commerce_company as commerce
 from . import company_operations as operations
 from . import commerce_requests_company as commerce_requests
+from . import commerce_order_company as actual_orders
 from . import commerce_rfq_company as business
+from . import commerce_business_real_company as actual_business
 
 app_name = "company"
 urlpatterns = [
     path("projects/", operations.projects_home, name="projects-home"),
     path("care-workspace/", operations.care_home, name="care-home"),
+    path("projects/business/", actual_business.real_business_inquiries, name="business-inquiries"),
+    path("projects/business/<uuid:inquiry_id>/", actual_business.real_business_inquiry, name="business-inquiry"),
+    path("projects/business/<uuid:inquiry_id>/quote/", actual_business.real_business_quote_decision, name="business-inquiry-quote"),
     path("projects/rfqs/", business.rfq_list, name="business-rfqs"),
     path("projects/rfqs/<uuid:rfq_id>/", business.rfq_detail, name="business-rfq"),
     path("commerce/", operations.commerce_home, name="commerce-home"),
+    path("commerce/orders/", actual_orders.real_orders, name="commerce-orders"),
+    path("commerce/orders/<uuid:order_id>/", actual_orders.real_order_detail, name="commerce-order"),
+    path("commerce/orders/<uuid:order_id>/shipping/", actual_orders.real_order_shipping_decision, name="commerce-order-shipping"),
+    path("commerce/orders/<uuid:order_id>/fulfillment/", actual_orders.real_order_fulfillment, name="commerce-order-fulfillment"),
+    path("commerce/orders/<uuid:order_id>/payment/", actual_orders.real_order_verify_payment, name="commerce-order-payment"),
+    path("commerce/orders/<uuid:order_id>/return/", actual_orders.real_order_return_decision, name="commerce-order-return"),
+    path("commerce/orders/<uuid:order_id>/refund/", actual_orders.real_order_refund_verification, name="commerce-order-refund"),
     path("commerce/qa/updates/", commerce_requests.qa_updates, name="commerce-qa-updates"),
     path("commerce/qa/requests/", commerce_requests.qa_requests, name="commerce-qa-requests"),
     path("commerce/qa/requests/<uuid:order_id>/", commerce_requests.qa_request_detail, name="commerce-qa-request"),
@@ -24,6 +36,8 @@ urlpatterns = [
     path("commerce/products/import/template/", commercial_import.commercial_import_template, name="commerce-product-template"),
     path("commerce/products/<uuid:product_id>/", commerce.product_detail, name="commerce-product"),
     path("commerce/products/<uuid:product_id>/edit/", commerce.product_edit, name="commerce-product-edit"),
+    path("commerce/products/<uuid:product_id>/review/", commerce.product_review, name="commerce-product-review"),
+    path("commerce/products/<uuid:product_id>/publication/", commerce.product_publication, name="commerce-product-publication"),
     path("commerce/products/<uuid:product_id>/photo/", commerce.product_photo, name="commerce-product-photo"),
     path("commerce/products/<uuid:product_id>/variants/new/", commerce.sku_create, name="commerce-sku-create"),
     path("commerce/skus/<uuid:sku_id>/edit/", commerce.sku_edit, name="commerce-sku-edit"),

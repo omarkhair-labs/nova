@@ -9,7 +9,7 @@ from django.db import transaction
 from django.db.models import Sum
 
 from . import company_services as company
-from .commerce_models import CommerceSKU, CommerceStockLocation, CommerceStockMovement
+from .commerce_models import CommerceSKU, CommerceStockLocation, CommerceStockMovement, CommerceStockReservation
 
 
 def stock_balance(sku_id, location_id=None):
@@ -33,7 +33,7 @@ def record_counted_stock(*, staff, sku_id, location_id, quantity_delta, reason, 
         raise ValidationError("A valid quantity and client UUID are required.") from exc
     if delta == 0 or abs(delta) > 100000:
         raise ValidationError("Count changes must be nonzero and at most 100,000 units per entry.")
-    if reason not in CommerceStockMovement.Reason.values:
+    if reason not in (CommerceStockMovement.Reason.OPENING, CommerceStockMovement.Reason.CORRECTION):
         raise ValidationError("Choose an approved stock-count reason.")
     if reason == CommerceStockMovement.Reason.OPENING and delta < 0:
         raise ValidationError("An opening count cannot be negative.")
@@ -55,8 +55,13 @@ def record_counted_stock(*, staff, sku_id, location_id, quantity_delta, reason, 
         sku = CommerceSKU.objects.select_for_update().get(pk=sku_id)
         location = CommerceStockLocation.objects.get(pk=location_id, active=True)
         current = stock_balance(sku.pk, location.pk)
-        if current + delta < 0:
-            raise ValidationError("The stock count cannot become negative for this SKU/location.")
+        held = CommerceStockReservation.objects.filter(
+            sku=sku, location=location, released_at__isnull=True,
+        ).aggregate(n=Sum("quantity"))["n"] or 0
+        if current + delta < held:
+            raise ValidationError(
+                "The adjusted physical count cannot fall below units already reserved for customer orders."
+            )
         movement = CommerceStockMovement(
             sku=sku, location=location, recorded_by=staff,
             quantity_delta=delta, reason=reason,
