@@ -59,7 +59,7 @@ def location_available(sku_id, location_id):
 
 def total_available(sku_id):
     """No optimistic reservations. Available units exclude all active holds."""
-    counted = CommerceStockMovement.objects.filter(sku_id=sku_id).aggregate(
+    counted = CommerceStockMovement.objects.filter(sku_id=sku_id, location__active=True).aggregate(
         n=Sum("quantity_delta")
     )["n"] or 0
     reserved = CommerceStockReservation.objects.filter(
