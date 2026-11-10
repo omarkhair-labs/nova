@@ -32,7 +32,7 @@ def listed_skus():
 
 
 def available_units(sku_id):
-    counted = CommerceStockMovement.objects.filter(sku_id=sku_id).aggregate(
+    counted = CommerceStockMovement.objects.filter(sku_id=sku_id, location__active=True).aggregate(
         total=Sum("quantity_delta")
     )["total"] or 0
     reserved = CommerceStockReservation.objects.filter(
