@@ -1,6 +1,6 @@
 from django.urls import path
 from .commerce_storefront_api import CommerceCatalogView, CommerceCatalogPhotoView, CommerceCartView
-from .commerce_orders_api import CommerceOrdersView, CommerceOrderDetailView, CommerceOrderAcceptQuoteView, CommerceOrderCancelView
+from .commerce_orders_api import CommerceOrdersView, CommerceOrderDetailView, CommerceOrderAcceptQuoteView, CommerceOrderCancelView, CommerceOrderTransferClaimView
 from .assistant import PlantAssistantView
 from .commerce_api import QACommerceRequestsView, QACommerceRequestView, QACommerceCatalogView, QACommerceRequestActionView, QACommerceRFQsView, QACommerceRFQAcceptView
 from .species_library import BotanicalSpeciesLibraryView, BotanicalSpeciesLibraryDetailView
@@ -20,6 +20,7 @@ urlpatterns = [
     path("commerce/orders/<uuid:order_id>/", CommerceOrderDetailView.as_view(), name="plantupia-real-commerce-order"),
     path("commerce/orders/<uuid:order_id>/accept-quote/", CommerceOrderAcceptQuoteView.as_view(), name="plantupia-real-commerce-accept-quote"),
     path("commerce/orders/<uuid:order_id>/cancel/", CommerceOrderCancelView.as_view(), name="plantupia-real-commerce-cancel"),
+    path("commerce/orders/<uuid:order_id>/transfer-reference/", CommerceOrderTransferClaimView.as_view(), name="plantupia-real-commerce-transfer-reference"),
     path("library/species/", BotanicalSpeciesLibraryView.as_view(), name="plantupia-library-species"),
     path("library/species/<slug:key>/", BotanicalSpeciesLibraryDetailView.as_view(), name="plantupia-library-species-detail"),
     path("demo/access/", DemoAccessView.as_view(), name="plantupia-demo-access"),
