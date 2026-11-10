@@ -118,7 +118,7 @@
   {% if order.payment_status == "verified" %}
     <p>Company finance settlement: EGP {{ order.verified_payment.amount }} · {{ order.verified_payment.settlement_reference }}</p>
     <p class="fine">Verified by {{ order.verified_payment.verified_by.username }} at {{ order.verified_payment.verified_at|date:"j M Y, H:i" }}.</p>
-  {% elif perms.plants.add_commercepaymentrecord and perms.plants.change_commerceorder %}
+  {% elif perms.plants.add_commercepaymentrecord %}
     <p>Finance must independently match the actual bank settlement or delivered COD cash receipt. Customer screenshot alone is not evidence.</p>
     <form method="post" action="{% url 'company:commerce-order-payment' order.pk %}">
       {% csrf_token %}
