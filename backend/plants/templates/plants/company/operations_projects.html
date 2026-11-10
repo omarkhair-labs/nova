@@ -2,7 +2,7 @@
 {% block content %}
 <div class="page-heading task-first-heading">
   <div><p class="eyebrow">01 / B2B · PROJECT DELIVERY</p><h1>Projects &amp; installations.</h1>
-    <p class="lead">Continue an installation, review its plants, or complete an approved QR handover. Business RFQs remain QA-only.</p></div>
+    <p class="lead">Continue an installation, review its plants, or complete an approved QR handover. Actual business quote requests now have a separate commercial queue; the older RFQs remain QA-only.</p></div>
   {% if perms.plants.add_installationbatch %}<a class="button primary" href="{% url 'company:installation-create' %}">New installation +</a>{% endif %}
 </div>
 <section class="panel padded history work-queue">
@@ -25,6 +25,14 @@
 </section>
 <p class="eyebrow">WORKSPACE TOOLS / أدوات العمل</p>
 <div class="installation-grid">
+  {% if real_business_count != None %}
+  <article class="installation-card">
+    <p class="small-label">B2B · REAL CUSTOMER ENQUIRIES</p>
+    <h2>{{ real_business_count }} to review</h2>
+    <p>Real wholesale and installation scope requests with staff quotes and customer follow-up.</p>
+    <div class="card-bottom"><span>Actual business inbox</span>
+      <a href="{% url 'company:business-inquiries' %}">Open real enquiries →</a></div>
+  </article>{% endif %}
   {% if rfq_new_count != None %}
   <article class="installation-card">
     <p class="small-label">B2B · QUOTES / عروض الأسعار</p>
@@ -47,5 +55,5 @@
   </article>{% endif %}
 </div>
 
-<div class="notice">B2B RFQ, quotations, purchase orders, multi-site scheduling and commercial fulfillment are separate planned workflows; no operational records are invented for them.</div>
+<div class="notice">Actual B2B RFQs and nonbinding quotes are recorded. Signed purchase orders, commercial fulfillment, multi-site scheduling and project QR handover still require distinct verified workflows.</div>
 {% endblock %}

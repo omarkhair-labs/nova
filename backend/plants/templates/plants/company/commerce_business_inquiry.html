@@ -1,0 +1,38 @@
+{% extends "plants/company/base.html" %}
+{% block content %}
+<a class="back-link" href="{% url 'company:business-inquiries' %}">← Real business enquiries</a>
+<header class="page-heading compact-workspace-heading"><div>
+  <p class="eyebrow">B2B / REAL ENQUIRY</p><h1>{{ record.company_name }}</h1>
+  <p class="lead">{{ record.get_kind_display }} · {{ record.get_status_display }}</p>
+</div></header>
+<div class="two-column">
+  <section class="panel padded">
+    <p class="eyebrow">BUSINESS REQUEST</p>
+    <h2>{{ record.contact_name }}</h2>
+    <p>{{ record.phone }} · {{ record.email }} · {{ record.city }}</p>
+    <p>Requested quantity: {{ record.quantity }}{% if record.sku_code_snapshot %} · SKU {{ record.sku_code_snapshot }}{% endif %}</p>
+    <p>{{ record.scope|linebreaksbr }}</p>
+    <p class="fine">Received {{ record.created_at|date:"j M Y, H:i" }}. No purchase order, stock reservation or installation was created.</p>
+  </section>
+  <section class="panel padded">
+    <p class="eyebrow">ACTUAL QUOTE / عرض السعر</p>
+    <h2>{% if record.quoted_amount != None %}EGP {{ record.quoted_amount }}{% else %}Awaiting company quote{% endif %}</h2>
+    {% if record.quote_note %}<p>{{ record.quote_note|linebreaksbr }}</p>{% endif %}
+    <p class="fine">Revision {{ record.quote_version }}{% if record.quoted_at %} · Sent {{ record.quoted_at|date:"j M Y, H:i" }}{% endif %}</p>
+    {% if perms.plants.change_commercebusinessinquiry and record.status == "received" or perms.plants.change_commercebusinessinquiry and record.status == "quoted" %}
+      <form method="post" action="{% url 'company:business-inquiry-quote' record.pk %}">
+        {% csrf_token %}
+        <input type="hidden" name="quote_version" value="{{ record.quote_version }}">
+        <label for="b2b-amount">Actual EGP quote</label><input id="b2b-amount" type="number" name="amount" min="0.01" step=".01" required>
+        <label for="b2b-note">Scope, inclusions, exclusions and next steps</label>
+        <textarea id="b2b-note" name="note" minlength="15" maxlength="800" required></textarea>
+        <button class="button primary" type="submit" name="action" value="quote">Send nonbinding quote</button>
+        <button class="button" type="submit" name="action" value="decline" formnovalidate>Decline enquiry</button>
+      </form>
+    {% endif %}
+    {% if record.status == "accepted" %}
+      <div class="notice">Customer accepted the nonbinding quote for commercial follow-up. Prepare a real contract or purchase order before any allocation or installation.</div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

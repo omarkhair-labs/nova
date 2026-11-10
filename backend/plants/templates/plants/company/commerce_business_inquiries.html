@@ -1,0 +1,27 @@
+{% extends "plants/company/base.html" %}
+{% block content %}
+<header class="page-heading compact-workspace-heading">
+  <div><p class="eyebrow">B2B / REAL COMMERCIAL ENQUIRIES</p><h1>Business requests.</h1>
+    <p class="lead">Actual wholesale and installation enquiries from authenticated customers. These are not purchase orders or QA demonstrations.</p>
+  </div>
+</header>
+<div class="metrics"><a href="{% url 'company:business-inquiries' %}?status=received"><div>
+  <span class="small-label">REQUIRES RESPONSE</span><strong>{{ pending_count }}</strong><small>New real business requests</small>
+</div></a></div>
+<div class="task-shortcuts"><a class="button" href="{% url 'company:business-inquiries' %}">All enquiries</a>
+  <a class="button" href="{% url 'company:installations' %}">Recorded installations</a></div>
+<section class="panel padded">
+  <p class="eyebrow">REAL B2B INBOX</p>
+  {% for enquiry in records %}
+    <div class="record-row">
+      <div class="grow"><strong>{{ enquiry.company_name }} · {{ enquiry.get_kind_display }}</strong>
+        <small>{{ enquiry.contact_name }} · {{ enquiry.city }} · {{ enquiry.created_at|date:"j M Y, H:i" }}</small>
+        <small>{{ enquiry.get_status_display }} · {{ enquiry.quantity }} units</small>
+      </div>
+      <a href="{% url 'company:business-inquiry' enquiry.pk %}">Open enquiry →</a>
+    </div>
+  {% empty %}<div class="empty compact">No actual business enquiries in this view.</div>{% endfor %}
+</section>
+{% include "plants/company/pagination.html" %}
+<div class="commerce-reality"><strong>Commercial boundary</strong><span>Quotes are nonbinding and require separate signed purchase orders, inventory allocation, installation scheduling and handovers.</span></div>
+{% endblock %}

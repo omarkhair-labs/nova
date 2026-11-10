@@ -8,11 +8,15 @@ from . import company_operations as operations
 from . import commerce_requests_company as commerce_requests
 from . import commerce_order_company as actual_orders
 from . import commerce_rfq_company as business
+from . import commerce_business_real_company as actual_business
 
 app_name = "company"
 urlpatterns = [
     path("projects/", operations.projects_home, name="projects-home"),
     path("care-workspace/", operations.care_home, name="care-home"),
+    path("projects/business/", actual_business.real_business_inquiries, name="business-inquiries"),
+    path("projects/business/<uuid:inquiry_id>/", actual_business.real_business_inquiry, name="business-inquiry"),
+    path("projects/business/<uuid:inquiry_id>/quote/", actual_business.real_business_quote_decision, name="business-inquiry-quote"),
     path("projects/rfqs/", business.rfq_list, name="business-rfqs"),
     path("projects/rfqs/<uuid:rfq_id>/", business.rfq_detail, name="business-rfq"),
     path("commerce/", operations.commerce_home, name="commerce-home"),

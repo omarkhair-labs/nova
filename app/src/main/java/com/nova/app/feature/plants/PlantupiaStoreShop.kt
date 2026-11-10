@@ -116,6 +116,7 @@ internal fun PlantupiaStoreShop(
                     feedback = result.message
                 }
             }
+            "business" -> { loaded = true }
             "orders" -> when (val result = repository.demoGet("commerce/orders/")) {
                 is ApiResult.Success -> if (repository.isCurrentSession()) {
                     orders = result.value.demoRows()
@@ -229,6 +230,7 @@ internal fun PlantupiaStoreShop(
                         "cart" -> "Your cart"
                         "checkout" -> "Delivery & checkout"
                         "orders" -> "My orders"
+                        "business" -> "For businesses"
                         else -> "Plants & essentials"
                     },
                     style = PlantupiaText.editorialHeading,
@@ -264,6 +266,10 @@ internal fun PlantupiaStoreShop(
 
         when (screen) {
             "catalog" -> {
+                OutlinedButton(
+                    onClick = { screen = "business"; feedback = null },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("For businesses · wholesale & installation projects") }
                 OutlinedTextField(
                     search, { search = it.take(100) },
                     modifier = Modifier.fillMaxWidth(),
@@ -463,6 +469,12 @@ internal fun PlantupiaStoreShop(
                     },
                 ) { Text(if (busy) "Submitting…" else "Request exact shipping quote") }
                 TextButton(onClick = { screen = "cart" }) { Text("Back to cart") }
+            }
+            "business" -> {
+                PlantupiaBusinessInquiryScreen(
+                    repository = repository,
+                    onBack = { screen = "catalog"; refresh++ },
+                )
             }
             "orders" -> {
                 OutlinedButton(onClick = { refresh++ }, modifier = Modifier.fillMaxWidth()) {

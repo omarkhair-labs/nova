@@ -12,6 +12,7 @@
   {% if workspace_area == 'b2b' %}
     <p class="nav-group-label">B2B / PROJECTS · <span lang="ar" dir="rtl">المشروعات</span></p>
     <a href="{% url 'company:projects-home' %}" {% if section == 'projects_home' %}aria-current="page"{% endif %}>Projects home</a>
+    {% if perms.plants.view_commercebusinessinquiry %}<a href="{% url 'company:business-inquiries' %}" {% if section == 'business_inquiries' %}aria-current="page"{% endif %}>Business requests · Real</a>{% endif %}
     {% if show_b2b_rfqs %}<a href="{% url 'company:business-rfqs' %}" {% if section == 'business_rfqs' %}aria-current="page"{% endif %}>RFQs &amp; quotes · QA</a>{% endif %}
     <a href="{% url 'company:installations' %}" {% if section == 'installations' %}aria-current="page"{% endif %}>Installations</a>
     {% if can_inventory %}<a href="{% url 'company:inventory' %}" {% if section == 'inventory' %}aria-current="page"{% endif %}>Installed plant inventory</a>{% endif %}

@@ -612,6 +612,52 @@ class CommerceRefundRecord(models.Model):
     verified_at = models.DateTimeField(auto_now_add=True)
 
 
+class CommerceBusinessInquiry(models.Model):
+    """Real nonbinding B2B enquiry; NOT QA RFQ, order, payment or installation."""
+    class Kind(models.TextChoices):
+        WHOLESALE = "wholesale", "Wholesale supply"
+        INSTALLATION = "installation", "Supply and installation project"
+
+    class Status(models.TextChoices):
+        RECEIVED = "received", "Company reviewing request"
+        QUOTED = "quoted", "Actual nonbinding quote sent"
+        ACCEPTED = "accepted", "Customer accepts quote for follow-up"
+        DECLINED = "declined", "Company unable to quote"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    requester = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="plantupia_real_business_inquiries")
+    client_id = models.UUIDField()
+    fingerprint = models.CharField(max_length=64, editable=False)
+    kind = models.CharField(max_length=16, choices=Kind.choices)
+    company_name = models.CharField(max_length=180)
+    contact_name = models.CharField(max_length=160)
+    phone = models.CharField(max_length=32)
+    email = models.EmailField(blank=True)
+    city = models.CharField(max_length=120)
+    sku = models.ForeignKey(CommerceSKU, on_delete=models.PROTECT, null=True, blank=True)
+    sku_code_snapshot = models.CharField(max_length=64, blank=True)
+    quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
+    scope = models.TextField(max_length=2000)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.RECEIVED)
+    quoted_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    quote_version = models.PositiveIntegerField(default=0)
+    quoted_at = models.DateTimeField(null=True, blank=True)
+    quoted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        null=True, blank=True, related_name="plantupia_real_b2b_quotes")
+    quote_note = models.CharField(max_length=800, blank=True)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at", "id")
+        constraints = [
+            models.UniqueConstraint(fields=("requester", "client_id"),
+                name="plant_real_b2b_retry_unique"),
+        ]
+
+
 class CommerceStockReservation(models.Model):
     """Actual on-hand stock held at an exact location for a confirmed order."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

@@ -1,5 +1,6 @@
 from django.urls import path
 from .commerce_storefront_api import CommerceCatalogView, CommerceCatalogPhotoView, CommerceCartView
+from .commerce_business_real_api import BusinessInquiriesView, BusinessAcceptQuoteView
 from .commerce_orders_api import CommerceOrdersView, CommerceOrderDetailView, CommerceOrderAcceptQuoteView, CommerceOrderCancelView, CommerceOrderTransferClaimView, CommerceOrderReturnView
 from .assistant import PlantAssistantView
 from .commerce_api import QACommerceRequestsView, QACommerceRequestView, QACommerceCatalogView, QACommerceRequestActionView, QACommerceRFQsView, QACommerceRFQAcceptView
@@ -16,6 +17,8 @@ urlpatterns = [
     path("commerce/catalog/", CommerceCatalogView.as_view(), name="plantupia-real-commerce-catalog"),
     path("commerce/catalog/<uuid:product_id>/image/", CommerceCatalogPhotoView.as_view(), name="plantupia-real-commerce-image"),
     path("commerce/cart/", CommerceCartView.as_view(), name="plantupia-real-commerce-cart"),
+    path("commerce/business/inquiries/", BusinessInquiriesView.as_view(), name="plantupia-real-business-inquiries"),
+    path("commerce/business/inquiries/<uuid:inquiry_id>/accept/", BusinessAcceptQuoteView.as_view(), name="plantupia-real-business-accept"),
     path("commerce/orders/", CommerceOrdersView.as_view(), name="plantupia-real-commerce-orders"),
     path("commerce/orders/<uuid:order_id>/", CommerceOrderDetailView.as_view(), name="plantupia-real-commerce-order"),
     path("commerce/orders/<uuid:order_id>/accept-quote/", CommerceOrderAcceptQuoteView.as_view(), name="plantupia-real-commerce-accept-quote"),
