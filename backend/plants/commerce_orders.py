@@ -315,3 +315,20 @@ def cancel_customer_order(*, user, order_id):
         company.audit(user, order,
             "Customer cancelled commercial order. Active reservations released; no refund inferred.")
         return order
+
+
+def decline_quote_request(*, staff, order_id):
+    """Explicit operator decline before a customer has accepted a shipping quote."""
+    company.require(staff, "plants.change_commerceorder")
+    with transaction.atomic():
+        order = get_object_or_404(
+            CommerceOrder.objects.select_for_update(), pk=order_id,
+        )
+        if order.status not in (CommerceOrder.Status.QUOTE_PENDING, CommerceOrder.Status.QUOTED):
+            raise ValidationError("Only an unconfirmed order can be declined without a return process.")
+        order.status = CommerceOrder.Status.DECLINED
+        order.last_status_at = timezone.now()
+        order.save(update_fields=["status", "last_status_at", "updated_at"])
+        company.audit(staff, order,
+            "Operator declined shipping quote request. No stock reserved, delivery or payment.")
+        return order
