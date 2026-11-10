@@ -168,6 +168,7 @@ class CommerceStockMovement(models.Model):
     class Reason(models.TextChoices):
         OPENING = "opening", "Initial counted stock"
         CORRECTION = "correction", "Stock count correction"
+        DISPATCH = "dispatch", "Stock released to delivery carrier"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     sku = models.ForeignKey(CommerceSKU, on_delete=models.PROTECT, related_name="stock_movements")
@@ -515,6 +516,27 @@ class CommerceRealOrderEvent(models.Model):
 
     class Meta:
         ordering = ("created_at", "id")
+
+
+class CommerceFulfillmentReceipt(models.Model):
+    """One actual operator-attested dispatch and optional delivery confirmation.
+
+    A shipping reference is not payment evidence. A delivery proof reference must
+    identify an independently retained proof document; no document is fabricated here.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.OneToOneField(CommerceOrder, on_delete=models.PROTECT,
+        related_name="fulfillment_receipt")
+    carrier_name = models.CharField(max_length=120)
+    tracking_reference = models.CharField(max_length=120)
+    dispatch_note = models.CharField(max_length=300)
+    dispatched_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="plantupia_store_dispatches_recorded")
+    dispatched_at = models.DateTimeField(auto_now_add=True)
+    delivery_proof_reference = models.CharField(max_length=180, blank=True)
+    delivered_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        null=True, blank=True, related_name="plantupia_store_deliveries_recorded")
+    delivered_at = models.DateTimeField(null=True, blank=True)
 
 
 class CommerceStockReservation(models.Model):
