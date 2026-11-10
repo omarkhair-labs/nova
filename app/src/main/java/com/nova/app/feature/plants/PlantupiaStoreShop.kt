@@ -172,6 +172,28 @@ internal fun PlantupiaStoreShop(
         }
     }
 
+    fun sendTransferReference(orderId: String, reference: String) {
+        if (busy) return
+        busy = true
+        feedback = null
+        scope.launch {
+            try {
+                when (val result = repository.demoPost(
+                    "commerce/orders/" + orderId + "/transfer-reference/",
+                    JSONObject().put("reference", reference.trim()),
+                )) {
+                    is ApiResult.Success -> if (repository.isCurrentSession()) {
+                        feedback = "Reference received. Company finance must still verify the actual transfer."
+                        refresh++
+                    }
+                    is ApiResult.Failure -> if (repository.isCurrentSession()) {
+                        feedback = result.message
+                    }
+                }
+            } finally { busy = false }
+        }
+    }
+
     Column(
         modifier = modifier.fillMaxWidth().verticalScroll(rememberScrollState())
             .imePadding().padding(horizontal = 18.dp, vertical = 12.dp),
@@ -483,6 +505,23 @@ internal fun PlantupiaStoreShop(
                                 Text("No carrier handover has been recorded.",
                                     style = PlantupiaText.supporting)
                             }
+                            if (order.optString("payment_preference") == "manual_transfer" &&
+                                order.optString("payment_status") == "unpaid" &&
+                                status in listOf("confirmed", "preparing", "dispatched", "delivered")) {
+                                if (order.optBoolean("transfer_reference_submitted")) {
+                                    Text(
+                                        "Transfer reference submitted: " + order.optString("transfer_reference") +
+                                            ". Finance has not verified payment.",
+                                        style = PlantupiaText.supporting,
+                                    )
+                                } else {
+                                    PlantupiaTransferReferenceForm(
+                                        orderId = id,
+                                        busy = busy,
+                                        onSubmit = { reference -> sendTransferReference(id, reference) },
+                                    )
+                                }
+                            }
                             if (status == "quoted" && !busy && !order.isNull("final_total")) {
                                 Text("Accept only if you agree with this exact products + shipping total.",
                                     style = PlantupiaText.supporting)
@@ -506,4 +545,30 @@ internal fun PlantupiaStoreShop(
             }
         }
     }
+}
+
+@Composable
+private fun PlantupiaTransferReferenceForm(
+    orderId: String,
+    busy: Boolean,
+    onSubmit: (String) -> Unit,
+) {
+    var reference by rememberSaveable(orderId) { mutableStateOf("") }
+    Text(
+        "Already transferred using Plantupia's official payment instructions? " +
+            "Enter the exact reference. This does not confirm payment.",
+        style = PlantupiaText.supporting,
+    )
+    OutlinedTextField(
+        value = reference,
+        onValueChange = { reference = it.take(120) },
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text("Bank / InstaPay transfer reference") },
+        singleLine = true,
+    )
+    OutlinedButton(
+        modifier = Modifier.fillMaxWidth(),
+        enabled = !busy && reference.trim().length in 4..120,
+        onClick = { onSubmit(reference) },
+    ) { Text("Submit reference for company verification") }
 }

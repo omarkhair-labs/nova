@@ -20,6 +20,7 @@ urlpatterns = [
     path("commerce/orders/<uuid:order_id>/", actual_orders.real_order_detail, name="commerce-order"),
     path("commerce/orders/<uuid:order_id>/shipping/", actual_orders.real_order_shipping_decision, name="commerce-order-shipping"),
     path("commerce/orders/<uuid:order_id>/fulfillment/", actual_orders.real_order_fulfillment, name="commerce-order-fulfillment"),
+    path("commerce/orders/<uuid:order_id>/payment/", actual_orders.real_order_verify_payment, name="commerce-order-payment"),
     path("commerce/qa/updates/", commerce_requests.qa_updates, name="commerce-qa-updates"),
     path("commerce/qa/requests/", commerce_requests.qa_requests, name="commerce-qa-requests"),
     path("commerce/qa/requests/<uuid:order_id>/", commerce_requests.qa_request_detail, name="commerce-qa-request"),

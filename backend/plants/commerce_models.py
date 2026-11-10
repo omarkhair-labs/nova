@@ -539,6 +539,35 @@ class CommerceFulfillmentReceipt(models.Model):
     delivered_at = models.DateTimeField(null=True, blank=True)
 
 
+class CommerceTransferClaim(models.Model):
+    """Customer-supplied bank/InstaPay reference, never proof of payment."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.OneToOneField(CommerceOrder, on_delete=models.PROTECT,
+        related_name="transfer_claim")
+    reference = models.CharField(max_length=120)
+    claimed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="plantupia_transfer_claims")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class CommercePaymentRecord(models.Model):
+    """Manual settlement that a separately authorized company finance reviewer attests.
+
+    A customer's claim alone cannot create this record. Operator must match
+    independent company bank/cash evidence and the exact order total.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.OneToOneField(CommerceOrder, on_delete=models.PROTECT,
+        related_name="verified_payment")
+    method = models.CharField(max_length=20, choices=CommerceOrder.PaymentPreference.choices)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    settlement_reference = models.CharField(max_length=120)
+    evidence_note = models.CharField(max_length=500)
+    verified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="plantupia_payments_verified")
+    verified_at = models.DateTimeField(auto_now_add=True)
+
+
 class CommerceStockReservation(models.Model):
     """Actual on-hand stock held at an exact location for a confirmed order."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

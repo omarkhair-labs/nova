@@ -9,7 +9,7 @@ from rest_framework import serializers
 from rest_framework.response import Response
 
 from .commerce_storefront_api import CommerceCustomerView
-from . import commerce_orders as orders
+from . import commerce_orders as orders, commerce_payments as payments
 
 
 class RealOrderQuoteInput(serializers.Serializer):
@@ -81,6 +81,23 @@ class CommerceOrderCancelView(CommerceCustomerView):
     def post(self, request, order_id):
         try:
             order = orders.cancel_customer_order(user=request.user, order_id=order_id)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages) from exc
+        return Response(orders.order_json(order))
+
+class ManualTransferReferenceInput(serializers.Serializer):
+    reference = serializers.CharField(min_length=4, max_length=120, trim_whitespace=True)
+
+
+class CommerceOrderTransferClaimView(CommerceCustomerView):
+    def post(self, request, order_id):
+        payload = ManualTransferReferenceInput(data=request.data)
+        payload.is_valid(raise_exception=True)
+        try:
+            order = payments.claim_manual_transfer(
+                user=request.user, order_id=order_id,
+                reference=payload.validated_data["reference"],
+            )
         except DjangoValidationError as exc:
             raise serializers.ValidationError(exc.messages) from exc
         return Response(orders.order_json(order))
