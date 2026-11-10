@@ -97,7 +97,11 @@ def order_json(order):
     ]
     final_total = (order.subtotal + order.shipping_fee
                    if order.shipping_fee is not None else None)
+    from .commerce_models import CommerceTransferClaim
+    claim = CommerceTransferClaim.objects.filter(order=order).first()
     return {
+        "transfer_reference_submitted": bool(claim),
+        "transfer_reference": claim.reference if claim else None,
         "id": str(order.pk),
         "status": order.status,
         "timeline": [
