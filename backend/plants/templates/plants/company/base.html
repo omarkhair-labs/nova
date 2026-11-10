@@ -35,9 +35,16 @@
     <p class="nav-group-label">LIVING CARE · <span lang="ar" dir="rtl">الرعاية</span></p>
     <a href="{% url 'company:care-home' %}" {% if section == 'care_home' %}aria-current="page"{% endif %}>Care home</a>
     {% if can_care %}<a href="{% url 'company:care' %}" {% if section == 'care' %}aria-current="page"{% endif %}>Botanical care library</a>{% endif %}
-    {% if ceo_demo_enabled and perms.plants.view_careinspectionplan %}<a href="{% url 'company:plans' %}" {% if section == 'plans' %}aria-current="page"{% endif %}>Inspection plans · QA</a>{% endif %}
     {% if ceo_demo_enabled and perms.plants.manage_service_requests %}<a href="{% url 'company:support' %}" {% if section == 'support' %}aria-current="page"{% endif %}>Service requests</a>{% endif %}
-    {% if ceo_demo_enabled and perms.plants.view_demoentitlement %}<a href="{% url 'company:demo-access' %}" {% if section == 'access' %}aria-current="page"{% endif %}>QA access plans</a>{% endif %}
+    {% if ceo_demo_enabled %}
+    <details class="sidebar-qa" {% if section == 'plans' or section == 'access' %}open{% endif %}>
+      <summary>Testing tools <span aria-hidden="true">⌄</span></summary>
+      <div class="sidebar-qa-links">
+        {% if perms.plants.view_careinspectionplan %}<a href="{% url 'company:plans' %}" {% if section == 'plans' %}aria-current="page"{% endif %}>Inspection plans · QA</a>{% endif %}
+        {% if perms.plants.view_demoentitlement %}<a href="{% url 'company:demo-access' %}" {% if section == 'access' %}aria-current="page"{% endif %}>QA access plans</a>{% endif %}
+      </div>
+    </details>
+    {% endif %}
   {% else %}
     <p class="nav-group-label">CHOOSE A SPACE</p>
     <a href="{% url 'company:projects-home' %}">B2B / Projects</a>

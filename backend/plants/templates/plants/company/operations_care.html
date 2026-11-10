@@ -1,38 +1,36 @@
 {% extends "plants/company/base.html" %}
 {% block content %}
 <header class="page-heading compact-workspace-heading">
-  <div><p class="eyebrow">CARE / LIVING RECORDS · الرعاية</p><h1>Care is a continuous record.</h1>
-    <p class="lead">Find the right reviewed guidance, prepare a real inspection, or answer a customer. These are distinct jobs connected by the plant, not a single endless form.</p></div>
+  <div><p class="eyebrow">CARE / LIVING RECORDS · الرعاية</p><h1>Care &amp; support.</h1>
+    <p class="lead">Review botanical guidance or respond to customer requests. QA inspection experiments are kept under testing tools.</p></div>
 </header>
 <section class="commerce-three" aria-label="Care and support tools">
   {% if can_care %}
   <article class="commerce-path">
-    <span class="path-figure" aria-hidden="true">01 <span>❧</span></span>
+    <span class="path-figure" aria-hidden="true">01 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 4c-7 0-13 2-15 9-1 4 1 7 5 7 7 0 11-9 10-16Z"/><path d="M5 20c3-5 6-8 11-11"/></svg></span>
     <p class="eyebrow">KNOWLEDGE / المعرفة</p><h2>Botanical library</h2>
     <p>Species, reviewed care guides, source references and version history. Published guidance is separate from a plant owner's private observations.</p>
     <div class="path-bottom"><span><small>Reviewed source content</small></span><a class="button primary" href="{% url 'company:care' %}">Open library ↗</a></div>
   </article>
   {% endif %}
-  {% if ceo_demo_enabled and perms.plants.view_careinspectionplan %}
-  <article class="commerce-path">
-    <span class="path-figure" aria-hidden="true">02 <span>◴</span></span>
-    <p class="eyebrow">FIELD NOTES / المتابعة</p><h2>Inspection plans</h2>
-    <p>Prepare an inspection for a recorded plant, then review its proposed plan. A proposed check is not an automatic watering instruction.</p>
-    <div class="path-bottom"><span><small>QA review workflow</small></span><a class="button primary" href="{% url 'company:plans' %}">Open plans ↗</a></div>
-  </article>
-  {% endif %}
   {% if ceo_demo_enabled and perms.plants.manage_service_requests %}
   <article class="commerce-path">
-    <span class="path-figure" aria-hidden="true">03 <span>⌁</span></span>
+    <span class="path-figure" aria-hidden="true">02 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 15a5 5 0 0 1-5 5H9l-5 2v-7a5 5 0 0 1-2-4V7a5 5 0 0 1 5-5h8a5 5 0 0 1 5 5v8Z"/><path d="M7 9h10M7 13h7"/></svg></span>
     <p class="eyebrow">CUSTOMER HELP / الدعم</p><h2>Service requests</h2>
     <p>Open a support conversation, claim responsibility, reply and close when the recorded request is complete.</p>
     <div class="path-bottom"><span><small>Authorized staff actions</small></span><a class="button primary" href="{% url 'company:support' %}">Open requests ↗</a></div>
   </article>
   {% endif %}
 </section>
-{% if ceo_demo_enabled and perms.plants.view_demoentitlement %}
-<details class="qa-archive"><summary><span><strong>QA access plans</strong><small>Time-limited testing access — not a subscription billing system</small></span><span aria-hidden="true">+</span></summary>
-<div class="qa-archive-links"><a href="{% url 'company:demo-access' %}">Open QA access ↗</a></div></details>
+{% if ceo_demo_enabled %}
+<details class="qa-archive">
+  <summary><span><strong>Testing tools · أدوات الاختبار</strong>
+  <small>Inspection plan experiments and temporary QA access, not live care operations</small></span><span aria-hidden="true">+</span></summary>
+  <div class="qa-archive-links">
+    {% if perms.plants.view_careinspectionplan %}<a href="{% url 'company:plans' %}">Inspection plans · QA ↗</a>{% endif %}
+    {% if perms.plants.view_demoentitlement %}<a href="{% url 'company:demo-access' %}">QA access plans ↗</a>{% endif %}
+  </div>
+</details>
 {% endif %}
 <p class="hub-footnote">A published care guide, an inspection proposal and a support ticket are separate records. None of them claims to diagnose a physical plant automatically.</p>
 {% endblock %}

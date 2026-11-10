@@ -3,55 +3,55 @@
 <header class="hub-intro">
   <p class="eyebrow">PLANTUPIA / COMPANY WORKSPACE <span class="hub-edition">01 — 03</span></p>
   <h1 id="hub-title">A place for every<br><em>kind of work.</em></h1>
-  <p class="lead">Choose where you're working today. Each space keeps the tools that belong together, without the crowded navigation.</p>
-  <p class="hub-locale" lang="ar" dir="rtl">اختار مساحة شغلك — المشروعات، المتجر، أو الرعاية.</p>
+  <p class="lead">Three workspaces. One click to where your work happens.</p>
+  <p class="hub-locale" lang="ar" dir="rtl">اختار مساحة شغلك بضغطة واحدة — المشروعات، المتجر، أو الرعاية.</p>
 </header>
 <section class="hub-worlds" aria-labelledby="hub-title">
-  <details class="world-card world-card--projects" name="plantupia-worlds">
-    <summary>
+  <article class="world-card world-card--projects">
+    <a class="world-entry" href="{% url 'company:projects-home' %}" aria-label="Open B2B projects workspace">
       <span class="world-index">01 / PROJECTS</span>
       <span class="world-symbol" aria-hidden="true">
         <svg viewBox="0 0 148 148" fill="none"><path d="M27 124V56l42-24 49 24v68H27Z" stroke="currentColor" stroke-width="2.3"/><path d="M41 59h63M45 124V86h55v38M64 86V63m19 23V63M39 124h70" stroke="currentColor" stroke-width="2"/><path d="M107 39c1-15 12-21 20-25 5 17-3 28-20 31M107 39c-13-3-20-15-18-28 16 2 23 11 18 28Z" stroke="currentColor" stroke-width="2"/></svg>
       </span>
       <span class="world-title">B2B <span>Projects</span></span>
       <span class="world-ar" lang="ar" dir="rtl">المشروعات والتركيبات</span>
-      <span class="world-explore">Explore this space <span aria-hidden="true">+</span></span>
-    </summary>
+      <span class="world-explore">Enter workspace <span aria-hidden="true">↗</span></span>
+    </a>
     <div class="world-reveal">
-      <p>RFQs, site preparation, exact plant inventory and reviewed QR handover. One project from first request to the living space.</p>
-      <div class="world-actions"><a class="button primary" href="{% url 'company:projects-home' %}">Open Projects <span aria-hidden="true">↗</span></a><span>{{ counts.draft }} in preparation</span></div>
+      <p>See installations, review RFQs and issue QR handovers.</p>
+      <span class="world-activity">{{ counts.draft }} preparing</span>
     </div>
-  </details>
-  <details class="world-card world-card--commerce" name="plantupia-worlds">
-    <summary>
+  </article>
+  <article class="world-card world-card--commerce">
+    <a class="world-entry" href="{% url 'company:commerce-home' %}" aria-label="Open B2C commerce workspace">
       <span class="world-index">02 / COMMERCE</span>
       <span class="world-symbol" aria-hidden="true">
         <svg viewBox="0 0 148 148" fill="none"><path d="M38 57h72l8 69H30l8-69Z" stroke="currentColor" stroke-width="2.3"/><path d="M54 60V42c0-13 8-22 20-22s20 9 20 22v18" stroke="currentColor" stroke-width="2.3"/><path d="M48 77h52M48 92h33M48 107h23" stroke="currentColor" stroke-width="2"/><circle cx="101" cy="104" r="10" stroke="currentColor" stroke-width="2"/></svg>
       </span>
       <span class="world-title">B2C <span>Commerce</span></span>
       <span class="world-ar" lang="ar" dir="rtl">المنتجات والطلبات</span>
-      <span class="world-explore">Explore this space <span aria-hidden="true">+</span></span>
-    </summary>
+      <span class="world-explore">Enter workspace <span aria-hidden="true">↗</span></span>
+    </a>
     <div class="world-reveal">
-      <p>Products &amp; SKUs, stock and the customer request inbox. Legacy QA records remain available in testing tools, not mixed with commercial drafts.</p>
-      <div class="world-actions"><a class="button primary" href="{% url 'company:commerce-home' %}">Open Commerce <span aria-hidden="true">↗</span></a>{% if show_commerce_alert %}<span>{{ new_qa_orders }} new QA requests</span>{% endif %}</div>
+      <p>Work with products, customer QA requests and warehouse counts.</p>
+      <span class="world-activity">{% if show_commerce_alert %}{{ new_qa_orders }} new QA requests{% else %}Products · Orders · Stock{% endif %}</span>
     </div>
-  </details>
-  <details class="world-card world-card--care" name="plantupia-worlds">
-    <summary>
+  </article>
+  <article class="world-card world-card--care">
+    <a class="world-entry" href="{% url 'company:care-home' %}" aria-label="Open Care and support workspace">
       <span class="world-index">03 / LIVING CARE</span>
       <span class="world-symbol" aria-hidden="true">
         <svg viewBox="0 0 148 148" fill="none"><path d="M74 124V55m0 22c-26 0-42-18-40-43 27 0 41 17 40 43Zm0-19c0-25 15-40 42-43 0 27-16 44-42 43Z" stroke="currentColor" stroke-width="2.3"/><path d="M44 111c0 22 60 22 60 0H44Zm-6-4h72" stroke="currentColor" stroke-width="2.3"/><path d="M73 94c-15 0-24-9-26-21 17 1 27 8 26 21Z" stroke="currentColor" stroke-width="2"/></svg>
       </span>
       <span class="world-title">CARE <span>&amp; Support</span></span>
       <span class="world-ar" lang="ar" dir="rtl">الرعاية والمتابعة</span>
-      <span class="world-explore">Explore this space <span aria-hidden="true">+</span></span>
-    </summary>
+      <span class="world-explore">Enter workspace <span aria-hidden="true">↗</span></span>
+    </a>
     <div class="world-reveal">
-      <p>Botanical knowledge, reviewed guidance, inspection plans and service conversations — each connected to a real care need.</p>
-      <div class="world-actions"><a class="button primary" href="{% url 'company:care-home' %}">Open Care <span aria-hidden="true">↗</span></a>{% if pending_guides != None %}<span>{{ pending_guides }} unpublished guides</span>{% endif %}</div>
+      <p>Review plant guidance and respond to care needs.</p>
+      <span class="world-activity">{% if pending_guides != None %}{{ pending_guides }} guides awaiting review{% else %}Guidance · Support{% endif %}</span>
     </div>
-  </details>
+  </article>
 </section>
 <section class="hub-pulse" aria-label="Today's recorded work">
   <div class="hub-pulse-intro"><span class="small-label">TODAY / AT A GLANCE</span><strong>What needs attention</strong></div>
