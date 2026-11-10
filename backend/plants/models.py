@@ -265,6 +265,11 @@ class InstallationBatch(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
         related_name="prepared_plantupia_installations",
     )
+    source_b2b_inquiry = models.OneToOneField(
+        "plants.CommerceBusinessInquiry", on_delete=models.PROTECT,
+        related_name="prepared_installation", null=True, blank=True,
+        help_text="Accepted B2B project scope; draft only until verified actual plant inventory and handover.",
+    )
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.DRAFT)
     reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
