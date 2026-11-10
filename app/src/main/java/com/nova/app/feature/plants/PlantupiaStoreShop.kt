@@ -194,6 +194,28 @@ internal fun PlantupiaStoreShop(
         }
     }
 
+    fun submitReturnRequest(orderId: String, reason: String, note: String) {
+        if (busy) return
+        busy = true
+        feedback = null
+        scope.launch {
+            try {
+                when (val result = repository.demoPost(
+                    "commerce/orders/" + orderId + "/return/",
+                    JSONObject().put("reason", reason).put("note", note.trim()),
+                )) {
+                    is ApiResult.Success -> if (repository.isCurrentSession()) {
+                        feedback = "Return request sent for company review. No refund or restock has occurred."
+                        refresh++
+                    }
+                    is ApiResult.Failure -> if (repository.isCurrentSession()) {
+                        feedback = result.message
+                    }
+                }
+            } finally { busy = false }
+        }
+    }
+
     Column(
         modifier = modifier.fillMaxWidth().verticalScroll(rememberScrollState())
             .imePadding().padding(horizontal = 18.dp, vertical = 12.dp),
@@ -522,6 +544,23 @@ internal fun PlantupiaStoreShop(
                                     )
                                 }
                             }
+                            val returnCase = order.optJSONObject("return_case")
+                            if (returnCase != null) {
+                                Text("Return case · " + returnCase.optString("decision").replace('_', ' '),
+                                    style = PlantupiaText.supporting)
+                                Text("Physical return and refund are reviewed separately.",
+                                    style = PlantupiaText.supporting)
+                            } else if (status == "delivered") {
+                                PlantupiaReturnRequestForm(
+                                    orderId = id,
+                                    busy = busy,
+                                    onSubmit = { reason, note -> submitReturnRequest(id, reason, note) },
+                                )
+                            }
+                            if (order.optBoolean("refunded")) {
+                                Text("Plantupia recorded a verified external refund.",
+                                    style = PlantupiaText.supporting)
+                            }
                             if (status == "quoted" && !busy && !order.isNull("final_total")) {
                                 Text("Accept only if you agree with this exact products + shipping total.",
                                     style = PlantupiaText.supporting)
@@ -571,4 +610,47 @@ private fun PlantupiaTransferReferenceForm(
         enabled = !busy && reference.trim().length in 4..120,
         onClick = { onSubmit(reference) },
     ) { Text("Submit reference for company verification") }
+}
+
+@Composable
+private fun PlantupiaReturnRequestForm(
+    orderId: String,
+    busy: Boolean,
+    onSubmit: (String, String) -> Unit,
+) {
+    var expanded by rememberSaveable(orderId) { mutableStateOf(false) }
+    var reason by rememberSaveable(orderId) { mutableStateOf("damaged") }
+    var note by rememberSaveable(orderId) { mutableStateOf("") }
+    OutlinedButton(onClick = { expanded = !expanded }, enabled = !busy) {
+        Text(if (expanded) "Close return request" else "Request a return")
+    }
+    if (expanded) {
+        Text("The company will review this request before accepting returned items.",
+            style = PlantupiaText.supporting)
+        for ((value, label) in listOf(
+            "damaged" to "Damaged",
+            "incorrect_item" to "Incorrect item",
+            "quality_issue" to "Quality issue",
+            "other" to "Other reason",
+        )) {
+            OutlinedButton(
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !busy,
+                onClick = { reason = value },
+            ) { Text((if (reason == value) "✓ " else "") + label) }
+        }
+        OutlinedTextField(
+            value = note,
+            onValueChange = { note = it.take(500) },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Explain the return request") },
+            minLines = 2,
+        )
+        Button(
+            enabled = !busy && note.trim().length in 10..500,
+            modifier = Modifier.fillMaxWidth(),
+            onClick = { onSubmit(reason, note) },
+            colors = ButtonDefaults.buttonColors(containerColor = storeInk),
+        ) { Text("Submit request for company review") }
+    }
 }
