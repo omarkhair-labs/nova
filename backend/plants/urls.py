@@ -1,4 +1,5 @@
 from django.urls import path
+from .commerce_storefront_api import CommerceCatalogView, CommerceCatalogPhotoView, CommerceCartView
 from .assistant import PlantAssistantView
 from .commerce_api import QACommerceRequestsView, QACommerceRequestView, QACommerceCatalogView, QACommerceRequestActionView, QACommerceRFQsView, QACommerceRFQAcceptView
 from .species_library import BotanicalSpeciesLibraryView, BotanicalSpeciesLibraryDetailView
@@ -10,6 +11,10 @@ from .views import PlantEventSubmissionsView, PlantQuestionSubmissionsView
 from .views import SpaceDetailView, PlantDetailView, PlantEventsView, PlantFollowUpDateView, PlantNicknameView, PlantsView, SpacesView, PlantQuestionsView, PlantQuestionResolveView, PlantCircleView
 
 urlpatterns = [
+    # The sole future customer Shop data source; no QA models or active checkout.
+    path("commerce/catalog/", CommerceCatalogView.as_view(), name="plantupia-real-commerce-catalog"),
+    path("commerce/catalog/<uuid:product_id>/image/", CommerceCatalogPhotoView.as_view(), name="plantupia-real-commerce-image"),
+    path("commerce/cart/", CommerceCartView.as_view(), name="plantupia-real-commerce-cart"),
     path("library/species/", BotanicalSpeciesLibraryView.as_view(), name="plantupia-library-species"),
     path("library/species/<slug:key>/", BotanicalSpeciesLibraryDetailView.as_view(), name="plantupia-library-species-detail"),
     path("demo/access/", DemoAccessView.as_view(), name="plantupia-demo-access"),
