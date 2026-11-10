@@ -133,3 +133,55 @@ class CommerceCatalogReviewTests(DemoFixture, TestCase):
         self.assertEqual(self.client.post(self.url, {"action": "approve"}).status_code, 403)
         self.product.refresh_from_db()
         self.assertEqual(self.product.catalog_review_status, "draft")
+
+    def test_publication_is_disabled_by_default_even_after_review(self):
+        self.attach_real_photo()
+        self.approve()
+        url = reverse("company:commerce-product-publication", args=[self.product.pk])
+        response = self.client.post(url, {"action": "publish"})
+        self.assertEqual(response.status_code, 302)
+        self.product.refresh_from_db()
+        self.assertIsNone(self.product.storefront_published_at)
+        detail = self.client.get(reverse("company:commerce-product", args=[self.product.pk]))
+        self.assertContains(detail, "Customer publication is locked")
+
+    @override_settings(PLANTUPIA_STOREFRONT_PUBLICATION_ENABLED=True)
+    def test_reviewed_product_can_publish_and_unpublish_with_audit(self):
+        self.attach_real_photo()
+        url = reverse("company:commerce-product-publication", args=[self.product.pk])
+        self.client.post(url, {"action": "publish"})
+        self.product.refresh_from_db()
+        self.assertIsNone(self.product.storefront_published_at)
+        self.approve()
+        self.assertEqual(self.client.post(url, {"action": "publish"}).status_code, 302)
+        self.product.refresh_from_db()
+        self.assertIsNotNone(self.product.storefront_published_at)
+        original = self.product.storefront_published_at
+        self.client.post(url, {"action": "publish"})
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.storefront_published_at, original)
+        self.assertTrue(LogEntry.objects.filter(
+            object_id=str(self.product.pk),
+            change_message__icontains="Explicitly published reviewed SKU",
+        ).exists())
+        self.assertEqual(self.client.post(url, {"action": "unpublish"}).status_code, 302)
+        self.product.refresh_from_db()
+        self.assertIsNone(self.product.storefront_published_at)
+        self.assertEqual(CommerceOrderRequest.objects.count(), 0)
+        self.assertEqual(DemoOrder.objects.count(), 0)
+
+    @override_settings(PLANTUPIA_STOREFRONT_PUBLICATION_ENABLED=True)
+    def test_customer_cannot_publish_and_reopening_review_unpublishes(self):
+        self.attach_real_photo()
+        self.approve()
+        url = reverse("company:commerce-product-publication", args=[self.product.pk])
+        self.client.force_login(self.owner)
+        self.assertEqual(self.client.post(url, {"action": "publish"}).status_code, 403)
+        self.product.refresh_from_db()
+        self.assertIsNone(self.product.storefront_published_at)
+        self.client.force_login(self.staff)
+        self.client.post(url, {"action": "publish"})
+        self.client.post(self.url, {"action": "reopen"})
+        self.product.refresh_from_db()
+        self.assertIsNone(self.product.storefront_published_at)
+        self.assertEqual(self.product.catalog_review_status, "draft")
