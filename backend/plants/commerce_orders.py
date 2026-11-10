@@ -82,6 +82,19 @@ def _fulfillment_json(order):
     }
 
 
+def _return_case_json(order):
+    from .commerce_models import CommerceReturnCase
+    case = CommerceReturnCase.objects.filter(order=order).first()
+    if not case:
+        return None
+    return {
+        "reason": case.reason, "decision": case.decision,
+        "customer_note": case.customer_note,
+        "requested_at": case.requested_at.isoformat(),
+        "received": bool(case.received_at),
+    }
+
+
 def order_json(order):
     lines = [
         {
@@ -129,9 +142,12 @@ def order_json(order):
         "subtotal": str(order.subtotal),
         "final_total": str(final_total) if final_total is not None else None,
         "stock_reserved": order.stock_reservations.filter(released_at__isnull=True).exists(),
-        "charged": order.payment_status != CommerceOrder.PaymentStatus.UNPAID,
+        "charged": order.payment_status == CommerceOrder.PaymentStatus.VERIFIED,
+        "refunded": order.payment_status == CommerceOrder.PaymentStatus.REFUNDED,
         "delivery_initiated": order.status in (
-            CommerceOrder.Status.DISPATCHED, CommerceOrder.Status.DELIVERED),
+            CommerceOrder.Status.DISPATCHED, CommerceOrder.Status.DELIVERED,
+            CommerceOrder.Status.RETURN_REQUESTED, CommerceOrder.Status.RETURNED),
+        "return_case": _return_case_json(order),
         "fulfillment": _fulfillment_json(order),
         "lines": lines,
         "notice": (
