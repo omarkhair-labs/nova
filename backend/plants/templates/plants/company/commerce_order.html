@@ -1,0 +1,66 @@
+{% extends "plants/company/base.html" %}
+{% block content %}
+<a class="back-link" href="{% url 'company:commerce-orders' %}">← Actual orders / الطلبات</a>
+<header class="page-heading compact-workspace-heading">
+  <div><p class="eyebrow">B2C / ORDER DETAIL · تفاصيل الطلب</p>
+    <h1>Order {{ order.pk|stringformat:"s"|slice:":8" }}</h1>
+    <p class="lead">{{ order.get_status_display }} · {{ order.created_at|date:"j M Y, H:i" }}</p>
+  </div>
+  <span class="badge draft">{{ order.get_payment_status_display }}</span>
+</header>
+<div class="two-column">
+  <section class="panel padded">
+    <p class="eyebrow">CUSTOMER & DELIVERY / العميل والتوصيل</p>
+    <h2>{{ order.contact_name }}</h2>
+    <p>{{ order.contact_phone }} · {{ order.city }}</p>
+    <p>{{ order.delivery_address }}</p>
+    {% if order.building_details %}<p>{{ order.building_details }}</p>{% endif %}
+    {% if order.landmark %}<p>Landmark: {{ order.landmark }}</p>{% endif %}
+    {% if order.delivery_pin_confirmed %}
+    <p class="fine">Customer-confirmed coordinates: {{ order.delivery_latitude }}, {{ order.delivery_longitude }}</p>
+    <a href="https://www.google.com/maps?q={{ order.delivery_latitude }},{{ order.delivery_longitude }}" target="_blank" rel="noopener noreferrer">View confirmed delivery pin ↗</a>
+    {% endif %}
+    {% if order.customer_note %}<p class="fine">Customer note: {{ order.customer_note }}</p>{% endif %}
+    <p class="fine">Payment preference: {{ order.get_payment_preference_display }} · Recorded status: {{ order.get_payment_status_display }}</p>
+  </section>
+  <section class="panel padded">
+    <p class="eyebrow">PRICE & APPROVAL / السعر والموافقة</p>
+    <h2>EGP {{ order.subtotal }} product subtotal</h2>
+    <p>Shipping: {% if order.shipping_fee != None %}EGP {{ order.shipping_fee }}{% else %}Not quoted{% endif %}</p>
+    <p><strong>Total: {% if total != None %}EGP {{ total }}{% else %}Pending exact delivery quote{% endif %}</strong></p>
+    <p class="fine">Quote revision {{ order.shipping_quote_version }}{% if order.shipping_quote_expires_at %} · Expires {{ order.shipping_quote_expires_at|date:"j M Y, H:i" }}{% endif %}</p>
+    {% if perms.plants.change_commerceorder and order.status == "quote_pending" or perms.plants.change_commerceorder and order.status == "quoted" %}
+    <form method="post" action="{% url 'company:commerce-order-shipping' order.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="version" value="{{ order.shipping_quote_version }}">
+      <label for="shipping-fee">Exact shipping fee (EGP)</label>
+      <input id="shipping-fee" type="number" min="0" step=".01" name="shipping_fee" placeholder="Company-confirmed EGP cost">
+      <div class="actions">
+        <button class="button primary" type="submit" name="action" value="quote">Send customer shipping quote</button>
+        <button class="button" type="submit" name="action" value="decline">Decline unserviceable order</button>
+      </div>
+    </form>
+    {% endif %}
+    <p class="fine">No payment is marked collected here; no courier delivery is claimed merely from quoting.</p>
+  </section>
+</div>
+<section class="panel padded">
+  <p class="eyebrow">EXACT SKU LINES</p><h2>Order contents</h2>
+  {% for line in order.lines.all %}
+  <div class="record-row"><div class="grow"><strong>{{ line.product_name_snapshot }}</strong><small>{{ line.sku_code_snapshot }} · {{ line.option_snapshot }}</small></div>
+    <span>{{ line.quantity }} × EGP {{ line.unit_price_snapshot }} = EGP {{ line.line_subtotal_snapshot }}</span>
+  </div>
+  {% endfor %}
+</section>
+{% if order.stock_reservations.all %}
+<section class="panel padded">
+  <p class="eyebrow">ACTUAL WAREHOUSE RESERVATIONS</p><h2>Held inventory</h2>
+  {% for allocation in order.stock_reservations.all %}
+  <div class="record-row"><span>{{ allocation.sku.code }} · {{ allocation.location.name }}</span>
+    <span>{{ allocation.quantity }} units · {% if allocation.released_at %}Released{% else %}Reserved{% endif %}</span>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+<div class="commerce-reality"><strong>Not yet production-finished</strong><span>Staff dispatch, POD, COD/transfer reconciliation, invoices and refunds require verified operational implementation. This screen can only quote or decline before confirmation.</span></div>
+{% endblock %}
