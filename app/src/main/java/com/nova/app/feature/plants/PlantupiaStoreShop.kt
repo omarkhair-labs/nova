@@ -456,6 +456,14 @@ internal fun PlantupiaStoreShop(
                                     " × " + line.optString("quantity"),
                                     style = PlantupiaText.supporting)
                             }
+                            val timeline = order.optJSONArray("timeline")
+                            if (timeline != null && timeline.length() > 0) {
+                                Text("Order updates", fontWeight = FontWeight.SemiBold, color = storeInk)
+                                for (i in 0 until timeline.length()) {
+                                    val event = timeline.optJSONObject(i) ?: continue
+                                    Text(event.optString("label"), style = PlantupiaText.supporting)
+                                }
+                            }
                             Text("Payment · " + order.optString("payment_status") +
                                 " | Delivery not assumed from this order.",
                                 style = PlantupiaText.supporting)
