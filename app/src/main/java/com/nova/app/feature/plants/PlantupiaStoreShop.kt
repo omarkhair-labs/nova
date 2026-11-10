@@ -512,6 +512,27 @@ internal fun PlantupiaStoreShop(
                                     " × " + line.optString("quantity"),
                                     style = PlantupiaText.supporting)
                             }
+                            // Only plants physically delivered with staff-retained proof
+                            // appear here; a quote, reservation or dispatch does not.
+                            val deliveredPlants = order.optJSONArray("my_plant_ids")
+                            if (deliveredPlants != null && deliveredPlants.length() > 0) {
+                                Text(
+                                    "${deliveredPlants.length()} delivered plant(s) added to My Plants.",
+                                    fontWeight = FontWeight.SemiBold, color = storeInk,
+                                )
+                                Text(
+                                    "Add your own photo and placement. A shop species label is not a verified identity.",
+                                    style = PlantupiaText.supporting,
+                                )
+                                OutlinedButton(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    onClick = {
+                                        PlantupiaPlantOpenSignal.open(
+                                            accountId, deliveredPlants.optString(0),
+                                        )
+                                    },
+                                ) { Text("Open delivered plants") }
+                            }
                             val timeline = order.optJSONArray("timeline")
                             if (timeline != null && timeline.length() > 0) {
                                 Text("Order updates", fontWeight = FontWeight.SemiBold, color = storeInk)
