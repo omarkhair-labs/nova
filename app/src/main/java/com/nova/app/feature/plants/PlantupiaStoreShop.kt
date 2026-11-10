@@ -228,7 +228,7 @@ internal fun PlantupiaStoreShop(
                     search, { search = it.take(100) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    label = { Text("Search products / بحث") },
+                    label = { Text("Search products") },
                 )
                 val visible = products.filter { product ->
                     listOf(product.optString("name"), product.optString("sku"),
@@ -356,13 +356,13 @@ internal fun PlantupiaStoreShop(
                 Text("Confirm your address and entrance on the map. We will ask Plantupia for the actual shipping fee before you accept the final total.",
                     style = PlantupiaText.supporting)
                 OutlinedTextField(name, { name = it.take(160) },
-                    modifier = Modifier.fillMaxWidth(), label = { Text("Recipient name / الاسم") })
+                    modifier = Modifier.fillMaxWidth(), label = { Text("Recipient name") })
                 OutlinedTextField(phone, { phone = it.take(32) },
-                    modifier = Modifier.fillMaxWidth(), label = { Text("Phone / الهاتف") })
+                    modifier = Modifier.fillMaxWidth(), label = { Text("Phone") })
                 OutlinedTextField(city, { city = it.take(120) },
-                    modifier = Modifier.fillMaxWidth(), label = { Text("City / المدينة") })
+                    modifier = Modifier.fillMaxWidth(), label = { Text("City") })
                 OutlinedTextField(address, { address = it.take(320) },
-                    modifier = Modifier.fillMaxWidth(), label = { Text("Street & address / العنوان") })
+                    modifier = Modifier.fillMaxWidth(), label = { Text("Street & address") })
                 OutlinedTextField(building, { building = it.take(180) },
                     modifier = Modifier.fillMaxWidth(), label = { Text("Building / floor / flat") })
                 OutlinedTextField(landmark, { landmark = it.take(180) },
@@ -433,7 +433,7 @@ internal fun PlantupiaStoreShop(
             }
             "orders" -> {
                 OutlinedButton(onClick = { refresh++ }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Refresh orders / تحديث الطلبات")
+                    Text("Refresh orders")
                 }
                 if (loaded && orders.isEmpty()) Text("You have no commercial orders yet.",
                     style = PlantupiaText.supporting)
