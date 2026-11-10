@@ -84,3 +84,56 @@ class RealBusinessInquiryTests(DemoFixture, TestCase):
         self.client.force_login(self.owner)
         self.assertEqual(self.client.get(reverse("company:business-inquiries")).status_code, 403)
         self.assertEqual(CommerceBusinessInquiry.objects.count(), 1)
+
+
+    def test_accepted_installation_quote_creates_one_draft_project_only(self):
+        from .models import Space
+        record = self.api.post(self.url, self.body, format="json").data
+        oid = record["id"]
+        url = reverse("company:business-inquiry-installation", args=[oid])
+        before = InstallationBatch.objects.count()
+        # A submitted or merely quoted RFQ cannot create an installation.
+        self.assertEqual(self.client.post(url).status_code, 302)
+        self.assertEqual(InstallationBatch.objects.count(), before)
+        quote_url = reverse("company:business-inquiry-quote", args=[oid])
+        self.client.post(quote_url, {
+            "action": "quote", "quote_version": "0", "amount": "45000.00",
+            "note": "Physical installation proposed, contingent on signed agreement.",
+        })
+        self.assertEqual(self.client.post(url).status_code, 302)
+        self.assertEqual(InstallationBatch.objects.count(), before)
+        self.api.post(
+            reverse("plantupia-real-business-accept", args=[oid]),
+            {"quote_version": 1}, format="json",
+        )
+        self.assertEqual(self.client.post(url).status_code, 302)
+        batch = InstallationBatch.objects.get(source_b2b_inquiry_id=oid)
+        self.assertEqual(batch.status, "draft")
+        self.assertEqual(batch.prepared_by_id, self.staff.pk)
+        self.assertEqual(batch.space.owner_id, self.staff.pk)
+        self.assertEqual(batch.manifest_rows.count(), 0)
+        self.assertEqual(batch.invitations.count(), 0)
+        self.assertEqual(batch.space.plants.count(), 0)
+        self.assertIn(str(oid), batch.space.description)
+        self.assertEqual(self.client.post(url).status_code, 302)
+        self.assertEqual(InstallationBatch.objects.count(), before + 1)
+        self.assertEqual(Space.objects.filter(pk=batch.space_id).count(), 1)
+
+    def test_wholesale_and_unauthorized_users_cannot_create_installations(self):
+        body = dict(self.body, kind="wholesale")
+        oid = self.api.post(self.url, body, format="json").data["id"]
+        self.client.post(reverse("company:business-inquiry-quote", args=[oid]), {
+            "action": "quote", "quote_version": "0", "amount": "10000.00",
+            "note": "Wholesale-only supply; not an installation project.",
+        })
+        self.api.post(reverse("plantupia-real-business-accept", args=[oid]),
+                      {"quote_version": 1}, format="json")
+        count = InstallationBatch.objects.count()
+        self.client.post(reverse("company:business-inquiry-installation", args=[oid]))
+        self.assertEqual(InstallationBatch.objects.count(), count)
+        self.client.force_login(self.owner)
+        self.assertEqual(
+            self.client.post(reverse("company:business-inquiry-installation", args=[oid])).status_code,
+            403,
+        )
+        self.assertEqual(InstallationBatch.objects.count(), count)
