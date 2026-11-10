@@ -20,6 +20,19 @@ class CommerceProduct(models.Model):
         help_text="Stable identity for reviewed catalogue imports; not a retail SKU.")
     qa_listed = models.BooleanField(default=False,
         help_text="Explicitly available in the isolated QA app only; never commercial publication.")
+    class CatalogReviewStatus(models.TextChoices):
+        DRAFT = "draft", "Needs product review"
+        APPROVED = "approved", "Product data approved for future storefront"
+
+    catalog_review_status = models.CharField(
+        max_length=12, choices=CatalogReviewStatus.choices, default=CatalogReviewStatus.DRAFT,
+        help_text="Staff content approval only. Does not publish to Android or authorize taking orders.")
+    catalog_reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT,
+        related_name="plantupia_catalog_products_reviewed",
+    )
+    catalog_reviewed_at = models.DateTimeField(null=True, blank=True)
+
     description = models.TextField(max_length=3000, blank=True)
     kind = models.CharField(max_length=12, choices=Kind.choices)
     reference_species = models.ForeignKey(
