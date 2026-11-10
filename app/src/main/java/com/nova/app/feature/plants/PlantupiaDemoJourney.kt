@@ -898,21 +898,51 @@ internal fun PlantupiaQaShop(
                     }
                 }
             }
-            // One Shop destination; cart and orders are contextual routes, not permanent tabs.
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = { selectedId = null; screen = "cart" }) {
-                    Text("Cart", color = demoForest)
+            // Two short preview destinations + full-width genuine QA operations.
+            // Never force 4+ long buttons into one narrow row: Android was squeezing
+            // the last labels down to one character per line on real phones.
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedButton(
+                        onClick = { selectedId = null; screen = "cart" },
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    ) {
+                        Text("Preview cart", maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                    OutlinedButton(
+                        onClick = { selectedId = null; screen = "orders" },
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    ) {
+                        Text("Preview orders", maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
                 }
-                TextButton(onClick = { selectedId = null; screen = "orders" }) {
-                    Text("My orders", color = demoForest)
+                if (commerceQaAvailable) {
+                    Button(
+                        onClick = { selectedId = null; screen = "commerce-qa" },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = demoForest),
+                    ) {
+                        Text(
+                            "New delivery request · address + map · QA",
+                            maxLines = 2, overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = { selectedId = null; screen = "business-qa" },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    ) {
+                        Text("Business quote request · QA", maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
                 }
-                if (commerceQaAvailable) TextButton(onClick = { selectedId = null; screen = "commerce-qa" }) {
-                    Text("Delivery request · QA", color = demoForest)
+                if (!fullPage) TextButton(onClick = onDismiss) {
+                    Text("Close Shop", color = demoForest)
                 }
-                if (commerceQaAvailable) TextButton(onClick = { selectedId = null; screen = "business-qa" }) {
-                    Text("For business · RFQ", color = demoForest)
-                }
-                if (!fullPage) TextButton(onClick = onDismiss) { Text("Close", color = demoForest) }
             }
             if (screen == "review" || screen == "cart") {
                 Text("QA checkout only · illustrative prices · no payment or delivery", style = PlantupiaText.supporting)
@@ -1050,6 +1080,10 @@ internal fun PlantupiaQaShop(
                     }
                 }
                 "orders" -> {
+                    if (commerceQaAvailable) Text(
+                        "These are sample cart orders only. Track requests with an address and map under New delivery request · QA.",
+                        style = PlantupiaText.supporting,
+                    )
                     receipt?.let { Text("Preview order received · " + it.take(8), fontWeight = FontWeight.SemiBold, color = demoForest) }
                     if (orders.isEmpty()) Text("No orders yet.", style = PlantupiaText.supporting)
                     (orders + listOfNotNull(linkedOrder)).distinctBy { it.getString("id") }.forEach { order -> DemoCard {
@@ -1075,7 +1109,7 @@ internal fun PlantupiaQaShop(
                     val product = selected
                     if (product == null) {
                         Text(
-                            "QA preview · catalogue items only, no payment or delivery",
+                            "Sample QA catalogue, separate from the Company commercial SKUs and delivery request form.",
                             style = PlantupiaText.supporting,
                         )
                         OutlinedTextField(
