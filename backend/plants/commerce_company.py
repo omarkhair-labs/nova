@@ -4,11 +4,12 @@ import uuid
 from django import forms
 from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import Q, Sum
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect
 
-from . import company_services as company, commerce_services as commerce
+from . import company_services as company, commerce_services as commerce, commerce_publication as publication
 from .commerce_checkout import enabled as qa_requests_enabled
 from .commerce_models import CommerceProduct, CommerceSKU, CommerceStockLocation, CommerceStockMovement
 from .company_views import page, paginated, portal
@@ -115,6 +116,7 @@ def product_detail(request, product_id):
         sku.counted_balance = commerce.stock_balance(sku.pk)
     return page(request, "commerce_product", {
         "title": product.name, "section": "commerce_products", "product": product, "variants": variants, "gallery": product.gallery.all(),
+        "catalog_readiness_issues": publication.product_readiness_issues(product),
     })
 
 
@@ -140,6 +142,29 @@ def product_photo(request, product_id):
         raise Http404 from exc
 
 
+
+@portal("plants.change_commerceproduct", methods=("POST",))
+def product_review(request, product_id):
+    """Staff content approval only, never merchant checkout activation."""
+    company.require(request.user, "plants.view_commerceproduct")
+    try:
+        product = publication.review_catalog_product(
+            staff=request.user, product_id=product_id,
+            action=request.POST.get("action", ""),
+        )
+    except ValidationError as exc:
+        for issue in exc.messages:
+            messages.error(request, issue)
+    else:
+        messages.success(request, (
+            "Product details approved for future storefront. This does not publish the Shop."
+            if product.catalog_review_status == CommerceProduct.CatalogReviewStatus.APPROVED
+            else "Product returned to review."
+        ))
+    return redirect("company:commerce-product", product_id=product_id)
+
+
+@transaction.atomic
 @portal("plants.add_commercesku")
 def sku_create(request, product_id):
     company.require(request.user, "plants.view_commerceproduct")
@@ -150,7 +175,8 @@ def sku_create(request, product_id):
         sku.product = product
         sku.full_clean()
         sku.save()
-        company.audit(request.user, sku, "Created draft sellable SKU; no checkout/publication")
+        publication.invalidate_catalog_review(staff=request.user, product_id=product.pk, reason="adding a new SKU")
+        company.audit(request.user, sku, "Created commercial SKU; catalog review may require renewal")
         messages.success(request, "Variant saved in the internal draft catalog.")
         return redirect("company:commerce-product", product_id=product.pk)
     return page(request, "form", {
@@ -213,6 +239,7 @@ def stock_count(request, sku_id):
     })
 
 
+@transaction.atomic
 @portal("plants.change_commerceproduct")
 def product_edit(request, product_id):
     company.require(request.user, "plants.view_commerceproduct")
@@ -222,7 +249,8 @@ def product_edit(request, product_id):
         revised = form.save(commit=False)
         revised.full_clean()
         revised.save()
-        company.audit(request.user, revised, "Edited internal commercial product draft; not published")
+        publication.invalidate_catalog_review(staff=request.user, product_id=revised.pk, reason="editing product details")
+        company.audit(request.user, revised, "Edited commercial product details; still not published")
         messages.success(request, "Product draft updated. No customer listing has changed.")
         return redirect("company:commerce-product", product_id=revised.pk)
     return page(request, "form", {
@@ -232,6 +260,7 @@ def product_edit(request, product_id):
     })
 
 
+@transaction.atomic
 @portal("plants.change_commercesku")
 def sku_edit(request, sku_id):
     company.require(request.user, "plants.view_commerceproduct")
@@ -241,7 +270,8 @@ def sku_edit(request, sku_id):
         updated = form.save(commit=False)
         updated.full_clean()
         updated.save()
-        company.audit(request.user, updated, "Edited internal draft SKU; no commercial checkout")
+        publication.invalidate_catalog_review(staff=request.user, product_id=updated.product_id, reason="editing a SKU")
+        company.audit(request.user, updated, "Edited commercial SKU; product review may require renewal")
         messages.success(request, "Variant updated. No customer orders exist in this draft catalogue.")
         return redirect("company:commerce-product", product_id=updated.product_id)
     return page(request, "form", {
