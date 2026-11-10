@@ -24,12 +24,12 @@ internal fun careCalendarMonthDays(month: YearMonth): List<LocalDate> {
     val first = month.atDay(1).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
     val required = (month.atEndOfMonth().toEpochDay() - first.toEpochDay() + 1).toInt()
     val count = if (required > 35) 42 else 35
-    return (0 until count).map(first::plusDays)
+    return (0 until count).map { first.plusDays(it.toLong()) }
 }
 
 internal fun careCalendarWeekDays(selected: LocalDate): List<LocalDate> {
     val monday = selected.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-    return (0 until 7).map(monday::plusDays)
+    return (0 until 7).map { monday.plusDays(it.toLong()) }
 }
 
 internal fun careCalendarEntries(
