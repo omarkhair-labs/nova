@@ -27,8 +27,30 @@ def enabled():
     return local or (settings.IS_PRODUCTION and pilot_enabled())
 
 
+# Retail/B2B company pages have distinct roles and must not inherit
+# installation-inventory visibility merely to access their own workspaces.
+# Never relax the separate installation requirement for unscoped calls.
+COMMERCE_ACCESS_CODENAMES = {
+    "view_commerceorder", "change_commerceorder",
+    "add_commercepaymentrecord", "add_commercerefundrecord",
+    "view_commercebusinessinquiry", "change_commercebusinessinquiry",
+}
+
+
 def require(user, *permissions):
-    if not user.is_authenticated or not user.is_active or not user.is_staff or not user.has_perms((*ACCESS, *permissions)):
+    if not user.is_authenticated or not user.is_active or not user.is_staff:
+        raise PermissionDenied
+    commerce_only = bool(permissions) and all(
+        permission.startswith("plants.")
+        and permission.split(".", 1)[1] in COMMERCE_ACCESS_CODENAMES
+        for permission in permissions
+    )
+    needed = (
+        ("plants.access_company_dashboard", *permissions)
+        if commerce_only
+        else (*ACCESS, *permissions)
+    )
+    if not user.has_perms(needed):
         raise PermissionDenied
 
 
