@@ -1431,7 +1431,7 @@ private fun PlantupiaCatalogTile(
 }
 
 @Composable
-private fun PlantupiaCatalogPhoto(
+internal fun PlantupiaCatalogPhoto(
     productId: String, repository: PlantupiaRepository, compact: Boolean = false,
     thumbnail: Boolean = false, photoId: String? = null, photoAlt: String = "",
     catalogPath: String = "catalog",
