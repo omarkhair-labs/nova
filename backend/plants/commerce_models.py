@@ -389,3 +389,134 @@ class CommerceBusinessRFQ(models.Model):
 
     def __str__(self):
         return f"Business RFQ {self.id}"
+
+
+class CommerceOrder(models.Model):
+    """Real customer order, first awaiting an exact shipping quote.
+
+    A requested quote is NOT a merchant-accepted, paid or dispatched order.
+    Stock reservations are written atomically only when the customer accepts a
+    current exact shipping quote. Statuses beyond confirmed need real evidence.
+    """
+    class Status(models.TextChoices):
+        QUOTE_PENDING = "quote_pending", "Awaiting delivery quote"
+        QUOTED = "quoted", "Shipping quote ready for customer"
+        CONFIRMED = "confirmed", "Customer accepted exact total"
+        PREPARING = "preparing", "Being prepared"
+        DISPATCHED = "dispatched", "With delivery team"
+        DELIVERED = "delivered", "Delivered with proof"
+        CANCELLED = "cancelled", "Cancelled"
+        DECLINED = "declined", "Cannot fulfill"
+        RETURN_REQUESTED = "return_requested", "Return requested"
+        RETURNED = "returned", "Returned"
+
+    class PaymentPreference(models.TextChoices):
+        COD = "cod", "Cash on delivery"
+        MANUAL_TRANSFER = "manual_transfer", "Manual bank or InstaPay transfer"
+
+    class PaymentStatus(models.TextChoices):
+        UNPAID = "unpaid", "Not paid"
+        VERIFIED = "verified", "Payment verified by company"
+        REFUNDED = "refunded", "Refund verified by company"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    customer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="plantupia_store_orders")
+    client_id = models.UUIDField(help_text="Stable retry identity for this order quote.")
+    fingerprint = models.CharField(max_length=64, editable=False)
+    cart_fingerprint = models.CharField(max_length=64)
+    contact_name = models.CharField(max_length=160)
+    contact_phone = models.CharField(max_length=32)
+    city = models.CharField(max_length=120)
+    delivery_address = models.CharField(max_length=320)
+    building_details = models.CharField(max_length=180, blank=True)
+    landmark = models.CharField(max_length=180, blank=True)
+    delivery_latitude = models.DecimalField(max_digits=10, decimal_places=7, blank=True, null=True)
+    delivery_longitude = models.DecimalField(max_digits=10, decimal_places=7, blank=True, null=True)
+    delivery_pin_confirmed = models.BooleanField(default=False)
+    customer_note = models.CharField(max_length=500, blank=True)
+    payment_preference = models.CharField(max_length=20, choices=PaymentPreference.choices)
+    payment_status = models.CharField(max_length=12, choices=PaymentStatus.choices,
+        default=PaymentStatus.UNPAID)
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2)
+    shipping_fee = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True,
+        validators=[MinValueValidator(Decimal("0.00"))])
+    shipping_quote_version = models.PositiveIntegerField(default=0)
+    shipping_quote_expires_at = models.DateTimeField(blank=True, null=True)
+    status = models.CharField(max_length=22, choices=Status.choices, default=Status.QUOTE_PENDING)
+    quoted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        null=True, blank=True, related_name="plantupia_store_shipping_quotes")
+    quoted_at = models.DateTimeField(blank=True, null=True)
+    confirmed_at = models.DateTimeField(blank=True, null=True)
+    cancelled_at = models.DateTimeField(blank=True, null=True)
+    last_status_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at", "id")
+        constraints = [
+            models.UniqueConstraint(fields=("customer", "client_id"),
+                name="plant_store_order_retry_unique"),
+        ]
+
+    def clean(self):
+        super().clean()
+        lat = self.delivery_latitude is not None
+        lon = self.delivery_longitude is not None
+        if lat != lon:
+            raise ValidationError("Delivery coordinates must be provided together.")
+        if lat and (not (-90 <= self.delivery_latitude <= 90 and
+                        -180 <= self.delivery_longitude <= 180)
+                    or not self.delivery_pin_confirmed):
+            raise ValidationError("Confirm a valid exact delivery location pin.")
+        if not lat and self.delivery_pin_confirmed:
+            raise ValidationError("A confirmed map pin must have both coordinates.")
+        if self.shipping_fee is not None and self.shipping_fee < 0:
+            raise ValidationError("Shipping cannot be negative.")
+
+    def __str__(self):
+        return f"Plantupia store order {self.pk}"
+
+
+class CommerceOrderLine(models.Model):
+    """Immutable SKU/price/quantity snapshot for a genuine merchant order."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.ForeignKey(CommerceOrder, on_delete=models.PROTECT, related_name="lines")
+    sku = models.ForeignKey(CommerceSKU, on_delete=models.PROTECT)
+    product_name_snapshot = models.CharField(max_length=160)
+    sku_code_snapshot = models.CharField(max_length=64)
+    option_snapshot = models.CharField(max_length=120, blank=True)
+    unit_price_snapshot = models.DecimalField(max_digits=11, decimal_places=2)
+    quantity = models.PositiveSmallIntegerField()
+    line_subtotal_snapshot = models.DecimalField(max_digits=12, decimal_places=2)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=("order", "sku"),
+                name="plant_store_order_line_unique"),
+            models.CheckConstraint(condition=models.Q(quantity__gte=1, quantity__lte=10),
+                name="plant_store_order_line_qty"),
+        ]
+
+
+class CommerceStockReservation(models.Model):
+    """Actual on-hand stock held at an exact location for a confirmed order."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.ForeignKey(CommerceOrder, on_delete=models.PROTECT,
+        related_name="stock_reservations")
+    sku = models.ForeignKey(CommerceSKU, on_delete=models.PROTECT,
+        related_name="active_reservations")
+    location = models.ForeignKey(CommerceStockLocation, on_delete=models.PROTECT,
+        related_name="stock_reservations")
+    quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+    released_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=("order", "sku", "location"),
+                name="plant_store_reservation_unique"),
+            models.CheckConstraint(condition=models.Q(quantity__gte=1),
+                name="plant_store_reservation_positive"),
+        ]

@@ -9,7 +9,7 @@ from django.db import transaction
 from django.db.models import Sum
 
 from . import company_services as company
-from .commerce_models import CommerceSKU, CommerceStockLocation, CommerceStockMovement
+from .commerce_models import CommerceSKU, CommerceStockLocation, CommerceStockMovement, CommerceStockReservation
 
 
 def stock_balance(sku_id, location_id=None):
@@ -55,8 +55,13 @@ def record_counted_stock(*, staff, sku_id, location_id, quantity_delta, reason, 
         sku = CommerceSKU.objects.select_for_update().get(pk=sku_id)
         location = CommerceStockLocation.objects.get(pk=location_id, active=True)
         current = stock_balance(sku.pk, location.pk)
-        if current + delta < 0:
-            raise ValidationError("The stock count cannot become negative for this SKU/location.")
+        held = CommerceStockReservation.objects.filter(
+            sku=sku, location=location, released_at__isnull=True,
+        ).aggregate(n=Sum("quantity"))["n"] or 0
+        if current + delta < held:
+            raise ValidationError(
+                "The adjusted physical count cannot fall below units already reserved for customer orders."
+            )
         movement = CommerceStockMovement(
             sku=sku, location=location, recorded_by=staff,
             quantity_delta=delta, reason=reason,

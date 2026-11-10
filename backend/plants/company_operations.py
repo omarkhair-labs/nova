@@ -5,7 +5,7 @@ from . import company_services as company
 from .company_views import page, portal
 from .commerce_checkout import enabled as qa_orders_enabled
 from .commerce_models import CommerceBusinessRFQ
-from .commerce_models import CommerceProduct, CommerceSKU, CommerceStockMovement, CommerceOrderRequest
+from .commerce_models import CommerceProduct, CommerceSKU, CommerceStockMovement, CommerceOrderRequest, CommerceOrder
 
 
 @portal(methods=("GET",))
@@ -30,14 +30,22 @@ def projects_home(request):
 def commerce_home(request):
     can_products = request.user.has_perm("plants.view_commerceproduct")
     can_stock = request.user.has_perm("plants.view_commercestockmovement")
-    can_requests = request.user.has_perm("plants.view_commerceorderrequest") and qa_orders_enabled()
+    can_requests = request.user.has_perm("plants.view_commerceorder")
+    can_old_qa_requests = request.user.has_perm("plants.view_commerceorderrequest") and qa_orders_enabled()
     counts = {
         "product_drafts": CommerceProduct.objects.count() if can_products else None,
         "sku_options": CommerceSKU.objects.count() if can_products else None,
         "stock_movements": CommerceStockMovement.objects.count() if can_stock else None,
-        "qa_requests": CommerceOrderRequest.objects.count() if can_requests else None,
+        "real_orders": CommerceOrder.objects.count() if can_requests else None,
+        "quote_pending_orders": CommerceOrder.objects.filter(
+            status=CommerceOrder.Status.QUOTE_PENDING).count() if can_requests else None,
+        "quoted_orders": CommerceOrder.objects.filter(
+            status=CommerceOrder.Status.QUOTED).count() if can_requests else None,
+        "confirmed_orders": CommerceOrder.objects.filter(
+            status=CommerceOrder.Status.CONFIRMED).count() if can_requests else None,
+        "qa_requests": CommerceOrderRequest.objects.count() if can_old_qa_requests else None,
         "unreviewed_requests": CommerceOrderRequest.objects.filter(status="qa_submitted").count()
-            if can_requests else None,
+            if can_old_qa_requests else None,
     }
     return page(request, "operations_commerce", {
         "title": "B2C / Shop & Orders", "section": "commerce_home",

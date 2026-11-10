@@ -15,7 +15,7 @@ from django.db import transaction
 from django.db.models import Sum
 from django.shortcuts import get_object_or_404
 
-from .commerce_models import CommerceCartLine, CommerceProduct, CommerceSKU, CommerceStockMovement
+from .commerce_models import CommerceCartLine, CommerceProduct, CommerceSKU, CommerceStockMovement, CommerceStockReservation
 
 
 def customer_only(user):
@@ -32,12 +32,13 @@ def listed_skus():
 
 
 def available_units(sku_id):
-    counted = CommerceStockMovement.objects.filter(sku_id=sku_id).aggregate(
+    counted = CommerceStockMovement.objects.filter(sku_id=sku_id, location__active=True).aggregate(
         total=Sum("quantity_delta")
     )["total"] or 0
-    # Reservations will subtract from available stock during the unified
-    # checkout cut; do not pretend the cart has already reserved anything.
-    return max(int(counted), 0)
+    reserved = CommerceStockReservation.objects.filter(
+        sku_id=sku_id, released_at__isnull=True,
+    ).aggregate(total=Sum("quantity"))["total"] or 0
+    return max(int(counted) - int(reserved), 0)
 
 
 def sku_json(sku, *, stock=None):
@@ -131,8 +132,9 @@ def cart_json(user):
         "subtotal": str(total),
         "currency": "EGP",
         "all_items_available": bool(all_available),
+        "can_request_shipping_quote": bool(all_available),
         "checkout_ready": False,
-        "notice": "Persistent cart; stock is not reserved and no order or payment has been created.",
+        "notice": "Persistent cart. Request a delivery quote; stock is reserved only after accepting the exact shipping total.",
     }
 
 
