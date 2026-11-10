@@ -132,8 +132,9 @@ def cart_json(user):
         "subtotal": str(total),
         "currency": "EGP",
         "all_items_available": bool(all_available),
+        "can_request_shipping_quote": bool(all_available),
         "checkout_ready": False,
-        "notice": "Persistent cart; stock is not reserved and no order or payment has been created.",
+        "notice": "Persistent cart. Request a delivery quote; stock is reserved only after accepting the exact shipping total.",
     }
 
 
