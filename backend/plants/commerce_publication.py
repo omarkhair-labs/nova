@@ -67,9 +67,11 @@ def review_catalog_product(*, staff, product_id, action):
         product.catalog_review_status = CommerceProduct.CatalogReviewStatus.DRAFT
         product.catalog_reviewed_by = None
         product.catalog_reviewed_at = None
-        action_note = "Returned commercial product to review; no customer listing affected."
+        product.storefront_published_at = None
+        action_note = "Returned commercial product to review and removed any existing customer listing."
     product.save(update_fields=[
-        "catalog_review_status", "catalog_reviewed_by", "catalog_reviewed_at", "updated_at",
+        "catalog_review_status", "catalog_reviewed_by", "catalog_reviewed_at",
+        "storefront_published_at", "updated_at",
     ])
     company.audit(staff, product, action_note)
     return product
