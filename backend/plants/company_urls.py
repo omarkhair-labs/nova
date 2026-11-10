@@ -29,6 +29,7 @@ urlpatterns = [
     path("commerce/products/<uuid:product_id>/", commerce.product_detail, name="commerce-product"),
     path("commerce/products/<uuid:product_id>/edit/", commerce.product_edit, name="commerce-product-edit"),
     path("commerce/products/<uuid:product_id>/review/", commerce.product_review, name="commerce-product-review"),
+    path("commerce/products/<uuid:product_id>/publication/", commerce.product_publication, name="commerce-product-publication"),
     path("commerce/products/<uuid:product_id>/photo/", commerce.product_photo, name="commerce-product-photo"),
     path("commerce/products/<uuid:product_id>/variants/new/", commerce.sku_create, name="commerce-sku-create"),
     path("commerce/skus/<uuid:sku_id>/edit/", commerce.sku_edit, name="commerce-sku-edit"),
