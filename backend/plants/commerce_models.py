@@ -568,6 +568,50 @@ class CommercePaymentRecord(models.Model):
     verified_at = models.DateTimeField(auto_now_add=True)
 
 
+class CommerceReturnCase(models.Model):
+    """One complete-order return intake, operator decision and physical receipt.
+
+    Physical return does not imply automatic restock or a financial refund.
+    """
+    class Decision(models.TextChoices):
+        REQUESTED = "requested", "Awaiting return review"
+        APPROVED = "approved", "Return approved for intake"
+        DECLINED = "declined", "Return declined"
+        RECEIVED = "received", "Physical return received"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.OneToOneField(CommerceOrder, on_delete=models.PROTECT,
+        related_name="return_case")
+    reason = models.CharField(max_length=40)
+    customer_note = models.CharField(max_length=500)
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="plantupia_returns_requested")
+    requested_at = models.DateTimeField(auto_now_add=True)
+    decision = models.CharField(max_length=12, choices=Decision.choices, default=Decision.REQUESTED)
+    staff_note = models.CharField(max_length=500, blank=True)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        null=True, blank=True, related_name="plantupia_returns_reviewed")
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    received_evidence_reference = models.CharField(max_length=180, blank=True)
+    received_at = models.DateTimeField(null=True, blank=True)
+
+
+class CommerceRefundRecord(models.Model):
+    """A separately authorized human review of an actual external refund.
+
+    No gateway payout occurs from saving this model.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.OneToOneField(CommerceOrder, on_delete=models.PROTECT,
+        related_name="verified_refund")
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    refund_reference = models.CharField(max_length=120)
+    evidence_note = models.CharField(max_length=500)
+    verified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="plantupia_refunds_verified")
+    verified_at = models.DateTimeField(auto_now_add=True)
+
+
 class CommerceStockReservation(models.Model):
     """Actual on-hand stock held at an exact location for a confirmed order."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
