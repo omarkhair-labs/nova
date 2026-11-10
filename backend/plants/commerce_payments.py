@@ -49,7 +49,6 @@ def claim_manual_transfer(*, user, order_id, reference):
 @transaction.atomic
 def verify_payment(*, staff, order_id, amount, settlement_reference, evidence_note):
     company.require(staff, "plants.add_commercepaymentrecord")
-    company.require(staff, "plants.change_commerceorder")
     try:
         paid = Decimal(str(amount))
     except (InvalidOperation, ValueError, TypeError) as exc:
