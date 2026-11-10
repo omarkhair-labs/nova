@@ -9,7 +9,7 @@ from rest_framework import serializers
 from rest_framework.response import Response
 
 from .commerce_storefront_api import CommerceCustomerView
-from . import commerce_orders as orders, commerce_payments as payments
+from . import commerce_orders as orders, commerce_payments as payments, commerce_returns as returns
 
 
 class RealOrderQuoteInput(serializers.Serializer):
@@ -97,6 +97,25 @@ class CommerceOrderTransferClaimView(CommerceCustomerView):
             order = payments.claim_manual_transfer(
                 user=request.user, order_id=order_id,
                 reference=payload.validated_data["reference"],
+            )
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages) from exc
+        return Response(orders.order_json(order))
+
+class RealOrderReturnInput(serializers.Serializer):
+    reason = serializers.ChoiceField(choices=("damaged", "incorrect_item", "quality_issue", "other"))
+    note = serializers.CharField(min_length=10, max_length=500, trim_whitespace=True)
+
+
+class CommerceOrderReturnView(CommerceCustomerView):
+    def post(self, request, order_id):
+        payload = RealOrderReturnInput(data=request.data)
+        payload.is_valid(raise_exception=True)
+        try:
+            order = returns.request_return(
+                user=request.user, order_id=order_id,
+                reason=payload.validated_data["reason"],
+                note=payload.validated_data["note"],
             )
         except DjangoValidationError as exc:
             raise serializers.ValidationError(exc.messages) from exc

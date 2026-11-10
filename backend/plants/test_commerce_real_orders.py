@@ -15,6 +15,7 @@ from .commerce_models import (
     CommerceOrderLine, CommerceStockReservation, CommerceRealOrderEvent,
     CommerceStockMovement, CommerceFulfillmentReceipt,
     CommerceTransferClaim, CommercePaymentRecord,
+    CommerceReturnCase, CommerceRefundRecord,
 )
 from .commerce_publication import review_catalog_product
 from .commerce_services import record_counted_stock, stock_balance
@@ -396,3 +397,75 @@ class RealCustomerOrderTests(DemoFixture, TestCase):
             "amount": "400.00", "settlement_reference": "CASH-RECEIPT-555",
             "evidence_note": "This is only a customer assertion, not bank evidence.",
         }).status_code, 403)
+
+    def test_return_refund_is_separate_from_physical_receipt_and_stock(self):
+        self.cart(1)
+        oid = self.request_order().data["id"]
+        self.company_quote(oid, fee="0.00")
+        self.accept(oid)
+        fulfillment = reverse("company:commerce-order-fulfillment", args=[oid])
+        self.client.post(fulfillment, {"action": "prepare"})
+        self.client.post(fulfillment, {
+            "action": "dispatch", "carrier_name": "Internal Team",
+            "tracking_reference": "TRK-RETURN-001",
+            "dispatch_note": "Signed warehouse handover recorded.",
+        })
+        self.client.post(fulfillment, {"action": "delivered",
+                                       "proof_reference": "POD-REAL-RETURN-001"})
+        paid = reverse("company:commerce-order-payment", args=[oid])
+        self.client.post(paid, {
+            "amount": "200.00", "settlement_reference": "COD-RECEIPT-001",
+            "evidence_note": "Cash ledger and signed receipt independently matched.",
+        })
+        self.assertEqual(CommerceOrder.objects.get(pk=oid).payment_status, "verified")
+        counted_after_delivery = stock_balance(self.sku.pk)
+        customer_return_url = reverse("plantupia-real-commerce-return", args=[oid])
+        response = self.api.post(customer_return_url, {
+            "reason": "damaged",
+            "note": "Item arrived damaged and needs return review.",
+        }, format="json")
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["status"], "return_requested")
+        self.assertTrue(response.data["delivery_initiated"])
+        self.assertEqual(self.api.post(customer_return_url, {
+            "reason": "damaged",
+            "note": "Item arrived damaged and needs return review.",
+        }, format="json").status_code, 200)
+        self.assertEqual(CommerceReturnCase.objects.filter(order_id=oid).count(), 1)
+        self.assertEqual(CommerceRealOrderEvent.objects.filter(order_id=oid, kind="return_requested").count(), 1)
+
+        refund = reverse("company:commerce-order-refund", args=[oid])
+        evidence = {
+            "amount": "200.00", "refund_reference": "BANK-REFUND-001",
+            "refund_note": "Verified actual outward refund against company bank statement.",
+        }
+        self.client.post(refund, evidence)
+        self.assertFalse(CommerceRefundRecord.objects.exists())
+        staff_return_url = reverse("company:commerce-order-return", args=[oid])
+        self.client.post(staff_return_url, {
+            "action": "approve", "staff_note": "Eligible under documented damaged-goods policy.",
+        })
+        self.client.post(staff_return_url, {
+            "action": "receive", "evidence_reference": "RETURN-RECEIPT-001",
+        })
+        self.assertEqual(CommerceOrder.objects.get(pk=oid).status, "returned")
+        self.assertEqual(stock_balance(self.sku.pk), counted_after_delivery)
+        self.assertEqual(self.client.post(refund, evidence).status_code, 302)
+        self.assertEqual(self.client.post(refund, evidence).status_code, 302)
+        self.assertEqual(CommerceRefundRecord.objects.filter(order_id=oid).count(), 1)
+        self.assertEqual(CommerceOrder.objects.get(pk=oid).payment_status, "refunded")
+        customer = self.api.get(reverse("plantupia-real-commerce-order", args=[oid])).data
+        self.assertFalse(customer["charged"])
+        self.assertTrue(customer["refunded"])
+        self.assertTrue(customer["return_case"]["received"])
+        self.assertEqual(CommerceRealOrderEvent.objects.filter(order_id=oid, kind="refund_verified").count(), 1)
+
+    def test_return_is_for_delivered_orders_and_cannot_be_forged_by_another_customer(self):
+        self.cart(1)
+        oid = self.request_order().data["id"]
+        url = reverse("plantupia-real-commerce-return", args=[oid])
+        payload = {"reason": "other", "note": "I would like to request a product return."}
+        self.assertEqual(self.api.post(url, payload, format="json").status_code, 400)
+        self.api.force_authenticate(self.stranger)
+        self.assertEqual(self.api.post(url, payload, format="json").status_code, 404)
+        self.assertFalse(CommerceReturnCase.objects.exists())

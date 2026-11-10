@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect
 
-from . import commerce_orders as orders, commerce_fulfillment as fulfillment, commerce_payments as payments, company_services as company
+from . import commerce_orders as orders, commerce_fulfillment as fulfillment, commerce_payments as payments, commerce_returns as returns, company_services as company
 from .commerce_models import CommerceOrder
 from .company_views import page, paginated, portal
 
@@ -44,7 +44,7 @@ def real_orders(request):
 def real_order_detail(request, order_id):
     order = get_object_or_404(
         CommerceOrder.objects.select_related("customer", "quoted_by")
-        .prefetch_related("lines", "stock_reservations__location", "status_events", "fulfillment_receipt", "transfer_claim", "verified_payment"),
+        .prefetch_related("lines", "stock_reservations__location", "status_events", "fulfillment_receipt", "transfer_claim", "verified_payment", "return_case", "verified_refund"),
         pk=order_id,
     )
     return page(request, "commerce_order", {
@@ -121,6 +121,46 @@ def real_order_verify_payment(request, order_id):
             evidence_note=request.POST.get("evidence_note", ""),
         )
         messages.success(request, "Finance reviewer verified independent settlement evidence.")
+    except ValidationError as exc:
+        for error in exc.messages:
+            messages.error(request, error)
+    return redirect("company:commerce-order", order_id=order_id)
+
+@portal("plants.change_commerceorder", methods=("POST",))
+def real_order_return_decision(request, order_id):
+    company.require(request.user, "plants.view_commerceorder")
+    action = request.POST.get("action", "")
+    try:
+        if action in ("approve", "decline"):
+            returns.decide_return(
+                staff=request.user, order_id=order_id, action=action,
+                note=request.POST.get("staff_note", ""),
+            )
+        elif action == "receive":
+            returns.receive_return(
+                staff=request.user, order_id=order_id,
+                evidence_reference=request.POST.get("evidence_reference", ""),
+            )
+        else:
+            raise ValidationError("Choose a valid return action.")
+        messages.success(request, "Return case updated without inferring restock or refund.")
+    except ValidationError as exc:
+        for error in exc.messages:
+            messages.error(request, error)
+    return redirect("company:commerce-order", order_id=order_id)
+
+
+@portal("plants.add_commercerefundrecord", methods=("POST",))
+def real_order_refund_verification(request, order_id):
+    company.require(request.user, "plants.view_commerceorder")
+    try:
+        returns.verify_external_refund(
+            staff=request.user, order_id=order_id,
+            amount=request.POST.get("amount", ""),
+            reference=request.POST.get("refund_reference", ""),
+            note=request.POST.get("refund_note", ""),
+        )
+        messages.success(request, "External refund evidence verified; no gateway payout initiated.")
     except ValidationError as exc:
         for error in exc.messages:
             messages.error(request, error)
