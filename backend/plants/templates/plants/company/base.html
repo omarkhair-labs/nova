@@ -60,9 +60,12 @@
 <header class="topbar">
 {% if section == 'overview' %}<a class="hub-wordmark" href="{% url 'company:overview' %}"><span class="hub-wordmark-mark" aria-hidden="true">p</span> Plantupia <span class="hub-wordmark-tag">Company</span></a>
 {% else %}<span class="environment"><span class="status-dot"></span>Isolated QA workspace</span>{% endif %}
-{% if show_commerce_alert %}
+{% if show_real_order_alert %}
+<a class="commerce-alert" href="{% url 'company:commerce-orders' %}?status=quote_pending">
+<span aria-hidden="true">●</span> Shipping quotes <strong>{{ new_real_orders }}</strong></a>
+{% elif show_commerce_alert %}
 <a class="commerce-alert" data-alert-url="{% url 'company:commerce-qa-updates' %}" href="{% url 'company:commerce-qa-requests' %}">
-<span aria-hidden="true">●</span> New shop requests <strong data-alert-count>{{ new_qa_orders }}</strong></a>{% endif %}
+<span aria-hidden="true">●</span> Historical QA requests <strong data-alert-count>{{ new_qa_orders }}</strong></a>{% endif %}
 <div class="account"><span>{{ request.user.username }}</span>{% if request.user.is_authenticated %}<form method="post" action="{% url 'company:logout' %}">{% csrf_token %}<button class="text-button" type="submit">Sign out</button></form>{% endif %}</div>
 </header>
 <main id="main" tabindex="-1">
