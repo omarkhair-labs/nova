@@ -24,7 +24,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="CommerceCustomerPlantSpace",
             fields=[
-                ("id", models.BigAutoField(primary_key=True, serialize=False)),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("customer", models.OneToOneField(
                     to=settings.AUTH_USER_MODEL, on_delete=django.db.models.deletion.PROTECT,
@@ -39,7 +39,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="CommerceDeliveredPlant",
             fields=[
-                ("id", models.BigAutoField(primary_key=True, serialize=False)),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ("unit_index", models.PositiveSmallIntegerField()),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("order_line", models.ForeignKey(
