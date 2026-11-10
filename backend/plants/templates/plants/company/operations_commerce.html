@@ -47,7 +47,7 @@
   <div class="qa-archive-links">
   {% if perms.plants.view_catalogproduct %}<a href="{% url 'company:catalog' %}">Original QA catalog · ZIP import (when enabled) ↗</a>{% endif %}
   {% if perms.plants.view_demoorder %}<a href="{% url 'company:orders' %}">Original QA orders ↗</a>{% endif %}
-  {% if commerce_qa_requests_enabled and perms.plants.view_commerceorderrequest %}<a href="{% url 'company:commerce-qa-requests' %}">Historical QA shipping requests ↗</a>{% endif %>
+  {% if commerce_qa_requests_enabled and perms.plants.view_commerceorderrequest %}<a href="{% url 'company:commerce-qa-requests' %}">Historical QA shipping requests ↗</a>{% endif %}
   </div>
 </details>
 {% endif %}
