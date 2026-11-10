@@ -32,6 +32,10 @@ class CommerceProduct(models.Model):
         related_name="plantupia_catalog_products_reviewed",
     )
     catalog_reviewed_at = models.DateTimeField(null=True, blank=True)
+    storefront_published_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="The product is listed only after a separate actual storefront go-live decision.",
+    )
 
     description = models.TextField(max_length=3000, blank=True)
     kind = models.CharField(max_length=12, choices=Kind.choices)
