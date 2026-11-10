@@ -25,10 +25,7 @@ internal fun realCheckoutAddressValid(
     name: String, phone: String, city: String, address: String,
     latitude: Double?, longitude: Double?, confirmed: Boolean,
 ): Boolean =
-    name.trim().length >= 2 && phone.count(Char::isDigit) >= 7 &&
-        city.trim().length >= 2 && address.trim().length >= 5 &&
-        latitude != null && longitude != null && confirmed &&
-        validDeliveryPin(latitude, longitude)
+    plantupiaDeliveryAddressReady(name, phone, city, address, latitude, longitude, confirmed)
 
 private fun displayedEGP(value: String): String = "EGP " + value
 
@@ -69,7 +66,6 @@ internal fun PlantupiaStoreShop(
     var longitude by rememberSaveable { mutableStateOf<Double?>(null) }
     var pinConfirmed by rememberSaveable { mutableStateOf(false) }
     var paymentMethod by rememberSaveable { mutableStateOf("cod") }
-    var showMap by remember { mutableStateOf(false) }
 
     BackHandler(enabled = screen == "checkout") { screen = "cart" }
     val externalOrdersAccount = PlantupiaShopOpenSignal.ordersAccount
@@ -355,25 +351,18 @@ internal fun PlantupiaStoreShop(
                 val hasCart = cart?.optBoolean("can_request_shipping_quote") == true
                 Text("Confirm your address and entrance on the map. We will ask Plantupia for the actual shipping fee before you accept the final total.",
                     style = PlantupiaText.supporting)
-                OutlinedTextField(name, { name = it.take(160) },
-                    modifier = Modifier.fillMaxWidth(), label = { Text("Recipient name") })
-                OutlinedTextField(phone, { phone = it.take(32) },
-                    modifier = Modifier.fillMaxWidth(), label = { Text("Phone") })
-                OutlinedTextField(city, { city = it.take(120) },
-                    modifier = Modifier.fillMaxWidth(), label = { Text("City") })
-                OutlinedTextField(address, { address = it.take(320) },
-                    modifier = Modifier.fillMaxWidth(), label = { Text("Street & address") })
-                OutlinedTextField(building, { building = it.take(180) },
-                    modifier = Modifier.fillMaxWidth(), label = { Text("Building / floor / flat") })
-                OutlinedTextField(landmark, { landmark = it.take(180) },
-                    modifier = Modifier.fillMaxWidth(), label = { Text("Nearby landmark") })
-                OutlinedButton(onClick = { showMap = true },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                    Text(if (pinConfirmed) "✓ Delivery map pin confirmed · Edit"
-                        else "Choose exact entrance on map")
-                }
-                Text("Map location is chosen by you, not inferred from the phone.",
-                    style = PlantupiaText.supporting)
+                PlantupiaDeliveryAddressFields(
+                    name = name, onNameChange = { name = it },
+                    phone = phone, onPhoneChange = { phone = it },
+                    city = city, onCityChange = { city = it },
+                    street = address, onStreetChange = { address = it },
+                    building = building, onBuildingChange = { building = it },
+                    landmark = landmark, onLandmarkChange = { landmark = it },
+                    latitude = latitude, longitude = longitude, pinConfirmed = pinConfirmed,
+                    onPinConfirmed = { newLat, newLon ->
+                        latitude = newLat; longitude = newLon; pinConfirmed = true
+                    },
+                )
                 Text("Payment preference (no money collected yet)", style = PlantupiaText.sectionLabel)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
@@ -493,14 +482,4 @@ internal fun PlantupiaStoreShop(
             }
         }
     }
-    if (showMap) PlantupiaDeliveryPinPicker(
-        initialLatitude = latitude, initialLongitude = longitude,
-        onDismiss = { showMap = false },
-        onConfirm = { lat, lon ->
-            latitude = lat
-            longitude = lon
-            pinConfirmed = true
-            showMap = false
-        },
-    )
 }
