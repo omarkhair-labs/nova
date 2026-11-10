@@ -83,8 +83,10 @@ def invalidate_catalog_review(*, staff, product_id, reason):
     product.catalog_review_status = CommerceProduct.CatalogReviewStatus.DRAFT
     product.catalog_reviewed_by = None
     product.catalog_reviewed_at = None
+    product.storefront_published_at = None
     product.save(update_fields=[
-        "catalog_review_status", "catalog_reviewed_by", "catalog_reviewed_at", "updated_at",
+        "catalog_review_status", "catalog_reviewed_by", "catalog_reviewed_at",
+        "storefront_published_at", "updated_at",
     ])
     company.audit(staff, product, f"Commercial product returned to review after {reason}.")
     return True
