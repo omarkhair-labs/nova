@@ -1,43 +1,52 @@
-# Plantupia — Production release gate (2026-11-10)
+# Plantupia — coordinated Production release gate
+Date: 2026-11-10
+Status: **NOT APPROVED FOR PRODUCTION**. This is an acceptance contract, not a rollout record.
 
-This is a **release contract**, not a status claim or permission to deploy. Preserve the single Android Shop and all existing plant-care, installations and QR workflows. No synthetic orders, no direct publication DB edits, no staging-to-production shortcuts.
+## Product identity
+One existing Plantupia Android app, one real `CommerceSKU` source of truth, one cart and checkout, the same MapLibre delivery pin and address form, one Company Platform. Preserve existing care, installations, QR handovers, botanical library, history and AI. Never revive or present the legacy DemoOrder / QA RFQ as a live sale.
 
-## Current stacked changes
+## Stacked PR dependency chain (do not merge out of order)
 
-- #287 reviewed source catalog and SKU checks; content approval does not publish.
-- #288 canonical real CommerceSKU + persistent cart.
-- #289 genuine delivery quote -> exact customer acceptance -> atomic warehouse stock hold, without collecting money or dispatch.
-- #290 one Android Shop, original native MapLibre picker and shared address form.
-- #291 distinct audited merchant publish/unpublish, **disabled by default**.
-- #292 owner-scoped status history for genuinely recorded order events; no fictional courier tracking.
+| PR | Implemented in draft code | Does **not** prove |
+|---|---|---|
+| #287 | Product data review gate | Public listing |
+| #288 | Canonical SKU & persisted customer cart | Payment/checkout |
+| #289 | Real quote/order + atomic warehouse holds | Delivery/payment |
+| #290 | Single Android Shop, shared address + original map | Phone/Preview acceptance |
+| #291 | Explicit staff product publication, default OFF | Go-live permission |
+| #292 | Genuine order timeline in customer + Company | Courier tracking integration |
+| #293 | Operator-attested preparation/dispatch/POD and one-time stock consumption | Independent physical proof |
+| #294 | Customer transfer reference distinct from finance-reviewed COD/bank settlement | Automatic bank verification |
+| #295 | Return request, physical receipt, separate external refund evidence | Partial-return/restock automation |
+| #296 | Real B2B wholesale/project enquiry, quote and customer follow-up | Signed PO/installation contract |
+| #297 | Separate Commerce, Finance and B2B staff groups | Automatic staff assignments |
 
-## Non-negotiable remaining implementation
+## Required external commercial decisions before launch
+1. Official merchant payment account(s), COD custody/accounting SOP, refund method and bank-statement reconciliation process approved by company owner/finance.
+2. Delivery coverage/serviceability rules, actual fee setting, assigned carriers/team, POD retention and support escalation for lost/partial delivery.
+3. Shipping, cancellation, return, damage, warranty, privacy and customer-service policies approved and visible in Arabic and English.
+4. Real published products with verified SKU/variant, authentic photos/storage, EGP prices, counted warehouse stock, availability and responsible content reviewer. The publication switch stays disabled until the other launch gates pass.
+5. Named Company operators, finance reviewers and B2B quote reviewers; provision permission groups separately and explicitly assign identities. Validate least privilege in live Preview.
+6. B2B binding purchase orders/contracts, project/site breakdown, multi-site scheduling, material reservation/installation budget and QR handover mapping — nonbinding RFQ alone is not project execution.
+7. Invoice/tax/accounting compliance; exception handling for partial shipments, damaged product condition, physical restock approval, partial returns/refunds and chargebacks.
+8. Order notification delivery (with consent, delivery/retry/reconciliation), support contact and escalation channels; a stored timeline is not a push notification.
 
-1. **Fulfillment & stock**: authorize preparation, pick/pack, actual location-based count decrement and reservation consumption; avoid double-decrement and include operator receipts; preserve cancellation and damaged/partial shipment behavior.
-2. **Payment truth**: formally approved COD process and manual InstaPay/bank reconciliation against official merchant accounts. Define evidence, reviewer, time and double-confirmation where applicable. Never display Paid solely from a customer's transfer screenshot or payment preference. Real gateway integration is a separate approval.
-3. **Delivery**: verify serviceable zones/charges, dispatch reference and courier/operator proof of pickup; distinguish carrier status from proof of delivery. No auto-delivered states.
-4. **Returns & refunds**: merchant policy, time windows, request/approval flow, physical receipt/condition, restock decision and verified refund receipt. No imaginary automatic bank refund.
-5. **B2B**: complete RFQ → quote/revision → customer approval → project/order/installation → physical inventory + QR handover, alongside wholesale-only requests.
-6. **Product truth**: actual photos, alternatives, price, stock counts, and responsible staff review for each public SKU; explicitly publish only after release gate is approved. Historic QA data remains separate.
-7. **Company operations**: role scopes, review history, owner/next action, customer support, stock/financial reconciliation and audit retention.
-8. **Customer experience**: Arabic and English checks, order identifier, real events, support/return entry point, checkout validation, pin permission and offline/error/retry behavior.
-9. **Notifications & legal**: user-consented reliable order update notifications, company policies and customer-facing shipping/returns/payment terms; no unapproved promises.
-10. **Privacy & reliability**: auth/ownership tests, idempotent updates, concurrency on PostgreSQL, upload protection, backups, media bucket isolation, secrets, server errors and data retention.
+## Technical release gates
+- Verify the exact 0023–0030 migration chain against isolated Preview #253 on PostgreSQL and an isolated verified media bucket; back up database and storage and test rollback.
+- No production merges or Coolify deploys without current green Backend/Android tests, one reviewed stacked diff and explicit release manager approval.
+- Audit actual actors, no cross-account access, immutable events, correct SKU/variant price snapshots, forged request retries, manual finance permissions, duplicate dispatch/refund/return operations and stock concurrency using PostgreSQL (SQLite tests alone insufficient).
+- Android real-device matrix: 320/360/390 dp, larger system font, Arabic/English, TalkBack/accessibility, keyboard, map permissions, unavailable map tiles/GPS, weak network, authentication changes and repeated taps.
+- Confirm the original MapLibre pin, full address/phone/building fields, exact quote revision consent and same order/company record. Never show a paid or delivered status without corresponding operational evidence.
+- Confirm actual B2B RFQ remains nonbinding and never silently creates a B2C payment/order, installation, physical plant or QR invitation.
+- Verify real staff role provisioning, ingress security, upload/image access, object storage isolation, backup/restore, secret rotation, support access and monitoring.
+- Install a freshly built QA APK produced from the **same** tested/deployed Preview commit. Record the commit SHA, workflow ID, deployed image digest and device/operator sign-off.
 
-## Joint acceptance test — no substitutions
+## End-to-end acceptance
+- A and B add the same scarce physical SKU; the company quotes shipping; only one can reserve remaining stock at exact total; cancellation returns the hold once.
+- Approved goods move to preparation, then operator-attested carrier handover consumes reserved warehouse stock once; carrier reference and POD status propagate to the same customer My Orders timeline.
+- COD remains unpaid until evidenced delivery and authorized finance reconciliation. Customer InstaPay reference remains only a claim until matched against independent company records. Never invent merchant bank instructions.
+- Customer requests return post-delivery; approval, physical receipt, restock decision and externally verified refund remain separate with unique events and distinct financial permissions.
+- Business customer submits wholesale or installation scope; Company responds with EGP quote; quote acceptance does not consume SKU stock or create a contract/QR installation.
 
-- Verify migration chain and backup on isolated Preview #253; never run unverified migrations on shared Nova/Production data.
-- Import one real product and verify photo storage and actual SKU/price; reject publication before review and while release gate disabled.
-- Publish only in a deliberately authorized test environment, then verify exactly one customer Shop/catalog and no historical demo fallback.
-- Customer A browses, adds correct SKU, changes quantity, selects original map pin, enters phone/building and requests shipping quote.
-- Company sees the *same* order and customer-confirmed coordinates, replies with an exact EGP delivery fee; customer sees and accepts the matching revision.
-- Customer B competes for the same inventory; no oversell or partial holds. Customer A cancellation releases exactly once.
-- Confirm the recorded timeline agrees in Android, API and Company; no fabricated payment, dispatch or delivery labels.
-- Validate 320/360/390dp Android layouts, larger system fonts, Arabic text, keyboard, map permissions, no connection, expired quote, duplicated taps and logout/login as a second user.
-- Test manual paid/dispatch/return/refund only **after** those future evidence-backed workflows are implemented and independently reviewed.
-- Run all backend and Android CI, install actual fresh APK on phone, perform operator UAT and obtain written merchant approval before coordinated deployment.
-- Document rollback and migrate/back up database + isolated media safely. Do not merge these stacked PRs or flip any publication/payment switch before acceptance.
-
-## Release decision
-
-**NOT APPROVED FOR PRODUCTION** until the missing operational workflows are implemented and every required test passes. Green CI for one PR is necessary but not sufficient. Capture exact build SHA, deployed Preview SHA, test evidence, operator sign-off and rollback plan at release time.
+## Status declaration
+**Draft code exists, but not yet a production release.** Green CI is necessary and does not verify live integrations, customer policies, real financial evidence, serviceability or merchant acceptance. Explicitly capture all open blockers and completed UAT evidence before promoting the stacked PR chain.
