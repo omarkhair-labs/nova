@@ -3,7 +3,6 @@ from django import forms
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect
-from django.db.models import Q
 
 from . import commerce_orders as orders, company_services as company
 from .commerce_models import CommerceOrder
