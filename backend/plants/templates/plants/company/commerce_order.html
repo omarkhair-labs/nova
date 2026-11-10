@@ -134,6 +134,52 @@
   <p class="fine">No payment gateway connected. Verified means an authorized finance reviewer attested matching independent company records.</p>
 </section>
 <section class="panel padded">
+  <p class="eyebrow">RETURNS & REFUNDS / المرتجعات</p><h2>Physical and financial evidence</h2>
+  {% if order.return_case %}
+    <p>Customer reason: {{ order.return_case.reason }} · {{ order.return_case.customer_note }}</p>
+    <p>Case decision: <strong>{{ order.return_case.get_decision_display }}</strong></p>
+    {% if order.return_case.staff_note %}<p>Review note: {{ order.return_case.staff_note }}</p>{% endif %}
+    {% if order.return_case.decision == "requested" and perms.plants.change_commerceorder %}
+      <form method="post" action="{% url 'company:commerce-order-return' order.pk %}">
+        {% csrf_token %}
+        <label for="return-staff-note">Operator decision and policy reason</label>
+        <textarea id="return-staff-note" name="staff_note" maxlength="500" minlength="8" required></textarea>
+        <button class="button primary" type="submit" name="action" value="approve">Approve return intake</button>
+        <button class="button" type="submit" name="action" value="decline">Decline request</button>
+      </form>
+    {% elif order.return_case.decision == "approved" and perms.plants.change_commerceorder %}
+      <p>Record the actual physical return only after checking its receipt; no stock is automatically restocked.</p>
+      <form method="post" action="{% url 'company:commerce-order-return' order.pk %}">
+        {% csrf_token %}
+        <label for="return-evidence">Physical return receipt reference</label>
+        <input id="return-evidence" name="evidence_reference" maxlength="180" minlength="8" required>
+        <button class="button primary" type="submit" name="action" value="receive">Record physical receipt</button>
+      </form>
+    {% elif order.return_case.decision == "received" %}
+      <p>Received with evidence reference {{ order.return_case.received_evidence_reference }}.</p>
+    {% endif %}
+  {% else %}
+    <p class="fine">No customer return request has been filed for this order.</p>
+  {% endif %}
+  {% if order.payment_status == "refunded" %}
+    <p>External refund: EGP {{ order.verified_refund.amount }} ·
+       {{ order.verified_refund.refund_reference }}.</p>
+  {% elif order.status == "returned" and order.payment_status == "verified" and perms.plants.add_commercerefundrecord %}
+    <p>Only a separately authorized finance reviewer may record a refund after independently verifying actual external payout.</p>
+    <form method="post" action="{% url 'company:commerce-order-refund' order.pk %}">
+      {% csrf_token %}
+      <label for="refund-amount">Externally refunded EGP amount</label>
+      <input id="refund-amount" type="number" name="amount" min="0.01" step=".01" required>
+      <label for="refund-ref">Actual bank/cash refund statement reference</label>
+      <input id="refund-ref" name="refund_reference" minlength="6" maxlength="120" required>
+      <label for="refund-note">Independent refund reconciliation note</label>
+      <textarea id="refund-note" name="refund_note" minlength="20" maxlength="500" required></textarea>
+      <button class="button primary" type="submit">Record verified external refund</button>
+    </form>
+  {% endif %}
+  <p class="fine">Request, decision, physical receipt, inventory restock and money refund are distinct events.</p>
+</section>
+<section class="panel padded">
   <p class="eyebrow">ACTUAL ORDER ACTIVITY</p><h2>Timeline / سجل الطلب</h2>
   {% for event in order.status_events.all %}
     <div class="record-row">
