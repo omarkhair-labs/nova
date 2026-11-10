@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect
 
-from . import commerce_orders as orders, commerce_fulfillment as fulfillment, company_services as company
+from . import commerce_orders as orders, commerce_fulfillment as fulfillment, commerce_payments as payments, company_services as company
 from .commerce_models import CommerceOrder
 from .company_views import page, paginated, portal
 
@@ -44,7 +44,7 @@ def real_orders(request):
 def real_order_detail(request, order_id):
     order = get_object_or_404(
         CommerceOrder.objects.select_related("customer", "quoted_by")
-        .prefetch_related("lines", "stock_reservations__location", "status_events", "fulfillment_receipt"),
+        .prefetch_related("lines", "stock_reservations__location", "status_events", "fulfillment_receipt", "transfer_claim", "verified_payment"),
         pk=order_id,
     )
     return page(request, "commerce_order", {
@@ -105,6 +105,22 @@ def real_order_fulfillment(request, order_id):
             messages.success(request, "Delivery evidence reference recorded; payment state unchanged.")
         else:
             raise ValidationError("Choose a valid fulfillment action.")
+    except ValidationError as exc:
+        for error in exc.messages:
+            messages.error(request, error)
+    return redirect("company:commerce-order", order_id=order_id)
+
+@portal("plants.add_commercepaymentrecord", methods=("POST",))
+def real_order_verify_payment(request, order_id):
+    company.require(request.user, "plants.view_commerceorder")
+    try:
+        payments.verify_payment(
+            staff=request.user, order_id=order_id,
+            amount=request.POST.get("amount", ""),
+            settlement_reference=request.POST.get("settlement_reference", ""),
+            evidence_note=request.POST.get("evidence_note", ""),
+        )
+        messages.success(request, "Finance reviewer verified independent settlement evidence.")
     except ValidationError as exc:
         for error in exc.messages:
             messages.error(request, error)
