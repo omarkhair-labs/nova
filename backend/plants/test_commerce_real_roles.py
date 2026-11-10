@@ -19,7 +19,7 @@ class RealCommerceRolesTests(DemoFixture, TestCase):
         self.assertFalse(group.user_set.exists())
 
         staff = get_user_model().objects.create_user(
-            username="merchant_operator", password="test-only", is_staff=True,
+            username="merchant_operator", email="merchant-operator@example.test", password="test-only", is_staff=True,
         )
         self.client.force_login(staff)
         self.assertEqual(self.client.get(reverse("company:commerce-orders")).status_code, 403)
