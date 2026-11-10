@@ -3,6 +3,7 @@ import uuid
 
 from django import forms
 from django.contrib import messages
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q, Sum
@@ -117,6 +118,7 @@ def product_detail(request, product_id):
     return page(request, "commerce_product", {
         "title": product.name, "section": "commerce_products", "product": product, "variants": variants, "gallery": product.gallery.all(),
         "catalog_readiness_issues": publication.product_readiness_issues(product),
+        "publication_enabled": getattr(settings, "PLANTUPIA_STOREFRONT_PUBLICATION_ENABLED", False),
     })
 
 
