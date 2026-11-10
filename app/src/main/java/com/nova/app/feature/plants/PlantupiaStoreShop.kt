@@ -464,9 +464,25 @@ internal fun PlantupiaStoreShop(
                                     Text(event.optString("label"), style = PlantupiaText.supporting)
                                 }
                             }
-                            Text("Payment · " + order.optString("payment_status") +
-                                " | Delivery not assumed from this order.",
+                            Text("Payment · " + order.optString("payment_status"),
                                 style = PlantupiaText.supporting)
+                            val fulfillment = order.optJSONObject("fulfillment")
+                            if (fulfillment != null) {
+                                Text("Delivery team · " + fulfillment.optString("carrier_name"),
+                                    style = PlantupiaText.supporting)
+                                Text("Tracking / handover · " + fulfillment.optString("tracking_reference"),
+                                    style = PlantupiaText.supporting)
+                                if (fulfillment.optBoolean("delivery_proof_recorded")) {
+                                    Text("Plantupia recorded delivery evidence.",
+                                        style = PlantupiaText.supporting)
+                                } else {
+                                    Text("Handover recorded; delivery is not yet confirmed.",
+                                        style = PlantupiaText.supporting)
+                                }
+                            } else {
+                                Text("No carrier handover has been recorded.",
+                                    style = PlantupiaText.supporting)
+                            }
                             if (status == "quoted" && !busy && !order.isNull("final_total")) {
                                 Text("Accept only if you agree with this exact products + shipping total.",
                                     style = PlantupiaText.supporting)
