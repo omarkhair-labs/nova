@@ -479,7 +479,7 @@ class InventoryImportReceipt(models.Model):
 
 # Commercial catalogue drafts and sellable stock are independent of DemoOrder and installed PlantUnit.
 from .commerce_models import (CommerceProduct, CommerceProductPhoto, CommerceSKU, CommerceCartLine, CommerceStockLocation,
-                              CommerceStockMovement, CommerceOrder, CommerceOrderLine, CommerceRealOrderEvent, CommerceStockReservation, CommerceOrderRequest,
+                              CommerceStockMovement, CommerceOrder, CommerceOrderLine, CommerceRealOrderEvent, CommerceFulfillmentReceipt, CommerceStockReservation, CommerceOrderRequest,
                               CommerceOrderRequestLine, CommerceOrderStatusEvent,
                               CommerceBusinessRFQ)  # noqa: E402,F401
 
