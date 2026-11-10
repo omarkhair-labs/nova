@@ -14,6 +14,7 @@ from .commerce_models import (
     CommerceProduct, CommerceSKU, CommerceStockLocation, CommerceOrder,
     CommerceOrderLine, CommerceStockReservation, CommerceRealOrderEvent,
     CommerceStockMovement, CommerceFulfillmentReceipt,
+    CommerceTransferClaim, CommercePaymentRecord,
 )
 from .commerce_publication import review_catalog_product
 from .commerce_services import record_counted_stock, stock_balance
@@ -333,3 +334,65 @@ class RealCustomerOrderTests(DemoFixture, TestCase):
         self.client.force_login(self.owner)
         self.assertEqual(self.client.post(reverse("company:commerce-order-fulfillment", args=[oid]),
                                           {"action": "prepare"}).status_code, 403)
+
+    def test_manual_transfer_claim_is_not_paid_until_finance_reconciles(self):
+        self.cart(2)
+        result = self.api.post(self.orders_url, self.quote_body(
+            payment_preference="manual_transfer"), format="json")
+        self.assertEqual(result.status_code, 201, result.data)
+        oid = result.data["id"]
+        self.company_quote(oid, fee="35.00")
+        self.assertEqual(self.accept(oid).status_code, 200)
+        url = reverse("plantupia-real-commerce-transfer-reference", args=[oid])
+        self.assertEqual(self.api.post(url, {"reference": "INSTA-123456"}, format="json").status_code, 200)
+        self.assertEqual(self.api.post(url, {"reference": "INSTA-123456"}, format="json").status_code, 200)
+        self.assertEqual(CommerceTransferClaim.objects.filter(order_id=oid).count(), 1)
+        self.assertEqual(CommerceOrder.objects.get(pk=oid).payment_status, "unpaid")
+        self.assertEqual(self.api.post(url, {"reference": "DIFFERENT-REF"}, format="json").status_code, 400)
+        finance_url = reverse("company:commerce-order-payment", args=[oid])
+        evidence = {
+            "amount": "10.00",
+            "settlement_reference": "BANK-LEDGER-001",
+            "evidence_note": "Independent matching against company bank statement line.",
+        }
+        self.assertEqual(self.client.post(finance_url, evidence).status_code, 302)
+        self.assertEqual(CommerceOrder.objects.get(pk=oid).payment_status, "unpaid")
+        evidence["amount"] = "435.00"
+        self.assertEqual(self.client.post(finance_url, evidence).status_code, 302)
+        self.assertEqual(self.client.post(finance_url, evidence).status_code, 302)
+        order = CommerceOrder.objects.get(pk=oid)
+        self.assertEqual(order.payment_status, "verified")
+        self.assertEqual(CommercePaymentRecord.objects.filter(order_id=oid).count(), 1)
+        self.assertEqual(CommerceRealOrderEvent.objects.filter(
+            order_id=oid, kind="payment_verified").count(), 1)
+        customer = self.api.get(reverse("plantupia-real-commerce-order", args=[oid])).data
+        self.assertTrue(customer["charged"])
+        self.assertEqual(customer["payment_status"], "verified")
+        self.assertTrue(customer["transfer_reference_submitted"])
+
+    def test_cod_payment_cannot_be_verified_before_evidenced_delivery(self):
+        self.cart(1)
+        oid = self.request_order().data["id"]
+        self.company_quote(oid, fee="0.00")
+        self.accept(oid)
+        finance_url = reverse("company:commerce-order-payment", args=[oid])
+        evidence = {
+            "amount": "200.00", "settlement_reference": "CASH-RECEIPT-001",
+            "evidence_note": "Matched original signed cash receipt to cashier ledger.",
+        }
+        self.assertEqual(self.client.post(finance_url, evidence).status_code, 302)
+        self.assertEqual(CommerceOrder.objects.get(pk=oid).payment_status, "unpaid")
+        self.assertFalse(CommercePaymentRecord.objects.exists())
+
+    def test_transfer_reference_is_customer_private_and_finance_action_is_protected(self):
+        self.cart()
+        oid = self.request_order().data["id"]
+        url = reverse("plantupia-real-commerce-transfer-reference", args=[oid])
+        self.assertEqual(self.api.post(url, {"reference": "BANK-REF-55"}, format="json").status_code, 400)
+        self.api.force_authenticate(self.stranger)
+        self.assertEqual(self.api.post(url, {"reference": "BANK-REF-55"}, format="json").status_code, 404)
+        self.client.force_login(self.owner)
+        self.assertEqual(self.client.post(reverse("company:commerce-order-payment", args=[oid]), {
+            "amount": "400.00", "settlement_reference": "CASH-RECEIPT-555",
+            "evidence_note": "This is only a customer assertion, not bank evidence.",
+        }).status_code, 403)
