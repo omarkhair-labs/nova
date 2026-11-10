@@ -120,7 +120,6 @@ def receive_return(*, staff, order_id, evidence_reference):
 @transaction.atomic
 def verify_external_refund(*, staff, order_id, amount, reference, note):
     company.require(staff, "plants.add_commercerefundrecord")
-    company.require(staff, "plants.change_commerceorder")
     try:
         paid = Decimal(str(amount))
     except (InvalidOperation, ValueError, TypeError) as exc:
