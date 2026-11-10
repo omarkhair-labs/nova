@@ -6,6 +6,7 @@ from . import commerce_bulk_import as commercial_import
 from . import commerce_company as commerce
 from . import company_operations as operations
 from . import commerce_requests_company as commerce_requests
+from . import commerce_order_company as actual_orders
 from . import commerce_rfq_company as business
 
 app_name = "company"
@@ -15,6 +16,9 @@ urlpatterns = [
     path("projects/rfqs/", business.rfq_list, name="business-rfqs"),
     path("projects/rfqs/<uuid:rfq_id>/", business.rfq_detail, name="business-rfq"),
     path("commerce/", operations.commerce_home, name="commerce-home"),
+    path("commerce/orders/", actual_orders.real_orders, name="commerce-orders"),
+    path("commerce/orders/<uuid:order_id>/", actual_orders.real_order_detail, name="commerce-order"),
+    path("commerce/orders/<uuid:order_id>/shipping/", actual_orders.real_order_shipping_decision, name="commerce-order-shipping"),
     path("commerce/qa/updates/", commerce_requests.qa_updates, name="commerce-qa-updates"),
     path("commerce/qa/requests/", commerce_requests.qa_requests, name="commerce-qa-requests"),
     path("commerce/qa/requests/<uuid:order_id>/", commerce_requests.qa_request_detail, name="commerce-qa-request"),
