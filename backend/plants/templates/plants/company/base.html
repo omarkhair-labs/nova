@@ -20,14 +20,15 @@
     <p class="nav-group-label">B2C / SHOP · <span lang="ar" dir="rtl">المتجر</span></p>
     <a href="{% url 'company:commerce-home' %}" {% if section == 'commerce_home' %}aria-current="page"{% endif %}>Shop home</a>
     {% if perms.plants.view_commerceproduct %}<a class="workspace-nav-link" href="{% url 'company:commerce-products' %}" {% if section == 'commerce_products' %}aria-current="page"{% endif %}><span class="nav-label-en">Products</span><span class="nav-label-ar" lang="ar" dir="rtl">المنتجات</span></a>{% endif %}
-    {% if commerce_qa_requests_enabled and perms.plants.view_commerceorderrequest %}<a class="workspace-nav-link" href="{% url 'company:commerce-qa-requests' %}" {% if section == 'commerce_qa_requests' %}aria-current="page"{% endif %}><span class="nav-label-en">Orders · QA</span><span class="nav-label-ar" lang="ar" dir="rtl">الطلبات</span></a>{% endif %}
+    {% if perms.plants.view_commerceorder %}<a class="workspace-nav-link" href="{% url 'company:commerce-orders' %}" {% if section == 'commerce_orders' %}aria-current="page"{% endif %}><span class="nav-label-en">Orders</span><span class="nav-label-ar" lang="ar" dir="rtl">الطلبات</span></a>{% endif %}
     {% if perms.plants.view_commercestockmovement %}<a class="workspace-nav-link" href="{% url 'company:commerce-stock' %}" {% if section == 'commerce_stock' %}aria-current="page"{% endif %}><span class="nav-label-en">Stock</span><span class="nav-label-ar" lang="ar" dir="rtl">المخزون</span></a>{% endif %}
     {% if ceo_demo_enabled %}
-    <details class="sidebar-qa" {% if section == 'catalog' or section == 'orders' %}open{% endif %}>
+    <details class="sidebar-qa" {% if section == 'catalog' or section == 'orders' or section == 'commerce_qa_requests' %}open{% endif %}>
       <summary>Testing tools <span aria-hidden="true">⌄</span></summary>
       <div class="sidebar-qa-links">
       {% if perms.plants.view_catalogproduct %}<a href="{% url 'company:catalog' %}" {% if section == 'catalog' %}aria-current="page"{% endif %}>Original QA catalog</a>{% endif %}
       {% if perms.plants.view_demoorder %}<a href="{% url 'company:orders' %}" {% if section == 'orders' %}aria-current="page"{% endif %}>Original QA orders</a>{% endif %}
+      {% if commerce_qa_requests_enabled and perms.plants.view_commerceorderrequest %}<a href="{% url 'company:commerce-qa-requests' %}" {% if section == 'commerce_qa_requests' %}aria-current="page"{% endif %}>Historical QA order requests</a>{% endif %}
       </div>
     </details>
     {% endif %}
