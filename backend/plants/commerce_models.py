@@ -32,6 +32,10 @@ class CommerceProduct(models.Model):
         related_name="plantupia_catalog_products_reviewed",
     )
     catalog_reviewed_at = models.DateTimeField(null=True, blank=True)
+    storefront_published_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="The product is listed only after a separate actual storefront go-live decision.",
+    )
 
     description = models.TextField(max_length=3000, blank=True)
     kind = models.CharField(max_length=12, choices=Kind.choices)
@@ -105,6 +109,43 @@ class CommerceSKU(models.Model):
 
     def __str__(self):
         return self.code
+
+
+class CommerceCartLine(models.Model):
+    """One customer's persisted cart line against the canonical commercial SKU.
+
+    Cart quantities are intentions, not reserved stock or accepted orders.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    customer = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="plantupia_commerce_cart",
+    )
+    sku = models.ForeignKey(
+        CommerceSKU, on_delete=models.PROTECT, related_name="cart_lines",
+    )
+    quantity = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1)],
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("sku__code", "id")
+        constraints = [
+            models.UniqueConstraint(fields=("customer", "sku"), name="plant_commerce_cart_customer_sku_unique"),
+            models.CheckConstraint(
+                condition=models.Q(quantity__gte=1, quantity__lte=10),
+                name="plant_commerce_cart_qty_1_10",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.quantity is not None and not 1 <= self.quantity <= 10:
+            raise ValidationError({"quantity": "Choose between 1 and 10 units of this exact SKU."})
+
+    def __str__(self):
+        return f"{self.sku.code} × {self.quantity}"
 
 
 class CommerceStockLocation(models.Model):
