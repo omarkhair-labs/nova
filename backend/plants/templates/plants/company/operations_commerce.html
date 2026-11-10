@@ -8,21 +8,21 @@
 <section class="commerce-three" aria-label="Commerce operations">
 {% if can_products %}
   <article class="commerce-path">
-    <span class="path-figure" aria-hidden="true">01 <span>◧</span></span>
+    <span class="path-figure" aria-hidden="true">01 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.4 13H6.4L5 8Z"/><path d="M8 8V6a4 4 0 0 1 8 0v2"/><path d="M9 13h6"/></svg></span>
     <p class="eyebrow">CATALOG / المنتجات</p><h2>Products</h2>
     <p>Product drafts / SKUs, pricing, variants and photographs. One product home, not scattered editors.</p>
     <div class="path-bottom"><span><strong>{{ counts.product_drafts }}</strong> product drafts<br><small>{{ counts.sku_options }} exact SKU options</small></span><a class="button primary" href="{% url 'company:commerce-products' %}">Open products ↗</a></div>
   </article>
 {% endif %}
   <article class="commerce-path">
-    <span class="path-figure" aria-hidden="true">02 <span>≋</span></span>
+    <span class="path-figure" aria-hidden="true">02 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14v18l-3-2-4 2-4-2-3 2V3Z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg></span>
     <p class="eyebrow">ORDER INBOX / الطلبات</p><h2>Orders</h2>
     <p>Review the customer, lines, address and next QA state from one request. Payment and courier dispatch are not connected.</p>
     <div class="path-bottom">{% if can_requests %}<span><strong>{{ counts.unreviewed_requests }}</strong> awaiting QA review<br><small>{{ counts.qa_requests }} recorded requests</small></span><a class="button primary" href="{% url 'company:commerce-qa-requests' %}">Open requests ↗</a>{% else %}<span><strong>QA only</strong><br><small>Order intake unavailable for this account or environment.</small></span>{% endif %}</div>
   </article>
 {% if can_stock %}
   <article class="commerce-path">
-    <span class="path-figure" aria-hidden="true">03 <span>▦</span></span>
+    <span class="path-figure" aria-hidden="true">03 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 4l9 6v11H3V10Z"/><path d="M3 10h18M9 21v-7h6v7"/><path d="M6 14h1m10 0h1"/></svg></span>
     <p class="eyebrow">OPERATIONS / التشغيل</p><h2>Stock &amp; operations</h2>
     <p>Warehouse stock counts, locations and movement history. Installed plant inventory belongs to B2B projects.</p>
     <div class="path-bottom"><span><strong>{{ counts.stock_movements }}</strong> movements<br><small>Warehouse stock · no reservation yet</small></span><a class="button primary" href="{% url 'company:commerce-stock' %}">Open stock ↗</a></div>

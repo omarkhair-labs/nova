@@ -54,6 +54,20 @@ class CompanyWorkspaceNavigationTests(DemoFixture, TestCase):
         self.assertContains(projects, "QR handovers")
         self.assertNotContains(projects, "Product drafts / SKUs")
 
+    def test_mixed_language_navigation_and_b2c_icons_have_explicit_layout(self):
+        response = self.client.get(reverse("company:commerce-home"))
+        self.assertEqual(response.status_code, 200)
+        # Orders are gated; default QA-off environments expose only products and stock.
+        self.assertContains(response, 'class="workspace-nav-link"', count=2)
+        self.assertContains(response, '<span class="nav-label-ar" lang="ar" dir="rtl">المنتجات</span>')
+        self.assertContains(response, '<span class="nav-label-ar" lang="ar" dir="rtl">المخزون</span>')
+        with patch.dict(os.environ, {"PLANTUPIA_COMMERCE_QA_REQUESTS_ENABLED": "1"}):
+            qa_response = self.client.get(reverse("company:commerce-home"))
+            self.assertContains(qa_response, 'class="workspace-nav-link"', count=3)
+            self.assertContains(qa_response, '<span class="nav-label-ar" lang="ar" dir="rtl">الطلبات</span>')
+        self.assertContains(response, 'viewBox="0 0 24 24"', count=3)
+        self.assertNotContains(response, 'class="path-figure" aria-hidden="true">02 <span>≋')
+
     def test_care_has_a_real_home_and_no_new_data_mutation(self):
         response = self.client.get(reverse("company:care-home"))
         self.assertEqual(response.status_code, 200)
