@@ -1434,13 +1434,14 @@ private fun PlantupiaCatalogTile(
 private fun PlantupiaCatalogPhoto(
     productId: String, repository: PlantupiaRepository, compact: Boolean = false,
     thumbnail: Boolean = false, photoId: String? = null, photoAlt: String = "",
+    catalogPath: String = "catalog",
 ) {
-    var bitmap by remember(productId, photoId) { mutableStateOf<ImageBitmap?>(null) }
-    var failed by remember(productId, photoId) { mutableStateOf(false) }
+    var bitmap by remember(productId, photoId, catalogPath) { mutableStateOf<ImageBitmap?>(null) }
+    var failed by remember(productId, photoId, catalogPath) { mutableStateOf(false) }
     var revision by remember(productId, photoId) { mutableIntStateOf(0) }
     LaunchedEffect(productId, photoId, revision) {
         failed = false
-        val resource = "catalog/$productId/image/" +
+        val resource = catalogPath + "/" + productId + "/image/" +
             (if (photoId == null) "" else "?photo_id=$photoId")
         when (val result = repository.demoGet(resource)) {
             is ApiResult.Success -> if (repository.isCurrentSession()) {
