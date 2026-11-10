@@ -54,6 +54,16 @@ class CompanyWorkspaceNavigationTests(DemoFixture, TestCase):
         self.assertContains(projects, "QR handovers")
         self.assertNotContains(projects, "Product drafts / SKUs")
 
+    def test_mixed_language_navigation_and_b2c_icons_have_explicit_layout(self):
+        response = self.client.get(reverse("company:commerce-home"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="workspace-nav-link"', count=3)
+        self.assertContains(response, '<span class="nav-label-ar" lang="ar" dir="rtl">المنتجات</span>')
+        self.assertContains(response, '<span class="nav-label-ar" lang="ar" dir="rtl">الطلبات</span>')
+        self.assertContains(response, '<span class="nav-label-ar" lang="ar" dir="rtl">المخزون</span>')
+        self.assertContains(response, 'viewBox="0 0 24 24"', count=3)
+        self.assertNotContains(response, 'class="path-figure" aria-hidden="true">02 <span>≋')
+
     def test_care_has_a_real_home_and_no_new_data_mutation(self):
         response = self.client.get(reverse("company:care-home"))
         self.assertEqual(response.status_code, 200)
