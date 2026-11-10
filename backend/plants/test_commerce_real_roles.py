@@ -46,6 +46,8 @@ class RealCommerceRolesTests(DemoFixture, TestCase):
         staff.groups.add(group)
         self.client.force_login(staff)
         self.assertEqual(self.client.get(reverse("company:commerce-orders")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("company:projects-home")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("company:installations")).status_code, 403)
         oid = uuid.uuid4()
         self.assertEqual(self.client.post(
             reverse("company:commerce-order-fulfillment", args=[oid]),
@@ -67,5 +69,7 @@ class RealCommerceRolesTests(DemoFixture, TestCase):
         staff.groups.add(group)
         self.client.force_login(staff)
         self.assertEqual(self.client.get(reverse("company:business-inquiries")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("company:projects-home")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("company:installations")).status_code, 403)
         self.assertEqual(self.client.get(reverse("company:commerce-orders")).status_code, 403)
         self.assertEqual(self.client.get(reverse("company:commerce-products")).status_code, 403)
