@@ -26,3 +26,24 @@ def create_qa_roles():
         group.permissions.set(Permission.objects.filter(content_type__app_label="plants", codename__in=codenames))
         roles.append(group)
     return roles
+
+
+# An actual operating role. Not added to any user automatically and not the
+# historical CEO QA group. Assignment remains an explicit Company decision.
+COMMERCE_OPERATOR = {
+    "access_company_dashboard", "view_installationbatch",
+    "view_commerceproduct", "add_commerceproduct", "change_commerceproduct",
+    "view_commercesku", "add_commercesku", "change_commercesku",
+    "view_commercestocklocation", "add_commercestocklocation", "change_commercestocklocation",
+    "view_commercestockmovement", "add_commercestockmovement",
+    "view_commerceorder", "change_commerceorder",
+}
+
+
+def create_commerce_operator_role():
+    """Idempotently provision permissions, without auto-enrolling staff."""
+    group, _ = Group.objects.get_or_create(name="Plantupia Commerce Operator")
+    permissions = Permission.objects.filter(content_type__app_label="plants",
+        codename__in=COMMERCE_OPERATOR)
+    group.permissions.set(permissions)
+    return group
