@@ -165,35 +165,22 @@ class PlantupiaCeoJourneyInstrumentedTest {
         // Returning through the existing selected-plant Back action preserves My Space.
         click("← Back to space")
         click("Shop")
-        val catalog = runBlocking { repository.demoGet("catalog/") }
+        node("Plants & essentials").assertExists()
+        val catalog = runBlocking { repository.demoGet("commerce/catalog/") }
         assertTrue(catalog is ApiResult.Success)
-        val plantProduct = (catalog as ApiResult.Success).value.demoRows().first { it.getString("kind") == "plant" }
-        val description = "View QA product: " + plantProduct.getString("name")
-        try {
-            compose.waitUntil(30_000) { compose.onAllNodes(hasContentDescription(description)).fetchSemanticsNodes().isNotEmpty() }
-        } catch (failure: Throwable) {
-            capture("diagnostic-qa-shop")
-            compose.onAllNodes(isRoot()).printToLog("CeoQaShop")
-            throw failure
-        }
-        val product = compose.onNodeWithContentDescription(description)
-        runCatching { product.performScrollTo() }
-        product.performClick()
-        click("Add to cart")
-        node("Preview order only · no charge or delivery").assertExists()
-        val consent = compose.onAllNodes(isToggleable()).onFirst()
-        runCatching { consent.performScrollTo() }
-        consent.performClick()
-        click("Place preview order")
-        node("Preview order received", true).assertExists()
-        capture("07-persisted-no-charge-order")
-        val orders = runBlocking { repository.demoGet("demo/orders/") }
-        assertTrue(orders is ApiResult.Success && orders.value.demoRows().isNotEmpty())
+        assertTrue((catalog as ApiResult.Success).value.optString("source") == "commerce_sku")
+        capture("07-canonical-commercial-shop")
+        click("Cart")
+        node("Your cart").assertExists()
+        val cart = runBlocking { repository.demoGet("commerce/cart/") }
+        assertTrue(cart is ApiResult.Success)
+        capture("08-canonical-cart")
         scenario!!.recreate()
         click("Shop")
         click("My orders")
-        node("charged: no", true).assertExists()
-        capture("08-order-after-relaunch")
+        val orders = runBlocking { repository.demoGet("commerce/orders/") }
+        assertTrue(orders is ApiResult.Success)
+        capture("09-real-orders-after-relaunch")
     }
 
     @Test fun stage3_readOnlyReopenAndRevokedPaywall() {
@@ -216,8 +203,10 @@ class PlantupiaCeoJourneyInstrumentedTest {
         click("Close")
         click("← Back to space")
         click("Shop")
+        node("Plants & essentials").assertExists()
         click("My orders")
-        node("charged: no", true).assertExists()
-        capture("12-orders-${width}dp")
+        val orders = runBlocking { repository.demoGet("commerce/orders/") }
+        assertTrue(orders is ApiResult.Success)
+        capture("12-commercial-orders-${width}dp")
     }
 }

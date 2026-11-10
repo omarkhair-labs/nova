@@ -132,24 +132,32 @@ class PlantupiaExperienceInstrumentedTest {
         click("Close")
     }
 
-    @Test fun qaCheckoutIsPersistedAndReopenable() {
+    @Test fun onlyCanonicalShopAndCartAreReachableFromCustomerTab() {
         root("Shop")
-        val catalog = runBlocking { repository.demoGet("catalog/") }
+        node("Plants & essentials").assertExists()
+        node("Products").assertExists()
+        node("Cart").assertExists()
+        // The source of truth is the actual CommerceSKU catalog, not the
+        // synthetic QA catalog, even if no actual items are published yet.
+        val catalog = runBlocking { repository.demoGet("commerce/catalog/") }
         assertTrue(catalog is ApiResult.Success)
-        val item = (catalog as ApiResult.Success).value.demoRows().first { it.getString("kind") == "plant" }
-        val description = "View QA product: " + item.getString("name")
-        compose.waitUntil(30_000) { compose.onAllNodes(hasContentDescription(description)).fetchSemanticsNodes().isNotEmpty() }
-        compose.onNodeWithContentDescription(description).performScrollTo().performClick()
-        click("Add to cart")
-        node("Preview order only · no charge or delivery").assertExists()
-        val consent = compose.onAllNodes(isToggleable()).onFirst()
-        consent.performScrollTo().performClick()
-        click("Place preview order")
-        node("Preview order received", true).assertExists(); capture("09-order")
-        val orders = runBlocking { repository.demoGet("demo/orders/") }
-        assertTrue(orders is ApiResult.Success && orders.value.demoRows().isNotEmpty())
-        scenario!!.recreate(); root("Shop"); click("My orders")
-        node("charged: no", true).assertExists(); capture("10-reopened-order")
+        val response = (catalog as ApiResult.Success).value
+        assertTrue(response.optString("source") == "commerce_sku")
+        assertTrue(!response.optBoolean("checkout_ready"))
+        capture("09-one-real-shop")
+        click("Cart")
+        node("Your cart").assertExists()
+        val cart = runBlocking { repository.demoGet("commerce/cart/") }
+        assertTrue(cart is ApiResult.Success)
+        assertTrue(!(cart as ApiResult.Success).value.optBoolean("checkout_ready"))
+        capture("10-one-sku-cart")
+        click("My orders")
+        val orders = runBlocking { repository.demoGet("commerce/orders/") }
+        assertTrue(orders is ApiResult.Success)
+        capture("11-real-orders")
+        scenario!!.recreate()
+        root("Shop")
+        node("Plants & essentials").assertExists()
     }
 
     @Test fun notificationCategoriesAndCareRemainPrivate() {

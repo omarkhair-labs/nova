@@ -104,11 +104,10 @@ fun PlantupiaShopRoute(
             PlantupiaAccountHeader(user?.name.orEmpty(), user?.username.orEmpty(), user?.avatarUrl.orEmpty(),
                 user?.id ?: 0L, user?.plantupiaAvatarVariant ?: -1, onProfile)
         }
-        PlantupiaQaShop(
+        PlantupiaStoreShop(
             repository = repository,
             accountId = user?.id ?: 0L,
             onDismiss = onToday,
-            fullPage = true,
             modifier = Modifier.weight(1f),
         )
         }
