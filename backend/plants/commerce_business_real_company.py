@@ -3,8 +3,9 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect
 
-from . import commerce_business_real as business, company_services as company
+from . import commerce_business_real as business, commerce_business_project as project, company_services as company
 from .commerce_models import CommerceBusinessInquiry
+from .models import InstallationBatch
 from .company_views import page, paginated, portal
 
 
@@ -30,6 +31,10 @@ def real_business_inquiry(request, inquiry_id):
     return page(request, "commerce_business_inquiry", {
         "title": record.company_name, "section": "business_inquiries",
         "record": record,
+        "prepared_installation": InstallationBatch.objects.filter(
+            source_b2b_inquiry=record,
+        ).filter(prepared_by=request.user).first() if not request.user.is_superuser else
+            InstallationBatch.objects.filter(source_b2b_inquiry=record).first(),
     })
 
 
@@ -55,3 +60,21 @@ def real_business_quote_decision(request, inquiry_id):
         for error in exc.messages:
             messages.error(request, error)
     return redirect("company:business-inquiry", inquiry_id=inquiry_id)
+
+
+@portal("plants.view_commercebusinessinquiry", methods=("POST",))
+def create_business_installation(request, inquiry_id):
+    """One audited draft project from accepted scope, no implicit inventory."""
+    try:
+        batch = project.create_draft_installation_from_inquiry(
+            staff=request.user, inquiry_id=inquiry_id,
+        )
+    except ValidationError as exc:
+        for item in exc.messages:
+            messages.error(request, item)
+        return redirect("company:business-inquiry", inquiry_id=inquiry_id)
+    messages.success(
+        request,
+        "Draft project prepared. Add physical plant inventory, review, then issue a recipient-bound handover.",
+    )
+    return redirect("company:installation", batch_id=batch.pk)
