@@ -95,6 +95,28 @@ def _return_case_json(order):
     }
 
 
+def _status_notice(order):
+    if order.payment_status == CommerceOrder.PaymentStatus.REFUNDED:
+        return "Finance recorded an externally verified refund. No new bank transfer was initiated by the app."
+    if order.status == CommerceOrder.Status.QUOTE_PENDING:
+        return "Awaiting the company's exact delivery fee; no order confirmation or payment yet."
+    if order.status == CommerceOrder.Status.QUOTED:
+        return "Review the current shipping quote and accept the exact total before stock is reserved."
+    if order.status == CommerceOrder.Status.CONFIRMED:
+        return "Exact total accepted and stock reserved; payment and dispatch are not yet verified."
+    if order.status == CommerceOrder.Status.PREPARING:
+        return "Plantupia is preparing reserved items; no physical handover has been recorded yet."
+    if order.status == CommerceOrder.Status.DISPATCHED:
+        return "Plantupia recorded handover to a delivery carrier; proof of final receipt is pending."
+    if order.status == CommerceOrder.Status.DELIVERED:
+        return "The company recorded a retained delivery evidence reference; payment is tracked separately."
+    if order.status == CommerceOrder.Status.RETURN_REQUESTED:
+        return "Return intake is being reviewed or processed; no refund or stock restock is implied."
+    if order.status == CommerceOrder.Status.RETURNED:
+        return "Returned items were physically received; payment refund and stock restock are separate."
+    return "Order status reflects recorded company/customer events only."
+
+
 def order_json(order):
     lines = [
         {
@@ -150,11 +172,7 @@ def order_json(order):
         "return_case": _return_case_json(order),
         "fulfillment": _fulfillment_json(order),
         "lines": lines,
-        "notice": (
-            "The company must quote shipping; your order is not confirmed until you accept that exact total."
-            if order.status == CommerceOrder.Status.QUOTE_PENDING
-            else "Payment and delivery are not verified merely because a quote was accepted."
-        ),
+        "notice": _status_notice(order),
     }
 
 
