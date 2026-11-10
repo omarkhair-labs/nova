@@ -164,6 +164,27 @@ def product_review(request, product_id):
     return redirect("company:commerce-product", product_id=product_id)
 
 
+@portal("plants.change_commerceproduct", methods=("POST",))
+def product_publication(request, product_id):
+    """Explicit operator publish/unpublish, independent from content approval."""
+    company.require(request.user, "plants.view_commerceproduct")
+    try:
+        product = publication.set_storefront_publication(
+            staff=request.user, product_id=product_id,
+            action=request.POST.get("action", ""),
+        )
+    except ValidationError as exc:
+        for issue in exc.messages:
+            messages.error(request, issue)
+    else:
+        messages.success(request, (
+            "Product is listed in the real customer Shop."
+            if product.storefront_published_at else
+            "Product removed from the customer Shop."
+        ))
+    return redirect("company:commerce-product", product_id=product_id)
+
+
 @transaction.atomic
 @portal("plants.add_commercesku")
 def sku_create(request, product_id):
