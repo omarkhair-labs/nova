@@ -18,9 +18,7 @@ private val shopInk = Color(0xFF123B2E)
 
 internal fun qaDeliveryFormReady(name: String, phone: String, city: String, street: String,
     latitude: Double?, longitude: Double?, pinConfirmed: Boolean): Boolean =
-    name.trim().length >= 2 && phone.count(Char::isDigit) >= 7 &&
-    city.trim().length >= 2 && street.trim().length >= 5 &&
-    latitude != null && longitude != null && pinConfirmed && validDeliveryPin(latitude, longitude)
+    plantupiaDeliveryAddressReady(name, phone, city, street, latitude, longitude, pinConfirmed)
 
 /** Isolated company SKU request, NOT the existing fictional cart or a payment checkout. */
 @Composable
@@ -41,7 +39,6 @@ internal fun PlantupiaCommerceQaJourney(repository: PlantupiaRepository) {
     var pinConfirmed by rememberSaveable { mutableStateOf(false) }
     var payment by rememberSaveable { mutableStateOf("cod") }
     var consent by rememberSaveable { mutableStateOf(false) }
-    var showMap by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var feedback by remember { mutableStateOf<String?>(null) }
     var refresh by remember { mutableIntStateOf(0) }
@@ -90,25 +87,18 @@ internal fun PlantupiaCommerceQaJourney(repository: PlantupiaRepository) {
         }
         HorizontalDivider()
         Text("02 / Your exact delivery address", style = PlantupiaText.sectionLabel)
-        OutlinedTextField(name, { name = it.take(160) }, label = { Text("Recipient name") },
-            modifier = Modifier.fillMaxWidth(), singleLine = true)
-        OutlinedTextField(phone, { phone = it.take(32) }, label = { Text("Phone") },
-            modifier = Modifier.fillMaxWidth(), singleLine = true)
-        OutlinedTextField(city, { city = it.take(120) }, label = { Text("City / governorate") },
-            modifier = Modifier.fillMaxWidth(), singleLine = true)
-        OutlinedTextField(street, { street = it.take(320) }, label = { Text("Street / address") },
-            modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(building, { building = it.take(180) }, label = { Text("Building / floor / flat") },
-            modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(landmark, { landmark = it.take(180) }, label = { Text("Nearby landmark") },
-            modifier = Modifier.fillMaxWidth())
-        OutlinedButton(onClick = { showMap = true }, modifier = Modifier.fillMaxWidth()) {
-            Text(if (pinConfirmed) "✓ Exact pin selected · Edit" else "Set exact delivery pin on map")
-        }
-        if (pinConfirmed) Text("Confirmed pin: " +
-            "%.6f, %.6f".format(java.util.Locale.US, lat, lon), style = PlantupiaText.supporting)
-        Text("The selected pin is not proof of address accuracy. Confirm the entrance and building.",
-            style = PlantupiaText.supporting)
+        PlantupiaDeliveryAddressFields(
+            name = name, onNameChange = { name = it },
+            phone = phone, onPhoneChange = { phone = it },
+            city = city, onCityChange = { city = it },
+            street = street, onStreetChange = { street = it },
+            building = building, onBuildingChange = { building = it },
+            landmark = landmark, onLandmarkChange = { landmark = it },
+            latitude = lat, longitude = lon, pinConfirmed = pinConfirmed,
+            onPinConfirmed = { newLat, newLon ->
+                lat = newLat; lon = newLon; pinConfirmed = true
+            },
+        )
         HorizontalDivider()
         Text("03 / Payment preference (not collected)", style = PlantupiaText.sectionLabel)
         OutlinedButton(onClick = { payment = "cod" }) {
@@ -229,10 +219,4 @@ internal fun PlantupiaCommerceQaJourney(repository: PlantupiaRepository) {
             }
         }
     }
-    if (showMap) PlantupiaDeliveryPinPicker(lat, lon,
-        onDismiss = { showMap = false },
-        onConfirm = { latitude, longitude ->
-            lat = latitude; lon = longitude; pinConfirmed = true; showMap = false
-        },
-    )
 }
