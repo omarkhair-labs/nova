@@ -25,7 +25,7 @@ class CompanyWorkspaceNavigationTests(DemoFixture, TestCase):
         commercial = self.client.get(reverse("company:commerce-home"))
         self.assertEqual(commercial.status_code, 200)
         self.assertContains(commercial, "B2C")
-        self.assertContains(commercial, "Product drafts / SKUs")
+        self.assertContains(commercial, "Product drafts, SKUs")
         self.assertContains(commercial, "Warehouse stock")
         self.assertNotContains(commercial, "B2B / PROJECTS")
         self.assertContains(commercial, "B2C / SHOP")
