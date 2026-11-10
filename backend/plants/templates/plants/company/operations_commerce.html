@@ -39,7 +39,6 @@
     <div class="path-bottom"><span><strong>{{ counts.stock_movements }}</strong> movements<br><small>Warehouse stock and confirmed customer reservations</small></span><a class="button primary" href="{% url 'company:commerce-stock' %}">Open stock ↗</a></div>
   </article>
 {% endif %}
-{% endif %}
 </section>
 <div class="commerce-reality"><strong>Operational boundaries</strong><span>Actual customer shipping quotes and location-level stock holds are implemented. Product publication is not enabled yet, and payment reconciliation, dispatch proof and returns remain to be completed before Production.</span></div>
 {% if ceo_demo_enabled %}
