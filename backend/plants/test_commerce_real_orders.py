@@ -13,6 +13,7 @@ from PIL import Image
 from .commerce_models import (
     CommerceProduct, CommerceSKU, CommerceStockLocation, CommerceOrder,
     CommerceOrderLine, CommerceStockReservation, CommerceRealOrderEvent,
+    CommerceStockMovement, CommerceFulfillmentReceipt,
 )
 from .commerce_publication import review_catalog_product
 from .commerce_services import record_counted_stock, stock_balance
@@ -262,3 +263,73 @@ class RealCustomerOrderTests(DemoFixture, TestCase):
                          ["quote_requested", "shipping_quoted", "quote_accepted", "cancelled"])
         self.api.force_authenticate(self.stranger)
         self.assertEqual(self.api.get(reverse("plantupia-real-commerce-order", args=[oid])).status_code, 404)
+
+    def test_evidenced_dispatch_consumes_reserved_physical_stock_exactly_once(self):
+        self.cart(5)
+        oid = self.request_order().data["id"]
+        self.company_quote(oid, fee="20.00")
+        self.assertEqual(self.accept(oid).status_code, 200)
+        url = reverse("company:commerce-order-fulfillment", args=[oid])
+        self.assertEqual(self.client.post(url, {"action": "prepare"}).status_code, 302)
+        self.assertEqual(self.client.post(url, {"action": "prepare"}).status_code, 302)
+        self.assertEqual(CommerceRealOrderEvent.objects.filter(order_id=oid, kind="preparing").count(), 1)
+        handover = {
+            "action": "dispatch", "carrier_name": "Plantupia delivery team",
+            "tracking_reference": "HANDOVER-REAL-001",
+            "dispatch_note": "Physical items checked and signed over to dispatch staff.",
+        }
+        self.assertEqual(self.client.post(url, handover).status_code, 302)
+        order = CommerceOrder.objects.get(pk=oid)
+        self.assertEqual(order.status, "dispatched")
+        self.assertEqual(order.payment_status, "unpaid")
+        self.assertEqual(CommerceFulfillmentReceipt.objects.filter(order_id=oid).count(), 1)
+        self.assertEqual(
+            sum(-m.quantity_delta for m in CommerceStockMovement.objects.filter(
+                reason="dispatch", reference_note__contains=str(order.pk)[:8])), 5
+        )
+        self.assertEqual(CommerceStockReservation.objects.filter(
+            order_id=oid, released_at__isnull=True).count(), 0)
+        self.assertEqual(stock_balance(self.sku.pk), 2)
+        self.assertEqual(available_units(self.sku.pk), 2)
+        self.assertEqual(self.client.post(url, handover).status_code, 302)
+        self.assertEqual(CommerceStockMovement.objects.filter(reason="dispatch").count(), 2)
+        current = self.api.get(reverse("plantupia-real-commerce-order", args=[oid])).data
+        self.assertFalse(current["stock_reserved"])
+        self.assertTrue(current["delivery_initiated"])
+        self.assertEqual(current["fulfillment"]["tracking_reference"], "HANDOVER-REAL-001")
+        self.assertFalse(current["charged"])
+
+    def test_delivery_requires_recorded_carrier_handover_and_retained_proof(self):
+        self.cart(2)
+        oid = self.request_order().data["id"]
+        url = reverse("company:commerce-order-fulfillment", args=[oid])
+        self.assertEqual(self.client.post(url, {
+            "action": "delivered", "proof_reference": "POD-SIGNED-1234"
+        }).status_code, 302)
+        self.assertEqual(CommerceOrder.objects.get(pk=oid).status, "quote_pending")
+        self.company_quote(oid, fee="0.00")
+        self.accept(oid)
+        self.client.post(url, {"action": "prepare"})
+        self.client.post(url, {
+            "action": "dispatch", "carrier_name": "Internal delivery",
+            "tracking_reference": "SHIP-203", "dispatch_note": "Operator signed handover ledger.",
+        })
+        self.client.post(url, {"action": "delivered", "proof_reference": "short"})
+        self.assertEqual(CommerceOrder.objects.get(pk=oid).status, "dispatched")
+        self.client.post(url, {"action": "delivered", "proof_reference": "POD-SIGNED-1234"})
+        self.assertEqual(CommerceOrder.objects.get(pk=oid).status, "delivered")
+        self.assertEqual(CommerceOrder.objects.get(pk=oid).payment_status, "unpaid")
+        self.assertEqual(self.client.post(url, {
+            "action": "delivered", "proof_reference": "POD-SIGNED-1234"
+        }).status_code, 302)
+        self.assertEqual(CommerceRealOrderEvent.objects.filter(order_id=oid, kind="delivered").count(), 1)
+        current = self.api.get(reverse("plantupia-real-commerce-order", args=[oid])).data
+        self.assertTrue(current["fulfillment"]["delivery_proof_recorded"])
+        self.assertFalse(current["charged"])
+
+    def test_customer_cannot_mutate_company_fulfillment(self):
+        self.cart(1)
+        oid = self.request_order().data["id"]
+        self.client.force_login(self.owner)
+        self.assertEqual(self.client.post(reverse("company:commerce-order-fulfillment", args=[oid]),
+                                          {"action": "prepare"}).status_code, 403)
