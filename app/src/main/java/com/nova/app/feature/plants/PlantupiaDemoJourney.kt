@@ -1439,7 +1439,7 @@ private fun PlantupiaCatalogPhoto(
     var bitmap by remember(productId, photoId, catalogPath) { mutableStateOf<ImageBitmap?>(null) }
     var failed by remember(productId, photoId, catalogPath) { mutableStateOf(false) }
     var revision by remember(productId, photoId) { mutableIntStateOf(0) }
-    LaunchedEffect(productId, photoId, revision) {
+    LaunchedEffect(productId, photoId, catalogPath, revision) {
         failed = false
         val resource = catalogPath + "/" + productId + "/image/" +
             (if (photoId == null) "" else "?photo_id=$photoId")
@@ -1447,7 +1447,9 @@ private fun PlantupiaCatalogPhoto(
             is ApiResult.Success -> if (repository.isCurrentSession()) {
                 bitmap = runCatching {
                     val bytes = Base64.decode(result.value.getString("image_base64"), Base64.DEFAULT)
-                    require(bytes.size <= 2 * 1024 * 1024)
+                    val limit = if (catalogPath == "commerce/catalog") 4 * 1024 * 1024
+                                else 2 * 1024 * 1024
+                    require(bytes.size <= limit)
                     requireNotNull(BitmapFactory.decodeByteArray(bytes, 0, bytes.size)).asImageBitmap()
                 }.getOrNull()
                 failed = bitmap == null
