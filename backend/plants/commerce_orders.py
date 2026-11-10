@@ -68,6 +68,20 @@ def total_available(sku_id):
     return max(int(counted) - int(reserved), 0)
 
 
+def _fulfillment_json(order):
+    from .commerce_models import CommerceFulfillmentReceipt
+    receipt = CommerceFulfillmentReceipt.objects.filter(order=order).first()
+    if not receipt:
+        return None
+    return {
+        "carrier_name": receipt.carrier_name,
+        "tracking_reference": receipt.tracking_reference,
+        "dispatched_at": receipt.dispatched_at.isoformat(),
+        "delivered_at": receipt.delivered_at.isoformat() if receipt.delivered_at else None,
+        "delivery_proof_recorded": bool(receipt.delivery_proof_reference),
+    }
+
+
 def order_json(order):
     lines = [
         {
@@ -110,11 +124,11 @@ def order_json(order):
         ),
         "subtotal": str(order.subtotal),
         "final_total": str(final_total) if final_total is not None else None,
-        "stock_reserved": bool(order.confirmed_at and order.status not in (
-            CommerceOrder.Status.CANCELLED, CommerceOrder.Status.DECLINED)),
+        "stock_reserved": order.stock_reservations.filter(released_at__isnull=True).exists(),
         "charged": order.payment_status != CommerceOrder.PaymentStatus.UNPAID,
         "delivery_initiated": order.status in (
             CommerceOrder.Status.DISPATCHED, CommerceOrder.Status.DELIVERED),
+        "fulfillment": _fulfillment_json(order),
         "lines": lines,
         "notice": (
             "The company must quote shipping; your order is not confirmed until you accept that exact total."

@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect
 
-from . import commerce_orders as orders, company_services as company
+from . import commerce_orders as orders, commerce_fulfillment as fulfillment, company_services as company
 from .commerce_models import CommerceOrder
 from .company_views import page, paginated, portal
 
@@ -44,7 +44,7 @@ def real_orders(request):
 def real_order_detail(request, order_id):
     order = get_object_or_404(
         CommerceOrder.objects.select_related("customer", "quoted_by")
-        .prefetch_related("lines", "stock_reservations__location", "status_events"),
+        .prefetch_related("lines", "stock_reservations__location", "status_events", "fulfillment_receipt"),
         pk=order_id,
     )
     return page(request, "commerce_order", {
@@ -79,4 +79,33 @@ def real_order_shipping_decision(request, order_id):
         for errors in form.errors.values():
             for error in errors:
                 messages.error(request, error)
+    return redirect("company:commerce-order", order_id=order_id)
+
+@portal("plants.change_commerceorder", methods=("POST",))
+def real_order_fulfillment(request, order_id):
+    company.require(request.user, "plants.view_commerceorder")
+    action = request.POST.get("action", "")
+    try:
+        if action == "prepare":
+            fulfillment.start_preparation(staff=request.user, order_id=order_id)
+            messages.success(request, "Preparation recorded. Stock remains reserved.")
+        elif action == "dispatch":
+            fulfillment.dispatch_order(
+                staff=request.user, order_id=order_id,
+                carrier_name=request.POST.get("carrier_name", ""),
+                tracking_reference=request.POST.get("tracking_reference", ""),
+                dispatch_note=request.POST.get("dispatch_note", ""),
+            )
+            messages.success(request, "Carrier handover recorded and held inventory consumed once.")
+        elif action == "delivered":
+            fulfillment.record_delivery(
+                staff=request.user, order_id=order_id,
+                proof_reference=request.POST.get("proof_reference", ""),
+            )
+            messages.success(request, "Delivery evidence reference recorded; payment state unchanged.")
+        else:
+            raise ValidationError("Choose a valid fulfillment action.")
+    except ValidationError as exc:
+        for error in exc.messages:
+            messages.error(request, error)
     return redirect("company:commerce-order", order_id=order_id)

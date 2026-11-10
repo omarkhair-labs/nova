@@ -63,6 +63,52 @@
 </section>
 {% endif %}
 <section class="panel padded">
+  <p class="eyebrow">PHYSICAL FULFILLMENT / تجهيز وتسليم</p>
+  <h2>Verified operational stages</h2>
+  {% if order.status == "confirmed" %}
+    <p>Customer accepted the exact price; reserved stock has not been physically dispatched.</p>
+    {% if perms.plants.change_commerceorder %}
+      <form method="post" action="{% url 'company:commerce-order-fulfillment' order.pk %}">
+        {% csrf_token %}
+        <button class="button primary" type="submit" name="action" value="prepare">Start picking / preparing</button>
+      </form>
+    {% endif %}
+  {% elif order.status == "preparing" %}
+    <p>Before recording dispatch, verify actual physical handover and enter the retained reference and carrier.</p>
+    {% if perms.plants.change_commerceorder %}
+      <form method="post" action="{% url 'company:commerce-order-fulfillment' order.pk %}">
+        {% csrf_token %}
+        <label for="carrier-name">Carrier / internal delivery team</label>
+        <input id="carrier-name" name="carrier_name" maxlength="120" required>
+        <label for="tracking-ref">Actual handover / tracking reference</label>
+        <input id="tracking-ref" name="tracking_reference" maxlength="120" required>
+        <label for="dispatch-note">Physical handover evidence note</label>
+        <textarea id="dispatch-note" name="dispatch_note" maxlength="300" required></textarea>
+        <button class="button primary" type="submit" name="action" value="dispatch">Record verified dispatch & consume stock</button>
+      </form>
+    {% endif %}
+  {% elif order.status == "dispatched" or order.status == "delivered" %}
+    <p><strong>Carrier:</strong> {{ order.fulfillment_receipt.carrier_name }} ·
+       <strong>Reference:</strong> {{ order.fulfillment_receipt.tracking_reference }}</p>
+    <p class="fine">Handover {{ order.fulfillment_receipt.dispatched_at|date:"j M Y, H:i" }}.
+       Recorded by {{ order.fulfillment_receipt.dispatched_by.username }}.</p>
+    {% if order.status == "dispatched" and perms.plants.change_commerceorder %}
+      <p>Do not mark delivered without a reference to retained proof of delivery.</p>
+      <form method="post" action="{% url 'company:commerce-order-fulfillment' order.pk %}">
+        {% csrf_token %}
+        <label for="proof-reference">Retained proof of delivery reference</label>
+        <input id="proof-reference" name="proof_reference" maxlength="180" minlength="8" required>
+        <button class="button primary" type="submit" name="action" value="delivered">Record delivery evidence</button>
+      </form>
+    {% elif order.status == "delivered" %}
+      <p>Delivery evidence reference: {{ order.fulfillment_receipt.delivery_proof_reference }}</p>
+    {% endif %}
+  {% else %}
+    <p class="fine">No active physical fulfillment action is available for this order status.</p>
+  {% endif %}
+  <p class="fine">These operator records do not verify money received, authorize a refund or claim a carrier integration.</p>
+</section>
+<section class="panel padded">
   <p class="eyebrow">ACTUAL ORDER ACTIVITY</p><h2>Timeline / سجل الطلب</h2>
   {% for event in order.status_events.all %}
     <div class="record-row">
@@ -73,5 +119,5 @@
     <p class="fine">No persisted real order events. Older orders may predate timeline activation.</p>
   {% endfor %}
 </section>
-<div class="commerce-reality"><strong>Not yet production-finished</strong><span>Staff dispatch, POD, COD/transfer reconciliation, invoices and refunds require verified operational implementation. This screen can only quote or decline before confirmation.</span></div>
+<div class="commerce-reality"><strong>Not yet production-finished</strong><span>Dispatch and delivery are operator-attested with reference evidence. COD/transfer reconciliation, independent POD verification, invoices, returns and refunds still require commercial acceptance.</span></div>
 {% endblock %}

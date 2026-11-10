@@ -33,7 +33,7 @@ def record_counted_stock(*, staff, sku_id, location_id, quantity_delta, reason, 
         raise ValidationError("A valid quantity and client UUID are required.") from exc
     if delta == 0 or abs(delta) > 100000:
         raise ValidationError("Count changes must be nonzero and at most 100,000 units per entry.")
-    if reason not in CommerceStockMovement.Reason.values:
+    if reason not in (CommerceStockMovement.Reason.OPENING, CommerceStockMovement.Reason.CORRECTION):
         raise ValidationError("Choose an approved stock-count reason.")
     if reason == CommerceStockMovement.Reason.OPENING and delta < 0:
         raise ValidationError("An opening count cannot be negative.")
