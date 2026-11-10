@@ -3,6 +3,7 @@ import uuid
 
 from django import forms
 from django.contrib import messages
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q, Sum
@@ -117,6 +118,7 @@ def product_detail(request, product_id):
     return page(request, "commerce_product", {
         "title": product.name, "section": "commerce_products", "product": product, "variants": variants, "gallery": product.gallery.all(),
         "catalog_readiness_issues": publication.product_readiness_issues(product),
+        "publication_enabled": getattr(settings, "PLANTUPIA_STOREFRONT_PUBLICATION_ENABLED", False),
     })
 
 
@@ -160,6 +162,27 @@ def product_review(request, product_id):
             "Product details approved for future storefront. This does not publish the Shop."
             if product.catalog_review_status == CommerceProduct.CatalogReviewStatus.APPROVED
             else "Product returned to review."
+        ))
+    return redirect("company:commerce-product", product_id=product_id)
+
+
+@portal("plants.change_commerceproduct", methods=("POST",))
+def product_publication(request, product_id):
+    """Explicit operator publish/unpublish, independent from content approval."""
+    company.require(request.user, "plants.view_commerceproduct")
+    try:
+        product = publication.set_storefront_publication(
+            staff=request.user, product_id=product_id,
+            action=request.POST.get("action", ""),
+        )
+    except ValidationError as exc:
+        for issue in exc.messages:
+            messages.error(request, issue)
+    else:
+        messages.success(request, (
+            "Product is listed in the real customer Shop."
+            if product.storefront_published_at else
+            "Product removed from the customer Shop."
         ))
     return redirect("company:commerce-product", product_id=product_id)
 
