@@ -20,7 +20,7 @@ from django.utils import timezone
 
 from . import company_services as company
 from .commerce_models import (
-    CommerceCartLine, CommerceOrder, CommerceOrderLine, CommerceProduct,
+    CommerceCartLine, CommerceOrder, CommerceOrderLine, CommerceRealOrderEvent, CommerceProduct,
     CommerceSKU, CommerceStockLocation, CommerceStockMovement,
     CommerceStockReservation,
 )
@@ -86,6 +86,10 @@ def order_json(order):
     return {
         "id": str(order.pk),
         "status": order.status,
+        "timeline": [
+            {"kind": event.kind, "label": event.label, "at": event.created_at.isoformat()}
+            for event in order.status_events.all()
+        ],
         "created_at": order.created_at.isoformat(),
         "updated_at": order.updated_at.isoformat(),
         "customer": {
@@ -123,13 +127,13 @@ def order_json(order):
 def customer_orders(user):
     customer_only(user)
     return CommerceOrder.objects.filter(customer=user).prefetch_related(
-        "lines").order_by("-created_at", "pk")[:100]
+        "lines", "status_events").order_by("-created_at", "pk")[:100]
 
 
 def customer_order(user, order_id):
     customer_only(user)
     return get_object_or_404(
-        CommerceOrder.objects.prefetch_related("lines"),
+        CommerceOrder.objects.prefetch_related("lines", "status_events"),
         pk=order_id, customer=user,
     )
 
@@ -185,6 +189,8 @@ def request_shipping_quote(*, user, data):
             )
             for line in lines
         ])
+        CommerceRealOrderEvent.objects.create(order=order, actor=user,
+            kind="quote_requested", label="You requested an exact shipping quote.")
         company.audit(user, order,
             "Customer requested an actual delivery quote. No stock reserved, money received, or shipment.")
         return order
@@ -218,6 +224,8 @@ def quote_shipping(*, staff, order_id, fee, version):
             "shipping_fee", "shipping_quote_version", "shipping_quote_expires_at",
             "status", "quoted_by", "quoted_at", "last_status_at", "updated_at",
         ])
+        CommerceRealOrderEvent.objects.create(order=order, actor=staff,
+            kind="shipping_quoted", label="Plantupia supplied a shipping quote for your approval.")
         company.audit(staff, order, f"Company quoted exact delivery fee EGP {shipping_fee}; awaiting customer consent.")
         return order
 
@@ -280,6 +288,8 @@ def accept_shipping_quote(*, user, order_id, quote_version):
             CommerceCartLine.objects.filter(
                 customer=user, sku_id=line.sku_id, quantity=line.quantity,
             ).delete()
+        CommerceRealOrderEvent.objects.create(order=order, actor=user,
+            kind="quote_accepted", label="You accepted the exact total; stock is reserved. Payment is not verified.")
         company.audit(user, order,
             "Customer accepted exact subtotal+shipping; actual location-based stock reserved. Payment remains unpaid.")
         return order
@@ -312,6 +322,8 @@ def cancel_customer_order(*, user, order_id):
         order.cancelled_at = timezone.now()
         order.last_status_at = order.cancelled_at
         order.save(update_fields=["status", "cancelled_at", "last_status_at", "updated_at"])
+        CommerceRealOrderEvent.objects.create(order=order, actor=user,
+            kind="cancelled", label="You cancelled the order; active stock reservations were released.")
         company.audit(user, order,
             "Customer cancelled commercial order. Active reservations released; no refund inferred.")
         return order
@@ -329,6 +341,8 @@ def decline_quote_request(*, staff, order_id):
         order.status = CommerceOrder.Status.DECLINED
         order.last_status_at = timezone.now()
         order.save(update_fields=["status", "last_status_at", "updated_at"])
+        CommerceRealOrderEvent.objects.create(order=order, actor=staff,
+            kind="declined", label="Plantupia could not fulfill this shipping quote request.")
         company.audit(staff, order,
             "Operator declined shipping quote request. No stock reserved, delivery or payment.")
         return order

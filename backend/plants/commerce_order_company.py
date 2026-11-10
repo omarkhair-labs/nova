@@ -44,7 +44,7 @@ def real_orders(request):
 def real_order_detail(request, order_id):
     order = get_object_or_404(
         CommerceOrder.objects.select_related("customer", "quoted_by")
-        .prefetch_related("lines", "stock_reservations__location"),
+        .prefetch_related("lines", "stock_reservations__location", "status_events"),
         pk=order_id,
     )
     return page(request, "commerce_order", {

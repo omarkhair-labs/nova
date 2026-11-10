@@ -500,6 +500,23 @@ class CommerceOrderLine(models.Model):
         ]
 
 
+class CommerceRealOrderEvent(models.Model):
+    """Immutable customer-visible history for actual commerce orders only.
+
+    Events describe verified workflow actions; they never infer payment or shipping.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.ForeignKey(CommerceOrder, on_delete=models.PROTECT, related_name="status_events")
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="plantupia_real_order_status_events")
+    kind = models.CharField(max_length=32)
+    label = models.CharField(max_length=160)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("created_at", "id")
+
+
 class CommerceStockReservation(models.Model):
     """Actual on-hand stock held at an exact location for a confirmed order."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

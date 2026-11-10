@@ -12,7 +12,7 @@ from PIL import Image
 
 from .commerce_models import (
     CommerceProduct, CommerceSKU, CommerceStockLocation, CommerceOrder,
-    CommerceOrderLine, CommerceStockReservation,
+    CommerceOrderLine, CommerceStockReservation, CommerceRealOrderEvent,
 )
 from .commerce_publication import review_catalog_product
 from .commerce_services import record_counted_stock, stock_balance
@@ -237,3 +237,28 @@ class RealCustomerOrderTests(DemoFixture, TestCase):
         self.assertEqual(rejected.status_code, 400)
         self.assertFalse(CommerceStockReservation.objects.exists())
         self.assertEqual(CommerceOrder.objects.get(pk=oid).status, "quoted")
+
+    def test_real_order_timeline_is_customer_scoped_and_idempotent(self):
+        self.cart(2)
+        oid = self.request_order().data["id"]
+        initial = self.api.get(reverse("plantupia-real-commerce-order", args=[oid])).data
+        self.assertEqual([event["kind"] for event in initial["timeline"]], ["quote_requested"])
+        self.assertEqual(self.company_quote(oid, fee="25.00").status_code, 302)
+        quoted = self.api.get(reverse("plantupia-real-commerce-order", args=[oid])).data
+        self.assertEqual([event["kind"] for event in quoted["timeline"]],
+                         ["quote_requested", "shipping_quoted"])
+        self.assertEqual(self.accept(oid).status_code, 200)
+        self.assertEqual(self.accept(oid).status_code, 200)
+        accepted = self.api.get(reverse("plantupia-real-commerce-order", args=[oid])).data
+        self.assertEqual([event["kind"] for event in accepted["timeline"]],
+                         ["quote_requested", "shipping_quoted", "quote_accepted"])
+        self.assertNotIn("delivered", str(accepted["timeline"]).lower())
+        self.assertEqual(self.api.post(reverse("plantupia-real-commerce-cancel", args=[oid]),
+                                       {}, format="json").status_code, 200)
+        self.assertEqual(self.api.post(reverse("plantupia-real-commerce-cancel", args=[oid]),
+                                       {}, format="json").status_code, 200)
+        self.assertEqual(list(CommerceRealOrderEvent.objects.filter(order_id=oid)
+                              .values_list("kind", flat=True)),
+                         ["quote_requested", "shipping_quoted", "quote_accepted", "cancelled"])
+        self.api.force_authenticate(self.stranger)
+        self.assertEqual(self.api.get(reverse("plantupia-real-commerce-order", args=[oid])).status_code, 404)

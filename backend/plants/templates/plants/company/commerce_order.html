@@ -62,5 +62,16 @@
   {% endfor %}
 </section>
 {% endif %}
+<section class="panel padded">
+  <p class="eyebrow">ACTUAL ORDER ACTIVITY</p><h2>Timeline / سجل الطلب</h2>
+  {% for event in order.status_events.all %}
+    <div class="record-row">
+      <div class="grow"><strong>{{ event.label }}</strong><small>{{ event.created_at|date:"j M Y, H:i" }} · {{ event.actor.username }}</small></div>
+      <span>{{ event.kind }}</span>
+    </div>
+  {% empty %}
+    <p class="fine">No persisted real order events. Older orders may predate timeline activation.</p>
+  {% endfor %}
+</section>
 <div class="commerce-reality"><strong>Not yet production-finished</strong><span>Staff dispatch, POD, COD/transfer reconciliation, invoices and refunds require verified operational implementation. This screen can only quote or decline before confirmation.</span></div>
 {% endblock %}
