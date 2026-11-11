@@ -206,28 +206,55 @@ internal fun PlantupiaCareActivity(accountId: Long) {
         }
         HorizontalDivider()
         Text(selected.format(dayFormatter), style = MaterialTheme.typography.titleMedium)
-        if (!busy && selectedEntries.isEmpty()) {
+        if (!busy && !historyBusy && selectedEntries.isEmpty() && historyError == null) {
             Text("Nothing scheduled for this date.", style = PlantupiaText.supporting)
         }
-        selectedEntries.forEach { entry ->
+        selectedEntries.sortedWith(
+            compareByDescending<CareCalendarEntry> { it.recorded }.thenBy { it.plantName }
+        ).forEach { entry ->
             Card(onClick = { PlantupiaPlantOpenSignal.open(accountId, entry.plantId) }) {
-                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text(entry.plantName, style = MaterialTheme.typography.titleSmall)
-                    Text(entry.title, style = MaterialTheme.typography.bodyMedium)
-                    Text(entry.origin + " · Open plant to record or change the check",
-                        style = MaterialTheme.typography.labelSmall)
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    val plant = plants.firstOrNull { it.id == entry.plantId }
+                    PlantupiaEvidencePhoto(
+                        photoUrl = plant?.coverPhoto.orEmpty(),
+                        photoDescription = "Actual photo of " + entry.plantName,
+                        modifier = Modifier.size(56.dp),
+                        cornerRadius = 12.dp,
+                        compact = true,
+                    )
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(entry.plantName, style = MaterialTheme.typography.titleSmall)
+                        Text(entry.title, style = MaterialTheme.typography.bodyMedium)
+                        Text(entry.origin, style = MaterialTheme.typography.labelSmall)
+                    }
+                    Text(
+                        if (entry.recorded) "Done ✓"
+                        else if (entry.date < LocalDate.now()) "Due"
+                        else "Planned",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (entry.recorded) PlantupiaColors.forest
+                            else PlantupiaColors.secondaryText,
+                    )
                 }
             }
         }
-        if (!busy && entries.isEmpty() && error == null) {
+        if (!busy && !historyBusy && entries.isEmpty() && error == null && historyError == null) {
             Text("No dates yet. Create a personal follow-up or opt in to a reviewed inspection from your plant.", style = PlantupiaText.body)
+        }
+        historyError?.let { message ->
+            Text("Recorded care history is unavailable: $message", color = MaterialTheme.colorScheme.error)
+            TextButton(onClick = { revision++ }) { Text("Retry history") }
         }
         error?.let { message ->
             Text(message, color = MaterialTheme.colorScheme.error)
             TextButton(onClick = { revision++ }) { Text("Retry care calendar") }
         }
         Text(
-            "Schedule changes and completed observations are recorded in each plant's Living History. " +
+            "Tap any plant to open its complete Living History, record a check or change a follow-up. " +
                 "Android notification delivery needs separate permission and may not happen at an exact minute.",
             style = PlantupiaText.supporting,
         )
