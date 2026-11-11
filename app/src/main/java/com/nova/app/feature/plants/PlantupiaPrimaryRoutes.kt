@@ -47,12 +47,23 @@ fun PlantupiaPlantsRoute(
     var showingCareCalendar by rememberSaveable(accountId) {
         androidx.compose.runtime.mutableStateOf(false)
     }
-    BackHandler(enabled = showingCareCalendar) { showingCareCalendar = false }
+    var calendarReturnToToday by rememberSaveable(accountId) {
+        androidx.compose.runtime.mutableStateOf(false)
+    }
+    fun closeCareCalendar() {
+        showingCareCalendar = false
+        if (calendarReturnToToday) {
+            calendarReturnToToday = false
+            onToday()
+        }
+    }
+    BackHandler(enabled = showingCareCalendar) { closeCareCalendar() }
 
     val calendarTarget = PlantupiaCareCalendarOpenSignal.targetAccountId
     val calendarVersion = PlantupiaCareCalendarOpenSignal.version
     LaunchedEffect(accountId, calendarTarget, calendarVersion) {
         if (calendarTarget == accountId && accountId > 0) {
+            calendarReturnToToday = PlantupiaCareCalendarOpenSignal.returnToToday
             showingCareCalendar = true
             PlantupiaCareCalendarOpenSignal.consume(accountId)
         }
@@ -64,6 +75,7 @@ fun PlantupiaPlantsRoute(
     LaunchedEffect(pendingPlant) {
         if (showingCareCalendar && pendingPlant?.first == accountId) {
             showingCareCalendar = false
+            calendarReturnToToday = false
         }
     }
 
@@ -91,7 +103,7 @@ fun PlantupiaPlantsRoute(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    NovaBackButton(onClick = { showingCareCalendar = false })
+                    NovaBackButton(onClick = { closeCareCalendar() })
                     Text("My care schedule", style = PlantupiaText.editorialHeading)
                 }
                 Column(
