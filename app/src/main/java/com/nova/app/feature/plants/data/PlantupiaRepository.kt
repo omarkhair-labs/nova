@@ -385,6 +385,20 @@ class PlantupiaRepository(
             }
         }
 
+    /** One bounded, read-only projection of actual Living History events in the visible grid. */
+    suspend fun calendarHistory(from: String, through: String): ApiResult<List<JSONObject>> =
+        authorized { token ->
+            when (val response = api.requestJson(
+                path = "plantupia/care-calendar/history/?from=$from&to=$through",
+                bearerToken = token,
+            )) {
+                is ApiResult.Failure -> response
+                is ApiResult.Success -> parsePlantupiaResponse(response.value) { body ->
+                    plantupiaRows(body)
+                }
+            }
+        }
+
     suspend fun historyPage(plantId: String, offset: Int = 0, pendingOnly: Boolean = false): ApiResult<PlantupiaHistoryPage> =
         authorized { token ->
             val pageOffset = offset.coerceAtLeast(0)
