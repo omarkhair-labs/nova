@@ -15,6 +15,7 @@ internal data class CareCalendarEntry(
     val plantName: String,
     val title: String,
     val origin: String,
+    val recorded: Boolean = false,
 )
 
 internal fun parseCareCalendarDate(value: String?): LocalDate? =
@@ -37,5 +38,5 @@ internal fun careCalendarEntries(
     reviewed: List<CareCalendarEntry>,
 ): List<CareCalendarEntry> = (personal + reviewed)
     .filter { it.plantId.isNotBlank() }
-    .distinctBy { listOf(it.date.toString(), it.plantId, it.title, it.origin) }
+    .distinctBy { listOf(it.date.toString(), it.plantId, it.title, it.origin, it.recorded.toString()) }
     .sortedWith(compareBy(CareCalendarEntry::date, CareCalendarEntry::plantName, CareCalendarEntry::title))
