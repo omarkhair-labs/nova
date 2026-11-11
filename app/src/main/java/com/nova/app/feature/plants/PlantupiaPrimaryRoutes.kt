@@ -25,8 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.nova.app.ui.components.NovaBackButton
-import com.nova.app.ui.components.NovaIconButton
-import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.feature.plants.data.PlantupiaRepository
 import com.nova.app.ui.components.NovaBottomBar
 import com.nova.app.ui.components.NovaTab
@@ -116,26 +114,6 @@ fun PlantupiaPlantsRoute(
                     user?.name.orEmpty(), user?.username.orEmpty(), user?.avatarUrl.orEmpty(),
                     accountId, user?.plantupiaAvatarVariant ?: -1, onProfile,
                 )
-                // The calendar is a top-level contextual icon beside My Plants,
-                // not another bottom navigation tab or a large inline CTA.
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text("MY PLANTS", style = PlantupiaText.sectionLabel)
-                    NovaIconButton(
-                        asset = NovaIconAsset.CareCalendar,
-                        contentDescription = "Open care calendar",
-                        onClick = {
-                            showingCareCalendar = true
-                            scope.launch { scroll.scrollTo(0) }
-                        },
-                        containerColor = PlantupiaColors.paper,
-                        contentColor = PlantupiaColors.forest,
-                        borderColor = PlantupiaColors.border,
-                    )
-                }
                 PlantupiaClientSection(
                     accountId = accountId,
                     onCommunityCreateClick = onCreatePost,
