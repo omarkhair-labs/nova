@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -16,7 +17,6 @@ import org.json.JSONObject
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /**
  * Week/month calendar over the SAME server-owned approved plans and user-chosen
@@ -75,7 +75,9 @@ internal fun PlantupiaCareActivity(accountId: Long) {
     }
     val visible = if (weekMode) careCalendarWeekDays(selected) else careCalendarMonthDays(month)
     val selectedEntries = entries.filter { it.date == selected }
-    val dateFormatter = remember { DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault()) }
+    val locale = LocalConfiguration.current.locales[0]
+    val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMMM yyyy", locale) }
+    val dayFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEE d MMM yyyy", locale) }
 
     Column(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Care calendar", style = PlantupiaText.editorialHeading)
@@ -163,7 +165,7 @@ internal fun PlantupiaCareActivity(accountId: Long) {
             }
         }
         HorizontalDivider()
-        Text(selected.format(DateTimeFormatter.ofPattern("EEE d MMM yyyy", Locale.getDefault())), style = MaterialTheme.typography.titleMedium)
+        Text(selected.format(dayFormatter), style = MaterialTheme.typography.titleMedium)
         if (!busy && selectedEntries.isEmpty()) {
             Text("Nothing scheduled for this date.", style = PlantupiaText.supporting)
         }
