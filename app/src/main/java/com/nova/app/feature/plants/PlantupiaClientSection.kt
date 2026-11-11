@@ -600,7 +600,9 @@ private fun PlantupiaAccountClientSection(
                     Text("Today", fontFamily = FontFamily.Serif, fontSize = 31.sp, color = deepGreen)
                 }
             }
-            if (!loading) {
+            // The selected Space chip already carries its real count.
+            // Avoid a second collection summary under Today's masthead.
+            if (!loading && (plants.none { it.active } || (section == PlantupiaPrimarySection.PLANTS && spaces.isEmpty()))) {
                 Text(
                     if (plants.any { it.active }) "${plants.count { it.active }} plants in your care"
                     else "Your plants start here.",
@@ -749,7 +751,7 @@ private fun PlantupiaAccountClientSection(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(if (heroPhoto.isNotBlank()) 196.dp else 154.dp),
+                            .height(if (photoHero) 178.dp else 130.dp),
                     ) {
                         if (heroPhoto.isNotBlank()) {
                             PlantupiaEvidencePhoto(
@@ -772,6 +774,10 @@ private fun PlantupiaAccountClientSection(
                                             )
                                         )
                                 )
+                            } else {
+                                // Cover even the icon-only photo fallback so the
+                                // Space title never overlays a fake photo marker.
+                                Box(Modifier.matchParentSize().background(Color(0xFFD6E2D4)))
                             }
                         }
                         Column(
@@ -796,12 +802,7 @@ private fun PlantupiaAccountClientSection(
                             if (featured.location.isNotBlank()) {
                                 Text(featured.location, color = heroMuted, fontSize = 12.sp)
                             }
-                            Text(
-                                spacePlantCountSummary(featuredCount),
-                                color = heroMuted,
-                                fontSize = 12.sp,
-                            )
-                        }
+                         }
                     }
                 }
                 // Editing site context belongs with its actual chosen space,
