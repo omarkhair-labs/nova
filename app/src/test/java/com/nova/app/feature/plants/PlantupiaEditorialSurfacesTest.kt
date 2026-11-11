@@ -10,15 +10,15 @@ class PlantupiaEditorialSurfacesTest {
             todayCareBrief(activeCount = 0, dueCount = 0),
         )
         assertEquals(
-            "A place for the small moments you actually notice.",
+            "See what's next, or record a moment of care.",
             todayCareBrief(activeCount = 2, dueCount = 0),
         )
         assertEquals(
-            "Your next check is ready to open below.",
+            "One personal check-in ready to review.",
             todayCareBrief(activeCount = 3, dueCount = 1),
         )
         assertEquals(
-            "Your next check is ready to open below.",
+            "3 personal check-ins ready to review.",
             todayCareBrief(activeCount = 3, dueCount = 3),
         )
     }
