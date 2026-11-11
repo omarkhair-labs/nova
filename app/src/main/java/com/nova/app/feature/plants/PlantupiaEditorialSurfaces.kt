@@ -115,8 +115,9 @@ internal fun PlantupiaEditorialMark(kind: String, modifier: Modifier = Modifier,
 /** Status text is derived only from real user-chosen check-ins. */
 internal fun todayCareBrief(activeCount: Int, dueCount: Int): String = when {
     activeCount == 0 -> "Start with a real plant. Its record begins here."
-    dueCount > 0 -> "Your next check is ready to open below."
-    else -> "A place for the small moments you actually notice."
+    dueCount == 1 -> "One personal check-in ready to review."
+    dueCount > 1 -> "$dueCount personal check-ins ready to review."
+    else -> "See what's next, or record a moment of care."
 }
 
 internal data class ShopShelfCategory(val key: String, val label: String, val sublabel: String, val tint: Color)
@@ -173,10 +174,15 @@ internal fun PlantupiaShopCategoryShelf(selected: String, onSelect: (String) -> 
     }
 }
 
+/**
+ * Today's first fold belongs to the user's day. Schedule is reachable here
+ * without scrolling past inspections or repeating a calendar shortcut below.
+ */
 @Composable
 internal fun PlantupiaTodayMasthead(
     activeCount: Int,
     dueCount: Int,
+    onOpenCalendar: () -> Unit,
     date: LocalDate = LocalDate.now(),
 ) {
     Surface(
@@ -184,23 +190,47 @@ internal fun PlantupiaTodayMasthead(
         shape = RoundedCornerShape(22.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(17.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 17.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 Text(
-                    date.format(DateTimeFormatter.ofPattern("EEEE · d MMM", Locale.ENGLISH)).uppercase(Locale.ENGLISH),
+                    date.format(DateTimeFormatter.ofPattern("EEE · d MMM", Locale.ENGLISH))
+                        .uppercase(Locale.ENGLISH),
                     style = PlantupiaText.sectionLabel.copy(color = Color(0xFFD5DEC5)),
+                    modifier = Modifier.weight(1f),
                 )
-                Text("A quieter way to care", style = PlantupiaText.editorialHeading.copy(color = PlantupiaColors.paper))
-                Text(
-                    todayCareBrief(activeCount, dueCount),
-                    style = PlantupiaText.supporting.copy(color = PlantupiaColors.cream),
-                )
+                Surface(
+                    onClick = onOpenCalendar,
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFF315446),
+                    border = BorderStroke(1.dp, Color(0xFF819C88)),
+                ) {
+                    Row(
+                        modifier = Modifier.heightIn(min = 48.dp)
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(7.dp),
+                    ) {
+                        PlantupiaEditorialMark("today", Modifier.size(19.dp), Color(0xFFE1EADB))
+                        Text("Schedule ↗", style = PlantupiaText.sectionLabel.copy(
+                            color = PlantupiaColors.paper))
+                    }
+                }
             }
-            PlantupiaEditorialMark("today", Modifier.size(65.dp), Color(0xFFD5DEC5))
+            Text(
+                if (dueCount > 0) "A little care is due"
+                else if (activeCount == 0) "It begins with a plant"
+                else "One day, one living space",
+                style = PlantupiaText.editorialHeading.copy(color = PlantupiaColors.paper),
+            )
+            Text(todayCareBrief(activeCount, dueCount),
+                style = PlantupiaText.supporting.copy(color = PlantupiaColors.cream))
         }
     }
 }
