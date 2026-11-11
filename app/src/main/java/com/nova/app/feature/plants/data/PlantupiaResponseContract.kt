@@ -43,6 +43,28 @@ internal fun plantupiaRows(body: JSONObject): List<JSONObject> {
 internal fun <T> parsePlantupiaList(body: JSONObject, parse: (JSONObject) -> T): ApiResult<List<T>> =
     parsePlantupiaResponse(body) { plantupiaRows(it).map(parse) }
 
+/**
+ * The care calendar endpoint returns aggregate rows, not PlantEvent records.
+ * A row is keyed by (date, plant_id, kind), and deliberately has no "id".
+ * Do not reuse plantupiaRows(), which requires an entity ID for every row.
+ */
+internal fun plantupiaCalendarHistoryRows(body: JSONObject): List<JSONObject> {
+    val rows = body.opt("results") as? JSONArray ?: throw IllegalArgumentException("Missing calendar results")
+    return List(rows.length()) { index ->
+        val row = rows.opt(index) as? JSONObject ?: throw IllegalArgumentException("Malformed calendar row")
+        val date = requiredPlantupiaString(row, "date")
+        require(runCatching { java.time.LocalDate.parse(date) }.isSuccess) { "Invalid calendar date" }
+        requiredPlantupiaString(row, "plant_id")
+        requiredPlantupiaString(row, "plant_name")
+        requiredPlantupiaString(row, "kind")
+        require(requiredPlantupiaString(row, "state") == "recorded") { "Unknown calendar state" }
+        val count = row.opt("count") as? Number ?: throw IllegalArgumentException("Missing calendar count")
+        require(count.toDouble().isFinite() && count.toDouble() >= 1.0 && count.toDouble() <= Int.MAX_VALUE &&
+            count.toDouble() == count.toInt().toDouble()) { "Invalid calendar count" }
+        row
+    }
+}
+
 internal fun plantupiaNextOffset(body: JSONObject, offset: Int): Int? {
     require(body.has("next_offset"))
     if (body.isNull("next_offset")) return null
