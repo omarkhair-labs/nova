@@ -31,7 +31,18 @@
       </form>
     {% endif %}
     {% if record.status == "accepted" %}
-      <div class="notice">Customer accepted the nonbinding quote for commercial follow-up. Prepare a real contract or purchase order before any allocation or installation.</div>
+      <div class="notice">The customer accepted a nonbinding quotation. Prepare a verified purchase order / contract separately before allocating stock, approving physical inventory, or issuing a QR handover.</div>
+      {% if record.kind == "installation" %}
+        {% if prepared_installation %}
+          <a class="button primary" href="{% url 'company:installation' prepared_installation.pk %}">Open linked draft installation →</a>
+        {% elif perms.plants.add_installationbatch and perms.plants.add_space %}
+          <form method="post" action="{% url 'company:business-inquiry-installation' record.pk %}">
+            {% csrf_token %}
+            <button class="button primary" type="submit">Prepare draft installation from this quote →</button>
+          </form>
+          <p class="fine">Creates one staff-owned draft with the quoted scope. It does not add fictional plants or confirm a contract.</p>
+        {% endif %}
+      {% endif %}
     {% endif %}
   </section>
 </div>

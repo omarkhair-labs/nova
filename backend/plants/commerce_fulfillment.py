@@ -157,5 +157,12 @@ def record_delivery(*, staff, order_id, proof_reference):
         order=order, actor=staff, kind="delivered",
         label="Plantupia recorded delivery with a retained proof reference.",
     )
-    company.audit(staff, receipt, f"Operator recorded retained delivery evidence {proof}; payment state unchanged.")
+    # The customer now owns a private living record for each delivered plant-kind SKU.
+    # Do not turn pots/care supplies into plants or invent specimen verification.
+    from .commerce_ownership import activate_delivered_shop_plants
+    activated = activate_delivered_shop_plants(order_id=order.pk, staff=staff)
+    company.audit(staff, receipt, (
+        f"Operator recorded retained delivery evidence {proof}; payment state unchanged; "
+        f"{len(activated)} individual purchased plants linked to customer My Plants."
+    ))
     return order

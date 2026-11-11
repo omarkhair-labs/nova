@@ -11,6 +11,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import com.nova.app.ui.components.NovaIconButton
+import com.nova.app.ui.icons.NovaIconAsset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -37,6 +39,7 @@ internal fun visibleDueCheckInCount(total: Int, requested: Int): Int =
 internal fun PlantupiaTodayPanel(
     plants: List<PlantupiaPlant>,
     onOpenPlant: (PlantupiaPlant) -> Unit,
+    onOpenCalendar: () -> Unit,
 ) {
     val active = plants.filter { it.active }
     if (active.isEmpty()) return
@@ -48,14 +51,30 @@ internal fun PlantupiaTodayPanel(
     var visible by rememberSaveable { mutableIntStateOf(3) }
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Care, in your own rhythm", style = PlantupiaText.editorialHeading)
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("Care, in your own rhythm", style = PlantupiaText.editorialHeading)
+                    Text(
+                        if (due.isEmpty()) "NO PERSONAL CHECK-INS DUE" else "${due.size} SAVED CHECK-INS DUE",
+                        style = PlantupiaText.sectionLabel,
+                    )
+                }
+                NovaIconButton(
+                    asset = NovaIconAsset.CareCalendar,
+                    contentDescription = "Open full care schedule",
+                    onClick = onOpenCalendar,
+                    containerColor = PlantupiaColors.paper,
+                    contentColor = PlantupiaColors.forest,
+                    borderColor = PlantupiaColors.border,
+                )
+            }
             Text(
-                if (due.isEmpty()) "NO CHECK-INS DUE" else "${due.size} SAVED CHECK-INS DUE",
-                style = PlantupiaText.sectionLabel,
-            )
-            Text(
-                "Personal check-ins use the dates you chose. Company-approved checks are listed above.",
+                "Your own check-ins appear here. Open the calendar to see your week, month and reviewed inspection plans.",
                 style = PlantupiaText.supporting,
             )
         }

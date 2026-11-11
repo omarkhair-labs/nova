@@ -17,6 +17,7 @@ urlpatterns = [
     path("projects/business/", actual_business.real_business_inquiries, name="business-inquiries"),
     path("projects/business/<uuid:inquiry_id>/", actual_business.real_business_inquiry, name="business-inquiry"),
     path("projects/business/<uuid:inquiry_id>/quote/", actual_business.real_business_quote_decision, name="business-inquiry-quote"),
+    path("projects/business/<uuid:inquiry_id>/installation/", actual_business.create_business_installation, name="business-inquiry-installation"),
     path("projects/rfqs/", business.rfq_list, name="business-rfqs"),
     path("projects/rfqs/<uuid:rfq_id>/", business.rfq_detail, name="business-rfq"),
     path("commerce/", operations.commerce_home, name="commerce-home"),

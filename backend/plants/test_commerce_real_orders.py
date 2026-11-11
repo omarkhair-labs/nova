@@ -469,3 +469,68 @@ class RealCustomerOrderTests(DemoFixture, TestCase):
         self.api.force_authenticate(self.stranger)
         self.assertEqual(self.api.post(url, payload, format="json").status_code, 404)
         self.assertFalse(CommerceReturnCase.objects.exists())
+
+
+    def test_delivered_plant_skus_activate_private_my_plants_once(self):
+        from .commerce_models import CommerceDeliveredPlant, CommerceCustomerPlantSpace
+        self.real.kind = "plant"
+        self.real.save(update_fields=["kind"])
+        self.cart(2)
+        oid = self.request_order().data["id"]
+        self.company_quote(oid, fee="20.00")
+        self.assertEqual(self.accept(oid).status_code, 200)
+        delivery = reverse("company:commerce-order-fulfillment", args=[oid])
+        self.assertFalse(CommerceDeliveredPlant.objects.exists())
+        self.client.post(delivery, {"action": "prepare"})
+        self.client.post(delivery, {
+            "action": "dispatch", "carrier_name": "Company delivery",
+            "tracking_reference": "DELIVERY-PLANTS-001",
+            "dispatch_note": "Actual individual plants signed over to the delivery team.",
+        })
+        self.assertFalse(CommerceDeliveredPlant.objects.exists())
+        self.client.post(delivery, {
+            "action": "delivered", "proof_reference": "RETAINED-POD-PLANTS-001",
+        })
+        rows = list(CommerceDeliveredPlant.objects.filter(
+            order_line__order_id=oid).select_related("plant"))
+        self.assertEqual(len(rows), 2)
+        space = CommerceCustomerPlantSpace.objects.get(customer=self.owner).space
+        self.assertEqual(space.owner_id, self.owner.pk)
+        self.assertTrue(all(
+            item.plant.space_id == space.pk and
+            item.plant.verified_species_id is None and
+            item.plant.selected_species_id is None and
+            not item.plant.cover_photo for item in rows
+        ))
+        response = self.api.get(reverse("plantupia-real-commerce-order", args=[oid]))
+        self.assertEqual(set(response.data["my_plant_ids"]), {
+            str(item.plant_id) for item in rows
+        })
+        self.client.post(delivery, {
+            "action": "delivered", "proof_reference": "RETAINED-POD-PLANTS-001",
+        })
+        self.assertEqual(CommerceDeliveredPlant.objects.count(), 2)
+
+    def test_nonliving_shop_order_does_not_create_plant_records(self):
+        from .commerce_models import CommerceDeliveredPlant, CommerceCustomerPlantSpace
+        self.assertEqual(self.real.kind, "planter")
+        self.cart(1)
+        oid = self.request_order().data["id"]
+        self.company_quote(oid, fee="10.00")
+        self.accept(oid)
+        url = reverse("company:commerce-order-fulfillment", args=[oid])
+        self.client.post(url, {"action": "prepare"})
+        self.client.post(url, {
+            "action": "dispatch", "carrier_name": "Company delivery",
+            "tracking_reference": "DELIVERY-POT-001",
+            "dispatch_note": "Ceramic planter handed over to delivery team.",
+        })
+        self.client.post(url, {
+            "action": "delivered", "proof_reference": "RETAINED-POD-POT-001",
+        })
+        self.assertFalse(CommerceDeliveredPlant.objects.exists())
+        self.assertFalse(CommerceCustomerPlantSpace.objects.exists())
+        self.assertEqual(
+            self.api.get(reverse("plantupia-real-commerce-order", args=[oid])).data["my_plant_ids"],
+            [],
+        )

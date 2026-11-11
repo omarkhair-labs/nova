@@ -637,6 +637,7 @@ private fun PlantupiaAccountClientSection(
                 PlantupiaTodayPanel(
                     plants = plants,
                     onOpenPlant = { plant -> scope.launch { openPlant(plant) } },
+                    onOpenCalendar = { PlantupiaCareCalendarOpenSignal.open(accountId) },
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),

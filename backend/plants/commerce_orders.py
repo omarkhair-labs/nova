@@ -172,6 +172,11 @@ def order_json(order):
         "return_case": _return_case_json(order),
         "fulfillment": _fulfillment_json(order),
         "lines": lines,
+        "my_plant_ids": [str(plant_id) for plant_id in (
+            order.lines.filter(sku__product__kind="plant")
+            .values_list("delivered_plants__plant_id", flat=True)
+            .exclude(delivered_plants__plant_id__isnull=True)
+        )],
         "notice": _status_notice(order),
     }
 

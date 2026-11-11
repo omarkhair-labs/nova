@@ -17,6 +17,7 @@ import com.nova.app.R
 enum class NovaIconAsset(@param:DrawableRes val drawableRes: Int) {
     Home(R.drawable.ic_nova_home),
     Today(R.drawable.ic_plantupia_today),
+    CareCalendar(R.drawable.ic_plantupia_care_calendar),
     Plants(R.drawable.ic_plantupia_plants),
     Shop(R.drawable.ic_plantupia_shop),
     Orbit(R.drawable.ic_nova_orbit),

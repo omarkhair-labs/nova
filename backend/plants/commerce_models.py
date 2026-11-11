@@ -678,3 +678,40 @@ class CommerceStockReservation(models.Model):
             models.CheckConstraint(condition=models.Q(quantity__gte=1),
                 name="plant_store_reservation_positive"),
         ]
+
+
+class CommerceCustomerPlantSpace(models.Model):
+    """One private purchase space per customer, not another installation inventory."""
+    customer = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="plantupia_purchase_space",
+    )
+    space = models.OneToOneField(
+        "plants.Space", on_delete=models.PROTECT, related_name="commerce_purchase_space",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class CommerceDeliveredPlant(models.Model):
+    """Exact-once delivery provenance for one purchased physical plant.
+
+    This is NEVER a staff verification of plant identity or a guessed care
+    schedule. Returned/refunded purchases preserve their dated living history.
+    """
+    order_line = models.ForeignKey(
+        CommerceOrderLine, on_delete=models.PROTECT, related_name="delivered_plants",
+    )
+    unit_index = models.PositiveSmallIntegerField()
+    plant = models.OneToOneField(
+        "plants.PlantUnit", on_delete=models.PROTECT,
+        related_name="commerce_delivery_origin",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("order_line", "unit_index"),
+                name="plant_store_delivery_unit_unique",
+            ),
+        ]
