@@ -594,7 +594,7 @@ private fun PlantupiaAccountClientSection(
                     PlantupiaTodayMasthead(
                         activeCount = plants.count { it.active },
                         dueCount = dueCount,
-                        onOpenCalendar = { PlantupiaCareCalendarOpenSignal.open(accountId) },
+                        onOpenCalendar = { PlantupiaCareCalendarOpenSignal.open(accountId, fromToday = true) },
                     )
                 } else {
                     Text("Today", fontFamily = FontFamily.Serif, fontSize = 31.sp, color = deepGreen)
@@ -733,7 +733,6 @@ private fun PlantupiaAccountClientSection(
                 )
                 val featured = resolveFocusedSpace(spaces, focusedSpaceId) ?: spaces.first()
                 val focusedPlants = plants.filter { it.spaceId == featured.id && it.active }
-                val featuredCount = focusedPlants.size
                 // A plant cover is evidence of that plant, NOT an architectural site photo.
                 val heroPlant = focusedPlants.firstOrNull { it.coverPhoto.isNotBlank() }
                 val heroPhoto = heroPlant?.coverPhoto.orEmpty()
