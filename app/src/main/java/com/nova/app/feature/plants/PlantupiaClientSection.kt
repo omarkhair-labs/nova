@@ -713,11 +713,6 @@ private fun PlantupiaAccountClientSection(
                     }
                 }
             }
-            if (!loading && error == null && section == PlantupiaPrimarySection.TODAY) {
-                TextButton(onClick = { NovaRootNavigationSignal.request(NovaRootTab.Plants) }) {
-                    Text("View all plants →", color = deepGreen)
-                }
-            }
             if (section == PlantupiaPrimarySection.PLANTS) {
             // Pass 07: show the authentic place before AI and creation controls.
             // An empty or failed API must never display stock customer imagery.
@@ -817,7 +812,7 @@ private fun PlantupiaAccountClientSection(
             } else {
                 if (spaces.isNotEmpty()) {
                     // The private history remains inside each plant; avoid a duplicate carousel.
-                    BrandEyebrow("MY PLANTS")
+                    BrandEyebrow("IN THIS SPACE")
                 }
                 val focused = resolveFocusedSpace(spaces, focusedSpaceId)
                 if (focused != null) {
@@ -966,7 +961,7 @@ private fun PlantupiaAccountClientSection(
             }
             if (error != null) Text(error.orEmpty(), color = Color(0xFF9A4A31), fontSize = 12.sp)
             TextButton(onClick = { scope.launch { refresh() } }) {
-                Text("Refresh records", color = deepGreen)
+                Text("↻ Refresh", color = muted, fontSize = 12.sp)
             }
         } else {
             val overviewAnchor = remember(selectedPlant.id) { BringIntoViewRequester() }
