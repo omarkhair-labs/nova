@@ -539,26 +539,50 @@ private fun PlantupiaAccountClientSection(
     ) {
         if (selectedPlant == null) {
             if (section == PlantupiaPrimarySection.PLANTS) {
-                // The primary entry is visible before the collection; existing
-                // server-backed Create editors handle the actual write below.
+                // The schedule belongs to the My Plants heading, not a floating fourth
+                // global-header action. A narrow/large-font device gets a labeled row.
                 BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                    val horizontal = maxWidth >= 300.dp && LocalDensity.current.fontScale <= 1.2f
+                    val horizontal = maxWidth >= 300.dp && LocalDensity.current.fontScale <= 1.15f
                     if (horizontal) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp),
                         ) {
-                            Text("My plants", fontFamily = FontFamily.Serif, fontSize = 31.sp, color = deepGreen)
+                            Text("My plants", modifier = Modifier.weight(1f),
+                                fontFamily = FontFamily.Serif, fontSize = 29.sp, color = deepGreen)
+                            com.nova.app.ui.components.NovaIconButton(
+                                asset = com.nova.app.ui.icons.NovaIconAsset.CareCalendar,
+                                contentDescription = "Open care schedule",
+                                onClick = { PlantupiaCareCalendarOpenSignal.open(accountId) },
+                                size = 48.dp,
+                                contentColor = PlantupiaColors.forest,
+                            )
                             if (!loading && error == null) TextButton(onClick = {
                                 PlantupiaCreateIntent.request(PlantupiaCreateMode.ADD_PLANT)
                             }) { Text("+ Add plant", color = deepGreen) }
                         }
                     } else {
-                        Text("My plants", fontFamily = FontFamily.Serif, fontSize = 31.sp, color = deepGreen)
-                        if (!loading && error == null) TextButton(onClick = {
-                            PlantupiaCreateIntent.request(PlantupiaCreateMode.ADD_PLANT)
-                        }) { Text("+ Add plant", color = deepGreen) }
+                        Text("My plants", fontFamily = FontFamily.Serif,
+                            fontSize = 31.sp, color = deepGreen)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            com.nova.app.ui.components.NovaIconButton(
+                                asset = com.nova.app.ui.icons.NovaIconAsset.CareCalendar,
+                                contentDescription = "Open care schedule",
+                                onClick = { PlantupiaCareCalendarOpenSignal.open(accountId) },
+                                size = 48.dp,
+                                contentColor = PlantupiaColors.forest,
+                            )
+                            Text("Schedule", style = PlantupiaText.body)
+                            Spacer(Modifier.weight(1f))
+                            if (!loading && error == null) TextButton(onClick = {
+                                PlantupiaCreateIntent.request(PlantupiaCreateMode.ADD_PLANT)
+                            }) { Text("+ Add plant", color = deepGreen) }
+                        }
                     }
                 }
             } else {
@@ -570,6 +594,7 @@ private fun PlantupiaAccountClientSection(
                     PlantupiaTodayMasthead(
                         activeCount = plants.count { it.active },
                         dueCount = dueCount,
+                        onOpenCalendar = { PlantupiaCareCalendarOpenSignal.open(accountId) },
                     )
                 } else {
                     Text("Today", fontFamily = FontFamily.Serif, fontSize = 31.sp, color = deepGreen)
@@ -637,7 +662,6 @@ private fun PlantupiaAccountClientSection(
                 PlantupiaTodayPanel(
                     plants = plants,
                     onOpenPlant = { plant -> scope.launch { openPlant(plant) } },
-                    onOpenCalendar = { PlantupiaCareCalendarOpenSignal.open(accountId) },
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -733,6 +757,7 @@ private fun PlantupiaAccountClientSection(
                                 photoDescription = "Uploaded photo of ${heroPlant?.name.orEmpty()} in ${featured.name}",
                                 modifier = Modifier.matchParentSize(),
                                 cornerRadius = 22.dp,
+                                compact = true, // No fallback caption behind the space name.
                                 onPhotoLoadChanged = { loaded -> heroPhotoLoaded = loaded },
                             )
                             if (photoHero) {
