@@ -171,13 +171,13 @@ fun CreateHubScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     com.nova.app.feature.plants.PlantupiaAccountHeader(displayName, username, avatarUrl, userId, avatarVariant, onProfileClick)
                     Text("A moment worth keeping", style = PlantupiaText.pageHeading)
-                    Text("Start with something real. Decide if it stays private or becomes a story.", style = PlantupiaText.supporting)
+                    Text("Your plant records stay private. You choose what to share.", style = PlantupiaText.supporting)
                 }
             }
             item(key = "living-create-private") {
                 CreateIntentGroup(
-                    title = "YOUR PRIVATE FIELD NOTES",
-                    hint = "Only the people authorized in your space can see these records.",
+                    title = "IN YOUR SPACE",
+                    hint = "",
                     featuredFirst = true,
                     actions = listOf(
                         CreateHubAction(
@@ -200,8 +200,8 @@ fun CreateHubScreen(
             }
             item(key = "living-create-public") {
                 CreateIntentGroup(
-                    title = "SHARE, ONLY WHEN YOU WANT TO",
-                    hint = "Public sharing is separate from your private care history.",
+                    title = "SHARE BY CHOICE",
+                    hint = "",
                     actions = publicActions,
                 )
             }
@@ -270,7 +270,7 @@ private fun CreateIntentGroup(
         verticalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
     ) {
         Text(title, style = PlantupiaText.sectionLabel)
-        Text(hint, style = PlantupiaText.supporting)
+        if (hint.isNotBlank()) Text(hint, style = PlantupiaText.supporting)
         actions.forEachIndexed { index, action ->
             CreateActionCard(action, featured = featuredFirst && index == 0)
         }
