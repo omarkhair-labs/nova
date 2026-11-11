@@ -66,6 +66,7 @@ fun PlantupiaPlantsRoute(
         if (calendarTarget == accountId && accountId > 0) {
             calendarReturnToToday = PlantupiaCareCalendarOpenSignal.returnToToday
             showingCareCalendar = true
+            calendarScroll.scrollTo(0)
             PlantupiaCareCalendarOpenSignal.consume(accountId)
         }
     }
