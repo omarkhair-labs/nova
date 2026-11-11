@@ -11,8 +11,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import com.nova.app.ui.components.NovaIconButton
-import com.nova.app.ui.icons.NovaIconAsset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -35,46 +33,33 @@ internal fun scheduledPlantCheckIns(plants: List<PlantupiaPlant>): List<Plantupi
 internal fun visibleDueCheckInCount(total: Int, requested: Int): Int =
     requested.coerceAtLeast(3).coerceAtMost(total.coerceAtLeast(0))
 
+/**
+ * Personal check-ins are one quiet list below the company-approved inspections.
+ * Schedule navigation lives in Today's first fold; no duplicate icon or empty
+ * explainer panel when there are no personal dates.
+ */
 @Composable
 internal fun PlantupiaTodayPanel(
     plants: List<PlantupiaPlant>,
     onOpenPlant: (PlantupiaPlant) -> Unit,
-    onOpenCalendar: () -> Unit,
 ) {
-    val active = plants.filter { it.active }
-    if (active.isEmpty()) return
+    val planned = scheduledPlantCheckIns(plants)
+    if (planned.isEmpty()) return
 
     val today = LocalDate.now()
-    val planned = scheduledPlantCheckIns(plants)
     val due = planned.filter { !LocalDate.parse(it.nextFollowUpOn).isAfter(today) }
     val upcoming = planned.firstOrNull { LocalDate.parse(it.nextFollowUpOn).isAfter(today) }
     var visible by rememberSaveable { mutableIntStateOf(3) }
 
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text("Care, in your own rhythm", style = PlantupiaText.editorialHeading)
-                    Text(
-                        if (due.isEmpty()) "NO PERSONAL CHECK-INS DUE" else "${due.size} SAVED CHECK-INS DUE",
-                        style = PlantupiaText.sectionLabel,
-                    )
-                }
-                NovaIconButton(
-                    asset = NovaIconAsset.CareCalendar,
-                    contentDescription = "Open full care schedule",
-                    onClick = onOpenCalendar,
-                    containerColor = PlantupiaColors.paper,
-                    contentColor = PlantupiaColors.forest,
-                    borderColor = PlantupiaColors.border,
-                )
-            }
-            Text(
-                "Your own check-ins appear here. Open the calendar to see your week, month and reviewed inspection plans.",
+    Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text("YOUR CHECK-INS", style = PlantupiaText.sectionLabel)
+            if (due.isNotEmpty()) Text(
+                if (due.size == 1) "1 due" else "${due.size} due",
                 style = PlantupiaText.supporting,
             )
         }
@@ -84,59 +69,51 @@ internal fun PlantupiaTodayPanel(
                 onClick = { onOpenPlant(first) },
                 modifier = Modifier.fillMaxWidth(),
                 color = PlantupiaColors.softSage,
-                shape = RoundedCornerShape(20.dp),
+                shape = PlantupiaShapes.inset,
                 border = BorderStroke(1.dp, PlantupiaColors.border),
             ) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("READY FOR A CHECK-IN", style = PlantupiaText.sectionLabel)
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        PlantupiaEvidencePhoto(
-                            photoUrl = first.coverPhoto,
-                            photoDescription = "Uploaded photo of " + first.name,
-                            modifier = Modifier.size(106.dp),
-                            cornerRadius = 14.dp,
-                            compact = true,
-                        )
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(5.dp),
-                        ) {
-                            Text(
-                                first.name,
-                                style = PlantupiaText.editorialHeading,
-                            )
-                            Text("Review your plant", style = PlantupiaText.body)
-                            Text(
-                                "Check-in · " + first.nextFollowUpOn,
-                                style = PlantupiaText.supporting,
-                            )
-                            Text("Open care →", style = PlantupiaText.sectionLabel)
-                        }
+                    PlantupiaEvidencePhoto(
+                        photoUrl = first.coverPhoto,
+                        photoDescription = "Uploaded photo of " + first.name,
+                        modifier = Modifier.size(62.dp),
+                        compact = true,
+                    )
+                    Column(modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(first.name, style = PlantupiaText.body.copy(
+                            fontWeight = FontWeight.SemiBold))
+                        Text("Personal check-in · " + first.nextFollowUpOn,
+                            style = PlantupiaText.supporting)
                     }
+                    Text("Open →", style = PlantupiaText.sectionLabel)
                 }
             }
-            due.drop(1).take((visibleDueCheckInCount(due.size, visible) - 1).coerceAtLeast(0)).forEach { plant ->
+            due.drop(1).take(
+                (visibleDueCheckInCount(due.size, visible) - 1).coerceAtLeast(0)
+            ).forEach { plant ->
                 Surface(
                     onClick = { onOpenPlant(plant) },
                     modifier = Modifier.fillMaxWidth(),
                     color = PlantupiaColors.paper,
-                    border = BorderStroke(1.dp, PlantupiaColors.border),
                     shape = PlantupiaShapes.inset,
+                    border = BorderStroke(1.dp, PlantupiaColors.border),
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                        modifier = Modifier.padding(horizontal = 13.dp, vertical = 12.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(plant.name, style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
-                            Text("Check-in · " + plant.nextFollowUpOn, style = PlantupiaText.supporting)
+                        Column(modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(plant.name, style = PlantupiaText.body.copy(
+                                fontWeight = FontWeight.SemiBold))
+                            Text("Check-in · " + plant.nextFollowUpOn,
+                                style = PlantupiaText.supporting)
                         }
                         Text("Open →", style = PlantupiaText.sectionLabel)
                     }
@@ -144,7 +121,7 @@ internal fun PlantupiaTodayPanel(
             }
             if (due.size > visible) {
                 TextButton(onClick = { visible += 8 }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Show more · ${due.size - visible} remaining", color = PlantupiaColors.forest)
+                    Text("Show remaining ${due.size - visible}", color = PlantupiaColors.forest)
                 }
             }
         } else if (upcoming != null) {
@@ -152,31 +129,30 @@ internal fun PlantupiaTodayPanel(
                 onClick = { onOpenPlant(upcoming) },
                 modifier = Modifier.fillMaxWidth(),
                 color = PlantupiaColors.paper,
-                border = BorderStroke(1.dp, PlantupiaColors.border),
                 shape = PlantupiaShapes.inset,
+                border = BorderStroke(1.dp, PlantupiaColors.border),
             ) {
                 Row(
-                    modifier = Modifier.padding(14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.padding(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     PlantupiaEvidencePhoto(
                         photoUrl = upcoming.coverPhoto,
                         photoDescription = "Uploaded photo of " + upcoming.name,
-                        modifier = Modifier.size(64.dp),
-                        cornerRadius = 11.dp,
+                        modifier = Modifier.size(56.dp),
                         compact = true,
                     )
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Next check", style = PlantupiaText.sectionLabel)
-                        Text(upcoming.name, style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
-                        Text(upcoming.nextFollowUpOn, style = PlantupiaText.supporting)
+                    Column(modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(upcoming.name, style = PlantupiaText.body.copy(
+                            fontWeight = FontWeight.SemiBold))
+                        Text("Next personal check-in · " + upcoming.nextFollowUpOn,
+                            style = PlantupiaText.supporting)
                     }
                     Text("Open →", style = PlantupiaText.sectionLabel)
                 }
             }
-        } else {
-            Text("No check-ins planned yet. Open a plant to choose a day.", style = PlantupiaText.supporting)
         }
     }
 }
