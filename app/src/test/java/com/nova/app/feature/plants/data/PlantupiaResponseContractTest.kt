@@ -27,6 +27,41 @@ class PlantupiaResponseContractTest {
         assertFalse(JSONObject("{\"id\":\"space\"}").optBoolean("can_add_plant", false))
     }
 
+    @Test fun calendarAggregateRowsDoNotRequireAnEventId() {
+        val payload = """{"results":[{"date":"2026-11-10","plant_id":"plant-1",
+            "plant_name":"Snake plant 03","kind":"care","count":2,"state":"recorded"}]}"""
+        val parsed = parsePlantupiaResponse(JSONObject(payload), ::plantupiaCalendarHistoryRows)
+        assertTrue(parsed is ApiResult.Success)
+        assertEquals(1, (parsed as ApiResult.Success).value.size)
+        assertEquals(2, parsed.value.first().getInt("count"))
+        assertFalse(parsed.value.first().has("id"))
+        assertEquals(ApiResult.Success(emptyList<JSONObject>()),
+            parsePlantupiaResponse(JSONObject("""{"results":[]}"""), ::plantupiaCalendarHistoryRows))
+    }
+
+    @Test fun calendarAggregateRowsStillRejectMalformedOrUntrustedData() {
+        val valid = """{"date":"2026-11-10","plant_id":"p-1","plant_name":"A plant",
+            "kind":"observation","count":1,"state":"recorded"}"""
+        val invalid = listOf(
+            "{}",
+            """{"results":null}""",
+            """{"results":[{}]}""",
+            """{"results":[{"id":"fake"}]}""",
+            """{"results":[{"date":"2026-11-10","plant_id":"p-1","plant_name":"A plant",
+                "kind":"care","count":0,"state":"recorded"}]}""",
+            """{"results":[{"date":"2026-11-10","plant_id":"p-1","plant_name":"A plant",
+                "kind":"care","count":"1","state":"recorded"}]}""",
+            """{"results":[{"date":"not-a-date","plant_id":"p-1","plant_name":"A plant",
+                "kind":"care","count":1,"state":"recorded"}]}""",
+            """{"results":[{"date":"2026-11-10","plant_id":"p-1","plant_name":"A plant",
+                "kind":"care","count":1,"state":"unverified"}]}""",
+            """{"results":[$valid,{}]}""",
+        )
+        for (json in invalid) {
+            assertTrue(json, parsePlantupiaResponse(JSONObject(json), ::plantupiaCalendarHistoryRows) is ApiResult.Failure)
+        }
+    }
+
     @Test fun historyRequiresExplicitNullableForwardIntegerOffset() {
         assertNull(plantupiaNextOffset(JSONObject("{\"next_offset\":null}"), 0))
         assertEquals(20, plantupiaNextOffset(JSONObject("{\"next_offset\":20}"), 0))
