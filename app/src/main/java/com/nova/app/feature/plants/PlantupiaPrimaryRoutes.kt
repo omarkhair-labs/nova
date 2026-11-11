@@ -42,6 +42,7 @@ fun PlantupiaPlantsRoute(
     onProfile: () -> Unit,
 ) {
     val scroll = rememberScrollState()
+    val calendarScroll = rememberScrollState()
     val scope = rememberCoroutineScope()
     var inventoryOffset by rememberSaveable { mutableIntStateOf(0) }
     var showingCareCalendar by rememberSaveable(accountId) {
@@ -108,10 +109,13 @@ fun PlantupiaPlantsRoute(
                 }
                 Column(
                     modifier = Modifier.fillMaxSize()
-                        .verticalScroll(rememberScrollState())
+                        .verticalScroll(calendarScroll)
                         .padding(horizontal = 17.dp, vertical = 4.dp),
                 ) {
-                    PlantupiaCareActivity(accountId)
+                    PlantupiaCareActivity(
+                        accountId = accountId,
+                        onViewChanged = { scope.launch { calendarScroll.animateScrollTo(0) } },
+                    )
                 }
             }
         } else {
