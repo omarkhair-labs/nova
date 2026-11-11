@@ -206,13 +206,14 @@ internal fun PlantupiaCareActivity(accountId: Long) {
                             verticalArrangement = Arrangement.spacedBy(3.dp),
                         ) {
                             if (index == 0) Text(
-                                day.format(DateTimeFormatter.ofPattern("EEE", locale)),
+                                day.format(DateTimeFormatter.ofPattern("EEEEE", locale)),
                                 style = MaterialTheme.typography.labelSmall,
                             )
                             Text(
                                 day.dayOfMonth.toString(),
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = if (highlighted || day == LocalDate.now()) FontWeight.Bold else FontWeight.Normal,
+                                color = if (inMonth) PlantupiaColors.forest else PlantupiaColors.secondaryText.copy(alpha = .55f),
                             )
                             if (items > 0) {
                                 Text(
@@ -228,16 +229,9 @@ internal fun PlantupiaCareActivity(accountId: Long) {
         }
         }
         HorizontalDivider()
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
+        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(selected.format(dayFormatter), style = PlantupiaText.editorialHeading)
-            Text(
-                "✓ Recorded  ·  • Planned",
-                style = PlantupiaText.supporting,
-            )
+            Text("✓ Recorded  ·  • Planned", style = PlantupiaText.supporting)
         }
         if (!busy && !historyBusy && selectedEntries.isEmpty() && historyError == null) {
             Text(
