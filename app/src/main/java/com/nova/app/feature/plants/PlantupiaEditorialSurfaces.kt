@@ -280,26 +280,29 @@ internal fun PlantupiaApprovedInspectionTodayCard(
         "leaves" -> "Observe the leaves"
         "drainage" -> "Inspect drainage"
         "rotation" -> "Check placement and light"
-        else -> "Review approved inspection"
+        else -> "Review inspection"
     }
+    val dateLabel = runCatching {
+        LocalDate.parse(dueOn).format(DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH))
+    }.getOrDefault(dueOn)
     Surface(
         onClick = onOpenPlant,
         enabled = canOpenPlant,
-        modifier = Modifier.fillMaxWidth().heightIn(min = 82.dp),
+        modifier = Modifier.fillMaxWidth().heightIn(min = 70.dp),
         color = background,
         border = BorderStroke(1.dp, accent.copy(alpha = .24f)),
         shape = RoundedCornerShape(18.dp),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.spacedBy(13.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PlantupiaEditorialMark("today", Modifier.size(45.dp), accent)
+            PlantupiaEditorialMark("today", Modifier.size(35.dp), accent)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(plantName, style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
                 Text(description, style = PlantupiaText.supporting)
-                Text((if (due) "DUE · " else "NEXT · ") + dueOn,
+                Text((if (due) "DUE · " else "NEXT · ") + dateLabel,
                     style = PlantupiaText.sectionLabel.copy(color = accent))
             }
             Text(if (canOpenPlant) "Open →" else "Unavailable", style = PlantupiaText.sectionLabel.copy(color = accent))
