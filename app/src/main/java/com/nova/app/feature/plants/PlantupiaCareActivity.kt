@@ -28,13 +28,19 @@ internal fun PlantupiaCareActivity(accountId: Long) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val repository = remember(accountId) { PlantupiaRepository(context.applicationContext) }
     var plans by remember(accountId) { mutableStateOf(emptyList<JSONObject>()) }
+    var recordedRows by remember(accountId) { mutableStateOf(emptyList<JSONObject>()) }
     var plants by remember(accountId) { mutableStateOf(emptyList<PlantupiaPlant>()) }
     var error by remember { mutableStateOf<String?>(null) }
+    var historyError by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(true) }
+    var historyBusy by remember { mutableStateOf(false) }
     var revision by remember { mutableIntStateOf(0) }
     var selected by remember(accountId) { mutableStateOf(LocalDate.now()) }
     var month by remember(accountId) { mutableStateOf(YearMonth.from(LocalDate.now())) }
-    var weekMode by remember { mutableStateOf(false) }
+    var weekMode by remember(accountId) { mutableStateOf(true) }
+    val visible = if (weekMode) careCalendarWeekDays(selected) else careCalendarMonthDays(month)
+    val visibleStart = visible.first()
+    val visibleEnd = visible.last()
 
     LaunchedEffect(accountId, revision) {
         busy = true
@@ -54,7 +60,21 @@ internal fun PlantupiaCareActivity(accountId: Long) {
         busy = false
     }
 
-    val entries = remember(plants, plans) {
+    // One authenticated, bounded read-only query for the displayed week/month.
+    LaunchedEffect(accountId, revision, visibleStart, visibleEnd) {
+        historyBusy = true
+        historyError = null
+        recordedRows = emptyList()
+        when (val response = repository.calendarHistory(
+            visibleStart.toString(), visibleEnd.toString(),
+        )) {
+            is ApiResult.Success -> if (repository.isCurrentSession()) recordedRows = response.value
+            is ApiResult.Failure -> if (repository.isCurrentSession()) historyError = response.message
+        }
+        historyBusy = false
+    }
+
+    val entries = remember(plants, plans, recordedRows) {
         val personal = scheduledPlantCheckIns(plants).mapNotNull { plant ->
             parseCareCalendarDate(plant.nextFollowUpOn)?.let { day ->
                 CareCalendarEntry(day, plant.id, plant.name, "Personal check-in", "Chosen by you")
@@ -71,18 +91,37 @@ internal fun PlantupiaCareActivity(accountId: Long) {
                 )
             }
         }
-        careCalendarEntries(personal, approved)
+        val recorded = recordedRows.mapNotNull { item ->
+            parseCareCalendarDate(item.optString("date"))?.let { day ->
+                val label = when (item.optString("kind")) {
+                    "care" -> "Care recorded"
+                    "observation" -> "Observation recorded"
+                    "issue" -> "Issue recorded"
+                    "outcome" -> "Outcome recorded"
+                    else -> "Recorded moment"
+                }
+                val count = item.optInt("count", 1).coerceAtLeast(1)
+                CareCalendarEntry(
+                    day,
+                    item.optString("plant_id"),
+                    item.optString("plant_name"),
+                    if (count == 1) label else "$count × $label",
+                    "Living History",
+                    recorded = true,
+                )
+            }
+        }
+        careCalendarEntries(personal + recorded, approved)
     }
-    val visible = if (weekMode) careCalendarWeekDays(selected) else careCalendarMonthDays(month)
     val selectedEntries = entries.filter { it.date == selected }
     val locale = LocalConfiguration.current.locales[0]
     val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMMM yyyy", locale) }
     val dayFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEE d MMM yyyy", locale) }
 
     Column(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Care calendar", style = PlantupiaText.editorialHeading)
-        Text("Your real check-ins and opted-in reviewed inspections, in one calendar. Dates are not watering instructions.", style = PlantupiaText.supporting)
-        if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+        Text("Your plants through time", style = PlantupiaText.supporting)
+        Text("Planned checks and real care you recorded, never guessed watering dates.", style = PlantupiaText.supporting)
+        if (busy || historyBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
 
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             OutlinedButton(onClick = {
@@ -127,6 +166,7 @@ internal fun PlantupiaCareActivity(accountId: Long) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                 week.forEach { day ->
                     val items = entries.count { it.date == day }
+                    val recordedCount = entries.count { it.date == day && it.recorded }
                     val highlighted = day == selected
                     val inMonth = YearMonth.from(day) == month
                     Surface(
@@ -154,7 +194,7 @@ internal fun PlantupiaCareActivity(accountId: Long) {
                             )
                             if (items > 0) {
                                 Text(
-                                    items.toString() + " •",
+                                    if (recordedCount > 0) "$items · ✓" else "$items ·",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.primary,
                                 )
