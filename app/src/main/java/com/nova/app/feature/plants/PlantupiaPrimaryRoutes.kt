@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedButton
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -44,6 +46,8 @@ fun PlantupiaPlantsRoute(
     val scroll = rememberScrollState()
     val scope = rememberCoroutineScope()
     var inventoryOffset by rememberSaveable { mutableIntStateOf(0) }
+    var showingCareCalendar by rememberSaveable(accountId) { androidx.compose.runtime.mutableStateOf(false) }
+    BackHandler(enabled = showingCareCalendar) { showingCareCalendar = false }
     Scaffold(
         containerColor = PlantupiaColors.cream,
         bottomBar = {
@@ -65,14 +69,32 @@ fun PlantupiaPlantsRoute(
         ) {
             PlantupiaAccountHeader(user?.name.orEmpty(), user?.username.orEmpty(), user?.avatarUrl.orEmpty(),
                 accountId, user?.plantupiaAvatarVariant ?: -1, onProfile)
-            PlantupiaClientSection(
-                accountId = accountId,
-                onCommunityCreateClick = onCreatePost,
-                onOpenLinkedPost = onOpenLinkedPost,
-                section = PlantupiaPrimarySection.PLANTS,
-                onOpenPlant = { inventoryOffset = scroll.value; scope.launch { scroll.animateScrollTo(0) } },
-                onClosePlant = { scope.launch { androidx.compose.runtime.withFrameNanos { }; scroll.scrollTo(inventoryOffset) } },
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        showingCareCalendar = !showingCareCalendar
+                        scope.launch { scroll.animateScrollTo(0) }
+                    },
+                ) {
+                    Text(if (showingCareCalendar) "← Back to my plants" else "Care calendar · week / month")
+                }
+            }
+            if (showingCareCalendar) {
+                PlantupiaCareActivity(accountId)
+            } else {
+                PlantupiaClientSection(
+                    accountId = accountId,
+                    onCommunityCreateClick = onCreatePost,
+                    onOpenLinkedPost = onOpenLinkedPost,
+                    section = PlantupiaPrimarySection.PLANTS,
+                    onOpenPlant = { inventoryOffset = scroll.value; scope.launch { scroll.animateScrollTo(0) } },
+                    onClosePlant = { scope.launch { androidx.compose.runtime.withFrameNanos { }; scroll.scrollTo(inventoryOffset) } },
+                )
+            }
         }
     }
 }
