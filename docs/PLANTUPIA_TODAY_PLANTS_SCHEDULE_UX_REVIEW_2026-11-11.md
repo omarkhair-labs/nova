@@ -38,3 +38,13 @@ Status: **Draft UX change only. Not approved for production or deployed.**
 - Android Jetpack Compose Design Systems & Accessibility: https://developer.android.com/develop/ui/compose/designsystems
 - Compose Semantics: https://developer.android.com/develop/ui/compose/accessibility/semantics
 - NN/g Progressive Disclosure: https://www.nngroup.com/articles/progressive-disclosure/
+
+## 18:06 follow-up QA photos (five Android screenshots)
+- **Schedule, month:** grid still showed 6 heavy rows of outlined tiles with tiny "1 ·" labels. Calendar toolbar was scrolled out of view after the mode switch; a user could not see which month the grid belonged to. Move weekday labels to one separate ruler, keep 48dp month targets, show only real event markers, and reset scroll to the toolbar on mode change / opening the screen.
+- **Schedule, history:** the device displayed `Recorded care history is unavailable: The Plantupia server returned an invalid response`. Root cause traced to Android `calendarHistory()` calling generic `plantupiaRows()`, which requires an `id` for each list item. The existing backend endpoint intentionally returns `date / plant_id / plant_name / kind / count / state` **aggregates without an ID**. Use a dedicated strict aggregate parser and unit-test valid and malformed responses; do not add invented IDs or hide real failures.
+- **New Space:** a cramped horizontal `Create and add a plant` + `Cancel` action row wrapped Cancel into `Canc / el`. Stack the full-width primary action and the secondary cancellation target; preserve the save-then-open-plant behavior.
+- **Create:** editorial intro is fine but three repetitions of privacy language push actions down. Keep one accurate privacy statement and concise category headings while preserving explicit public-share choices.
+- **Today:** inspection cards and generic words still dominate first fold. Keep due-first ordering and real actions, compress card footprint and format stored dates as human-readable English abbreviations.
+- Follow-up screenshots omitted a full My Plants first fold; do not claim visual sign-off for that screen until a matching screenshot exists.
+
+**Deployment distinction:** The QA APK reflects the PR #299 branch. No backend fix or schema change is required for the history parser mismatch; existing Preview response format is valid. No Production changes or automatic deployment were made.
