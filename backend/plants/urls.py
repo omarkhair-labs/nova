@@ -3,6 +3,7 @@ from .commerce_storefront_api import CommerceCatalogView, CommerceCatalogPhotoVi
 from .commerce_business_real_api import BusinessInquiriesView, BusinessAcceptQuoteView
 from .commerce_orders_api import CommerceOrdersView, CommerceOrderDetailView, CommerceOrderAcceptQuoteView, CommerceOrderCancelView, CommerceOrderTransferClaimView, CommerceOrderReturnView
 from .assistant import PlantAssistantView
+from .care_calendar_api import PlantCareCalendarHistoryView
 from .commerce_api import QACommerceRequestsView, QACommerceRequestView, QACommerceCatalogView, QACommerceRequestActionView, QACommerceRFQsView, QACommerceRFQAcceptView
 from .species_library import BotanicalSpeciesLibraryView, BotanicalSpeciesLibraryDetailView
 from .demo_api import (DemoAccessView, InspectionPlansView, InspectionActionView, InspectionPhotoView, ServiceRequestsView,
@@ -25,6 +26,7 @@ urlpatterns = [
     path("commerce/orders/<uuid:order_id>/cancel/", CommerceOrderCancelView.as_view(), name="plantupia-real-commerce-cancel"),
     path("commerce/orders/<uuid:order_id>/transfer-reference/", CommerceOrderTransferClaimView.as_view(), name="plantupia-real-commerce-transfer-reference"),
     path("commerce/orders/<uuid:order_id>/return/", CommerceOrderReturnView.as_view(), name="plantupia-real-commerce-return"),
+    path("care-calendar/history/", PlantCareCalendarHistoryView.as_view(), name="plantupia-care-calendar-history"),
     path("library/species/", BotanicalSpeciesLibraryView.as_view(), name="plantupia-library-species"),
     path("library/species/<slug:key>/", BotanicalSpeciesLibraryDetailView.as_view(), name="plantupia-library-species-detail"),
     path("demo/access/", DemoAccessView.as_view(), name="plantupia-demo-access"),
