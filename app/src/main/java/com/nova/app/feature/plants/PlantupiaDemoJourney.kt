@@ -231,12 +231,18 @@ internal fun PlantupiaDemoHome(repository: PlantupiaRepository, plants: List<Pla
                     onOpenPlant = { plant?.let(onOpenPlant) },
                 )
             }
-            if (ordered.size > visibleInspectionCount) {
+            if (ordered.size > 2) {
                 TextButton(
-                    onClick = { visibleInspectionCount += 5 },
+                    onClick = {
+                        visibleInspectionCount = if (visibleInspectionCount >= ordered.size) 2 else ordered.size
+                    },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                 ) {
-                    Text("See all ${ordered.size} inspections", color = demoForest)
+                    Text(
+                        if (visibleInspectionCount >= ordered.size) "Show fewer inspections ↑"
+                        else "See all ${ordered.size} inspections →",
+                        color = demoForest,
+                    )
                 }
             }
             pending.forEach { intent ->
