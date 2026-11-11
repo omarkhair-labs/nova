@@ -252,7 +252,7 @@ internal fun PlantupiaCareActivity(accountId: Long) {
                         Text(entry.origin, style = MaterialTheme.typography.labelSmall)
                     }
                     Text(
-                        if (entry.recorded) "Done ✓"
+                        if (entry.recorded) "Recorded ✓"
                         else if (entry.date < LocalDate.now()) "Due"
                         else "Planned",
                         style = MaterialTheme.typography.labelSmall,
