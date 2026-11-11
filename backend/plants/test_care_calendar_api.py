@@ -14,9 +14,9 @@ from .models import PlantEvent, PlantNickname, PlantUnit, Space, SpaceMember
 class CalendarHistoryTests(TestCase):
     def setUp(self):
         User = get_user_model()
-        self.owner = User.objects.create_user(username="calendar_owner", password="test-only")
-        self.other = User.objects.create_user(username="calendar_other", password="test-only")
-        self.viewer = User.objects.create_user(username="calendar_viewer", password="test-only")
+        self.owner = User.objects.create_user(username="calendar_owner", email="calendar-owner@example.test", password="test-only")
+        self.other = User.objects.create_user(username="calendar_other", email="calendar-other@example.test", password="test-only")
+        self.viewer = User.objects.create_user(username="calendar_viewer", email="calendar-viewer@example.test", password="test-only")
         space = Space.objects.create(owner=self.owner, name="Private conservatory")
         other_space = Space.objects.create(owner=self.other, name="Other person's plants")
         self.plant = PlantUnit.objects.create(space=space, label="Monstera")
