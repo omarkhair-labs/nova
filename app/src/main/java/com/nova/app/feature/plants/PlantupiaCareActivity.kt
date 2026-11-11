@@ -1,6 +1,8 @@
 package com.nova.app.feature.plants
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -174,9 +176,12 @@ internal fun PlantupiaCareActivity(accountId: Long) {
                             selected = day
                             month = YearMonth.from(day)
                         },
-                        shape = MaterialTheme.shapes.small,
-                        color = if (highlighted) MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (inMonth || weekMode) 0.5f else 0.2f),
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (highlighted) PlantupiaColors.softSage else PlantupiaColors.paper,
+                        border = BorderStroke(
+                            if (highlighted) 1.5.dp else 1.dp,
+                            if (highlighted) PlantupiaColors.forest else PlantupiaColors.border,
+                        ),
                     ) {
                         Column(
                             Modifier.fillMaxWidth().padding(vertical = 5.dp, horizontal = 2.dp),
@@ -196,7 +201,7 @@ internal fun PlantupiaCareActivity(accountId: Long) {
                                 Text(
                                     if (recordedCount > 0) "$items · ✓" else "$items ·",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    color = PlantupiaColors.forest,
                                 )
                             }
                         }
@@ -205,14 +210,29 @@ internal fun PlantupiaCareActivity(accountId: Long) {
             }
         }
         HorizontalDivider()
-        Text(selected.format(dayFormatter), style = MaterialTheme.typography.titleMedium)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(selected.format(dayFormatter), style = PlantupiaText.editorialHeading)
+            Text(
+                "✓ Recorded  ·  • Planned",
+                style = PlantupiaText.supporting,
+            )
+        }
         if (!busy && !historyBusy && selectedEntries.isEmpty() && historyError == null) {
             Text("Nothing scheduled for this date.", style = PlantupiaText.supporting)
         }
         selectedEntries.sortedWith(
             compareByDescending<CareCalendarEntry> { it.recorded }.thenBy { it.plantName }
         ).forEach { entry ->
-            Card(onClick = { PlantupiaPlantOpenSignal.open(accountId, entry.plantId) }) {
+            Surface(
+                onClick = { PlantupiaPlantOpenSignal.open(accountId, entry.plantId) },
+                color = PlantupiaColors.paper,
+                shape = PlantupiaShapes.inset,
+                border = BorderStroke(1.dp, PlantupiaColors.border),
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
