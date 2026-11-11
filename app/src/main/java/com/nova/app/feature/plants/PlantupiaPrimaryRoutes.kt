@@ -51,6 +51,15 @@ fun PlantupiaPlantsRoute(
     }
     BackHandler(enabled = showingCareCalendar) { showingCareCalendar = false }
 
+    val calendarTarget = PlantupiaCareCalendarOpenSignal.targetAccountId
+    val calendarVersion = PlantupiaCareCalendarOpenSignal.version
+    LaunchedEffect(accountId, calendarTarget, calendarVersion) {
+        if (calendarTarget == accountId && accountId > 0) {
+            showingCareCalendar = true
+            PlantupiaCareCalendarOpenSignal.consume(accountId)
+        }
+    }
+
     // Opening an entry from the calendar must reveal the real Plant Detail,
     // not leave the user trapped behind an independent calendar overlay.
     val pendingPlant = PlantupiaPlantOpenSignal.target
