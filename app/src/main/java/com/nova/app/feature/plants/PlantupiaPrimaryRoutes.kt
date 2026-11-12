@@ -25,8 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.nova.app.ui.components.NovaBackButton
-import com.nova.app.ui.components.NovaIconButton
-import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.feature.plants.data.PlantupiaRepository
 import com.nova.app.ui.components.NovaBottomBar
 import com.nova.app.ui.components.NovaTab
@@ -44,18 +42,31 @@ fun PlantupiaPlantsRoute(
     onProfile: () -> Unit,
 ) {
     val scroll = rememberScrollState()
+    val calendarScroll = rememberScrollState()
     val scope = rememberCoroutineScope()
     var inventoryOffset by rememberSaveable { mutableIntStateOf(0) }
     var showingCareCalendar by rememberSaveable(accountId) {
         androidx.compose.runtime.mutableStateOf(false)
     }
-    BackHandler(enabled = showingCareCalendar) { showingCareCalendar = false }
+    var calendarReturnToToday by rememberSaveable(accountId) {
+        androidx.compose.runtime.mutableStateOf(false)
+    }
+    fun closeCareCalendar() {
+        showingCareCalendar = false
+        if (calendarReturnToToday) {
+            calendarReturnToToday = false
+            onToday()
+        }
+    }
+    BackHandler(enabled = showingCareCalendar) { closeCareCalendar() }
 
     val calendarTarget = PlantupiaCareCalendarOpenSignal.targetAccountId
     val calendarVersion = PlantupiaCareCalendarOpenSignal.version
     LaunchedEffect(accountId, calendarTarget, calendarVersion) {
         if (calendarTarget == accountId && accountId > 0) {
+            calendarReturnToToday = PlantupiaCareCalendarOpenSignal.returnToToday
             showingCareCalendar = true
+            calendarScroll.scrollTo(0)
             PlantupiaCareCalendarOpenSignal.consume(accountId)
         }
     }
@@ -66,6 +77,7 @@ fun PlantupiaPlantsRoute(
     LaunchedEffect(pendingPlant) {
         if (showingCareCalendar && pendingPlant?.first == accountId) {
             showingCareCalendar = false
+            calendarReturnToToday = false
         }
     }
 
@@ -93,15 +105,18 @@ fun PlantupiaPlantsRoute(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    NovaBackButton(onClick = { showingCareCalendar = false })
+                    NovaBackButton(onClick = { closeCareCalendar() })
                     Text("My care schedule", style = PlantupiaText.editorialHeading)
                 }
                 Column(
                     modifier = Modifier.fillMaxSize()
-                        .verticalScroll(rememberScrollState())
+                        .verticalScroll(calendarScroll)
                         .padding(horizontal = 17.dp, vertical = 4.dp),
                 ) {
-                    PlantupiaCareActivity(accountId)
+                    PlantupiaCareActivity(
+                        accountId = accountId,
+                        onViewChanged = { scope.launch { calendarScroll.animateScrollTo(0) } },
+                    )
                 }
             }
         } else {
@@ -116,26 +131,6 @@ fun PlantupiaPlantsRoute(
                     user?.name.orEmpty(), user?.username.orEmpty(), user?.avatarUrl.orEmpty(),
                     accountId, user?.plantupiaAvatarVariant ?: -1, onProfile,
                 )
-                // The calendar is a top-level contextual icon beside My Plants,
-                // not another bottom navigation tab or a large inline CTA.
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text("MY PLANTS", style = PlantupiaText.sectionLabel)
-                    NovaIconButton(
-                        asset = NovaIconAsset.CareCalendar,
-                        contentDescription = "Open care calendar",
-                        onClick = {
-                            showingCareCalendar = true
-                            scope.launch { scroll.scrollTo(0) }
-                        },
-                        containerColor = PlantupiaColors.paper,
-                        contentColor = PlantupiaColors.forest,
-                        borderColor = PlantupiaColors.border,
-                    )
-                }
                 PlantupiaClientSection(
                     accountId = accountId,
                     onCommunityCreateClick = onCreatePost,

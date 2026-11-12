@@ -394,7 +394,7 @@ class PlantupiaRepository(
             )) {
                 is ApiResult.Failure -> response
                 is ApiResult.Success -> parsePlantupiaResponse(response.value) { body ->
-                    plantupiaRows(body)
+                    plantupiaCalendarHistoryRows(body)
                 }
             }
         }

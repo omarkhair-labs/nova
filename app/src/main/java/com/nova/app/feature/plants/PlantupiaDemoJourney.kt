@@ -192,7 +192,7 @@ internal fun PlantupiaDemoHome(repository: PlantupiaRepository, plants: List<Pla
     var pending by remember { mutableStateOf(emptyList<JSONObject>()) }
     var message by remember { mutableStateOf<String?>(null) }
     var refresh by remember { mutableIntStateOf(0) }
-    var visibleInspectionCount by rememberSaveable { mutableIntStateOf(3) }
+    var visibleInspectionCount by rememberSaveable { mutableIntStateOf(2) }
     val scope = rememberCoroutineScope()
     LaunchedEffect(refresh, refreshVersion) {
         pending = repository.pendingDemoMutations()
@@ -210,7 +210,12 @@ internal fun PlantupiaDemoHome(repository: PlantupiaRepository, plants: List<Pla
     // Still surface actual approved actions and pending QA mutation retries.
     if (available && (optedIn.isNotEmpty() || pending.isNotEmpty())) {
         DemoCard {
-            Text("APPROVED INSPECTIONS", style = PlantupiaText.sectionLabel)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("APPROVED INSPECTIONS", style = PlantupiaText.sectionLabel)
+                if (optedIn.size > 2) Text("${optedIn.size} scheduled",
+                    style = PlantupiaText.supporting)
+            }
             val ordered = optedIn.sortedWith(
                 compareByDescending<JSONObject> { it.optBoolean("due") }
                     .thenBy { it.optString("next_due_on") },
@@ -226,12 +231,18 @@ internal fun PlantupiaDemoHome(repository: PlantupiaRepository, plants: List<Pla
                     onOpenPlant = { plant?.let(onOpenPlant) },
                 )
             }
-            if (ordered.size > visibleInspectionCount) {
+            if (ordered.size > 2) {
                 TextButton(
-                    onClick = { visibleInspectionCount += 5 },
+                    onClick = {
+                        visibleInspectionCount = if (visibleInspectionCount >= ordered.size) 2 else ordered.size
+                    },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                 ) {
-                    Text("Show more · ${ordered.size - visibleInspectionCount} remaining", color = demoForest)
+                    Text(
+                        if (visibleInspectionCount >= ordered.size) "Show fewer inspections ↑"
+                        else "See all ${ordered.size} inspections →",
+                        color = demoForest,
+                    )
                 }
             }
             pending.forEach { intent ->

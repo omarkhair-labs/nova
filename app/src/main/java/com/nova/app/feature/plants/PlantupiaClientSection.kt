@@ -539,26 +539,50 @@ private fun PlantupiaAccountClientSection(
     ) {
         if (selectedPlant == null) {
             if (section == PlantupiaPrimarySection.PLANTS) {
-                // The primary entry is visible before the collection; existing
-                // server-backed Create editors handle the actual write below.
+                // The schedule belongs to the My Plants heading, not a floating fourth
+                // global-header action. A narrow/large-font device gets a labeled row.
                 BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                    val horizontal = maxWidth >= 300.dp && LocalDensity.current.fontScale <= 1.2f
+                    val horizontal = maxWidth >= 300.dp && LocalDensity.current.fontScale <= 1.15f
                     if (horizontal) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp),
                         ) {
-                            Text("My plants", fontFamily = FontFamily.Serif, fontSize = 31.sp, color = deepGreen)
+                            Text("My plants", modifier = Modifier.weight(1f),
+                                fontFamily = FontFamily.Serif, fontSize = 29.sp, color = deepGreen)
+                            com.nova.app.ui.components.NovaIconButton(
+                                asset = com.nova.app.ui.icons.NovaIconAsset.CareCalendar,
+                                contentDescription = "Open care schedule",
+                                onClick = { PlantupiaCareCalendarOpenSignal.open(accountId) },
+                                size = 48.dp,
+                                contentColor = PlantupiaColors.forest,
+                            )
                             if (!loading && error == null) TextButton(onClick = {
                                 PlantupiaCreateIntent.request(PlantupiaCreateMode.ADD_PLANT)
                             }) { Text("+ Add plant", color = deepGreen) }
                         }
                     } else {
-                        Text("My plants", fontFamily = FontFamily.Serif, fontSize = 31.sp, color = deepGreen)
-                        if (!loading && error == null) TextButton(onClick = {
-                            PlantupiaCreateIntent.request(PlantupiaCreateMode.ADD_PLANT)
-                        }) { Text("+ Add plant", color = deepGreen) }
+                        Text("My plants", fontFamily = FontFamily.Serif,
+                            fontSize = 31.sp, color = deepGreen)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            com.nova.app.ui.components.NovaIconButton(
+                                asset = com.nova.app.ui.icons.NovaIconAsset.CareCalendar,
+                                contentDescription = "Open care schedule",
+                                onClick = { PlantupiaCareCalendarOpenSignal.open(accountId) },
+                                size = 48.dp,
+                                contentColor = PlantupiaColors.forest,
+                            )
+                            Text("Schedule", style = PlantupiaText.body)
+                            Spacer(Modifier.weight(1f))
+                            if (!loading && error == null) TextButton(onClick = {
+                                PlantupiaCreateIntent.request(PlantupiaCreateMode.ADD_PLANT)
+                            }) { Text("+ Add plant", color = deepGreen) }
+                        }
                     }
                 }
             } else {
@@ -570,12 +594,15 @@ private fun PlantupiaAccountClientSection(
                     PlantupiaTodayMasthead(
                         activeCount = plants.count { it.active },
                         dueCount = dueCount,
+                        onOpenCalendar = { PlantupiaCareCalendarOpenSignal.open(accountId, fromToday = true) },
                     )
                 } else {
                     Text("Today", fontFamily = FontFamily.Serif, fontSize = 31.sp, color = deepGreen)
                 }
             }
-            if (!loading) {
+            // The selected Space chip already carries its real count.
+            // Avoid a second collection summary under Today's masthead.
+            if (!loading && (plants.none { it.active } || (section == PlantupiaPrimarySection.PLANTS && spaces.isEmpty()))) {
                 Text(
                     if (plants.any { it.active }) "${plants.count { it.active }} plants in your care"
                     else "Your plants start here.",
@@ -637,7 +664,6 @@ private fun PlantupiaAccountClientSection(
                 PlantupiaTodayPanel(
                     plants = plants,
                     onOpenPlant = { plant -> scope.launch { openPlant(plant) } },
-                    onOpenCalendar = { PlantupiaCareCalendarOpenSignal.open(accountId) },
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -687,11 +713,6 @@ private fun PlantupiaAccountClientSection(
                     }
                 }
             }
-            if (!loading && error == null && section == PlantupiaPrimarySection.TODAY) {
-                TextButton(onClick = { NovaRootNavigationSignal.request(NovaRootTab.Plants) }) {
-                    Text("View all plants →", color = deepGreen)
-                }
-            }
             if (section == PlantupiaPrimarySection.PLANTS) {
             // Pass 07: show the authentic place before AI and creation controls.
             // An empty or failed API must never display stock customer imagery.
@@ -707,7 +728,6 @@ private fun PlantupiaAccountClientSection(
                 )
                 val featured = resolveFocusedSpace(spaces, focusedSpaceId) ?: spaces.first()
                 val focusedPlants = plants.filter { it.spaceId == featured.id && it.active }
-                val featuredCount = focusedPlants.size
                 // A plant cover is evidence of that plant, NOT an architectural site photo.
                 val heroPlant = focusedPlants.firstOrNull { it.coverPhoto.isNotBlank() }
                 val heroPhoto = heroPlant?.coverPhoto.orEmpty()
@@ -725,7 +745,7 @@ private fun PlantupiaAccountClientSection(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(if (heroPhoto.isNotBlank()) 196.dp else 154.dp),
+                            .height(if (photoHero) 178.dp else 130.dp),
                     ) {
                         if (heroPhoto.isNotBlank()) {
                             PlantupiaEvidencePhoto(
@@ -733,6 +753,7 @@ private fun PlantupiaAccountClientSection(
                                 photoDescription = "Uploaded photo of ${heroPlant?.name.orEmpty()} in ${featured.name}",
                                 modifier = Modifier.matchParentSize(),
                                 cornerRadius = 22.dp,
+                                compact = true, // No fallback caption behind the space name.
                                 onPhotoLoadChanged = { loaded -> heroPhotoLoaded = loaded },
                             )
                             if (photoHero) {
@@ -747,6 +768,10 @@ private fun PlantupiaAccountClientSection(
                                             )
                                         )
                                 )
+                            } else {
+                                // Cover even the icon-only photo fallback so the
+                                // Space title never overlays a fake photo marker.
+                                Box(Modifier.matchParentSize().background(Color(0xFFD6E2D4)))
                             }
                         }
                         Column(
@@ -771,12 +796,7 @@ private fun PlantupiaAccountClientSection(
                             if (featured.location.isNotBlank()) {
                                 Text(featured.location, color = heroMuted, fontSize = 12.sp)
                             }
-                            Text(
-                                spacePlantCountSummary(featuredCount),
-                                color = heroMuted,
-                                fontSize = 12.sp,
-                            )
-                        }
+                         }
                     }
                 }
                 // Editing site context belongs with its actual chosen space,
@@ -792,7 +812,7 @@ private fun PlantupiaAccountClientSection(
             } else {
                 if (spaces.isNotEmpty()) {
                     // The private history remains inside each plant; avoid a duplicate carousel.
-                    BrandEyebrow("MY PLANTS")
+                    BrandEyebrow("IN THIS SPACE")
                 }
                 val focused = resolveFocusedSpace(spaces, focusedSpaceId)
                 if (focused != null) {
@@ -941,7 +961,7 @@ private fun PlantupiaAccountClientSection(
             }
             if (error != null) Text(error.orEmpty(), color = Color(0xFF9A4A31), fontSize = 12.sp)
             TextButton(onClick = { scope.launch { refresh() } }) {
-                Text("Refresh records", color = deepGreen)
+                Text("↻ Refresh", color = muted, fontSize = 12.sp)
             }
         } else {
             val overviewAnchor = remember(selectedPlant.id) { BringIntoViewRequester() }

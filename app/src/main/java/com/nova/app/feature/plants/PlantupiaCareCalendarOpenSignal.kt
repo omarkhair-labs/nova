@@ -16,10 +16,15 @@ internal object PlantupiaCareCalendarOpenSignal {
         private set
     var version by mutableIntStateOf(0)
         private set
+    // Origin matters for Back: Today should return to Today; opening a plant
+    // from Schedule still deliberately navigates into My Plants detail.
+    var returnToToday by mutableStateOf(false)
+        private set
 
-    fun open(accountId: Long) {
+    fun open(accountId: Long, fromToday: Boolean = false) {
         if (accountId <= 0) return
         targetAccountId = accountId
+        returnToToday = fromToday
         version += 1
         NovaRootNavigationSignal.request(NovaRootTab.Plants)
     }

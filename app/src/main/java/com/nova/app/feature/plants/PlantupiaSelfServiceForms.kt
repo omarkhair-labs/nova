@@ -244,8 +244,14 @@ fun PlantupiaSelfServiceForms(
                         label = { Text("About this space (optional)") },
                         modifier = Modifier.fillMaxWidth(), enabled = !saving,
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // Primary and secondary actions stack at all widths:
+                    // the previous crowded row split "Cancel" into two lines.
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
                         Button(
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                             enabled = !saving && spaceName.isNotBlank(),
                             onClick = {
                                 val submittedName = spaceName
@@ -273,10 +279,12 @@ fun PlantupiaSelfServiceForms(
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = ink),
-                        ) { Text(if (saving) "Saving…" else "Create and add a plant") }
-                        TextButton(onClick = { spaceOpen = false; error = null }, enabled = !saving) {
-                            Text("Cancel", color = ink)
-                        }
+                        ) { Text(if (saving) "Saving…" else "Create space & continue") }
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            onClick = { spaceOpen = false; error = null },
+                            enabled = !saving,
+                        ) { Text("Cancel", color = ink) }
                     }
                 }
             }
