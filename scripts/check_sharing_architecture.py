@@ -106,8 +106,8 @@ for required in (
     'audience.takeIf { it == "followers" || it == "close_friends" }',
     'ApiResult.Failure("Choose a group to share with.")',
     'ApiResult.Failure("Your session expired. Please log in again.", 401)',
-    "sessionStore.updateAccessToken(refreshed.value)",
-    "if (retried.statusCode == 401) sessionStore.clear()",
+    "sessionStore.authenticatedRequest(",
+    "stored = stored,",
 ):
     if required not in core_repository:
         errors.append(f"Sharing transport-sensitive seam changed or disappeared: {required}")

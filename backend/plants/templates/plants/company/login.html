@@ -1,0 +1,6 @@
+{% extends 'plants/company/base.html' %}{% block shell %}
+<main id="main" class="login-layout"><section class="login-story"><a class="wordmark" href="{% url 'company:login' %}"><span class="brand-mark" aria-hidden="true">p</span>Plantupia<span class="wordmark-sub">COMPANY WORKSPACE</span></a>
+<div><p class="eyebrow light">NATURE · ARCHITECTURE · PEOPLE</p><h1>Every living space<br>starts with care.</h1><p>Prepare the plants. Preserve their context.<br>Make the next handover a considered one.</p></div><span class="small-label">Transforming Spaces. Inspiring People.</span></section>
+<section class="login-panel"><span class="environment"><span class="status-dot"></span>Isolated QA</span><p class="eyebrow">STAFF ACCESS</p><h2>Welcome to<br>your workspace.</h2><p class="muted">Sign in with your authorized company account.</p>
+<form method="post" class="fields">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}">{{ form.as_div }}<button class="button primary" type="submit">Sign in to Plantupia <span aria-hidden="true">→</span></button></form>
+<p class="fine">Company access is provisioned by an authorized administrator. Customer accounts do not have access to this portal.</p></section></main>{% endblock %}

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Original Plantupia portrait 8. micro. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="40dp" android:height="40dp" android:viewportWidth="1000" android:viewportHeight="1000">
+<group><clip-path android:pathData="M1000,500 A500,500 0 1,0 0,500 A500,500 0 1,0 1000,500 Z"/>
+<path android:pathData="M0 0H1000V1000H0Z" android:fillColor="#EFE1D2"/>
+<path android:pathData="M113 947V280Q113 141 243 141H769Q888 141 888 279V947" android:fillColor="#00000000" android:strokeColor="#244139" android:strokeWidth="31" android:strokeLineCap="round" android:strokeAlpha="0.2"/>
+<path android:pathData="M132 1040Q174 809 392 731Q532 695 627 737Q843 824 884 1040Z" android:fillColor="#244139"/>
+<path android:pathData="M357 777Q420 809 494 847Q572 816 644 760L702 1020H311Z" android:fillColor="#52695D"/>
+<path android:pathData="M443 620L442 773Q512 818 600 773L578 626Z" android:fillColor="#BC876C"/>
+<path android:pathData="M393 373Q410 290 511 268Q628 271 662 384L672 520Q645 651 543 709Q431 695 382 577Z" android:fillColor="#BC876C"/>
+<path android:pathData="M336 485Q302 390 323 315Q338 224 419 225Q470 177 567 213Q660 192 712 273Q752 366 706 492L667 459Q634 359 576 348Q483 387 389 370L368 487Z" android:fillColor="#304A40"/>
+<path android:pathData="M387 784Q518 869 635 775" android:fillColor="#00000000" android:strokeColor="#EFE1D2" android:strokeWidth="19" android:strokeLineCap="round" android:strokeAlpha="0.6"/>
+</group></vector>

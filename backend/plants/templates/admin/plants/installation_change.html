@@ -1,0 +1,6 @@
+{% extends "admin/change_form.html" %}
+{% block object-tools-items %}
+{% if original.status == 'draft' and perms.plants.import_inventory %}
+<li><a href="{% url 'admin:plants_inventory_import' %}?batch={{ original.pk }}">Import inventory and care-guide drafts</a></li>
+{% endif %}{{ block.super }}
+{% endblock %}

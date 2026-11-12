@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- REVIEW-ONLY window micro portrait. Same human silhouette, reduced detail for 24-40dp. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="40dp" android:height="40dp"
+    android:viewportWidth="1000" android:viewportHeight="1000">
+  <group>
+    <clip-path android:pathData="M1000,500 A500,500 0 1,0 0,500 A500,500 0 1,0 1000,500 Z"/>
+    <path android:pathData="M0 0 H1000 V1000 H0Z" android:fillColor="#F1E6D3"/>
+    <path android:pathData="M120 245H689V920H120Z" android:fillColor="#D0DCC9"/>
+    <path android:pathData="M152 182 H680V868H152Z" android:fillColor="#00000000" android:strokeColor="#344638" android:strokeWidth="20" android:strokeLineCap="round"/>
+    <path android:pathData="M180 515 C96 450 126 368 215 402 C252 443 226 484 180 515 Z" android:fillColor="#7C9A76"/>
+    <path android:pathData="M180 600 C267 527 286 476 253 476 C194 473 178 554 180 600 Z" android:fillColor="#506C54"/>
+    <path android:pathData="M183 1010 C227 765 329 738 488 725 C675 707 812 801 846 1010 Z" android:fillColor="#173B31"/>
+    <path android:pathData="M331 1040 L483 780 L569 790 L688 1040 Z" android:fillColor="#536F5B"/>
+    <path android:pathData="M445 633 H591V789Q516 825 440 782Z" android:fillColor="#C78F6F"/>
+    <path android:pathData="M380 370 C380 288 456 260 540 275 C650 287 669 358 651 505 C645 610 590 692 516 698 C427 684 381 605 375 502 Z" android:fillColor="#C78F6F"/>
+    <path android:pathData="M341 484 C305 367 366 245 478 241 C577 208 690 272 677 435 L642 493 L614 363 C564 411 486 382 430 377Z" android:fillColor="#173B31"/>
+    <path android:pathData="M347 338 C388 216 540 194 617 264 L445 341 Z" android:fillColor="#344638"/>
+    <path android:pathData="M336 949 L474 786" android:fillColor="#00000000" android:strokeColor="#C9AC84" android:strokeWidth="26" android:strokeLineCap="round"/>
+    <path android:pathData="M745 570 L745 325" android:fillColor="#00000000" android:strokeColor="#173B31" android:strokeWidth="22" android:strokeLineCap="round"/>
+    <path android:pathData="M748 394 C790 319 873 316 890 353 C857 416 791 416 748 394 Z" android:fillColor="#7E9671"/>
+  </group>
+</vector>

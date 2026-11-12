@@ -6,6 +6,7 @@ data class NovaStoryAuthor(
     val username: String,
     val name: String,
     val avatarUrl: String,
+    val plantupiaAvatarVariant: Int = -1,
 ) {
     val displayName: String get() = name.ifBlank { username }
 }

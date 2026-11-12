@@ -8,6 +8,9 @@ import androidx.compose.runtime.setValue
 
 enum class NovaRootTab {
     Home,
+    Plants,
+    Shop,
+    AI,
     Orbit,
     Create,
     Profile,
@@ -33,6 +36,9 @@ internal fun rootNavigationPlan(
 
 
 object NovaRootNavigationSignal {
+    var activityRequestVersion by mutableIntStateOf(0)
+        private set
+    fun requestActivity() { activityRequestVersion++ }
     var requestVersion by mutableIntStateOf(0)
         private set
 

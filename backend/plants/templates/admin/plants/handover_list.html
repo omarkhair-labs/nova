@@ -1,0 +1,21 @@
+{% extends "admin/change_list.html" %}
+{% block object-tools-items %}
+{% if can_issue %}
+<li><a href="{% url 'admin:plants_handoverinvitation_issue' %}">Issue isolated QA invitation</a></li>
+{% endif %}
+{{ block.super }}
+{% endblock %}
+{% block content %}
+<section class="module" aria-label="Delivery invitation workflow" style="padding: 1rem 1.25rem; margin-bottom: 1rem;">
+  <h2>Plantupia delivery invitations</h2>
+  <p>This is the protected QA handover register, not a public customer or QR portal. A reviewed installation is not yet a delivery.</p>
+  <p>Prepare the exact plant inventory in <a href="{% url 'admin:plants_installationbatch_changelist' %}">Installations</a>, review it, then select the intended existing customer account and simulated ownership mode.</p>
+  {% if can_issue %}
+  <p><a href="{% url 'admin:plants_handoverinvitation_issue' %}">Issue or reissue a QA invitation</a>. The raw code is shown once and never stored here.</p>
+  {% else %}
+  <p>Invitation issuing is disabled or not permitted for this account. No delivery code is available from this view.</p>
+  {% endif %}
+  <p>Revocation applies only to unused invitations; claiming is always an explicit customer action in Android.</p>
+</section>
+{{ block.super }}
+{% endblock %}

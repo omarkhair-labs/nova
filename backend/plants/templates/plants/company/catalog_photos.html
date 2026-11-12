@@ -1,0 +1,16 @@
+{% extends 'plants/company/base.html' %}{% block content %}
+<div class="page-heading"><div><p class="eyebrow">CATALOGUE · STAFF ONLY · QA</p><h1>{{ product.name }}</h1>
+<p class="lead">Only photographs of the actual listed item with permission to use them. Uploading a photo does not enable commercial inventory, payment or delivery.</p>
+<p>{{ product.sku|default:"SKU not assigned" }} · {{ product.variant_label|default:"Single version" }}</p></div></div>
+<div class="panel padded"><h2>Gallery photographs</h2>
+{% for photo in photos %}
+<form method="post">{% csrf_token %}
+<p>{{ forloop.counter }}. {{ photo.alt_text }} · order {{ photo.position }}</p>
+<input type="hidden" name="action" value="remove"><input type="hidden" name="photo_id" value="{{ photo.pk }}">
+<button class="button" type="submit">Remove photograph</button></form>
+{% empty %}<p>No additional images yet. The cover photo is editable in the product form.</p>{% endfor %}
+</div><div class="panel padded"><h2>Add authorized photo</h2>
+<form method="post" enctype="multipart/form-data">{% csrf_token %}{{ form.as_div }}
+<button class="button primary" type="submit">Save photo</button></form></div>
+<a class="button" href="{% url 'company:product-edit' product.pk %}">Edit product</a>
+<a class="button" href="{% url 'company:catalog' %}">Back to catalogue</a>{% endblock %}

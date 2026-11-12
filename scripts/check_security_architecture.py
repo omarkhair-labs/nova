@@ -92,10 +92,10 @@ for required in (
     "connectTimeout = 12_000",
     "readTimeout = 15_000",
     "authApi.refresh(stored.refreshToken)",
-    "sessionStore.updateAccessToken(accessToken)",
-    "sessionStore.save(session)",
+    "sessionStore.authenticatedRequest(",
+    "sessionStore.replaceSession(stored.identity, session)",
     "NovaPushRegistration.activate(appContext)",
-    "if (response.statusCode == 401) sessionStore.clear()",
+    "sessionStore.clear(stored.identity)",
 ):
     if required not in core_security:
         errors.append(f"Security transport/session seam changed or disappeared: {required}")
@@ -108,8 +108,8 @@ for required in (
     "connectTimeout = 10_000",
     "readTimeout = 10_000",
     "authApi.refresh(stored.refreshToken)",
-    "sessionStore.updateAccessToken(refreshed.value)",
-    "if (retried.statusCode == 401) sessionStore.clear()",
+    "sessionStore.authenticatedRequest(",
+    "stored = stored,",
 ):
     if required not in core_blocked:
         errors.append(f"Blocked-accounts transport/session seam changed or disappeared: {required}")

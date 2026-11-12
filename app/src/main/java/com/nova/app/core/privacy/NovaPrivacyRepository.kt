@@ -2,6 +2,7 @@ package com.nova.app.core.privacy
 
 import android.content.Context
 import com.nova.app.core.auth.NovaSessionStore
+import com.nova.app.core.auth.authenticatedRequest
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.feature.people.domain.model.NovaPerson
@@ -206,6 +207,8 @@ class NovaPrivacyRepository(
         reelsStories = json.optBoolean("reels_stories", true),
         eventsSpaces = json.optBoolean("events_spaces", true),
         productUpdates = json.optBoolean("product_updates", true),
+        plantupiaTeam = json.optBoolean("plantupia_team", true),
+        plantupiaOrders = json.optBoolean("plantupia_orders", true),
     )
 
     private suspend fun requestDecision(requestId: Long, action: String): ApiResult<Unit> = authenticatedCall { token ->
@@ -274,30 +277,11 @@ class NovaPrivacyRepository(
     ): ApiResult<T> {
         val stored = sessionStore.load()
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
-        when (val first = call(stored.accessToken)) {
-            is ApiResult.Success -> return first
-            is ApiResult.Failure -> if (first.statusCode != 401) return first
-        }
-        return when (val refreshed = authApi.refresh(stored.refreshToken)) {
-            is ApiResult.Success -> {
-                sessionStore.updateAccessToken(refreshed.value)
-                when (val retried = call(refreshed.value)) {
-                    is ApiResult.Success -> retried
-                    is ApiResult.Failure -> {
-                        if (retried.statusCode == 401) sessionStore.clear()
-                        retried
-                    }
-                }
-            }
-            is ApiResult.Failure -> {
-                if (refreshed.statusCode == 400 || refreshed.statusCode == 401) {
-                    sessionStore.clear()
-                    ApiResult.Failure("Your session expired. Please log in again.", 401)
-                } else {
-                    refreshed
-                }
-            }
-        }
+        return sessionStore.authenticatedRequest(
+            stored = stored,
+            refresh = { authApi.refresh(stored.refreshToken) },
+            request = call,
+        )
     }
 
     private suspend fun requestJson(
@@ -362,6 +346,6 @@ class NovaPrivacyRepository(
     private fun encode(value: String): String = URLEncoder.encode(value, Charsets.UTF_8.name())
 
     private companion object {
-        const val PRODUCTION_API_URL = "https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/"
+        val PRODUCTION_API_URL = com.nova.app.core.network.NovaServerConfig.API_URL
     }
 }

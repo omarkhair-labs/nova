@@ -1,0 +1,12 @@
+{% extends 'plants/company/base.html' %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">INSPECT · OBSERVE · DECIDE</p><h1>Care inspection plans</h1><p class="lead">A source-backed prompt to check. Never a command to water.</p></div>
+{% if perms.plants.add_careinspectionplan %}<a class="button primary" href="{% url 'company:plan-create' %}">Prepare a plan +</a>{% endif %}</div>
+<div class="subtle-panel"><p>Choose a verified supplied plant, its published source, placement context and cadence. A permitted reviewer approves the exact proposal; the customer chooses whether to follow it after handover. Declining, skipping and moving an inspection never claim care happened.</p><a href="{% url 'company:care' %}">Review botanical sources →</a></div>
+<div class="installation-grid">
+{% for plan in records %}<article class="installation-card"><span class="badge {% if plan.approved_at %}ready{% else %}draft{% endif %}">{% if plan.approved_at %}Approved proposal{% else %}Awaiting reviewer{% endif %}</span>
+<h2>{{ plan.plant.label }}</h2><p>{{ plan.get_action_display }} · every {{ plan.every_days }} day(s)</p><p>{{ plan.instructions }}</p><p class="fine">{{ plan.timezone }} · starts {{ plan.start_on }} · guide version {{ plan.guide.version }}</p>
+<a class="button" href="{% url 'company:plan-review' plan.pk %}">Review exact plan →</a></article>
+{% empty %}<div class="panel empty"><h2>No inspection proposals here yet.</h2><p>Prepare verified inventory and publish its source guide first. Claimed customer-owned plants remain outside the company inventory workspace.</p></div>{% endfor %}</div>
+{% include 'plants/company/pagination.html' %}
+{% endblock %}

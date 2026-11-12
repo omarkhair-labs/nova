@@ -1,0 +1,39 @@
+{% extends 'plants/company/base.html' %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">B2C COMMERCE / INTERNAL DRAFTS</p>
+    <h1>Products before publication.</h1>
+    <p class="lead">A separate commercial catalogue under preparation. These records are NOT the fictional QA Shop, are not visible in the Android app, and cannot be checked out or charged.</p>
+  </div>
+  {% if perms.plants.add_commerceproduct %}
+    <div class="actions"><a class="button" href="{% url 'company:commerce-product-import' %}">Import Excel + photos · <span lang="ar" dir="rtl">استيراد المنتجات</span></a>
+    <a class="button primary" href="{% url 'company:commerce-product-create' %}">Create draft product +</a></div>
+  {% endif %}
+</div>
+<div class="notice warning"><strong>Not live:</strong> commercial publishing, reservations, courier delivery, COD and InstaPay are not connected. All items on this page are internal drafts.</div>
+<form class="filter-bar" method="get">
+  <label for="commercial-product-query">Find a draft</label>
+  <input id="commercial-product-query" type="search" name="q" value="{{ query }}" placeholder="Name or exact SKU" maxlength="120">
+  <button class="button" type="submit">Search</button>
+</form>
+<section class="installation-grid" aria-label="Commercial draft products">
+  {% for product in records %}
+    <article class="installation-card">
+      <div class="card-top"><span class="badge draft">{% if product.catalog_review_status == "approved" %}Content approved · not live{% else %}Needs review{% endif %}</span><span class="fine">{{ product.get_kind_display }}</span></div>
+      <p class="small-label">DRAFT COMMERCIAL CATALOGUE</p>
+      {% if product.cover_photo %}<a class="commerce-product-cover" href="{% url 'company:commerce-product' product.pk %}"><img src="{% url 'company:commerce-product-photo' product.pk %}" alt="{{ product.image_description }}" loading="lazy"></a>{% endif %}
+      <h2><a href="{% url 'company:commerce-product' product.pk %}">{{ product.name }}</a></h2>
+      <p>{{ product.description|truncatechars:180|default:"No product description recorded yet." }}</p>
+      <p class="fine">{{ product.variants.count }} SKU option{{ product.variants.count|pluralize }} · {{ product.gallery.count }} gallery photos · {% if product.cover_photo %}Authorized photo attached{% else %}Real photo missing{% endif %}</p>
+      <div class="card-bottom">
+        <span>Internal only · no checkout</span>
+        <a href="{% url 'company:commerce-product' product.pk %}">Open draft →</a>
+      </div>
+    </article>
+  {% empty %}
+    <div class="panel empty"><h2>No commercial drafts yet.</h2><p>Create an internal product with a real SKU and an approved description. The existing fictional QA catalog remains untouched.</p></div>
+  {% endfor %}
+</section>
+{% include 'plants/company/pagination.html' %}
+{% endblock %}

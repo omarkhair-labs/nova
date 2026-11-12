@@ -17,6 +17,7 @@ internal fun parseNovaPostAuthor(
         username = json.optString("username"),
         name = json.optString("name"),
         avatarUrl = resolveMediaUrl(json.optString("avatar_url")),
+        plantupiaAvatarVariant = json.optInt("plantupia_avatar_variant", -1),
     )
 }
 

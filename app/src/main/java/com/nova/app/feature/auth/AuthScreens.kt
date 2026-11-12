@@ -42,7 +42,7 @@ fun CreateAccountScreen(
 
     AuthPage(
         title = "Create your account",
-        subtitle = "Join the orbit.",
+        subtitle = "Join the Plantupia circle.",
         email = email,
         onEmailChange = { email = it.trim() },
         password = password,
@@ -69,7 +69,7 @@ fun CreateAccountScreen(
                     username = raw.lowercase().filter { it.isLetterOrDigit() || it == '_' || it == '.' }.take(30)
                 },
                 label = "Username",
-                placeholder = "maya.orbit",
+                placeholder = "your.garden",
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii, imeAction = ImeAction.Next),
             )
             Spacer(modifier = Modifier.height(14.dp))
@@ -147,7 +147,7 @@ private fun AuthPage(
         },
     ) {
         Text(
-            text = "nova˙",
+            text = "PLANTUPIA",
             color = NovaAccent,
             fontSize = 34.sp,
             fontWeight = FontWeight.Bold,

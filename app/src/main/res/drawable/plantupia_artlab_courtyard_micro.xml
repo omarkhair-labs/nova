@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- REVIEW-ONLY courtyard micro portrait. Same human silhouette, reduced detail for 24-40dp. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="40dp" android:height="40dp"
+    android:viewportWidth="1000" android:viewportHeight="1000">
+  <group>
+    <clip-path android:pathData="M1000,500 A500,500 0 1,0 0,500 A500,500 0 1,0 1000,500 Z"/>
+    <path android:pathData="M0 0H1000V1000H0Z" android:fillColor="#E2E7D9"/>
+    <path android:pathData="M105 905 V353 C105 212 194 109 340 108 H674 C836 108 900 217 900 360 V905" android:fillColor="#00000000" android:strokeColor="#91A18F" android:strokeWidth="30" android:strokeLineCap="round"/>
+    <path android:pathData="M142 770H877" android:fillColor="#00000000" android:strokeColor="#BEC7B8" android:strokeWidth="21" android:strokeLineCap="round"/>
+    <path android:pathData="M846 515 C824 434 898 389 952 414 C931 482 897 513 846 515 Z" android:fillColor="#9CAB82"/>
+    <path android:pathData="M823 669 C753 592 749 532 771 529 C820 546 836 607 823 669 Z" android:fillColor="#718F79"/>
+    <path android:pathData="M803 906 C779 732 804 601 862 462" android:fillColor="#00000000" android:strokeColor="#536F60" android:strokeWidth="18" android:strokeLineCap="round"/>
+    <path android:pathData="M152 1030 C164 819 334 726 504 718 C687 722 832 826 874 1030 Z" android:fillColor="#263C35"/>
+    <path android:pathData="M258 1020 C284 872 352 803 407 774 L460 1014 Z" android:fillColor="#425B51"/>
+    <path android:pathData="M396 747 C460 713 560 704 642 761 L647 821 C608 890 514 922 422 859 Z" android:fillColor="#C7A17A"/>
+    <path android:pathData="M458 637H584V783Q523 834 446 769Z" android:fillColor="#A9745D"/>
+    <path android:pathData="M386 382 C390 292 467 270 549 270 C663 270 698 382 681 490 C659 629 605 699 527 704 C416 684 373 596 386 470 Z" android:fillColor="#A9745D"/>
+    <path android:pathData="M359 501 C306 372 347 295 414 273 C457 210 536 209 586 233 C675 219 732 329 704 458 L657 498 L648 386 C578 428 465 401 408 384Z" android:fillColor="#263C35"/>
+    <path android:pathData="M346 363 C319 317 349 277 391 281 C390 225 445 208 473 244 C503 191 572 193 590 241 C635 196 697 259 688 302 C738 321 740 403 690 431 C611 371 482 355 346 363 Z" android:fillColor="#263C35"/>
+    <path android:pathData="M377 777C463 851 561 849 637 768" android:fillColor="#00000000" android:strokeColor="#DFBA90" android:strokeWidth="31" android:strokeLineCap="round"/>
+    <path android:pathData="M310 944V1040" android:fillColor="#00000000" android:strokeColor="#D0AD80" android:strokeWidth="19" android:strokeLineCap="round"/>
+  </group>
+</vector>

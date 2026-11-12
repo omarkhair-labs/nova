@@ -423,3 +423,69 @@ def send_call_state_push(call_id, target_user_id):
             logger.exception("Nova failed to send a call-state FCM push.")
 
     return sent
+
+
+def send_plantupia_order_update_push(*, recipient_id, order_id, notification_id):
+    return _send_private_plantupia_push(recipient_id=recipient_id, category="orders",
+        title="Plantupia QA order", body="A separate preparation draft is ready for review. No delivery was initiated.",
+        data={"kind": "plantupia_order_update", "recipient_id": str(recipient_id), "order_id": str(order_id), "notification_id": str(notification_id)})
+
+
+def send_plantupia_support_reply_push(*, recipient_id, ticket_id, plant_id, message_id):
+    return _send_private_plantupia_push(recipient_id=recipient_id, category="team",
+        title="Plantupia team", body="You have a new reply to your support request.",
+        data={"kind": "plantupia_support_reply", "recipient_id": str(recipient_id), "ticket_id": str(ticket_id), "plant_id": str(plant_id), "message_id": str(message_id)})
+
+
+def _send_private_plantupia_push(*, recipient_id, category, title, body, data):
+    """Send a privacy-safe service reply alert, separate from Nova social Inbox.
+
+    Service-request conversations intentionally have no group memberships.
+    Never route them through social send_message_push or reveal the message,
+    plant identity, room or address in an OS notification.
+    """
+    from .privacy_models import NotificationPreference
+
+    prefs, _ = NotificationPreference.objects.get_or_create(user_id=recipient_id)
+    if category == "team" and (not prefs.messages or not prefs.plantupia_team):
+        return 0
+    if category == "orders" and not prefs.plantupia_orders:
+        return 0
+    tokens = list(DevicePushToken.objects.filter(
+        user_id=recipient_id, active=True,
+    ).values_list("token", flat=True))
+    if not tokens:
+        return 0
+    app = _firebase_app()
+    if app is None:
+        return 0
+    try:
+        from firebase_admin import messaging
+    except Exception:
+        logger.exception("Plantupia support push provider unavailable.")
+        return 0
+
+    count = 0
+    for token in tokens:
+        alert = messaging.Message(
+            token=token,
+            notification=messaging.Notification(
+                title=title,
+                body=body,
+            ),
+            data=data,
+            android=messaging.AndroidConfig(
+                priority="high",
+                notification=messaging.AndroidNotification(
+                    channel_id="nova_messages" if category == "team" else "nova_activity",
+                ),
+            ),
+        )
+        try:
+            messaging.send(alert, app=app)
+            count += 1
+        except messaging.UnregisteredError:
+            DevicePushToken.objects.filter(token=token).update(active=False)
+        except Exception:
+            logger.exception("Plantupia support reply push failed.")
+    return count

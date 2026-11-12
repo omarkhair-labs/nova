@@ -1,0 +1,59 @@
+{% extends "plants/company/base.html" %}
+{% block content %}
+<div class="page-heading task-first-heading">
+  <div><p class="eyebrow">01 / B2B · PROJECT DELIVERY</p><h1>Projects &amp; installations.</h1>
+    <p class="lead">Continue an installation, review its plants, or complete an approved QR handover. Actual business quote requests now have a separate commercial queue; the older RFQs remain QA-only.</p></div>
+  {% if perms.plants.add_installationbatch %}<a class="button primary" href="{% url 'company:installation-create' %}">New installation +</a>{% endif %}
+</div>
+<section class="panel padded history work-queue">
+  <p class="eyebrow">YOUR RECORDED INSTALLATIONS / التركيبات</p><h2>Continue where you left off</h2>
+  {% for batch in recent %}
+    <a class="record-row" href="{% url 'company:installation' batch.pk %}">
+      <span class="grow"><strong>{{ batch.space.name }}</strong><small>{{ batch.reference_code }}</small></span>
+      <span class="badge">{{ batch.get_status_display }}</span>
+    </a>
+  {% empty %}
+    <div class="empty compact"><p>No installation records yet. Start by creating an installation.</p></div>
+  {% endfor %}
+</section>
+<section aria-label="Project status" class="project-status-summary">
+<div class="metrics">
+  <a class="metric" href="{% url 'company:installations' %}?status=draft"><span class="small-label">PREPARING</span><strong>{{ counts.draft }}</strong><span>Draft installations ↗</span></a>
+  <a class="metric" href="{% url 'company:installations' %}?status=ready"><span class="small-label">REVIEWED</span><strong>{{ counts.ready }}</strong><span>Ready for handover ↗</span></a>
+  <a class="metric" href="{% url 'company:installations' %}?status=claimed"><span class="small-label">CONNECTED</span><strong>{{ counts.claimed }}</strong><span>Claimed by recipient ↗</span></a>
+</div>
+</section>
+<p class="eyebrow">WORKSPACE TOOLS / أدوات العمل</p>
+<div class="installation-grid">
+  {% if real_business_count != None %}
+  <article class="installation-card">
+    <p class="small-label">B2B · REAL CUSTOMER ENQUIRIES</p>
+    <h2>{{ real_business_count }} to review</h2>
+    <p>Real wholesale and installation scope requests with staff quotes and customer follow-up.</p>
+    <div class="card-bottom"><span>Actual business inbox</span>
+      <a href="{% url 'company:business-inquiries' %}">Open real enquiries →</a></div>
+  </article>{% endif %}
+  {% if rfq_new_count != None %}
+  <article class="installation-card">
+    <p class="small-label">B2B · QUOTES / عروض الأسعار</p>
+    <h2>{{ rfq_new_count }} new RFQs</h2>
+    <p>Short customer enquiries and nonbinding QA quotations. Review in one place.</p>
+    <div class="card-bottom"><span>Awaiting your response</span>
+      <a href="{% url 'company:business-rfqs' %}">Open business RFQs →</a></div>
+  </article>{% endif %}
+  <article class="installation-card">
+    <p class="small-label">STEP 01 / PREPARE</p><h2>Installations</h2><p>Create a project space and bring in the actual plants. No fictional inventory.</p>
+    <div class="card-bottom"><span>Live workspace</span><a href="{% url 'company:installations' %}">Open installations →</a></div>
+  </article>
+  {% if can_inventory %}<article class="installation-card">
+    <p class="small-label">STEP 02 / VERIFY</p><h2>Plant inventory</h2><p>Physical site plants, their recorded placement and independent species review.</p>
+    <div class="card-bottom"><span>Installed plants only</span><a href="{% url 'company:inventory' %}">Open inventory →</a></div>
+  </article>{% endif %}
+  {% if can_handovers %}<article class="installation-card">
+    <p class="small-label">STEP 03 / CONNECT</p><h2>QR handovers</h2><p>Issue a one-use invitation only after reviewing real site inventory.</p>
+    <div class="card-bottom"><span>Recipient-bound</span><a href="{% url 'company:handovers' %}">Open handovers →</a></div>
+  </article>{% endif %}
+</div>
+
+<div class="notice">Actual B2B RFQs and nonbinding quotes are recorded. Signed purchase orders, commercial fulfillment, multi-site scheduling and project QR handover still require distinct verified workflows.</div>
+{% endblock %}

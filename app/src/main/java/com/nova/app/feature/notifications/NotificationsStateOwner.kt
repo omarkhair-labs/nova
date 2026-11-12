@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 
 
 data class NotificationsUiState(
+    val category: String = "All",
     val notifications: List<NovaNotification> = emptyList(),
     val followRequests: List<NovaFollowRequest> = emptyList(),
     val nextCursor: String? = null,
@@ -33,6 +34,9 @@ data class NotificationsUiState(
 
 
 sealed interface NotificationOpenTarget {
+    data class Team(val ticketId: String, val plantId: String) : NotificationOpenTarget
+    data class QaOrder(val orderId: String) : NotificationOpenTarget
+    data object Unavailable : NotificationOpenTarget
     data class Person(val username: String) : NotificationOpenTarget
     data class Post(val postId: Long) : NotificationOpenTarget
     data class Reel(val reelId: Long, val username: String) : NotificationOpenTarget
@@ -55,6 +59,10 @@ class NotificationsStateOwner(
     private var activityRequestInFlight = false
     private var followRequestsRequestInFlight = false
     private val resolvedFollowRequestIds = mutableSetOf<Long>()
+
+    fun selectCategory(category: String) {
+        if (category in setOf("All", "Care", "Team", "Orders", "Circle")) state = state.copy(category = category)
+    }
 
     fun start() {
         loadActivity(reset = true)
@@ -134,19 +142,7 @@ class NotificationsStateOwner(
                 )
                 if (reset) onUnreadCountChanged(page.unreadCount)
 
-                if (reset && page.unreadCount > 0) {
-                    when (val readResult = notificationsRepository.markAllRead()) {
-                        is ApiResult.Success -> {
-                            state = state.copy(
-                                notifications = state.notifications.map { it.copy(isRead = true) },
-                            )
-                            onUnreadCountChanged(readResult.value)
-                        }
-                        is ApiResult.Failure -> {
-                            if (readResult.statusCode == 401) onSessionExpired()
-                        }
-                    }
-                }
+
             }
 
             is ApiResult.Failure -> {
@@ -225,6 +221,32 @@ class NotificationsStateOwner(
         }
     }
 
+    fun markRead(notification: NovaNotification, afterRead: () -> Unit = {}) {
+        if (notification.isRead) { afterRead(); return }
+        scope.launch {
+            when (val result = notificationsRepository.markRead(notification.id)) {
+                is ApiResult.Success -> {
+                    state = state.copy(notifications = state.notifications.map { if (it.id == notification.id) it.copy(isRead = true) else it })
+                    onUnreadCountChanged(result.value)
+                }
+                is ApiResult.Failure -> if (result.statusCode == 401) { onSessionExpired(); return@launch }
+            }
+            afterRead()
+        }
+    }
+
+    fun markAllRead() {
+        scope.launch {
+            when (val readResult = notificationsRepository.markAllRead()) {
+                is ApiResult.Success -> {
+                    state = state.copy(notifications = state.notifications.map { it.copy(isRead = true) })
+                    onUnreadCountChanged(readResult.value)
+                }
+                is ApiResult.Failure -> if (readResult.statusCode == 401) onSessionExpired()
+            }
+        }
+    }
+
     fun shouldLoadMore(lastVisible: Int, totalItems: Int): Boolean {
         return state.nextCursor != null &&
             !state.isLoading &&
@@ -236,6 +258,10 @@ class NotificationsStateOwner(
 
     fun openTarget(notification: NovaNotification): NotificationOpenTarget {
         return when (notification.kind) {
+            "plant_team" -> if (notification.plantupiaTicketId != null && notification.plantupiaPlantId != null)
+                NotificationOpenTarget.Team(notification.plantupiaTicketId, notification.plantupiaPlantId)
+                else NotificationOpenTarget.Unavailable
+            "plant_order" -> notification.plantupiaOrderId?.let(NotificationOpenTarget::QaOrder) ?: NotificationOpenTarget.Unavailable
             "follow" -> NotificationOpenTarget.Person(notification.actor.username)
             "like", "comment", "comment_reply" -> {
                 notification.postId?.let(NotificationOpenTarget::Post)

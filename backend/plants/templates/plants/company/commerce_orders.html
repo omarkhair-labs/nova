@@ -1,0 +1,39 @@
+{% extends "plants/company/base.html" %}
+{% block content %}
+<header class="page-heading compact-workspace-heading">
+  <div>
+    <p class="eyebrow">B2C / ACTUAL ORDERS · الطلبات الحقيقية</p>
+    <h1>Customer orders.</h1>
+    <p class="lead">Every record comes from the same commercial SKU cart. Quote delivery to the customer's confirmed map address, then let them accept the exact total before stock is reserved.</p>
+  </div>
+</header>
+<div class="metrics">
+  <a href="{% url 'company:commerce-orders' %}?status=quote_pending"><div><span class="small-label">SHIPPING TO QUOTE</span><strong>{{ pending }}</strong><small>Awaiting company decision</small></div></a>
+  <a href="{% url 'company:commerce-orders' %}?status=quoted"><div><span class="small-label">CUSTOMER TO ACCEPT</span><strong>{{ quoted }}</strong><small>Price sent, stock not reserved yet</small></div></a>
+  <a href="{% url 'company:commerce-orders' %}?status=confirmed"><div><span class="small-label">CONFIRMED</span><strong>{{ confirmed }}</strong><small>SKU stock reserved at actual locations</small></div></a>
+</div>
+<div class="task-shortcuts">
+  <a class="button" href="{% url 'company:commerce-orders' %}">All orders</a>
+  <a class="button" href="{% url 'company:commerce-products' %}">Products</a>
+  <a class="button" href="{% url 'company:commerce-stock' %}">Warehouse stock</a>
+</div>
+<section class="panel padded">
+  <div class="panel-heading">
+    <div><p class="eyebrow">ORDER INBOX / صندوق الطلبات</p><h2>{% if status_filter %}{{ status_filter }}{% else %}Recent orders{% endif %}</h2></div>
+  </div>
+  {% for order in records %}
+  <div class="record-row">
+    <div class="grow">
+      <strong>Order {{ order.pk|stringformat:"s"|slice:":8" }}</strong>
+      <small>{{ order.contact_name }} · {{ order.city }} · {{ order.created_at|date:"j M Y, H:i" }}</small>
+      <small>{{ order.get_status_display }} · EGP {{ order.subtotal }} + {% if order.shipping_fee != None %}EGP {{ order.shipping_fee }} shipping{% else %}shipping pending{% endif %} · {{ order.get_payment_status_display }}</small>
+    </div>
+    <a href="{% url 'company:commerce-order' order.pk %}">Open order →</a>
+  </div>
+  {% empty %}
+  <div class="empty compact">No customer orders in this view.</div>
+  {% endfor %}
+</section>
+{% include "plants/company/pagination.html" %}
+<div class="commerce-reality"><strong>Operational boundary</strong><span>These are actual order quote/confirmation records. Delivery dispatch, payment reconciliation and returns require their own verified operational steps before launch; none are inferred from this page.</span></div>
+{% endblock %}

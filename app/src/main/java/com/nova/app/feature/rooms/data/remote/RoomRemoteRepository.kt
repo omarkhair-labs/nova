@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import com.nova.app.core.auth.NovaSessionStore
+import com.nova.app.core.auth.authenticatedRequest
 import com.nova.app.core.media.NovaVideoPreparer
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
@@ -105,6 +106,7 @@ class RoomRemoteRepository(
         mediaUri: Uri?,
         onProgress: (Int?) -> Unit,
     ): ApiResult<RoomItem> {
+        val origin = sessionStore.load() ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
         val cleanKind = kind.trim().lowercase()
         if (cleanKind !in ROOM_ITEM_KINDS) return ApiResult.Failure("Choose a valid Room item type.")
         val cleanTitle = title.trim()
@@ -152,7 +154,7 @@ class RoomRemoteRepository(
                 }
             }
             return try {
-                authenticatedCall { token ->
+                authenticatedCall(origin = origin) { token ->
                     when (
                         val response = api.requestMultipart(
                             path = path,
@@ -180,7 +182,7 @@ class RoomRemoteRepository(
             }
         }
 
-        return authenticatedCall { token ->
+        return authenticatedCall(origin = origin) { token ->
             val payload = JSONObject()
                 .put("kind", cleanKind)
                 .put("title", cleanTitle)
@@ -375,37 +377,16 @@ class RoomRemoteRepository(
     }.getOrNull()
 
     private suspend fun <T> authenticatedCall(
+        origin: NovaSessionStore.StoredSession? = sessionStore.load(),
         call: suspend (String) -> ApiResult<T>,
     ): ApiResult<T> {
-        val stored = sessionStore.load()
+        val stored = origin
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
-
-        when (val first = call(stored.accessToken)) {
-            is ApiResult.Success -> return first
-            is ApiResult.Failure -> if (first.statusCode != 401) return first
-        }
-
-        return when (val refreshed = api.refresh(stored.refreshToken)) {
-            is ApiResult.Success -> {
-                sessionStore.updateAccessToken(refreshed.value)
-                when (val retried = call(refreshed.value)) {
-                    is ApiResult.Success -> retried
-                    is ApiResult.Failure -> {
-                        if (retried.statusCode == 401) sessionStore.clear()
-                        retried
-                    }
-                }
-            }
-
-            is ApiResult.Failure -> {
-                if (refreshed.statusCode == 400 || refreshed.statusCode == 401) {
-                    sessionStore.clear()
-                    ApiResult.Failure("Your session expired. Please log in again.", 401)
-                } else {
-                    refreshed
-                }
-            }
-        }
+        return sessionStore.authenticatedRequest(
+            stored = stored,
+            refresh = { api.refresh(stored.refreshToken) },
+            request = call,
+        )
     }
 
     private companion object {

@@ -55,6 +55,9 @@ class User(AbstractUser):
     link = models.URLField(max_length=300, blank=True)
     interests = models.JSONField(default=list, blank=True)
     profile_theme = models.CharField(max_length=16, default="violet")
+    # Plantupia-specific, public illustrated-person choice. -1 = stable account default.
+    # This does not replace Nova's profile theme or the person's uploaded photo.
+    plantupia_avatar_variant = models.SmallIntegerField(default=-1)
     show_orbit = models.BooleanField(default=True)
     is_verified = models.BooleanField(default=False)
     last_seen_at = models.DateTimeField(null=True, blank=True)
@@ -212,6 +215,8 @@ class Notification(models.Model):
         FOLLOW = "follow", "Follow"
         LIKE = "like", "Like"
         COMMENT = "comment", "Comment"
+        PLANT_TEAM = "plant_team", "Private Plantupia team reply"
+        PLANT_ORDER = "plant_order", "QA order preparation update"
 
     recipient = models.ForeignKey(
         User,
@@ -239,6 +244,9 @@ class Notification(models.Model):
         blank=True,
     )
     dedupe_key = models.CharField(max_length=100, unique=True)
+    plantupia_ticket_id = models.UUIDField(null=True, blank=True)
+    plantupia_plant_id = models.UUIDField(null=True, blank=True)
+    plantupia_order_id = models.UUIDField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     read_at = models.DateTimeField(null=True, blank=True)
 

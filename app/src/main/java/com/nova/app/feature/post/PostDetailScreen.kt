@@ -84,7 +84,7 @@ fun PostDetailScreen(
     ) {
         NovaHeader(
             title = "Post",
-            subtitle = "A moment on Nova.",
+            subtitle = "A moment shared with people.",
             onBack = onBack,
         )
 

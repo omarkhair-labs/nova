@@ -157,6 +157,8 @@ fun NovaPostCard(
                     source = post.author.avatarUrl,
                     fallbackText = post.author.name.ifBlank { post.author.username },
                     size = 42.dp,
+                    plantupiaUserId = post.author.id,
+                    plantupiaAvatarVariant = post.author.plantupiaAvatarVariant,
                 )
             }
             Surface(

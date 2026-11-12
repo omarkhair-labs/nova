@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Original Plantupia art family portrait 4, micro. Artwork chosen manually, no demographic inference. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="40dp" android:height="40dp" android:viewportWidth="1000" android:viewportHeight="1000">
+  <group>
+    <clip-path android:pathData="M1000,500 A500,500 0 1,0 0,500 A500,500 0 1,0 1000,500 Z"/>
+    <path android:pathData="M0 0H1000V1000H0Z" android:fillColor="#DFE7DE"/>
+    <path android:pathData="M135 936V314Q135 125 322 125H684Q877 125 877 316V936" android:fillColor="#00000000" android:strokeColor="#304840" android:strokeWidth="29" android:strokeLineCap="round" android:strokeLineJoin="round" android:strokeAlpha="0.21"/>
+    <path android:pathData="M141 1055H878V941H141Z" android:fillColor="#8DA88D" android:fillAlpha="0.18"/>
+    <path android:pathData="M141 1041Q155 784 394 709L509 783L626 711Q863 769 864 1041Z" android:fillColor="#304840"/>
+    <path android:pathData="M359 730Q514 844 653 725L682 835Q579 914 501 936Q390 895 333 832Z" android:fillColor="#5B6655"/>
+    <path android:pathData="M443 620L442 773Q512 818 600 773L578 626Z" android:fillColor="#BF886A"/>
+    <path android:pathData="M393 373Q410 290 511 268Q628 271 662 384L672 520Q645 651 543 709Q431 695 382 577Z" android:fillColor="#BF886A"/>
+    <path android:pathData="M325 487Q272 397 321 308Q332 217 422 233Q486 179 549 218Q662 199 699 296Q757 361 708 482L664 463L660 394Q590 423 539 388Q437 426 369 382L355 503Z" android:fillColor="#314B41"/>
+    <path android:pathData="M398 732Q512 800 625 722" android:fillColor="#00000000" android:strokeColor="#DFE7DE" android:strokeWidth="20" android:strokeLineCap="round" android:strokeLineJoin="round" android:strokeAlpha="0.6"/>
+  </group>
+</vector>
