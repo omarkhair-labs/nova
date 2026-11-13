@@ -5,7 +5,6 @@ export const metadata: Metadata = {
   title: "Plantupia — The Living Atlas",
   description: "Explore how a place, living plants, human care and time become one connected experience.",
   robots: { index: false, follow: false },
-  alternates: { languages: { en: "/", ar: "/ar/" } },
 };
 
 export const viewport: Viewport = {
