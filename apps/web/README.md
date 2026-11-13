@@ -8,7 +8,9 @@ The opening cinematic scene is only the **first chapter**, not the whole site. A
 
 **Source of truth for future work:** [Full website Experience Blueprint V01](../../docs/PLANTUPIA_WEB_EXPERIENCE_BLUEPRINT_V01_2026-11-13.md).
 
-The current preview also has an optional **business-action path**: `/start-a-space` lets visitors prepare and copy a project outline, but does not collect or submit it. Real delivery to a Plantupia-owned channel must pass the contact/privacy/CRM approval gate.\n\nThe complete target includes four current chapters and three gated additions: Botanical Library (only with reviewed species data), Shop (only through the canonical product/checkout system) and Work/Projects (only with verified, approved project assets). No fake empty routes have been exposed.
+The current preview also has an optional **business-action path**: `/start-a-space` lets visitors prepare and copy a project outline, but does not collect or submit it. Real delivery to a Plantupia-owned channel must pass the contact/privacy/CRM approval gate.
+
+The complete target includes four current chapters and three gated additions: Botanical Library (only with reviewed species data), Shop (only through the canonical product/checkout system) and Work/Projects (only with verified, approved project assets). No fake empty routes have been exposed.
 
 ## Creative direction
 Architecture sets the stage. Plants change the experience of that space. Care and time keep that relationship alive.
