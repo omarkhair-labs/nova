@@ -13,7 +13,7 @@ const scenes = [
     label: "The Space",
     line: "A space has a life before we enter it.",
     detail: "A quiet architectural study. Light, material, proportion and how people use a room come first.",
-    visual: "/scene/space.avif",
+    visual: "/scene/hd/space.webp",
     alt: "Original generated architectural visualization of a softly sunlit interior, with a skylight and restrained furniture, before the planting intervention.",
     markerLabels: ["The light", "The threshold", "The materials"],
     markerDescriptions: [
@@ -27,7 +27,7 @@ const scenes = [
     label: "With Life",
     line: "Nature changes how architecture is felt.",
     detail: "Planting softens edges and makes the room more layered. The intervention is deliberate, not an instant-growth effect.",
-    visual: "/scene/life.avif",
+    visual: "/scene/hd/life.webp",
     alt: "Original generated cinematic visualization of the same architectural concept with abundant integrated tropical planting and sunlight.",
     markerLabels: ["Living material", "Filtered light", "A softer boundary"],
     markerDescriptions: [
@@ -41,7 +41,7 @@ const scenes = [
     label: "Over Time",
     line: "The story does not end on installation day.",
     detail: "A closer reading of living material: observation, return, and human care. This is not real growth data.",
-    visual: "/scene/time.avif",
+    visual: "/scene/hd/time.webp",
     alt: "Original generated close botanical view of planted architecture with sunlight, leaves, and textured stone; an illustrative change of viewpoint, not measured growth.",
     markerLabels: ["Notice", "Return", "Remember"],
     markerDescriptions: [
