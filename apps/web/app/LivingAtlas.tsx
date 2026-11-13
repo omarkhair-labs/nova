@@ -283,7 +283,6 @@ export default function LivingAtlas({ lang }: { lang: Lang }) {
 
   const selectSpace = (next: PlaceId) => { setSpaceId(next); setPoint(0); };
   const selectLens = (next: Lens) => { setLens(next); setPoint(0); };
-  const switchHref = arabic ? "/" : "/ar/";
   const lensOrder: Lens[] = ["place", "plant", "time"];
 
   return (
@@ -293,7 +292,6 @@ export default function LivingAtlas({ lang }: { lang: Lang }) {
         <a href={arabic ? "/ar/" : "/"} aria-label={arabic ? "بلانتيبيا - الرئيسية" : "Plantupia home"}><Brand /></a>
         <span className="atlas-topline">{arabic ? "دراسة عن الأماكن الحيّة / ٠١" : "A STUDY OF LIVING SPACES / 01"}</span>
         <div className="atlas-top-actions">
-          <a className="atlas-lang" href={switchHref} hrefLang={arabic ? "en" : "ar"} lang={arabic ? "en" : "ar"}>{arabic ? "EN" : "عربي"}</a>
           <a className="atlas-index-link" href="#atlas-method">{arabic ? "الفكرة ↗" : "THE METHOD ↗"}</a>
         </div>
       </header>
