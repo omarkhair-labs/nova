@@ -54,6 +54,12 @@ jobs:
           grep -q 'Every space' /tmp/plantupia-world-_spaces.html
           grep -q 'Designed' /tmp/plantupia-world-_studio.html
           grep -q 'Day one' /tmp/plantupia-world-_living-systems.html
+          # The first business-action flow is real but client-side only — never a fake submitted enquiry.
+          curl -fsSL http://127.0.0.1:3017/start-a-space -o /tmp/plantupia-space-brief.html
+          grep -q 'SPACE DOSSIER' /tmp/plantupia-space-brief.html
+          grep -q 'COPY YOUR SPACE OUTLINE' /tmp/plantupia-space-brief.html
+          grep -q 'not submitted' /tmp/plantupia-space-brief.html
+          grep -q 'href="/start-a-space"' /tmp/plantupia-world-_spaces.html
           # Keep the generated HD images available as first-party photo-loading fallbacks.
           for asset in space life time; do
             curl -fsSL "http://127.0.0.1:3017/scene/hd/${asset}.webp" -o "/tmp/plantupia-${asset}-hd.webp"
@@ -75,6 +81,7 @@ jobs:
           grep -q 'data-chapter-target="/spaces"' /tmp/plantupia-world-_.html
           grep -q 'data-chapter-target="/studio"' /tmp/plantupia-world-_.html
           grep -q 'data-chapter-target="/living-systems"' /tmp/plantupia-world-_.html
+          grep -q 'href="/start-a-space"' /tmp/plantupia-world-_.html
           if grep -q 'FIELD GUIDE / VOL. 001' /tmp/plantupia-world-_.html; then
             echo "Legacy Atlas is still rendering at /"
             exit 1
