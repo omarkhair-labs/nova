@@ -17,11 +17,11 @@ This is an overarching **creative company website**, not only a cinematic hero o
 
 | Route | Role | Current implementation |
 |--|--|--|
-| `/` | **The Experience** | Original interactive Living Atlas, currently the main preview; shared center + now connects it to the other real routes; direct route into cinematic Scene 01 |
+| `/` | **The Experience** | Canonical cinematic **A Space Becoming Alive** homepage: three local original AVIF scenes, stage selection, hotspots, hold-to-compare and the same center + world index as the other routes |
 | `/spaces` | **Spaces** | Original interactive spatial studies for dwelling / work / gathering, with scene composition and contextual notes; not case studies or client projects |
 | `/studio` | **The Studio** | Four selectable design-process layers; diagram actively changes with Observe / Compose / Introduce / Return |
 | `/living-systems` | **Living Systems** | Three connected conceptual relationship states: installation, human care and recorded memory; no live customer data or fake sensor statistics |
-| `/study/scene` | **Cinematic Scene 01** | Three editorial visual states, interactive hotspots, stage selection, keyboard arrows, Hold to Compare, + world index. **Temporary reference photography** is not camera-aligned original scene media |
+| `/study/scene` | **Former prototype URL** | Redirects to `/` so previously shared links still reach the canonical experience; no duplicate scene copy |
 | `/study/navigation` | **Legacy navigation experiment** | Standalone historic study; keep for design reference, not part of main world index |
 
 No Arabic version. No incomplete fake portfolio or services routes. All pages have `noindex` until approval. Nothing changes `plantupia.com`.
@@ -29,13 +29,13 @@ No Arabic version. No incomplete fake portfolio or services routes. All pages ha
 ## Development boundaries
 - GitHub **Draft PR #300**, based on consolidated Plantupia Draft **#253**.
 - Vercel linked project `plantupia-public-preview`, branch previews only.
-- The current main homepage Living Atlas is a **working prototype**. The cinematic asset approval and transition QA are open. Don't claim it already matches the approved art-direction mockup.
+- The **Living Atlas** (`app/LivingAtlas.tsx` and `app/atlas.css`) is now archived as source-only reference and is not the homepage or linked in the world index. The cinematic homepage uses **local original generated** `apps/web/public/scene/{space,life,time}.avif` (960×540). The third view is a macro/closer look and NOT a physically accurate camera-aligned time-lapse; visual and interaction sign-off remain open.
 - No Android, backend, Company Dashboard, commerce data, domain/DNS, private data or production account changes in this workstream.
 - Public web should eventually communicate company truth without copy-pasting the Android care UI or inventing proof of completed projects.
 
 ## Slice stages — avoid a mass launch
 1. **Whole-site skeleton and real index routes (this slice)**: connect the four experiences, give each purposeful interaction, keyboard navigability and consistent design language. Build, TypeScript and route smoke tests should pass.
-2. **Cinematic imagery and Scene 01 quality**: integrate original clean assets, control one precise camera, align shots, tune lighting/compositing and performance; no false growth animation.
+2. **Cinematic quality**: original clean assets are now integrated and reachable. Next: align camera position across states (time remains closeup), tune lighting/compositing, assess 960px source resolution and desktop performance; no false growth animation.
 3. **Experience quality across the site**: refine architecture of Spaces, Studio and Living Systems into more cinematic, distinctive, accessible compositions. Avoid a giant marketing scroll.
 4. **Company content truth**: only after evidence is available, fit real services/projects/photos into these experiences, plus any appropriate usable information architecture.
 5. **Release review**: desktop/phone visual QA, interaction tests, Lighthouse/performance, reduced-motion, accessibility, media licenses, legal/company approval, preview sign-off, and only then discuss production/domain migration.
@@ -49,6 +49,6 @@ npm run build
 npm run dev
 ```
 
-GitHub workflow `Plantupia Public Web CI` runs TypeScript, a production build and HTTP smoke tests for `/`, `/spaces`, `/studio`, `/living-systems` and `/study/scene`.
+GitHub workflow `Plantupia Public Web CI` runs TypeScript, a production build and HTTP smoke tests for `/`, `/spaces`, `/studio`, `/living-systems`, the redirect from `/study/scene`, and all three local AVIF scene assets.
 
 Original research and scene acceptance notes are retained under `docs/PLANTUPIA_WEB_*`. Screen-level accessibility, real-browser scene QA and authoritative visual sign-off are separate from successful builds.
