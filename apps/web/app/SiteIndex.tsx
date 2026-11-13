@@ -22,7 +22,7 @@ export default function SiteIndex({
   current,
   tone = "light",
 }: {
-  current: SiteSection;
+  current: SiteSection | null;
   tone?: "light" | "dark";
 }) {
   const [open, setOpen] = useState(false);
