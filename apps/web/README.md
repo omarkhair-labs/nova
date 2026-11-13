@@ -17,7 +17,7 @@ This is an overarching **creative company website**, not only a cinematic hero o
 
 | Route | Role | Current implementation |
 |--|--|--|
-| `/` | **The Experience** | Canonical cinematic **A Space Becoming Alive** homepage: three local original AVIF scenes, stage selection, hotspots, hold-to-compare and the same center + world index as the other routes |
+| `/` | **The Experience** | Canonical cinematic **A Space Becoming Alive** homepage: three high-resolution Pexels architectural photo references (one per independent location), with locally stored generated-study fallbacks, stage selection, hotspots and shared center + world index |
 | `/spaces` | **Spaces** | Original interactive spatial studies for dwelling / work / gathering, with scene composition and contextual notes; not case studies or client projects |
 | `/studio` | **The Studio** | Four selectable design-process layers; diagram actively changes with Observe / Compose / Introduce / Return |
 | `/living-systems` | **Living Systems** | Three connected conceptual relationship states: installation, human care and recorded memory; no live customer data or fake sensor statistics |
@@ -29,13 +29,13 @@ No Arabic version. No incomplete fake portfolio or services routes. All pages ha
 ## Development boundaries
 - GitHub **Draft PR #300**, based on consolidated Plantupia Draft **#253**.
 - Vercel linked project `plantupia-public-preview`, branch previews only.
-- The **Living Atlas** (`app/LivingAtlas.tsx` and `app/atlas.css`) is now archived as source-only reference and is not the homepage or linked in the world index. The cinematic homepage uses **local original generated** `apps/web/public/scene/{space,life,time}.avif` (960×540). The third view is a macro/closer look and NOT a physically accurate camera-aligned time-lapse; visual and interaction sign-off remain open.
+- The **Living Atlas** (`app/LivingAtlas.tsx` and `app/atlas.css`) is archived as source-only reference and is not the homepage or linked in the world index. The cinematic homepage currently uses three temporary Pexels photographic studies from **different locations**, with local generated concept fallback files at `apps/web/public/scene/hd/{space,life,time}.webp`. These are **not** before/after evidence of one place, not Plantupia installations, and not a growth time-lapse. This photographic treatment is approved only as an interim visual direction; final site imagery and interaction QA remain open.
 - No Android, backend, Company Dashboard, commerce data, domain/DNS, private data or production account changes in this workstream.
 - Public web should eventually communicate company truth without copy-pasting the Android care UI or inventing proof of completed projects.
 
 ## Slice stages — avoid a mass launch
 1. **Whole-site skeleton and real index routes (this slice)**: connect the four experiences, give each purposeful interaction, keyboard navigability and consistent design language. Build, TypeScript and route smoke tests should pass.
-2. **Cinematic quality**: original clean assets are now integrated and reachable. Next: align camera position across states (time remains closeup), tune lighting/compositing, assess 960px source resolution and desktop performance; no false growth animation.
+2. **Cinematic quality**: improve the interim real-photo atmosphere while producing a genuine single-space, same-camera art-directed sequence for the definitive reveal. Do not call three locations a before/after; remove photo references when the coherent higher-quality scene passes desktop QA.
 3. **Experience quality across the site**: refine architecture of Spaces, Studio and Living Systems into more cinematic, distinctive, accessible compositions. Avoid a giant marketing scroll.
 4. **Company content truth**: only after evidence is available, fit real services/projects/photos into these experiences, plus any appropriate usable information architecture.
 5. **Release review**: desktop/phone visual QA, interaction tests, Lighthouse/performance, reduced-motion, accessibility, media licenses, legal/company approval, preview sign-off, and only then discuss production/domain migration.
@@ -52,3 +52,9 @@ npm run dev
 GitHub workflow `Plantupia Public Web CI` runs TypeScript, a production build and HTTP smoke tests for `/`, `/spaces`, `/studio`, `/living-systems`, the redirect from `/study/scene`, and all three local AVIF scene assets.
 
 Original research and scene acceptance notes are retained under `docs/PLANTUPIA_WEB_*`. Screen-level accessibility, real-browser scene QA and authoritative visual sign-off are separate from successful builds.
+
+## Temporary photo sources (not Plantupia projects)
+- SPACE — Öznur Yüksel, [Modern Architectural Interior with Skylight](https://www.pexels.com/photo/modern-architectural-interior-with-skylight-28577085/).
+- LIFE — David Allen, [Indoor Atrium with Lush Greenery](https://www.pexels.com/photo/indoor-atrium-with-lush-greenery-and-modern-architecture-33708096/).
+- TIME — Rahime Gül, [Indoor Atrium with Hanging Greenery and Skylight](https://www.pexels.com/photo/indoor-atrium-with-hanging-greenery-and-skylight-40883631/).
+- [Pexels License](https://www.pexels.com/license/) allows website use, subject to its restrictions and any additional third-party rights. Do not imply Plantupia designed, installed or owns the pictured architecture.
