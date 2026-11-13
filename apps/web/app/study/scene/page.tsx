@@ -12,8 +12,8 @@ const scenes = [
     label: "The Space",
     line: "A space has a life before we enter it.",
     detail: "A quiet architectural study. Light, material, proportion and how people use a room come first.",
-    visual: "/scene/space.avif",
-    alt: "Concept rendering of a warm architectural interior with a broad ceiling opening, sunlight, and restrained furniture before the planting intervention.",
+    visual: "https://images.pexels.com/photos/28577085/pexels-photo-28577085.jpeg?auto=compress&cs=tinysrgb&w=1600", // temporary licensed editorial reference until generated AVIF is in /public/scene/
+    alt: "Temporary editorial reference photo of a modern architectural interior with skylight and sunlight, used to study spatial atmosphere.",
     markerLabels: ["The light", "The threshold", "The materials"],
     markerDescriptions: [
       "The light and ceiling opening create the room's first atmosphere.",
@@ -26,8 +26,8 @@ const scenes = [
     label: "With Life",
     line: "Nature changes how architecture is felt.",
     detail: "Planting softens edges and makes the room more layered. The intervention is deliberate, not an instant-growth effect.",
-    visual: "/scene/life.avif",
-    alt: "Concept rendering of a designed interior with lush integrated foliage, hanging vines, and pools of warm sunlight.",
+    visual: "https://images.pexels.com/photos/33708096/pexels-photo-33708096.jpeg?auto=compress&cs=tinysrgb&w=1600", // temporary licensed editorial reference
+    alt: "Temporary editorial reference photo of an indoor atrium with planting and skylight.",
     markerLabels: ["Living material", "Filtered light", "A softer boundary"],
     markerDescriptions: [
       "Planting becomes part of the room rather than an object placed on top.",
@@ -40,8 +40,8 @@ const scenes = [
     label: "Over Time",
     line: "The story does not end on installation day.",
     detail: "A closer reading of living material: observation, return, and human care. This is not real growth data.",
-    visual: "/scene/time.avif",
-    alt: "Concept close-up of botanical planting, sunlit stone, leaf textures, and material details in a mature interior.",
+    visual: "https://images.pexels.com/photos/40883631/pexels-photo-40883631.jpeg?auto=compress&cs=tinysrgb&w=1600", // temporary licensed editorial reference
+    alt: "Temporary editorial reference photo of a planted atrium and hanging greenery.",
     markerLabels: ["Notice", "Return", "Remember"],
     markerDescriptions: [
       "Observation turns the living space into an ongoing relationship.",
@@ -251,7 +251,7 @@ export default function SceneStudy() {
           <h2>What is this scene?</h2>
           <p>This is a cinematic design exploration, not a photograph of a completed Plantupia project.
           The three visual studies explore architecture, a planting intervention, and attentive care over time.
-          The imagery is composited; no biological growth, real installation, sensor readings, or customer history are represented.</p>
+          The online prototype currently uses licensed editorial reference photography with differing viewpoints; the approved original clean AI scene assets are prepared separately for upload. This is not yet a frame-accurate transition. No biological growth, real Plantupia installation, sensor readings, or customer history are represented.</p>
         </aside>}
       </main>
 
