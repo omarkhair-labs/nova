@@ -121,6 +121,33 @@ Requirements: visitors can select stage and link by mouse/touch/keyboard. The sc
 | **6 — Evidence & Work** | Verified case studies, project archive and brand/legal information | Source-approved facts, permissions and media |
 | **7 — Release Gate** | Performance budgets, responsive QA, accessibility, error handling, SEO, analytics/privacy review, production deployment plan | Written approval; no automatic cutover |
 
+## 7 / First actionable commercial journey — Space Conversation Outline
+
+**Implemented preview path:** `/start-a-space` (reachable from `/spaces` and the homepage Chapter Threshold).
+
+This is the first intentionally useful business outcome of the creative journey: **inspiration → structured expression of need → shareable outline**, not a premature "request submitted" fiction.
+
+### Current prototype behavior
+
+- Select the environment: home, workplace, hospitality/gathering or another setting.
+- Select intention: new space, plant introduction or ongoing care.
+- Select stage: exploring, planning or ready to move forward.
+- Optionally add the city/area and notes, without asking for name, email, phone or sensitive information.
+- A live, art-directed `Space Dossier` updates immediately. `Copy Your Space Outline` uses the device clipboard. The selectable text is always present as fallback.
+- There is **no backend POST**, email, CRM submission, enquiry ID or Plantupia server storage. The browser state is ephemeral, and the page explicitly says the outline has not been submitted.
+- **Do not connect a direct sending action** until Plantupia approves a verified contact destination, ownership of the receiving inbox/CRM, privacy notice, retention policy, spam handling, server validation and a real acknowledgment flow.
+
+### What will make this a genuinely operational business pipeline
+
+1. Confirm company-owned contact/channel and service-area scope with Plantupia (avoid guessing from older Plantophobia/Plantupia posts or non-owner listings).
+2. Decide how a lead enters the Company backend (new `design-enquiry` domain model or existing validated requests process), with explicit opt-in and rate limits.
+3. Capture only necessary fields, confirm consent and show a true receipt on a successful server-side send; distinguish draft, submitted, acknowledged and accepted.
+4. Connect the lead to a human owner and a defined response workflow. Never promise a response SLA without agreement.
+5. Instrument **privacy-reviewed** funnel events: scene → chapter entry → Space Brief start → outline prepared → channel handoff → genuine qualified enquiry (only after verified).
+6. Later allow verified project evidence and reviewed case studies to support trust; avoid invented photos, testimonials or measured health benefits.
+
+For now **copying is the only completed action**. An off-site contact route is not shown until approved. This is a deliberate scope limit, not a claimed end-to-end lead capture implementation.
+
 ## 7 / Current reality snapshot
 
 - **Already live as preview routes:** `/`, `/spaces`, `/studio`, `/living-systems`. `/study/scene` redirects to canonical `/`. `/study/navigation` is an old isolated prototype, not a chapter.
