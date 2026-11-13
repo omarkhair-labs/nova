@@ -93,6 +93,7 @@ export default function WorldThreshold() {
                 type="button"
                 className={active === i ? "wt-choice wt-choice-selected" : "wt-choice"}
                 aria-pressed={active === i}
+                data-chapter-target={world.href}
                 onMouseEnter={() => setActive(i as WorldId)}
                 onFocus={() => setActive(i as WorldId)}
                 onClick={() => setActive(i as WorldId)}
@@ -107,7 +108,7 @@ export default function WorldThreshold() {
             <p className="wt-reading-id">{current.overline} <span> / {current.number}</span></p>
             <h3>{current.headline}</h3>
             <p className="wt-reading-description">{current.description}</p>
-            <a className="wt-enter" href={current.href}>
+            <a className="wt-enter" href={current.href} aria-label={"Enter " + current.name}>
               ENTER {current.name.toUpperCase()}
               <span aria-hidden="true">↗</span>
             </a>
