@@ -27,3 +27,25 @@ jobs:
         run: npm run typecheck
       - name: Production build
         run: npm run build
+
+      - name: Smoke-test scene route
+        run: |
+          set -euo pipefail
+          npm run start -- -p 3017 >/tmp/plantupia-web-start.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ok=0
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3017/study/scene/ -o /tmp/plantupia-scene.html; then
+              ok=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ok" -ne 1 ]; then
+            cat /tmp/plantupia-web-start.log
+            exit 1
+          fi
+          grep -q 'A Space' /tmp/plantupia-scene.html
+          grep -q 'Hold to compare' /tmp/plantupia-scene.html
+          grep -q 'The Space' /tmp/plantupia-scene.html
