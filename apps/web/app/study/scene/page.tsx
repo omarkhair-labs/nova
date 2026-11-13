@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import "./scene.css";
+import { siteSections } from "../../SiteIndex";
 
 type Stage = 0 | 1 | 2;
 type MarkerIndex = 0 | 1 | 2;
@@ -267,13 +268,12 @@ export default function SceneStudy() {
             <h2 id="ps-index-title">A space is<br />never <em>still.</em></h2>
             <div className="ps-index-chapters">
               <p>FIND YOUR WAY IN</p>
-              {scenes.map((item, i) => (
-                <button key={item.label} type="button" onClick={() => { switchStage(i as Stage); closeIndex(); }}>
-                  <span>0{i+1}</span><strong>{item.label}</strong><span aria-hidden="true">↗</span>
-                </button>
+              {siteSections.map((item) => (
+                <a key={item.id} href={item.href} aria-current={item.id === "experience" ? "page" : undefined}>
+                  <span>{item.number}</span><strong>{item.name}</strong><span aria-hidden="true">↗</span>
+                </a>
               ))}
-              <a href="/study/navigation/">Explore the navigation study <span aria-hidden="true">↗</span></a>
-              <p className="ps-index-disclaimer">Only the experience studies are implemented. No fictional company projects or pages are linked here.</p>
+              <p className="ps-index-disclaimer">These are four connected design experiences. The scene remains a conceptual artwork, not a completed Plantupia project.</p>
             </div>
           </div>
           <div className="ps-index-footer">PRESS ESC TO CLOSE <span>THE WORLD IS STILL IN DESIGN</span></div>
