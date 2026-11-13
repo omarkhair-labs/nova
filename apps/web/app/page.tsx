@@ -87,7 +87,10 @@ export default function HomePage() {
           <a href="#continuity">Living layer</a>
           <a href="#process">How we work</a>
         </nav>
-        <a href="#contact" className="header-contact">Start a conversation <Arrow diagonal /></a>
+        <div className="header-tools">
+          <a className="language-link" href="/ar/" hrefLang="ar" lang="ar" aria-label="العربية — عرض الموقع باللغة العربية">العربية</a>
+          <a href="#contact" className="header-contact">Start a conversation <Arrow diagonal /></a>
+        </div>
         <details className="mobile-nav">
           <summary aria-label="Open navigation menu">Menu <span>＋</span></summary>
           <nav aria-label="Mobile navigation">
@@ -96,6 +99,7 @@ export default function HomePage() {
             <a href="#continuity">Living layer</a>
             <a href="#process">How we work</a>
             <a href="#contact">Contact</a>
+            <a href="/ar/" hrefLang="ar" lang="ar">العربية</a>
           </nav>
         </details>
       </header>
