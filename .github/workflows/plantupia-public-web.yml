@@ -56,10 +56,13 @@ jobs:
           grep -q 'Every space' /tmp/plantupia-world-_spaces.html
           grep -q 'Designed' /tmp/plantupia-world-_studio.html
           grep -q 'Day one' /tmp/plantupia-world-_living-systems.html
-          # Scene assets are original static AVIF files, not external Pexels URLs.
+          # Main scene uses quality-restored 2560x1440 WebP files, not tiny AVIF sources.
           for asset in space life time; do
-            curl -fsSL "http://127.0.0.1:3017/scene/${asset}.avif" -o "/tmp/plantupia-${asset}.avif"
-            test "$(wc -c < "/tmp/plantupia-${asset}.avif")" -gt 5000
+            curl -fsSL "http://127.0.0.1:3017/scene/hd/${asset}.webp" -o "/tmp/plantupia-${asset}-hd.webp"
+            test "$(wc -c < "/tmp/plantupia-${asset}-hd.webp")" -gt 100000
+          done
+          for asset in space life time; do
+            grep -q "/scene/hd/${asset}.webp" /tmp/plantupia-world-_.html
           done
           grep -q 'Becoming' /tmp/plantupia-world-_.html
           grep -q 'HOLD TO COMPARE' /tmp/plantupia-world-_.html
