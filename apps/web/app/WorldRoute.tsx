@@ -189,6 +189,19 @@ export default function WorldRoute({ kind }: { kind: WorldKind }) {
             </div>
           </div>
         </section>
+        {kind === "spaces" && (
+          <section className="wr-brief-bridge" aria-labelledby="wr-brief-title">
+            <div className="wr-brief-bridge-copy">
+              <span>FROM INSPIRATION / TO A FIRST CONVERSATION</span>
+              <h2 id="wr-brief-title">What could nature<br/><em>bring to your space?</em></h2>
+              <p>You have explored the possibilities. Now put a few thoughts about your own place together, without pressure or a long form.</p>
+            </div>
+            <a href="/start-a-space" className="wr-brief-bridge-link">
+              START WITH YOUR SPACE <span aria-hidden="true">↗</span>
+              <small>PREPARE A PRIVATE PROJECT OUTLINE — NO MESSAGE IS SENT</small>
+            </a>
+          </section>
+        )}
         <nav className="wr-next" aria-label="Continue exploring Plantupia">
           <span>THE STORY CONTINUES</span>
           <a href={kind === "spaces" ? "/studio" : kind === "studio" ? "/living-systems" : "/"}>
