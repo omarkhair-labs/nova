@@ -268,6 +268,12 @@ export default function LivingAtlas({ lang }: { lang: Lang }) {
   const selectedNote = lensNotes[lens][point];
 
   useEffect(() => {
+    // Keep the document language and reading direction honest after hydration.
+    document.documentElement.lang = lang;
+    document.documentElement.dir = arabic ? "rtl" : "ltr";
+  }, [lang, arabic]);
+
+  useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key === "Escape" && focus) setFocus(false);
     }
@@ -339,6 +345,11 @@ export default function LivingAtlas({ lang }: { lang: Lang }) {
                 <SpatialStudy place={spaceId} lens={lens} time={time} lang={lang}/>
               </div>
               <div className="atlas-corner-label">{at(selectedSpace.cue, lang)}</div>
+              <div className="atlas-space-signature" aria-live="polite">
+                <span>{arabic ? "المساحة الحالية" : "SELECTED SPACE"} / {selectedSpace.number}</span>
+                <strong>{at(selectedSpace.title, lang)}</strong>
+                <small>{at(selectedSpace.subtitle, lang)}</small>
+              </div>
               <div className="atlas-hotspot-layer">
                 {lensNotes[lens].map((item, i) => (
                   <button type="button" key={lens + "-" + i}
