@@ -36,7 +36,7 @@ jobs:
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           ok=0
           for i in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:3017/study/scene/ -o /tmp/plantupia-scene.html; then
+            if curl -fsSL http://127.0.0.1:3017/study/scene -o /tmp/plantupia-scene.html; then
               ok=1
               break
             fi
