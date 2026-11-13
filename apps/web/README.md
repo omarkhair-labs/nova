@@ -1,6 +1,14 @@
-# Plantupia Creative Website — Whole-Site Integration / Slice 01
+# Plantupia Creative Website — Whole-Site Blueprint + Chapter Threshold / Slice 02
 
 **Status:** English-only, desktop-led, connected design preview. **Not** the official Plantupia website or a production release.
+
+## Website experience blueprint
+
+The opening cinematic scene is only the **first chapter**, not the whole site. A live visitor can continue by scrolling into an interactive **Chapter Threshold** (choose Spaces / Studio / Living Systems, with one media field and three selectable chapter doors) or use the center `+` to jump straight into the World Index. The selected chapter changes the editorial image and text, and **ENTER [CHAPTER]** navigates to an actual route.
+
+**Source of truth for future work:** [Full website Experience Blueprint V01](../../docs/PLANTUPIA_WEB_EXPERIENCE_BLUEPRINT_V01_2026-11-13.md).
+
+The complete target includes four current chapters and three gated additions: Botanical Library (only with reviewed species data), Shop (only through the canonical product/checkout system) and Work/Projects (only with verified, approved project assets). No fake empty routes have been exposed.
 
 ## Creative direction
 Architecture sets the stage. Plants change the experience of that space. Care and time keep that relationship alive.
@@ -17,7 +25,7 @@ This is an overarching **creative company website**, not only a cinematic hero o
 
 | Route | Role | Current implementation |
 |--|--|--|
-| `/` | **The Experience** | Canonical cinematic **A Space Becoming Alive** homepage: three high-resolution Pexels architectural photo references (one per independent location), with locally stored generated-study fallbacks, stage selection, hotspots and shared center + world index |
+| `/` | **The Experience** | Canonical cinematic **A Space Becoming Alive** opening: three independent high-resolution editorial photo references, controls, hotspots and World Index; **continues into the interactive Chapter Threshold** linking real Spaces, Studio and Living Systems chapters |
 | `/spaces` | **Spaces** | Original interactive spatial studies for dwelling / work / gathering, with scene composition and contextual notes; not case studies or client projects |
 | `/studio` | **The Studio** | Four selectable design-process layers; diagram actively changes with Observe / Compose / Introduce / Return |
 | `/living-systems` | **Living Systems** | Three connected conceptual relationship states: installation, human care and recorded memory; no live customer data or fake sensor statistics |
@@ -34,7 +42,7 @@ No Arabic version. No incomplete fake portfolio or services routes. All pages ha
 - Public web should eventually communicate company truth without copy-pasting the Android care UI or inventing proof of completed projects.
 
 ## Slice stages — avoid a mass launch
-1. **Whole-site skeleton and real index routes (this slice)**: connect the four experiences, give each purposeful interaction, keyboard navigability and consistent design language. Build, TypeScript and route smoke tests should pass.
+1. **Whole-site skeleton and Chapter Threshold (current slice)**: connect four real experiences through the shared index, and place an interactive post-opening gateway on the homepage to actually continue the visitor journey. Review mobile/desktop composition, keyboard selection, route semantics and photo disclosures.
 2. **Cinematic quality**: improve the interim real-photo atmosphere while producing a genuine single-space, same-camera art-directed sequence for the definitive reveal. Do not call three locations a before/after; remove photo references when the coherent higher-quality scene passes desktop QA.
 3. **Experience quality across the site**: refine architecture of Spaces, Studio and Living Systems into more cinematic, distinctive, accessible compositions. Avoid a giant marketing scroll.
 4. **Company content truth**: only after evidence is available, fit real services/projects/photos into these experiences, plus any appropriate usable information architecture.
@@ -49,7 +57,7 @@ npm run build
 npm run dev
 ```
 
-GitHub workflow `Plantupia Public Web CI` runs TypeScript, a production build and HTTP smoke tests for `/`, `/spaces`, `/studio`, `/living-systems`, the redirect from `/study/scene`, and all three local AVIF scene assets.
+GitHub workflow `Plantupia Public Web CI` runs TypeScript, a production build and HTTP smoke tests for `/`, `/spaces`, `/studio`, `/living-systems`, the redirect from `/study/scene`, local HD WebP fallback scene assets, and the homepage's Chapter Threshold links.
 
 Original research and scene acceptance notes are retained under `docs/PLANTUPIA_WEB_*`. Screen-level accessibility, real-browser scene QA and authoritative visual sign-off are separate from successful builds.
 
