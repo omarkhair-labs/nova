@@ -54,6 +54,17 @@ jobs:
           grep -q 'Every space' /tmp/plantupia-world-_spaces.html
           grep -q 'Designed' /tmp/plantupia-world-_studio.html
           grep -q 'Day one' /tmp/plantupia-world-_living-systems.html
+          # Phase 03: one coherent photographic language, but distinct chapter interactions.
+          grep -q 'SPACES / THE ARCHITECTURAL FIELD' /tmp/plantupia-world-_spaces.html
+          grep -q 'Design prompts for this space' /tmp/plantupia-world-_spaces.html
+          grep -q 'THE STUDIO / A WORKING METHOD' /tmp/plantupia-world-_studio.html
+          grep -q 'DESIGN DIAGRAM / CONCEPT, NOT A CLIENT DRAWING' /tmp/plantupia-world-_studio.html
+          grep -q 'LIVING SYSTEMS / THE CONTINUING RELATIONSHIP' /tmp/plantupia-world-_living-systems.html
+          grep -q 'NOT A LIVE DASHBOARD' /tmp/plantupia-world-_living-systems.html
+          if grep -q 'wr-space-art-' /tmp/plantupia-world-_spaces.html; then
+            echo "Removed cartoon-space artwork is still rendered"
+            exit 1
+          fi
           # The first business-action flow is real but client-side only — never a fake submitted enquiry.
           curl -fsSL http://127.0.0.1:3017/start-a-space -o /tmp/plantupia-space-brief.html
           grep -q 'SPACE DOSSIER' /tmp/plantupia-space-brief.html
