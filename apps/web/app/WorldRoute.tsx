@@ -136,7 +136,6 @@ function SystemsScene({ phase }: { phase: number }) {
 
 export default function WorldRoute({ kind }: { kind: WorldKind }) {
   const [selection, setSelection] = useState(0);
-  const item = kind === "spaces" ? spaces[selection] : kind === "studio" ? studioSteps[selection] : systems[selection];
   const masthead = mastheads[kind];
   const currentSection: SiteSection = kind === "systems" ? "systems" : kind;
   const total = kind === "studio" ? 4 : 3;
@@ -153,7 +152,7 @@ export default function WorldRoute({ kind }: { kind: WorldKind }) {
             <p className="wr-lead">{masthead.note}</p>
             <div className="wr-controls" role="group" aria-label={"Explore " + kind}>
               {(kind === "spaces" ? spaces : kind === "studio" ? studioSteps : systems).map((entry, index) => (
-                <button type="button" key={entry.id ?? entry.number}
+                <button type="button" key={index}
                   aria-pressed={index === selection}
                   onClick={() => setSelection(index)}>
                   <span>{String(index + 1).padStart(2, "0")}</span>
