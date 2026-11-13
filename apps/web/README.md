@@ -8,6 +8,8 @@ The opening cinematic scene is only the **first chapter**, not the whole site. A
 
 **Source of truth for future work:** [Full website Experience Blueprint V01](../../docs/PLANTUPIA_WEB_EXPERIENCE_BLUEPRINT_V01_2026-11-13.md).
 
+**Cinematic chapter visual integration (Slice 03):** [Cinematic Chapters / source credits & acceptance](../../docs/PLANTUPIA_WEB_CINEMATIC_CHAPTERS_SLICE_03_2026-11-13.md). The spatial, studio and continuity scenes now use a shared architectural photographic language rather than separate cartoon CSS artwork. Sources are temporary licensed editorial **reference locations**, not actual Plantupia project photos or documented outcomes.
+
 The current preview also has an optional **business-action path**: `/start-a-space` lets visitors prepare and copy a project outline, but does not collect or submit it. Real delivery to a Plantupia-owned channel must pass the contact/privacy/CRM approval gate.
 
 The complete target includes four current chapters and three gated additions: Botanical Library (only with reviewed species data), Shop (only through the canonical product/checkout system) and Work/Projects (only with verified, approved project assets). No fake empty routes have been exposed.
@@ -28,9 +30,9 @@ This is an overarching **creative company website**, not only a cinematic hero o
 | Route | Role | Current implementation |
 |--|--|--|
 | `/` | **The Experience** | Canonical cinematic **A Space Becoming Alive** opening: three independent high-resolution editorial photo references, controls, hotspots and World Index; **continues into the interactive Chapter Threshold** linking real Spaces, Studio and Living Systems chapters |
-| `/spaces` | **Spaces** | Original interactive spatial studies for dwelling / work / gathering, with scene composition and contextual notes; not case studies or client projects |
-| `/studio` | **The Studio** | Four selectable design-process layers; diagram actively changes with Observe / Compose / Introduce / Return |
-| `/living-systems` | **Living Systems** | Three connected conceptual relationship states: installation, human care and recorded memory; no live customer data or fake sensor statistics |
+| `/spaces` | **Spaces** | Three independent editorial photo locations for dwelling/work/gathering, plus selectable light/movement/care design prompts; contextual next step to `/start-a-space` |
+| `/studio` | **The Studio** | Four selectable Observe / Compose / Introduce / Return stages with changing original conceptual blueprint layers over one reference architectural photograph |
+| `/living-systems` | **Living Systems** | Three selectable place/care/memory stages against a botanical editorial scene and honest conceptual continuity timeline; not a real care dashboard or live telemetry |
 | `/start-a-space` | **Space Conversation Outline** | Interactive client-side brief with four choices, live dossier and copyable text; explicitly **not an enquiry submission**, no server-side lead capture or contact data collection |
 | `/study/scene` | **Former prototype URL** | Redirects to `/` so previously shared links still reach the canonical experience; no duplicate scene copy |
 | `/study/navigation` | **Legacy navigation experiment** | Standalone historic study; keep for design reference, not part of main world index |
