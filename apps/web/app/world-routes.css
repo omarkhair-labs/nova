@@ -98,3 +98,16 @@
 @media(max-width:650px){.wr-header{height:75px;padding:0 18px}.wr-wordmark{font-size:21px}.wr-symbol{font-size:21px}.wr-scene-link{font-size:9px;letter-spacing:0}.wr-scene-link small{display:none}.wr-creative{min-height:0}.wr-introduction{padding:48px 22px 28px}.wr-introduction h1{font-size:clamp(48px,10vw,71px);margin:36px 0 19px}.wr-lead{font-size:14px;margin:0 0 12px}.wr-controls{margin-top:28px}.wr-controls button{min-height:57px;padding:13px 0}.wr-controls button strong{font-size:23px}.wr-gallery-head{padding:0 20px;height:49px;font-size:8px}.wr-gallery-art{min-height:420px}.wr-gallery-reading{grid-template-columns:32px minmax(0,1fr);padding:24px 20px}.wr-gallery-reading h2{font-size:30px}.wr-next{padding:50px 22px;display:block}.wr-next>a{font-size:37px;margin-top:25px;gap:12px}.wr-footer{padding:24px 20px}.wr-footer>span:nth-child(2){width:100%;order:3}}
 @media(max-width:390px){.wr-introduction h1{font-size:46px}.wr-gallery-art{min-height:370px}.wr-scene-link{font-size:8px}}
 @media(prefers-reduced-motion:reduce){.wr-world *, .wr-world *::before,.wr-world *::after{transition:none!important;animation:none!important}}
+
+/* Business-action bridge: one useful path beyond the creative chapters, without a fake enquiry submit. */
+.wr-brief-bridge{margin:0;padding:clamp(56px,6vw,120px) clamp(24px,6vw,110px);background:#e9eadc;color:#1b3a2c;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:50px;border-top:1px solid #cad3c1}
+.wr-brief-bridge-copy>span{font:700 10px Consolas,monospace;letter-spacing:.13em;color:#658064}
+.wr-brief-bridge h2{font:400 clamp(47px,5.5vw,99px)/1 Georgia,serif;letter-spacing:-.065em;margin:25px 0}
+.wr-brief-bridge h2 em{font-weight:400;color:#658367}
+.wr-brief-bridge-copy p{max-width:560px;font-size:14px;line-height:1.85;color:#617463}
+.wr-brief-bridge-link{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:18px;padding:26px 31px;border:1px solid #375f45;min-width:315px;background:#1c432e;color:#eaf1dd!important;font-weight:700;font-size:12px;letter-spacing:.11em;position:relative;transition:background .2s}
+.wr-brief-bridge-link:hover{background:#3b694d}
+.wr-brief-bridge-link>span{font-size:34px;line-height:1}
+.wr-brief-bridge-link small{max-width:265px;color:#c1d6b7;font:700 9px/1.6 Consolas,monospace;letter-spacing:.06em}
+@media(max-width:1000px){.wr-brief-bridge{grid-template-columns:1fr;gap:24px}.wr-brief-bridge-link{min-width:0;max-width:440px}}
+@media(max-width:650px){.wr-brief-bridge{padding:60px 22px}.wr-brief-bridge h2{font-size:clamp(47px,9.3vw,71px)}.wr-brief-bridge-link{padding:22px;width:100%;max-width:none}}
