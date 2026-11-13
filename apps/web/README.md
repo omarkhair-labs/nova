@@ -1,33 +1,46 @@
-# Plantupia Living Atlas — Public Web / Interactive Design Study V02
+# Plantupia Creative Website — Whole-Site Integration / Slice 01
 
-**Status: Draft, running on a protected Vercel review deployment. Not the official company website.**
+**Status:** English-only, desktop-led, connected design preview. **Not** the official Plantupia website or a production release.
 
-This application is a deliberately independent public web exploration. It does not substitute for the Android care app, the one canonical customer Shop or the internal Company platform.
+## Creative direction
+Architecture sets the stage. Plants change the experience of that space. Care and time keep that relationship alive.
 
-## Product thesis
-A place is never still. Architecture, plants, people and time form one relationship:
-**PLACE → LIVING MATERIAL → HUMAN CARE → TIME**.
+The project intentionally rejects a conventional five-link corporate header and a scroll of generic marketing sections. Its navigation has three levels:
 
-The previous version was essentially an English/Arabic typographic landing page. This iteration replaces it with an explorable spatial field guide rather than stacking the same marketing components with larger text.
+1. **Center +** — a full-screen, accessible **World Index** for the four real website experiences.
+2. **Within an experience** — local contextual controls that change the scene, the studio plan, or the conceptual relationship being explained.
+3. **Within a specific scene** — hotspots and explicit before/after/sequence controls, not decorative dead buttons.
 
-## Where it lives
-- GitHub Draft PR #300, based on consolidated Plantupia Draft #253.
-- Next.js 16 / React 19 / TypeScript, at `apps/web`.
-- Vercel linked project: `plantupia-public-preview`. Auto-generated Vercel branch previews are separate from the official domain, and may require Vercel authentication.
-- English-only `/`. The requested site does not offer an Arabic route or language switch.
+This is an overarching **creative company website**, not only a cinematic hero or a standalone interactive art piece. The mobile fallback must work, but **desktop is the primary visual composition**.
 
-## Experience
-- Interactive SVG architectural dioramas for dwelling, work and gather typologies, all **fictional design studies**, not built Plantupia projects.
-- Three distinct lenses: SPACE, LIVING PLANT and TIME.
-- Three accessible contextual hotspots in every lens: select or use the Previous/Next note controls.
-- Time lens contains a chosen conceptual time sequence (not a plant timeline or measured sensor series).
-- Focus mode to see the artwork more clearly; Escape exits.
-- Four-layer interactive method folio with selection and original generative geometric motion.
-- Responsive desktop/tablet/phone, English editorial UI, visible keyboard selection semantics and reduced-motion fallback.
-- No stock photos, fake installations, fake plant care records, public authentication, checkout clones, silent external scripts, dead lead forms or implied official endorsements.
-- No SEO indexing until company approval.
+## Actual app routes
 
-## Run and validate
+| Route | Role | Current implementation |
+|--|--|--|
+| `/` | **The Experience** | Original interactive Living Atlas, currently the main preview; shared center + now connects it to the other real routes; direct route into cinematic Scene 01 |
+| `/spaces` | **Spaces** | Original interactive spatial studies for dwelling / work / gathering, with scene composition and contextual notes; not case studies or client projects |
+| `/studio` | **The Studio** | Four selectable design-process layers; diagram actively changes with Observe / Compose / Introduce / Return |
+| `/living-systems` | **Living Systems** | Three connected conceptual relationship states: installation, human care and recorded memory; no live customer data or fake sensor statistics |
+| `/study/scene` | **Cinematic Scene 01** | Three editorial visual states, interactive hotspots, stage selection, keyboard arrows, Hold to Compare, + world index. **Temporary reference photography** is not camera-aligned original scene media |
+| `/study/navigation` | **Legacy navigation experiment** | Standalone historic study; keep for design reference, not part of main world index |
+
+No Arabic version. No incomplete fake portfolio or services routes. All pages have `noindex` until approval. Nothing changes `plantupia.com`.
+
+## Development boundaries
+- GitHub **Draft PR #300**, based on consolidated Plantupia Draft **#253**.
+- Vercel linked project `plantupia-public-preview`, branch previews only.
+- The current main homepage Living Atlas is a **working prototype**. The cinematic asset approval and transition QA are open. Don't claim it already matches the approved art-direction mockup.
+- No Android, backend, Company Dashboard, commerce data, domain/DNS, private data or production account changes in this workstream.
+- Public web should eventually communicate company truth without copy-pasting the Android care UI or inventing proof of completed projects.
+
+## Slice stages — avoid a mass launch
+1. **Whole-site skeleton and real index routes (this slice)**: connect the four experiences, give each purposeful interaction, keyboard navigability and consistent design language. Build, TypeScript and route smoke tests should pass.
+2. **Cinematic imagery and Scene 01 quality**: integrate original clean assets, control one precise camera, align shots, tune lighting/compositing and performance; no false growth animation.
+3. **Experience quality across the site**: refine architecture of Spaces, Studio and Living Systems into more cinematic, distinctive, accessible compositions. Avoid a giant marketing scroll.
+4. **Company content truth**: only after evidence is available, fit real services/projects/photos into these experiences, plus any appropriate usable information architecture.
+5. **Release review**: desktop/phone visual QA, interaction tests, Lighthouse/performance, reduced-motion, accessibility, media licenses, legal/company approval, preview sign-off, and only then discuss production/domain migration.
+
+## Run and verify
 ```bash
 cd apps/web
 npm install --no-audit --no-fund
@@ -36,16 +49,6 @@ npm run build
 npm run dev
 ```
 
-The `Plantupia Public Web CI` GitHub workflow runs TypeScript checks and a production build. Actual physical-device and visual signoff is a separate acceptance gate.
+GitHub workflow `Plantupia Public Web CI` runs TypeScript, a production build and HTTP smoke tests for `/`, `/spaces`, `/studio`, `/living-systems` and `/study/scene`.
 
-## Research / design decisions
-See [Living Atlas Research & Interaction System V02](../../docs/PLANTUPIA_WEB_LIVING_ATLAS_RESEARCH_AND_INTERACTION_V02_2026-11-13.md).
-
-## Next web-only improvements
-1. Inspect every interactive state on real Android/iOS browsers and 320–1440px viewports; correct overlap, loading, legibility and English typographic rhythm.
-2. Explore more visually distinctive representations of light, placement and care, based on verified design drawings or licensed source material (not generic stock "plant project" imagery).
-3. Add intentional accessible transitions, optional spatial sound only if consented and meaningful, and performance budgets.
-4. Resolve the central product distinction: this Living Atlas is currently an interactive concept, not yet a complete creative company website. Evaluate it as the entry to genuine Work, Studio, Living Systems and Journal routes rather than treating two interactive scenes as a finished site.
-5. Only after coherent direction is approved should we consider official brand assets, real case-study media, external services, domain cutover or integration with reviewed catalog data.
-
-Current `plantupia.com`, Android, Django, Company Dashboard and production data are unchanged.
+Original research and scene acceptance notes are retained under `docs/PLANTUPIA_WEB_*`. Screen-level accessibility, real-browser scene QA and authoritative visual sign-off are separate from successful builds.
