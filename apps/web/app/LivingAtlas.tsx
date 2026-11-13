@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import SiteIndex from "./SiteIndex";
 
 type Lang = "en" | "ar";
 type Lens = "place" | "plant" | "time";
@@ -290,9 +291,9 @@ export default function LivingAtlas({ lang }: { lang: Lang }) {
       <a className="atlas-skip" href="#atlas-main">{arabic ? "انتقل للمحتوى" : "Skip to the experience"}</a>
       <header className="atlas-topbar">
         <a href={arabic ? "/ar/" : "/"} aria-label={arabic ? "بلانتيبيا - الرئيسية" : "Plantupia home"}><Brand /></a>
-        <span className="atlas-topline">{arabic ? "دراسة عن الأماكن الحيّة / ٠١" : "A STUDY OF LIVING SPACES / 01"}</span>
+        <SiteIndex current="experience" />
         <div className="atlas-top-actions">
-          <a className="atlas-index-link" href="#atlas-method">{arabic ? "الفكرة ↗" : "THE METHOD ↗"}</a>
+          <a className="atlas-index-link" href="/study/scene">ENTER THE SCENE ↗</a>
         </div>
       </header>
 
