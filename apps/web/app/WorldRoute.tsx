@@ -332,8 +332,8 @@ export default function WorldRoute({ kind }: { kind: WorldKind }) {
               <span>PLANTUPIA / {masthead.number}</span>
               <span>{kind === "spaces" ? "THE PLACE" : kind === "studio" ? "THE PROCESS" : "THE CONTINUITY"} ↘</span>
             </div>
-            <div className="wr-gallery-art"
-              aria-label={kind === "spaces" ? "Spatial editorial image and design prompts" : kind === "studio" ? "Architectural process layers over an editorial photograph" : "Conceptual care continuum over editorial botanical photography"}>
+            <div className="wr-gallery-art" role="group"
+              aria-label={kind === "spaces" ? "Spatial editorial photography and interactive design prompts" : kind === "studio" ? "Architectural process layers over an editorial photograph" : "Conceptual care continuity over editorial botanical photography"}>
               {kind === "spaces" ? <SpaceScene active={selection}/> : kind === "studio" ? <StudioScene phase={selection}/> : <SystemsScene phase={selection}/>}
             </div>
             <div className="wr-gallery-reading" aria-live="polite" aria-atomic="true">
