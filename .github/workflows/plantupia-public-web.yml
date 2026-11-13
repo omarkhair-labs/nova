@@ -1,0 +1,99 @@
+name: Plantupia Public Web CI
+
+on:
+  pull_request:
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/plantupia-public-web.yml"
+  push:
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/plantupia-public-web.yml"
+
+jobs:
+  web-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Production build
+        run: npm run build
+
+      - name: Smoke-test site routes and scene
+        run: |
+          set -euo pipefail
+          npm run start -- -p 3017 >/tmp/plantupia-web-start.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ok=0
+          for i in $(seq 1 30); do
+            if curl -fsSL http://127.0.0.1:3017/study/scene -o /tmp/plantupia-scene.html; then
+              ok=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ok" -ne 1 ]; then
+            cat /tmp/plantupia-web-start.log
+            exit 1
+          fi
+          grep -q 'A Space' /tmp/plantupia-scene.html
+          for route in / /spaces /studio /living-systems; do
+            curl -fsSL "http://127.0.0.1:3017${route}" -o "/tmp/plantupia-world-${route//\//_}.html"
+            grep -q 'Plantupia' "/tmp/plantupia-world-${route//\//_}.html"
+          done
+          grep -q 'Every space' /tmp/plantupia-world-_spaces.html
+          grep -q 'Designed' /tmp/plantupia-world-_studio.html
+          grep -q 'Day one' /tmp/plantupia-world-_living-systems.html
+          # Phase 03: one coherent photographic language, but distinct chapter interactions.
+          grep -q 'SPACES / THE ARCHITECTURAL FIELD' /tmp/plantupia-world-_spaces.html
+          grep -q 'Design prompts for this space' /tmp/plantupia-world-_spaces.html
+          grep -q 'THE STUDIO / A WORKING METHOD' /tmp/plantupia-world-_studio.html
+          grep -q 'DESIGN DIAGRAM / CONCEPT, NOT A CLIENT DRAWING' /tmp/plantupia-world-_studio.html
+          grep -q 'LIVING SYSTEMS / THE CONTINUING RELATIONSHIP' /tmp/plantupia-world-_living-systems.html
+          grep -q 'NOT A LIVE DASHBOARD' /tmp/plantupia-world-_living-systems.html
+          if grep -q 'wr-space-art-' /tmp/plantupia-world-_spaces.html; then
+            echo "Removed cartoon-space artwork is still rendered"
+            exit 1
+          fi
+          # The first business-action flow is real but client-side only — never a fake submitted enquiry.
+          curl -fsSL http://127.0.0.1:3017/start-a-space -o /tmp/plantupia-space-brief.html
+          grep -q 'SPACE DOSSIER' /tmp/plantupia-space-brief.html
+          grep -q 'COPY YOUR SPACE OUTLINE' /tmp/plantupia-space-brief.html
+          grep -q 'not submitted' /tmp/plantupia-space-brief.html
+          grep -q 'href="/start-a-space"' /tmp/plantupia-world-_spaces.html
+          # Keep the generated HD images available as first-party photo-loading fallbacks.
+          for asset in space life time; do
+            curl -fsSL "http://127.0.0.1:3017/scene/hd/${asset}.webp" -o "/tmp/plantupia-${asset}-hd.webp"
+            test "$(wc -c < "/tmp/plantupia-${asset}-hd.webp")" -gt 100000
+          done
+          grep -q 'Becoming' /tmp/plantupia-world-_.html
+          # The current editorial photo references should be present in the actual HTML.
+          # Local HD fallbacks are checked above with HTTP and byte-size validation.
+          grep -q 'images.pexels.com' /tmp/plantupia-world-_.html
+          grep -q 'ps-site' /tmp/plantupia-world-_.html
+          grep -q 'HOLD FOR PREVIOUS' /tmp/plantupia-world-_.html
+          # After the cinematic chapter, the real-world gateway must render on /.
+          grep -q 'CONTINUE INTO PLANTUPIA' /tmp/plantupia-world-_.html
+          grep -q 'The world' /tmp/plantupia-world-_.html
+          # React may split interpolated link text into multiple HTML text nodes.
+          grep -q 'aria-label="Enter Spaces"' /tmp/plantupia-world-_.html
+          grep -q 'href="/spaces"' /tmp/plantupia-world-_.html
+          # Inactive chapter selections are buttons until the visitor chooses them.
+          grep -q 'data-chapter-target="/spaces"' /tmp/plantupia-world-_.html
+          grep -q 'data-chapter-target="/studio"' /tmp/plantupia-world-_.html
+          grep -q 'data-chapter-target="/living-systems"' /tmp/plantupia-world-_.html
+          grep -q 'href="/start-a-space"' /tmp/plantupia-world-_.html
+          if grep -q 'FIELD GUIDE / VOL. 001' /tmp/plantupia-world-_.html; then
+            echo "Legacy Atlas is still rendering at /"
+            exit 1
+          fi
