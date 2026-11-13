@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import "./study/scene/scene.css";
 import SiteIndex from "./SiteIndex";
+import WorldThreshold from "./WorldThreshold";
 
 type Stage = 0 | 1 | 2;
 type MarkerIndex = 0 | 1 | 2;
@@ -117,6 +118,7 @@ export default function SceneStudy() {
   return (
     <div className="ps-site" data-stage={currentStage} data-comparing={compare}>
       <a href="#ps-main" className="ps-skip">Skip to experience</a>
+      <div className="ps-opening">
       <div className="ps-stage-images" role="img" aria-label={scene.alt}>
         {scenes.map((view, i) => (
           <div className={"ps-image ps-image-" + i + (i === currentStage ? " ps-current" : "")}
@@ -212,7 +214,7 @@ export default function SceneStudy() {
         </div>
 
         <div className="ps-utility-row">
-          <span>EDITORIAL PHOTO STUDIES / INDEPENDENT LOCATIONS</span>
+          <a className="ps-journey-link" href="#world">CONTINUE INTO PLANTUPIA <span aria-hidden="true">↓</span></a>
           <button type="button" className="ps-compare" disabled={stage === 0}
             aria-label="Hold to view the previous photographic study"
             aria-pressed={compare} {...compareHandlers}>
@@ -228,8 +230,8 @@ export default function SceneStudy() {
           These are three separate editorial photographs, selected to explore architectural atmosphere, planting and observation. They are not before/after images of one place, photographs of completed Plantupia projects, or evidence of growth or measurable wellbeing improvements. Images: Öznur Yüksel, David Allen, and Rahime Gül via Pexels. Original generated design studies remain as offline fallbacks. No live sensor readings or customer history are represented.</p>
         </aside>}
       </main>
-
-
+      </div>
+      <WorldThreshold />
     </div>
   );
 }
