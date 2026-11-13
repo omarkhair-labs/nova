@@ -61,7 +61,7 @@ export default function SpaceBrief() {
       <a className="sb-skip" href="#sb-main">Skip to project outline</a>
       <header className="sb-header">
         <a className="sb-brand" href="/" aria-label="Plantupia home"><span aria-hidden="true">◕</span> Plantupia</a>
-        <SiteIndex current="spaces" tone="dark"/>
+        <SiteIndex current={null} tone="dark"/>
         <a className="sb-back" href="/spaces">BACK TO SPACES <span aria-hidden="true">↗</span></a>
       </header>
 
