@@ -68,10 +68,13 @@ jobs:
           # After the cinematic chapter, the real-world gateway must render on /.
           grep -q 'CONTINUE INTO PLANTUPIA' /tmp/plantupia-world-_.html
           grep -q 'The world' /tmp/plantupia-world-_.html
-          grep -q 'ENTER SPACES' /tmp/plantupia-world-_.html
+          # React may split interpolated link text into multiple HTML text nodes.
+          grep -q 'aria-label="Enter Spaces"' /tmp/plantupia-world-_.html
           grep -q 'href="/spaces"' /tmp/plantupia-world-_.html
-          grep -q 'href="/studio"' /tmp/plantupia-world-_.html
-          grep -q 'href="/living-systems"' /tmp/plantupia-world-_.html
+          # Inactive chapter selections are buttons until the visitor chooses them.
+          grep -q 'data-chapter-target="/spaces"' /tmp/plantupia-world-_.html
+          grep -q 'data-chapter-target="/studio"' /tmp/plantupia-world-_.html
+          grep -q 'data-chapter-target="/living-systems"' /tmp/plantupia-world-_.html
           if grep -q 'FIELD GUIDE / VOL. 001' /tmp/plantupia-world-_.html; then
             echo "Legacy Atlas is still rendering at /"
             exit 1
