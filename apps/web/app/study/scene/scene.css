@@ -13,6 +13,11 @@
   will-change:opacity,transform;background-color:#2e4934}
 .ps-image-0{background-color:#766954}.ps-image-1{background-color:#526d48}.ps-image-2{background-color:#243f2e}
 .ps-image.ps-current{opacity:1;transform:scale(1)}
+.ps-image img{display:block;width:100%;height:100%;object-fit:cover;object-position:center center;filter:saturate(.92) contrast(1.03)}
+.ps-image-0 img{object-position:50% 46%}
+.ps-image-1 img{object-position:50% 48%}
+.ps-image-2 img{object-position:50% 44%}
+
 .ps-grading{position:absolute;inset:0;z-index:2;background:
   linear-gradient(90deg,rgba(12,18,14,.72) 0%,rgba(13,23,17,.46) 23%,rgba(13,23,17,.12) 53%,rgba(12,21,16,.19) 100%),
   linear-gradient(0deg,rgba(8,14,11,.91) 0%,rgba(11,21,15,.36) 23%,transparent 43%,transparent 68%,rgba(12,16,14,.58) 100%);
