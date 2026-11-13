@@ -89,47 +89,211 @@ function Header({ current }: { current: SiteSection }) {
   );
 }
 
-function SpaceScene({ active }: { active: number }) {
+type EditorialPhoto = {
+  src: string;
+  fallback: string;
+  credit: string;
+  source: string;
+  subject: string;
+};
+
+const editorialSpaces: readonly EditorialPhoto[] = [
+  {
+    src: "https://images.pexels.com/photos/28577085/pexels-photo-28577085.jpeg?auto=compress&cs=tinysrgb&w=2200",
+    fallback: "/scene/hd/space.webp",
+    credit: "Öznur Yüksel / Pexels",
+    source: "https://www.pexels.com/photo/modern-architectural-interior-with-skylight-28577085/",
+    subject: "A daylight-filled architectural interior, a reference for residential space",
+  },
+  {
+    src: "https://images.pexels.com/photos/35566906/pexels-photo-35566906.jpeg?auto=compress&cs=tinysrgb&w=2200",
+    fallback: "/scene/hd/life.webp",
+    credit: "Tatianaa Co / Pexels",
+    source: "https://www.pexels.com/photo/modern-office-atrium-with-greenery-35566906/",
+    subject: "A modern office atrium with greenery and a skylight",
+  },
+  {
+    src: "https://images.pexels.com/photos/6510384/pexels-photo-6510384.jpeg?auto=compress&cs=tinysrgb&w=2200",
+    fallback: "/scene/hd/time.webp",
+    credit: "Lachlan Ross / Pexels",
+    source: "https://www.pexels.com/photo/interior-of-restaurant-with-hanging-green-potted-plants-6510384/",
+    subject: "A restaurant interior with hanging greenery and timber furniture",
+  },
+];
+
+const studioPhoto: EditorialPhoto = {
+  src: "https://images.pexels.com/photos/33708096/pexels-photo-33708096.jpeg?auto=compress&cs=tinysrgb&w=2200",
+  fallback: "/scene/hd/life.webp",
+  credit: "David Allen / Pexels",
+  source: "https://www.pexels.com/photo/indoor-atrium-with-lush-greenery-and-modern-architecture-33708096/",
+  subject: "An architectural atrium with planted forms, used as an editorial process reference",
+};
+
+const systemsPhoto: EditorialPhoto = {
+  src: "https://images.pexels.com/photos/40883631/pexels-photo-40883631.jpeg?auto=compress&cs=tinysrgb&w=2200",
+  fallback: "/scene/hd/time.webp",
+  credit: "Rahime Gül / Pexels",
+  source: "https://www.pexels.com/photo/indoor-atrium-with-hanging-greenery-and-skylight-40883631/",
+  subject: "Sunlit architecture and hanging foliage, used as an editorial continuity reference",
+};
+
+function EditorialImage({ photo, eager = false }: { photo: EditorialPhoto; eager?: boolean }) {
   return (
-    <div className={"wr-space-art wr-space-art-" + active} aria-hidden="true">
-      <div className="wr-arch-vault"/><div className="wr-arch-horizon"/>
-      <div className="wr-space-sun"/><div className="wr-arch-wall"/><div className="wr-arch-window"/>
-      <div className="wr-arch-floor"/>
-      <div className="wr-plant-form wr-plant-one"><span/><span/><span/></div>
-      <div className="wr-plant-form wr-plant-two"><span/><span/><span/></div>
-      <div className="wr-arch-object"/>
-      <span className="wr-art-index">SPATIAL / STUDY 0{active+1}</span>
+    <img
+      className="wr-editorial-image"
+      src={photo.src}
+      alt=""
+      loading={eager ? "eager" : "lazy"}
+      fetchPriority={eager ? "high" : "auto"}
+      onError={event => {
+        const image = event.currentTarget;
+        const fallbackUrl = new URL(photo.fallback, window.location.origin).href;
+        if (image.src !== fallbackUrl) image.src = fallbackUrl;
+      }}
+    />
+  );
+}
+
+const spacePrompts = [
+  [
+    { label: "Light", detail: "Map daylight before positioning living material." },
+    { label: "Movement", detail: "Leave space for everyday routes and rituals." },
+    { label: "Return", detail: "Make care practical for the people who live here." },
+  ],
+  [
+    { label: "Rhythm", detail: "Notice when a space is shared, busy or quiet." },
+    { label: "Access", detail: "Keep circulation and upkeep in the conversation." },
+    { label: "Responsibility", detail: "Define who can observe and care for each planting area." },
+  ],
+  [
+    { label: "Arrival", detail: "Consider the impression at the threshold." },
+    { label: "Atmosphere", detail: "Allow light, natural material and living forms to work together." },
+    { label: "Maintenance", detail: "Design for repeated use, cleaning and ongoing care." },
+  ],
+] as const;
+
+function SpaceScene({ active }: { active: number }) {
+  const [focus, setFocus] = useState(0);
+  const currentFocus = Math.max(0, Math.min(focus, 2));
+  const prompts = spacePrompts[active];
+
+  return (
+    <div className={"wr-editorial-stage wr-spatial-stage wr-spatial-stage-" + active}>
+      <div className="wr-editorial-photos" aria-hidden="true">
+        {editorialSpaces.map((photo, i) => (
+          <div key={photo.source} className={"wr-editorial-frame" + (i === active ? " is-visible" : "")}>
+            <EditorialImage photo={photo} eager={i === 0} />
+          </div>
+        ))}
+      </div>
+      <div className="wr-editorial-grade" aria-hidden="true" />
+      <div className="wr-image-topline">
+        <span>SPACES / THE ARCHITECTURAL FIELD</span>
+        <span>STUDY {spaces[active].id} / 03</span>
+      </div>
+      <div className="wr-editorial-point wr-editorial-point-spaces" aria-hidden="true">
+        <span className="wr-point-ring"/><span>DESIGN CONSIDERATIONS</span>
+      </div>
+      <div className="wr-spatial-prompts">
+        <div className="wr-spatial-prompt-list" role="group" aria-label="Design prompts for this space">
+          {prompts.map((item, i) => (
+            <button key={item.label} type="button" aria-pressed={i === currentFocus}
+              onClick={() => setFocus(i)}>
+              <span>0{i + 1}</span>{item.label}<span aria-hidden="true">↗</span>
+            </button>
+          ))}
+        </div>
+        <div className="wr-spatial-prompt-note" aria-live="polite">
+          <span>TO CONSIDER / {prompts[currentFocus].label.toUpperCase()}</span>
+          <p>{prompts[currentFocus].detail}</p>
+        </div>
+      </div>
+      <div className="wr-editorial-footline">
+        <span>PHOTO REFERENCE / NOT AN INSTALLED PLANTUPIA SPACE</span>
+        <a href={editorialSpaces[active].source} target="_blank" rel="noopener noreferrer">
+          {editorialSpaces[active].credit} ↗
+        </a>
+      </div>
     </div>
   );
 }
 
 function StudioScene({ phase }: { phase: number }) {
+  const coordinates = [
+    { number: "01", label: "READ THE SPACE", position: "LIGHT / MATERIAL / MOVEMENT" },
+    { number: "02", label: "FIND A COMPOSITION", position: "PROPORTION / RELATIONSHIP" },
+    { number: "03", label: "INTRODUCE LIVING MATERIAL", position: "PLACEMENT / INSTALLATION" },
+    { number: "04", label: "DESIGN FOR RETURN", position: "OBSERVATION / CONTINUITY" },
+  ] as const;
+
   return (
-    <div className={"wr-studio-art wr-studio-art-" + phase} aria-hidden="true">
-      <span className="wr-plan-label">PLANTUPIA / DESIGN STUDY</span>
-      <div className="wr-plan-grid"/><div className="wr-plan-window"/>
-      <div className="wr-plan-arc"/><div className="wr-plan-shape wr-plan-shape-a"/>
-      <div className="wr-plan-shape wr-plan-shape-b"/>
-      <div className="wr-plan-light"/><div className="wr-plan-plant"/>
-      <div className="wr-plan-path"/>
-      <span className="wr-plan-caption">{studioSteps[phase].number} / {studioSteps[phase].layer.toUpperCase()}</span>
+    <div className={"wr-editorial-stage wr-atelier-stage wr-atelier-phase-" + phase}>
+      <div className="wr-editorial-photos" aria-hidden="true">
+        <div className="wr-editorial-frame is-visible"><EditorialImage photo={studioPhoto} eager /></div>
+      </div>
+      <div className="wr-editorial-grade" aria-hidden="true" />
+      <div className="wr-image-topline">
+        <span>THE STUDIO / A WORKING METHOD</span><span>DESIGN LAYER {studioSteps[phase].number} / 04</span>
+      </div>
+      <div className="wr-atelier-paper" aria-hidden="true">
+        <div className="wr-atelier-axis wr-atelier-axis-h" />
+        <div className="wr-atelier-axis wr-atelier-axis-v" />
+        <div className="wr-atelier-orbit" />
+        <div className="wr-atelier-window" />
+        <div className="wr-atelier-material wr-atelier-material-a" />
+        <div className="wr-atelier-material wr-atelier-material-b" />
+        <div className="wr-atelier-light" />
+        <div className="wr-atelier-living" />
+        <div className="wr-atelier-return" />
+        <span className="wr-atelier-coord wr-atelier-coord-a">NORTH / +0.00</span>
+        <span className="wr-atelier-coord wr-atelier-coord-b">DETAIL / NO. {coordinates[phase].number}</span>
+      </div>
+      <div className="wr-atelier-caption" aria-live="polite">
+        <span className="wr-atelier-caption-number">{coordinates[phase].number}</span>
+        <div>
+          <span>{coordinates[phase].label}</span>
+          <p>{coordinates[phase].position}</p>
+        </div>
+      </div>
+      <div className="wr-editorial-footline">
+        <span>DESIGN DIAGRAM / CONCEPT, NOT A CLIENT DRAWING</span>
+        <a href={studioPhoto.source} target="_blank" rel="noopener noreferrer">{studioPhoto.credit} ↗</a>
+      </div>
     </div>
   );
 }
 
 function SystemsScene({ phase }: { phase: number }) {
+  const steps = [
+    { tag: "01", title: "Place", note: "Installation / context" },
+    { tag: "02", title: "Care", note: "Human action / attention" },
+    { tag: "03", title: "Memory", note: "Recorded observation / time" },
+  ] as const;
   return (
-    <div className={"wr-system-art wr-system-art-" + phase} aria-hidden="true">
-      <div className="wr-system-ring wr-ring-one" />
-      <div className="wr-system-ring wr-ring-two" />
-      <div className="wr-system-node wr-node-one" />
-      <div className="wr-system-node wr-node-two" />
-      <div className="wr-system-node wr-node-three" />
-      <div className="wr-system-branch wr-branch-one" />
-      <div className="wr-system-branch wr-branch-two" />
-      <div className="wr-system-branch wr-branch-three" />
-      <span className="wr-systems-code">A LIVING RECORD / A CONCEPTUAL STUDY</span>
-      <strong>0{phase + 1}</strong>
+    <div className={"wr-editorial-stage wr-continuity-stage wr-continuity-phase-" + phase}>
+      <div className="wr-editorial-photos" aria-hidden="true">
+        <div className="wr-editorial-frame is-visible"><EditorialImage photo={systemsPhoto} eager /></div>
+      </div>
+      <div className="wr-editorial-grade" aria-hidden="true" />
+      <div className="wr-image-topline"><span>LIVING SYSTEMS / THE CONTINUING RELATIONSHIP</span><span>CHAPTER 0{phase + 1} / 03</span></div>
+      <div className="wr-continuity-orbit" aria-hidden="true"><span/><span/><span/></div>
+      <div className="wr-continuity-script" aria-label="Conceptual relationship stages">
+        {steps.map((step, i) => (
+          <div key={step.tag} className={"wr-continuity-step" + (i === phase ? " wr-step-active" : "")}>
+            <span className="wr-continuity-pin" aria-hidden="true" />
+            <span className="wr-continuity-tag">{step.tag} / {step.title.toUpperCase()}</span>
+            <strong>{step.note}</strong>
+          </div>
+        ))}
+      </div>
+      <div className="wr-continuity-caption">
+        <span>NOT A LIVE DASHBOARD</span>
+        <p>A task, a recorded action and a memory are different things. Each deserves an honest place in the story.</p>
+      </div>
+      <div className="wr-editorial-footline">
+        <span>EDITORIAL CONCEPT / NO SENSOR DATA OR VERIFIED GROWTH</span>
+        <a href={systemsPhoto.source} target="_blank" rel="noopener noreferrer">{systemsPhoto.credit} ↗</a>
+      </div>
     </div>
   );
 }
@@ -168,12 +332,8 @@ export default function WorldRoute({ kind }: { kind: WorldKind }) {
               <span>PLANTUPIA / {masthead.number}</span>
               <span>{kind === "spaces" ? "THE PLACE" : kind === "studio" ? "THE PROCESS" : "THE CONTINUITY"} ↘</span>
             </div>
-            <div className="wr-gallery-art" role="img"
-              aria-label={kind === "spaces"
-                ? "Original conceptual composition of an architectural space and planting"
-                : kind === "studio"
-                ? "Original diagram of a design process showing changing layers"
-                : "Original abstract visualization of place, plant and care connected over time"}>
+            <div className="wr-gallery-art"
+              aria-label={kind === "spaces" ? "Spatial editorial image and design prompts" : kind === "studio" ? "Architectural process layers over an editorial photograph" : "Conceptual care continuum over editorial botanical photography"}>
               {kind === "spaces" ? <SpaceScene active={selection}/> : kind === "studio" ? <StudioScene phase={selection}/> : <SystemsScene phase={selection}/>}
             </div>
             <div className="wr-gallery-reading" aria-live="polite" aria-atomic="true">
