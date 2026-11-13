@@ -3,6 +3,7 @@
   position:relative;isolation:isolate;width:100%;min-height:100svh;overflow:hidden;
   color:var(--cream);background:#1c2921;font-family:Arial,Helvetica,sans-serif;
 }
+.ps-opening{position:relative;isolation:isolate;min-height:100svh;overflow:hidden;background:#1c2921}
 .ps-site *{box-sizing:border-box}.ps-site a{color:inherit;text-decoration:none}
 .ps-site button{font:inherit;cursor:pointer}.ps-site button:focus-visible,.ps-site a:focus-visible{outline:2px solid #eff0bc;outline-offset:4px}
 .ps-site button:disabled{opacity:.37;cursor:not-allowed}
@@ -93,6 +94,9 @@
 .ps-utility-row button:hover{color:white}
 .ps-compare{touch-action:none;user-select:none;-webkit-user-select:none}
 .ps-about-button{white-space:nowrap}
+.ps-journey-link{font:700 10px/1.35 Consolas,monospace!important;letter-spacing:.09em;color:#e4efc8!important;white-space:nowrap;display:inline-flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #d5ebbb80;transition:gap .23s,color .23s}
+.ps-journey-link>span{font-size:21px;font-weight:400}
+.ps-journey-link:hover{gap:18px;color:white!important}
 .ps-study-info{position:absolute;bottom:100px;left:clamp(27px,5.5vw,108px);background:#f3f0e4;color:#243f2f;padding:30px;max-width:390px;z-index:12;box-shadow:0 20px 75px #0004}
 .ps-study-info h2{font:400 32px Georgia,serif;margin:0 0 14px}
 .ps-study-info p{font-size:13px;line-height:1.8}
@@ -158,6 +162,7 @@
  .ps-sequence-actions{align-self:end}.ps-circle-button{width:37px;min-width:37px;height:37px;font-size:19px!important}
  .ps-utility-row{bottom:12px;left:20px;right:20px;gap:8px;flex-wrap:wrap;justify-content:space-between}
  .ps-utility-row>span{display:none}.ps-compare,.ps-about-button{font-size:9px!important;letter-spacing:0}
+ .ps-journey-link{width:100%;order:-1;justify-content:space-between;font-size:10px!important;padding:5px 0;line-height:1.2}
  .ps-note{width:calc(100vw - 40px);max-width:none;right:20px;left:20px;bottom:290px;padding:21px 24px}
  .ps-note h2{font-size:26px;margin:10px 0 8px}.ps-note p{font-size:12px}
  .ps-study-info{bottom:75px;left:20px;right:20px;max-width:none}
