@@ -84,7 +84,7 @@ function Header({ current }: { current: SiteSection }) {
         <span className="wr-symbol" aria-hidden="true">◐</span><span>Plantupia</span>
       </a>
       <SiteIndex current={current} tone="dark" />
-      <a className="wr-scene-link" href="/study/scene">ENTER THE SCENE <span aria-hidden="true">↗</span><small>{folio} / 04</small></a>
+      <a className="wr-scene-link" href="/">THE EXPERIENCE <span aria-hidden="true">↗</span><small>{folio} / 04</small></a>
     </header>
   );
 }
