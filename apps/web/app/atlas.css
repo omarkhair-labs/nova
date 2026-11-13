@@ -57,6 +57,12 @@ button,a{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:none
 .atlas-spatial-svg .atlas-leaves-muted{opacity:.77}
 .atlas-corner-label{position:absolute;top:22px;inset-inline-start:22px;color:#eef2e3;z-index:3;background:#254537c9;padding:10px 12px;max-width:55%;font-size:9px}
 .atlas-scene-indicator{position:absolute;bottom:22px;inset-inline-start:22px;z-index:3;color:#e8f0d5;background:#294636b8;padding:9px 12px;font-size:9px}
+.atlas-space-signature{position:absolute;z-index:3;inset-inline-end:22px;bottom:21px;max-width:46%;text-align:end;color:#f2efde;text-shadow:0 1px 12px rgba(10,37,25,.7);display:flex;flex-direction:column;gap:4px;align-items:flex-end;background:rgba(28,57,44,.60);padding:12px 14px;backdrop-filter:blur(9px)}
+.atlas-space-signature span{font:600 9px/1.5 var(--atlas-mono);letter-spacing:.1em;color:#d9eab7}
+.atlas-space-signature strong{font:400 clamp(23px,2vw,38px)/1.05 var(--atlas-serif);letter-spacing:-.04em}
+.atlas-space-signature small{font-size:11px;line-height:1.55;color:#d5e7d0;max-width:235px}
+.atlas-site[dir=rtl] .atlas-space-signature strong{font-family:Tahoma,"Segoe UI",Arial,sans-serif;font-size:clamp(18px,1.65vw,28px);letter-spacing:0}
+
 .atlas-hotspot-layer{position:absolute;inset:0;z-index:4;pointer-events:none}
 .atlas-hotspot{pointer-events:auto;position:absolute;transform:translate(-50%,-50%);width:51px;height:51px;background:rgba(236,247,215,.88);border:1px solid #315846;border-radius:50%;display:grid;place-items:center;color:#1b4032;transition:transform .22s,background .22s,box-shadow .22s}
 .atlas-hotspot::before{content:"";position:absolute;inset:-7px;border:1px solid rgba(237,249,218,.57);border-radius:50%;opacity:.8;transition:inset .22s}
@@ -149,6 +155,9 @@ button,a{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:none
   .atlas-scene{min-height:410px;height:54svh;flex:none}
   .atlas-corner-label{top:12px;inset-inline-start:12px;max-width:68%;font-size:8px}
   .atlas-scene-indicator{bottom:11px;inset-inline-start:11px;font-size:8px;max-width:76%}
+  .atlas-space-signature{bottom:60px;inset-inline-end:11px;padding:9px 11px;max-width:61%;gap:2px}
+  .atlas-space-signature span{font-size:8px}.atlas-space-signature strong{font-size:23px}
+  .atlas-space-signature small{font-size:10px}
   .atlas-hotspot{width:46px;height:46px}
   .atlas-reading{grid-template-columns:minmax(0,1fr) 80px;padding:22px 19px;gap:14px;min-height:215px}
   .atlas-reading-icon{display:none}.atlas-reading h2{font-size:clamp(26px,6vw,35px)}.atlas-reading p{font-size:13px}
@@ -168,7 +177,7 @@ button,a{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:none
 }
 @media(max-width:390px){
   .atlas-intro h1{font-size:56px}.atlas-topbar{padding:0 12px}.atlas-index-link{display:none!important}
-  .atlas-scene{min-height:350px;height:390px}.atlas-reading{grid-template-columns:minmax(0,1fr);padding:20px 16px}
+  .atlas-scene{min-height:350px;height:390px}.atlas-space-signature{max-width:60%;bottom:63px}.atlas-space-signature strong{font-size:20px}.atlas-space-signature small{display:none}.atlas-reading{grid-template-columns:minmax(0,1fr);padding:20px 16px}
   .atlas-reading-tools{flex-direction:row;justify-content:space-between;align-items:center;width:100%}
   .atlas-method-intro h2{font-size:54px}
   .atlas-site[dir=rtl] .atlas-intro h1{font-size:51px}
