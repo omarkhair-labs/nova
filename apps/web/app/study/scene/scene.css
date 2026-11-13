@@ -102,14 +102,13 @@
 .ps-index-body h2{font:400 clamp(58px,6.6vw,126px)/.98 Georgia,serif;letter-spacing:-.07em;margin:0}
 .ps-index-body h2 em{font-weight:400;color:#bed2ac}
 .ps-index-chapters>p:first-child{font:600 10px Consolas,monospace;letter-spacing:.12em;color:#a8bea3}
-.ps-index-chapters button{width:100%;display:grid;grid-template-columns:42px 1fr 25px;gap:16px;align-items:center;
+.ps-index-chapters>a{width:100%;display:grid;grid-template-columns:42px 1fr 25px;gap:16px;align-items:center;
   text-align:left;border:0;border-bottom:1px solid rgba(238,247,225,.34);background:transparent;color:#eff3e7;padding:24px 0}
-.ps-index-chapters button:first-of-type{border-top:1px solid rgba(238,247,225,.34)}
-.ps-index-chapters button span:first-child{font:600 11px Consolas,monospace;color:#bad2af}
-.ps-index-chapters button strong{font:400 clamp(31px,2.8vw,55px)/1.2 Georgia,serif}
-.ps-index-chapters button span:last-child{font-size:26px}
-.ps-index-chapters button:hover strong{color:#d7ecb4}
-.ps-index-chapters>a{display:inline-flex;margin-top:24px;border-bottom:1px solid #abc0aa;padding:10px 0;font-size:13px}
+.ps-index-chapters>a:first-of-type{border-top:1px solid rgba(238,247,225,.34)}
+.ps-index-chapters>a span:first-child{font:600 11px Consolas,monospace;color:#bad2af}
+.ps-index-chapters>a strong{font:400 clamp(31px,2.8vw,55px)/1.2 Georgia,serif}
+.ps-index-chapters>a span:last-child{font-size:26px}
+.ps-index-chapters>a:hover strong{color:#d7ecb4}
 .ps-index-disclaimer{max-width:420px;line-height:1.7;color:rgba(225,232,216,.64);font-size:11px!important;margin-top:24px}
 .ps-index-footer{padding-top:18px;border-top:1px solid rgba(238,247,225,.24);font-size:9px}
 @keyframes ps-index-arrive{from{opacity:0;transform:scale(1.018)}to{opacity:1;transform:scale(1)}}
@@ -160,8 +159,8 @@
  .ps-index-overlay{padding:24px 20px}.ps-index-top{font-size:10px}
  .ps-index-body{display:block;overflow:auto;padding:50px 0}
  .ps-index-body h2{font-size:clamp(53px,11vw,80px);margin:0 0 39px}
- .ps-index-chapters button{padding:17px 0}
- .ps-index-chapters button strong{font-size:28px}
+ .ps-index-chapters>a{padding:17px 0}
+ .ps-index-chapters>a strong{font-size:28px}
  .ps-index-footer span{display:none}
 }
 @media(max-width:370px){
