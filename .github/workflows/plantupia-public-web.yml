@@ -28,7 +28,7 @@ jobs:
       - name: Production build
         run: npm run build
 
-      - name: Smoke-test scene route
+      - name: Smoke-test site routes and scene
         run: |
           set -euo pipefail
           npm run start -- -p 3017 >/tmp/plantupia-web-start.log 2>&1 &
@@ -49,3 +49,10 @@ jobs:
           grep -q 'A Space' /tmp/plantupia-scene.html
           grep -q 'Hold to compare' /tmp/plantupia-scene.html
           grep -q 'The Space' /tmp/plantupia-scene.html
+          for route in / /spaces /studio /living-systems; do
+            curl -fsSL "http://127.0.0.1:3017${route}" -o "/tmp/plantupia-world-${route//\//_}.html"
+            grep -q 'Plantupia' "/tmp/plantupia-world-${route//\//_}.html"
+          done
+          grep -q 'Every space' /tmp/plantupia-world-_spaces.html
+          grep -q 'Designed' /tmp/plantupia-world-_studio.html
+          grep -q 'Day one' /tmp/plantupia-world-_living-systems.html
