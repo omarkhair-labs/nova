@@ -118,6 +118,7 @@ export default function WorldThreshold() {
       <div className="wt-bottom-rail">
         <span>ONE CREATIVE WORLD / MANY WAYS TO EXPERIENCE IT</span>
         <span>{current.imageLabel} Not a completed Plantupia project.</span>
+        <a href="/start-a-space" aria-label="Prepare a private space outline">HAVE A SPACE IN MIND? ↗</a>
         <a href="#ps-main">BACK TO THE SPACE ↑</a>
       </div>
     </section>
