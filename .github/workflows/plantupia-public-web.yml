@@ -74,9 +74,10 @@ jobs:
           fi
           # The first business-action flow is real but client-side only — never a fake submitted enquiry.
           curl -fsSL http://127.0.0.1:3017/start-a-space -o /tmp/plantupia-space-brief.html
-          grep -q 'SPACE DOSSIER' /tmp/plantupia-space-brief.html
-          grep -q 'COPY YOUR SPACE OUTLINE' /tmp/plantupia-space-brief.html
-          grep -q 'not submitted' /tmp/plantupia-space-brief.html
+          grep -q 'Start a project' /tmp/plantupia-space-brief.html
+          grep -q 'Copy your message' /tmp/plantupia-space-brief.html
+          grep -q 'nothing is sent or stored' /tmp/plantupia-space-brief.html
+          grep -q 'Care &amp; support' /tmp/plantupia-space-brief.html
           grep -q 'href="/start-a-space?space=home"' /tmp/plantupia-world-_spaces.html
           # Keep the generated HD images available as first-party photo-loading fallbacks.
           for asset in space life time; do

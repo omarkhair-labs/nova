@@ -62,7 +62,7 @@ export default function CompanyStory() {
               <div><p className="cs-kicker">{project.environment} / {project.location}</p><h3>{project.name}</h3><p>{project.scope}</p><p>{project.description}</p></div>
               {project.gallery.map(photo => <img key={photo.src} src={photo.src} alt={photo.alt} loading="lazy"/>)}
             </article>)}</div>}
-          <a className="cs-link" href="/start-a-space">START WITH YOUR SPACE ↗</a>
+          <a className="cs-link" href="/start-a-space">GET IN TOUCH ↗</a>
         </section>
       </main>
       <footer className="cs-footer"><a href="/">PLANTUPIA / HOME</a><a href="/living-systems">LIVING SYSTEMS ↗</a><span>DESIGN PREVIEW / 2026</span></footer>
