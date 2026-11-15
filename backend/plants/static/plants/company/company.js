@@ -4,11 +4,22 @@ for (const form of document.forms) {
   if (form.method.toLowerCase() !== "post") continue;
   if (form.hasAttribute("data-commerce-import")) continue; // Own async validation/confirm flow.
   form.addEventListener("submit", event => {
+    if (form.getAttribute("aria-busy") === "true") {
+      event.preventDefault();
+      return;
+    }
     const button = event.submitter;
     form.setAttribute("aria-busy", "true");
     if (button) {
       button.dataset.originalLabel = button.textContent;
-      button.disabled = true;
+      // Named submitters carry the operation (approve/publish/etc.) in the POST.
+      // Disabling one here removes its name/value before native serialization.
+      // The form-level guard prevents repeat submissions without losing the action.
+      if (button.name) {
+        button.setAttribute("aria-disabled", "true");
+      } else {
+        button.disabled = true;
+      }
       button.textContent = "Working…";
     }
   });
@@ -17,7 +28,9 @@ window.addEventListener("pageshow", () => {
   for (const form of document.forms) form.removeAttribute("aria-busy");
   for (const button of document.querySelectorAll("button[data-original-label]")) {
     button.disabled = false;
+    button.removeAttribute("aria-disabled");
     button.textContent = button.dataset.originalLabel;
+    delete button.dataset.originalLabel;
   }
 });
 const secret = document.getElementById("one-time-secret");
