@@ -1,7 +1,7 @@
 # Plantupia / Studio and Living Systems — distinct narrative chapters
 2026-11-15. Preview revision, based on research and the current QA product contracts.
 
-References: 
+References:
 - https://www.makemepulse.com/case-study/kaizen — multiple chapters with different narrative lenses.
 - https://www.makemepulse.com/case-study/weleda-the-open-garden — immersive discovery and smooth environment transitions.
 - https://lusion.co/projects/of_the_oak/ — a physical/digital relationship rather than a decorative tree.

@@ -33,7 +33,10 @@ export default function ContactStudio() {
   const [showCopy, setShowCopy] = useState(false);
 
   useEffect(() => {
-    const selected = new URLSearchParams(window.location.search).get("space");
+    const params = new URLSearchParams(window.location.search);
+    const selected = params.get("space");
+    const topic = params.get("topic");
+    if (topic === "care" || topic === "general" || topic === "project") setMode(topic);
     if (environments.some(item => item.id === selected)) setEnvironment(selected ?? "");
   }, []);
 
