@@ -89,7 +89,13 @@ jobs:
           # Local HD fallbacks are checked above with HTTP and byte-size validation.
           grep -q 'images.pexels.com' /tmp/plantupia-world-_.html
           grep -q 'ps-site' /tmp/plantupia-world-_.html
-          grep -q 'HOLD FOR PREVIOUS' /tmp/plantupia-world-_.html
+          grep -q 'Choose a photographic study' /tmp/plantupia-world-_.html
+          grep -q 'Previous study' /tmp/plantupia-world-_.html
+          grep -q 'Three photographic studies' /tmp/plantupia-world-_.html
+          if grep -q 'ps-scene-markers' /tmp/plantupia-world-_.html; then
+            echo 'Obsolete on-image markers still rendered'
+            exit 1
+          fi
           # After the cinematic chapter, the real-world gateway must render on /.
           grep -q 'CONTINUE INTO PLANTUPIA' /tmp/plantupia-world-_.html
           grep -q 'The world' /tmp/plantupia-world-_.html
