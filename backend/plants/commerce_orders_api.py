@@ -3,6 +3,7 @@
 No payment provider or courier event is fabricated by these customer actions.
 """
 import re
+from decimal import Decimal, ROUND_HALF_UP
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
@@ -12,6 +13,21 @@ from .commerce_storefront_api import CommerceCustomerView
 from . import commerce_orders as orders, commerce_payments as payments, commerce_returns as returns
 
 
+class DeliveryCoordinateField(serializers.DecimalField):
+    """Normalize map SDK doubles to our stored seven-decimal precision."""
+    def __init__(self, *, limit, **kwargs):
+        self.coordinate_limit = Decimal(limit)
+        super().__init__(max_digits=10, decimal_places=7, **kwargs)
+
+    def validate_precision(self, value):
+        # DRF has already rejected non-finite values. Check the original range
+        # before rounding so an invalid pin cannot round onto a valid boundary.
+        if not -self.coordinate_limit <= value <= self.coordinate_limit:
+            raise serializers.ValidationError("Choose a valid delivery map coordinate.")
+        rounded = value.quantize(Decimal("0.0000001"), rounding=ROUND_HALF_UP)
+        return super().validate_precision(rounded)
+
+
 class RealOrderQuoteInput(serializers.Serializer):
     client_id = serializers.UUIDField()
     cart_fingerprint = serializers.RegexField(regex=r"^[0-9a-f]{64}$", max_length=64)
@@ -19,8 +35,8 @@ class RealOrderQuoteInput(serializers.Serializer):
     contact_phone = serializers.CharField(min_length=7, max_length=32)
     city = serializers.CharField(min_length=2, max_length=120)
     delivery_address = serializers.CharField(min_length=5, max_length=320)
-    delivery_latitude = serializers.DecimalField(max_digits=10, decimal_places=7)
-    delivery_longitude = serializers.DecimalField(max_digits=10, decimal_places=7)
+    delivery_latitude = DeliveryCoordinateField(limit=90)
+    delivery_longitude = DeliveryCoordinateField(limit=180)
     delivery_pin_confirmed = serializers.BooleanField()
     building_details = serializers.CharField(max_length=180, required=False, allow_blank=True)
     landmark = serializers.CharField(max_length=180, required=False, allow_blank=True)

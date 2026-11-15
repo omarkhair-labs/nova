@@ -127,6 +127,29 @@ class RealCustomerOrderTests(DemoFixture, TestCase):
         self.assertFalse(CatalogProduct.objects.filter(name=self.real.name).exists())
         self.assertFalse(PlantUnit.objects.filter(label=self.real.name).exists())
 
+    def test_quote_accepts_raw_map_sdk_coordinates_without_changing_order_semantics(self):
+        self.cart()
+        order = self.request_order(
+            delivery_latitude=30.04442012345678,
+            delivery_longitude=31.23571098765432,
+        )
+        saved = CommerceOrder.objects.get(pk=order.data["id"])
+        self.assertEqual(str(saved.delivery_latitude), "30.0444201")
+        self.assertEqual(str(saved.delivery_longitude), "31.2357110")
+        self.assertEqual(saved.status, "quote_pending")
+        self.assertFalse(CommerceStockReservation.objects.exists())
+
+    def test_quote_rejects_out_of_range_coordinates_before_rounding(self):
+        self.cart()
+        for field, value in (("delivery_latitude", "90.000000001"),
+                             ("delivery_longitude", "-180.000000001")):
+            response = self.api.post(
+                self.orders_url, self.quote_body(**{field: value}), format="json",
+            )
+            self.assertEqual(response.status_code, 400, response.data)
+            self.assertIn(field, response.data)
+        self.assertFalse(CommerceOrder.objects.exists())
+
     def test_company_quote_then_customer_accepts_exact_total_and_stock_reserves(self):
         self.cart(5)
         order_id = self.request_order().data["id"]
