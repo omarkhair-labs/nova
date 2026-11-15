@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import MobileNav from "./MobileNav";
+import ChapterIndex from "./ChapterIndex";
 import "./field.css";
+import "./experience.css";
 
 export const navigation = [
   { href: "/spaces", label: "Spaces" },
@@ -21,23 +22,19 @@ function Wordmark() {
 }
 
 export function SiteFrame({ children, current }: { children: ReactNode; current?: string }) {
-  const nav = navigation.map(item => ({ ...item, current: item.href === current }));
-  return <div className="field-site">
+  return <div className="field-site" data-page={current}>
     <a className="field-skip" href="#main">Skip to content</a>
     <header className="field-header">
       <div className="field-shell field-header-inner">
         <Wordmark />
-        <nav className="field-primary" aria-label="Main navigation">
-          {nav.map(item => <a key={item.href} href={item.href} aria-current={item.current ? "page" : undefined}>{item.label}</a>)}
-        </nav>
+        <ChapterIndex current={current} />
         <a className="field-header-cta" href="/start-a-space" aria-current={current === "/start-a-space" ? "page" : undefined}>
-          Get in touch <Arrow />
+          Contact <Arrow />
         </a>
-        <MobileNav links={nav} contactCurrent={current === "/start-a-space"} />
       </div>
     </header>
     <main id="main" tabIndex={-1}>{children}</main>
-    <footer className="field-footer">
+    <footer className="field-footer" id="site-directory">
       <div className="field-shell">
         <div className="field-footer-main">
           <div><Wordmark /><p>Planting for the places we build.</p></div>

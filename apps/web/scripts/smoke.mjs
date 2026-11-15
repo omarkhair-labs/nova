@@ -10,8 +10,8 @@ async function html(path, expectedStatus = 200) {
 }
 
 const routes = [
-  ["/", "Room for", "/spaces", "/studio", "/living-systems", "/start-a-space"],
-  ["/spaces", "Different places", "Generated concept", ...places.map(place => "/spaces/" + place)],
+  ["/", "Where life", "/spaces", "/studio", "/living-systems", "/start-a-space"],
+  ["/spaces", "can belong.", "Generated concept", ...places.map(place => "/spaces/" + place)],
   ["/studio", "Read the courtyard", "reading-lens", "Movement"],
   ["/living-systems", "Illustrative care sequence", 'id="handover"', 'id="observation"', 'id="follow-up"', 'id="history"', "/start-a-space?topic=care"],
   ["/about", 'id="selected-works"', "awaiting approved photographs"],
@@ -37,11 +37,11 @@ for (const place of places) {
 
 const care = await html("/start-a-space?topic=care");
 assert.match(care, /<input(?=[^>]*value="care")(?=[^>]*checked)[^>]*>/);
-assert.ok((await html("/study/scene")).includes("Room for"));
+assert.ok((await html("/study/scene")).includes("Where life"));
 assert.ok((await html("/study/navigation")).includes("A Space"));
 assert.ok((await html("/spaces/unknown", 404)).includes("Take another path."));
 
-for (const name of ["hero", "studio", "care", ...places]) {
+for (const name of ["threshold", "hero", "return", "studio", ...places]) {
   for (const size of ["", "-small"]) {
     const path = "/field/" + name + size + ".webp";
     const response = await fetch(new URL(path, base));
@@ -52,4 +52,4 @@ for (const name of ["hero", "studio", "care", ...places]) {
   }
 }
 
-console.log("Passed: 12 public pages, 7 contextual briefs, 2 study URLs, 404 and 18 responsive WebP assets.");
+console.log("Passed: 12 public pages, 7 contextual briefs, 2 study URLs, 404 and 20 responsive WebP assets.");

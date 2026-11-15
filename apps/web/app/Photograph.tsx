@@ -14,13 +14,6 @@ export const courtyard: Plate = {
   height: 1024,
 };
 
-export const care: Plate = {
-  file: "care",
-  alt: "A person's hands turning a broad green leaf to look underneath",
-  width: 1024,
-  height: 1536,
-};
-
 export const materials: Plate = {
   file: "studio",
   alt: "An olive branch, pencil and tracing paper laid on a limestone worktable",
@@ -47,6 +40,6 @@ export function Photograph({
         decoding={priority ? "auto" : "async"}
       />
     </div>
-    <figcaption>{caption}</figcaption>
+    {caption && <figcaption>{caption}</figcaption>}
   </figure>;
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Invitation, SiteFrame, TextLink } from "../SiteFrame";
-import { care, Photograph } from "../Photograph";
+import { Photograph } from "../Photograph";
+import { tending } from "../courtyard-scenes";
 
 export const metadata: Metadata = {
   title: "Aftercare — Plantupia",
@@ -12,13 +13,13 @@ const moments = [
     id: "handover",
     label: "Handover",
     title: "Know what’s there.",
-    text: "The planter beside the window has a place in the room and a reason for being there. Note its location, what was planted and who will be looking after it. That first record gives later observations context.",
+    text: "The olive sits in a bed beside an open passage. At handover, record what was planted, where the bed can be reached and who will look after it. Those details give later observations context.",
   },
   {
     id: "observation",
     label: "Observation",
     title: "Notice what changes.",
-    text: "Someone notices a pale lower leaf. They note where it appeared and how the room has been used recently. A dated photo gives whoever follows up a point of comparison.",
+    text: "On a return visit, someone notices a cluster of pale leaves on the side facing the passage. They record where they saw it and take a dated photo from a place they can find again.",
   },
   {
     id: "follow-up",
@@ -41,10 +42,10 @@ export default function LivingSystemsPage() {
         <div>
           <p className="field-kicker"><span /> Aftercare</p>
           <h1>Life after<br /><em>installation.</em></h1>
-          <p className="field-lead">Plants change as rooms and routines change around them. A good handover gives the people caring for them a place to start.</p>
+          <p className="field-lead">Return to the courtyard. The plant, its surroundings and the routines of the people looking after it all change over time.</p>
           <TextLink href="#one-plant" arrow="↓">Follow one plant</TextLink>
         </div>
-        <Photograph image={care} caption="Checking a leaf · Generated concept" priority sizes="(max-width: 760px) 90vw, 42vw" />
+        <Photograph image={tending} className="aftercare-plate" caption="Returning to the courtyard · Generated concept" priority sizes="(max-width: 760px) 90vw, 42vw" />
       </div>
     </section>
 
