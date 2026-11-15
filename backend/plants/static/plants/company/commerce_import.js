@@ -39,14 +39,21 @@
     saveButton.disabled = true;
     status.textContent = phase === "preview" ? "Checking the workbook and images…" : "Saving commercial drafts…";
     try {
-      const response = await fetch(form.action, {
+      // A hidden input named "action" shadows HTMLFormElement.action.
+      // Read the actual HTML attribute so preview/confirm POST to the import endpoint.
+      const response = await fetch(form.getAttribute("action"), {
         method: "POST", body: new FormData(form),
         credentials: "same-origin", cache: "no-store",
         headers: { "Accept": "application/json" }
       });
       let data;
       try { data = await response.json(); }
-      catch (_) { throw new Error("The server returned an unexpected response. Please sign in again if your session expired."); }
+      catch (_) {
+        if (response.redirected && new URL(response.url, window.location.href).pathname === "/company/login/") {
+          throw new Error("Your company session has expired. Please sign in again.");
+        }
+        throw new Error("Import endpoint returned a non-JSON response (HTTP " + response.status + "). Please report this status to the team.");
+      }
       if (!response.ok || !data.ok) throw new Error(data.error || "Import validation failed.");
       if (phase === "import") {
         status.textContent = "Imported as unpublished drafts. Opening products…";
