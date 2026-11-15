@@ -52,14 +52,17 @@ jobs:
             grep -q 'Plantupia' "/tmp/plantupia-world-${route//\//_}.html"
           done
           grep -q 'Every space' /tmp/plantupia-world-_spaces.html
-          grep -q 'Industry &amp; factories' /tmp/plantupia-world-_spaces.html
+          grep -q 'Industry' /tmp/plantupia-world-_spaces.html
+          grep -q 'Hospitality' /tmp/plantupia-world-_spaces.html
           grep -q 'SELECTED WORKS' /tmp/plantupia-world-_about.html
           grep -q 'project archive is in preparation' /tmp/plantupia-world-_about.html
           grep -q 'MEET PLANTUPIA' /tmp/plantupia-world-_.html
           grep -q 'Designed' /tmp/plantupia-world-_studio.html
           grep -q 'Day one' /tmp/plantupia-world-_living-systems.html
           # Phase 03: one coherent photographic language, but distinct chapter interactions.
-          grep -q 'SPACES / THE ARCHITECTURAL FIELD' /tmp/plantupia-world-_spaces.html
+          grep -q 'Choose an environment' /tmp/plantupia-world-_spaces.html
+          grep -q 'Illustrative reference, not client work' /tmp/plantupia-world-_spaces.html
+          grep -q 'Previous environment' /tmp/plantupia-world-_spaces.html
           grep -q 'Design prompts for this space' /tmp/plantupia-world-_spaces.html
           grep -q 'THE STUDIO / A WORKING METHOD' /tmp/plantupia-world-_studio.html
           grep -q 'DESIGN DIAGRAM / CONCEPT, NOT A CLIENT DRAWING' /tmp/plantupia-world-_studio.html
@@ -74,7 +77,7 @@ jobs:
           grep -q 'SPACE DOSSIER' /tmp/plantupia-space-brief.html
           grep -q 'COPY YOUR SPACE OUTLINE' /tmp/plantupia-space-brief.html
           grep -q 'not submitted' /tmp/plantupia-space-brief.html
-          grep -q 'href="/start-a-space"' /tmp/plantupia-world-_spaces.html
+          grep -q 'href="/start-a-space?space=home"' /tmp/plantupia-world-_spaces.html
           # Keep the generated HD images available as first-party photo-loading fallbacks.
           for asset in space life time; do
             curl -fsSL "http://127.0.0.1:3017/scene/hd/${asset}.webp" -o "/tmp/plantupia-${asset}-hd.webp"

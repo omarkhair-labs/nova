@@ -31,3 +31,11 @@
 @media(max-width:850px){.si-body{grid-template-columns:1fr;align-items:start;gap:25px;padding:55px 0 30px}.si-intro>h2{font-size:clamp(54px,10vw,85px);margin:20px 0}.si-links>a{min-height:95px}}
 @media(max-width:540px){.si-trigger{width:43px;height:43px}.si-overlay{padding:22px 20px}.si-body{padding:45px 0 20px}.si-intro>h2{font-size:53px}.si-links>a{min-height:83px;grid-template-columns:32px minmax(0,1fr) 22px;gap:9px}.si-link-text strong{font-size:28px}.si-link-text small{font-size:11px}.si-top,.si-foot{font-size:9px}.si-foot span:last-child{display:none}}
 @media(prefers-reduced-motion:reduce){.si-overlay{animation:none}.si-trigger,.si-links>a{transition:none}}
+
+/* A lighter, tighter index with room for all six destinations. */
+.si-links>a{min-height:clamp(68px,10vh,100px)}
+.si-link-text strong{font-size:clamp(27px,2.2vw,43px)}
+.si-links>a:hover .si-link-arrow{transform:translate(4px,-4px)}
+.si-link-arrow{transition:transform .25s ease}
+@media(max-width:540px){.si-links>a{min-height:72px}.si-link-text strong{font-size:26px}}
+@media(prefers-reduced-motion:reduce){.si-link-arrow{transition:none}}

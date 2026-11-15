@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import WorldRoute from "../WorldRoute";
+import SpaceExplorer from "../SpaceExplorer";
 
 export const metadata: Metadata = {
   title: "Spaces — Plantupia",
-  description: "Explore the questions behind living spaces for home, work and gathering.",
+  description: "Explore six built environments, from residential spaces to industry and hospitality.",
   robots: { index: false, follow: false },
 };
 
 export default function SpacesPage() {
-  return <WorldRoute kind="spaces" />;
+  return <SpaceExplorer />;
 }
