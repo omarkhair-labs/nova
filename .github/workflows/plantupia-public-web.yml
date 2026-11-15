@@ -99,10 +99,10 @@ jobs:
           # After the cinematic chapter, the real-world gateway must render on /.
           grep -q 'CONTINUE INTO PLANTUPIA' /tmp/plantupia-world-_.html
           grep -q 'The world' /tmp/plantupia-world-_.html
-          # React may split interpolated link text into multiple HTML text nodes.
+          # The chapter links have explicit accessible names.
           grep -q 'aria-label="Enter Spaces"' /tmp/plantupia-world-_.html
           grep -q 'href="/spaces"' /tmp/plantupia-world-_.html
-          # Inactive chapter selections are buttons until the visitor chooses them.
+          # All chapter links are now directly available to keyboard and touch visitors.
           grep -q 'data-chapter-target="/spaces"' /tmp/plantupia-world-_.html
           grep -q 'data-chapter-target="/studio"' /tmp/plantupia-world-_.html
           grep -q 'data-chapter-target="/living-systems"' /tmp/plantupia-world-_.html

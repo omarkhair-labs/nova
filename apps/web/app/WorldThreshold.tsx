@@ -1,8 +1,6 @@
 "use client";
-
 import { useState } from "react";
 import "./world-threshold.css";
-
 type WorldId = 0 | 1 | 2;
 
 const worlds = [
@@ -48,78 +46,32 @@ const worlds = [
 ] as const;
 
 export default function WorldThreshold() {
-  const [active, setActive] = useState<WorldId>(0);
-  const current = worlds[active];
-
+  const [active,setActive]=useState<WorldId>(0);
+  const [failed,setFailed]=useState<number[]>([]);
+  const current=worlds[active];
   return (
     <section className="wt-section" id="world" aria-labelledby="wt-title">
-      <div className="wt-photo-field" aria-hidden="true">
-        {worlds.map((world, i) => (
-          <div className={"wt-photo" + (active === i ? " wt-visible" : "")} key={world.number}>
-            <img
-              src={world.image}
-              alt=""
-              loading="lazy"
-              onError={event => {
-                const img = event.currentTarget;
-                const local = new URL(world.fallback, window.location.origin).href;
-                if (img.src !== local) img.src = local;
-              }}
-            />
+      <div className="wt-intro"><p>THE WORLD OF PLANTUPIA / 02—04</p><h2 id="wt-title">The world <em>beyond the frame.</em></h2></div>
+      <div className="wt-gallery">
+        <figure className="wt-picture">
+          <div className="wt-photo-field" aria-hidden="true">
+            {worlds.map((world,i)=><div key={world.number} className={"wt-photo"+(active===i?" wt-visible":"")}><img src={failed.includes(i)?world.fallback:world.image} alt="" loading="lazy" onError={()=>setFailed(previous=>previous.includes(i)?previous:[...previous,i])}/></div>)}
           </div>
-        ))}
-        <div className="wt-photo-shade" />
-        <div className="wt-plane-outline" />
-      </div>
-      <div className="wt-folio">
-        <span>PLANTUPIA / THE WORLD BEYOND</span>
-        <span>CHAPTERS 02—04 <span aria-hidden="true">✳</span></span>
-      </div>
-      <div className="wt-content">
-        <div className="wt-essay">
-          <p className="wt-overline"><span className="wt-overline-line" /> FROM A FIRST IMPRESSION</p>
-          <h2 id="wt-title">The world<br/>doesn&apos;t end<br/><em>at the frame.</em></h2>
-          <p className="wt-essay-note">
-            Step beyond the opening scene. Choose a way to understand the spaces, ideas and living relationships behind Plantupia.
-          </p>
-          <span className="wt-prompt">CHOOSE YOUR WAY IN ↓</span>
-        </div>
-
+          <figcaption>{failed.includes(active)?"Generated concept illustration.":current.imageLabel} Not a completed Plantupia project.</figcaption>
+        </figure>
         <div className="wt-navigation">
-          <nav className="wt-choices" aria-label="Choose a chapter to explore">
-            {worlds.map((world, i) => (
-              <button
-                key={world.number}
-                type="button"
-                className={active === i ? "wt-choice wt-choice-selected" : "wt-choice"}
-                aria-pressed={active === i}
-                data-chapter-target={world.href}
-                onMouseEnter={() => setActive(i as WorldId)}
-                onFocus={() => setActive(i as WorldId)}
-                onClick={() => setActive(i as WorldId)}
-              >
-                <span className="wt-choice-index">{world.number}</span>
-                <span className="wt-choice-name">{world.name}</span>
-                <span className="wt-choice-sign" aria-hidden="true">{active === i ? "↗" : "+"}</span>
-              </button>
-            ))}
+          <p className="wt-label">THREE WAYS TO EXPLORE</p>
+          <nav className="wt-choices" aria-label="Explore Plantupia chapters">
+            {worlds.map((world,i)=><a key={world.number} href={world.href} aria-label={"Enter "+world.name}
+              data-chapter-target={world.href} data-preview-active={active===i}
+              className={"wt-choice"+(active===i?" wt-choice-selected":"")}
+              onPointerEnter={event=>{if(event.pointerType==="mouse")setActive(i as WorldId)}} onFocus={()=>setActive(i as WorldId)}>
+              <span>{world.number}</span><strong>{world.name}</strong><span aria-hidden="true">↗</span>
+            </a>)}
           </nav>
-          <div className="wt-reading" aria-live="polite" aria-atomic="true">
-            <p className="wt-reading-id">{current.overline} <span> / {current.number}</span></p>
-            <h3>{current.headline}</h3>
-            <p className="wt-reading-description">{current.description}</p>
-            <a className="wt-enter" href={current.href} aria-label={"Enter " + current.name}>
-              ENTER {current.name.toUpperCase()}
-              <span aria-hidden="true">↗</span>
-            </a>
-          </div>
+          <div className="wt-reading" aria-live="polite" key={active}><p className="wt-label">{current.overline}</p><h3>{current.headline}</h3><p>{current.description}</p></div>
+          <a className="wt-contact" href="/start-a-space">Have a space in mind? ↗</a>
         </div>
-      </div>
-      <div className="wt-bottom-rail">
-        <span>ONE CREATIVE WORLD / MANY WAYS TO EXPERIENCE IT</span>
-        <span>{current.imageLabel} Not a completed Plantupia project.</span>
-        <a href="/start-a-space" aria-label="Get in touch with Plantupia">HAVE A SPACE IN MIND? ↗</a>
-        <a href="#ps-main">BACK TO THE SPACE ↑</a>
       </div>
     </section>
   );
