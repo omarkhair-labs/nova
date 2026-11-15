@@ -186,3 +186,10 @@
  .wr-atelier-living,.wr-atelier-return,.wr-continuity-step,
  .wr-spatial-prompt-list button{transition:none!important}
 }
+
+/* Six environments: a compact architectural index rather than an oversized menu. */
+.wr-world-spaces .wr-controls button{min-height:48px;padding-block:10px}
+.wr-editorial-image{filter:saturate(1.01) contrast(1.03) brightness(1.02)}
+.wr-atelier-stage .wr-editorial-image{filter:saturate(.9) contrast(1.07) brightness(.88)}
+.wr-continuity-stage .wr-editorial-image{filter:saturate(.92) contrast(1.06) brightness(.78)}
+.wr-spatial-stage-3 .wr-editorial-image,.wr-spatial-stage-4 .wr-editorial-image,.wr-spatial-stage-5 .wr-editorial-image{object-position:50% 50%}

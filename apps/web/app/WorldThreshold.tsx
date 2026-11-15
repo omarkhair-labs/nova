@@ -12,12 +12,12 @@ const worlds = [
     overline: "PLACE / CONTEXT",
     headline: "Where life belongs.",
     description:
-      "Explore three kinds of place. Light, circulation, material and human rhythms change how nature can become part of architecture.",
+      "Explore the worlds of homes, workplaces, hospitality, industry, retail and shared public spaces. Light, circulation, material and human rhythms change how nature can become part of architecture.",
     href: "/spaces",
     image:
-      "https://images.pexels.com/photos/28577085/pexels-photo-28577085.jpeg?auto=compress&cs=tinysrgb&w=2560",
+      "https://images.pexels.com/photos/31814108/pexels-photo-31814108.jpeg?auto=compress&cs=tinysrgb&w=2560",
     fallback: "/scene/hd/space.webp",
-    imageLabel: "Architectural editorial photo: a skylit interior, used to study spatial context.",
+    imageLabel: "Architectural editorial photo: a concrete courtyard and a tree.",
   },
   {
     number: "02",
@@ -28,9 +28,9 @@ const worlds = [
       "From observing the environment to composing a living intervention: follow the design choices rather than a list of services.",
     href: "/studio",
     image:
-      "https://images.pexels.com/photos/33708096/pexels-photo-33708096.jpeg?auto=compress&cs=tinysrgb&w=2560",
+      "https://images.pexels.com/photos/28461045/pexels-photo-28461045.jpeg?auto=compress&cs=tinysrgb&w=2560",
     fallback: "/scene/hd/life.webp",
-    imageLabel: "Architectural editorial photo: planted interior and structural daylight.",
+    imageLabel: "Architectural editorial photo: a contemporary planted workplace.",
   },
   {
     number: "03",
@@ -41,9 +41,9 @@ const worlds = [
       "A place keeps changing after installation. Discover the relationship between plants, observation, human care and the passing of time.",
     href: "/living-systems",
     image:
-      "https://images.pexels.com/photos/40883631/pexels-photo-40883631.jpeg?auto=compress&cs=tinysrgb&w=2560",
+      "https://images.pexels.com/photos/36776751/pexels-photo-36776751.jpeg?auto=compress&cs=tinysrgb&w=2560",
     fallback: "/scene/hd/time.webp",
-    imageLabel: "Botanical editorial photo: an interior with hanging plants, not a record of growth.",
+    imageLabel: "Editorial photo: a contemporary retail atrium with indoor trees, not a record of growth.",
   },
 ] as const;
 

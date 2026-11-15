@@ -181,3 +181,8 @@
 @media(prefers-reduced-motion:reduce){
  .ps-site *, .ps-site *::before,.ps-site *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
 }
+
+/* Modern material direction: cooler daylight, more photographic color, less sepia. */
+.ps-opening{background:#1b2421}
+.ps-image img{filter:saturate(1.02) contrast(1.02) brightness(1.03)}
+.ps-grading{background:linear-gradient(90deg,rgba(10,20,16,.87),rgba(10,20,16,.36) 43%,rgba(10,20,16,.05) 74%),linear-gradient(0deg,rgba(10,20,16,.76),transparent 36%,transparent 78%,rgba(10,20,16,.28))}

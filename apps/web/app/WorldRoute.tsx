@@ -8,23 +8,77 @@ type WorldKind = "spaces" | "studio" | "systems";
 
 const spaces = [
   {
-    id: "01", name: "Places to live", type: "DWELLING / LIGHT",
-    headline: "Make room for nature.",
-    text: "A home is full of everyday rituals. Greenery becomes meaningful when the choice of plant, position, light and human movement are considered together.",
-    points: ["DAYLIGHT", "A QUIET CORNER", "EVERYDAY RETURN"],
+    "id": "01",
+    "name": "Homes & residences",
+    "type": "RESIDENTIAL / DAILY LIFE",
+    "headline": "Make room for nature.",
+    "text": "A home is full of everyday rituals. Plant selection, daylight and movement shape a living environment.",
+    "points": [
+      "DAYLIGHT",
+      "HUMAN SCALE",
+      "EVERYDAY CARE"
+    ]
   },
   {
-    id: "02", name: "Places to work", type: "WORK / RHYTHM",
-    headline: "A different way to focus.",
-    text: "Working environments have changing rhythms and shared routines. We explore the relationship between planting, circulation, moments of pause and the surrounding architecture.",
-    points: ["RHYTHM", "MOVEMENT", "MATERIAL"],
+    "id": "02",
+    "name": "Workplaces & offices",
+    "type": "WORK / RHYTHM",
+    "headline": "A different way to focus.",
+    "text": "From a desk to a shared atrium, greenery can belong with the architecture and working routines.",
+    "points": [
+      "WORKFLOW",
+      "CIRCULATION",
+      "MAINTENANCE"
+    ]
   },
   {
-    id: "03", name: "Places to gather", type: "HOSPITALITY / ATMOSPHERE",
-    headline: "Give the room its own pulse.",
-    text: "Arrival, comfort and a sense of connection shape places for gathering. Living material can become part of the atmosphere, not an afterthought.",
-    points: ["ARRIVAL", "SHARED SPACE", "ATMOSPHERE"],
+    "id": "03",
+    "name": "Hotels & hospitality",
+    "type": "HOSPITALITY / ARRIVAL",
+    "headline": "Give arrival its own character.",
+    "text": "From hotel lobbies to restaurants and shared guest spaces, consider how planting shapes atmosphere and how it can be cared for.",
+    "points": [
+      "ARRIVAL",
+      "ATMOSPHERE",
+      "GUEST FLOW"
+    ]
   },
+  {
+    "id": "04",
+    "name": "Industry & factories",
+    "type": "INDUSTRY / CONDITIONS",
+    "headline": "Life beyond the office.",
+    "text": "Explore greenery around industrial sites, administrative areas and staff spaces where appropriate. Operational safety and site constraints come first.",
+    "points": [
+      "SITE RULES",
+      "EXPOSURE",
+      "SAFE ACCESS"
+    ]
+  },
+  {
+    "id": "05",
+    "name": "Retail & destinations",
+    "type": "RETAIL / EXPERIENCE",
+    "headline": "Make a place worth noticing.",
+    "text": "From a small shop to a large retail destination, explore how living material can relate to circulation, displays and the visitor journey.",
+    "points": [
+      "VISITOR FLOW",
+      "SCALE",
+      "UPKEEP"
+    ]
+  },
+  {
+    "id": "06",
+    "name": "Public & shared spaces",
+    "type": "PUBLIC / COMMON GROUND",
+    "headline": "Nature belongs in shared places.",
+    "text": "Courtyards, cultural spaces and common areas offer different opportunities for living material, shaped by climate, access and use.",
+    "points": [
+      "CLIMATE",
+      "ACCESS",
+      "SHARED USE"
+    ]
+  }
 ] as const;
 
 const studioSteps = [
@@ -58,7 +112,7 @@ const mastheads: Record<WorldKind, { eyebrow: string; number: string; title: str
     number: "02—04",
     title: "Every space",
     italic: "has its own life.",
-    note: "The same plant is never the same experience in every setting. Explore the questions we ask of a place.",
+    note: "From homes and hotels to factories and public spaces, each built environment has its own conditions. Explore where nature could belong.",
   },
   studio: {
     eyebrow: "03 / THE STUDIO",
@@ -99,42 +153,63 @@ type EditorialPhoto = {
 
 const editorialSpaces: readonly EditorialPhoto[] = [
   {
-    src: "https://images.pexels.com/photos/28577085/pexels-photo-28577085.jpeg?auto=compress&cs=tinysrgb&w=2200",
-    fallback: "/scene/hd/space.webp",
-    credit: "Öznur Yüksel / Pexels",
-    source: "https://www.pexels.com/photo/modern-architectural-interior-with-skylight-28577085/",
-    subject: "A daylight-filled architectural interior, a reference for residential space",
+    "src": "https://images.pexels.com/photos/34992781/pexels-photo-34992781.jpeg?auto=compress&cs=tinysrgb&w=2200",
+    "fallback": "/scene/hd/space.webp",
+    "credit": "Liuuu _61 / Pexels",
+    "source": "https://www.pexels.com/photo/contemporary-minimalist-living-room-interior-34992781/",
+    "subject": "A contemporary residential interior with houseplants"
   },
   {
-    src: "https://images.pexels.com/photos/35566906/pexels-photo-35566906.jpeg?auto=compress&cs=tinysrgb&w=2200",
-    fallback: "/scene/hd/life.webp",
-    credit: "Tatianaa Co / Pexels",
-    source: "https://www.pexels.com/photo/modern-office-atrium-with-greenery-35566906/",
-    subject: "A modern office atrium with greenery and a skylight",
+    "src": "https://images.pexels.com/photos/28461045/pexels-photo-28461045.jpeg?auto=compress&cs=tinysrgb&w=2200",
+    "fallback": "/scene/hd/life.webp",
+    "credit": "Alpha En / Pexels",
+    "source": "https://www.pexels.com/photo/modern-office-space-with-indoor-plants-28461045/",
+    "subject": "A contemporary office with greenery and natural light"
   },
   {
-    src: "https://images.pexels.com/photos/6510384/pexels-photo-6510384.jpeg?auto=compress&cs=tinysrgb&w=2200",
-    fallback: "/scene/hd/time.webp",
-    credit: "Lachlan Ross / Pexels",
-    source: "https://www.pexels.com/photo/interior-of-restaurant-with-hanging-green-potted-plants-6510384/",
-    subject: "A restaurant interior with hanging greenery and timber furniture",
+    "src": "https://images.pexels.com/photos/28999490/pexels-photo-28999490.jpeg?auto=compress&cs=tinysrgb&w=2200",
+    "fallback": "/scene/hd/time.webp",
+    "credit": "Quang Nguyen Vinh / Pexels",
+    "source": "https://www.pexels.com/photo/modern-hotel-lobby-with-blue-and-gray-chairs-28999490/",
+    "subject": "A contemporary hospitality lobby"
   },
+  {
+    "src": "https://images.pexels.com/photos/33095875/pexels-photo-33095875.jpeg?auto=compress&cs=tinysrgb&w=2200",
+    "fallback": "/scene/hd/space.webp",
+    "credit": "Andy Lee / Pexels",
+    "source": "https://www.pexels.com/photo/modern-industrial-building-with-greenery-33095875/",
+    "subject": "Industrial architecture surrounded by greenery"
+  },
+  {
+    "src": "https://images.pexels.com/photos/36776751/pexels-photo-36776751.jpeg?auto=compress&cs=tinysrgb&w=2200",
+    "fallback": "/scene/hd/life.webp",
+    "credit": "mingche lee / Pexels",
+    "source": "https://www.pexels.com/photo/modern-shopping-mall-with-indoor-trees-36776751/",
+    "subject": "Contemporary retail atrium with indoor trees"
+  },
+  {
+    "src": "https://images.pexels.com/photos/31814108/pexels-photo-31814108.jpeg?auto=compress&cs=tinysrgb&w=2200",
+    "fallback": "/scene/hd/time.webp",
+    "credit": "DAIPI / Pexels",
+    "source": "https://www.pexels.com/photo/sunlit-urban-courtyard-tree-surrounded-by-walls-31814108/",
+    "subject": "A tree within a contemporary concrete courtyard"
+  }
 ];
 
 const studioPhoto: EditorialPhoto = {
-  src: "https://images.pexels.com/photos/33708096/pexels-photo-33708096.jpeg?auto=compress&cs=tinysrgb&w=2200",
+  src: "https://images.pexels.com/photos/28461045/pexels-photo-28461045.jpeg?auto=compress&cs=tinysrgb&w=2200",
   fallback: "/scene/hd/life.webp",
-  credit: "David Allen / Pexels",
-  source: "https://www.pexels.com/photo/indoor-atrium-with-lush-greenery-and-modern-architecture-33708096/",
-  subject: "An architectural atrium with planted forms, used as an editorial process reference",
+  credit: "Alpha En / Pexels",
+  source: "https://www.pexels.com/photo/modern-office-space-with-indoor-plants-28461045/",
+  subject: "A contemporary planted workspace used as a process reference",
 };
 
 const systemsPhoto: EditorialPhoto = {
-  src: "https://images.pexels.com/photos/40883631/pexels-photo-40883631.jpeg?auto=compress&cs=tinysrgb&w=2200",
+  src: "https://images.pexels.com/photos/36776751/pexels-photo-36776751.jpeg?auto=compress&cs=tinysrgb&w=2200",
   fallback: "/scene/hd/time.webp",
-  credit: "Rahime Gül / Pexels",
-  source: "https://www.pexels.com/photo/indoor-atrium-with-hanging-greenery-and-skylight-40883631/",
-  subject: "Sunlit architecture and hanging foliage, used as an editorial continuity reference",
+  credit: "mingche lee / Pexels",
+  source: "https://www.pexels.com/photo/modern-shopping-mall-with-indoor-trees-36776751/",
+  subject: "A contemporary public interior with indoor trees, used as a continuity reference",
 };
 
 function EditorialImage({ photo, eager = false }: { photo: EditorialPhoto; eager?: boolean }) {
@@ -156,20 +231,89 @@ function EditorialImage({ photo, eager = false }: { photo: EditorialPhoto; eager
 
 const spacePrompts = [
   [
-    { label: "Light", detail: "Map daylight before positioning living material." },
-    { label: "Movement", detail: "Leave space for everyday routes and rituals." },
-    { label: "Return", detail: "Make care practical for the people who live here." },
+    {
+      "label": "Light",
+      "detail": "Evaluate daylight in the actual room."
+    },
+    {
+      "label": "Movement",
+      "detail": "Keep everyday circulation open."
+    },
+    {
+      "label": "Care",
+      "detail": "Choose a practical rhythm of care."
+    }
   ],
   [
-    { label: "Rhythm", detail: "Notice when a space is shared, busy or quiet." },
-    { label: "Access", detail: "Keep circulation and upkeep in the conversation." },
-    { label: "Responsibility", detail: "Define who can observe and care for each planting area." },
+    {
+      "label": "Rhythm",
+      "detail": "Observe working hours and shared routines."
+    },
+    {
+      "label": "Access",
+      "detail": "Protect circulation and maintenance access."
+    },
+    {
+      "label": "Responsibility",
+      "detail": "Plan who will care for the planting."
+    }
   ],
   [
-    { label: "Arrival", detail: "Consider the impression at the threshold." },
-    { label: "Atmosphere", detail: "Allow light, natural material and living forms to work together." },
-    { label: "Maintenance", detail: "Design for repeated use, cleaning and ongoing care." },
+    {
+      "label": "Arrival",
+      "detail": "Consider the experience at the entrance."
+    },
+    {
+      "label": "Atmosphere",
+      "detail": "Balance natural material and the existing interior."
+    },
+    {
+      "label": "Maintenance",
+      "detail": "Plan for frequent use and cleaning."
+    }
   ],
+  [
+    {
+      "label": "Safety",
+      "detail": "Respect operational hazards and restricted zones."
+    },
+    {
+      "label": "Conditions",
+      "detail": "Assess exposure, dust and site constraints."
+    },
+    {
+      "label": "Access",
+      "detail": "Keep maintenance and emergency routes clear."
+    }
+  ],
+  [
+    {
+      "label": "Flow",
+      "detail": "Keep sightlines and visitor routes clear."
+    },
+    {
+      "label": "Scale",
+      "detail": "Consider the relationship between plants and architecture."
+    },
+    {
+      "label": "Upkeep",
+      "detail": "Plan care around opening times."
+    }
+  ],
+  [
+    {
+      "label": "Climate",
+      "detail": "Study heat, light and exposure."
+    },
+    {
+      "label": "Access",
+      "detail": "Preserve inclusive circulation."
+    },
+    {
+      "label": "Use",
+      "detail": "Plan for the people who share the space."
+    }
+  ]
 ] as const;
 
 function SpaceScene({ active }: { active: number }) {
@@ -189,7 +333,7 @@ function SpaceScene({ active }: { active: number }) {
       <div className="wr-editorial-grade" aria-hidden="true" />
       <div className="wr-image-topline">
         <span>SPACES / THE ARCHITECTURAL FIELD</span>
-        <span>STUDY {spaces[active].id} / 03</span>
+        <span>STUDY {spaces[active].id} / 06</span>
       </div>
       <div className="wr-editorial-point wr-editorial-point-spaces" aria-hidden="true">
         <span className="wr-point-ring"/><span>DESIGN CONSIDERATIONS</span>
@@ -302,7 +446,7 @@ export default function WorldRoute({ kind }: { kind: WorldKind }) {
   const [selection, setSelection] = useState(0);
   const masthead = mastheads[kind];
   const currentSection: SiteSection = kind === "systems" ? "systems" : kind;
-  const total = kind === "studio" ? 4 : 3;
+  const total = kind === "spaces" ? spaces.length : kind === "studio" ? studioSteps.length : systems.length;
 
   return (
     <div className={"wr-world wr-world-" + kind}>

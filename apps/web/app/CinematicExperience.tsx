@@ -14,14 +14,14 @@ const scenes = [
     label: "The Space",
     line: "Architecture and light establish a sense of place.",
     detail: "An architectural reference for light and material. This photo shows an independent place, not a future or previous stage of another scene.",
-    visual: "https://images.pexels.com/photos/28577085/pexels-photo-28577085.jpeg?auto=compress&cs=tinysrgb&w=2560",
+    visual: "https://images.pexels.com/photos/31814108/pexels-photo-31814108.jpeg?auto=compress&cs=tinysrgb&w=2560",
     fallback: "/scene/hd/space.webp",
-    alt: "Editorial architectural photograph featuring a skylit interior with plants; one of three independent reference locations, not a Plantupia project.",
+    alt: "Editorial photograph of a tree within a contemporary concrete courtyard; one of three independent reference locations, not a Plantupia project.",
     markerLabels: ["The light", "The threshold", "The materials"],
     markerDescriptions: [
-      "The light and ceiling opening create the room's first atmosphere.",
+      "Light and the architectural opening establish the atmosphere of the place.",
       "A threshold tells us where life could belong within the built space.",
-      "Stone, timber and natural light create the conditions we begin with.",
+      "Concrete, geometry and daylight establish the conditions we begin with.",
     ],
   },
   {
@@ -29,9 +29,9 @@ const scenes = [
     label: "With Life",
     line: "Living material brings another layer to the room.",
     detail: "A photographic reference for the relationship between architecture and planted interiors; not a documented Plantupia intervention.",
-    visual: "https://images.pexels.com/photos/33708096/pexels-photo-33708096.jpeg?auto=compress&cs=tinysrgb&w=2560",
+    visual: "https://images.pexels.com/photos/28461045/pexels-photo-28461045.jpeg?auto=compress&cs=tinysrgb&w=2560",
     fallback: "/scene/hd/life.webp",
-    alt: "Editorial photograph of a planted modern atrium under a glass roof; an independent location, not a second stage of the previous room.",
+    alt: "Editorial photograph of a bright contemporary office with greenery; an independent location, not a second stage of the previous room.",
     markerLabels: ["Living material", "Filtered light", "A softer boundary"],
     markerDescriptions: [
       "Planting becomes part of the room rather than an object placed on top.",
@@ -44,9 +44,9 @@ const scenes = [
     label: "Over Time",
     line: "A living place invites us to return and observe.",
     detail: "A third photographic reference for the attention living places deserve. This is not a real time-lapse or care record.",
-    visual: "https://images.pexels.com/photos/40883631/pexels-photo-40883631.jpeg?auto=compress&cs=tinysrgb&w=2560",
+    visual: "https://images.pexels.com/photos/36776751/pexels-photo-36776751.jpeg?auto=compress&cs=tinysrgb&w=2560",
     fallback: "/scene/hd/time.webp",
-    alt: "Editorial photograph of hanging greenery and a skylight; an independent location illustrating observation rather than biological growth.",
+    alt: "Editorial photograph of a modern retail atrium with indoor trees; an independent location illustrating observation rather than biological growth.",
     markerLabels: ["Notice", "Return", "Remember"],
     markerDescriptions: [
       "Observation turns the living space into an ongoing relationship.",
@@ -161,7 +161,7 @@ export default function SceneStudy() {
         <section className="ps-story" aria-label="Introducing the space">
           <div className="ps-kicker"><span className="ps-kicker-rule" /> LIVING ARCHITECTURE / STUDY 01</div>
           <h1>A Space<br />Becoming <em>Alive.</em></h1>
-          <p>Explore the atmosphere of living architecture through three photographic studies.</p>
+          <p>Plantupia brings nature into the built environment — from a single room to the places an entire city shares.</p>
           <button type="button" className="ps-cta" onClick={() => switchStage(stage === 0 ? 1 : stage === 1 ? 2 : 0)}>
             <span className="ps-cta-icon" aria-hidden="true">{stage === 2 ? "↺" : "↗"}</span>
             {stage === 0 ? "Reveal life" : stage === 1 ? "See the continuity" : "Start again"}
@@ -227,7 +227,7 @@ export default function SceneStudy() {
           <button type="button" aria-label="Close study details" onClick={() => setShowInfo(false)}>×</button>
           <h2>What is this scene?</h2>
           <p>This is a cinematic design exploration, not a photograph of a completed Plantupia project.
-          These are three separate editorial photographs, selected to explore architectural atmosphere, planting and observation. They are not before/after images of one place, photographs of completed Plantupia projects, or evidence of growth or measurable wellbeing improvements. Images: Öznur Yüksel, David Allen, and Rahime Gül via Pexels. Original generated design studies remain as offline fallbacks. No live sensor readings or customer history are represented.</p>
+          These are three separate editorial photographs, selected to explore architectural atmosphere, planting and observation. They are not before/after images of one place, photographs of completed Plantupia projects, or evidence of growth or measurable wellbeing improvements. Images: DAIPI, Alpha En, and mingche lee via Pexels. Original generated design studies remain as offline fallbacks. No live sensor readings or customer history are represented.</p>
         </aside>}
       </main>
       </div>

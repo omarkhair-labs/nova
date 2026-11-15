@@ -8,6 +8,9 @@ const environments = [
   { id: "home", name: "A home", descriptor: "Residential interiors" },
   { id: "work", name: "A workplace", descriptor: "Offices and shared spaces" },
   { id: "gather", name: "A place to gather", descriptor: "Hospitality and social spaces" },
+  { id: "industrial", name: "An industrial site", descriptor: "Factories, grounds and operational campuses" },
+  { id: "retail", name: "A retail destination", descriptor: "Shops, malls and customer spaces" },
+  { id: "public", name: "A public space", descriptor: "Courtyards, shared and cultural spaces" },
   { id: "other", name: "Something else", descriptor: "A space with its own character" },
 ] as const;
 const intentions = [
@@ -69,7 +72,7 @@ export default function SpaceBrief() {
         <div className="sb-intro">
           <div className="sb-image-wrap" aria-hidden="true">
             <img
-              src="https://images.pexels.com/photos/33708096/pexels-photo-33708096.jpeg?auto=compress&cs=tinysrgb&w=1920"
+              src="https://images.pexels.com/photos/28461045/pexels-photo-28461045.jpeg?auto=compress&cs=tinysrgb&w=1920"
               alt=""
               onError={event => {
                 const image = event.currentTarget;
