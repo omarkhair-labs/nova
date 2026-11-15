@@ -47,11 +47,15 @@ jobs:
             exit 1
           fi
           grep -q 'A Space' /tmp/plantupia-scene.html
-          for route in / /spaces /studio /living-systems; do
+          for route in / /spaces /studio /living-systems /about; do
             curl -fsSL "http://127.0.0.1:3017${route}" -o "/tmp/plantupia-world-${route//\//_}.html"
             grep -q 'Plantupia' "/tmp/plantupia-world-${route//\//_}.html"
           done
           grep -q 'Every space' /tmp/plantupia-world-_spaces.html
+          grep -q 'Industry &amp; factories' /tmp/plantupia-world-_spaces.html
+          grep -q 'SELECTED WORKS' /tmp/plantupia-world-_about.html
+          grep -q 'project archive is in preparation' /tmp/plantupia-world-_about.html
+          grep -q 'MEET PLANTUPIA' /tmp/plantupia-world-_.html
           grep -q 'Designed' /tmp/plantupia-world-_studio.html
           grep -q 'Day one' /tmp/plantupia-world-_living-systems.html
           # Phase 03: one coherent photographic language, but distinct chapter interactions.

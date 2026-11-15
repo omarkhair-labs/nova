@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import "./site-index.css";
 
-export type SiteSection = "experience" | "spaces" | "studio" | "systems";
+export type SiteSection = "experience" | "spaces" | "studio" | "systems" | "about";
 
 export const siteSections: ReadonlyArray<{
   id: SiteSection;
@@ -16,6 +16,7 @@ export const siteSections: ReadonlyArray<{
   { id: "spaces", number: "02", href: "/spaces", name: "Spaces", line: "Explore the questions behind different environments." },
   { id: "studio", number: "03", href: "/studio", name: "The Studio", line: "Understand how our thinking becomes a living place." },
   { id: "systems", number: "04", href: "/living-systems", name: "Living Systems", line: "Discover what continues after installation." },
+  { id: "about", number: "05", href: "/about", name: "About Plantupia", line: "Who we are, what we do, and the work behind it." },
 ] as const;
 
 export default function SiteIndex({

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import "./study/scene/scene.css";
 import SiteIndex from "./SiteIndex";
 import WorldThreshold from "./WorldThreshold";
+import { CompanyIntroduction } from "./CompanyStory";
 
 type Stage = 0 | 1 | 2;
 type MarkerIndex = 0 | 1 | 2;
@@ -232,6 +233,7 @@ export default function SceneStudy() {
       </main>
       </div>
       <WorldThreshold />
+      <CompanyIntroduction />
     </div>
   );
 }
