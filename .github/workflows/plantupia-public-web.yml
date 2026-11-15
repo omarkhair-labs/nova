@@ -64,10 +64,12 @@ jobs:
           grep -q 'Illustrative reference, not client work' /tmp/plantupia-world-_spaces.html
           grep -q 'Previous environment' /tmp/plantupia-world-_spaces.html
           grep -q 'Design prompts for this space' /tmp/plantupia-world-_spaces.html
-          grep -q 'THE STUDIO / A WORKING METHOD' /tmp/plantupia-world-_studio.html
+          grep -q 'THE DESIGN TABLE' /tmp/plantupia-world-_studio.html
           grep -q 'DESIGN DIAGRAM / CONCEPT, NOT A CLIENT DRAWING' /tmp/plantupia-world-_studio.html
-          grep -q 'LIVING SYSTEMS / THE CONTINUING RELATIONSHIP' /tmp/plantupia-world-_living-systems.html
-          grep -q 'NOT A LIVE DASHBOARD' /tmp/plantupia-world-_living-systems.html
+          grep -q 'Follow one plant' /tmp/plantupia-world-_living-systems.html
+          grep -q 'EXAMPLE ONLY' /tmp/plantupia-world-_living-systems.html
+          grep -q 'Design layers' /tmp/plantupia-world-_studio.html
+          grep -q 'Timeline of the example plant' /tmp/plantupia-world-_living-systems.html
           if grep -q 'wr-space-art-' /tmp/plantupia-world-_spaces.html; then
             echo "Removed cartoon-space artwork is still rendered"
             exit 1

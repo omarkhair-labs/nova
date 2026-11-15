@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import WorldRoute from "../WorldRoute";
+import LivingContinuity from "../LivingContinuity";
 
 export const metadata: Metadata = {
   title: "Living Systems — Plantupia",
@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function LivingSystemsPage() {
-  return <WorldRoute kind="systems" />;
+  return <LivingContinuity />;
 }

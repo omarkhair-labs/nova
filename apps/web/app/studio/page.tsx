@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import WorldRoute from "../WorldRoute";
+import StudioAtelier from "../StudioAtelier";
 
 export const metadata: Metadata = {
   title: "The Studio — Plantupia",
@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function StudioPage() {
-  return <WorldRoute kind="studio" />;
+  return <StudioAtelier />;
 }
