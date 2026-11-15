@@ -1,6 +1,6 @@
 # Plantupia — A Space Becoming Alive / Canonical Homepage Slice
 
-Date: 2026-11-13  
+Date: 2026-11-13
 Scope: English-only, desktop-first public creative website, **Draft PR #300**. No official `plantupia.com` cutover, production release, or merge into #253.
 
 ## What is implemented and where
