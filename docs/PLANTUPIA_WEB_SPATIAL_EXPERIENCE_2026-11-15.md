@@ -28,8 +28,14 @@ Kaizen lets different kinds of interaction coexist within one authored story. Op
 
 - Start at the threshold. A sign inside the frame moves the visitor toward the tree instead of scrolling down to another module. Returning changes scale from architecture to the person and plant.
 - Keep a map within reach. Its illustrated plan holds the drafting table, the central olive, growing places, an open terrace and a place to write. Its six positions open addressable routes. The mobile map rotates the plan and keeps labels readable.
-- Give each destination its own action. Spaces changes the visible environment on focus or hover and opens it on activation. Individual places have a fold-out observation. Approach points at the condition being read. Aftercare changes the visit through the URL and supports Back. Contact is a worktable for a message the visitor keeps.
+- Give each destination its own action. Spaces changes the visible environment on focus or hover and opens it on activation. Individual places have a fold-out observation. Approach places each condition at its own point inside the courtyard. Aftercare changes the visit through the URL and supports Back. Contact is a worktable for a message the visitor keeps.
 - Preserve direct paths and recovery. Native links and a JavaScript-disabled directory provide access. The map restores focus when it closes. Reduced motion presents destinations without movement. There is no requirement to pan, drag or finish a chapter.
 - Keep the evidence boundary. The map is an imagined limestone model generated for this pass using the built-in ImageGen tool. The prompts described a ninety-degree tabletop model with a central olive, a lower threshold and adjoining rooms. It is published as `apps/web/public/field/courtyard-map.webp`. The map, photographs and visits depict concepts. A project archive or company contact channel requires approved material and destination.
 
 The review is isolated to draft PR #302 and the website feature branch from issue #301.
+
+## Courtyard continuity
+
+The threshold, planting and return views have native fragment addresses. Browser Back and Forward follow the visited views. The map leads back inside the courtyard from Approach and to the return view from Aftercare. On the courtyard itself, opening the map keeps the current viewing position. The map and view controls preserve direct links and work without a JavaScript history layer.
+
+Approach places three keyboard- and touch-operable controls over the shadow, the passage and the planting bed. The markers are placed in the photograph's coordinates and move with its cover crop. At phone widths the picture fades into the note so the controls sit on the photograph and remain clear of the text. The optical targets follow the image but still behave like native radios and links.

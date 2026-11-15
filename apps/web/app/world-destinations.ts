@@ -6,3 +6,9 @@ export const destinations = [
   { href: "/about", label: "About", detail: "Meet Plantupia", coordinate: "about" },
   { href: "/start-a-space", label: "Contact", detail: "Prepare a note", coordinate: "contact" },
 ] as const;
+
+export function courtyardHrefFrom(path: string) {
+  if (path === "/studio") return "/#planting";
+  if (path === "/living-systems") return "/#return";
+  return "/";
+}

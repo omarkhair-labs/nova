@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import ChapterIndex from "./ChapterIndex";
-import { destinations } from "./world-destinations";
+import { courtyardHrefFrom, destinations } from "./world-destinations";
 import "./field.css";
 import "./world.css";
 
@@ -17,7 +17,7 @@ export function SiteFrame({ children, current = "/" }: { children: ReactNode; cu
     </nav>
     <nav id="site-directory" className="world-directory" aria-label="Browse without interactive map">
       <a href="#main">Close map</a>
-      {destinations.map(item => <a key={item.href} href={item.href}
+      {destinations.map(item => <a key={item.href} href={item.href === "/" ? courtyardHrefFrom(current) : item.href}
         aria-current={item.href === current ? "page" : undefined}>{item.label}</a>)}
     </nav>
   </div>;

@@ -1,36 +1,42 @@
-"use client";
-
-import { useState } from "react";
 import { courtyard } from "./Photograph";
-import { SceneBackdrop, SceneCredit, SceneNote } from "./SpatialStage";
+import { SceneBackdrop, SceneCredit, SceneNote, scenePoint } from "./SpatialStage";
 
 const lenses = [
-  { key: "light", label: "Light", title: "Watch the shadow.", text: "The arch shades one end while direct light reaches the open court. Watch both through the day before choosing what should grow here." },
-  { key: "movement", label: "Movement", title: "Walk the passage.", text: "People follow the clear strip beside the bed. Leave space for the canopy to grow and for a person to pass, sit or turn." },
-  { key: "care", label: "Care", title: "Leave room to work.", text: "The bed gives roots room below ground. Its edge needs to be reachable without blocking the passage people use." },
+  {
+    key: "light", label: "Light", x: .46, y: .45,
+    title: "Watch the shadow.", text: "The arch shades one end while direct light reaches the open court. Watch both through the day before choosing what should grow here.",
+  },
+  {
+    key: "movement", label: "Movement", x: .52, y: .84,
+    title: "Walk the passage.", text: "People follow the clear strip beside the bed. Leave space for the canopy to grow and for a person to pass, sit or turn.",
+  },
+  {
+    key: "care", label: "Care", x: .67, y: .75,
+    title: "Leave room to work.", text: "The bed gives roots room below ground. Its edge needs to be reachable without blocking the passage people use.",
+  },
 ] as const;
 
 export default function SiteReading() {
-  const [active, setActive] = useState(0);
-  const lens = lenses[active];
-
-  return <section className="scene-world study-world" data-lens={lens.key}>
+  return <section className="scene-world study-world">
     <SceneBackdrop image={courtyard} className="study-backdrop" />
     <div className="scene-shadow" aria-hidden="true" />
-    <div className="study-mark" aria-hidden="true"><span /></div>
     <div className="study-note">
       <SceneNote label="Approach" title="Read the courtyard">
-        <fieldset className="scene-lenses">
-          <legend>What do you see?</legend>
-          {lenses.map((item, index) => <label key={item.key}>
-            <input type="radio" name="reading-lens" checked={active === index} onChange={() => setActive(index)} />
-            <span>{item.label}</span>
+        <fieldset className="image-coordinates study-points">
+          <legend className="visually-hidden">Read a detail in the courtyard</legend>
+          {lenses.map(lens => <label key={lens.key} className="image-point study-point"
+            data-lens={lens.key} style={scenePoint(lens.x, lens.y)}>
+            <input type="radio" name="reading-lens" defaultChecked={lens.key === "light"}
+              aria-describedby={"reading-" + lens.key} />
+            <span className="gateway-ring" aria-hidden="true" />
+            <span className="study-point-label">{lens.label}</span>
           </label>)}
         </fieldset>
         <div role="status" className="study-caption">
-          <strong>{lens.title}</strong><p>{lens.text}</p>
+          {lenses.map(lens => <div key={lens.key} data-reading={lens.key} id={"reading-" + lens.key}>
+            <strong>{lens.title}</strong><p>{lens.text}</p>
+          </div>)}
         </div>
-        <noscript><p>Follow the left passage and leave enough space at the bed edge for someone to tend the tree.</p></noscript>
         <a className="world-action" href="/living-systems">Return after installation <span aria-hidden="true">↗</span></a>
       </SceneNote>
     </div>
