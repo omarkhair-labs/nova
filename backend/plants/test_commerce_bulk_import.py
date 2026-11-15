@@ -12,7 +12,7 @@ from django.urls import reverse
 from openpyxl import Workbook, load_workbook
 from PIL import Image
 
-from .commerce_bulk_import import HEADER
+from .commerce_bulk_import import HEADER, STOCK_HEADER
 from .commerce_models import (CommerceProduct, CommerceProductPhoto, CommerceSKU,
                               CommerceOrderRequest, CommerceStockMovement)
 from .models import CatalogProduct, PlantUnit
@@ -32,11 +32,11 @@ def sample_rows():
     ]
 
 
-def package_bytes(rows=None, images=None):
+def package_bytes(rows=None, images=None, with_stock=False):
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = "Products"
-    sheet.append(HEADER)
+    sheet.append(STOCK_HEADER if with_stock else HEADER)
     for row in rows if rows is not None else sample_rows():
         sheet.append(row)
     xlsx = BytesIO()
@@ -82,7 +82,7 @@ class CommerceBulkImportTests(DemoFixture, TestCase):
         response = self.client.get(reverse("company:commerce-product-template"))
         self.assertEqual(response.status_code, 200)
         workbook = load_workbook(BytesIO(response.content), read_only=True)
-        self.assertEqual(tuple(next(workbook["Products"].values)), HEADER)
+        self.assertEqual(tuple(next(workbook["Products"].values)), STOCK_HEADER)
         self.assertIn("Instructions", workbook.sheetnames)
         workbook.close()
         catalog = self.client.get(reverse("company:commerce-products"))
@@ -121,6 +121,27 @@ class CommerceBulkImportTests(DemoFixture, TestCase):
                                   + "?photo=" + str(fern.gallery.first().pk))
         self.assertEqual(gallery.status_code, 200)
         self.assertEqual(gallery["Cache-Control"], "private, no-store, max-age=0")
+
+    def test_optional_opening_stock_is_previewed_then_recorded_once(self):
+        from .commerce_models import CommerceStockLocation
+        location = CommerceStockLocation.objects.create(code="import-wh", name="Import warehouse")
+        rows = [tuple(row) + ("import-wh", 7) for row in sample_rows()[:2]]
+        pack = package_bytes(rows, with_stock=True)
+        preview = self.upload("preview", data=pack)
+        self.assertEqual(preview.status_code, 200, preview.content)
+        self.assertIn("14 opening units", preview.json()["notice"])
+        self.assertFalse(CommerceStockMovement.objects.exists())
+        result = self.upload("import", data=pack, digest=preview.json()["digest"], confirm=True)
+        self.assertEqual(result.status_code, 200, result.content)
+        self.assertEqual(list(CommerceStockMovement.objects.filter(location=location)
+                              .values_list("quantity_delta", flat=True)), [7, 7])
+        self.assertFalse(CommerceProduct.objects.filter(storefront_published_at__isnull=False).exists())
+
+    def test_opening_stock_requires_known_location_and_whole_quantity(self):
+        rows = [tuple(sample_rows()[0]) + ("missing-wh", 5)]
+        self.assertEqual(self.upload("preview", data=package_bytes(rows, with_stock=True)).status_code, 400)
+        rows = [tuple(sample_rows()[0]) + ("missing-wh", 1.5)]
+        self.assertEqual(self.upload("preview", data=package_bytes(rows, with_stock=True)).status_code, 400)
 
     def test_confirm_requires_preview_digest_matching_same_zip(self):
         self.assertEqual(self.upload("import", confirm=True).status_code, 400)

@@ -5,7 +5,7 @@
 <header class="page-heading compact-workspace-heading">
   <div><p class="eyebrow">B2C / PRODUCTS · استيراد المنتجات</p>
     <h1>One workbook. Every variant.</h1>
-    <p class="lead">Import products, real SKU options and their photographs together. Review the file first; then create unpublished commercial drafts. This does not create sales or counted warehouse stock.</p>
+    <p class="lead">Import products, real SKU options and their photographs together. Review the file first; then create unpublished commercial drafts. Optional opening quantities use an active warehouse code in the workbook. No sales or publication occur.</p>
   </div>
   <a class="button" href="{% url 'company:commerce-product-template' %}">Download Excel template ↓</a>
 </header>
@@ -42,7 +42,7 @@
       {% if preview %}{% for entry in preview %}<p><strong>{{ entry.name }}</strong> · {{ entry.sku_count }} SKU(s)</p>{% endfor %}{% endif %}
       {% if not preview %}<p class="fine">The validated products and row counts will appear here. Photos must be real authorized product photos; additional descriptions belong next to their image paths in Excel.</p>{% endif %}
     </div>
-    <div class="notice import-note">All imported records stay as drafts. Stock counts, publication to Android Shop, payments and shipping are separate actions.</div>
+    <div class="notice import-note">All products stay unpublished. Confirm the opening quantities only if the workbook contains actual counted stock. Use Bulk catalogue &amp; stock to review and publish selected products.</div>
   </section>
 </div>
 <script src="{% static 'plants/company/commerce_import.js' %}" defer></script>

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import uuid
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from io import BytesIO
@@ -28,7 +29,8 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.utils import get_column_letter
 
 from . import company_services as company
-from .commerce_models import CommerceProduct, CommerceProductPhoto, CommerceSKU
+from .commerce_models import CommerceProduct, CommerceProductPhoto, CommerceSKU, CommerceStockLocation
+from .commerce_services import record_counted_stock
 from .company_views import page, portal
 from .media import sanitize_public_plant_photo
 from .models import BotanicalSpecies
@@ -37,6 +39,7 @@ HEADER = (
     "product_key", "sku", "name", "kind", "description", "variant",
     "price", "currency", "cover_image", "cover_alt", "gallery_images", "species_key",
 )
+STOCK_HEADER = HEADER + ("stock_location", "initial_stock")
 MAX_ZIP_BYTES = 50 * 1024 * 1024
 MAX_UNCOMPRESSED = 150 * 1024 * 1024
 MAX_IMAGE_BYTES = 3 * 1024 * 1024
@@ -86,6 +89,8 @@ class SkuSpec:
     code: str
     variant: str
     price: Decimal
+    stock_location: str = ""
+    initial_stock: int = 0
 
 
 @dataclass
@@ -177,8 +182,11 @@ def parse_commercial_pack(upload):
                 sheet = book["Products"]
                 values = sheet.iter_rows(values_only=True)
                 head = next(values, ())
-                if tuple(str(x).strip() if x is not None else "" for x in head[:len(HEADER)]) != HEADER:
-                    raise CommercialCatalogError("Products header must match the downloadable commercial template.")
+                columns = tuple(str(x).strip() if x is not None else "" for x in head)
+                while columns and not columns[-1]:
+                    columns = columns[:-1]
+                if columns not in (HEADER, STOCK_HEADER):
+                    raise CommercialCatalogError("Products header must match the legacy or new commercial template.")
                 products = {}
                 skus = []
                 seen_skus = set()
@@ -189,7 +197,9 @@ def parse_commercial_pack(upload):
                         continue
                     if len(skus) >= MAX_ROWS:
                         raise CommercialCatalogError(f"Maximum {MAX_ROWS} SKU rows per ZIP.")
-                    fields = dict(zip(HEADER, row))
+                    if any(value is not None and str(value).strip() for value in row[len(columns):]):
+                        raise CommercialCatalogError(f"Row {index}: unexpected data beyond the workbook header.")
+                    fields = dict(zip(columns, row))
                     where = f"Row {index}"
                     key = _plain(fields["product_key"], 64, where + " product_key", required=True).lower()
                     if not re.fullmatch(r"[a-z0-9][a-z0-9-]{2,63}", key):
@@ -230,7 +240,21 @@ def parse_commercial_pack(upload):
                             f"{where}: product fields differ between variants of {key}; repeat the same product details.")
                     products[key] = spec
                     seen_skus.add(code)
-                    skus.append(SkuSpec(index, key, code, variant, price))
+                    location = _plain(fields.get("stock_location"), 60, where + " stock_location")
+                    raw_stock = fields.get("initial_stock")
+                    count = 0
+                    if raw_stock is not None and str(raw_stock).strip():
+                        try:
+                            quantity = Decimal(str(raw_stock))
+                            if (not quantity.is_finite() or quantity < 0 or quantity > 100000
+                                    or quantity != quantity.to_integral_value()):
+                                raise ValueError("invalid opening quantity")
+                            count = int(quantity)
+                        except (InvalidOperation, ValueError, TypeError) as error:
+                            raise CommercialCatalogError(f"{where}: initial_stock must be a whole number 0–100000.") from error
+                    if count and not location:
+                        raise CommercialCatalogError(f"{where}: opening quantity requires an existing warehouse code.")
+                    skus.append(SkuSpec(index, key, code, variant, price, location, count))
                 if not skus:
                     raise CommercialCatalogError("No products or SKUs were found in the workbook.")
             finally:
@@ -280,13 +304,25 @@ def verify_commercial_duplicates(pack):
         raise CommercialCatalogError("Unknown botanical species key: " + ", ".join(sorted(missing)[:5]))
 
 
+def verify_opening_stock(staff, pack):
+    if any(line.initial_stock for line in pack.skus):
+        company.require(staff, "plants.add_commercestockmovement", "plants.view_commercestockmovement")
+    codes = {line.stock_location for line in pack.skus if line.stock_location}
+    locations = {row.code: row for row in CommerceStockLocation.objects.filter(code__in=codes, active=True)}
+    missing = codes - locations.keys()
+    if missing:
+        raise CommercialCatalogError("Unknown or inactive stock location: " + ", ".join(sorted(missing)[:5]))
+    return locations
+
+
 def save_commercial_pack(staff, pack):
-    """Atomic DB inserts with best-effort media rollback; no stock count or publication."""
+    """Atomic draft inserts and optional explicit first counts; never auto-publish."""
     stored = []
     try:
         with transaction.atomic():
             get_user_model().objects.select_for_update().get(pk=staff.pk)
             verify_commercial_duplicates(pack)
+            locations = verify_opening_stock(staff, pack)
             species_keys = {p.species_key for p in pack.products.values() if p.species_key}
             species = {x.key: x for x in BotanicalSpecies.objects.filter(key__in=species_keys)}
             for spec in pack.products.values():
@@ -327,7 +363,14 @@ def save_commercial_pack(staff, pack):
                 )
                 sku.full_clean()
                 sku.save()
-                company.audit(staff, sku, f"Imported draft SKU from XLSX row {line.row_number}; no stock or sale.")
+                company.audit(staff, sku, f"Imported draft SKU from XLSX row {line.row_number}; not published.")
+                if line.initial_stock:
+                    record_counted_stock(
+                        staff=staff, sku_id=sku.pk, location_id=locations[line.stock_location].pk,
+                        quantity_delta=line.initial_stock, reason="opening",
+                        reference_note=f"Confirmed catalogue ZIP {pack.digest[:16]} / row {line.row_number}",
+                        client_id=uuid.uuid4(),
+                    )
         return len(pack.products), len(pack.skus), pack.photo_count
     except Exception:
         for storage, name in stored:
@@ -342,12 +385,12 @@ def commercial_template_bytes():
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = "Products"
-    sheet.append(HEADER)
+    sheet.append(STOCK_HEADER)
     sheet.freeze_panes = "A2"
-    sizes = [18, 22, 34, 14, 45, 22, 16, 12, 30, 36, 58, 20]
+    sizes = [18, 22, 34, 14, 45, 22, 16, 12, 30, 36, 58, 20, 24, 16]
     for i, size in enumerate(sizes, 1):
         sheet.column_dimensions[get_column_letter(i)].width = size
-    sheet.auto_filter.ref = "A1:L1"
+    sheet.auto_filter.ref = "A1:N1"
     notes = workbook.create_sheet("Instructions")
     for row in [
         ("Plantupia / Commercial draft catalogue import",),
@@ -359,7 +402,8 @@ def commercial_template_bytes():
         ("species_key: optional existing BotanicalSpecies key; only for plant kind.",),
         ("ZIP layout: products.xlsx at root; images/*.jpg, *.png or *.webp."),
         ("Preview is read-only. Confirm creates unpublished products, SKUs and sanitized photos.",),
-        ("Stock counts, publication, actual payment and delivery are separate operations.",),
+        ("Optional: stock_location = active warehouse code; initial_stock = first counted whole units. Blank or zero creates no movement.",),
+        ("Only confirm genuine initial counts. Legacy 12-column workbooks remain accepted. Publication, payment and delivery remain separate.",),
     ]:
         notes.append(row if isinstance(row, (tuple, list)) else (row,))
     notes.column_dimensions["A"].width = 100
@@ -389,6 +433,8 @@ def commercial_import(request):
                 raise CommercialCatalogError("Choose a valid ZIP and action.")
             pack = parse_commercial_pack(form.cleaned_data["upload"])
             verify_commercial_duplicates(pack)
+            verify_opening_stock(request.user, pack)
+            opening_total = sum(line.initial_stock for line in pack.skus)
             preview = [{
                 "key": product.key, "name": product.name, "kind": product.kind,
                 "sku_count": sum(x.product_key == product.key for x in pack.skus),
@@ -405,12 +451,12 @@ def commercial_import(request):
                         "Nothing was committed; check existing SKUs and retry."
                     ) from error
                 messages.success(request,
-                    f"Imported {product_count} draft products, {sku_count} SKUs and {photo_count} photos; not published.")
+                    f"Imported {product_count} draft products, {sku_count} SKUs and {photo_count} photos; {opening_total} opening units recorded; not published.")
                 if json_mode:
                     return JsonResponse({"ok": True, "imported": product_count,
                                          "redirect": reverse("company:commerce-products")})
                 return redirect("company:commerce-products")
-            outcome = f"Validated {len(pack.products)} products, {len(pack.skus)} SKUs and {pack.photo_count} images. Nothing was saved."
+            outcome = f"Validated {len(pack.products)} products, {len(pack.skus)} SKUs, {pack.photo_count} images and {opening_total} opening units. Nothing was saved."
             if json_mode:
                 return JsonResponse({
                     "ok": True, "digest": pack.digest, "products": len(pack.products),
