@@ -127,6 +127,40 @@ class CommerceCatalogReviewTests(DemoFixture, TestCase):
         self.assertIsNone(self.product.catalog_reviewed_by_id)
         self.assertFalse(CommerceOrderRequest.objects.exists())
 
+    @override_settings(PLANTUPIA_STOREFRONT_PUBLICATION_ENABLED=True)
+    def test_batch_approval_and_publication(self):
+        self.attach_real_photo()
+        other = CommerceProduct.objects.create(
+            name="Incomplete other product", kind="care", created_by=self.staff,
+        )
+        url = reverse("company:commerce-catalog-batch")
+        self.assertContains(self.client.get(url), "Approve selected")
+        self.client.post(url, {"operation": "approve", "acknowledge": "1",
+                               "product_ids": [str(self.product.pk), str(other.pk)]})
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.catalog_review_status, "draft")
+        self.client.post(url, {"operation": "approve", "acknowledge": "1",
+                               "product_ids": [str(self.product.pk)]})
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.catalog_review_status, "approved")
+        self.assertIsNone(self.product.storefront_published_at)
+        self.client.post(url, {"operation": "publish", "acknowledge": "1",
+                               "product_ids": [str(self.product.pk)]})
+        self.product.refresh_from_db()
+        self.assertIsNotNone(self.product.storefront_published_at)
+
+    def test_batch_opening_counts_reject_repeat(self):
+        from .commerce_models import CommerceStockLocation, CommerceStockMovement
+        location = CommerceStockLocation.objects.create(code="batch-wh", name="Batch warehouse")
+        url = reverse("company:commerce-catalog-batch")
+        payload = {"operation": "opening", "acknowledge": "1",
+                   "location": str(location.pk), "reference_note": "Warehouse first count",
+                   f"opening_{self.sku.pk}": "11"}
+        self.client.post(url, payload)
+        self.assertEqual(CommerceStockMovement.objects.get(sku=self.sku).quantity_delta, 11)
+        self.client.post(url, payload)
+        self.assertEqual(CommerceStockMovement.objects.filter(sku=self.sku).count(), 1)
+
     def test_customer_cannot_review_product(self):
         self.attach_real_photo()
         self.client.force_login(self.owner)

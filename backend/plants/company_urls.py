@@ -33,6 +33,7 @@ urlpatterns = [
     path("commerce/qa/requests/<uuid:order_id>/", commerce_requests.qa_request_detail, name="commerce-qa-request"),
     path("commerce/products/", commerce.products, name="commerce-products"),
     path("commerce/products/new/", commerce.product_create, name="commerce-product-create"),
+    path("commerce/products/batch/", commerce.catalog_batch, name="commerce-catalog-batch"),
     path("commerce/products/import/", commercial_import.commercial_import, name="commerce-product-import"),
     path("commerce/products/import/template/", commercial_import.commercial_import_template, name="commerce-product-template"),
     path("commerce/products/<uuid:product_id>/", commerce.product_detail, name="commerce-product"),

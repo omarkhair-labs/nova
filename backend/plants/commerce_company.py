@@ -3,6 +3,7 @@ import uuid
 
 from django import forms
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -88,6 +89,97 @@ def products(request):
     return page(request, "commerce_catalog", {
         "title": "Commercial product drafts", "section": "commerce_products",
         "records": paginated(request, qs.order_by("name", "id")), "query": q, "commerce_qa_requests_enabled": qa_requests_enabled(),
+    })
+
+
+@portal("plants.view_commerceproduct")
+def catalog_batch(request):
+    """Explicit staff batch actions; existing authorization and service guards still apply."""
+    can_review = request.user.has_perm("plants.change_commerceproduct")
+    can_count = request.user.has_perms((
+        "plants.add_commercestockmovement", "plants.view_commercestockmovement",
+    ))
+    publication_enabled = getattr(settings, "PLANTUPIA_STOREFRONT_PUBLICATION_ENABLED", False)
+    if request.method == "POST":
+        try:
+            if request.POST.get("acknowledge") != "1":
+                raise ValidationError("Confirm the selected batch before applying changes.")
+            operation = request.POST.get("operation")
+            if operation in ("approve", "publish"):
+                company.require(request.user, "plants.change_commerceproduct")
+                ids = {uuid.UUID(x) for x in request.POST.getlist("product_ids")}
+                if not 1 <= len(ids) <= 600:
+                    raise ValidationError("Select 1–600 products.")
+                if operation == "publish" and not publication_enabled:
+                    raise ValidationError("Customer publication is locked in this environment.")
+                with transaction.atomic():
+                    records = list(CommerceProduct.objects.select_for_update()
+                                   .filter(pk__in=ids).order_by("pk"))
+                    if len(records) != len(ids):
+                        raise ValidationError("A selected product is missing. Refresh and review.")
+                    for product in records:
+                        try:
+                            if operation == "approve":
+                                if product.catalog_review_status != CommerceProduct.CatalogReviewStatus.APPROVED:
+                                    publication.review_catalog_product(staff=request.user,
+                                        product_id=product.pk, action="approve")
+                            else:
+                                publication.set_storefront_publication(staff=request.user,
+                                    product_id=product.pk, action="publish")
+                        except ValidationError as exc:
+                            raise ValidationError(product.name + ": " + "; ".join(exc.messages)) from exc
+                messages.success(request, f"{len(ids)} selected products processed: {operation}.")
+            elif operation == "opening":
+                company.require(request.user, "plants.add_commercestockmovement",
+                                "plants.view_commercestockmovement")
+                location_id = uuid.UUID(request.POST.get("location", ""))
+                entries = {}
+                for key, value in request.POST.items():
+                    if key.startswith("opening_") and value.strip():
+                        quantity = int(value)
+                        if not 1 <= quantity <= 100000:
+                            raise ValidationError("Enter positive whole opening quantities, up to 100,000.")
+                        entries[uuid.UUID(key.removeprefix("opening_"))] = quantity
+                if not 1 <= len(entries) <= 600:
+                    raise ValidationError("Enter opening quantities for 1–600 SKUs.")
+                note = request.POST.get("reference_note", "").strip()
+                with transaction.atomic():
+                    get_user_model().objects.select_for_update().get(pk=request.user.pk)
+                    location = CommerceStockLocation.objects.filter(pk=location_id, active=True).first()
+                    if not location:
+                        raise ValidationError("Select an active warehouse.")
+                    locked = list(CommerceSKU.objects.select_for_update()
+                                  .filter(pk__in=entries).order_by("pk"))
+                    if len(locked) != len(entries):
+                        raise ValidationError("An SKU was removed. Refresh and review.")
+                    for sku in locked:
+                        if CommerceStockMovement.objects.filter(sku=sku, location=location).exists():
+                            raise ValidationError(f"{sku.code}: existing stock history. Use Stock correction.")
+                        commerce.record_counted_stock(staff=request.user, sku_id=sku.pk,
+                            location_id=location.pk, quantity_delta=entries[sku.pk],
+                            reason="opening", reference_note=note, client_id=uuid.uuid4())
+                messages.success(request, f"Opening counts recorded for {len(entries)} SKUs.")
+            else:
+                raise ValidationError("Choose a valid batch action.")
+        except (ValueError, TypeError, ValidationError) as exc:
+            detail = "; ".join(exc.messages) if isinstance(exc, ValidationError) else "Invalid batch selection or quantity."
+            messages.error(request, "Nothing changed. " + detail)
+        return redirect("company:commerce-catalog-batch")
+    query = request.GET.get("q", "").strip()[:120]
+    qs = CommerceProduct.objects.prefetch_related("variants").order_by("name", "pk")
+    if query:
+        qs = qs.filter(Q(name__icontains=query) | Q(variants__code__icontains=query)).distinct()
+    records = list(qs[:601])
+    skus = list(CommerceSKU.objects.filter(product_id__in=[p.pk for p in records[:600]])
+                .select_related("product").order_by("product__name", "code")[:601])
+    for sku in skus[:600]:
+        sku.counted_balance = commerce.stock_balance(sku.pk)
+    return page(request, "commerce_catalog_batch", {
+        "title": "Bulk catalogue and stock", "section": "commerce_products",
+        "records": records[:600], "skus": skus[:600], "query": query,
+        "truncated": len(records) > 600 or len(skus) > 600,
+        "can_review": can_review, "can_count": can_count, "publication_enabled": publication_enabled,
+        "locations": CommerceStockLocation.objects.filter(active=True),
     })
 
 

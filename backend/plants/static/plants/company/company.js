@@ -70,3 +70,11 @@ if (commerceAlert) {
   setInterval(updateCommerceCount, 30000);
   document.addEventListener("visibilitychange", updateCommerceCount);
 }
+
+for (const control of document.querySelectorAll("[data-batch-toggle]")) {
+  control.addEventListener("click", () => {
+    for (const checkbox of control.closest("form").querySelectorAll('input[name="product_ids"]')) {
+      checkbox.checked = control.dataset.batchToggle === "all";
+    }
+  });
+}
