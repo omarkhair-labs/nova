@@ -1,7 +1,7 @@
 # PLANTUPIA / WEB CREATIVE DIRECTION 01
-**Status:** Working decision board — research completed; visual direction proposed, NOT yet approved.  
-**Date:** 2026-11-13  
-**Scope:** English-only, public creative website. Research/art direction before code.  
+**Status:** Working decision board — research completed; visual direction proposed, NOT yet approved.
+**Date:** 2026-11-13
+**Scope:** English-only, public creative website. Research/art direction before code.
 **Working PR:** #300, branch `feature/plantupia-public-living-website-20261113`. No production or `plantupia.com` changes.
 
 ## 0 / Product and execution constraints
@@ -68,7 +68,7 @@ Sources researched as **separate references**, not unified evidence:
 - Do **not** blend the three into one visual scene: a restrained architecture composition gets only subtle botanical annotation. C belongs to its own future layer.
 - No decision on 3D engine yet. Prototype the interaction first using simple controlled layers, and evaluate if GPU 3D or filmed imagery is needed.
 
-**Creative statement:** `A Space Becoming Alive`  
+**Creative statement:** `A Space Becoming Alive`
 **Working entry line:** `Architecture makes the space. Life makes it living.`
 These are working direction cues, **not company-approved slogans**.
 
