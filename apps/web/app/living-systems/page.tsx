@@ -1,71 +1,43 @@
 import type { Metadata } from "next";
-import { Invitation, SiteFrame, TextLink } from "../SiteFrame";
-import { Photograph } from "../Photograph";
+import { SiteFrame } from "../SiteFrame";
+import { courtyard, materials } from "../Photograph";
 import { tending } from "../courtyard-scenes";
+import { SceneBackdrop, SceneCredit, SceneNote } from "../SpatialStage";
 
 export const metadata: Metadata = {
   title: "Aftercare — Plantupia",
-  description: "What happens after installation, from handover and observation to care, follow-up and a record that stays with the plant.",
+  description: "Return to the courtyard and read how an illustrative planting is handed over, observed and cared for.",
 };
 
 const moments = [
-  {
-    id: "handover",
-    label: "Handover",
-    title: "Know what’s there.",
-    text: "The olive sits in a bed beside an open passage. At handover, record what was planted, where the bed can be reached and who will look after it. Those details give later observations context.",
-  },
-  {
-    id: "observation",
-    label: "Observation",
-    title: "Notice what changes.",
-    text: "On a return visit, someone notices a cluster of pale leaves on the side facing the passage. They record where they saw it and take a dated photo from a place they can find again.",
-  },
-  {
-    id: "follow-up",
-    label: "Care & follow-up",
-    title: "Return to the same plant.",
-    text: "The next visit starts with the earlier note. Record any action taken and what can be seen on the return visit. If the cause is still unclear, the record can say so.",
-  },
-  {
-    id: "history",
-    label: "History",
-    title: "Keep what was learned.",
-    text: "When someone new takes over, the plant’s location, observations and care stay together. They can pick up from what the previous person actually saw and did.",
-  },
-];
+  { id: "handover", label: "Handover", title: "Know what’s there.", text: "Record the olive, its bed beside the passage and where someone can reach it. A person who takes over care can start with the same details.", image: courtyard },
+  { id: "observation", label: "Observation", title: "Notice a change.", text: "On a return visit, someone notices pale leaves on the side facing the passage. A dated photograph from a point they can find again gives the next visit context.", image: tending },
+  { id: "follow-up", label: "Follow-up", title: "Return to the same spot.", text: "Compare what can be seen today with the earlier note. Record any action taken and what is still uncertain about the change.", image: tending },
+  { id: "history", label: "History", title: "Keep what was learned.", text: "The next caretaker can read the placement, observations, actions and follow-up together. The record belongs to the planting and its place.", image: materials },
+] as const;
 
 export default function LivingSystemsPage() {
   return <SiteFrame current="/living-systems">
-    <section className="field-aftercare">
-      <div className="field-shell field-aftercare-inner">
-        <div>
-          <p className="field-kicker"><span /> Aftercare</p>
-          <h1>Life after<br /><em>installation.</em></h1>
-          <p className="field-lead">Return to the courtyard. The plant, its surroundings and the routines of the people looking after it all change over time.</p>
-          <TextLink href="#one-plant" arrow="↓">Follow one plant</TextLink>
-        </div>
-        <Photograph image={tending} className="aftercare-plate" caption="Returning to the courtyard · Generated concept" priority sizes="(max-width: 760px) 90vw, 42vw" />
+    <section className="scene-world time-world" aria-label="Illustrative care sequence">
+      {moments.map((moment, index) => <div key={moment.id} id={moment.id} className="time-frame">
+        <SceneBackdrop image={moment.image} className={moment.id === "observation" ? "time-return-image" : ""}
+          priority={index === 0} />
+      </div>)}
+      <div className="scene-shadow" aria-hidden="true" />
+      <div className="time-note">
+        <SceneNote label="Aftercare · Illustrative sequence" title="Life after installation.">
+          {moments.map(moment => <div key={moment.id} data-time={moment.id} className="time-telling">
+            <h2>{moment.title}</h2><p>{moment.text}</p>
+          </div>)}
+          <a className="world-action" href="/start-a-space?topic=care">Prepare a care message <span aria-hidden="true">↗</span></a>
+        </SceneNote>
       </div>
+      <nav className="time-path" aria-label="Care sequence">
+        {moments.map(moment => <a key={moment.id} href={"#" + moment.id} data-time={moment.id}>
+          <span className="map-pin" aria-hidden="true" />{moment.label}
+        </a>)}
+      </nav>
+      <SceneCredit>Imagined return visits · Generated concepts</SceneCredit>
     </section>
-
-    <section className="field-shell field-journal" id="one-plant" aria-labelledby="one-plant-title">
-      <div className="field-journal-intro">
-        <p className="field-kicker"><span /> Illustrative care sequence</p>
-        <h2 id="one-plant-title">What we learn<br />by <em>coming back.</em></h2>
-        <p>Follow an example from first handover to a history someone else can pick up.</p>
-        <nav aria-label="Care sequence">
-          {moments.map(moment => <TextLink key={moment.id} href={"#" + moment.id} arrow="↓">{moment.label}</TextLink>)}
-        </nav>
-      </div>
-      <ol className="field-moments">
-        {moments.map(moment => <li key={moment.id} id={moment.id}>
-          <p className="field-kicker">{moment.label}</p>
-          <h3>{moment.title}</h3>
-          <p>{moment.text}</p>
-        </li>)}
-      </ol>
-    </section>
-    <Invitation title="Already caring for a space?" href="/start-a-space?topic=care" label="Prepare a care message" />
   </SiteFrame>;
 }

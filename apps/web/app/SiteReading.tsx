@@ -1,42 +1,39 @@
 "use client";
 
 import { useState } from "react";
-import { courtyard, Photograph } from "./Photograph";
+import { courtyard } from "./Photograph";
+import { SceneBackdrop, SceneCredit, SceneNote } from "./SpatialStage";
 
 const lenses = [
-  { key: "light", label: "Light", title: "Look past the photograph.", text: "The arch casts a deep shadow while the open court catches direct sun. Watch both areas across the day before choosing what to plant." },
-  { key: "movement", label: "Movement", title: "Walk the path.", text: "The passage follows the left side of the court. Keep it open as the tree grows, and read the place from the height of someone walking or sitting." },
-  { key: "care", label: "Care", title: "Leave room to work.", text: "The open bed gives the roots space. Its edge needs room for someone to reach the soil and tend the tree without blocking the passage." },
+  { key: "light", label: "Light", title: "Watch the shadow.", text: "The arch shades one end while direct light reaches the open court. Watch both through the day before choosing what should grow here." },
+  { key: "movement", label: "Movement", title: "Walk the passage.", text: "People follow the clear strip beside the bed. Leave space for the canopy to grow and for a person to pass, sit or turn." },
+  { key: "care", label: "Care", title: "Leave room to work.", text: "The bed gives roots room below ground. Its edge needs to be reachable without blocking the passage people use." },
 ] as const;
 
 export default function SiteReading() {
-  const [active, setActive] = useState<(typeof lenses)[number]["key"]>("light");
-  const lens = lenses.find(item => item.key === active)!;
+  const [active, setActive] = useState(0);
+  const lens = lenses[active];
 
-  return <div className="field-reading">
-    <div className="field-reading-scene" data-lens={active}>
-      <Photograph image={courtyard} caption="Courtyard study · Generated concept" sizes="(max-width: 760px) 90vw, 58vw" />
-      <span className="field-reading-marker" aria-hidden="true"><i /></span>
-    </div>
-    <div className="field-reading-notes">
-      <fieldset className="field-lens-options">
-        <legend>Choose a lens</legend>
-        <div className="field-lenses">
-          {lenses.map(item => <label key={item.key}>
-            <input type="radio" name="reading-lens" value={item.key} checked={active === item.key} onChange={() => setActive(item.key)} />
+  return <section className="scene-world study-world" data-lens={lens.key}>
+    <SceneBackdrop image={courtyard} className="study-backdrop" />
+    <div className="scene-shadow" aria-hidden="true" />
+    <div className="study-mark" aria-hidden="true"><span /></div>
+    <div className="study-note">
+      <SceneNote label="Approach" title="Read the courtyard">
+        <fieldset className="scene-lenses">
+          <legend>What do you see?</legend>
+          {lenses.map((item, index) => <label key={item.key}>
+            <input type="radio" name="reading-lens" checked={active === index} onChange={() => setActive(index)} />
             <span>{item.label}</span>
           </label>)}
+        </fieldset>
+        <div role="status" className="study-caption">
+          <strong>{lens.title}</strong><p>{lens.text}</p>
         </div>
-      </fieldset>
-      <div className="field-lens-note" role="status">
-        <div key={lens.key}>
-          <h3>{lens.title}</h3>
-          <p>{lens.text}</p>
-        </div>
-      </div>
-      <noscript>
-        <p>Walk the left passage and allow room for future growth. Leave enough space around the bed for someone to reach the soil without blocking the passage.</p>
-      </noscript>
+        <noscript><p>Follow the left passage and leave enough space at the bed edge for someone to tend the tree.</p></noscript>
+        <a className="world-action" href="/living-systems">Return after installation <span aria-hidden="true">↗</span></a>
+      </SceneNote>
     </div>
-  </div>;
+    <SceneCredit>Courtyard study · Generated concept</SceneCredit>
+  </section>;
 }

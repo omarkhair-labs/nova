@@ -11,10 +11,10 @@ async function html(path, expectedStatus = 200) {
 
 const routes = [
   ["/", "Where life", "/spaces", "/studio", "/living-systems", "/start-a-space"],
-  ["/spaces", "can belong.", "Generated concept", ...places.map(place => "/spaces/" + place)],
+  ["/spaces", "can grow.", "Generated concepts", ...places.map(place => "/spaces/" + place)],
   ["/studio", "Read the courtyard", "reading-lens", "Movement"],
   ["/living-systems", "Illustrative care sequence", 'id="handover"', 'id="observation"', 'id="follow-up"', 'id="history"', "/start-a-space?topic=care"],
-  ["/about", 'id="selected-works"', "awaiting approved photographs"],
+  ["/about", 'id="selected-works"', "awaits approved photographs"],
   ["/start-a-space", "Prepare draft", "Nothing is sent or stored", "Care &amp; support"],
 ];
 
@@ -52,4 +52,9 @@ for (const name of ["threshold", "hero", "return", "studio", ...places]) {
   }
 }
 
-console.log("Passed: 12 public pages, 7 contextual briefs, 2 study URLs, 404 and 20 responsive WebP assets.");
+const map = await fetch(new URL("/field/courtyard-map.webp", base));
+assert.equal(map.status, 200);
+assert.match(map.headers.get("content-type") ?? "", /^image\/webp/);
+assert.ok((await map.arrayBuffer()).byteLength < 500_000);
+
+console.log("Passed: 12 public pages, 7 contextual briefs, 2 study URLs, 404 and 20 responsive WebP assets and the map.");
