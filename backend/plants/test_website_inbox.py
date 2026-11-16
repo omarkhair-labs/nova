@@ -43,3 +43,17 @@ class WebsiteIntakeTests(TestCase):
     def test_disabled(self):
         self.assertEqual(self.send().status_code, 503)
         self.assertFalse(WebsiteEnquiry.objects.exists())
+
+    @patch("plants.company_services.enabled", return_value=True)
+    def test_company_inbox_authorization(self, _enabled):
+        from django.contrib.auth import get_user_model
+        from django.contrib.auth.models import Permission
+        User = get_user_model()
+        staff = User.objects.create_user(username="website-inbox-staff", password="example-password", is_staff=True)
+        url = reverse("company:website-inbox")
+        self.assertEqual(self.client.get(url).status_code, 302)
+        self.client.force_login(staff)
+        self.assertEqual(self.client.get(url).status_code, 403)
+        staff.user_permissions.add(*Permission.objects.filter(content_type__app_label="plants",
+            codename__in=("access_company_dashboard", "view_installationbatch", "view_websiteenquiry")))
+        self.assertEqual(self.client.get(url).status_code, 200)
