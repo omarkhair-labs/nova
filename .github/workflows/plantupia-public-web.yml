@@ -64,6 +64,9 @@ jobs:
           grep -q 'Illustrative reference, not client work' /tmp/plantupia-world-_spaces.html
           grep -q 'Previous environment' /tmp/plantupia-world-_spaces.html
           grep -q 'Design prompts for this space' /tmp/plantupia-world-_spaces.html
+          grep -q 'What matters' /tmp/plantupia-world-_spaces.html
+          grep -q 'Choose considerations for your project brief' /tmp/plantupia-world-_spaces.html
+          grep -q 'Mark a consideration to begin' /tmp/plantupia-world-_spaces.html
           grep -q 'THE DESIGN TABLE' /tmp/plantupia-world-_studio.html
           grep -q 'DESIGN DIAGRAM / CONCEPT, NOT A CLIENT DRAWING' /tmp/plantupia-world-_studio.html
           grep -q 'Follow one plant' /tmp/plantupia-world-_living-systems.html
