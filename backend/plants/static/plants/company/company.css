@@ -1376,6 +1376,66 @@ dd {
 }
 
 
+
+/* Catalogue and stock: prioritize operator decisions over repeated draft labels. */
+.catalog-workspace { max-width:1200px; margin:0 auto; min-width:0; display:grid; gap:20px; }
+.catalog-workspace .page-heading { margin:0; align-items:flex-start; }
+.catalog-workspace .page-heading h1 { margin-bottom:10px; }
+.catalog-workspace :is(.eyebrow,.fine,.lead,.small-label) { color:#4c6455; }
+.catalog-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px; }
+.catalog-action { position:relative; display:grid; gap:6px; padding:20px 44px 20px 20px; border:1px solid #ced9ca; border-radius:8px; background:#edf1e8; color:var(--ink); min-width:0; }
+.catalog-action strong { font-size:16px; font-weight:650; }
+.catalog-action small { color:#4c6455; }
+.catalog-action>span:last-child { position:absolute; top:19px; right:19px; font-size:21px; }
+.catalog-action:hover { text-decoration:none; background:#e2ebde; border-color:#829c83; }
+.catalog-toolbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:15px 24px; padding:22px 24px 18px; }
+.catalog-toolbar h2 { margin:0 0 5px; }
+.catalog-toolbar p { margin:0; }
+.catalog-search { display:grid; gap:6px; flex:0 1 480px; min-width:0; }
+.catalog-search>div { display:flex; gap:7px; flex-wrap:wrap; }
+.catalog-search input { flex:1 1 170px; min-width:0; min-height:45px; }
+.catalog-note { margin:0; padding:12px 24px; font-size:12px; color:#435e4d; border-block:1px solid var(--line); background:#eff3eb; line-height:1.65; }
+.catalog-workspace> .catalog-note { border:1px solid var(--line); border-radius:6px; }
+.catalog-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:15px; padding:20px 24px 24px; }
+.catalog-card { min-width:0; display:flex; flex-direction:column; border:1px solid var(--line); border-radius:7px; background:#fffefa; overflow:hidden; }
+.catalog-image { display:grid; place-items:center; aspect-ratio:4 / 3; width:100%; background:#eaf0e6; overflow:hidden; }
+.catalog-image img { width:100%; height:100%; object-fit:contain; display:block; }
+.catalog-image:focus-visible { outline-offset:-4px; }
+.catalog-no-photo { font-size:12px; color:#49664f; padding:14px; text-align:center; }
+.catalog-card-body { display:flex; flex-direction:column; flex:1; padding:14px 15px; min-width:0; }
+.catalog-card-meta { display:flex; flex-wrap:wrap; gap:6px; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.catalog-card-meta .small-label { letter-spacing:.06em; }
+.catalog-card h3 { font:23px/1.2 Georgia,serif; letter-spacing:-.025em; overflow-wrap:anywhere; margin:0 0 9px; }
+.catalog-card p { font-size:12px; color:#4c6455; overflow-wrap:anywhere; margin-bottom:14px; }
+.catalog-card-foot { display:flex; justify-content:space-between; gap:9px; flex-wrap:wrap; align-items:center; margin-top:auto; padding-top:12px; border-top:1px solid var(--line); font-size:11px; color:#4c6455; }
+.catalog-card-foot a { font-weight:650; min-height:36px; display:inline-flex; align-items:center; }
+.catalog-empty { grid-column:1 / -1; }
+.stock-layout { display:grid; grid-template-columns:minmax(0,1.7fr) minmax(0,1fr); align-items:start; gap:16px; }
+.stock-labels,.stock-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(68px,.4fr) auto; gap:12px; align-items:center; padding:13px 20px; }
+.stock-labels { background:#eaf0e6; font-size:11px; font-weight:650; color:#435e4d; }
+.stock-row { border-top:1px solid var(--line); min-height:79px; }
+.stock-row .button { min-height:40px; padding:8px 12px; }
+.stock-identity { min-width:0; overflow-wrap:anywhere; }
+.stock-identity strong,.stock-location strong,.stock-movement strong { font-size:14px; font-weight:650; }
+.stock-qty { font:27px/1.1 Georgia,serif; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.stock-qty small { font:10px/1.5 "Segoe UI",Arial,sans-serif; color:#4c6455; }
+.stock-location,.stock-movement { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:9px 15px; padding:16px 24px; border-top:1px solid var(--line); overflow-wrap:anywhere; }
+.stock-location>div,.stock-movement>div { flex:1 1 160px; min-width:0; }
+.stock-location-note { padding:15px 24px; margin:0; border-top:1px solid var(--line); }
+.stock-movement p { margin:5px 0 0; color:#4c6455; font-size:12px; }
+.stock-movement time { color:#4c6455; font-size:12px; }
+@media(max-width:1180px) { .catalog-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .stock-layout { grid-template-columns:minmax(0,1fr); } }
+@media(max-width:650px) {
+  .catalog-actions,.catalog-grid { grid-template-columns:minmax(0,1fr); }
+  .catalog-toolbar,.catalog-grid,.catalog-note { padding-inline:15px; }
+  .catalog-workspace .page-heading { flex-wrap:wrap; }
+  .stock-labels { display:none; }
+  .stock-row { grid-template-columns:minmax(0,1fr) auto; padding-inline:15px; }
+  .stock-row>.button { grid-column:1/-1; justify-self:start; }
+  .stock-row>span:empty { display:none; }
+  .stock-location,.stock-movement,.stock-location-note { padding-inline:15px; }
+}
+
 /* Commercial Excel/ZIP importer: clear and contained staff data actions. */
 .import-layout { grid-template-columns: minmax(0,1.08fr) minmax(0,.92fr); align-items:start; }
 .file-drop { display:flex; flex-direction:column; gap:6px; align-items:start; margin:20px 0; border:1.5px dashed #93a897; border-radius:12px; padding:22px; cursor:pointer; background:#f7faf5; }
