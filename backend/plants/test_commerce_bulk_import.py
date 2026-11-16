@@ -115,14 +115,14 @@ class CommerceBulkImportTests(DemoFixture, TestCase):
         self.assertEqual(fern.gallery.first().alt_text, "Fern leaf close-up")
         self.assertEqual(str(CommerceSKU.objects.get(code="FERN-L").price), "250.00")
         image = self.client.get(reverse("company:commerce-product-photo", args=[fern.pk]))
-        self.addCleanup(image.close)
         self.assertEqual(image.status_code, 200)
         self.assertEqual(image["Content-Type"], "image/jpeg")
+        self.assertTrue(b"".join(image.streaming_content).startswith(b"\xff\xd8"))
         gallery = self.client.get(reverse("company:commerce-product-photo", args=[fern.pk])
                                   + "?photo=" + str(fern.gallery.first().pk))
-        self.addCleanup(gallery.close)
         self.assertEqual(gallery.status_code, 200)
         self.assertEqual(gallery["Cache-Control"], "private, no-store, max-age=0")
+        self.assertTrue(b"".join(gallery.streaming_content).startswith(b"\xff\xd8"))
 
     def test_optional_opening_stock_is_previewed_then_recorded_once(self):
         from .commerce_models import CommerceStockLocation
