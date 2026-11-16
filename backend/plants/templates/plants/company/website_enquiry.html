@@ -1,21 +1,59 @@
 {% extends 'plants/company/base.html' %}
 {% block content %}
-<p><a href="{% url 'company:website-inbox' %}">← Website enquiries</a></p>
-<p class="eyebrow">{{ record.get_topic_display }} / {{ record.get_status_display }}</p>
-<h1>{{ record.name }}</h1>
-<p>Received {{ record.created_at|date:"Y-m-d H:i" }} · Reference {{ record.id }}</p>
-<dl>
-<dt>Email (visitor supplied)</dt><dd>{{ record.email }}</dd>
-<dt>Company</dt><dd>{{ record.organization|default:"—" }}</dd>
-<dt>Space type</dt><dd>{{ record.environment|default:"—" }}</dd>
-<dt>Location</dt><dd>{{ record.location|default:"—" }}</dd>
-</dl>
-<h2>Message</h2><div>{{ record.message|linebreaksbr }}</div>
-<p>Contact the visitor using an approved company channel. A status change does not send a reply.</p>
-{% if perms.plants.change_websiteenquiry %}
-<form method="post" action="{% url 'company:website-enquiry-status' enquiry_id=record.id %}">{% csrf_token %}
-<label for="status">Review status</label><select id="status" name="status"><option value="new" {% if record.status == 'new' %}selected{% endif %}>New</option><option value="reviewed" {% if record.status == 'reviewed' %}selected{% endif %}>Reviewed</option><option value="closed" {% if record.status == 'closed' %}selected{% endif %}>Closed</option></select>
-<button type="submit">Save status</button></form>
-{% endif %}
-{% if record.reviewed_at %}<p>Last status change: {{ record.reviewed_at|date:"Y-m-d H:i" }} by {{ record.reviewed_by|default:"Former staff member" }}.</p>{% endif %}
+<div class="inbox-workspace enquiry-detail">
+  <a class="back-link" href="{% url 'company:website-inbox' %}">← All website enquiries</a>
+  <header class="enquiry-heading">
+    <div>
+      <p class="eyebrow">WEBSITE INBOX / {{ record.get_topic_display }}</p>
+      <h1>{{ record.name }}</h1>
+      <p class="lead">Received <time datetime="{{ record.created_at|date:'c' }}">{{ record.created_at|date:"j M Y · H:i" }}</time>{% if record.organization %} · {{ record.organization }}{% endif %}</p>
+    </div>
+    <span class="inbox-state inbox-state--{{ record.status }}">{{ record.get_status_display }}</span>
+  </header>
+  <div class="enquiry-layout">
+    <div class="enquiry-primary">
+      <section class="panel padded enquiry-message" aria-labelledby="enquiry-message-title">
+        <p class="eyebrow">01 / THE ENQUIRY</p>
+        <h2 id="enquiry-message-title">Message</h2>
+        <div class="enquiry-text" dir="auto">{{ record.message|linebreaksbr }}</div>
+        <div class="enquiry-source"><span>Submitted through Plantupia website</span><span>{{ record.get_topic_display }}</span></div>
+      </section>
+      <section class="panel padded enquiry-review" aria-labelledby="enquiry-review-title">
+        <p class="eyebrow">02 / WORKFLOW</p>
+        <h2 id="enquiry-review-title">Review &amp; follow-up</h2>
+        <p class="fine">Contact the visitor using an approved company channel. A status change does not send a reply.</p>
+        {% if perms.plants.change_websiteenquiry %}
+        <form class="enquiry-review-form" method="post" action="{% url 'company:website-enquiry-status' enquiry_id=record.id %}">
+          {% csrf_token %}
+          <div class="enquiry-field">
+            <label for="status">Review status</label>
+            <select id="status" name="status">
+              <option value="new" {% if record.status == 'new' %}selected{% endif %}>New</option>
+              <option value="reviewed" {% if record.status == 'reviewed' %}selected{% endif %}>Reviewed</option>
+              <option value="closed" {% if record.status == 'closed' %}selected{% endif %}>Closed</option>
+            </select>
+          </div>
+          <button class="button primary" type="submit">Save status</button>
+        </form>
+        {% else %}<p class="fine">You have read-only access to this enquiry.</p>{% endif %}
+        <div class="enquiry-audit">
+          {% if record.reviewed_at %}<span>Last status change</span><strong>{{ record.reviewed_at|date:"j M Y · H:i" }}</strong><span>by {{ record.reviewed_by|default:"Former staff member" }}</span>
+          {% else %}<span>No status change recorded yet.</span>{% endif %}
+        </div>
+      </section>
+    </div>
+    <aside class="panel padded enquiry-contact" aria-labelledby="enquiry-contact-title">
+      <p class="eyebrow">VISITOR DETAILS</p>
+      <h2 id="enquiry-contact-title">Contact</h2>
+      <dl class="enquiry-facts">
+        <div><dt>Name</dt><dd dir="auto">{{ record.name }}</dd></div>
+        <div><dt>Email (visitor supplied)</dt><dd>{{ record.email }}</dd></div>
+        <div><dt>Company</dt><dd dir="auto">{{ record.organization|default:"Not provided" }}</dd></div>
+        {% if record.topic == 'project' %}<div><dt>Space type</dt><dd>{{ record.environment|default:"Not provided"|capfirst }}</dd></div>{% endif %}
+        {% if record.topic != 'general' %}<div><dt>Location</dt><dd dir="auto">{{ record.location|default:"Not provided" }}</dd></div>{% endif %}
+      </dl>
+      <div class="enquiry-reference"><span class="small-label">REFERENCE</span><span class="identifier">{{ record.id }}</span></div>
+    </aside>
+  </div>
+</div>
 {% endblock %}
