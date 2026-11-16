@@ -10,8 +10,13 @@ from . import commerce_order_company as actual_orders
 from . import commerce_rfq_company as business
 from . import commerce_business_real_company as actual_business
 
+from . import website_inbox as website
+
 app_name = "company"
 urlpatterns = [
+    path("website/inbox/", website.website_inbox, name="website-inbox"),
+    path("website/inbox/<uuid:enquiry_id>/", website.website_enquiry, name="website-enquiry"),
+    path("website/inbox/<uuid:enquiry_id>/status/", website.website_enquiry_status, name="website-enquiry-status"),
     path("projects/", operations.projects_home, name="projects-home"),
     path("care-workspace/", operations.care_home, name="care-home"),
     path("projects/business/", actual_business.real_business_inquiries, name="business-inquiries"),
