@@ -2,7 +2,7 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>{{ title }} · Plantupia Company</title>
 <link rel="stylesheet" href="{% static 'plants/company/company.css' %}"><script src="{% static 'plants/company/company.js' %}" defer></script></head>
-<body class="{% if section == 'overview' %}is-hub{% endif %}"><a class="skip" href="#main">Skip to workspace</a>
+<body class="{% if section == 'overview' %}is-hub{% elif section == 'commerce_orders' %}company-orders{% endif %}"><a class="skip" href="#main">Skip to workspace</a>
 {% block shell %}
 {% if section != 'overview' %}
 <aside class="sidebar" aria-label="Current workspace">

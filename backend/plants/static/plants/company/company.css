@@ -1551,6 +1551,7 @@ dd {
 }
 
 /* B2C orders keep the next task, evidence and payment state legible at every width. */
+.company-orders :is(.eyebrow,.lead,.footer,.footer > span) { color:#4b6154; }
 .order-record { display:grid; gap:18px; max-width:1120px; min-width:0; overflow-wrap:anywhere; }
 .order-record > .back-link { justify-self:start; margin:0; }
 .order-record > .page-heading { margin:0; align-items:start; }
