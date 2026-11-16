@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import SiteIndex from "./SiteIndex";
 import "./contact-studio.css";
 
@@ -21,7 +21,7 @@ const environments = [
 ] as const;
 type Mode = typeof modes[number]["id"];
 
-export default function ContactStudio() {
+export default function ContactStudio({ available }: { available: boolean }) {
   const [mode, setMode] = useState<Mode>("project");
   const [environment, setEnvironment] = useState("");
   const [name, setName] = useState("");
@@ -30,7 +30,11 @@ export default function ContactStudio() {
   const [location, setLocation] = useState("");
   const [message, setMessage] = useState("");
   const [feedback, setFeedback] = useState("");
-  const [showCopy, setShowCopy] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [reference, setReference] = useState("");
+  const [website, setWebsite] = useState("");
+  const attempt = useRef<{ fingerprint: string; id: string } | null>(null);
+  const busy = useRef(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -41,36 +45,52 @@ export default function ContactStudio() {
   }, []);
 
   const current = modes.find(item => item.id === mode)!;
-  const outline = [
-    "Plantupia — " + current.title,
-    name.trim() ? "Name: " + name.trim() : "",
-    email.trim() ? "Email: " + email.trim() : "",
-    organization.trim() ? "Company: " + organization.trim() : "",
-    mode === "project" && environment ? "Space: " + (environments.find(item => item.id === environment)?.label ?? "") : "",
-    mode !== "general" && location.trim() ? "Location: " + location.trim() : "",
-    "",
-    message.trim(),
-  ].filter((line, index) => line || index === 6).join("\n");
-
   function update(setter: (value: string) => void, value: string) {
     setter(value);
     setFeedback("");
-    setShowCopy(false);
+    setReference("");
   }
 
-  async function prepare(event: React.FormEvent<HTMLFormElement>) {
+  async function send(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!message.trim()) {
-      setFeedback("Please add a short message.");
+    if (!available || busy.current || reference) return;
+    if (!name.trim() || !email.trim() || !message.trim()) {
+      setFeedback("Please add your name, email and message.");
       return;
     }
+    const details = { topic: mode, name: name.trim(), email: email.trim(),
+      organization: organization.trim(), environment: mode === "project" ? environment : "",
+      location: mode !== "general" ? location.trim() : "", message: message.trim() };
+    const fingerprint = JSON.stringify(details);
+    if (attempt.current?.fingerprint !== fingerprint) {
+      attempt.current = { fingerprint, id: crypto.randomUUID() };
+    }
+    busy.current = true;
+    setPending(true);
+    setFeedback("");
     try {
-      await navigator.clipboard.writeText(outline);
-      setFeedback("Your message is copied. Nothing has been sent.");
-      setShowCopy(false);
+      const response = await fetch("/api/website/enquiries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...details, submission_id: attempt.current.id, website }),
+        signal: AbortSignal.timeout(16000),
+      });
+      const result = await response.json();
+      if (!response.ok || typeof result.reference !== "string") {
+        setFeedback(response.status === 429 ? "Too many requests. Please try again later."
+          : response.status === 400 || response.status === 409 ? "Please check your details and try again."
+          : "We could not confirm receipt. Your message is still here; please try again.");
+        return;
+      }
+      setReference(result.reference);
+      setFeedback("Your message has been received by Plantupia.");
+      setMessage("");
+      attempt.current = null;
     } catch {
-      setShowCopy(true);
-      setFeedback("Copy the prepared message below. Nothing has been sent.");
+      setFeedback("We could not confirm receipt. Your message is still here; please try again.");
+    } finally {
+      busy.current = false;
+      setPending(false);
     }
   }
 
@@ -88,28 +108,29 @@ export default function ContactStudio() {
           <h1>Let&apos;s make room<br/>for <em>life.</em></h1>
           <p>Every living space begins with a conversation.</p>
         </div>
-        <section className="ct-work" aria-label="Prepare a message for Plantupia">
+        <section className="ct-work" aria-label="Send a message to Plantupia">
           <nav aria-label="How can we help?" className="ct-modes">
-            {modes.map(item=><button key={item.id} aria-pressed={mode===item.id} type="button" onClick={() => {setMode(item.id);setFeedback("");setShowCopy(false);}}>{item.title}</button>)}
+            {modes.map(item=><button key={item.id} aria-pressed={mode===item.id} type="button" disabled={pending} onClick={() => {setMode(item.id);setFeedback("");setReference("");}}>{item.title}</button>)}
           </nav>
           <p className="ct-mode-intro" aria-live="polite">{current.intro}</p>
-          <form className="ct-form" onSubmit={prepare}>
-            <div className="ct-fields">
-              <label htmlFor="ct-name">Your name <span>Optional</span></label>
-              <input id="ct-name" autoComplete="name" value={name} maxLength={100} placeholder="Full name" onChange={event=>update(setName,event.target.value)}/>
-              <label htmlFor="ct-email">Email address <span>Optional</span></label>
-              <input id="ct-email" type="email" autoComplete="email" maxLength={160} value={email} placeholder="you@example.com" onChange={event=>update(setEmail,event.target.value)}/>
+          <form className="ct-form" onSubmit={send}>
+            <fieldset className="ct-fields" disabled={pending || !available}>
+              <label htmlFor="ct-name">Your name</label>
+              <input id="ct-name" required autoComplete="name" value={name} maxLength={100} placeholder="Full name" onChange={event=>update(setName,event.target.value)}/>
+              <label htmlFor="ct-email">Email address</label>
+              <input id="ct-email" required type="email" autoComplete="email" maxLength={160} value={email} placeholder="you@example.com" onChange={event=>update(setEmail,event.target.value)}/>
               <label htmlFor="ct-company">Company <span>Optional</span></label>
               <input id="ct-company" autoComplete="organization" maxLength={120} value={organization} placeholder="Organization" onChange={event=>update(setOrganization,event.target.value)}/>
               {mode==="project"&&<><label htmlFor="ct-space">Type of space</label><select id="ct-space" value={environment} onChange={event=>update(setEnvironment,event.target.value)}>{environments.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}</select></>}
               {mode!=="general"&&<><label htmlFor="ct-location">Location <span>Optional</span></label><input id="ct-location" maxLength={100} value={location} placeholder="City or area" onChange={event=>update(setLocation,event.target.value)}/></>}
-            </div>
+            </fieldset>
             <div className="ct-message">
               <label htmlFor="ct-message">Your message</label>
-              <textarea id="ct-message" rows={7} required maxLength={2000} value={message} placeholder={current.placeholder} onChange={event=>update(setMessage,event.target.value)}/>
-              <div className="ct-action"><button type="submit">Copy your message <span aria-hidden="true">↗</span></button><p>Preview only — nothing is sent or stored by Plantupia. You can share your copied message through an approved company contact channel.</p></div>
+              <textarea id="ct-message" disabled={pending || !available} rows={7} required maxLength={2000} value={message} placeholder={current.placeholder} onChange={event=>update(setMessage,event.target.value)}/>
+              <div hidden aria-hidden="true"><label htmlFor="ct-website">Leave this empty</label><input id="ct-website" tabIndex={-1} autoComplete="off" value={website} onChange={event => setWebsite(event.target.value)} /></div>
+              <div className="ct-action"><button type="submit" disabled={!available || pending || !!reference}>{pending ? "Sending…" : reference ? "Message received" : "Send your message"} <span aria-hidden="true">↗</span></button><p>{available ? "Your details and message will be saved in Plantupia’s private company inbox so the team can respond. Please do not include sensitive information." : "Website submissions are not enabled on this preview. Nothing is sent or stored."}</p></div>
               <p role="status" className="ct-status">{feedback}</p>
-              {showCopy&&<><label htmlFor="ct-outline">Prepared message</label><textarea id="ct-outline" readOnly rows={7} value={outline}/></>}
+              {reference && <p className="ct-status">Reference: {reference}</p>}
             </div>
           </form>
         </section>
