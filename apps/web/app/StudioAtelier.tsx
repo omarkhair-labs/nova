@@ -1,6 +1,7 @@
 "use client";
 import {useEffect,useRef,useState} from "react";
 import SiteIndex from "./SiteIndex";
+import ChapterThreshold from "./ChapterThreshold";
 import {editorialSpaces} from "./space-contexts";
 import "./practice-chapters.css";
 
@@ -101,7 +102,7 @@ export default function StudioAtelier(){
         </div>
       </section>
       <section className="pc-material"><figure><img key={step.photo} src={failed.includes(step.photo)?photo.fallback:photo.src} alt={failed.includes(step.photo)?"Generated architectural concept":photo.subject} loading="lazy" onError={()=>setFailed(prev=>prev.includes(step.photo)?prev:[...prev,step.photo])}/><figcaption>{failed.includes(step.photo)?"Concept illustration":photo.credit} · Editorial reference, not client work</figcaption></figure><div><p className="pc-kicker">FROM THE DRAWING TO THE PLACE</p><h2>Life is not a finishing detail.</h2><p>Planting, placement and care belong in the conversation from the beginning. Conditions differ across homes, hotels, workplaces and industrial sites.</p><a className="pc-link" href="/spaces">Explore the environments ↗</a></div></section>
-      <section className="pc-next"><div><p className="pc-kicker">WHAT HAPPENS NEXT / 04</p><h2>Beyond installation.</h2></div><a href="/living-systems">Explore Living Systems ↗</a></section>
+      <ChapterThreshold from="studio"/>
     </main><footer className="pc-footer"><a href="/">Plantupia</a><span>Living architecture / Design preview</span><a href="/start-a-space">Contact ↗</a></footer>
   </div>
 }
