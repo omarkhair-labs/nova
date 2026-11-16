@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import SiteIndex from "./SiteIndex";
+import { spaces, spacePrompts } from "./space-contexts";
 import "./contact-studio.css";
 
 const modes = [
@@ -33,6 +34,7 @@ export default function ContactStudio({ available }: { available: boolean }) {
   const [pending, setPending] = useState(false);
   const [reference, setReference] = useState("");
   const [website, setWebsite] = useState("");
+  const [fieldNotes, setFieldNotes] = useState<{ environment: string; labels: string[] } | null>(null);
   const attempt = useRef<{ fingerprint: string; id: string } | null>(null);
   const busy = useRef(false);
 
@@ -42,6 +44,12 @@ export default function ContactStudio({ available }: { available: boolean }) {
     const topic = params.get("topic");
     if (topic === "care" || topic === "general" || topic === "project") setMode(topic);
     if (environments.some(item => item.id === selected)) setEnvironment(selected ?? "");
+    const spaceIndex = ["home", "work", "gather", "industrial", "retail", "public"].findIndex(key => key === selected);
+    const focus = params.get("focus");
+    if (spaceIndex !== -1 && focus && /^(?:[0-2])(?:,[0-2]){0,2}$/.test(focus) && (!topic || topic === "project")) {
+      const indices = [...new Set(focus.split(",").map(Number))].sort();
+      setFieldNotes({ environment: selected!, labels: indices.map(index => spacePrompts[spaceIndex][index].label) });
+    }
   }, []);
 
   const current = modes.find(item => item.id === mode)!;
@@ -125,6 +133,12 @@ export default function ContactStudio({ available }: { available: boolean }) {
               {mode!=="general"&&<><label htmlFor="ct-location">Location <span>Optional</span></label><input id="ct-location" maxLength={100} value={location} placeholder="City or area" onChange={event=>update(setLocation,event.target.value)}/></>}
             </fieldset>
             <div className="ct-message">
+              {mode === "project" && fieldNotes && environment === fieldNotes.environment && <div className="ct-field-notes">
+                <p className="ct-field-notes-kicker">FROM YOUR SPACE STUDY</p>
+                <p>{spaces[["home", "work", "gather", "industrial", "retail", "public"].indexOf(fieldNotes.environment)].name}</p>
+                <ul>{fieldNotes.labels.map(label => <li key={label}>{label}</li>)}</ul>
+                <button type="button" disabled={pending || !available || !!reference} onClick={() => { const addition = "I would like to discuss: " + fieldNotes.labels.join(", ") + "."; const next = message.trim() ? message + "\n\n" + addition : addition; if(next.length <= 2000) {update(setMessage, next);setFieldNotes(null);} else {setFeedback("There is not enough room to add the notes. Please shorten your message first.");} }}>Add these notes to my message ↗</button>
+              </div>}
               <label htmlFor="ct-message">Your message</label>
               <textarea id="ct-message" disabled={pending || !available} rows={7} required maxLength={2000} value={message} placeholder={current.placeholder} onChange={event=>update(setMessage,event.target.value)}/>
               <div hidden aria-hidden="true"><label htmlFor="ct-website">Leave this empty</label><input id="ct-website" tabIndex={-1} autoComplete="off" value={website} onChange={event => setWebsite(event.target.value)} /></div>
