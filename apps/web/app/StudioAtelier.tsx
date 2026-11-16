@@ -45,7 +45,7 @@ export default function StudioAtelier(){
     function readPosition(){
       if(!study.current || performance.now()<manualUntil.current) return;
       const bounds=study.current.getBoundingClientRect();
-      const line=window.innerHeight*(window.innerWidth<=900?.76:.48);
+      const line=window.innerHeight*(window.innerWidth <= 900 ? .76 : .48);
       if(bounds.top>line || bounds.bottom<line) return;
       let nearest=0, distance=Infinity;
       readings.current.forEach((item,i)=>{
@@ -69,7 +69,12 @@ export default function StudioAtelier(){
   function moveTo(index:number){
     manualUntil.current=performance.now()+450;
     setActive(index);
-    readings.current[index]?.scrollIntoView({block:"center",behavior:"instant"});
+    const item=readings.current[index];
+    if(item){
+      const rect=item.getBoundingClientRect();
+      const line=window.innerHeight*(window.innerWidth <= 900 ? .76 : .48);
+      window.scrollTo({top:window.scrollY+rect.top+rect.height*.5-line,behavior:"instant"});
+    }
   }
   return <div className="pc-page pc-studio"><header className="pc-header"><a href="/" className="pc-brand">◕ Plantupia</a><SiteIndex current="studio"/><a href="/start-a-space" className="pc-contact">Get in touch ↗</a></header>
     <main>
