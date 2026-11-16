@@ -1,5 +1,5 @@
 "use client";
-import {useState} from "react";
+import {useRef,useState} from "react";
 import SiteIndex from "./SiteIndex";
 import {editorialSpaces} from "./space-contexts";
 import "./practice-chapters.css";
@@ -41,6 +41,12 @@ function LivingSpecimen({active}:{active:number}){
 export default function LivingContinuity(){
   const [active,setActive]=useState(0);
   const [failed,setFailed]=useState(false);
+  const entryButtons=useRef<Array<HTMLButtonElement|null>>([]);
+  function advance(index:number){
+    const next=(index+1)%events.length;
+    setActive(next);
+    entryButtons.current[next]?.focus();
+  }
   const event=events[active],photo=editorialSpaces[1];
   return <div className="pc-page pc-living"><header className="pc-header"><a href="/" className="pc-brand">◕ Plantupia</a><SiteIndex current="systems" tone="dark"/><a href="/start-a-space" className="pc-contact">Get in touch ↗</a></header>
     <main>
@@ -64,7 +70,7 @@ export default function LivingContinuity(){
             <div className="lc-ledger-head"><span>Timeline of the example plant</span><span>DAY / ENTRY</span></div>
             <ol className="lc-timeline" aria-label="Timeline of the example plant">
               {events.map((e,i)=><li key={e.label} data-record-state={i===2?"planned":"recorded"} className={(i===active?"lc-current ":"")+(i>active?"lc-later":"")}>
-                <button type="button" aria-pressed={i===active} aria-controls={"lc-reading-"+i} className="lc-time-button" onClick={()=>setActive(i)}>
+                <button type="button" aria-pressed={i===active} aria-controls={"lc-reading-"+i} className="lc-time-button" ref={node=>{entryButtons.current[i]=node;}} onClick={()=>setActive(i)}>
                   <span className="lc-day">DAY {e.day}</span><span className="lc-time-label"><strong>{e.label}</strong><small>{recordKinds[i]}</small></span><span className="lc-time-mark" aria-hidden="true">{String(i+1).padStart(2,"0")}</span>
                 </button>
                 <div className="lc-reading" id={"lc-reading-"+i} hidden={i!==active}>
@@ -72,7 +78,7 @@ export default function LivingContinuity(){
                   <p className="lc-record-note">{recordNotes[i]}</p>
                   {i===2&&<p className="lc-planned-note">A scheduled check-in does not prove a visit happened.</p>}
                   {i===3&&<div className="lc-link-back"><span aria-hidden="true">↳</span><span>Connected to entry 03 / planned check-in</span></div>}
-                  <button className="pc-link" type="button" onClick={()=>setActive((i+1)%events.length)}>{i===3?"Return to handover":"Read the next entry"} ↗</button>
+                  <button className="pc-link" type="button" onClick={()=>advance(i)}>{i===3?"Return to handover":"Read the next entry"} ↗</button>
                 </div>
               </li>)}
             </ol>
