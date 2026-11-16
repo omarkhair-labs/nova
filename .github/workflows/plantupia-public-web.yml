@@ -125,6 +125,15 @@ jobs:
           fi
           # After the cinematic chapter, the real-world gateway must render on /.
           grep -q 'CONTINUE INTO PLANTUPIA' /tmp/plantupia-world-_.html
+
+          # The native dialog is present but closed until invoked; all destinations are real links.
+          grep -q 'dialog class="si-overlay"' /tmp/plantupia-world-_.html
+          grep -q 'Six chapters. One living world.' /tmp/plantupia-world-_.html
+          grep -q 'aria-label="Close world index"' /tmp/plantupia-world-_.html
+          for chapter in 'The Experience' 'Spaces' 'The Studio' 'Living Systems' 'About Plantupia' 'Get in touch'; do
+            grep -q "$chapter" /tmp/plantupia-world-_.html
+          done
+
           grep -q 'The world' /tmp/plantupia-world-_.html
           # The chapter links have explicit accessible names.
           grep -q 'aria-label="Enter Spaces"' /tmp/plantupia-world-_.html
