@@ -163,7 +163,7 @@ fun PlantupiaShopRoute(
     val context = LocalContext.current
     val repository = remember(context) { PlantupiaRepository(context.applicationContext) }
     Scaffold(
-        containerColor = PlantupiaColors.paper,
+        containerColor = PlantupiaColors.cream,
         bottomBar = {
             NovaBottomBar(
                 selected = NovaTab.Shop,
@@ -182,7 +182,6 @@ fun PlantupiaShopRoute(
         PlantupiaStoreShop(
             repository = repository,
             accountId = user?.id ?: 0L,
-            onDismiss = onToday,
             modifier = Modifier.weight(1f),
         )
         }

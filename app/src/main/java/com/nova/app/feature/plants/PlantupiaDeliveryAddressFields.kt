@@ -8,6 +8,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 
+internal fun normalizedDeliveryPhone(input: String): String =
+    input.trim().map { character ->
+        character.digitToIntOrNull()?.digitToChar() ?: character
+    }.joinToString("")
+
+private val deliveryPhonePattern = Regex("[+0-9 ()-]{7,32}")
+
 /** Shared existing Plantupia delivery contract. QA archive and the one real Shop
  * must collect exactly the same recipient, contact, address and confirmed map pin.
  * No device location is assumed; the existing native MapLibre picker is reused.
@@ -16,7 +23,8 @@ internal fun plantupiaDeliveryAddressReady(
     name: String, phone: String, city: String, street: String,
     latitude: Double?, longitude: Double?, pinConfirmed: Boolean,
 ): Boolean =
-    name.trim().length >= 2 && phone.count(Char::isDigit) >= 7 &&
+    name.trim().length >= 2 &&
+        normalizedDeliveryPhone(phone).let { deliveryPhonePattern.matches(it) && it.count(Char::isDigit) >= 7 } &&
         city.trim().length >= 2 && street.trim().length >= 5 &&
         latitude != null && longitude != null && pinConfirmed &&
         validDeliveryPin(latitude, longitude)
@@ -69,12 +77,12 @@ internal fun PlantupiaDeliveryAddressFields(
         )
         OutlinedTextField(
             value = building, onValueChange = { onBuildingChange(it.take(180)) },
-            label = { Text("Building / floor / flat") },
+            label = { Text("Building / floor / flat (optional)") },
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
             value = landmark, onValueChange = { onLandmarkChange(it.take(180)) },
-            label = { Text("Nearby landmark") },
+            label = { Text("Nearby landmark (optional)") },
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedButton(

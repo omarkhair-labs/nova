@@ -18,6 +18,24 @@ from .commerce_models import (
 from .commerce_storefront import customer_only
 
 
+def reconciliation_blocker(order):
+    """Explain why an unpaid order cannot be reconciled yet."""
+    if order.status not in (
+        CommerceOrder.Status.CONFIRMED, CommerceOrder.Status.PREPARING,
+        CommerceOrder.Status.DISPATCHED, CommerceOrder.Status.DELIVERED,
+    ):
+        return "Only a customer-confirmed commercial order may be settled."
+    if order.payment_preference == CommerceOrder.PaymentPreference.COD:
+        if order.status != CommerceOrder.Status.DELIVERED:
+            return "COD may be verified only after delivery evidence is recorded."
+    elif order.payment_preference == CommerceOrder.PaymentPreference.MANUAL_TRANSFER:
+        if not getattr(order, "transfer_claim", None):
+            return "Customer must first submit a transfer reference for independent matching."
+    else:
+        return "Unsupported payment preference."
+    return ""
+
+
 @transaction.atomic
 def claim_manual_transfer(*, user, order_id, reference):
     customer_only(user)
@@ -72,19 +90,9 @@ def verify_payment(*, staff, order_id, amount, settlement_reference, evidence_no
         raise ValidationError("Only an unpaid order may receive its first verified settlement.")
     if order.shipping_fee is None or paid != order.subtotal + order.shipping_fee:
         raise ValidationError("Settlement must match the customer's accepted exact total including shipping.")
-    if order.status not in (
-        CommerceOrder.Status.CONFIRMED, CommerceOrder.Status.PREPARING,
-        CommerceOrder.Status.DISPATCHED, CommerceOrder.Status.DELIVERED,
-    ):
-        raise ValidationError("Only a customer-confirmed commercial order may be settled.")
-    if order.payment_preference == CommerceOrder.PaymentPreference.COD:
-        if order.status != CommerceOrder.Status.DELIVERED:
-            raise ValidationError("COD may be verified only after delivery evidence is recorded.")
-    elif order.payment_preference == CommerceOrder.PaymentPreference.MANUAL_TRANSFER:
-        if not CommerceTransferClaim.objects.filter(order=order).exists():
-            raise ValidationError("Customer must first submit a transfer reference for independent matching.")
-    else:
-        raise ValidationError("Unsupported payment preference.")
+    blocker = reconciliation_blocker(order)
+    if blocker:
+        raise ValidationError(blocker)
     CommercePaymentRecord.objects.create(
         order=order, method=order.payment_preference, amount=paid,
         settlement_reference=settlement_reference, evidence_note=evidence_note,

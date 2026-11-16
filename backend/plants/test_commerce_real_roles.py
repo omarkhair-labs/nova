@@ -44,8 +44,13 @@ class RealCommerceRolesTests(DemoFixture, TestCase):
             password="test-only", is_staff=True,
         )
         staff.groups.add(group)
-        self.client.force_login(staff)
-        self.assertEqual(self.client.get(reverse("company:commerce-orders")).status_code, 200)
+        self.client.logout()
+        self.assertRedirects(self.client.post(reverse("company:login"), {
+            "username": staff.email, "password": "test-only",
+        }), reverse("company:commerce-orders"))
+        inbox = self.client.get(reverse("company:commerce-orders"))
+        self.assertNotContains(inbox, f'href="{reverse("company:commerce-stock")}"')
+        self.assertNotContains(inbox, f'href="{reverse("company:commerce-home")}"')
         self.assertEqual(self.client.get(reverse("company:projects-home")).status_code, 403)
         self.assertEqual(self.client.get(reverse("company:installations")).status_code, 403)
         oid = uuid.uuid4()
@@ -56,6 +61,8 @@ class RealCommerceRolesTests(DemoFixture, TestCase):
             reverse("company:commerce-order-return", args=[oid]),
             {"action": "approve", "staff_note": "Test note only"}).status_code, 403)
         self.assertEqual(self.client.get(reverse("company:business-inquiries")).status_code, 403)
+        self.assertRedirects(self.client.post(reverse("company:logout")), reverse("company:login"))
+        self.assertNotIn("_auth_user_id", self.client.session)
 
     def test_b2b_quote_role_does_not_get_order_or_finance_permissions(self):
         group = create_b2b_commercial_role()
@@ -67,8 +74,10 @@ class RealCommerceRolesTests(DemoFixture, TestCase):
             password="test-only", is_staff=True,
         )
         staff.groups.add(group)
-        self.client.force_login(staff)
-        self.assertEqual(self.client.get(reverse("company:business-inquiries")).status_code, 200)
+        self.client.logout()
+        self.assertRedirects(self.client.post(reverse("company:login"), {
+            "username": staff.email, "password": "test-only",
+        }), reverse("company:business-inquiries"))
         self.assertEqual(self.client.get(reverse("company:projects-home")).status_code, 403)
         self.assertEqual(self.client.get(reverse("company:installations")).status_code, 403)
         self.assertEqual(self.client.get(reverse("company:commerce-orders")).status_code, 403)

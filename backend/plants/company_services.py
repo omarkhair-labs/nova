@@ -37,6 +37,18 @@ COMMERCE_ACCESS_CODENAMES = {
 }
 
 
+def entry_route(user):
+    if not user.is_authenticated or not user.is_active or not user.is_staff:
+        return None
+    if user.has_perms(ACCESS):
+        return "company:overview"
+    if user.has_perms(("plants.access_company_dashboard", "plants.view_commerceorder")):
+        return "company:commerce-orders"
+    if user.has_perms(("plants.access_company_dashboard", "plants.view_commercebusinessinquiry")):
+        return "company:business-inquiries"
+    return None
+
+
 def require(user, *permissions):
     if not user.is_authenticated or not user.is_active or not user.is_staff:
         raise PermissionDenied
