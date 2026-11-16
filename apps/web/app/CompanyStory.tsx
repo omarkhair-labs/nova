@@ -1,4 +1,5 @@
 import SiteIndex from "./SiteIndex";
+import ChapterThreshold from "./ChapterThreshold";
 import "./company-story.css";
 
 type VerifiedProject = {
@@ -64,6 +65,7 @@ export default function CompanyStory() {
             </article>)}</div>}
           <a className="cs-link" href="/start-a-space">GET IN TOUCH ↗</a>
         </section>
+        <ChapterThreshold from="about"/>
       </main>
       <footer className="cs-footer"><a href="/">PLANTUPIA / HOME</a><a href="/living-systems">LIVING SYSTEMS ↗</a><span>DESIGN PREVIEW / 2026</span></footer>
     </div>
