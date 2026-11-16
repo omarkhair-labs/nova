@@ -2,7 +2,8 @@ import json
 import uuid
 from unittest.mock import patch
 from django.core.cache import cache
-from django.test import TestCase
+from django.conf import settings
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from .models import WebsiteEnquiry
 
@@ -44,12 +45,13 @@ class WebsiteIntakeTests(TestCase):
         self.assertEqual(self.send().status_code, 503)
         self.assertFalse(WebsiteEnquiry.objects.exists())
 
+    @override_settings(STORAGES={**settings.STORAGES, "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"}})
     @patch("plants.company_services.enabled", return_value=True)
     def test_company_inbox_authorization(self, _enabled):
         from django.contrib.auth import get_user_model
         from django.contrib.auth.models import Permission
         User = get_user_model()
-        staff = User.objects.create_user(username="website-inbox-staff", password="example-password", is_staff=True)
+        staff = User.objects.create_user(username="website-inbox-staff", email="staff@example.test", password="example-password", is_staff=True)
         url = reverse("company:website-inbox")
         self.assertEqual(self.client.get(url).status_code, 302)
         self.client.force_login(staff)
