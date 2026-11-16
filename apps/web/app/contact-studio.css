@@ -32,3 +32,11 @@
 
 /* The submission form uses a fieldset to disable edits during a confirmed send. */
 .ct-fields{margin:0;padding:0;border:0;min-width:0}.ct-form :disabled{opacity:.65;cursor:not-allowed}.ct-action button:disabled{transform:none}
+
+/* Selected study context is optional. Only the visitor inserts it into the message. */
+.ct-field-notes{padding:18px 20px;border:1px solid #c9d5c6;background:#eef2e8;min-width:0}
+.ct-field-notes p{margin:0 0 8px;font-size:14px;line-height:1.5}
+.ct-field-notes p.ct-field-notes-kicker{font-size:10px;letter-spacing:.13em;color:#435f48;font-weight:600}
+.ct-field-notes ul{display:flex;list-style:none;flex-wrap:wrap;gap:7px 18px;padding:0;margin:10px 0 12px;color:#435f48;font-size:13px}
+.ct-field-notes li::before{content:"· ";font-weight:bold}
+.ct-field-notes button{border:0;border-bottom:1px solid currentColor;background:none;padding:8px 0;min-height:44px;font-size:13px;text-align:left;font-weight:600}
