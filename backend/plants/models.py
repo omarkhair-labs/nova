@@ -492,3 +492,5 @@ from .commerce_models import (CommerceProduct, CommerceProductPhoto, CommerceSKU
 from .demo_models import (CareInspectionPlan, CarePlanEnrollment, CarePlanDecision,
                          DemoOffer, DemoEntitlement, DemoMutation, ServiceRequest,
                          CatalogProduct, CatalogProductPhoto, DemoCartLine, DemoOrder, DemoOrderLine)  # noqa: E402,F401
+
+from .website_inbox_models import WebsiteEnquiry  # noqa: E402,F401

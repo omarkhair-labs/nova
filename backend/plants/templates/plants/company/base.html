@@ -53,6 +53,7 @@
     <a href="{% url 'company:commerce-home' %}">B2C / Shop</a>
     <a href="{% url 'company:care-home' %}">Care / Support</a>
   {% endif %}
+  {% if perms.plants.view_websiteenquiry %}<a href="{% url 'company:website-inbox' %}" {% if section == 'website_inbox' %}aria-current="page"{% endif %}>Website enquiries · <span lang="ar" dir="rtl">رسائل الموقع</span></a>{% endif %}
   </nav>
   <div class="sidebar-note"><span class="small-label">A CONTINUOUS LIVING RECORD</span><p>Prepare carefully.<br>Review honestly.<br>Hand over with confidence.</p><span class="small-label">Transforming Spaces.<br>Inspiring People.</span></div>
 </aside>
