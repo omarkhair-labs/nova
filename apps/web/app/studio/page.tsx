@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import StudioAtelier from "../StudioAtelier";
+import { SiteFrame } from "../SiteFrame";
+import SiteReading from "../SiteReading";
 
 export const metadata: Metadata = {
-  title: "The Studio — Plantupia",
-  description: "A design process built around place, material, life and continuing care.",
-  robots: { index: false, follow: false },
+  title: "Approach — Plantupia",
+  description: "Read the courtyard through light, movement and access for care.",
 };
 
 export default function StudioPage() {
-  return <StudioAtelier />;
+  return <SiteFrame current="/studio"><SiteReading /></SiteFrame>;
 }

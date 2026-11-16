@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import CinematicExperience from "./CinematicExperience";
+import { SiteFrame } from "./SiteFrame";
+import SceneEntrance from "./SceneEntrance";
 
 export const metadata: Metadata = {
-  title: "Plantupia — A Space Becoming Alive",
-  description: "A cinematic, interactive exploration of architecture, living material and the continuity of care.",
-  robots: { index: false, follow: false },
+  title: "Plantupia — Where life takes root",
+  description: "Enter an imagined living courtyard and explore how the place, the people and its planting shape one another.",
 };
 
 export default function HomePage() {
-  return <CinematicExperience />;
+  return <SiteFrame><SceneEntrance /></SiteFrame>;
 }

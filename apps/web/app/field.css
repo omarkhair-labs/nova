@@ -1,0 +1,135 @@
+@font-face {
+  font-family: "Field Inter";
+  src: url("/field/inter.woff2") format("woff2");
+  font-display: swap;
+  font-weight: 400 700;
+}
+@font-face {
+  font-family: "Field Playfair";
+  src: url("/field/playfair.woff2") format("woff2");
+  font-display: swap;
+}
+@font-face {
+  font-family: "Field Playfair";
+  src: url("/field/playfair-italic.woff2") format("woff2");
+  font-display: swap;
+  font-style: italic;
+}
+
+.field-site {
+  --paper: #f6f3e9;
+  --ink: #172e25;
+  --deep: #172e25;
+  --olive: #526645;
+  --muted: #4e5f53;
+  --line: #c8cbbd;
+  --lichen: #dce7a0;
+  --stone: #eae3d4;
+  --max: 1500px;
+  --gutter: clamp(24px, 4.7vw, 84px);
+  --air: clamp(68px, 9vw, 154px);
+  --display: "Field Playfair", Georgia, serif;
+  --sans: "Field Inter", Arial, sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+  min-height: 100vh;
+  font-family: var(--sans);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.field-site :is(h1, h2, h3, p, figure, ul, ol, dl, dd, fieldset) { margin: 0; }
+.field-site :is(ul, ol) { padding: 0; }
+.field-site :is(h1, h2, h3) {
+  font-family: var(--display);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -.048em;
+  text-wrap: balance;
+}
+.field-site h1 { font-size: clamp(3.7rem, 7.4vw, 8.1rem); }
+.field-site h2 { font-size: clamp(2.55rem, 5.2vw, 5.75rem); }
+.field-site h3 { font-size: clamp(1.9rem, 3.3vw, 3.45rem); }
+.field-site :is(h1, h2) em { color: var(--olive); }
+.field-site p { max-width: 60ch; }
+.field-site a { color: inherit; }
+.field-site :where(button) { font: inherit; color: inherit; }
+.field-site :is(a, button, summary, input, textarea, select, main):focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 5px;
+}
+.field-site :is(section, li)[id] { scroll-margin-top: 26px; }
+.field-site .field-lead { font-size: clamp(1.03rem, 1.35vw, 1.3rem); line-height: 1.57; max-width: 36ch; }
+.field-site .field-kicker {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  font-size: .69rem;
+  font-weight: 650;
+  letter-spacing: .155em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+.field-kicker > span {
+  flex: 0 0 .56rem;
+  width: .56rem;
+  height: .56rem;
+  background: currentColor;
+  border-radius: 70% 0 70% 70%;
+  transform: rotate(-12deg);
+}
+.field-shell {
+  width: min(var(--max), 100% - 2 * var(--gutter));
+  margin-inline: auto;
+}
+.field-skip {
+  position: fixed;
+  z-index: 30;
+  inset: 10px auto auto 12px;
+  padding: 10px 15px;
+  background: var(--paper);
+  transform: translateY(-180%);
+}
+.field-skip:focus { transform: none; }
+
+.field-arrow { display: inline-block; font-family: Arial, sans-serif; font-weight: 400; line-height: 1; }
+.field-textlink {
+  min-height: 44px;
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: .7rem;
+  font-weight: 600;
+  font-size: .9rem;
+  text-underline-offset: .35em;
+  text-decoration-thickness: 1px;
+}
+.field-textlink:hover { text-decoration-thickness: 2px; }
+.field-textlink .field-arrow { font-size: 1.15em; }
+
+.field-plate { min-width: 0; }
+.field-image { overflow: hidden; background: #d8ccb3; }
+.field-image img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.field-plate figcaption {
+  min-height: 20px;
+  margin-top: .47rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .3rem .8rem;
+  font-size: .73rem;
+  line-height: 1.45;
+  letter-spacing: .045em;
+  color: var(--muted);
+}
+
+.field-site fieldset { padding: 0; min-inline-size: 0; border: 0; }
+.field-site legend { padding: 0; font-weight: 600; font-size: .85rem; margin-bottom: .7rem; }
+.field-missing { min-height: 62vh; }
+.field-missing h1 { margin: .25em 0; }
+.field-missing .field-textlink { margin: .7rem 1.4rem 0 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .field-site *, .field-site *::before, .field-site *::after { animation: none !important; transition: none !important; }
+}

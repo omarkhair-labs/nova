@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import SpaceExplorer from "../SpaceExplorer";
+import { SiteFrame } from "../SiteFrame";
+import SpacePassage from "../SpacePassage";
 
 export const metadata: Metadata = {
   title: "Spaces — Plantupia",
-  description: "Explore six built environments, from residential spaces to industry and hospitality.",
-  robots: { index: false, follow: false },
+  description: "Explore planting in homes, workplaces, hospitality, industrial sites, retail and public spaces.",
 };
 
 export default function SpacesPage() {
-  return <SpaceExplorer />;
+  return <SiteFrame current="/spaces"><SpacePassage /></SiteFrame>;
 }
