@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import AuthenticationForm
 from django.core.validators import MaxLengthValidator
 
-from .company_services import PUBLISH, entry_route
+from .company_services import ACCESS, PUBLISH, entry_route
 from .media import sanitize_public_plant_photo
 from .models import BotanicalSpecies, BotanicalSpeciesAlias, CareGuideVersion, CareGuideSection, HandoverInvitation, PlantUnit
 
