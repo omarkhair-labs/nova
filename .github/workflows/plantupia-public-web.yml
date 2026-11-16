@@ -74,12 +74,13 @@ jobs:
             echo "Removed cartoon-space artwork is still rendered"
             exit 1
           fi
-          # The first business-action flow is real but client-side only — never a fake submitted enquiry.
+          # Real intake is disabled without server-only credentials; the preview must not pretend to submit.
           curl -fsSL http://127.0.0.1:3017/start-a-space -o /tmp/plantupia-space-brief.html
           grep -q 'Start a project' /tmp/plantupia-space-brief.html
-          grep -q 'Copy your message' /tmp/plantupia-space-brief.html
-          grep -q 'nothing is sent or stored' /tmp/plantupia-space-brief.html
+          grep -q 'Send your message' /tmp/plantupia-space-brief.html
+          grep -q 'Nothing is sent or stored' /tmp/plantupia-space-brief.html
           grep -q 'Care &amp; support' /tmp/plantupia-space-brief.html
+          test "$(curl -s -o /tmp/plantupia-intake.json -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' http://127.0.0.1:3017/api/website/enquiries)" = 503
           grep -q 'href="/start-a-space?space=home"' /tmp/plantupia-world-_spaces.html
           # Keep the generated HD images available as first-party photo-loading fallbacks.
           for asset in space life time; do
