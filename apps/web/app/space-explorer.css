@@ -50,3 +50,4 @@
 .sx-brief-foot p{font-size:12px;color:#425a49;margin:0}
 @media(max-width:850px){.sx-brief{grid-template-columns:minmax(0,1fr);gap:24px}.sx-brief-intro>p:last-child{max-width:520px}}
 @media(max-width:420px){.sx-note{grid-template-columns:20px minmax(0,1fr) 30px;gap:7px;padding-inline:4px}}
+.sx-archive-link{padding:0 var(--pl-gutter) clamp(28px,4vw,56px)}
