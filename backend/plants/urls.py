@@ -13,7 +13,10 @@ from .views import PlantCareGuideView
 from .views import PlantEventSubmissionsView, PlantQuestionSubmissionsView
 from .views import SpaceDetailView, PlantDetailView, PlantEventsView, PlantFollowUpDateView, PlantNicknameView, PlantsView, SpacesView, PlantQuestionsView, PlantQuestionResolveView, PlantCircleView
 
+from .website_inbox import receive_website_enquiry
+
 urlpatterns = [
+    path("website/enquiries/", receive_website_enquiry, name="plantupia-website-enquiries"),
     # The sole future customer Shop data source; no QA models or active checkout.
     path("commerce/catalog/", CommerceCatalogView.as_view(), name="plantupia-real-commerce-catalog"),
     path("commerce/catalog/<uuid:product_id>/image/", CommerceCatalogPhotoView.as_view(), name="plantupia-real-commerce-image"),
