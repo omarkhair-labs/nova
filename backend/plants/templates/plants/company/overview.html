@@ -53,6 +53,7 @@
     </div>
   </article>
 </section>
+{% if perms.plants.view_websiteenquiry %}<p><a class="button" href="{% url 'company:website-inbox' %}">Website enquiries / رسائل الموقع ↗</a></p>{% endif %}
 <section class="hub-pulse" aria-label="Today's recorded work">
   <div class="hub-pulse-intro"><span class="small-label">TODAY / AT A GLANCE</span><strong>What needs attention</strong></div>
   <a href="{% url 'company:installations' %}?status=draft"><strong>{{ counts.draft }}</strong><span>Installations preparing</span></a>
