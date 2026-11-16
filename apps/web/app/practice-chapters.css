@@ -28,3 +28,47 @@
 @media(max-width:900px){.pc-intro,.pc-workspace,.pc-material,.pc-living-hero,.pc-life-heading,.pc-life-detail{grid-template-columns:1fr;gap:22px}.pc-header{height:72px}.pc-controls{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px}.pc-controls>.pc-kicker{grid-column:1/-1}.pc-reading{padding-top:5px}.pc-next{align-items:start;flex-direction:column}.pc-living-hero img{height:clamp(270px,58vw,500px)}}
 @media(max-width:560px){.pc-brand{font-size:22px}.pc-contact{font-size:11px}.pc-controls{display:block}.pc-reading{padding-top:20px}.pc-sheet-head,.pc-sheet-foot{font-size:8px;padding:10px;flex-wrap:wrap}.pc-life-steps{gap:5px}.pc-life-steps button strong{font-size:17px;overflow-wrap:anywhere}.pc-life-steps button>span{font-size:9px}.pc-principles>div{grid-template-columns:1fr;gap:15px}.pc-record-body{padding:20px}}
 @media(prefers-reduced-motion:reduce){.pc-page *, .pc-page *::before,.pc-page *::after{animation:none!important;transition:none!important}}
+
+/* Architectural reading: one registered drawing, four progressive acts. */
+.pc-reading-intro{margin:0 var(--pl-gutter);border-top:1px solid var(--pc-rule);padding:clamp(34px,4.5vw,76px) 0 34px;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(200px,.8fr);gap:16px 40px;align-items:end}
+.pc-reading-intro .pc-kicker{grid-column:1/-1;margin:0}
+.pc-reading-intro h2{font:400 clamp(36px,4.8vw,78px)/1.03 Georgia,serif;letter-spacing:-.06em;margin:0}
+.pc-reading-intro>p:last-child{font-size:14px;line-height:1.75;color:#405b47;max-width:32ch;margin:0}
+.pc-reading-study{grid-template-columns:minmax(0,1.6fr) minmax(0,.8fr);gap:clamp(22px,5vw,80px);align-items:start}
+.pc-drawing-anchor{position:sticky;top:clamp(12px,4vh,46px);align-self:start;min-width:0;z-index:2;background:#f3f4ee}
+.pc-drawing-anchor .pc-sheet{box-shadow:0 10px 34px #24372a0b}
+.pc-drawing-anchor .pc-plan{max-height:min(64svh,640px)}
+.pc-layer.pc-context-layer{opacity:.32}
+.pc-study-nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-bottom:1px solid #adbeac;margin-top:12px}
+.pc-study-nav button{display:flex;flex-direction:column;align-items:flex-start;gap:7px;text-align:left;min-width:0;min-height:58px;padding:9px 8px 12px;background:none;border:0;border-bottom:2px solid transparent;color:#425f48}
+.pc-study-nav button span{font:600 9px/1 Arial,sans-serif;letter-spacing:.08em}
+.pc-study-nav button strong{font:400 clamp(17px,2vw,28px)/1.1 Georgia,serif;overflow-wrap:anywhere}
+.pc-study-nav button[aria-pressed=true]{background:#e3eadc;border-bottom-color:#315b3b;color:#214c31}
+.pc-study-nav button:hover{background:#e3eadc}
+.pc-reading-track{min-width:0;display:grid;gap:0}
+.pc-reading-chapter{min-height:clamp(290px,48svh,530px);display:flex;flex-direction:column;justify-content:center;border-top:1px solid var(--pc-rule);padding:clamp(24px,3vw,50px) 0;overflow-wrap:anywhere}
+.pc-reading-chapter:last-child{border-bottom:1px solid var(--pc-rule)}
+.pc-reading-chapter .pc-kicker{margin:0 0 18px}
+.pc-reading-chapter h3{font:400 clamp(29px,3.4vw,57px)/1.03 Georgia,serif;letter-spacing:-.05em;margin:0 0 18px}
+.pc-reading-chapter>p:not(.pc-kicker){font-size:14px;line-height:1.72;color:#435e4a;margin:0 0 15px}
+.pc-reading-chapter>p.pc-reading-question{font-weight:600;color:#203d29}
+.pc-reading-current h3{color:#244f35}
+.pc-reading-output{border-left:2px solid #789c79;padding:9px 14px;display:grid;gap:5px;margin-top:8px}
+.pc-reading-output span{font-size:9px;letter-spacing:.09em;color:#435f48;font-weight:600}
+.pc-reading-output strong{font:400 21px/1.25 Georgia,serif}
+@media(max-width:900px){
+  .pc-reading-intro,.pc-reading-study{grid-template-columns:minmax(0,1fr);gap:18px}
+  .pc-reading-intro>p:last-child{max-width:60ch}
+  .pc-drawing-anchor{top:0;padding:6px 0 8px;box-shadow:0 10px 15px #f3f4ee}
+  .pc-drawing-anchor .pc-plan{max-height:30svh}
+  .pc-reading-chapter{min-height:max(260px,42svh);padding:25px 0}
+  .pc-study-nav{margin-top:5px}
+  .pc-study-nav button{min-height:46px;padding:7px 4px;gap:4px}
+}
+@media(max-width:560px){
+  .pc-drawing-anchor .pc-sheet-head,.pc-drawing-anchor .pc-sheet-foot{padding:7px 9px;font-size:8px}
+  .pc-study-nav button strong{font-size:16px}
+}
+@media(max-height:500px){
+  .pc-drawing-anchor{position:relative;top:auto}
+}

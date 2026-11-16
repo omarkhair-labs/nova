@@ -72,6 +72,13 @@ jobs:
           grep -q 'Follow one plant' /tmp/plantupia-world-_living-systems.html
           grep -q 'EXAMPLE ONLY' /tmp/plantupia-world-_living-systems.html
           grep -q 'Design layers' /tmp/plantupia-world-_studio.html
+          grep -q 'One place.' /tmp/plantupia-world-_studio.html
+          grep -q 'Four ways to read it.' /tmp/plantupia-world-_studio.html
+          for mark in '01 / CONDITIONS' '02 / COMPOSITION' '03 / ACCESS' '04 / CONTINUITY'; do
+            grep -q "$mark" /tmp/plantupia-world-_studio.html
+          done
+          grep -q 'A site understanding' /tmp/plantupia-world-_studio.html
+          grep -q 'A care approach' /tmp/plantupia-world-_studio.html
           grep -q 'Timeline of the example plant' /tmp/plantupia-world-_living-systems.html
           if grep -q 'wr-space-art-' /tmp/plantupia-world-_spaces.html; then
             echo "Removed cartoon-space artwork is still rendered"
