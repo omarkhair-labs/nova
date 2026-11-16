@@ -1549,3 +1549,53 @@ dd {
 @media (prefers-reduced-motion:reduce) {
  .world-card, .world-symbol svg, .world-explore span, .world-reveal { animation:none !important; transition:none !important; }
 }
+
+/* B2C orders keep the next task, evidence and payment state legible at every width. */
+.order-record { display:grid; gap:18px; max-width:1120px; min-width:0; overflow-wrap:anywhere; }
+.order-record > .back-link { justify-self:start; margin:0; }
+.order-record > .page-heading { margin:0; align-items:start; }
+.order-record .page-heading h1 { margin-bottom:8px; }
+.order-record .page-heading .lead { margin-bottom:0; }
+.order-payment-status { background:#e8efe4; color:var(--forest); }
+.order-next {
+  display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center;
+  gap:12px 24px; padding:clamp(16px, 2.6vw, 28px); background:#eaf0e6;
+  border-inline-start:3px solid #587960;
+}
+.order-next h2 { margin-bottom:6px; }
+.order-next p:last-child { margin:0; }
+.order-links { display:flex; flex-wrap:wrap; gap:4px 20px; padding:0 0 9px; border-bottom:1px solid var(--line); }
+.order-links a { display:inline-flex; align-items:center; min-height:38px; font-weight:600; font-size:13px; }
+.order-overview { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; }
+.order-record .padded { padding:clamp(16px, 2.6vw, 28px); }
+.order-record [id] { scroll-margin-block-start:16px; }
+.order-record [id]:target { border-color:#68836d; }
+.order-record .panel > :last-child { margin-block-end:0; }
+.order-record .panel h2 { margin-block-end:12px; }
+.order-record .record-row { padding-inline:0; gap:8px 20px; flex-wrap:wrap; }
+.order-record .record-row .grow { min-width:min(100%,14rem); }
+.order-totals { margin:0 0 12px; }
+.order-totals div { display:flex; flex-wrap:wrap; justify-content:space-between; gap:4px 14px; padding-block:7px; }
+.order-totals div:last-child { border-top:1px solid var(--line); margin-top:3px; padding-top:10px; font-weight:700; }
+.order-totals dd { margin:0; font-variant-numeric:tabular-nums; }
+.order-form {
+  display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px 18px;
+  max-width:740px; margin-top:16px;
+}
+.order-field { display:grid; align-content:start; gap:6px; min-width:0; }
+.order-field label { font-size:13px; font-weight:650; }
+.order-field input, .order-field textarea { display:block; width:100%; min-width:0; min-height:44px; margin:0; }
+.order-field textarea { min-height:94px; resize:vertical; }
+.order-field-wide, .order-actions { grid-column:1 / -1; }
+.order-actions { display:flex; flex-wrap:wrap; align-items:start; gap:8px; }
+.order-actions .button { white-space:normal; max-width:100%; }
+.order-reference summary { cursor:pointer; font-weight:650; }
+.order-reference[open] summary { margin-bottom:10px; }
+.order-queue > a[aria-current="page"] { box-shadow:inset 0 -3px #557459; }
+@media (max-width:1050px) {
+  .order-overview { grid-template-columns:minmax(0,1fr); }
+}
+@media (max-width:610px) {
+  .order-form { grid-template-columns:minmax(0,1fr); }
+  .order-record .page-heading { flex-wrap:wrap; }
+}

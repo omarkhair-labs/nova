@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import AuthenticationForm
 from django.core.validators import MaxLengthValidator
 
-from .company_services import ACCESS, PUBLISH
+from .company_services import PUBLISH, entry_route
 from .media import sanitize_public_plant_photo
 from .models import BotanicalSpecies, BotanicalSpeciesAlias, CareGuideVersion, CareGuideSection, HandoverInvitation, PlantUnit
 
@@ -11,7 +11,7 @@ from .models import BotanicalSpecies, BotanicalSpeciesAlias, CareGuideVersion, C
 class StaffAuthenticationForm(AuthenticationForm):
     def confirm_login_allowed(self, user):
         super().confirm_login_allowed(user)
-        if not user.is_staff or not user.has_perms(ACCESS):
+        if entry_route(user) is None:
             raise forms.ValidationError("Company access is not available for this account.", code="invalid_login")
 
 

@@ -9,6 +9,16 @@ from .commerce_models import CommerceOrder
 from .company_views import page, paginated, portal
 
 
+ORDER_NEXT = {
+    CommerceOrder.Status.QUOTE_PENDING: ("Quote delivery", "Check the address and enter the exact delivery fee.", "quote"),
+    CommerceOrder.Status.QUOTED: ("Awaiting customer approval", "The customer needs to accept the exact total. You can revise the quote if the delivery cost changes.", "quote"),
+    CommerceOrder.Status.CONFIRMED: ("Prepare the order", "The customer accepted the total and stock is reserved.", "fulfillment"),
+    CommerceOrder.Status.PREPARING: ("Record carrier handover", "Record dispatch after the delivery team takes the items.", "fulfillment"),
+    CommerceOrder.Status.DISPATCHED: ("Record proof of delivery", "Enter the reference to the retained delivery record.", "fulfillment"),
+    CommerceOrder.Status.RETURN_REQUESTED: ("Review the return", "Check the current decision and record the physical receipt when it arrives.", "returns"),
+}
+
+
 class ShippingDecisionForm(forms.Form):
     action = forms.ChoiceField(choices=(("quote", "Set shipping fee"), ("decline", "Decline")))
     version = forms.IntegerField(min_value=0, widget=forms.HiddenInput)
@@ -27,13 +37,15 @@ class ShippingDecisionForm(forms.Form):
 @portal("plants.view_commerceorder", methods=("GET",))
 def real_orders(request):
     status = request.GET.get("status", "").strip()
+    statuses = dict(CommerceOrder.Status.choices)
     qs = CommerceOrder.objects.select_related("customer").order_by("-created_at", "pk")
-    if status in CommerceOrder.Status.values:
+    if status in statuses:
         qs = qs.filter(status=status)
     return page(request, "commerce_orders", {
         "title": "Actual customer orders", "section": "commerce_orders",
         "records": paginated(request, qs),
-        "status_filter": status,
+        "status_filter": status if status in statuses else "",
+        "status_label": statuses.get(status, "Recent orders"),
         "pending": CommerceOrder.objects.filter(status=CommerceOrder.Status.QUOTE_PENDING).count(),
         "quoted": CommerceOrder.objects.filter(status=CommerceOrder.Status.QUOTED).count(),
         "confirmed": CommerceOrder.objects.filter(status=CommerceOrder.Status.CONFIRMED).count(),
@@ -44,15 +56,37 @@ def real_orders(request):
 def real_order_detail(request, order_id):
     order = get_object_or_404(
         CommerceOrder.objects.select_related("customer", "quoted_by")
-        .prefetch_related("lines", "stock_reservations__location", "status_events", "fulfillment_receipt", "transfer_claim", "verified_payment", "return_case", "verified_refund"),
+        .prefetch_related("lines", "stock_reservations__location", "stock_reservations__sku", "status_events__actor",
+                          "fulfillment_receipt", "transfer_claim", "verified_payment", "return_case", "verified_refund"),
         pk=order_id,
     )
+    total = order.subtotal + order.shipping_fee if order.shipping_fee is not None else None
+    payment_blocker = payments.reconciliation_blocker(order) if order.payment_status == CommerceOrder.PaymentStatus.UNPAID else ""
+    can_reconcile = (
+        request.user.has_perm("plants.add_commercepaymentrecord")
+        and order.payment_status == CommerceOrder.PaymentStatus.UNPAID
+        and not payment_blocker and total is not None and total > 0
+    )
+    can_refund = (
+        request.user.has_perm("plants.add_commercerefundrecord")
+        and order.status == CommerceOrder.Status.RETURNED
+        and order.payment_status == CommerceOrder.PaymentStatus.VERIFIED
+    )
+    if can_refund:
+        next_step = ("Record the external refund", "Use the independently verified payout reference.", "returns")
+    elif can_reconcile:
+        next_step = ("Reconcile the payment", "Match the accepted total against the independent settlement record.", "payment")
+    else:
+        next_step = ORDER_NEXT.get(order.status)
     return page(request, "commerce_order", {
         "title": f"Order {str(order.pk)[:8]}",
         "section": "commerce_orders",
         "order": order,
-        "form": ShippingDecisionForm(initial={"version": order.shipping_quote_version}),
-        "total": order.subtotal + order.shipping_fee if order.shipping_fee is not None else None,
+        "total": total,
+        "payment_blocker": payment_blocker,
+        "can_reconcile": can_reconcile,
+        "can_refund": can_refund,
+        "next_step": next_step,
     })
 
 

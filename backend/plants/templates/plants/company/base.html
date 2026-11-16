@@ -6,20 +6,20 @@
 {% block shell %}
 {% if section != 'overview' %}
 <aside class="sidebar" aria-label="Current workspace">
-  <a class="wordmark" href="{% url 'company:overview' %}"><span class="brand-mark" aria-hidden="true">p</span>Plantupia<span class="wordmark-sub">COMPANY WORKSPACE</span></a>
-  <a class="back-to-spaces" href="{% url 'company:overview' %}"><span aria-hidden="true">←</span> All workspaces <span lang="ar" dir="rtl">المساحات</span></a>
+  <a class="wordmark" href="{% url company_entry|default:'company:login' %}"><span class="brand-mark" aria-hidden="true">p</span>Plantupia<span class="wordmark-sub">COMPANY WORKSPACE</span></a>
+  {% if company_entry == 'company:overview' %}<a class="back-to-spaces" href="{% url 'company:overview' %}"><span aria-hidden="true">←</span> All workspaces <span lang="ar" dir="rtl">المساحات</span></a>{% endif %}
   <nav aria-label="Workspace navigation">
   {% if workspace_area == 'b2b' %}
     <p class="nav-group-label">B2B / PROJECTS · <span lang="ar" dir="rtl">المشروعات</span></p>
-    <a href="{% url 'company:projects-home' %}" {% if section == 'projects_home' %}aria-current="page"{% endif %}>Projects home</a>
+    {% if company_entry == 'company:overview' %}<a href="{% url 'company:projects-home' %}" {% if section == 'projects_home' %}aria-current="page"{% endif %}>Projects home</a>{% endif %}
     {% if perms.plants.view_commercebusinessinquiry %}<a href="{% url 'company:business-inquiries' %}" {% if section == 'business_inquiries' %}aria-current="page"{% endif %}>Business requests · Real</a>{% endif %}
     {% if show_b2b_rfqs %}<a href="{% url 'company:business-rfqs' %}" {% if section == 'business_rfqs' %}aria-current="page"{% endif %}>RFQs &amp; quotes · QA</a>{% endif %}
-    <a href="{% url 'company:installations' %}" {% if section == 'installations' %}aria-current="page"{% endif %}>Installations</a>
+    {% if perms.plants.view_installationbatch %}<a href="{% url 'company:installations' %}" {% if section == 'installations' %}aria-current="page"{% endif %}>Installations</a>{% endif %}
     {% if can_inventory %}<a href="{% url 'company:inventory' %}" {% if section == 'inventory' %}aria-current="page"{% endif %}>Installed plant inventory</a>{% endif %}
     {% if can_handovers %}<a href="{% url 'company:handovers' %}" {% if section == 'handovers' %}aria-current="page"{% endif %}>QR handovers</a>{% endif %}
   {% elif workspace_area == 'b2c' %}
     <p class="nav-group-label">B2C / SHOP · <span lang="ar" dir="rtl">المتجر</span></p>
-    <a href="{% url 'company:commerce-home' %}" {% if section == 'commerce_home' %}aria-current="page"{% endif %}>Shop home</a>
+    {% if company_entry == 'company:overview' %}<a href="{% url 'company:commerce-home' %}" {% if section == 'commerce_home' %}aria-current="page"{% endif %}>Shop home</a>{% endif %}
     {% if perms.plants.view_commerceproduct %}<a class="workspace-nav-link" href="{% url 'company:commerce-products' %}" {% if section == 'commerce_products' %}aria-current="page"{% endif %}><span class="nav-label-en">Products</span><span class="nav-label-ar" lang="ar" dir="rtl">المنتجات</span></a>{% endif %}
     {% if perms.plants.view_commerceorder %}<a class="workspace-nav-link" href="{% url 'company:commerce-orders' %}" {% if section == 'commerce_orders' %}aria-current="page"{% endif %}><span class="nav-label-en">Orders</span><span class="nav-label-ar" lang="ar" dir="rtl">الطلبات</span></a>{% endif %}
     {% if perms.plants.view_commercestockmovement %}<a class="workspace-nav-link" href="{% url 'company:commerce-stock' %}" {% if section == 'commerce_stock' %}aria-current="page"{% endif %}><span class="nav-label-en">Stock</span><span class="nav-label-ar" lang="ar" dir="rtl">المخزون</span></a>{% endif %}

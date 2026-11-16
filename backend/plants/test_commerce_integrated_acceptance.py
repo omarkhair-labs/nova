@@ -123,6 +123,11 @@ class CommercialIntegratedAcceptanceTests(DemoFixture, TestCase):
         # Staff fulfills an actual confirmed order, without claiming payment.
         fulfillment_url = reverse("company:commerce-order-fulfillment", args=[oid])
         self.assertEqual(self.client.post(fulfillment_url, {"action": "prepare"}).status_code, 302)
+        order_detail = reverse("company:commerce-order", args=[oid])
+        preparing = self.client.get(order_detail)
+        self.assertContains(preparing, "Record carrier handover")
+        self.assertContains(preparing, 'for="tracking-ref"')
+        self.assertNotContains(preparing, 'id="paid-amount"')
         handover = {
             "action": "dispatch", "carrier_name": "Actual local test team",
             "tracking_reference": "HANDOVER-TEST-0001",
@@ -134,6 +139,12 @@ class CommercialIntegratedAcceptanceTests(DemoFixture, TestCase):
         self.assertEqual(stock_balance(self.sku.pk), 1)
         self.assertEqual(CommerceStockReservation.objects.filter(
             order_id=oid, released_at__isnull=True).count(), 0)
+        self.client.force_login(self.finance)
+        early_cod = self.client.get(order_detail)
+        self.assertContains(early_cod, "COD may be verified only after delivery evidence is recorded.")
+        self.assertNotContains(early_cod, 'id="paid-amount"')
+        self.assertNotContains(early_cod, 'id="proof-reference"')
+        self.client.force_login(self.staff)
         self.assertEqual(self.client.post(fulfillment_url, {
             "action": "delivered", "proof_reference": "POD-TEST-0001",
         }).status_code, 302)
@@ -141,7 +152,10 @@ class CommercialIntegratedAcceptanceTests(DemoFixture, TestCase):
 
         # Finance reviewer has no warehouse or installation rights.
         self.client.force_login(self.finance)
-        self.assertEqual(self.client.get(reverse("company:commerce-order", args=[oid])).status_code, 200)
+        payable = self.client.get(order_detail)
+        self.assertContains(payable, "Reconcile the payment")
+        self.assertContains(payable, 'id="paid-amount"')
+        self.assertContains(payable, "EGP 425.00")
         self.assertEqual(self.client.post(fulfillment_url, {"action": "prepare"}).status_code, 403)
         payment_url = reverse("company:commerce-order-payment", args=[oid])
         self.assertEqual(self.client.post(payment_url, {

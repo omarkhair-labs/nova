@@ -50,6 +50,7 @@ def page(request, template, context=None, status=200):
         status=CommerceOrder.Status.QUOTE_PENDING).count() if show_real_order_alert else 0
     context = {"show_b2b_rfqs": show_b2b_rfqs, "show_commerce_alert": show_commerce_alert,
                "show_real_order_alert": show_real_order_alert, "new_real_orders": new_real_orders,
+               "company_entry": service.entry_route(user),
                "new_qa_orders": new_qa_orders, "ceo_demo_enabled": demo_enabled(), "can_import": user.has_perms(PERMISSIONS),
                "can_inventory": user.has_perm("plants.view_plantunit"),
                "can_care": user.has_perms(("plants.view_careguideversion", "plants.view_botanicalspecies")),
@@ -57,7 +58,7 @@ def page(request, template, context=None, status=200):
                "handover_enabled": pilot_enabled(), **(context or {})}
     # One contextual workspace navigation, without reclassifying persisted data.
     section = context.get("section", "")
-    if section in {"projects_home", "business_rfqs", "installations", "inventory", "handovers"}:
+    if section in {"projects_home", "business_rfqs", "business_inquiries", "installations", "inventory", "handovers"}:
         context["workspace_area"] = "b2b"
     elif section in {"commerce_home", "commerce_products", "commerce_stock", "commerce_orders",
                      "commerce_qa_requests", "catalog", "orders"}:
@@ -113,8 +114,10 @@ def paginated(request, queryset):
 @portal(public=True)
 def login_view(request):
     if request.user.is_authenticated:
-        service.require(request.user)
-        return redirect("company:overview")
+        route = service.entry_route(request.user)
+        if route is None:
+            raise PermissionDenied
+        return redirect(route)
     form = StaffAuthenticationForm(request, data=request.POST or None)
     if request.method == "POST":
         key = "plantupia-company-login:" + digest([request.META.get("REMOTE_ADDR", ""), request.POST.get("username", "").casefold()[:150]])
@@ -134,12 +137,12 @@ def login_view(request):
             login(request, form.get_user())
             target = request.POST.get("next", "")
             if not target.startswith("/company/") or not url_has_allowed_host_and_scheme(target, {request.get_host()}, require_https=request.is_secure()):
-                target = reverse("company:overview")
+                target = reverse(service.entry_route(form.get_user()))
             return redirect(target)
     return page(request, "login", {"form": form, "next": request.GET.get("next", ""), "title": "Company sign in"})
 
 
-@portal(methods=("POST",))
+@portal(public=True, methods=("POST",))
 def logout_view(request):
     logout(request)
     return redirect("company:login")
