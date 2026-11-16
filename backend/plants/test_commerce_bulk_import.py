@@ -89,6 +89,37 @@ class CommerceBulkImportTests(DemoFixture, TestCase):
         self.assertContains(catalog, reverse("company:commerce-product-import"))
         self.assertEqual(self.client.get(self.url).status_code, 200)
 
+    def test_catalogue_search_and_stock_ledger_pagination(self):
+        source = list(sample_rows()[0])
+        rows = []
+        for index in range(25):
+            row = source.copy()
+            row[1] = f"QA-FERN-{index:02d}"
+            row[5] = f"Option {index:02d}"
+            rows.append(tuple(row))
+        pack = package_bytes(rows)
+        preview = self.upload("preview", data=pack)
+        self.assertEqual(preview.status_code, 200, preview.content)
+        imported = self.upload("import", data=pack, digest=preview.json()["digest"], confirm=True)
+        self.assertEqual(imported.status_code, 200, imported.content)
+
+        catalogue = self.client.get(reverse("company:commerce-products"), {"q": "QA-FERN-24"})
+        self.assertContains(catalogue, "Fern draft")
+        self.assertContains(catalogue, "25 SKUs")
+        self.assertContains(catalogue, "Needs review")
+        self.assertNotContains(self.client.get(reverse("company:commerce-products"), {"q": "absent-sku"}), "Fern draft")
+
+        stock_url = reverse("company:commerce-stock")
+        first_page = self.client.get(stock_url)
+        self.assertContains(first_page, "QA-FERN-00")
+        self.assertNotContains(first_page, "QA-FERN-24")
+        self.assertContains(first_page, "Page 1 of 2")
+        self.assertContains(first_page, "?page=2")
+        second_page = self.client.get(stock_url, {"page": 2})
+        self.assertContains(second_page, "QA-FERN-24")
+        self.assertNotContains(second_page, "QA-FERN-00")
+        self.assertContains(second_page, "Page 2 of 2")
+
     def test_preview_is_read_only_and_confirm_creates_one_product_per_key(self):
         original = CatalogProduct.objects.count()
         plants = PlantUnit.objects.count()
