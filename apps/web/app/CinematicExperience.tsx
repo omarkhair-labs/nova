@@ -68,13 +68,13 @@ export default function SceneStudy() {
       </div>
       <header className="ps-topbar"><a href="/" className="ps-brand" aria-label="Plantupia home">◕ Plantupia</a><SiteIndex current="experience" tone="dark"/><a className="ps-contact" href="/start-a-space">Get in touch ↗</a></header>
       <main className="ps-main" id="ps-main">
-        <div className="ps-story"><p className="ps-kicker"><span className="ps-kicker-rule"/> LIVING ARCHITECTURE</p><h1 id="ps-title">A Space<br/>Becoming <em>Alive.</em></h1><p>Plantupia brings nature into the built environment — from a single room to the places an entire city shares.</p><a className="ps-cta" href="#world">Explore Plantupia <span aria-hidden="true">↓</span></a></div>
+        <div className="ps-story"><p className="ps-kicker"><span className="ps-kicker-rule"/> LIVING ARCHITECTURE</p><h1 id="ps-title">A Space<br/>Becoming <em>Alive.</em></h1><p>Plantupia brings nature into the built environment — from a single room to the places an entire city shares.</p><a className="ps-cta" href="#world">CONTINUE INTO PLANTUPIA <span aria-hidden="true">↓</span></a></div>
         <div className="ps-rail">
           <div className="ps-scene-caption" key={stage} aria-live="polite"><p className="ps-kicker">{String(stage+1).padStart(2,"0")} / 03 · {scene.label.toUpperCase()}</p><p>{scene.line}</p></div>
           <div className="ps-sequence" role="group" aria-label="Choose a photographic study">{scenes.map((item,i)=><button type="button" key={item.label} className="ps-chapter" aria-pressed={stage===i} onClick={()=>setStage(i as Stage)}><span aria-hidden="true"/>{item.label}</button>)}</div>
           <div className="ps-arrows"><button type="button" className="ps-circle-button" aria-label="Previous study" onClick={()=>move(-1)}>←</button><button type="button" className="ps-circle-button" aria-label="Next study" onClick={()=>move(1)}>→</button></div>
         </div>
-        <div className="ps-utility-row"><a className="ps-journey-link" href="#world">CONTINUE INTO PLANTUPIA <span aria-hidden="true">↓</span></a><a href="#scene-notes">About these images ↗</a></div>
+        <div className="ps-utility-row ps-source-row"><span>THREE INDEPENDENT ARCHITECTURAL STUDIES</span><a href="#scene-notes">About these images ↗</a></div>
       </main>
     </section>
     <section className="ps-fieldnotes" id="scene-notes"><details><summary>Three photographic studies <span aria-hidden="true">+</span></summary><p>Independent editorial references, not before-and-after images or completed Plantupia projects. Images: DAIPI, Alpha En and mingche lee via Pexels. Generated concept images are used if a photograph is unavailable.</p><h2>{scene.label}</h2><p>{scene.detail}</p><div className="ps-note-grid">{scene.markerLabels.map((label,i)=><article key={label}><h3>{label}</h3><p>{scene.markerDescriptions[i]}</p></article>)}</div></details></section>
