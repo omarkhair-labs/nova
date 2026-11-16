@@ -1,0 +1,21 @@
+{% extends 'plants/company/base.html' %}
+{% block content %}
+<p><a href="{% url 'company:website-inbox' %}">← Website enquiries</a></p>
+<p class="eyebrow">{{ record.get_topic_display }} / {{ record.get_status_display }}</p>
+<h1>{{ record.name }}</h1>
+<p>Received {{ record.created_at|date:"Y-m-d H:i" }} · Reference {{ record.id }}</p>
+<dl>
+<dt>Email (visitor supplied)</dt><dd>{{ record.email }}</dd>
+<dt>Company</dt><dd>{{ record.organization|default:"—" }}</dd>
+<dt>Space type</dt><dd>{{ record.environment|default:"—" }}</dd>
+<dt>Location</dt><dd>{{ record.location|default:"—" }}</dd>
+</dl>
+<h2>Message</h2><div>{{ record.message|linebreaksbr }}</div>
+<p>Contact the visitor using an approved company channel. A status change does not send a reply.</p>
+{% if perms.plants.change_websiteenquiry %}
+<form method="post" action="{% url 'company:website-enquiry-status' enquiry_id=record.id %}">{% csrf_token %}
+<label for="status">Review status</label><select id="status" name="status"><option value="new" {% if record.status == 'new' %}selected{% endif %}>New</option><option value="reviewed" {% if record.status == 'reviewed' %}selected{% endif %}>Reviewed</option><option value="closed" {% if record.status == 'closed' %}selected{% endif %}>Closed</option></select>
+<button type="submit">Save status</button></form>
+{% endif %}
+{% if record.reviewed_at %}<p>Last status change: {{ record.reviewed_at|date:"Y-m-d H:i" }} by {{ record.reviewed_by|default:"Former staff member" }}.</p>{% endif %}
+{% endblock %}
