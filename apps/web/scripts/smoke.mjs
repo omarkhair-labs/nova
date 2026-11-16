@@ -15,7 +15,7 @@ const routes = [
   ["/studio", "Read the courtyard", "reading-lens", "Movement", "/#planting"],
   ["/living-systems", "Illustrative care sequence", 'id="handover"', 'id="observation"', 'id="follow-up"', 'id="history"', "/start-a-space?topic=care", "/#return"],
   ["/about", 'id="selected-works"', "awaits approved photographs"],
-  ["/start-a-space", "Prepare draft", "Nothing is sent or stored", "Care &amp; support"],
+  ["/start-a-space", "Review draft", "Nothing is sent or stored", "Care &amp; support", "Reply details", "Your name", "Email", "Phone", "Organisation"],
 ];
 
 for (const [path, ...expect] of routes) {

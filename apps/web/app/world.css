@@ -255,7 +255,7 @@
 .entry-return { position: absolute; right: var(--sill); bottom: 19%; display: grid; justify-items: end; }
 .entry-return a { padding: .25rem .72rem; background: #182117ed; }
 
-.places-note, .place-note, .study-note, .time-note, .about-note, .contact-note {
+.places-note, .place-note, .study-note, .time-note, .about-note {
   position: relative;
   width: min(49%, 580px);
   min-height: 100svh;
@@ -354,11 +354,6 @@
 .about-archive { margin-top: .75rem; border-top: 1px solid var(--hairline); padding-top: .9rem; }
 .world .about-archive h2 { font-size: clamp(1.4rem, 2.5vw, 2rem); margin-bottom: .45rem; }
 .about-archive p { font-size: .9rem; }
-.contact-world { display: grid; grid-template-columns: .9fr 1fr; padding-inline: var(--sill); align-items: center; gap: clamp(24px, 6vw, 92px); }
-.contact-note { width: auto; padding-left: 0; }
-.contact-privacy { margin-top: .8rem; font-size: .85rem; }
-.contact-table { padding-block: 45px 85px; color: #172e25; --ink: #172e25; --paper: #f6f3e9; --line: #c8cbbd; --muted: #4e5f53; }
-.contact-table .field-composer { background: #ece6d7; }
 .world .field-missing { padding: 3rem var(--sill); }
 
 @supports not selector(:has(*)) {
@@ -384,7 +379,7 @@
   .entry-world { min-height: max(650px, 100svh); }
   .world-navigation { bottom: 14px; }
   .scene-credit { bottom: 24px; font-size: .63rem; max-width: calc(100% - 130px); }
-  .places-note, .place-note, .study-note, .time-note, .about-note, .contact-note {
+  .places-note, .place-note, .study-note, .time-note, .about-note {
     width: 100%;
     min-height: 100svh;
     justify-content: flex-end;
@@ -396,9 +391,6 @@
   .place-paths { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: none; }
   .time-path { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .place-paths a, .time-path a { min-height: 44px; justify-content: flex-start; padding: .38rem .6rem; }
-  .contact-world { display: block; }
-  .contact-note { min-height: 0; padding: 8rem 0 1.2rem; }
-  .contact-table { padding-top: 0; }
   .map-plate { --plan-width: min(100vw, 66.6667dvh); width: var(--plan-width); aspect-ratio: 2 / 3; }
   .map-plate > img {
     inset: 50% auto auto 50%;

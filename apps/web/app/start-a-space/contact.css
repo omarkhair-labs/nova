@@ -1,0 +1,216 @@
+.contact-world {
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  padding: clamp(38px, 6.2vh, 88px) var(--sill) clamp(76px, 9vh, 110px);
+  background: #453823;
+}
+.contact-world .scene-backdrop img {
+  object-position: 51% 48%;
+  filter: brightness(.72) saturate(.86);
+}
+.contact-world::before {
+  content: "";
+  position: absolute;
+  z-index: -2;
+  inset: 0;
+  background: linear-gradient(0deg, #171b14d9, transparent 34%);
+}
+.contact-sheet {
+  --desk-ink: #253b2d;
+  --desk-muted: #53604e;
+  --desk-line: #8d9582;
+  --desk-rule: #b5ad98;
+  position: relative;
+  width: min(100%, 900px);
+  min-width: 0;
+  padding: clamp(24px, 4.4vw, 59px);
+  color: var(--desk-ink);
+  background: linear-gradient(146deg, #f3ead6, #f5efdf 47%, #eee5d0);
+  box-shadow: 0 28px 65px #14170e6f, 0 2px 3px #14170e49;
+}
+.contact-heading {
+  padding-bottom: 1.28rem;
+  border-bottom: 1px solid var(--desk-rule);
+}
+.contact-heading .scene-coordinate {
+  color: #3d543a;
+  margin-bottom: .57rem;
+}
+.world .contact-heading h1 {
+  font-size: clamp(2.7rem, 5vw, 5.4rem);
+  letter-spacing: -.057em;
+  line-height: .99;
+  text-wrap: unset;
+}
+.world .contact-heading h1 em { color: #476145; }
+.contact-heading .contact-privacy {
+  margin-top: .83rem;
+  color: var(--desk-muted);
+  max-width: 53ch;
+  font-size: .86rem;
+}
+.contact-composer { margin-top: 1.05rem; }
+.contact-form[hidden] { display: none; }
+.contact-form label, .contact-form legend {
+  font-size: .85rem;
+  font-weight: 650;
+  color: var(--desk-ink);
+}
+.contact-form small {
+  margin-inline-start: .3rem;
+  color: var(--desk-muted);
+  font-size: .69rem;
+  font-weight: 450;
+  white-space: nowrap;
+}
+.contact-topic-choices {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: clamp(.36rem, 2vw, 1.5rem);
+  row-gap: .25rem;
+  margin-bottom: 1.12rem;
+  border-bottom: 1px solid var(--desk-rule);
+}
+.contact-topic-choices label { position: relative; cursor: pointer; }
+.contact-topic-choices input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.contact-topic-choices label span {
+  display: flex;
+  align-items: center;
+  min-height: 45px;
+  padding: 0 .42rem;
+  border-bottom: 2px solid transparent;
+}
+.contact-topic-choices :checked + span {
+  border-color: var(--desk-ink);
+  background: #dfe3cc;
+}
+.contact-topic-choices label:hover span { background: #ebe9d6; }
+.contact-topic-choices input:focus-visible + span {
+  outline: 2px solid var(--desk-ink);
+  outline-offset: 3px;
+}
+.contact-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  align-items: start;
+  column-gap: clamp(22px, 4.1vw, 55px);
+}
+.contact-message, .contact-reply, .contact-context {
+  display: grid;
+  align-content: start;
+  gap: .52rem;
+  min-width: 0;
+}
+.contact-context {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: .65rem .95rem;
+  margin-bottom: .25rem;
+}
+.contact-context-wide { grid-column: 1 / -1; }
+.field-site .contact-reply {
+  border-inline-start: 1px solid var(--desk-rule);
+  padding-inline-start: clamp(19px, 2.3vw, 34px);
+}
+.field-site .contact-reply legend { margin-bottom: .55rem; }
+.contact-fields label { display: block; }
+.contact-composer :is(input:not([type="radio"]), select, textarea) {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: .53rem .55rem;
+  border: 1px solid var(--desk-line);
+  border-radius: 0;
+  background: #fbf6e9;
+  color: var(--desk-ink);
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+.contact-fields label :is(input:not([type="radio"]), select) {
+  margin-top: .25rem;
+  border: 0;
+  border-bottom: 1px solid var(--desk-line);
+  background: #fffaf043;
+}
+.contact-composer ::placeholder { color: #53604e; opacity: 1; }
+.contact-composer textarea { resize: vertical; }
+.contact-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem 1rem;
+  margin-top: 1.18rem;
+}
+.contact-feedback {
+  font-size: .86rem;
+  color: #344836;
+}
+.contact-primary, .contact-edit {
+  min-height: 48px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 1.2rem;
+  padding: .56rem .98rem;
+  border: 1px solid #293e2f;
+  font-size: .88rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+.contact-primary { background: #293e2f; color: #fffbed; }
+.contact-primary:hover { background: #3a523d; }
+.contact-primary:disabled { opacity: .63; cursor: default; }
+.field-site .contact-primary:focus-visible {
+  outline: 2px solid var(--desk-ink);
+  outline-offset: 3px;
+}
+.contact-edit { background: transparent; color: var(--desk-ink); }
+.contact-edit:hover { background: #e2e5d0; }
+.contact-review {
+  animation: pl-arrive 360ms var(--pl-ease) both;
+}
+.contact-review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .7rem;
+  margin-bottom: .95rem;
+}
+.world .contact-review h2 { font-size: clamp(1.65rem, 3.4vw, 3rem); text-wrap: unset; }
+.contact-review h2:focus { outline: none; }
+.contact-review textarea {
+  min-height: 240px;
+  padding: 1rem 1.15rem;
+  background: #f8f3e6;
+}
+@media (max-width: 680px) {
+  .world[data-page="/start-a-space"] { position: relative; }
+  .world[data-page="/start-a-space"] .world-navigation {
+    position: absolute;
+    inset: 13px max(12px, 4vw) auto auto;
+  }
+  .contact-world { padding-inline: max(12px, 4vw); padding-top: 72px; }
+  .contact-sheet { padding: 24px clamp(17px, 4.2vw, 28px); }
+  .contact-fields { grid-template-columns: minmax(0, 1fr); row-gap: 1.25rem; }
+  .field-site .contact-reply {
+    border-inline-start: 0;
+    padding-inline-start: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: .65rem;
+  }
+  .contact-topic-choices { column-gap: .24rem; }
+  .contact-topic-choices label span { padding-inline: .31rem; }
+  .contact-topic-choices label { font-size: .77rem; }
+  .contact-review-header { align-items: start; flex-direction: column; }
+}

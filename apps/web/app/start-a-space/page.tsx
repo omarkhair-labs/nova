@@ -4,7 +4,8 @@ import { materials } from "../Photograph";
 import ProjectBrief from "../ProjectBrief";
 import { getEnvironment } from "../environments";
 import { topics } from "../contact-topics";
-import { SceneBackdrop, SceneCredit, SceneNote } from "../SpatialStage";
+import { SceneBackdrop, SceneCredit } from "../SpatialStage";
+import "./contact.css";
 
 export const metadata: Metadata = {
   title: "Contact — Plantupia",
@@ -19,16 +20,14 @@ export default async function StartASpacePage({ searchParams }: { searchParams: 
   const initialSpace = typeof space === "string" ? getEnvironment(space)?.slug ?? "" : "";
 
   return <SiteFrame current="/start-a-space">
-    <section className="scene-world contact-world">
+    <section className="scene-world contact-world" aria-labelledby="contact-title">
       <SceneBackdrop image={materials} />
-      <div className="scene-shadow" aria-hidden="true" />
-      <div className="contact-note">
-        <SceneNote label="Contact" title="Tell us about your place.">
-          <p>Prepare a note about a project, a planting you care for or an idea to share.</p>
-          <p className="contact-privacy">This prepares a local copy. Nothing is sent or stored by Plantupia.</p>
-        </SceneNote>
-      </div>
-      <div className="contact-table">
+      <div className="contact-sheet">
+        <header className="contact-heading">
+          <p className="scene-coordinate">Contact</p>
+          <h1 id="contact-title">Tell us about your <em>place.</em></h1>
+          <p className="contact-privacy">Prepare a copy of your message here. Nothing is sent or stored by Plantupia.</p>
+        </header>
         <ProjectBrief key={initialTopic + initialSpace} initialTopic={initialTopic} initialSpace={initialSpace} />
       </div>
       <SceneCredit>Worktable · Generated concept</SceneCredit>

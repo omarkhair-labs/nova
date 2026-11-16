@@ -39,3 +39,9 @@ The review is isolated to draft PR #302 and the website feature branch from issu
 The threshold, planting and return views have native fragment addresses. Browser Back and Forward follow the visited views. The map leads back inside the courtyard from Approach and to the return view from Aftercare. On the courtyard itself, opening the map keeps the current viewing position. The map and view controls preserve direct links and work without a JavaScript history layer.
 
 Approach places three keyboard- and touch-operable controls over the shadow, the passage and the planting bed. The markers are placed in the photograph's coordinates and move with its cover crop. At phone widths the picture fades into the note so the controls sit on the photograph and remain clear of the text. The optical targets follow the image but still behave like native radios and links.
+
+## The contact worktable
+
+The heading, fields and review occupy a single sheet on the table. A project note includes the chosen space, location and timing. A care note can include a location and a planting or site reference. Each topic keeps its own in-page message. Name, email, phone and organisation are optional reply details shared across topics. An entered email is checked by the browser and the message is required.
+
+Review uses the same sheet and lets the visitor edit without losing the draft. Copy writes to the clipboard, with text selection as a fallback. The form stays within the browser and no message or reply details are sent or stored by Plantupia. The map sits above the sheet on phones so it remains outside the form’s touch targets.
