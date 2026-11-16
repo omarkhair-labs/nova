@@ -29,3 +29,6 @@
 @media(max-width:800px){.ct-header{height:72px}.ct-intro,.ct-form{grid-template-columns:1fr}.ct-intro{gap:14px}.ct-intro h1{font-size:clamp(50px,10vw,83px)}.ct-intro>p:last-child{max-width:none}.ct-modes{gap:5px 20px}.ct-work{padding:25px}.ct-end{align-items:flex-start;flex-direction:column}}
 @media(max-width:420px){.ct-main{padding-inline:16px}.ct-work{padding:19px}.ct-brand{font-size:21px}.ct-back{font-size:11px}.ct-back span{margin-left:3px}.ct-modes{gap:5px 14px}}
 @media(prefers-reduced-motion:reduce){.ct-page *{transition:none!important;animation:none!important}}
+
+/* The submission form uses a fieldset to disable edits during a confirmed send. */
+.ct-fields{margin:0;padding:0;border:0;min-width:0}.ct-form :disabled{opacity:.65;cursor:not-allowed}.ct-action button:disabled{transform:none}
