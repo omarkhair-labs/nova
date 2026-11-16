@@ -10,8 +10,17 @@ const shortNames = ["Residential", "Workplaces", "Hospitality", "Industry", "Ret
 export default function SpaceExplorer() {
   const [active, setActive] = useState(0);
   const [failed, setFailed] = useState<number[]>([]);
+  const [priorities, setPriorities] = useState<Record<number, number[]>>({});
   const photo = editorialSpaces[active];
   const space = spaces[active];
+  const selected = priorities[active] ?? [];
+  const briefHref = `/start-a-space?space=${keys[active]}&focus=${selected.slice().sort().join(",")}`;
+  function togglePriority(index: number) {
+    setPriorities(previous => {
+      const values = previous[active] ?? [];
+      return { ...previous, [active]: values.includes(index) ? values.filter(value => value !== index) : [...values, index] };
+    });
+  }
   function select(index: number) {
     setActive((index + spaces.length) % spaces.length);
   }
@@ -51,9 +60,20 @@ export default function SpaceExplorer() {
             <div><p className="sx-kicker">{space.type}</p><h2>{space.headline}</h2></div>
             <div><p>{space.text}</p><a className="sx-underlink" href={"/start-a-space?space="+keys[active]}>Discuss a space like this ↗</a></div>
           </div>
-          <details className="sx-considerations"><summary>Design prompts for this space <span aria-hidden="true">+</span></summary>
-            <div>{spacePrompts[active].map(prompt=><article key={prompt.label}><h3>{prompt.label}</h3><p>{prompt.detail}</p></article>)}</div>
-          </details>
+          <section className="sx-brief" aria-labelledby="sx-brief-title">
+            <div className="sx-brief-intro">
+              <p className="sx-kicker">FIELD NOTES / {space.id}</p>
+              <h2 id="sx-brief-title">What matters<br/>in your space?</h2>
+              <p>Design prompts for this space. Mark the considerations you would like to discuss with us. These are starting questions, not an assessment of your site.</p>
+            </div>
+            <div className="sx-brief-sheet">
+              <div className="sx-brief-mast"><span>{space.name}</span><span>01 — 03</span></div>
+              <div className="sx-brief-notes" role="group" aria-label="Choose considerations for your project brief">
+                {spacePrompts[active].map((prompt, i) => <button className="sx-note" key={space.id + prompt.label} type="button" aria-pressed={selected.includes(i)} onClick={() => togglePriority(i)}><span className="sx-note-number" aria-hidden="true">{String(i+1).padStart(2,"0")}</span><span className="sx-note-copy"><strong>{prompt.label}</strong><small>{prompt.detail}</small></span><span className="sx-note-mark" aria-hidden="true">{selected.includes(i) ? "✓" : "+"}</span></button>)}
+              </div>
+              <div className="sx-brief-foot"><p aria-live="polite">{selected.length ? selected.length + " of 3 considerations marked" : "Mark a consideration to begin."}</p>{selected.length > 0 && <a href={briefHref} className="sx-underlink">Carry these notes into a conversation ↗</a>}</div>
+            </div>
+          </section>
         </section>
         <section className="sx-next"><p className="sx-kicker">FROM SPACE TO PRACTICE</p><h2>Ideas take root through design.</h2><a href="/studio" className="sx-underlink">Explore the studio ↗</a><a href="/about#selected-works" className="sx-underlink">Discover our approach &amp; project archive ↗</a></section>
       </main>
