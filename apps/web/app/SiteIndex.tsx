@@ -104,17 +104,18 @@ export default function SiteIndex({ current, tone = "light" }: { current: SiteSe
               <div className="si-atlas-art"><IndexStudy active={preview}/></div>
               <div className="si-atlas-copy" key={item.id}><span>{item.name}</span><p>{study.title}</p></div>
             </div>
-            <figcaption>{failed.includes(preview)?"Generated concept illustration":photo.credit} · Editorial reference, not client work.</figcaption>
+            <figcaption>{failed.includes(preview)?"Generated concept illustration":<a href={photo.source} target="_blank" rel="noreferrer">{photo.credit} ↗</a>} · Editorial reference, not client work.</figcaption>
           </figure>
           <div className="si-reading">
             <div className="si-reading-head"><span>THE CHAPTERS</span><span>{currentIndex>=0?"YOU ARE IN / "+siteSections[currentIndex].number:"CHOOSE A CHAPTER"}</span></div>
-            <nav aria-label="Explore the website" className="si-links" onPointerLeave={()=>setPreview(initial)}>
+            <nav aria-label="Explore the website" className="si-links" onPointerLeave={event=>{const focused=event.currentTarget.querySelector<HTMLAnchorElement>("a:focus"); const focusedIndex=siteSections.findIndex(section=>section.href===focused?.getAttribute("href"));setPreview(focusedIndex>=0?focusedIndex:initial);}}>
               {siteSections.map((entry,index) => (
                 <a key={entry.id} href={entry.href}
                   className={(entry.id===current?"si-active ":"")+(preview===index?"si-preview":"")}
                   aria-current={entry.id === current ? "page" : undefined}
                   onPointerEnter={event=>{if(event.pointerType==="mouse"||event.pointerType==="pen")setPreview(index);}}
-                  onFocus={()=>setPreview(index)}>
+                  onFocus={()=>setPreview(index)}
+                  onClick={event=>{if(event.button===0&&!event.metaKey&&!event.ctrlKey&&!event.shiftKey&&!event.altKey)dismiss();}}>
                   <span className="si-number">{entry.number}</span>
                   <span className="si-link-text"><strong>{entry.name}</strong><small>{entry.line}</small></span>
                   <span className="si-link-arrow" aria-hidden="true">↗</span>
