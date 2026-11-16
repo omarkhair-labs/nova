@@ -80,6 +80,10 @@ jobs:
           grep -q 'A site understanding' /tmp/plantupia-world-_studio.html
           grep -q 'A care approach' /tmp/plantupia-world-_studio.html
           grep -q 'Timeline of the example plant' /tmp/plantupia-world-_living-systems.html
+          grep -q 'IDENTITY HELD CONSTANT' /tmp/plantupia-world-_living-systems.html
+          grep -q 'data-record-state="planned"' /tmp/plantupia-world-_living-systems.html
+          grep -q 'A scheduled check-in does not prove a visit happened' /tmp/plantupia-world-_living-systems.html
+          grep -q 'Connected to entry 03 / planned check-in' /tmp/plantupia-world-_living-systems.html
           if grep -q 'wr-space-art-' /tmp/plantupia-world-_spaces.html; then
             echo "Removed cartoon-space artwork is still rendered"
             exit 1
