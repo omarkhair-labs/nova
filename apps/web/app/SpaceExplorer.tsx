@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import SiteIndex from "./SiteIndex";
+import ChapterThreshold from "./ChapterThreshold";
 import { spaces, editorialSpaces, spacePrompts } from "./space-contexts";
 import "./space-explorer.css";
 
@@ -75,7 +76,7 @@ export default function SpaceExplorer() {
             </div>
           </section>
         </section>
-        <section className="sx-next"><p className="sx-kicker">FROM SPACE TO PRACTICE</p><h2>Ideas take root through design.</h2><a href="/studio" className="sx-underlink">Explore the studio ↗</a><a href="/about#selected-works" className="sx-underlink">Discover our approach &amp; project archive ↗</a></section>
+        <div className="sx-archive-link"><a href="/about#selected-works" className="sx-underlink">Discover our approach &amp; project archive ↗</a></div><ChapterThreshold from="spaces"/>
       </main>
       <footer className="sx-footer"><a href="/">Plantupia</a><span>Living architecture / Design preview</span><a href="/start-a-space">Contact ↗</a></footer>
     </div>
