@@ -479,6 +479,7 @@ internal fun PlantupiaStoreShop(
                             selectedProductId = it
                             screen = "product"
                             feedback = null
+                            productAddFailure = null
                         }
                         if (count > visibleCount) {
                             OutlinedButton(
@@ -509,9 +510,7 @@ internal fun PlantupiaStoreShop(
                         busy = busy || !loaded,
                         onAdd = { sku, quantity -> updateQuantity(sku, quantity, fromProduct = true) },
                         adding = addingSku != null,
-                        addError = productAddFailure?.takeIf { failure ->
-                            variants.any { option -> option.optString("id") == failure.first }
-                        }?.second,
+                        addErrorForSku = productAddFailure,
                         onViewCart = {
                             screen = "cart"
                             selectedProductId = null
