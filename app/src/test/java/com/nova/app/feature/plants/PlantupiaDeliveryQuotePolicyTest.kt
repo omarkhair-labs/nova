@@ -45,6 +45,13 @@ class PlantupiaDeliveryQuotePolicyTest {
         .put("shipping_fee", JSONObject.NULL)
         .put("subtotal", "640.00")
         .put("payment_preference", "manual_transfer")
+        .put("lines", JSONArray().put(JSONObject()
+            .put("sku_id", "test-sku")
+            .put("name", "FICTIONAL QA object")
+            .put("variant", "Small")
+            .put("quantity", 1)
+            .put("unit_price", "640.00")
+            .put("subtotal", "640.00")))
         .put("customer", JSONObject()
             .put("name", "Test Recipient")
             .put("phone", "+20 100 000 0000")
@@ -103,8 +110,24 @@ class PlantupiaDeliveryQuotePolicyTest {
         assertNotNull(expected)
         assertEquals("e70b1769-51d3-45b9-84fa-5bc2b217e001", expected!!.reference)
         assertEquals("640.00", expected.productSubtotal)
+        assertEquals("FICTIONAL QA object", expected.lines.single().name)
+        assertEquals("Small", expected.lines.single().variant)
+        assertEquals(1, expected.lines.single().quantity)
+        assertEquals("640.00", expected.lines.single().subtotal)
         assertNull(shopDeliveryReceiptFromResponse(
             response().put("status", "confirmed"), draft(), cart()))
+        assertNull(shopDeliveryReceiptFromResponse(
+            response().put("lines", JSONArray()), draft(), cart()))
+        assertNull(shopDeliveryReceiptFromResponse(
+            response().put("lines", JSONArray().put(JSONObject()
+                .put("sku_id", "other-sku").put("name", "Not yours")
+                .put("quantity", 1).put("unit_price", "640.00")
+                .put("subtotal", "640.00"))), draft(), cart()))
+        assertNull(shopDeliveryReceiptFromResponse(
+            response().put("lines", JSONArray().put(JSONObject()
+                .put("sku_id", "test-sku").put("name", "FICTIONAL QA object")
+                .put("quantity", 2).put("unit_price", "640.00")
+                .put("subtotal", "1280.00"))), draft(), cart()))
         assertNull(shopDeliveryReceiptFromResponse(
             response().put("stock_reserved", true), draft(), cart()))
         assertNull(shopDeliveryReceiptFromResponse(

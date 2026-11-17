@@ -56,13 +56,21 @@ internal fun shopDeliveryQuotePayload(draft: ShopDeliveryDraft, cart: JSONObject
         .put("delivery_pin_confirmed", draft.pinConfirmed)
         .put("payment_preference", draft.paymentPreference)
 
-/** Positive ACK is an actual quote-request record; no stock hold/payment. */
+/** A receipt describes the saved customer request, never a charge or stock reservation. */
+internal data class ShopDeliveryReceiptLine(
+    val name: String,
+    val variant: String,
+    val quantity: Int,
+    val subtotal: String,
+)
+
 internal data class ShopDeliveryQuoteReceipt(
     val reference: String,
     val productSubtotal: String,
     val recipient: String,
     val city: String,
     val paymentPreference: String,
+    val lines: List<ShopDeliveryReceiptLine> = emptyList(),
 )
 
 internal fun shopDeliveryReceiptFromResponse(
@@ -95,11 +103,37 @@ internal fun shopDeliveryReceiptFromResponse(
         kotlin.math.abs(acknowledgedLatitude - draft.latitude) > 0.000001 ||
         kotlin.math.abs(acknowledgedLongitude - draft.longitude) > 0.000001) return null
     if (response.optString("payment_preference") != draft.paymentPreference) return null
+
+    // The receipt is based on confirmed server order-line snapshots, not
+    // an optimistic copy of what happened to be visible in the local cart.
+    val requested = shopCartObjects(requestedCart)
+    val saved = response.optJSONArray("lines") ?: return null
+    if (requested.isEmpty() || saved.length() != requested.size ||
+        requested.map { it.skuId }.toSet().size != requested.size) return null
+    val bySku = requested.associateBy { it.skuId }
+    val seen = mutableSetOf<String>()
+    val lines = (0 until saved.length()).map { index ->
+        val line = saved.optJSONObject(index) ?: return null
+        val skuId = line.optString("sku_id")
+        val original = bySku[skuId] ?: return null
+        if (!seen.add(skuId) || line.optInt("quantity", -1) != original.quantity ||
+            line.optString("subtotal") != original.lineTotal ||
+            line.optString("unit_price") != original.unitPrice) return null
+        val name = line.optString("name").trim()
+        if (name.isBlank()) return null
+        ShopDeliveryReceiptLine(
+            name = name,
+            variant = line.optString("variant").trim(),
+            quantity = original.quantity,
+            subtotal = line.optString("subtotal"),
+        )
+    }
     return ShopDeliveryQuoteReceipt(
         reference = reference,
         productSubtotal = subtotal,
         recipient = recipient,
         city = city,
         paymentPreference = response.optString("payment_preference"),
+        lines = lines,
     )
 }

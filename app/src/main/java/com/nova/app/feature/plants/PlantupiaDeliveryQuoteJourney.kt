@@ -22,7 +22,7 @@ import org.json.JSONObject
 
 /**
  * Chapter 05: one authored route through recipient/address/map -> review ->
- * acknowledged *request for a quote*. The native map remains the real picker.
+ * acknowledged customer request. The native map remains the real picker.
  */
 @Composable
 internal fun PlantupiaDeliveryQuoteJourney(
@@ -60,13 +60,13 @@ internal fun PlantupiaDeliveryQuoteJourney(
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("THE DELIVERY READING / 05", style = PlantupiaText.sectionLabel)
             Text(
-                if (step == "review") "Before you ask for a quote"
+                if (step == "review") "Before you send"
                 else "Where should these objects go?",
                 style = PlantupiaText.editorialHeading,
             )
             Text(
-                "First we learn where to deliver, then you review the details. " +
-                    "Plantupia will quote the delivery fee before you decide to confirm anything.",
+                "Choose where we should deliver, then review your selection once. " +
+                    "If the delivery cost needs confirming, the team will follow up before you agree to a total.",
                 style = PlantupiaText.body,
             )
         }
@@ -139,8 +139,8 @@ internal fun PlantupiaDeliveryQuoteJourney(
                         style = PlantupiaText.body, fontWeight = FontWeight.SemiBold)
                 }
                 Text(
-                    "The delivery fee is not known yet. This form will only request a quote, " +
-                        "not take payment or reserve any items.",
+                    "Delivery cost is awaiting confirmation. This will record your request, " +
+                        "not collect payment, guarantee stock or begin delivery.",
                     style = PlantupiaText.supporting,
                 )
                 if (showErrors && issues.isNotEmpty()) {
@@ -159,7 +159,7 @@ internal fun PlantupiaDeliveryQuoteJourney(
                     onClick = onReview, enabled = !busy,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = PlantupiaColors.forest),
-                ) { Text("Review delivery quote request  ↗") }
+                ) { Text("Review your request  ↗") }
                 TextButton(onClick = onCart, enabled = !busy) {
                     Text("← Back to saved cart", color = PlantupiaColors.forest)
                 }
@@ -188,7 +188,7 @@ internal fun PlantupiaDeliveryQuoteJourney(
                     Text("EGP " + (cart?.optString("subtotal") ?: "—"),
                         style = PlantupiaText.editorialHeading)
                 }
-                Text("Shipping: awaiting a company quote · No full total yet.",
+                Text("Delivery · To be confirmed. No final total yet.",
                     style = PlantupiaText.supporting)
             }
             DeliverySection("02 / WHERE TO GO", "The recipient and chosen pin") {
@@ -221,11 +221,11 @@ internal fun PlantupiaDeliveryQuoteJourney(
                 ) { Text("Edit address or preference") }
             }
 
-            DeliverySection("03 / WHAT HAPPENS NEXT", "Only a delivery quote request") {
+            DeliverySection("03 / WHAT HAPPENS NEXT", "Send your request") {
                 Text(
-                    "Plantupia reviews the route and provides an exact shipping fee. " +
-                        "You'll then see the full amount and choose whether to accept. " +
-                        "Submitting this request does not reserve stock or take any money.",
+                    "We'll save these items and your delivery details as a request. " +
+                        "Plantupia will confirm the delivery cost before asking you to accept a final total. " +
+                        "Nothing has been charged or reserved yet.",
                     style = PlantupiaText.body,
                 )
                 if (error != null) {
@@ -257,7 +257,7 @@ internal fun PlantupiaDeliveryQuoteJourney(
                             color = PlantupiaColors.paper)
                         Spacer(Modifier.width(9.dp))
                     }
-                    Text(if (busy) "Sending quote request…" else "Send delivery quote request")
+                    Text(if (busy) "Sending your request…" else "Send order request")
                 }
                 TextButton(onClick = onCart, enabled = !busy) {
                     Text("← Review saved cart", color = PlantupiaColors.forest)
@@ -337,41 +337,79 @@ private fun DeliveryQuoteReceived(
 ) {
     Column(
         Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
-        verticalArrangement = Arrangement.spacedBy(18.dp),
+        verticalArrangement = Arrangement.spacedBy(19.dp),
     ) {
-        Text("PLANTUPIA / RECEIVED", style = PlantupiaText.sectionLabel)
-        Text("Delivery quote requested", style = PlantupiaText.editorialHeading)
+        Text("PLANTUPIA  /  YOUR REQUEST", style = PlantupiaText.sectionLabel)
+        Text("We've received your request.", style = PlantupiaText.editorialHeading)
         Text(
-            "Your request reached the Plantupia order system. The team can now review the route " +
-                "and provide a shipping price for you to approve.",
+            "Your selection and delivery details are saved. Plantupia will review the " +
+                "delivery cost before you decide whether to confirm the final total.",
             style = PlantupiaText.body,
         )
+
         Surface(
-            color = PlantupiaColors.softSage, shape = RoundedCornerShape(13.dp),
+            color = PlantupiaColors.softSage,
+            shape = RoundedCornerShape(13.dp),
             border = BorderStroke(1.dp, PlantupiaColors.border),
         ) {
-            Column(Modifier.fillMaxWidth().padding(17.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("REQUEST REFERENCE", style = PlantupiaText.sectionLabel)
+            Column(
+                Modifier.fillMaxWidth().padding(17.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text("YOUR REFERENCE", style = PlantupiaText.sectionLabel)
                 Text(receipt.reference, style = PlantupiaText.body,
                     fontWeight = FontWeight.SemiBold)
                 HorizontalDivider(color = PlantupiaColors.border)
-                Text("Products · EGP " + receipt.productSubtotal, style = PlantupiaText.body)
-                Text("Recipient · " + receipt.recipient + ", " + receipt.city,
-                    style = PlantupiaText.supporting)
-                Text("Shipping · Not yet quoted", style = PlantupiaText.supporting)
-                Text("No payment was taken and no stock was reserved.",
+                Text("THE OBJECTS", style = PlantupiaText.sectionLabel)
+                receipt.lines.forEach { line ->
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(line.name, style = PlantupiaText.body, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                listOfNotNull(
+                                    line.variant.takeIf { it.isNotBlank() },
+                                    line.quantity.toString() + " unit(s)",
+                                ).joinToString(" · "),
+                                style = PlantupiaText.supporting,
+                            )
+                        }
+                        Text("EGP " + line.subtotal, style = PlantupiaText.body)
+                    }
+                }
+                HorizontalDivider(color = PlantupiaColors.border)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Items subtotal", style = PlantupiaText.body)
+                    Text("EGP " + receipt.productSubtotal, style = PlantupiaText.body,
+                        fontWeight = FontWeight.SemiBold)
+                }
+                Text("Delivery · To be confirmed", style = PlantupiaText.supporting)
+                Text("To · " + receipt.recipient + ", " + receipt.city,
                     style = PlantupiaText.supporting)
             }
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Text("WHAT HAPPENS NEXT", style = PlantupiaText.sectionLabel)
+            Text("01  Your request has been recorded.", style = PlantupiaText.body)
+            Text("02  The team checks delivery and availability.", style = PlantupiaText.body)
+            Text("03  You review any final price before confirming.", style = PlantupiaText.body)
+            Text(
+                "No payment, stock reservation or shipment has been recorded.",
+                style = PlantupiaText.supporting,
+            )
         }
         Button(
             onClick = onOrders,
             modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
             colors = ButtonDefaults.buttonColors(containerColor = PlantupiaColors.forest),
-        ) { Text("View this request  ↗") }
+        ) { Text("See your request & updates  ↗") }
         OutlinedButton(
             onClick = onCollection,
             modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-        ) { Text("Return to the living collection") }
+        ) { Text("Continue exploring") }
     }
 }

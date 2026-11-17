@@ -54,7 +54,7 @@ class PlantupiaDeliveryQuoteJourneyInstrumentedTest {
         compose.onNodeWithText("✓ Edit confirmed map pin").assertExists()
         compose.onNodeWithText("Manual bank transfer").performScrollTo().performClick()
         compose.runOnIdle { assertEquals("manual_transfer", paymentSelected) }
-        compose.onNodeWithText("Review delivery quote request  ↗").assertExists()
+        compose.onNodeWithText("Review your request  ↗").assertExists()
         compose.onAllNodesWithText("Pay now").assertCountEquals(0)
     }
 
@@ -71,8 +71,8 @@ class PlantupiaDeliveryQuoteJourneyInstrumentedTest {
         }
         compose.onNodeWithText("FICTIONAL QA object").assertExists()
         compose.onNodeWithText("16 cm pot · 1 unit(s)").assertExists()
-        compose.onNodeWithText("Shipping: awaiting a company quote · No full total yet.").assertExists()
-        compose.onNodeWithText("Send delivery quote request").performScrollTo().performClick()
+        compose.onNodeWithText("Delivery · To be confirmed. No final total yet.").assertExists()
+        compose.onNodeWithText("Send order request").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(1, submits) }
         compose.onNodeWithText("Edit address or preference").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(1, edits) }
@@ -83,6 +83,10 @@ class PlantupiaDeliveryQuoteJourneyInstrumentedTest {
             reference = "e70b1769-51d3-45b9-84fa-5bc2b217e001",
             productSubtotal = "300.00", recipient = "Example Recipient",
             city = "Cairo", paymentPreference = "cod",
+            lines = listOf(ShopDeliveryReceiptLine(
+                name = "FICTIONAL QA object", variant = "16 cm pot",
+                quantity = 1, subtotal = "300.00",
+            )),
         )
         var orders = 0
         var collection = 0
@@ -94,11 +98,14 @@ class PlantupiaDeliveryQuoteJourneyInstrumentedTest {
                 }
             }
         }
-        compose.onNodeWithText("Delivery quote requested").assertExists()
-        compose.onNodeWithText("No payment was taken and no stock was reserved.").assertExists()
-        compose.onNodeWithText("View this request  ↗").performScrollTo().performClick()
+        compose.onNodeWithText("We've received your request.").assertExists()
+        compose.onNodeWithText("FICTIONAL QA object").assertExists()
+        compose.onNodeWithText(
+            "No payment, stock reservation or shipment has been recorded."
+        ).assertExists()
+        compose.onNodeWithText("See your request & updates  ↗").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(1, orders) }
-        compose.onNodeWithText("Return to the living collection").performScrollTo().performClick()
+        compose.onNodeWithText("Continue exploring").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(1, collection) }
     }
 
@@ -111,7 +118,7 @@ class PlantupiaDeliveryQuoteJourneyInstrumentedTest {
                 }
             }
         }
-        compose.onNodeWithText("Send delivery quote request").assertIsNotEnabled()
+        compose.onNodeWithText("Send order request").assertIsNotEnabled()
         compose.onNodeWithText("No confirmed receipt. Check your request list.").assertExists()
     }
 

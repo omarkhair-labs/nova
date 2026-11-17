@@ -162,7 +162,7 @@ internal fun storeVariantName(product: JSONObject): String =
     product.optString("variant_label").ifBlank { product.optString("sku") }
 
 internal fun storeOrderStatus(status: String): String = when (status) {
-    "quote_pending" -> "Delivery quote requested"
+    "quote_pending" -> "Request received"
     "quoted" -> "Ready for your approval"
     "confirmed" -> "Order confirmed"
     "preparing" -> "Being prepared"
@@ -197,7 +197,12 @@ internal fun StoreOrderHistory(timeline: JSONArray) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("•", color = PlantupiaColors.forest)
                 Column {
-                    Text(event.optString("label"), style = PlantupiaText.body)
+                    val eventLabel = when (event.optString("kind")) {
+                        "quote_requested" -> "Plantupia received your request"
+                        "shipping_quoted" -> "Delivery cost recorded for your review"
+                        else -> event.optString("label")
+                    }
+                    Text(eventLabel, style = PlantupiaText.body)
                     storeDateTime(event.optString("at"))?.let {
                         Text(storeDateLabel(it), style = PlantupiaText.supporting)
                     }
@@ -222,13 +227,15 @@ internal fun StoreOrderCard(
     val id = order.optString("id")
     val status = order.optString("status")
     StorePanel(accent = status == "quoted" || focused) {
-        Text("Order " + id.take(8), style = PlantupiaText.sectionLabel)
+        Text((if (status in listOf("quote_pending", "quoted", "declined")) "Request " else "Order ") +
+            id.take(8), style = PlantupiaText.sectionLabel)
         Text(storeOrderStatus(status), style = PlantupiaText.editorialHeading)
         Text("Products · " + displayedEGP(order.optString("subtotal")))
+        PlantupiaOrderTracking(order)
         val shippingFee = order.optString("shipping_fee")
         if (order.isNull("shipping_fee")) {
             if (status == "quote_pending") {
-                Text("Plantupia is checking the delivery fee. Come back here to review the total.", style = PlantupiaText.body)
+                Text("Your request is saved. Plantupia will confirm delivery cost before you accept a final total.", style = PlantupiaText.body)
             }
         } else {
             Text("Shipping · " + displayedEGP(shippingFee))
@@ -272,30 +279,8 @@ internal fun StoreOrderCard(
                 onClick = { onOpenPlant(deliveredPlants.optString(0)) },
             ) { Text("Open delivered plants") }
         }
-        val timeline = order.optJSONArray("timeline")
-        if (timeline != null && timeline.length() > 0) {
-            var expanded by rememberSaveable(id) { mutableStateOf(false) }
-            TextButton(onClick = { expanded = !expanded }) {
-                Text(if (expanded) "Hide order updates" else "Show order updates")
-            }
-            if (expanded) StoreOrderHistory(timeline)
-        }
         Text(storePaymentStatus(order.optString("payment_status")),
             style = PlantupiaText.sectionLabel)
-        val fulfillment = order.optJSONObject("fulfillment")
-        if (fulfillment != null) {
-            Text("Delivery team · " + fulfillment.optString("carrier_name"),
-                style = PlantupiaText.supporting)
-            Text("Tracking / handover · " + fulfillment.optString("tracking_reference"),
-                style = PlantupiaText.supporting)
-            if (fulfillment.optBoolean("delivery_proof_recorded")) {
-                Text("Plantupia recorded delivery evidence.",
-                    style = PlantupiaText.supporting)
-            } else {
-                Text("Handover recorded; delivery is not yet confirmed.",
-                    style = PlantupiaText.supporting)
-            }
-        }
         if (order.optString("payment_preference") == "manual_transfer" &&
             order.optString("payment_status") == "unpaid" &&
             status in listOf("confirmed", "preparing", "dispatched", "delivered")) {
