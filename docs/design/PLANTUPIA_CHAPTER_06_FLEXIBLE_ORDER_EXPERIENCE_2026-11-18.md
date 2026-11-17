@@ -1,6 +1,6 @@
 # Plantupia — Chapter 06: A Natural Order, a Living Receipt
-**Date:** 2026-11-18 (Cairo)  
-**Scope:** Product/UX clarification and execution brief; no live implementation, company tariffs, shipping contracts, or production permission.  
+**Date:** 2026-11-18 (Cairo)
+**Scope:** Product/UX clarification and execution brief; no live implementation, company tariffs, shipping contracts, or production permission.
 **Context:** Supersedes the assumption that automatic shipping-rate calculation, instant stock deduction, or a courier API are mandatory for the normal checkout. Retains the UX quality and technical protections in Chapters 01–05, PRs #316–#320, and the first tracking UI in PR #321.
 
 ## 1. Product decision: useful simplicity over excessive automation
