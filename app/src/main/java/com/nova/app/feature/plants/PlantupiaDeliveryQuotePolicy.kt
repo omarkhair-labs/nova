@@ -56,6 +56,38 @@ internal fun shopDeliveryQuotePayload(draft: ShopDeliveryDraft, cart: JSONObject
         .put("delivery_pin_confirmed", draft.pinConfirmed)
         .put("payment_preference", draft.paymentPreference)
 
+/** Authoritative city fee and exact total, sourced from the authenticated backend. */
+internal data class ShopDeliveryExactPrice(
+    val city: String,
+    val cartFingerprint: String,
+    val rateRevision: Int,
+    val shippingFee: String,
+    val total: String,
+)
+
+internal fun shopDeliveryExactPrice(
+    response: JSONObject, draft: ShopDeliveryDraft, cart: JSONObject?,
+): ShopDeliveryExactPrice? {
+    if (cart == null || !response.optBoolean("available")) return null
+    if (response.optString("city").trim() != draft.city.trim() ||
+        response.optString("cart_fingerprint") != cart.optString("fingerprint") ||
+        response.optString("currency") != "EGP" ||
+        response.optInt("rate_revision", 0) < 1) return null
+    val subtotal = response.optString("subtotal").toBigDecimalOrNull() ?: return null
+    val expectedSubtotal = cart.optString("subtotal").toBigDecimalOrNull() ?: return null
+    val fee = response.optString("shipping_fee").toBigDecimalOrNull() ?: return null
+    val total = response.optString("final_total").toBigDecimalOrNull() ?: return null
+    if (subtotal.compareTo(expectedSubtotal) != 0 ||
+        fee.signum() < 0 || total.compareTo(subtotal + fee) != 0) return null
+    return ShopDeliveryExactPrice(
+        city = draft.city.trim(),
+        cartFingerprint = cart.optString("fingerprint"),
+        rateRevision = response.optInt("rate_revision"),
+        shippingFee = response.optString("shipping_fee"),
+        total = response.optString("final_total"),
+    )
+}
+
 /** A receipt describes the saved customer request, never a charge or stock reservation. */
 internal data class ShopDeliveryReceiptLine(
     val name: String,
@@ -71,20 +103,34 @@ internal data class ShopDeliveryQuoteReceipt(
     val city: String,
     val paymentPreference: String,
     val lines: List<ShopDeliveryReceiptLine> = emptyList(),
+    val confirmed: Boolean = false,
+    val shippingFee: String? = null,
+    val finalTotal: String? = null,
 )
 
 internal fun shopDeliveryReceiptFromResponse(
     response: JSONObject,
     draft: ShopDeliveryDraft,
     requestedCart: JSONObject,
+    confirmedPrice: ShopDeliveryExactPrice? = null,
 ): ShopDeliveryQuoteReceipt? {
     val reference = response.optString("id")
     if (runCatching { UUID.fromString(reference) }.getOrNull() == null) return null
-    if (response.optString("status") != "quote_pending") return null
+    val confirmed = response.optString("status") == "confirmed"
+    if (!confirmed && response.optString("status") != "quote_pending") return null
     if (!response.has("stock_reserved") || !response.has("charged") ||
         !response.has("shipping_fee")) return null
-    if (response.optBoolean("stock_reserved") || response.optBoolean("charged")) return null
-    if (!response.isNull("shipping_fee")) return null
+    if (response.optBoolean("charged")) return null
+    if (confirmed) {
+        val price = confirmedPrice ?: return null
+        if (!response.optBoolean("stock_reserved") ||
+            response.optString("shipping_fee") != price.shippingFee ||
+            response.optString("final_total") != price.total ||
+            price.cartFingerprint != requestedCart.optString("fingerprint") ||
+            price.city != draft.city.trim()) return null
+    } else if (response.optBoolean("stock_reserved") || !response.isNull("shipping_fee")) {
+        return null
+    }
     val customer = response.optJSONObject("customer") ?: return null
     val subtotal = response.optString("subtotal")
     val recipient = customer.optString("name").trim()
@@ -135,5 +181,8 @@ internal fun shopDeliveryReceiptFromResponse(
         city = city,
         paymentPreference = response.optString("payment_preference"),
         lines = lines,
+        confirmed = confirmed,
+        shippingFee = if (confirmed) response.optString("shipping_fee") else null,
+        finalTotal = if (confirmed) response.optString("final_total") else null,
     )
 }
