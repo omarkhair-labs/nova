@@ -256,6 +256,10 @@ private fun PlantupiaCartObjectCard(
                     if (item.variant.isNotBlank()) {
                         Text(item.variant, style = PlantupiaText.supporting)
                     }
+                    if (item.photo != null && item.variant.isNotBlank()) {
+                        Text("Photo shows the product family, not necessarily this option.",
+                            style = PlantupiaText.sectionLabel)
+                    }
                     if (item.skuCode.isNotBlank()) {
                         Text("SKU / " + item.skuCode, style = PlantupiaText.sectionLabel)
                     }
