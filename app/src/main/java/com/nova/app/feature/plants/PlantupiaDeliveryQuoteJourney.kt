@@ -91,6 +91,7 @@ internal fun PlantupiaDeliveryQuoteJourney(
                     landmark = draft.landmark, onLandmarkChange = onLandmark,
                     latitude = draft.latitude, longitude = draft.longitude,
                     pinConfirmed = draft.pinConfirmed, onPinConfirmed = onPin,
+                    showErrors = showErrors,
                 )
                 Text(
                     "The location picker is an exact point you choose, not an automatic " +
