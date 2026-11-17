@@ -64,6 +64,10 @@ internal fun PlantupiaStoreShop(
     var cartReceipt by remember { mutableStateOf<ShopCartReceipt?>(null) }
     var productAddFailure by remember { mutableStateOf<Pair<String, String>?>(null) }
     var addingSku by remember { mutableStateOf<String?>(null) }
+    var cartPendingSku by remember { mutableStateOf<String?>(null) }
+    var cartActionError by remember { mutableStateOf<String?>(null) }
+    var cartActionNotice by remember { mutableStateOf<String?>(null) }
+    var lastRemoved by remember { mutableStateOf<ShopRemovedCartObject?>(null) }
     var refresh by remember { mutableIntStateOf(0) }
     var search by rememberSaveable { mutableStateOf("") }
 
@@ -118,6 +122,10 @@ internal fun PlantupiaStoreShop(
         cartReceipt = null
         productAddFailure = null
         addingSku = null
+        cartPendingSku = null
+        cartActionError = null
+        cartActionNotice = null
+        lastRemoved = null
         busy = false
     }
     val dataPage = if (screen == "product") "catalog" else screen
@@ -175,12 +183,21 @@ internal fun PlantupiaStoreShop(
         }
     }
 
-    fun updateQuantity(skuId: String, next: Int, fromProduct: Boolean = false) {
+    fun updateQuantity(
+        skuId: String, next: Int, fromProduct: Boolean = false, restoreRemoval: Boolean = false,
+    ) {
         // The backend mutation sets an absolute desired quantity, not an increment.
         // Repeating the same request after an ambiguous timeout cannot double-add.
         if (busy) return
+        val removedCandidate = if (!fromProduct && next == 0)
+            shopCartRemovalCandidate(cart, skuId) else null
         busy = true
         feedback = null
+        if (!fromProduct) {
+            cartPendingSku = skuId
+            cartActionError = null
+            cartActionNotice = null
+        }
         if (fromProduct) {
             addingSku = skuId
             productAddFailure = null
@@ -203,14 +220,30 @@ internal fun PlantupiaStoreShop(
                                 feedback = "Your saved cart has been updated."
                             }
                         } else {
-                            feedback = "Cart updated."
+                            if (shopCartMutationConfirmed(result.value, skuId, next)) {
+                                if (next == 0 && removedCandidate != null) {
+                                    lastRemoved = removedCandidate
+                                } else {
+                                    if (restoreRemoval) lastRemoved = null
+                                    cartActionNotice = if (restoreRemoval)
+                                        "Your selection was restored to the saved cart."
+                                    else "Quantity saved to your cart."
+                                }
+                            } else {
+                                cartActionError =
+                                    "The returned cart did not confirm that exact change. Refresh it before trying again."
+                            }
                         }
                     }
                     is ApiResult.Failure -> if (repository.isCurrentSession()) {
                         if (fromProduct) {
                             productAddFailure = skuId to
                                 ("We couldn't confirm the update. Check your cart before retrying. " + result.message)
-                        } else feedback = result.message
+                        } else {
+                            cartActionError =
+                                "We couldn't confirm the cart change. Refresh your saved cart before retrying. " +
+                                    result.message
+                        }
                     }
                 }
             } catch (error: Exception) {
@@ -220,7 +253,8 @@ internal fun PlantupiaStoreShop(
                         productAddFailure = skuId to
                             "We couldn't verify the cart change. Check your saved cart before trying again."
                     } else {
-                        feedback = "The cart could not be updated. Check its saved state before retrying."
+                        cartActionError =
+                            "We couldn't confirm the cart change. Refresh the saved cart before retrying."
                     }
                 }
             } finally {
@@ -229,6 +263,7 @@ internal fun PlantupiaStoreShop(
                 if (repository.isCurrentSession()) {
                     busy = false
                     if (fromProduct) addingSku = null
+                    else cartPendingSku = null
                 }
             }
         }
@@ -537,52 +572,56 @@ internal fun PlantupiaStoreShop(
                 }
             }
             "cart" -> {
-                val rows = cart?.demoRows().orEmpty()
-                if (loaded && loadError == null && rows.isEmpty()) StorePanel(accent = true) {
-                    Text("Your cart is empty.", style = PlantupiaText.editorialHeading)
-                    TextButton(onClick = { screen = "catalog"; feedback = null }) { Text("Browse products") }
-                }
-                rows.forEach { line ->
-                    val product = line.optJSONObject("product") ?: JSONObject()
-                    val qty = line.optInt("quantity")
-                    StorePanel {
-                        Text(product.optString("name"), fontWeight = FontWeight.SemiBold)
-                        Text(storeVariantName(product) + " · " + product.optString("sku"), style = PlantupiaText.supporting)
-                        Text("Quantity " + qty + " · " + displayedEGP(line.optString("line_total")),
-                            color = storeInk)
-                        if (!line.optBoolean("available")) {
-                            Text(line.optString("notice"), style = PlantupiaText.supporting,
-                                color = MaterialTheme.colorScheme.error)
-                        }
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            OutlinedButton(onClick = {
-                                updateQuantity(product.optString("id"), qty - 1)
-                            }, enabled = !busy) { Text("−") }
-                            Spacer(Modifier.width(8.dp))
-                            Text(qty.toString())
-                            Spacer(Modifier.width(8.dp))
-                            OutlinedButton(onClick = {
-                                updateQuantity(product.optString("id"), qty + 1)
-                            }, enabled = loaded && !busy && qty < 10 && qty < product.optInt("available_units")) {
-                                Text("+")
+                if (loaded && loadError == null && cart != null) {
+                    PlantupiaCartExperience(
+                        cart = cart!!,
+                        repository = repository,
+                        busy = busy,
+                        pendingSku = cartPendingSku,
+                        removed = lastRemoved,
+                        error = cartActionError,
+                        notice = cartActionNotice,
+                        onQuantityChange = { sku, quantity ->
+                            updateQuantity(sku, quantity)
+                        },
+                        onRemove = { sku -> updateQuantity(sku, 0) },
+                        onRestore = {
+                            lastRemoved?.let { removed ->
+                                updateQuantity(
+                                    removed.skuId, removed.previousQuantity, restoreRemoval = true,
+                                )
                             }
-                            Spacer(Modifier.weight(1f))
-                            TextButton(onClick = { updateQuantity(product.optString("id"), 0) },
-                                enabled = !busy) { Text("Remove") }
-                        }
-                    }
-                }
-                cart?.takeIf { rows.isNotEmpty() }?.let {
-                    StorePanel(accent = true) {
-                        Text("Items subtotal", style = PlantupiaText.sectionLabel)
-                        Text(displayedEGP(it.optString("subtotal")), style = PlantupiaText.editorialHeading)
-                        Text("The delivery fee is quoted before you confirm the order.", style = PlantupiaText.body)
-                        Button(
-                            enabled = loaded && !busy && it.optBoolean("can_request_shipping_quote"),
-                            onClick = { screen = "checkout"; feedback = null },
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = storeInk),
-                        ) { Text("Continue to delivery & checkout") }
+                        },
+                        onRefresh = {
+                            cartActionError = null
+                            cartActionNotice = null
+                            refresh++
+                        },
+                        onOpenProduct = { productId ->
+                            selectedProductId = productId
+                            screen = "product"
+                            feedback = null
+                            productAddFailure = null
+                        },
+                        onContinueShopping = {
+                            screen = "catalog"
+                            selectedProductId = null
+                            feedback = null
+                        },
+                        onDeliveryDetails = {
+                            if (!busy && cart?.optBoolean("can_request_shipping_quote") == true) {
+                                screen = "checkout"
+                                feedback = null
+                            }
+                        },
+                    )
+                } else if (loaded && loadError == null) {
+                    Text(
+                        "Your saved cart is unavailable. Refresh it before continuing.",
+                        style = PlantupiaText.supporting,
+                    )
+                    TextButton(onClick = { refresh++ }) {
+                        Text("Refresh saved cart  ↗", color = storeInk)
                     }
                 }
             }
