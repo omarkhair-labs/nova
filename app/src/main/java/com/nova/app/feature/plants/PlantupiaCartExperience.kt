@@ -1,5 +1,7 @@
 package com.nova.app.feature.plants
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -158,10 +160,13 @@ internal fun PlantupiaCartExperience(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text("Items subtotal", style = PlantupiaText.body)
-                        Text(
-                            "EGP " + cart.optString("subtotal"),
-                            style = PlantupiaText.editorialHeading,
-                        )
+                        Crossfade(
+                            targetState = cart.optString("subtotal"),
+                            animationSpec = tween(190),
+                            label = "persisted-cart-subtotal",
+                        ) { savedSubtotal ->
+                            Text("EGP " + savedSubtotal, style = PlantupiaText.editorialHeading)
+                        }
                     }
                     Text(
                         "Delivery is not included. Plantupia will quote its cost before you decide whether to confirm. No payment or stock reservation happens here.",
@@ -322,8 +327,14 @@ private fun PlantupiaCartObjectCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically) {
                     Text("LINE TOTAL", style = PlantupiaText.sectionLabel)
-                    Text("EGP " + item.lineTotal,
-                        style = PlantupiaText.body, fontWeight = FontWeight.SemiBold)
+                    Crossfade(
+                        targetState = item.lineTotal,
+                        animationSpec = tween(190),
+                        label = "persisted-line-total",
+                    ) { lineTotal ->
+                        Text("EGP " + lineTotal,
+                            style = PlantupiaText.body, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
         }
