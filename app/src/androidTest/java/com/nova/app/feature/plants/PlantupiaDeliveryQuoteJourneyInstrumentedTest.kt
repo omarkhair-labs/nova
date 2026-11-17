@@ -51,7 +51,7 @@ class PlantupiaDeliveryQuoteJourneyInstrumentedTest {
             }
         }
         compose.onNodeWithText("Where should these objects go?").assertExists()
-        compose.onNodeWithText("✓ Exact pin selected · Edit").assertExists()
+        compose.onNodeWithText("✓ Edit confirmed map pin").assertExists()
         compose.onNodeWithText("Manual bank transfer").performScrollTo().performClick()
         compose.runOnIdle { assertEquals("manual_transfer", paymentSelected) }
         compose.onNodeWithText("Review delivery quote request  ↗").assertExists()
