@@ -97,8 +97,22 @@ internal fun PlantupiaStoreShop(
             feedback = "This earlier test-order link is not a commercial purchase."
         }
     }
+    // Switching accounts must not show a previous customer's cart or collection
+    // while the new account's authenticated data is still loading.
+    LaunchedEffect(accountId) {
+        products = emptyList()
+        cart = null
+        orders = emptyList()
+        selectedProductId = null
+        screen = "catalog"
+        category = "all"
+        visibleCount = 8
+        search = ""
+        feedback = null
+        quoteToAccept = null
+    }
     val dataPage = if (screen == "product") "catalog" else screen
-    LaunchedEffect(dataPage, refresh) {
+    LaunchedEffect(accountId, dataPage, refresh) {
         loaded = false
         loadError = null
         when (dataPage) {
@@ -264,49 +278,73 @@ internal fun PlantupiaStoreShop(
             .padding(horizontal = 18.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("PLANTUPIA · SHOP", style = PlantupiaText.sectionLabel)
-                Text(
-                    when (screen) {
-                        "cart" -> "Your cart"
-                        "checkout" -> "Delivery & checkout"
-                        "orders" -> "My orders"
-                        "business" -> "For businesses"
-                        "product" -> "Product details"
-                        else -> "Plants & essentials"
-                    },
-                    style = PlantupiaText.editorialHeading,
-                )
-            }
-            if (screen == "product") {
-                TextButton(onClick = { screen = "catalog"; selectedProductId = null; feedback = null }) {
-                    Text("Back to products", color = storeInk)
-                }
+        val cartUnits = cart?.optJSONArray("results")?.let { lines ->
+            (0 until lines.length()).sumOf { index ->
+                lines.optJSONObject(index)?.optInt("quantity") ?: 0
             }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            for (destination in listOf("catalog", "cart", "orders")) {
-                val label = when (destination) {
-                    "catalog" -> "Products"
-                    "cart" -> "Cart"
-                    else -> "My orders"
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("PLANTUPIA  /  THE SHOP", style = PlantupiaText.sectionLabel)
+                    Text(
+                        when (screen) {
+                            "cart" -> "Your selection"
+                            "checkout" -> "Delivery details"
+                            "orders" -> "Your requests"
+                            "business" -> "For the places we share"
+                            "product" -> "Object study"
+                            else -> "The living collection"
+                        },
+                        style = PlantupiaText.pageHeading,
+                    )
                 }
-                val isSelected = screen == destination ||
-                    (destination == "cart" && screen == "checkout") ||
-                    (destination == "catalog" && screen == "product")
-                OutlinedButton(
-                    onClick = { selectedProductId = null; screen = destination; feedback = null },
+            }
+            // One persistent, compact orientation row. The previous full-width
+            // three-button tab bar repeated on every nested shop state.
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(
+                    onClick = {
+                        screen = "catalog"
+                        selectedProductId = null
+                        feedback = null
+                    },
                     enabled = !busy,
-                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)
-                        .semantics { selected = isSelected },
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = storeInk,
-                        containerColor = if (isSelected) PlantupiaColors.softSage else PlantupiaColors.paper,
-                    ),
-                    contentPadding = PaddingValues(horizontal = 3.dp, vertical = 9.dp),
+                    modifier = Modifier.heightIn(min = 48.dp),
+                ) { Text(if (screen == "catalog") "Collection" else "← Collection", color = storeInk) }
+                Spacer(Modifier.weight(1f))
+                TextButton(
+                    onClick = { screen = "orders"; selectedProductId = null; feedback = null },
+                    enabled = !busy,
+                    modifier = Modifier.heightIn(min = 48.dp),
+                ) { Text("Orders", color = storeInk) }
+                Surface(
+                    onClick = {
+                        screen = "cart"
+                        selectedProductId = null
+                        feedback = null
+                    },
+                    enabled = !busy,
+                    modifier = Modifier.heightIn(min = 48.dp),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                    color = if (screen == "cart" || screen == "checkout")
+                        PlantupiaColors.forest else PlantupiaColors.softSage,
                 ) {
-                    Text(label, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Box(
+                        Modifier.padding(horizontal = 15.dp, vertical = 13.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            shopCartButtonLabel(cartUnits),
+                            style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
+                            color = if (screen == "cart" || screen == "checkout")
+                                PlantupiaColors.paper else PlantupiaColors.forest,
+                        )
+                    }
                 }
             }
         }
@@ -324,52 +362,115 @@ internal fun PlantupiaStoreShop(
 
         when (screen) {
             "catalog" -> {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "OBJECTS / PLACES / CONTINUITY",
+                        style = PlantupiaText.sectionLabel,
+                    )
+                    Text(
+                        "Plants, vessels and the things that help us care for them.",
+                        style = PlantupiaText.body,
+                    )
+                }
                 OutlinedTextField(
                     search, { search = it.take(100); visibleCount = 8 },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    label = { Text("Search products") },
+                    label = { Text("Find something for your space") },
+                    placeholder = { Text("Name, type or product code") },
                 )
-                PlantupiaShopCategoryShelf(category) { category = it; visibleCount = 8 }
-                val kind = if (category == "accessory") "care" else category
-                val families = remember(products, kind, search) {
-                    products.groupBy { it.optString("product_id") }.filterValues { variants ->
-                        val product = variants.first()
-                        (kind == "all" || kind == product.optString("kind")) &&
-                            variants.any { variant ->
-                                listOf(variant.optString("name"), variant.optString("sku"), variant.optString("variant_label"))
-                                    .any { it.contains(search.trim(), ignoreCase = true) }
-                            }
+                if (loaded && loadError == null) {
+                    val allFamilies = remember(products) {
+                        products.groupBy { it.optString("product_id") }
                     }
-                }
-                if (loaded && loadError == null && families.isEmpty()) {
-                    StorePanel(accent = true) {
+                    val actualKinds = remember(allFamilies) {
+                        allFamilies.values.map { variants -> variants.first().optString("kind") }
+                    }
+                    PlantupiaShopCategoryRail(
+                        current = if (category == "accessory") "care" else category,
+                        productKinds = actualKinds,
+                        enabled = !busy,
+                        onChoose = { category = it; visibleCount = 8 },
+                    )
+                    val selectedKind = if (category == "accessory") "care" else category
+                    val needle = search.trim()
+                    val families = remember(allFamilies, selectedKind, needle) {
+                        allFamilies.filterValues { variants ->
+                            val product = variants.first()
+                            (selectedKind == "all" || selectedKind == product.optString("kind")) &&
+                                variants.any { variant ->
+                                    listOf(
+                                        variant.optString("name"),
+                                        variant.optString("description"),
+                                        variant.optString("sku"),
+                                        variant.optString("variant_label"),
+                                    ).any { it.contains(needle, ignoreCase = true) }
+                                }
+                        }
+                    }
+                    val count = families.size
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         Text(
-                            if (products.isEmpty()) "The collection is growing" else "No matching products",
-                            style = PlantupiaText.editorialHeading,
+                            "$count ${if (count == 1) "OBJECT" else "OBJECTS"} IN VIEW",
+                            style = PlantupiaText.sectionLabel,
                         )
-                        if (products.isEmpty()) {
-                            Text("There are no published products at the moment.", style = PlantupiaText.body)
-                        } else {
-                            TextButton(onClick = { search = ""; category = "all"; visibleCount = 8 }) {
-                                Text("Clear filters")
+                        if (needle.isNotEmpty() || selectedKind != "all") {
+                            TextButton(onClick = {
+                                search = ""; category = "all"; visibleCount = 8
+                            }) { Text("Clear selection", color = storeInk) }
+                        }
+                    }
+                    if (families.isEmpty()) {
+                        Column(
+                            Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Text(
+                                if (allFamilies.isEmpty()) "The collection is growing."
+                                else "Nothing matching that selection.",
+                                style = PlantupiaText.editorialHeading,
+                            )
+                            Text(
+                                if (allFamilies.isEmpty())
+                                    "No products are currently published for this account."
+                                else "Try another category or a shorter product name.",
+                                style = PlantupiaText.body,
+                            )
+                            if (allFamilies.isNotEmpty()) {
+                                TextButton(onClick = {
+                                    category = "all"; search = ""; visibleCount = 8
+                                }) { Text("See the whole collection  ↗", color = storeInk) }
+                            }
+                        }
+                    } else {
+                        StoreCatalog(
+                            families, plantupiaVisibleFamilies(count, visibleCount),
+                            repository,
+                        ) {
+                            selectedProductId = it
+                            screen = "product"
+                            feedback = null
+                        }
+                        if (count > visibleCount) {
+                            OutlinedButton(
+                                onClick = { visibleCount += 8 },
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+                            ) {
+                                Text("Explore ${minOf(8, count - visibleCount)} more objects  ↓")
                             }
                         }
                     }
+                } else if (loadError == null) {
+                    Text("Opening the collection…", style = PlantupiaText.supporting)
                 }
-                StoreCatalog(families, plantupiaVisibleFamilies(families.size, visibleCount), repository) {
-                    selectedProductId = it
-                    screen = "product"
-                    feedback = null
-                }
-                if (families.size > visibleCount) {
-                    OutlinedButton(onClick = { visibleCount += 8 }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Show more products")
-                    }
-                }
-                TextButton(onClick = { screen = "business"; feedback = null }) {
-                    Text("For businesses · wholesale & installation")
-                }
+                TextButton(
+                    onClick = { screen = "business"; feedback = null },
+                    enabled = !busy,
+                ) { Text("For spaces, projects and wholesale  ↗", color = storeInk) }
             }
             "product" -> {
                 val id = selectedProductId.orEmpty()
