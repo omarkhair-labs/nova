@@ -48,7 +48,11 @@ class PlantupiaDeliveryQuotePolicyTest {
         .put("customer", JSONObject()
             .put("name", "Test Recipient")
             .put("phone", "+20 100 000 0000")
-            .put("city", "Cairo"))
+            .put("city", "Cairo")
+            .put("address", "Example Street 42")
+            .put("latitude", "30.0251234")
+            .put("longitude", "31.2249999")
+            .put("pin_confirmed", true))
 
     @Test fun realReviewedDraftAndRealCartCanEnterReview() {
         assertTrue(shopDeliveryFieldIssues(draft()).isEmpty())
@@ -113,6 +117,12 @@ class PlantupiaDeliveryQuotePolicyTest {
             response().put("id", "not-uuid"), draft(), cart()))
         assertNull(shopDeliveryReceiptFromResponse(
             response().put("payment_preference", "cod"), draft(), cart()))
+        assertNull(shopDeliveryReceiptFromResponse(
+            response().getJSONObject("customer").put("address", "Another street")
+                .let { response().put("customer", it) }, draft(), cart()))
+        assertNull(shopDeliveryReceiptFromResponse(
+            response().getJSONObject("customer").put("pin_confirmed", false)
+                .let { response().put("customer", it) }, draft(), cart()))
         assertNull(shopDeliveryReceiptFromResponse(
             response().put("customer", JSONObject().put("name", "Another customer")
                 .put("phone", "+20 100 000 0000").put("city", "Cairo")), draft(), cart()))
