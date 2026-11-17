@@ -1,4 +1,4 @@
-# Plantupia Creative Website — Whole-Site Blueprint + Chapter Threshold / Slice 02
+> **CURRENT STATUS / 2026-11-17:** This README contains the original iterative website blueprint and historical implementation notes. For current, source-verified full-product state, release blockers and exact commit references read [the integrated QA acceptance audit](../../docs/PLANTUPIA_INTEGRATED_QA_ACCEPTANCE_AUDIT_2026-11-17.md). The canonical preview is **https://plantupia-website-qa.vercel.app**. The six chapters are live design previews, and /start-a-space now submits to the configured private Company inbox, rather than only copying a draft. Actual browser/device sign-off, authorized media and production approval are still outstanding. Do not mistake older historical statements below for current functionality.\n\n---\n\n# Plantupia Creative Website — Whole-Site Blueprint + Chapter Threshold / Slice 02
 
 **Status:** English-only, desktop-led, connected design preview. **Not** the official Plantupia website or a production release.
 
