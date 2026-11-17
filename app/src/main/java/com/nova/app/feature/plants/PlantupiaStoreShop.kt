@@ -707,7 +707,7 @@ internal fun PlantupiaStoreShop(
                                         "single-shop-shipping-quote", "commerce/orders/", payload,
                                     )) {
                                         is ApiResult.Success -> if (repository.isCurrentSession()) {
-                                            val acknowledged = shopDeliveryReceiptFromResponse(result.value)
+                                            val acknowledged = shopDeliveryReceiptFromResponse(result.value, draft, exactCart)
                                             if (acknowledged != null) {
                                                 focusedOrderId = acknowledged.reference
                                                 deliveryReceipt = acknowledged
