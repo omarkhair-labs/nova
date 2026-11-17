@@ -59,7 +59,7 @@ class PlantupiaCartExperienceInstrumentedTest {
                 )
             }
         }
-        compose.onNodeWithText("Product photo pending").assertExists()
+        compose.onNodeWithText("PHOTO PENDING").assertExists()
         compose.onNodeWithText("FICTIONAL QA plant").performClick()
         compose.runOnIdle { assertEquals("qa-object", opened) }
         compose.onNodeWithText("Pot 16 cm").assertExists()
