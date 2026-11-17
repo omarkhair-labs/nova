@@ -180,7 +180,7 @@ internal fun PlantupiaShopCategoryRail(
 }
 
 @Composable
-internal fun PlantupiaShopObjectAwaitingPhoto(kind: String) {
+internal fun PlantupiaShopObjectAwaitingPhoto(kind: String, height: androidx.compose.ui.unit.Dp = 174.dp) {
     val category = when(kind) {
         "plant" -> "PLANT STUDY"
         "planter" -> "VESSEL STUDY"
@@ -188,7 +188,7 @@ internal fun PlantupiaShopObjectAwaitingPhoto(kind: String) {
         else -> "OBJECT STUDY"
     }
     Box(
-        modifier = Modifier.fillMaxWidth().height(174.dp)
+        modifier = Modifier.fillMaxWidth().height(height)
             .background(PlantupiaColors.softSage),
     ) {
         // Architectural registration lines: NOT an image of the product.
