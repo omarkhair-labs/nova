@@ -122,6 +122,8 @@ internal fun PlantupiaStoreShop(
                 when (val result = repository.demoGet("commerce/catalog/")) {
                     is ApiResult.Success -> if (repository.isCurrentSession()) {
                         products = result.value.demoRows()
+                        // Product discovery should not wait for a second cart request.
+                        loaded = true
                         // Reuse this ONE cart while browsing; repeated Add increments
                         // the exact SKU instead of silently resetting the quantity to 1.
                         when (val current = repository.demoGet("commerce/cart/")) {
@@ -132,7 +134,6 @@ internal fun PlantupiaStoreShop(
                                 cart = null
                             }
                         }
-                        loaded = true
                     }
                     is ApiResult.Failure -> if (repository.isCurrentSession()) {
                         products = emptyList()
@@ -303,53 +304,26 @@ internal fun PlantupiaStoreShop(
                     )
                 }
             }
-            // One persistent, compact orientation row. The previous full-width
-            // three-button tab bar repeated on every nested shop state.
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(
-                    onClick = {
-                        screen = "catalog"
-                        selectedProductId = null
-                        feedback = null
-                    },
-                    enabled = !busy,
-                    modifier = Modifier.heightIn(min = 48.dp),
-                ) { Text(if (screen == "catalog") "Collection" else "← Collection", color = storeInk) }
-                Spacer(Modifier.weight(1f))
-                TextButton(
-                    onClick = { screen = "orders"; selectedProductId = null; feedback = null },
-                    enabled = !busy,
-                    modifier = Modifier.heightIn(min = 48.dp),
-                ) { Text("Orders", color = storeInk) }
-                Surface(
-                    onClick = {
-                        screen = "cart"
-                        selectedProductId = null
-                        feedback = null
-                    },
-                    enabled = !busy,
-                    modifier = Modifier.heightIn(min = 48.dp),
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                    color = if (screen == "cart" || screen == "checkout")
-                        PlantupiaColors.forest else PlantupiaColors.softSage,
-                ) {
-                    Box(
-                        Modifier.padding(horizontal = 15.dp, vertical = 13.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            shopCartButtonLabel(cartUnits),
-                            style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
-                            color = if (screen == "cart" || screen == "checkout")
-                                PlantupiaColors.paper else PlantupiaColors.forest,
-                        )
-                    }
-                }
-            }
+            PlantupiaShopNavigation(
+                screen = screen,
+                cartQuantity = cartUnits,
+                enabled = !busy,
+                onCollection = {
+                    screen = "catalog"
+                    selectedProductId = null
+                    feedback = null
+                },
+                onOrders = {
+                    screen = "orders"
+                    selectedProductId = null
+                    feedback = null
+                },
+                onCart = {
+                    screen = "cart"
+                    selectedProductId = null
+                    feedback = null
+                },
+            )
         }
 
         if (!loaded) LinearProgressIndicator(Modifier.fillMaxWidth(), color = storeInk)
