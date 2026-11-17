@@ -417,7 +417,7 @@ internal fun PlantupiaStoreShop(
                         when (screen) {
                             "cart" -> "Your selection"
                             "checkout" -> "Delivery details"
-                            "orders" -> "Your requests"
+                            "orders" -> "Your orders"
                             "business" -> "For the places we share"
                             "product" -> "Object study"
                             else -> "The living collection"
