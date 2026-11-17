@@ -1,0 +1,149 @@
+name: Plantupia Public Web CI
+
+on:
+  pull_request:
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/plantupia-public-web.yml"
+  push:
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/plantupia-public-web.yml"
+
+jobs:
+  web-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Production build
+        run: npm run build
+
+      - name: Smoke-test site routes and scene
+        run: |
+          set -euo pipefail
+          npm run start -- -p 3017 >/tmp/plantupia-web-start.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ok=0
+          for i in $(seq 1 30); do
+            if curl -fsSL http://127.0.0.1:3017/study/scene -o /tmp/plantupia-scene.html; then
+              ok=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ok" -ne 1 ]; then
+            cat /tmp/plantupia-web-start.log
+            exit 1
+          fi
+          grep -q 'A Space' /tmp/plantupia-scene.html
+          for route in / /spaces /studio /living-systems /about; do
+            curl -fsSL "http://127.0.0.1:3017${route}" -o "/tmp/plantupia-world-${route//\//_}.html"
+            grep -q 'Plantupia' "/tmp/plantupia-world-${route//\//_}.html"
+          done
+          grep -q 'Every space' /tmp/plantupia-world-_spaces.html
+          grep -q 'Industry' /tmp/plantupia-world-_spaces.html
+          grep -q 'Hospitality' /tmp/plantupia-world-_spaces.html
+          grep -q 'SELECTED WORKS' /tmp/plantupia-world-_about.html
+          grep -q 'project archive is in preparation' /tmp/plantupia-world-_about.html
+          grep -q 'MEET PLANTUPIA' /tmp/plantupia-world-_.html
+
+          # Each authored passage has a real next-chapter link, independent of JS.
+          for entry in '_:2:/spaces' '_spaces:3:/studio' '_studio:4:/living-systems' '_living-systems:5:/about' '_about:6:/start-a-space'; do
+            IFS=: read -r page chapter target <<< "$entry"
+            html="/tmp/plantupia-world-$page.html"
+            grep -q "data-next-chapter=\"$chapter\"" "$html"
+            grep -q "href=\"$target\" class=\"ch-main\"" "$html"
+          done
+          grep -q 'href="/start-a-space?topic=care"' /tmp/plantupia-world-_living-systems.html
+
+          grep -q 'Designed' /tmp/plantupia-world-_studio.html
+          grep -q 'Day one' /tmp/plantupia-world-_living-systems.html
+          # Phase 03: one coherent photographic language, but distinct chapter interactions.
+          grep -q 'Choose an environment' /tmp/plantupia-world-_spaces.html
+          grep -q 'Illustrative reference, not client work' /tmp/plantupia-world-_spaces.html
+          grep -q 'Previous environment' /tmp/plantupia-world-_spaces.html
+          grep -q 'Design prompts for this space' /tmp/plantupia-world-_spaces.html
+          grep -q 'What matters' /tmp/plantupia-world-_spaces.html
+          grep -q 'Choose considerations for your project brief' /tmp/plantupia-world-_spaces.html
+          grep -q 'Mark a consideration to begin' /tmp/plantupia-world-_spaces.html
+          grep -q 'THE DESIGN TABLE' /tmp/plantupia-world-_studio.html
+          grep -q 'DESIGN DIAGRAM / CONCEPT, NOT A CLIENT DRAWING' /tmp/plantupia-world-_studio.html
+          grep -q 'Follow one plant' /tmp/plantupia-world-_living-systems.html
+          grep -q 'EXAMPLE ONLY' /tmp/plantupia-world-_living-systems.html
+          grep -q 'Design layers' /tmp/plantupia-world-_studio.html
+          grep -q 'One place.' /tmp/plantupia-world-_studio.html
+          grep -q 'Four ways to read it.' /tmp/plantupia-world-_studio.html
+          for mark in '01 / CONDITIONS' '02 / COMPOSITION' '03 / ACCESS' '04 / CONTINUITY'; do
+            grep -q "$mark" /tmp/plantupia-world-_studio.html
+          done
+          grep -q 'A site understanding' /tmp/plantupia-world-_studio.html
+          grep -q 'A care approach' /tmp/plantupia-world-_studio.html
+          grep -q 'Timeline of the example plant' /tmp/plantupia-world-_living-systems.html
+          grep -q 'IDENTITY HELD CONSTANT' /tmp/plantupia-world-_living-systems.html
+          grep -q 'data-record-state="planned"' /tmp/plantupia-world-_living-systems.html
+          grep -q 'A scheduled check-in does not prove a visit happened' /tmp/plantupia-world-_living-systems.html
+          grep -q 'Connected to entry 03 / planned check-in' /tmp/plantupia-world-_living-systems.html
+          if grep -q 'wr-space-art-' /tmp/plantupia-world-_spaces.html; then
+            echo "Removed cartoon-space artwork is still rendered"
+            exit 1
+          fi
+          # Real intake is disabled without server-only credentials; the preview must not pretend to submit.
+          curl -fsSL http://127.0.0.1:3017/start-a-space -o /tmp/plantupia-space-brief.html
+          grep -q 'Start a project' /tmp/plantupia-space-brief.html
+          grep -q 'Send your message' /tmp/plantupia-space-brief.html
+          grep -q 'Nothing is sent or stored' /tmp/plantupia-space-brief.html
+          grep -q 'Care &amp; support' /tmp/plantupia-space-brief.html
+          test "$(curl -s -o /tmp/plantupia-intake.json -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' http://127.0.0.1:3017/api/website/enquiries)" = 503
+          grep -q 'href="/start-a-space?space=home"' /tmp/plantupia-world-_spaces.html
+          # Keep the generated HD images available as first-party photo-loading fallbacks.
+          for asset in space life time; do
+            curl -fsSL "http://127.0.0.1:3017/scene/hd/${asset}.webp" -o "/tmp/plantupia-${asset}-hd.webp"
+            test "$(wc -c < "/tmp/plantupia-${asset}-hd.webp")" -gt 100000
+          done
+          grep -q 'Becoming' /tmp/plantupia-world-_.html
+          # The current editorial photo references should be present in the actual HTML.
+          # Local HD fallbacks are checked above with HTTP and byte-size validation.
+          grep -q 'images.pexels.com' /tmp/plantupia-world-_.html
+          grep -q 'ps-site' /tmp/plantupia-world-_.html
+          grep -q 'Choose a photographic study' /tmp/plantupia-world-_.html
+          grep -q 'Previous study' /tmp/plantupia-world-_.html
+          grep -q 'Three photographic studies' /tmp/plantupia-world-_.html
+          if grep -q 'ps-scene-markers' /tmp/plantupia-world-_.html; then
+            echo 'Obsolete on-image markers still rendered'
+            exit 1
+          fi
+          # After the cinematic chapter, the real-world gateway must render on /.
+          grep -q 'CONTINUE INTO PLANTUPIA' /tmp/plantupia-world-_.html
+
+          # The native dialog is present but closed until invoked; all destinations are real links.
+          grep -q 'dialog class="si-overlay"' /tmp/plantupia-world-_.html
+          grep -q 'Six chapters. One living world.' /tmp/plantupia-world-_.html
+          grep -q 'aria-label="Close world index"' /tmp/plantupia-world-_.html
+          for chapter in 'The Experience' 'Spaces' 'The Studio' 'Living Systems' 'About Plantupia' 'Get in touch'; do
+            grep -q "$chapter" /tmp/plantupia-world-_.html
+          done
+
+          grep -q 'The world' /tmp/plantupia-world-_.html
+          # The chapter links have explicit accessible names.
+          grep -q 'aria-label="Enter Spaces"' /tmp/plantupia-world-_.html
+          grep -q 'href="/spaces"' /tmp/plantupia-world-_.html
+          # All chapter links are now directly available to keyboard and touch visitors.
+          grep -q 'data-chapter-target="/spaces"' /tmp/plantupia-world-_.html
+          grep -q 'data-chapter-target="/studio"' /tmp/plantupia-world-_.html
+          grep -q 'data-chapter-target="/living-systems"' /tmp/plantupia-world-_.html
+          grep -q 'href="/start-a-space"' /tmp/plantupia-world-_.html
+          if grep -q 'FIELD GUIDE / VOL. 001' /tmp/plantupia-world-_.html; then
+            echo "Legacy Atlas is still rendering at /"
+            exit 1
+          fi
