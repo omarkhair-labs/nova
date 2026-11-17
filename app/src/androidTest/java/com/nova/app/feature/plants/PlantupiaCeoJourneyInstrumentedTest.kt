@@ -165,19 +165,19 @@ class PlantupiaCeoJourneyInstrumentedTest {
         // Returning through the existing selected-plant Back action preserves My Space.
         click("← Back to space")
         click("Shop")
-        node("Plants & essentials").assertExists()
+        node("The living collection").assertExists()
         val catalog = runBlocking { repository.demoGet("commerce/catalog/") }
         assertTrue(catalog is ApiResult.Success)
         assertTrue((catalog as ApiResult.Success).value.optString("source") == "commerce_sku")
         capture("07-canonical-commercial-shop")
-        click("Cart")
-        node("Your cart").assertExists()
+        click("Cart", substring = true)
+        node("Your selection").assertExists()
         val cart = runBlocking { repository.demoGet("commerce/cart/") }
         assertTrue(cart is ApiResult.Success)
         capture("08-canonical-cart")
         scenario!!.recreate()
         click("Shop")
-        click("My orders")
+        click("Orders")
         val orders = runBlocking { repository.demoGet("commerce/orders/") }
         assertTrue(orders is ApiResult.Success)
         capture("09-real-orders-after-relaunch")
@@ -203,8 +203,8 @@ class PlantupiaCeoJourneyInstrumentedTest {
         click("Close")
         click("← Back to space")
         click("Shop")
-        node("Plants & essentials").assertExists()
-        click("My orders")
+        node("The living collection").assertExists()
+        click("Orders")
         val orders = runBlocking { repository.demoGet("commerce/orders/") }
         assertTrue(orders is ApiResult.Success)
         capture("12-commercial-orders-${width}dp")
