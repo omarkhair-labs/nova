@@ -67,20 +67,20 @@ internal fun shopOrderTracking(order: JSONObject): ShopTrackingView {
     if (status in listOf("quote_pending", "quoted", "declined")) {
         return ShopTrackingView(
             stageTitle = when (status) {
-                "quote_pending" -> "Waiting for a delivery quote"
-                "quoted" -> "Your delivery price is ready"
+                "quote_pending" -> "Request received"
+                "quoted" -> "Delivery price ready to review"
                 else -> "This quote request could not proceed"
             },
             description = when (status) {
-                "quote_pending" -> "This is a quote request, not a confirmed order. No dispatch tracking exists yet."
-                "quoted" -> "Review the quoted total and confirm before anything is reserved or prepared."
+                "quote_pending" -> "Your items and delivery details are saved. The team will confirm delivery cost before you choose to proceed. No payment or shipment yet."
+                "quoted" -> "Review the final total. Only your confirmation allows the company to prepare this order."
                 else -> "No confirmed delivery is in progress for this request."
             },
             steps = listOf(
-                ShopTrackingStage("quote_requested", "Delivery price requested",
-                    "A request exists; no order is confirmed.", events["quote_requested"]),
-                ShopTrackingStage("shipping_quoted", "Delivery fee supplied",
-                    "Plantupia has recorded the exact fee for your review.", events["shipping_quoted"]),
+                ShopTrackingStage("quote_requested", "Request received",
+                    "Plantupia has your saved request; no purchase is confirmed yet.", events["quote_requested"]),
+                ShopTrackingStage("shipping_quoted", "Delivery price confirmed by team",
+                    "A delivery amount was recorded for you to review.", events["shipping_quoted"]),
             ),
             carrier = null,
             trackingReference = null,
