@@ -9,6 +9,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,6 +46,88 @@ internal fun shopDiscoveryCategoryCount(kinds: List<String>, selected: String): 
 /** The count is a user-owned cart quantity, not reserved warehouse stock. */
 internal fun shopCartButtonLabel(quantity: Int?): String =
     if (quantity == null) "Cart" else "Cart · ${quantity.coerceAtLeast(0)}"
+
+@Composable
+private fun ShopCartDestination(
+    selected: Boolean,
+    quantity: Int?,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.heightIn(min = 48.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = if (selected) PlantupiaColors.forest else PlantupiaColors.softSage,
+    ) {
+        Box(
+            Modifier.padding(horizontal = 15.dp, vertical = 13.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                shopCartButtonLabel(quantity),
+                style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
+                color = if (selected) PlantupiaColors.paper else PlantupiaColors.forest,
+            )
+        }
+    }
+}
+
+/** The one Shop header stays legible at 320dp and 200% font sizes. */
+@Composable
+internal fun PlantupiaShopNavigation(
+    screen: String,
+    cartQuantity: Int?,
+    enabled: Boolean,
+    onCollection: () -> Unit,
+    onOrders: () -> Unit,
+    onCart: () -> Unit,
+) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val stacked = plantupiaShopNavigationStacked(maxWidth.value, LocalDensity.current.fontScale)
+        if (stacked) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(onClick = onCollection, enabled = enabled, modifier = Modifier.heightIn(min = 48.dp)) {
+                        Text(if (screen == "catalog") "Collection" else "← Collection", color = PlantupiaColors.forest)
+                    }
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = onOrders, enabled = enabled, modifier = Modifier.heightIn(min = 48.dp)) {
+                        Text("Orders", color = PlantupiaColors.forest)
+                    }
+                }
+                ShopCartDestination(
+                    selected = screen == "cart" || screen == "checkout",
+                    quantity = cartQuantity, enabled = enabled,
+                    modifier = Modifier.fillMaxWidth(), onClick = onCart,
+                )
+            }
+        } else {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = onCollection, enabled = enabled, modifier = Modifier.heightIn(min = 48.dp)) {
+                    Text(if (screen == "catalog") "Collection" else "← Collection", color = PlantupiaColors.forest)
+                }
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = onOrders, enabled = enabled, modifier = Modifier.heightIn(min = 48.dp)) {
+                    Text("Orders", color = PlantupiaColors.forest)
+                }
+                ShopCartDestination(
+                    selected = screen == "cart" || screen == "checkout",
+                    quantity = cartQuantity, enabled = enabled, onClick = onCart,
+                )
+            }
+        }
+    }
+}
 
 @Composable
 internal fun PlantupiaShopCategoryRail(
