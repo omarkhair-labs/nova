@@ -54,9 +54,9 @@ class PlantupiaOrderTrackingInstrumentedTest {
         compose.setContent {
             MaterialTheme { PlantupiaOrderTracking(order) }
         }
-        compose.onNodeWithText("Waiting for a delivery quote").assertExists()
+        compose.onNodeWithText("Request received").assertExists()
         compose.onNodeWithText(
-            "This is a quote request, not a confirmed order. No dispatch tracking exists yet."
+            "Your items and delivery details are saved. The team will confirm delivery cost before you choose to proceed. No payment or shipment yet."
         ).assertExists()
         compose.onAllNodesWithText("Order confirmed").assertCountEquals(0)
     }
