@@ -225,6 +225,7 @@ internal fun StoreOrderCard(
         Text("Order " + id.take(8), style = PlantupiaText.sectionLabel)
         Text(storeOrderStatus(status), style = PlantupiaText.editorialHeading)
         Text("Products · " + displayedEGP(order.optString("subtotal")))
+        PlantupiaOrderTracking(order)
         val shippingFee = order.optString("shipping_fee")
         if (order.isNull("shipping_fee")) {
             if (status == "quote_pending") {
@@ -272,30 +273,8 @@ internal fun StoreOrderCard(
                 onClick = { onOpenPlant(deliveredPlants.optString(0)) },
             ) { Text("Open delivered plants") }
         }
-        val timeline = order.optJSONArray("timeline")
-        if (timeline != null && timeline.length() > 0) {
-            var expanded by rememberSaveable(id) { mutableStateOf(false) }
-            TextButton(onClick = { expanded = !expanded }) {
-                Text(if (expanded) "Hide order updates" else "Show order updates")
-            }
-            if (expanded) StoreOrderHistory(timeline)
-        }
         Text(storePaymentStatus(order.optString("payment_status")),
             style = PlantupiaText.sectionLabel)
-        val fulfillment = order.optJSONObject("fulfillment")
-        if (fulfillment != null) {
-            Text("Delivery team · " + fulfillment.optString("carrier_name"),
-                style = PlantupiaText.supporting)
-            Text("Tracking / handover · " + fulfillment.optString("tracking_reference"),
-                style = PlantupiaText.supporting)
-            if (fulfillment.optBoolean("delivery_proof_recorded")) {
-                Text("Plantupia recorded delivery evidence.",
-                    style = PlantupiaText.supporting)
-            } else {
-                Text("Handover recorded; delivery is not yet confirmed.",
-                    style = PlantupiaText.supporting)
-            }
-        }
         if (order.optString("payment_preference") == "manual_transfer" &&
             order.optString("payment_status") == "unpaid" &&
             status in listOf("confirmed", "preparing", "dispatched", "delivered")) {
