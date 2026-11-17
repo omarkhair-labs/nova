@@ -768,7 +768,10 @@ internal fun PlantupiaStoreShop(
                             val finalPrice = exactPrice
                             val payload = shopDeliveryQuotePayload(draft, exactCart)
                             val direct = finalPrice != null
-                            if (direct) payload.put("rate_revision", finalPrice!!.rateRevision)
+                            if (direct) {
+                                payload.put("rate_revision", finalPrice!!.rateRevision)
+                                payload.put("expected_total", finalPrice.total)
+                            }
                             busy = true
                             deliveryError = null
                             scope.launch {
