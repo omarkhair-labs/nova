@@ -1,5 +1,6 @@
 package com.nova.app.feature.plants
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -69,11 +70,14 @@ private fun ShopCartDestination(
             Modifier.padding(horizontal = 15.dp, vertical = 13.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                shopCartButtonLabel(quantity),
-                style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
-                color = if (selected) PlantupiaColors.paper else PlantupiaColors.forest,
-            )
+            Crossfade(targetState = quantity, animationSpec = tween(190),
+                label = "saved-cart-quantity") { storedQuantity ->
+                Text(
+                    shopCartButtonLabel(storedQuantity),
+                    style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
+                    color = if (selected) PlantupiaColors.paper else PlantupiaColors.forest,
+                )
+            }
         }
     }
 }
