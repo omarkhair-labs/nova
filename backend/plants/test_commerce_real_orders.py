@@ -15,7 +15,7 @@ from .commerce_models import (
     CommerceOrderLine, CommerceStockReservation, CommerceRealOrderEvent,
     CommerceStockMovement, CommerceFulfillmentReceipt,
     CommerceTransferClaim, CommercePaymentRecord,
-    CommerceReturnCase, CommerceRefundRecord,
+    CommerceReturnCase, CommerceRefundRecord, CommerceDeliveryCityRate,
 )
 from .commerce_publication import review_catalog_product
 from .commerce_services import record_counted_stock, stock_balance
@@ -557,3 +557,107 @@ class RealCustomerOrderTests(DemoFixture, TestCase):
             self.api.get(reverse("plantupia-real-commerce-order", args=[oid])).data["my_plant_ids"],
             [],
         )
+
+
+    def save_delivery_price(self, fee="25.00", city="Cairo", active=True):
+        return self.client.post(reverse("company:commerce-delivery-rate-save"), {
+            "city": city, "fee": fee, **({"active": "on"} if active else {}),
+        })
+
+    def test_no_published_fee_keeps_direct_order_unavailable_without_inventing_free_shipping(self):
+        self.cart(1)
+        price_url = reverse("plantupia-real-commerce-delivery-price")
+        price = self.api.get(price_url, {
+            "city": "Cairo", "cart_fingerprint": self.api.get(self.cart_url).data["fingerprint"],
+        })
+        self.assertEqual(price.status_code, 200, price.data)
+        self.assertFalse(price.data["available"])
+        self.assertIsNone(price.data["shipping_fee"])
+        failed = self.api.post(reverse("plantupia-real-commerce-direct-order"),
+            self.quote_body(rate_revision=1), format="json")
+        self.assertEqual(failed.status_code, 400)
+        self.assertFalse(CommerceOrder.objects.exists())
+
+    def test_company_rate_produces_one_direct_order_at_visible_total_without_deducting_stock(self):
+        self.assertEqual(self.save_delivery_price("35.00").status_code, 302)
+        rate = CommerceDeliveryCityRate.objects.get()
+        self.assertEqual(rate.city_key, "cairo")
+        self.cart(2)
+        fingerprint = self.api.get(self.cart_url).data["fingerprint"]
+        price = self.api.get(reverse("plantupia-real-commerce-delivery-price"),
+            {"city": " Cairo ", "cart_fingerprint": fingerprint})
+        self.assertEqual(price.status_code, 200, price.data)
+        self.assertTrue(price.data["available"])
+        self.assertEqual(price.data["shipping_fee"], "35.00")
+        self.assertEqual(price.data["final_total"], "435.00")
+        self.assertEqual(price.data["rate_revision"], 1)
+        before = stock_balance(self.sku.pk)
+        client_id = uuid.uuid4()
+        payload = self.quote_body(client_id=client_id, rate_revision=price.data["rate_revision"])
+        direct_url = reverse("plantupia-real-commerce-direct-order")
+        response = self.api.post(direct_url, payload, format="json")
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data["status"], "confirmed")
+        self.assertEqual(response.data["final_total"], "435.00")
+        self.assertEqual(response.data["payment_status"], "unpaid")
+        self.assertTrue(response.data["stock_reserved"])
+        self.assertFalse(response.data["charged"])
+        self.assertEqual(stock_balance(self.sku.pk), before)
+        order = CommerceOrder.objects.get()
+        self.assertEqual(order.shipping_fee, rate.fee)
+        self.assertEqual(CommerceRealOrderEvent.objects.filter(
+            order=order, kind="order_placed").count(), 1)
+        self.assertFalse(CommerceRealOrderEvent.objects.filter(
+            order=order, kind="shipping_quoted").exists())
+        self.assertContains(self.client.get(reverse("company:commerce-order",
+            args=[order.pk])), "Prepare the order")
+        replay = self.api.post(direct_url, payload, format="json")
+        self.assertEqual(replay.status_code, 201)
+        self.assertEqual(replay.data["id"], response.data["id"])
+        self.assertEqual(CommerceOrder.objects.count(), 1)
+        self.assertEqual(CommerceStockReservation.objects.filter(
+            order=order, released_at__isnull=True).count(), 1)
+
+    def test_rate_update_does_not_reprice_existing_orders_and_stale_version_is_rejected(self):
+        self.save_delivery_price("20.00")
+        self.cart(1)
+        price = self.api.get(reverse("plantupia-real-commerce-delivery-price"), {
+            "city": "Cairo", "cart_fingerprint": self.api.get(self.cart_url).data["fingerprint"],
+        }).data
+        self.assertEqual(price["rate_revision"], 1)
+        self.save_delivery_price("30.00", city="cairo")
+        direct = self.api.post(reverse("plantupia-real-commerce-direct-order"),
+            self.quote_body(rate_revision=price["rate_revision"]), format="json")
+        self.assertEqual(direct.status_code, 400)
+        self.assertEqual(CommerceOrder.objects.count(), 0)
+        new_price = self.api.get(reverse("plantupia-real-commerce-delivery-price"), {
+            "city": "Cairo", "cart_fingerprint": self.api.get(self.cart_url).data["fingerprint"],
+        }).data
+        self.assertEqual(new_price["rate_revision"], 2)
+        self.assertEqual(new_price["final_total"], "230.00")
+        current = self.api.post(reverse("plantupia-real-commerce-direct-order"),
+            self.quote_body(rate_revision=new_price["rate_revision"]), format="json")
+        self.assertEqual(current.status_code, 201, current.data)
+        saved = CommerceOrder.objects.get()
+        self.save_delivery_price("50.00")
+        saved.refresh_from_db()
+        self.assertEqual(str(saved.shipping_fee), "30.00")
+        self.assertEqual(current.data["final_total"], "230.00")
+
+    def test_only_authorized_company_staff_can_change_delivery_price(self):
+        self.client.force_login(self.owner)
+        result = self.client.post(reverse("company:commerce-delivery-rate-save"), {
+            "city": "Cairo", "fee": "15.00", "active": "on",
+        })
+        self.assertEqual(result.status_code, 403)
+        self.assertFalse(CommerceDeliveryCityRate.objects.exists())
+        self.client.force_login(self.staff)
+        self.assertEqual(self.save_delivery_price("0.00").status_code, 302)
+        self.assertEqual(str(CommerceDeliveryCityRate.objects.get().fee), "0.00")
+        self.assertEqual(self.save_delivery_price("0.00", active=False).status_code, 302)
+        self.cart(1)
+        no_rate = self.api.get(reverse("plantupia-real-commerce-delivery-price"), {
+            "city": "Cairo", "cart_fingerprint": self.api.get(self.cart_url).data["fingerprint"],
+        }).data
+        self.assertFalse(no_rate["available"])
+
