@@ -64,8 +64,9 @@ class PlantupiaCartExperienceInstrumentedTest {
         compose.runOnIdle { assertEquals("qa-object", opened) }
         compose.onNodeWithText("Pot 16 cm").assertExists()
         compose.onNodeWithText("EGP 380.00 each").assertExists()
-        compose.onNodeWithText("EGP 760.00").assertExists()
-        compose.onNodeWithText("+").performClick()
+        compose.onNodeWithText("Items subtotal").assertExists()
+        compose.onAllNodesWithText("EGP 760.00").assertCountEquals(2)
+        compose.onNodeWithContentDescription("Increase quantity of FICTIONAL QA plant").performClick()
         compose.runOnIdle { assertEquals(listOf(3), changes) }
         compose.onNodeWithText("Remove").performClick()
         compose.runOnIdle { assertEquals("qa-sku-one", removed) }
