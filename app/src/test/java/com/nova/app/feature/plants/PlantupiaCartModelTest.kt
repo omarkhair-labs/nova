@@ -42,7 +42,7 @@ class PlantupiaCartModelTest {
         .put("line_total", "490.00")
 
     private fun cart(vararg rows: JSONObject) = JSONObject()
-        .put("results", JSONArray().also { array -> rows.forEach(array::put) })
+        .put("results", JSONArray().also { array -> rows.forEach { array.put(it) } })
         .put("subtotal", "490.00")
         .put("can_request_shipping_quote", rows.isNotEmpty())
         .put("currency", "EGP")
