@@ -47,7 +47,9 @@ class PlantupiaProductObjectStudyInstrumentedTest {
         }
         compose.onNodeWithText("Product photo pending").assertExists()
         compose.onNodeWithText("CHOOSE YOUR OPTION").assertExists()
+        compose.onNodeWithContentDescription("Selected price EGP 250.00").assertExists()
         compose.onNodeWithText("Large").performClick()
+        compose.onNodeWithContentDescription("Selected price EGP 480.00").assertExists()
         compose.onNodeWithText("Add to cart").assertIsEnabled().performClick()
         compose.runOnIdle { assertEquals("sku-b" to 1, submitted) }
         compose.onNodeWithText("Unavailable").performClick()
