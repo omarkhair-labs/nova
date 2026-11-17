@@ -1446,6 +1446,7 @@ internal fun PlantupiaCatalogPhoto(
     productId: String, repository: PlantupiaRepository, compact: Boolean = false,
     thumbnail: Boolean = false, photoId: String? = null, photoAlt: String = "",
     catalogPath: String = "catalog", fullObject: Boolean = false,
+    displayHeight: androidx.compose.ui.unit.Dp? = null,
 ) {
     var bitmap by remember(productId, photoId, catalogPath) { mutableStateOf<ImageBitmap?>(null) }
     var failed by remember(productId, photoId, catalogPath) { mutableStateOf(false) }
@@ -1470,7 +1471,7 @@ internal fun PlantupiaCatalogPhoto(
     }
     bitmap?.let { Image(it, photoAlt.ifBlank { "Actual uploaded catalogue photograph" },
         modifier = Modifier.fillMaxWidth()
-            .height(if (thumbnail) 84.dp else if (compact) 148.dp else 245.dp)
+            .height(displayHeight ?: if (thumbnail) 84.dp else if (compact) 148.dp else 245.dp)
             .clip(RoundedCornerShape(13.dp)),
         contentScale = if (fullObject) ContentScale.Fit else ContentScale.Crop) }
     if (failed) TextButton(onClick = { revision++ }) { Text("Retry photo") }
