@@ -11,7 +11,7 @@ The shop's original design was abandoned when the team replaced a fictional QA c
 ## Source-of-truth references
 1. [Plantupia V2 Native Screen Blueprint / Screen 10](../PLANTUPIA_V2_NATIVE_SCREEN_BLUEPRINTS_2026-11-03.md) — compact cart count and Orders, All/Plants/Pots/Care, responsive single/two-column, clear first useful product and honest empty states.
 2. [Plantupia Botanical Library × Care Experience Contract V02](../PLANTUPIA_BOTANICAL_LIBRARY_CARE_EXPERIENCE_CONTRACT_V02_2026-11-03.md) — one authenticated commerce catalogue, source-reviewed plants/care, no fake self-verification or product prescription.
-3. [Shop × Care × Submission critique](./PLANTUPIA_SHOP_CARE_SUBMISSION_REVIEW_AR_2026-11-17.md) — current problems and original cutover losses.
+3. [Shop × Care × Submission critique / research PR #315](https://github.com/omarkhair-labs/nova/pull/315) — current problems and original cutover losses.
 4. Actual source: `PlantupiaStoreShop.kt`, `PlantupiaStorePresentation.kt`, `PlantupiaShopLayoutPolicy.kt`, `PlantupiaDemoJourney.kt` and `backend/plants/commerce_models.py`.
 
 ## External mechanisms — study and translate, not copy
