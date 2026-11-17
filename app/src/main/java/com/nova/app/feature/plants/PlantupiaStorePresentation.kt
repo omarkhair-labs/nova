@@ -1,6 +1,11 @@
 package com.nova.app.feature.plants
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.style.TextOverflow
@@ -71,8 +76,19 @@ internal fun StoreCatalog(
                             val firstGallery = gallery?.optJSONObject(0)
                             val hasPhoto = cover || firstGallery?.optString("id").orEmpty().isNotBlank()
                             val kind = product.optString("kind")
+                            val interaction = remember { MutableInteractionSource() }
+                            val pressed by interaction.collectIsPressedAsState()
+                            val pressScale by animateFloatAsState(
+                                targetValue = if (pressed) .985f else 1f,
+                                animationSpec = spring(dampingRatio = .88f, stiffness = 600f),
+                                label = "shop-object-press",
+                            )
                             Surface(
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.weight(1f).graphicsLayer {
+                                    scaleX = pressScale
+                                    scaleY = pressScale
+                                },
+                                interactionSource = interaction,
                                 onClick = { onProduct(id) },
                                 shape = RoundedCornerShape(13.dp),
                                 color = PlantupiaColors.paper,
