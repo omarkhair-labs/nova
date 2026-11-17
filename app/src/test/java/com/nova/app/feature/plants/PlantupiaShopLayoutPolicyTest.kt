@@ -12,6 +12,21 @@ class PlantupiaShopLayoutPolicyTest {
         assertEquals(2, plantupiaShopProductColumns(460f, 1.2f))
     }
 
+    @Test fun commercialCategoryRailCountsProductFamiliesNotVariants() {
+        val kinds = listOf("plant", "plant", "planter", "care")
+        assertEquals(4, shopDiscoveryCategoryCount(kinds, "all"))
+        assertEquals(2, shopDiscoveryCategoryCount(kinds, "plant"))
+        assertEquals(1, shopDiscoveryCategoryCount(kinds, "planter"))
+        assertEquals(1, shopDiscoveryCategoryCount(kinds, "care"))
+        assertEquals(0, shopDiscoveryCategoryCount(kinds, "accessory"))
+    }
+
+    @Test fun cartLabelDoesNotPretendAnUnavailableCartIsEmpty() {
+        assertEquals("Cart", shopCartButtonLabel(null))
+        assertEquals("Cart · 0", shopCartButtonLabel(0))
+        assertEquals("Cart · 3", shopCartButtonLabel(3))
+    }
+
     @Test fun browsingIsIncrementalButEveryRealFamilyIsReachable() {
         assertEquals(0, plantupiaVisibleFamilies(0, 8))
         assertEquals(5, plantupiaVisibleFamilies(5, 8))
