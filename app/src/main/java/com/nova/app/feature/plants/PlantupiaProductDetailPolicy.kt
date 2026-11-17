@@ -42,5 +42,5 @@ internal fun shopStockDescription(available: Int, inStock: Boolean): String = wh
 }
 
 internal fun shopPhotoIndexAfterSwipe(index: Int, count: Int, deltaX: Float): Int =
-    if (count <= 1 || kotlin.math.abs(deltaX) < 42f) index.coerceAtLeast(0)
+    if (count <= 1) 0 else if (kotlin.math.abs(deltaX) < 42f) index.coerceIn(0, count - 1)
     else (index + if (deltaX < 0) 1 else -1).coerceIn(0, count - 1)
