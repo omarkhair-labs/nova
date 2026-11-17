@@ -10,10 +10,10 @@ from .company_views import page, paginated, portal
 
 
 ORDER_NEXT = {
-    CommerceOrder.Status.QUOTE_PENDING: ("Quote delivery", "Check the address and enter the exact delivery fee.", "quote"),
-    CommerceOrder.Status.QUOTED: ("Awaiting customer approval", "The customer needs to accept the exact total. You can revise the quote if the delivery cost changes.", "quote"),
+    CommerceOrder.Status.QUOTE_PENDING: ("Review new customer request", "Check the items, delivery address and availability. Record the delivery fee so the customer can review the final total.", "quote"),
+    CommerceOrder.Status.QUOTED: ("Waiting for customer confirmation", "The delivery fee is recorded. The customer must accept the final total before preparation begins.", "quote"),
     CommerceOrder.Status.CONFIRMED: ("Prepare the order", "The customer accepted the total and stock is reserved.", "fulfillment"),
-    CommerceOrder.Status.PREPARING: ("Record carrier handover", "Record dispatch after the delivery team takes the items.", "fulfillment"),
+    CommerceOrder.Status.PREPARING: ("Record actual delivery handover", "Record dispatch when Plantupia's team or an external carrier has taken the items.", "fulfillment"),
     CommerceOrder.Status.DISPATCHED: ("Record proof of delivery", "Enter the reference to the retained delivery record.", "fulfillment"),
     CommerceOrder.Status.RETURN_REQUESTED: ("Review the return", "Check the current decision and record the physical receipt when it arrives.", "returns"),
 }
@@ -42,7 +42,7 @@ def real_orders(request):
     if status in statuses:
         qs = qs.filter(status=status)
     return page(request, "commerce_orders", {
-        "title": "Actual customer orders", "section": "commerce_orders",
+        "title": "Customer requests & orders", "section": "commerce_orders",
         "records": paginated(request, qs),
         "status_filter": status if status in statuses else "",
         "status_label": statuses.get(status, "Recent orders"),
