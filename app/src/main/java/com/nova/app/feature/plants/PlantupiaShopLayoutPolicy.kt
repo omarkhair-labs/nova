@@ -7,3 +7,7 @@ internal fun plantupiaShopProductColumns(innerWidthDp: Float, fontScale: Float):
 /** Visible family groups are intentionally incremental, without hiding older SKUs. */
 internal fun plantupiaVisibleFamilies(total: Int, requested: Int): Int =
     requested.coerceAtLeast(8).coerceAtMost(total.coerceAtLeast(0))
+
+/** A narrow viewport or accessibility text scale gets a two-level, unclipped Shop header. */
+internal fun plantupiaShopNavigationStacked(innerWidthDp: Float, fontScale: Float): Boolean =
+    innerWidthDp < 330f || fontScale >= 1.35f
