@@ -33,8 +33,9 @@ class PlantupiaOrderTrackingTest {
     @Test fun pendingQuoteIsNotYetAnOrderedOrDispatchedProduct() {
         val result = shopOrderTracking(order("quote_pending",
             events("quote_requested" to t0)))
-        assertEquals("Waiting for a delivery quote", result.stageTitle)
+        assertEquals("Request received", result.stageTitle)
         assertEquals(listOf("quote_requested", "shipping_quoted"), result.steps.map { it.key })
+        assertEquals("Request received", result.steps[0].title)
         assertTrue(result.steps[0].recorded)
         assertFalse(result.steps[1].recorded)
         assertNull(result.trackingReference)
