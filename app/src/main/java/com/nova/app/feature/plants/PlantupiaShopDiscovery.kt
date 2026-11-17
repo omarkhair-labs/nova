@@ -1,5 +1,7 @@
 package com.nova.app.feature.plants
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -12,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -143,12 +146,16 @@ internal fun PlantupiaShopCategoryRail(
         shopDiscoveryCategories.forEach { category ->
             val active = category.id == current
             val count = shopDiscoveryCategoryCount(productKinds, category.id)
+            val surfaceColor by animateColorAsState(
+                if (active) PlantupiaColors.forest else PlantupiaColors.paper,
+                animationSpec = tween(180), label = "collection-category",
+            )
             Surface(
                 modifier = Modifier.heightIn(min = 50.dp)
                     .semantics { selected = active },
                 enabled = enabled,
                 onClick = { onChoose(category.id) },
-                color = if (active) PlantupiaColors.forest else PlantupiaColors.paper,
+                color = surfaceColor,
                 shape = RoundedCornerShape(11.dp),
                 border = BorderStroke(1.dp, if (active) PlantupiaColors.forest else PlantupiaColors.border),
             ) {
