@@ -100,7 +100,7 @@ class PlantupiaExperienceInstrumentedTest {
         val draft = "UNSAVED software QA draft - never an actual plant observation."
         val input = node("What did you observe or do?")
         input.performScrollTo().performTextReplacement(draft); closeSoftKeyboard()
-        root("Shop"); node("Plants & essentials").assertExists(); capture("03-shop")
+        root("Shop"); node("The living collection").assertExists(); capture("03-shop")
         root("Plants"); node(draft).assertExists()
         scenario!!.recreate()
         node(draft).assertExists()
@@ -134,9 +134,9 @@ class PlantupiaExperienceInstrumentedTest {
 
     @Test fun onlyCanonicalShopAndCartAreReachableFromCustomerTab() {
         root("Shop")
-        node("Plants & essentials").assertExists()
-        node("Products").assertExists()
-        node("Cart").assertExists()
+        node("The living collection").assertExists()
+        node("Collection").assertExists()
+        node("Cart", substring = true).assertExists()
         // The source of truth is the actual CommerceSKU catalog, not the
         // synthetic QA catalog, even if no actual items are published yet.
         val catalog = runBlocking { repository.demoGet("commerce/catalog/") }
@@ -145,19 +145,19 @@ class PlantupiaExperienceInstrumentedTest {
         assertTrue(response.optString("source") == "commerce_sku")
         assertTrue(!response.optBoolean("checkout_ready"))
         capture("09-one-real-shop")
-        click("Cart")
-        node("Your cart").assertExists()
+        click("Cart", substring = true)
+        node("Your selection").assertExists()
         val cart = runBlocking { repository.demoGet("commerce/cart/") }
         assertTrue(cart is ApiResult.Success)
         assertTrue(!(cart as ApiResult.Success).value.optBoolean("checkout_ready"))
         capture("10-one-sku-cart")
-        click("My orders")
+        click("Orders")
         val orders = runBlocking { repository.demoGet("commerce/orders/") }
         assertTrue(orders is ApiResult.Success)
         capture("11-real-orders")
         scenario!!.recreate()
         root("Shop")
-        node("Plants & essentials").assertExists()
+        node("The living collection").assertExists()
     }
 
     @Test fun notificationCategoriesAndCareRemainPrivate() {
@@ -178,7 +178,7 @@ class PlantupiaExperienceInstrumentedTest {
     @Test fun responsiveRootsAndRealCircleFeed() {
         root("Today"); node("APPROVED INSPECTIONS").assertExists(); capture("20-responsive-today")
         root("Plants"); openPlant(); capture("21-responsive-plant")
-        root("Shop"); node("Plants & essentials").assertExists(); capture("22-responsive-shop")
+        root("Shop"); node("The living collection").assertExists(); capture("22-responsive-shop")
         root("Create"); node("Choose a private record or an intentional public story.").assertExists(); capture("23-responsive-create")
         root("Circle"); click("Shared moments")
         node("Back to Circle", true).assertExists(); capture("24-real-circle-feed")
