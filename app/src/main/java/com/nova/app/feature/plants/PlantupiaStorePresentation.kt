@@ -197,7 +197,12 @@ internal fun StoreOrderHistory(timeline: JSONArray) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("•", color = PlantupiaColors.forest)
                 Column {
-                    Text(event.optString("label"), style = PlantupiaText.body)
+                    val eventLabel = when (event.optString("kind")) {
+                        "quote_requested" -> "Plantupia received your request"
+                        "shipping_quoted" -> "Delivery cost recorded for your review"
+                        else -> event.optString("label")
+                    }
+                    Text(eventLabel, style = PlantupiaText.body)
                     storeDateTime(event.optString("at"))?.let {
                         Text(storeDateLabel(it), style = PlantupiaText.supporting)
                     }
