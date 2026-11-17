@@ -104,7 +104,9 @@ internal fun PlantupiaStoreShop(
         cart = null
         orders = emptyList()
         selectedProductId = null
-        screen = "catalog"
+        if (screen == "product" || screen == "checkout" || screen == "business") {
+            screen = "catalog"
+        }
         category = "all"
         visibleCount = 8
         search = ""
@@ -125,8 +127,9 @@ internal fun PlantupiaStoreShop(
                         when (val current = repository.demoGet("commerce/cart/")) {
                             is ApiResult.Success -> if (repository.isCurrentSession()) cart = current.value
                             is ApiResult.Failure -> if (repository.isCurrentSession()) {
+                                // Browsing still works when the user's cart cannot load.
+                                // The cart opens its own retry/error state on demand.
                                 cart = null
-                                loadError = current.message
                             }
                         }
                         loaded = true
