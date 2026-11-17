@@ -36,6 +36,8 @@ internal data class ShopCartReceipt(
     val photoId: String?,
     val hasPhoto: Boolean,
     val photoAlt: String,
+    val lineAvailable: Boolean = true,
+    val availabilityNotice: String = "",
 )
 
 internal fun shopCartReceiptFromResponse(
@@ -69,6 +71,8 @@ internal fun shopCartReceiptFromResponse(
             photoId = if (hasCover) null else galleryId,
             hasPhoto = hasCover || galleryId != null,
             photoAlt = if (hasCover) sku.optString("image_description") else first?.optString("alt_text").orEmpty(),
+            lineAvailable = line.optBoolean("available", true),
+            availabilityNotice = line.optString("notice"),
         )
     }
     return null
@@ -148,6 +152,15 @@ internal fun PlantupiaCartReceiptSheet(
                     if (receipt.cartSubtotal.isNotBlank()) {
                         Text("Saved cart subtotal · EGP " + receipt.cartSubtotal,
                             style = PlantupiaText.body, fontWeight = FontWeight.SemiBold)
+                    }
+                    if (!receipt.lineAvailable) {
+                        Text(
+                            receipt.availabilityNotice.ifBlank {
+                                "This quantity is no longer available. Review your cart before requesting delivery."
+                            },
+                            color = PlantupiaColors.errorText,
+                            style = PlantupiaText.supporting,
+                        )
                     }
                     Text("No stock is reserved yet. Delivery is quoted and confirmed separately.",
                         style = PlantupiaText.supporting)
