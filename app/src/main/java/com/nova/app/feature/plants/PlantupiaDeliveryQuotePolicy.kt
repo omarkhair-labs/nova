@@ -73,8 +73,10 @@ internal fun shopDeliveryReceiptFromResponse(
     val reference = response.optString("id")
     if (runCatching { UUID.fromString(reference) }.getOrNull() == null) return null
     if (response.optString("status") != "quote_pending") return null
+    if (!response.has("stock_reserved") || !response.has("charged") ||
+        !response.has("shipping_fee")) return null
     if (response.optBoolean("stock_reserved") || response.optBoolean("charged")) return null
-    if (response.has("shipping_fee") && !response.isNull("shipping_fee")) return null
+    if (!response.isNull("shipping_fee")) return null
     val customer = response.optJSONObject("customer") ?: return null
     val subtotal = response.optString("subtotal")
     val recipient = customer.optString("name").trim()
