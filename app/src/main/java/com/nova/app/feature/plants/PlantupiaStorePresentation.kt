@@ -162,7 +162,7 @@ internal fun storeVariantName(product: JSONObject): String =
     product.optString("variant_label").ifBlank { product.optString("sku") }
 
 internal fun storeOrderStatus(status: String): String = when (status) {
-    "quote_pending" -> "Delivery quote requested"
+    "quote_pending" -> "Request received"
     "quoted" -> "Ready for your approval"
     "confirmed" -> "Order confirmed"
     "preparing" -> "Being prepared"
@@ -222,14 +222,15 @@ internal fun StoreOrderCard(
     val id = order.optString("id")
     val status = order.optString("status")
     StorePanel(accent = status == "quoted" || focused) {
-        Text("Order " + id.take(8), style = PlantupiaText.sectionLabel)
+        Text((if (status in listOf("quote_pending", "quoted", "declined")) "Request " else "Order ") +
+            id.take(8), style = PlantupiaText.sectionLabel)
         Text(storeOrderStatus(status), style = PlantupiaText.editorialHeading)
         Text("Products · " + displayedEGP(order.optString("subtotal")))
         PlantupiaOrderTracking(order)
         val shippingFee = order.optString("shipping_fee")
         if (order.isNull("shipping_fee")) {
             if (status == "quote_pending") {
-                Text("Plantupia is checking the delivery fee. Come back here to review the total.", style = PlantupiaText.body)
+                Text("Your request is saved. Plantupia will confirm delivery cost before you accept a final total.", style = PlantupiaText.body)
             }
         } else {
             Text("Shipping · " + displayedEGP(shippingFee))
