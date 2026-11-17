@@ -5,8 +5,8 @@
 <a class="back-link" href="{% url 'company:commerce-orders' %}">← Customer orders / الطلبات</a>
 <header class="page-heading compact-workspace-heading">
   <div><p class="eyebrow">SHOP / تفاصيل الطلب</p>
-    <h1>Order {{ order.pk|stringformat:"s"|slice:":8" }}</h1>
-    <p class="lead">{{ order.get_status_display }} · {{ order.created_at|date:"j M Y, H:i" }}</p>
+    <h1>{% if order.status == "quote_pending" or order.status == "quoted" or order.status == "declined" %}Request{% else %}Order{% endif %} {{ order.pk|stringformat:"s"|slice:":8" }}</h1>
+    <p class="lead">{% if order.status == "quote_pending" %}Request received · Delivery cost to be confirmed{% elif order.status == "quoted" %}Final total waiting for customer review{% else %}{{ order.get_status_display }}{% endif %} · {{ order.created_at|date:"j M Y, H:i" }}</p>
   </div>
   <span class="badge order-payment-status">{{ order.get_payment_status_display }}</span>
 </header>
@@ -36,12 +36,12 @@
     <p class="fine">Payment preference: {{ order.get_payment_preference_display }} · Recorded status: {{ order.get_payment_status_display }}</p>
   </section>
   <section class="panel padded" id="order-quote">
-    <p class="eyebrow">PRICE & APPROVAL / السعر والموافقة</p>
-    <h2>Order total</h2>
+    <p class="eyebrow">ORDER REVIEW / مراجعة الطلب</p>
+    <h2>Items and delivery</h2>
     <dl class="order-totals">
       <div><dt>Items</dt><dd>EGP {{ order.subtotal }}</dd></div>
-      <div><dt>Shipping</dt><dd>{% if order.shipping_fee != None %}EGP {{ order.shipping_fee }}{% else %}Awaiting quote{% endif %}</dd></div>
-      <div><dt>Total</dt><dd>{% if total != None %}EGP {{ total }}{% else %}Pending delivery fee{% endif %}</dd></div>
+      <div><dt>Shipping</dt><dd>{% if order.shipping_fee != None %}EGP {{ order.shipping_fee }}{% else %}To be confirmed{% endif %}</dd></div>
+      <div><dt>Total</dt><dd>{% if total != None %}EGP {{ total }}{% else %}Waiting for confirmed delivery cost{% endif %}</dd></div>
     </dl>
     <p class="fine">Quote revision {{ order.shipping_quote_version }}{% if order.shipping_quote_expires_at %} · Expires {{ order.shipping_quote_expires_at|date:"j M Y, H:i" }}{% endif %}</p>
     {% if perms.plants.change_commerceorder and order.status == "quote_pending" or perms.plants.change_commerceorder and order.status == "quoted" %}
@@ -49,11 +49,11 @@
       {% csrf_token %}
       <input type="hidden" name="version" value="{{ order.shipping_quote_version }}">
       <div class="order-field">
-        <label for="shipping-fee">Exact shipping fee (EGP)</label>
+        <label for="shipping-fee">Confirmed delivery fee (EGP)</label>
         <input id="shipping-fee" type="number" min="0" step=".01" name="shipping_fee" inputmode="decimal" required>
       </div>
       <div class="order-actions">
-        <button class="button primary" type="submit" name="action" value="quote">{% if order.status == "quoted" %}Send revised quote{% else %}Send shipping quote{% endif %}</button>
+        <button class="button primary" type="submit" name="action" value="quote">{% if order.status == "quoted" %}Update delivery cost{% else %}Send delivery total for customer review{% endif %}</button>
         <button class="button" type="submit" name="action" value="decline" formnovalidate>Decline request</button>
       </div>
     </form>
@@ -92,7 +92,7 @@
       </form>
     {% endif %}
   {% elif order.status == "preparing" %}
-    <p>Before recording dispatch, verify actual physical handover and enter the retained reference and carrier.</p>
+    <p>When the items actually leave Plantupia, record who received them and the handover reference. This can be an internal delivery team or an external carrier; a courier integration is not required.</p>
     {% if perms.plants.change_commerceorder %}
       <form class="order-form" method="post" action="{% url 'company:commerce-order-fulfillment' order.pk %}">
         {% csrf_token %}
