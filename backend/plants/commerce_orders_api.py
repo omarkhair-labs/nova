@@ -90,6 +90,9 @@ class CommerceDeliveryPriceView(CommerceCustomerView):
 
 class RealDirectOrderInput(RealOrderQuoteInput):
     rate_revision = serializers.IntegerField(min_value=1)
+    expected_total = serializers.DecimalField(
+        max_digits=12, decimal_places=2, min_value=Decimal("0.00"))
+
 
 
 class CommerceDirectOrderView(CommerceCustomerView):
