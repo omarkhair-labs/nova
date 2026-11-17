@@ -81,9 +81,25 @@ internal fun PlantupiaStoreShop(
     var longitude by rememberSaveable { mutableStateOf<Double?>(null) }
     var pinConfirmed by rememberSaveable { mutableStateOf(false) }
     var paymentMethod by rememberSaveable { mutableStateOf("cod") }
+    var deliveryNote by rememberSaveable { mutableStateOf("") }
+    var deliveryStep by remember { mutableStateOf("details") }
+    var deliveryReceipt by remember { mutableStateOf<ShopDeliveryQuoteReceipt?>(null) }
+    var deliveryError by remember { mutableStateOf<String?>(null) }
+    var showDeliveryIssues by remember { mutableStateOf(false) }
 
     BackHandler(enabled = screen in setOf("checkout", "product", "business")) {
-        screen = if (screen == "checkout") "cart" else "catalog"
+        when {
+            screen == "checkout" && deliveryStep == "review" -> deliveryStep = "details"
+            screen == "checkout" && deliveryStep == "received" -> {
+                focusedOrderId = deliveryReceipt?.reference
+                deliveryReceipt = null
+                deliveryStep = "details"
+                screen = "orders"
+                refresh++
+            }
+            screen == "checkout" -> screen = "cart"
+            else -> screen = "catalog"
+        }
         selectedProductId = null
         feedback = null
     }
@@ -126,6 +142,14 @@ internal fun PlantupiaStoreShop(
         cartActionError = null
         cartActionNotice = null
         lastRemoved = null
+        // Delivery information is private to the signed-in customer. Saved
+        // Compose state from another account must never cross this boundary.
+        name = ""; phone = ""; city = ""; address = ""
+        building = ""; landmark = ""; latitude = null; longitude = null
+        pinConfirmed = false; paymentMethod = "cod"; deliveryNote = ""
+        deliveryStep = "details"; deliveryReceipt = null
+        deliveryError = null; showDeliveryIssues = false
+        focusedOrderId = null
         busy = false
     }
     val dataPage = if (screen == "product") "catalog" else screen
@@ -611,6 +635,10 @@ internal fun PlantupiaStoreShop(
                         onDeliveryDetails = {
                             if (!busy && cart?.optBoolean("can_request_shipping_quote") == true) {
                                 screen = "checkout"
+                                deliveryStep = "details"
+                                deliveryReceipt = null
+                                deliveryError = null
+                                showDeliveryIssues = false
                                 feedback = null
                             }
                         },
@@ -626,97 +654,103 @@ internal fun PlantupiaStoreShop(
                 }
             }
             "checkout" -> {
-                val hasCart = cart?.optBoolean("can_request_shipping_quote") == true
-                StorePanel(accent = true) {
-                    Text("Request a delivery quote", style = PlantupiaText.editorialHeading)
-                    Text("Add your delivery details. You can review the full price after Plantupia quotes shipping.", style = PlantupiaText.body)
-                    cart?.let { Text("Items · " + displayedEGP(it.optString("subtotal")), style = PlantupiaText.sectionLabel) }
-                }
-                StorePanel {
-                    Text("Delivery address", style = PlantupiaText.editorialHeading)
-                    PlantupiaDeliveryAddressFields(
-                        name = name, onNameChange = { name = it },
-                        phone = phone, onPhoneChange = { phone = it },
-                        city = city, onCityChange = { city = it },
-                        street = address, onStreetChange = { address = it },
-                        building = building, onBuildingChange = { building = it },
-                        landmark = landmark, onLandmarkChange = { landmark = it },
-                        latitude = latitude, longitude = longitude, pinConfirmed = pinConfirmed,
-                        onPinConfirmed = { newLat, newLon ->
-                            latitude = newLat; longitude = newLon; pinConfirmed = true
-                        },
-                    )
-                }
-                StorePanel {
-                    Text("Payment preference", style = PlantupiaText.editorialHeading)
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(
-                            modifier = Modifier.weight(1f),
-                            onClick = { paymentMethod = "cod" },
-                        ) { Text((if (paymentMethod == "cod") "✓ " else "") + "Cash on delivery") }
-                        OutlinedButton(
-                            modifier = Modifier.weight(1f),
-                            onClick = { paymentMethod = "manual_transfer" },
-                        ) { Text((if (paymentMethod == "manual_transfer") "✓ " else "") + "Bank transfer") }
-                    }
-                    Text("No payment is taken when requesting a quote.", style = PlantupiaText.supporting)
-                }
-                val addressReady = realCheckoutAddressValid(name, phone, city, address, latitude, longitude, pinConfirmed)
-                feedback?.let {
-                    Text(it, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                        style = PlantupiaText.body, color = PlantupiaColors.errorText)
-                }
-                if (!addressReady) {
-                    Text("Add the recipient, phone, city, street and confirmed map pin to continue.", style = PlantupiaText.supporting)
-                }
-                if (loaded && loadError == null && !hasCart) {
-                    Text("Review the current items in your cart before requesting delivery.", style = PlantupiaText.supporting)
-                }
-                Button(
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
-                    enabled = loaded && !busy && hasCart && addressReady,
-                    colors = ButtonDefaults.buttonColors(containerColor = storeInk),
-                    onClick = {
-                        val fingerprint = cart?.optString("fingerprint").orEmpty()
-                        if (fingerprint.isBlank()) return@Button
-                        busy = true
-                        feedback = null
-                        scope.launch {
-                            try {
-                                val payload = JSONObject()
-                                    .put("cart_fingerprint", fingerprint)
-                                    .put("contact_name", name.trim())
-                                    .put("contact_phone", normalizedDeliveryPhone(phone))
-                                    .put("city", city.trim())
-                                    .put("delivery_address", address.trim())
-                                    .put("building_details", building.trim())
-                                    .put("landmark", landmark.trim())
-                                    .put("delivery_latitude", latitude)
-                                    .put("delivery_longitude", longitude)
-                                    .put("delivery_pin_confirmed", true)
-                                    .put("payment_preference", paymentMethod)
-                                when (val result = repository.demoMutation(
-                                    "single-shop-shipping-quote", "commerce/orders/", payload,
-                                )) {
-                                    is ApiResult.Success -> if (repository.isCurrentSession()) {
-                                        focusedOrderId = result.value.optString("id")
-                                        feedback = null
-                                        name = ""; phone = ""; city = ""; address = ""; building = ""; landmark = ""
-                                        latitude = null; longitude = null; pinConfirmed = false
-                                        paymentMethod = "cod"
-                                        screen = "orders"
-                                        refresh++
-                                    }
-                                    is ApiResult.Failure -> if (repository.isCurrentSession()) {
-                                        feedback = result.message
-                                        if (result.statusCode == 409) refresh++
-                                    }
-                                }
-                            } finally { busy = false }
+                val draft = ShopDeliveryDraft(
+                    recipient = name, phone = phone, city = city, street = address,
+                    building = building, landmark = landmark, note = deliveryNote,
+                    latitude = latitude, longitude = longitude,
+                    pinConfirmed = pinConfirmed, paymentPreference = paymentMethod,
+                )
+                PlantupiaDeliveryQuoteJourney(
+                    draft = draft, cart = if (loaded && loadError == null) cart else null,
+                    step = deliveryStep, receipt = deliveryReceipt, busy = busy,
+                    error = deliveryError, showErrors = showDeliveryIssues,
+                    onRecipient = { name = it; deliveryError = null },
+                    onPhone = { phone = it; deliveryError = null },
+                    onCity = {
+                        if (city != it) pinConfirmed = false
+                        city = it; deliveryError = null
+                    },
+                    onStreet = {
+                        if (address != it) pinConfirmed = false
+                        address = it; deliveryError = null
+                    },
+                    onBuilding = { building = it; deliveryError = null },
+                    onLandmark = { landmark = it; deliveryError = null },
+                    onNote = { deliveryNote = it; deliveryError = null },
+                    onPin = { lat, lon ->
+                        latitude = lat; longitude = lon
+                        pinConfirmed = true; deliveryError = null
+                    },
+                    onPayment = { paymentMethod = it; deliveryError = null },
+                    onReview = {
+                        showDeliveryIssues = true
+                        if (loaded && loadError == null && shopDeliveryReady(draft, cart)) {
+                            deliveryStep = "review"
+                            deliveryError = null
+                            showDeliveryIssues = false
                         }
                     },
-                ) { Text(if (busy) "Submitting…" else "Request exact shipping quote") }
-                TextButton(onClick = { screen = "cart" }) { Text("Back to cart") }
+                    onEdit = { deliveryStep = "details"; deliveryError = null },
+                    onSubmit = {
+                        val exactCart = cart
+                        if (!loaded || loadError != null ||
+                            !shopDeliveryReady(draft, exactCart) || exactCart == null || busy
+                        ) {
+                            deliveryError = "Your saved cart or delivery details changed. Review them before sending."
+                        } else {
+                            val payload = shopDeliveryQuotePayload(draft, exactCart)
+                            busy = true
+                            deliveryError = null
+                            scope.launch {
+                                try {
+                                    when (val result = repository.demoMutation(
+                                        "single-shop-shipping-quote", "commerce/orders/", payload,
+                                    )) {
+                                        is ApiResult.Success -> if (repository.isCurrentSession()) {
+                                            val acknowledged = shopDeliveryReceiptFromResponse(result.value, draft, exactCart)
+                                            if (acknowledged != null) {
+                                                focusedOrderId = acknowledged.reference
+                                                deliveryReceipt = acknowledged
+                                                deliveryStep = "received"
+                                            } else {
+                                                deliveryError =
+                                                    "The server reply did not confirm a delivery quote request. Check Your requests before trying again."
+                                            }
+                                        }
+                                        is ApiResult.Failure -> if (repository.isCurrentSession()) {
+                                            deliveryError =
+                                                "The request could not be confirmed. Check Your requests before retrying. " +
+                                                    result.message
+                                            if (result.statusCode == 409) refresh++
+                                        }
+                                    }
+                                } catch (failure: Exception) {
+                                    if (failure is java.util.concurrent.CancellationException) throw failure
+                                    if (repository.isCurrentSession()) {
+                                        deliveryError =
+                                            "The connection ended without a confirmed receipt. Check Your requests before trying again."
+                                    }
+                                } finally {
+                                    if (repository.isCurrentSession()) busy = false
+                                }
+                            }
+                        }
+                    },
+                    onCart = {
+                        screen = "cart"; deliveryError = null; feedback = null
+                    },
+                    onOrders = {
+                        focusedOrderId = deliveryReceipt?.reference
+                        deliveryReceipt = null
+                        deliveryStep = "details"
+                        screen = "orders"; refresh++; feedback = null
+                    },
+                    onCollection = {
+                        deliveryReceipt = null
+                        deliveryStep = "details"
+                        screen = "catalog"; feedback = null
+                    },
+                )
             }
             "business" -> {
                 PlantupiaBusinessInquiryScreen(
