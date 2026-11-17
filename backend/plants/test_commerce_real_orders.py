@@ -574,7 +574,7 @@ class RealCustomerOrderTests(DemoFixture, TestCase):
         self.assertFalse(price.data["available"])
         self.assertIsNone(price.data["shipping_fee"])
         failed = self.api.post(reverse("plantupia-real-commerce-direct-order"),
-            self.quote_body(rate_revision=1), format="json")
+            self.quote_body(rate_revision=1, expected_total="200.00"), format="json")
         self.assertEqual(failed.status_code, 400)
         self.assertFalse(CommerceOrder.objects.exists())
 
@@ -593,7 +593,8 @@ class RealCustomerOrderTests(DemoFixture, TestCase):
         self.assertEqual(price.data["rate_revision"], 1)
         before = stock_balance(self.sku.pk)
         client_id = uuid.uuid4()
-        payload = self.quote_body(client_id=client_id, rate_revision=price.data["rate_revision"])
+        payload = self.quote_body(client_id=client_id, rate_revision=price.data["rate_revision"],
+                                  expected_total=price.data["final_total"])
         direct_url = reverse("plantupia-real-commerce-direct-order")
         response = self.api.post(direct_url, payload, format="json")
         self.assertEqual(response.status_code, 201, response.data)
@@ -627,7 +628,8 @@ class RealCustomerOrderTests(DemoFixture, TestCase):
         self.assertEqual(price["rate_revision"], 1)
         self.save_delivery_price("30.00", city="cairo")
         direct = self.api.post(reverse("plantupia-real-commerce-direct-order"),
-            self.quote_body(rate_revision=price["rate_revision"]), format="json")
+            self.quote_body(rate_revision=price["rate_revision"],
+                            expected_total=price["final_total"]), format="json")
         self.assertEqual(direct.status_code, 400)
         self.assertEqual(CommerceOrder.objects.count(), 0)
         new_price = self.api.get(reverse("plantupia-real-commerce-delivery-price"), {
@@ -636,13 +638,26 @@ class RealCustomerOrderTests(DemoFixture, TestCase):
         self.assertEqual(new_price["rate_revision"], 2)
         self.assertEqual(new_price["final_total"], "230.00")
         current = self.api.post(reverse("plantupia-real-commerce-direct-order"),
-            self.quote_body(rate_revision=new_price["rate_revision"]), format="json")
+            self.quote_body(rate_revision=new_price["rate_revision"],
+                            expected_total=new_price["final_total"]), format="json")
         self.assertEqual(current.status_code, 201, current.data)
         saved = CommerceOrder.objects.get()
         self.save_delivery_price("50.00")
         saved.refresh_from_db()
         self.assertEqual(str(saved.shipping_fee), "30.00")
         self.assertEqual(current.data["final_total"], "230.00")
+
+    def test_direct_order_never_accepts_an_amount_different_from_displayed_total(self):
+        self.save_delivery_price("35.00")
+        self.cart(1)
+        changed = self.api.post(reverse("plantupia-real-commerce-direct-order"),
+            self.quote_body(rate_revision=1, expected_total="205.00"), format="json")
+        self.assertEqual(changed.status_code, 400)
+        self.assertFalse(CommerceOrder.objects.exists())
+        matching = self.api.post(reverse("plantupia-real-commerce-direct-order"),
+            self.quote_body(rate_revision=1, expected_total="235.00"), format="json")
+        self.assertEqual(matching.status_code, 201, matching.data)
+        self.assertEqual(matching.data["final_total"], "235.00")
 
     def test_only_authorized_company_staff_can_change_delivery_price(self):
         self.client.force_login(self.owner)
