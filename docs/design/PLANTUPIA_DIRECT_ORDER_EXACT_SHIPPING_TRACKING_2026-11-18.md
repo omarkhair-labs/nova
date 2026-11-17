@@ -1,5 +1,8 @@
 # Plantupia — Direct Orders, Exact Shipping, Honest Tracking
 
+> **Product correction — 2026-11-18:** The original automated-rate/direct-stock/carrier proposal below is an optional technical expansion, **not a requirement for the ordinary Plantupia shopping experience**. The current Chapter 06 brief prioritizes one-step order intake, staff-managed fulfilment, honest known-or-pending delivery charges, and event-based tracking without compulsory live courier/GPS or instant stock deduction. Read [Chapter 06 — Flexible Order Experience](./PLANTUPIA_CHAPTER_06_FLEXIBLE_ORDER_EXPERIENCE_2026-11-18.md) first; it governs the UX decisions in this document. No production release is authorized.
+
+
 **Date:** 2026-11-18 (Cairo)
 **Status:** Product contract + first tracking UI slice on isolated QA review branch; direct checkout and third-party courier integrations **NOT IMPLEMENTED OR ENABLED**.
 **Base:** PR #320 / `refine/plantupia-delivery-quote-journey-20261117` (stacked on #319/#318/#317/#316).
