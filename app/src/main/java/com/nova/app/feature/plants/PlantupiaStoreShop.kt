@@ -33,8 +33,8 @@ internal fun displayedEGP(value: String): String = "EGP " + value
 
 /**
  * The ONLY normal customer Shop.
- * Commercial SKU -> saved Cart -> customer-selected map pin -> real shipping
- * quote -> customer's explicit acceptance -> exact stock reservation -> Orders.
+ * Commercial SKU -> saved cart -> delivery price for the chosen city ->
+ * single direct order when price is known; explicit review only for an exception.
  *
  * There is deliberately no link to DemoOrder, QA cart, or QA-only checkout.
  * Payment and delivery status always come from genuine backend evidence.
@@ -86,6 +86,13 @@ internal fun PlantupiaStoreShop(
     var deliveryReceipt by remember { mutableStateOf<ShopDeliveryQuoteReceipt?>(null) }
     var deliveryError by remember { mutableStateOf<String?>(null) }
     var showDeliveryIssues by remember { mutableStateOf(false) }
+    var deliveryPrice by remember { mutableStateOf<ShopDeliveryExactPrice?>(null) }
+    var deliveryPriceBusy by remember { mutableStateOf(false) }
+    var deliveryPriceChecked by remember { mutableStateOf(false) }
+    var deliveryPriceCity by remember { mutableStateOf("") }
+    var deliveryPriceFingerprint by remember { mutableStateOf("") }
+    var deliveryPriceError by remember { mutableStateOf<String?>(null) }
+    var deliveryPriceRefresh by remember { mutableIntStateOf(0) }
 
     BackHandler(enabled = screen in setOf("checkout", "product", "business")) {
         when {
@@ -149,6 +156,9 @@ internal fun PlantupiaStoreShop(
         pinConfirmed = false; paymentMethod = "cod"; deliveryNote = ""
         deliveryStep = "details"; deliveryReceipt = null
         deliveryError = null; showDeliveryIssues = false
+        deliveryPrice = null; deliveryPriceBusy = false
+        deliveryPriceChecked = false; deliveryPriceError = null
+        deliveryPriceCity = ""; deliveryPriceFingerprint = ""
         focusedOrderId = null
         busy = false
     }
@@ -204,6 +214,51 @@ internal fun PlantupiaStoreShop(
                     loadError = result.message
                 }
             }
+        }
+    }
+
+    // Merchant-authored city price is rechecked for each city and exact saved cart.
+    // An unavailable response is NOT the same as a temporary network error.
+    val deliveryCartFingerprint = cart?.optString("fingerprint").orEmpty()
+    LaunchedEffect(
+        accountId, screen, city.trim(), deliveryCartFingerprint,
+        loaded, loadError, deliveryPriceRefresh,
+    ) {
+        deliveryPrice = null
+        deliveryPriceChecked = false
+        deliveryPriceError = null
+        deliveryPriceBusy = false
+        deliveryPriceCity = ""
+        deliveryPriceFingerprint = ""
+        if (screen != "checkout" || !loaded || loadError != null ||
+            city.trim().length < 2 || deliveryCartFingerprint.length != 64) return@LaunchedEffect
+        deliveryPriceBusy = true
+        val requestedCity = city.trim()
+        try {
+            val path = "commerce/delivery-price/?city=" +
+                java.net.URLEncoder.encode(requestedCity, "UTF-8") +
+                "&cart_fingerprint=" + deliveryCartFingerprint
+            when (val result = repository.demoGet(path)) {
+                is ApiResult.Success -> if (repository.isCurrentSession()) {
+                    val currentDraft = ShopDeliveryDraft(city = requestedCity)
+                    val exact = shopDeliveryExactPrice(result.value, currentDraft, cart)
+                    if (result.value.optBoolean("available") && exact == null) {
+                        deliveryPriceError = "Could not verify the displayed delivery total. Refresh to retry."
+                    }
+                    deliveryPrice = exact
+                    deliveryPriceChecked = true
+                    deliveryPriceCity = requestedCity
+                    deliveryPriceFingerprint = deliveryCartFingerprint
+                }
+                is ApiResult.Failure -> if (repository.isCurrentSession()) {
+                    deliveryPriceError = "Couldn't check this city's delivery price. " + result.message
+                    deliveryPriceChecked = true
+                    deliveryPriceCity = requestedCity
+                    deliveryPriceFingerprint = deliveryCartFingerprint
+                }
+            }
+        } finally {
+            if (repository.isCurrentSession()) deliveryPriceBusy = false
         }
     }
 
@@ -660,10 +715,21 @@ internal fun PlantupiaStoreShop(
                     latitude = latitude, longitude = longitude,
                     pinConfirmed = pinConfirmed, paymentPreference = paymentMethod,
                 )
+                val checkedPrice = deliveryPriceChecked &&
+                    deliveryPriceCity == draft.city.trim() &&
+                    deliveryPriceFingerprint == cart?.optString("fingerprint")
+                val exactPrice = deliveryPrice?.takeIf {
+                    checkedPrice && it.city == draft.city.trim() &&
+                        it.cartFingerprint == cart?.optString("fingerprint")
+                }
                 PlantupiaDeliveryQuoteJourney(
                     draft = draft, cart = if (loaded && loadError == null) cart else null,
                     step = deliveryStep, receipt = deliveryReceipt, busy = busy,
                     error = deliveryError, showErrors = showDeliveryIssues,
+                    exactPrice = exactPrice,
+                    priceChecked = checkedPrice, priceLoading = deliveryPriceBusy,
+                    priceError = deliveryPriceError,
+                    onReloadPrice = { deliveryPriceRefresh++ },
                     onRecipient = { name = it; deliveryError = null },
                     onPhone = { phone = it; deliveryError = null },
                     onCity = {
@@ -694,33 +760,42 @@ internal fun PlantupiaStoreShop(
                     onSubmit = {
                         val exactCart = cart
                         if (!loaded || loadError != null ||
-                            !shopDeliveryReady(draft, exactCart) || exactCart == null || busy
+                            !shopDeliveryReady(draft, exactCart) || exactCart == null || busy ||
+                            !checkedPrice || deliveryPriceBusy || deliveryPriceError != null
                         ) {
-                            deliveryError = "Your saved cart or delivery details changed. Review them before sending."
+                            deliveryError = "Your cart, delivery price or address needs checking before you proceed."
                         } else {
+                            val finalPrice = exactPrice
                             val payload = shopDeliveryQuotePayload(draft, exactCart)
+                            val direct = finalPrice != null
+                            if (direct) payload.put("rate_revision", finalPrice!!.rateRevision)
                             busy = true
                             deliveryError = null
                             scope.launch {
                                 try {
-                                    when (val result = repository.demoMutation(
-                                        "single-shop-shipping-quote", "commerce/orders/", payload,
-                                    )) {
+                                    val result = repository.demoMutation(
+                                        if (direct) "single-shop-direct-order" else "single-shop-shipping-quote",
+                                        if (direct) "commerce/orders/direct/" else "commerce/orders/",
+                                        payload,
+                                    )
+                                    when (result) {
                                         is ApiResult.Success -> if (repository.isCurrentSession()) {
-                                            val acknowledged = shopDeliveryReceiptFromResponse(result.value, draft, exactCart)
+                                            val acknowledged = shopDeliveryReceiptFromResponse(
+                                                result.value, draft, exactCart, finalPrice)
                                             if (acknowledged != null) {
                                                 focusedOrderId = acknowledged.reference
                                                 deliveryReceipt = acknowledged
                                                 deliveryStep = "received"
                                             } else {
                                                 deliveryError =
-                                                    "The server reply did not confirm a delivery quote request. Check Your requests before trying again."
+                                                    "We couldn't verify the saved order. Check Your orders before retrying."
                                             }
                                         }
                                         is ApiResult.Failure -> if (repository.isCurrentSession()) {
                                             deliveryError =
-                                                "The request could not be confirmed. Check Your requests before retrying. " +
+                                                "Your order was not confirmed. Check Your orders before retrying. " +
                                                     result.message
+                                            deliveryPriceRefresh++
                                             if (result.statusCode == 409) refresh++
                                         }
                                     }
@@ -728,7 +803,7 @@ internal fun PlantupiaStoreShop(
                                     if (failure is java.util.concurrent.CancellationException) throw failure
                                     if (repository.isCurrentSession()) {
                                         deliveryError =
-                                            "The connection ended without a confirmed receipt. Check Your requests before trying again."
+                                            "The connection ended without a verified receipt. Check Your orders before retrying."
                                     }
                                 } finally {
                                     if (repository.isCurrentSession()) busy = false
