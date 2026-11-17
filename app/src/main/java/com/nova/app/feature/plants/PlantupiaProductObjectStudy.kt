@@ -316,7 +316,9 @@ private fun ShopObjectDecision(
             Text("YOUR SELECTION", style = PlantupiaText.sectionLabel)
             Text(storeVariantName(selected), style = PlantupiaText.body,
                 fontWeight = FontWeight.SemiBold)
-            Text("EGP " + selected.optString("price"), style = PlantupiaText.editorialHeading)
+            Text("EGP " + selected.optString("price"),
+                modifier = Modifier.semantics { contentDescription = "Selected price EGP " + selected.optString("price") },
+                style = PlantupiaText.editorialHeading)
             Text(shopStockDescription(available, selected.optBoolean("in_stock")),
                 style = PlantupiaText.supporting)
             selected.optString("sku").takeIf { it.isNotBlank() }?.let {
