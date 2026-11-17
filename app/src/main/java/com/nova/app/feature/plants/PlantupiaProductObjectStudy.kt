@@ -105,7 +105,7 @@ private fun ShopObjectGallery(
             contentAlignment = Alignment.Center,
         ) {
             if (photos.isEmpty()) {
-                PlantupiaShopObjectAwaitingPhoto(kind)
+                PlantupiaShopObjectAwaitingPhoto(kind, height = 306.dp)
             } else {
                 Crossfade(targetState = index, animationSpec = tween(180), label = "product-photo") { photoIndex ->
                     val photo = photos[photoIndex]
