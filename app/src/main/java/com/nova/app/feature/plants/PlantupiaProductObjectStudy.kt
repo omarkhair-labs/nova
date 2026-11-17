@@ -165,7 +165,7 @@ private fun ShopObjectGallery(
             }
         }
         if (photos.isNotEmpty()) {
-            Text("Actual uploaded catalogue photography · " + photos.size + " view(s)",
+            Text("Catalogue image references · " + photos.size + " view(s)",
                 style = PlantupiaText.sectionLabel)
         }
     }
