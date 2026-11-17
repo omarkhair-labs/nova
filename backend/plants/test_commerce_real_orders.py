@@ -660,4 +660,3 @@ class RealCustomerOrderTests(DemoFixture, TestCase):
             "city": "Cairo", "cart_fingerprint": self.api.get(self.cart_url).data["fingerprint"],
         }).data
         self.assertFalse(no_rate["available"])
-
