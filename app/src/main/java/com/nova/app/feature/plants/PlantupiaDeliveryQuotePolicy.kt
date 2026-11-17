@@ -33,13 +33,13 @@ internal fun shopDeliveryFieldIssues(draft: ShopDeliveryDraft): List<String> = b
     if (draft.paymentPreference !in setOf("cod", "manual_transfer")) add("Payment preference")
 }
 
-internal fun shopDeliveryReady(draft: ShopDeliveryDraft, cart: JSONObject?): Boolean =
-    shopDeliveryFieldIssues(draft).isEmpty() &&
-        cart?.optBoolean("can_request_shipping_quote") == true &&
-        cart.optString("fingerprint").matches(Regex("[a-f0-9]{64}")) &&
-        cart.optJSONArray("results")?.length()?.let {
-            it in 1..20 && shopCartObjects(cart).size == it
-        } == true
+internal fun shopDeliveryReady(draft: ShopDeliveryDraft, cart: JSONObject?): Boolean {
+    if (cart == null || shopDeliveryFieldIssues(draft).isNotEmpty()) return false
+    if (!cart.optBoolean("can_request_shipping_quote")) return false
+    if (!cart.optString("fingerprint").matches(Regex("[a-f0-9]{64}"))) return false
+    val count = cart.optJSONArray("results")?.length() ?: return false
+    return count in 1..20 && shopCartObjects(cart).size == count
+}
 
 internal fun shopDeliveryQuotePayload(draft: ShopDeliveryDraft, cart: JSONObject): JSONObject =
     JSONObject()
@@ -65,7 +65,11 @@ internal data class ShopDeliveryQuoteReceipt(
     val paymentPreference: String,
 )
 
-internal fun shopDeliveryReceiptFromResponse(response: JSONObject): ShopDeliveryQuoteReceipt? {
+internal fun shopDeliveryReceiptFromResponse(
+    response: JSONObject,
+    draft: ShopDeliveryDraft,
+    requestedCart: JSONObject,
+): ShopDeliveryQuoteReceipt? {
     val reference = response.optString("id")
     if (runCatching { UUID.fromString(reference) }.getOrNull() == null) return null
     if (response.optString("status") != "quote_pending") return null
@@ -76,6 +80,12 @@ internal fun shopDeliveryReceiptFromResponse(response: JSONObject): ShopDelivery
     val recipient = customer.optString("name").trim()
     val city = customer.optString("city").trim()
     if (subtotal.isBlank() || recipient.isBlank() || city.isBlank()) return null
+    // The acknowledgement must match the exact customer's submission, not
+    // merely any quote-pending record returned from a broken endpoint.
+    if (subtotal != requestedCart.optString("subtotal")) return null
+    if (recipient != draft.recipient.trim() || city != draft.city.trim()) return null
+    if (customer.optString("phone") != normalizedDeliveryPhone(draft.phone)) return null
+    if (response.optString("payment_preference") != draft.paymentPreference) return null
     return ShopDeliveryQuoteReceipt(
         reference = reference,
         productSubtotal = subtotal,
