@@ -44,7 +44,7 @@ internal fun PlantupiaCartExperience(
     val serverCount = cart.optJSONArray("results")?.length() ?: -1
     val incomplete = serverCount != objects.size
     val units = objects.sumOf { it.quantity }
-    val isActionBlocked = busy || error != null
+    val isActionBlocked = busy || error != null || incomplete
 
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(19.dp)) {
         Row(
@@ -55,7 +55,8 @@ internal fun PlantupiaCartExperience(
             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text("THE SAVED COLLECTION / 04", style = PlantupiaText.sectionLabel)
                 Text(
-                    if (objects.isEmpty()) "Nothing saved yet"
+                    if (incomplete) "Some saved objects need review"
+                    else if (objects.isEmpty()) "Nothing saved yet"
                     else "${objects.size} ${if (objects.size == 1) "object" else "objects"} · $units ${if (units == 1) "unit" else "units"}",
                     style = PlantupiaText.body, fontWeight = FontWeight.SemiBold,
                 )
@@ -119,10 +120,16 @@ internal fun PlantupiaCartExperience(
                 Modifier.fillMaxWidth().padding(vertical = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text("A space takes shape one object at a time.",
-                    style = PlantupiaText.editorialHeading)
-                Text("Nothing is reserved or ordered here yet.",
-                    style = PlantupiaText.supporting)
+                Text(
+                    if (incomplete) "Your saved cart needs a refresh."
+                    else "A space takes shape one object at a time.",
+                    style = PlantupiaText.editorialHeading,
+                )
+                Text(
+                    if (incomplete) "Not all saved items could be read. Refresh before making changes."
+                    else "Nothing is reserved or ordered here yet.",
+                    style = PlantupiaText.supporting,
+                )
                 OutlinedButton(
                     onClick = onContinueShopping,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
