@@ -59,6 +59,7 @@ An Add to Cart action updates a persistent `CommerceCartLine`, does not reserve 
 - [x] Source-based policy tests added.
 - [ ] Exact-head Android CI succeeds: compile, unit tests, lint, QA assembly, instrumentation APK assembly.
 - [ ] Native visual/gesture QA: 320/360/390/430dp, large font, single/no/multiple/gallery-only photos, long titles, no image/no stock, Back, pinch zoom, Next/Previous and screen reader.
+- [ ] Inspect actual API/network trace and memory usage for thumbnail/main/zoom requests: the existing shared photo renderer may decode or fetch the same full-resolution picture multiple times. Add scoped caching/downsampling if the profiling shows repeated requests or frame drops, without making a global cross-account image cache.
 - [ ] Customer A/B and last-price/stock mutation checks with isolated approved test SKUs.
 - [ ] Owner review of actual device screenshots and final art direction.
 - [ ] Integrate reviewed Chapter 02 into Chapter 01, then #253 QA; no master/production promotion.
