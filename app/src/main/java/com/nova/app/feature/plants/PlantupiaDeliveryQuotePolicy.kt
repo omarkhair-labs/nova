@@ -23,9 +23,9 @@ internal data class ShopDeliveryDraft(
 
 internal fun shopDeliveryFieldIssues(draft: ShopDeliveryDraft): List<String> = buildList {
     if (draft.recipient.trim().length < 2) add("Recipient name")
-    if (!plantupiaDeliveryAddressReady(
-            "Valid", draft.phone, "Valid", "Valid street", 0.0, 0.0, true,
-        )) add("Phone number")
+    val phone = normalizedDeliveryPhone(draft.phone)
+    if (!Regex("[+0-9 ()-]{7,32}").matches(phone) ||
+        phone.count(Char::isDigit) < 7) add("Phone number")
     if (draft.city.trim().length < 2) add("City / governorate")
     if (draft.street.trim().length < 5) add("Street / address")
     if (!draft.pinConfirmed || draft.latitude == null || draft.longitude == null ||
@@ -37,7 +37,9 @@ internal fun shopDeliveryReady(draft: ShopDeliveryDraft, cart: JSONObject?): Boo
     shopDeliveryFieldIssues(draft).isEmpty() &&
         cart?.optBoolean("can_request_shipping_quote") == true &&
         cart.optString("fingerprint").matches(Regex("[a-f0-9]{64}")) &&
-        cart.optJSONArray("results")?.length()?.let { it in 1..20 } == true
+        cart.optJSONArray("results")?.length()?.let {
+            it in 1..20 && shopCartObjects(cart).size == it
+        } == true
 
 internal fun shopDeliveryQuotePayload(draft: ShopDeliveryDraft, cart: JSONObject): JSONObject =
     JSONObject()
