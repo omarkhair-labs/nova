@@ -72,7 +72,7 @@ class PlantupiaDeliveryQuoteJourneyInstrumentedTest {
         compose.onNodeWithText("FICTIONAL QA object").assertExists()
         compose.onNodeWithText("16 cm pot · 1 unit(s)").assertExists()
         compose.onNodeWithText("Delivery · To be confirmed. No final total yet.").assertExists()
-        compose.onNodeWithText("Send order request").performScrollTo().performClick()
+        compose.onNodeWithText("Request delivery confirmation").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(1, submits) }
         compose.onNodeWithText("Edit address or preference").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(1, edits) }
@@ -118,7 +118,7 @@ class PlantupiaDeliveryQuoteJourneyInstrumentedTest {
                 }
             }
         }
-        compose.onNodeWithText("Send order request").assertIsNotEnabled()
+        compose.onNodeWithText("Request delivery confirmation").assertIsNotEnabled()
         compose.onNodeWithText("No confirmed receipt. Check your request list.").assertExists()
     }
 
@@ -132,6 +132,8 @@ class PlantupiaDeliveryQuoteJourneyInstrumentedTest {
         onEdit: () -> Unit = {},
         onOrders: () -> Unit = {},
         onCollection: () -> Unit = {},
+        price: ShopDeliveryExactPrice? = null,
+        priceChecked: Boolean = true,
     ) {
         PlantupiaDeliveryQuoteJourney(
             draft = data, cart = savedCart, step = state, receipt = receipt,
@@ -141,6 +143,66 @@ class PlantupiaDeliveryQuoteJourneyInstrumentedTest {
             onPayment = onPayment, onReview = {}, onEdit = onEdit,
             onSubmit = onSubmit, onCart = {}, onOrders = onOrders,
             onCollection = onCollection,
+            exactPrice = price, priceChecked = priceChecked,
         )
+    }
+
+    @Test fun pricedCityShowsFinalTotalAndDirectPlaceOrder() {
+        val price = ShopDeliveryExactPrice(
+            city = "Cairo", cartFingerprint = "a".repeat(64),
+            rateRevision = 2, shippingFee = "35.00", total = "335.00",
+        )
+        var placed = 0
+        compose.setContent {
+            MaterialTheme {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    fixture(draft(), cart(), "review", price = price,
+                        onSubmit = { placed++ })
+                }
+            }
+        }
+        compose.onNodeWithText("EGP 35.00", substring = true).assertExists()
+        compose.onNodeWithText("EGP 335.00", substring = true).assertExists()
+        compose.onNodeWithText("Place Order").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(1, placed) }
+    }
+
+    @Test fun directOrderReceiptShowsConfirmedAmountAndTracking() {
+        val receipt = ShopDeliveryQuoteReceipt(
+            reference = "e70b1769-51d3-45b9-84fa-5bc2b217e001",
+            productSubtotal = "300.00", recipient = "Example Recipient",
+            city = "Cairo", paymentPreference = "cod",
+            lines = listOf(ShopDeliveryReceiptLine(
+                name = "FICTIONAL QA object", variant = "16 cm pot",
+                quantity = 1, subtotal = "300.00")),
+            confirmed = true, shippingFee = "35.00", finalTotal = "335.00",
+        )
+        compose.setContent {
+            MaterialTheme {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    fixture(draft(), null, "received", receipt = receipt)
+                }
+            }
+        }
+        compose.onNodeWithText("Your order is confirmed.").assertExists()
+        compose.onNodeWithText("Total · EGP 335.00").assertExists()
+        compose.onNodeWithText("Track your order  ↗").assertExists()
+        compose.onAllNodesWithText("Your request has been recorded.").assertCountEquals(0)
+    }
+
+    @Test fun noOrderMayBePlacedBeforeRateLookupCompletes() {
+        val price = ShopDeliveryExactPrice(
+            city = "Cairo", cartFingerprint = "a".repeat(64),
+            rateRevision = 2, shippingFee = "35.00", total = "335.00",
+        )
+        compose.setContent {
+            MaterialTheme {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    fixture(draft(), cart(), "review", price = price,
+                        priceChecked = false)
+                }
+            }
+        }
+        compose.onNodeWithText("Place Order").assertIsNotEnabled()
     }
 }
