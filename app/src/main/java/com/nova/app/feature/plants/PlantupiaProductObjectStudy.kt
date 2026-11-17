@@ -23,6 +23,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -42,6 +44,9 @@ internal fun StoreProductDetails(
     repository: PlantupiaRepository,
     busy: Boolean,
     onAdd: (String, Int) -> Unit,
+    adding: Boolean = false,
+    addErrorForSku: Pair<String, String>? = null,
+    onViewCart: () -> Unit = {},
 ) {
     val product = variants.firstOrNull() ?: return
     var selectedSku by rememberSaveable(productId) {
@@ -66,14 +71,20 @@ internal fun StoreProductDetails(
                 }
                 Box(Modifier.weight(.95f)) {
                     ShopObjectDecision(product, variants, id, available, inCart, cart != null,
-                        busy, onVariant = { selectedSku = it }, onAdd = onAdd)
+                        busy, onVariant = { selectedSku = it }, onAdd = onAdd,
+                        adding = adding && addErrorForSku == null,
+                        addError = addErrorForSku?.takeIf { it.first == id }?.second,
+                        onViewCart = onViewCart)
                 }
             }
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(22.dp)) {
                 ShopObjectGallery(productId, photos, repository, product.optString("kind"))
                 ShopObjectDecision(product, variants, id, available, inCart, cart != null,
-                    busy, onVariant = { selectedSku = it }, onAdd = onAdd)
+                    busy, onVariant = { selectedSku = it }, onAdd = onAdd,
+                    adding = adding && addErrorForSku == null,
+                    addError = addErrorForSku?.takeIf { it.first == id }?.second,
+                    onViewCart = onViewCart)
             }
         }
     }
@@ -254,6 +265,9 @@ private fun ShopObjectDecision(
     busy: Boolean,
     onVariant: (String) -> Unit,
     onAdd: (String, Int) -> Unit,
+    adding: Boolean,
+    addError: String?,
+    onViewCart: () -> Unit,
 ) {
     val selected = variants.firstOrNull { it.optString("id") == selectedId } ?: return
     val kind = product.optString("kind")
@@ -286,7 +300,7 @@ private fun ShopObjectDecision(
                     Surface(
                         modifier = Modifier.fillMaxWidth().selectable(
                             selected = chosen, role = Role.RadioButton,
-                            onClick = { onVariant(optionId) },
+                            enabled = !busy, onClick = { onVariant(optionId) },
                         ),
                         shape = RoundedCornerShape(12.dp),
                         color = if (chosen) PlantupiaColors.softSage else PlantupiaColors.paper,
@@ -331,7 +345,34 @@ private fun ShopObjectDecision(
                 selected.optBoolean("in_stock"), inCart),
             modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
             colors = ButtonDefaults.buttonColors(containerColor = PlantupiaColors.forest),
-        ) { Text(if (inCart == 0) "Add to cart" else "Add one more · " + inCart + " in cart") }
+        ) {
+            if (adding) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp), strokeWidth = 2.dp,
+                    color = PlantupiaColors.paper,
+                )
+                Spacer(Modifier.width(10.dp))
+            }
+            Text(
+                when {
+                    adding -> "Saving your selection…"
+                    inCart == 0 -> "Add to cart"
+                    else -> "Add one more · " + inCart + " in cart"
+                },
+            )
+        }
+        if (addError != null) {
+            Column(
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                verticalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                Text(addError, style = PlantupiaText.supporting,
+                    color = PlantupiaColors.errorText)
+                TextButton(onClick = onViewCart) {
+                    Text("Check saved cart  ↗", color = PlantupiaColors.forest)
+                }
+            }
+        }
         if (!cartLoaded) {
             Text("The cart is unavailable right now. Return to Collection to retry.",
                 style = PlantupiaText.supporting)

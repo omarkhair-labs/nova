@@ -61,6 +61,9 @@ internal fun PlantupiaStoreShop(
     var busy by remember { mutableStateOf(false) }
     var loaded by remember { mutableStateOf(false) }
     var feedback by remember { mutableStateOf<String?>(null) }
+    var cartReceipt by remember { mutableStateOf<ShopCartReceipt?>(null) }
+    var productAddFailure by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var addingSku by remember { mutableStateOf<String?>(null) }
     var refresh by remember { mutableIntStateOf(0) }
     var search by rememberSaveable { mutableStateOf("") }
 
@@ -112,6 +115,10 @@ internal fun PlantupiaStoreShop(
         search = ""
         feedback = null
         quoteToAccept = null
+        cartReceipt = null
+        productAddFailure = null
+        addingSku = null
+        busy = false
     }
     val dataPage = if (screen == "product") "catalog" else screen
     LaunchedEffect(accountId, dataPage, refresh) {
@@ -168,21 +175,62 @@ internal fun PlantupiaStoreShop(
         }
     }
 
-    fun updateQuantity(skuId: String, next: Int) {
+    fun updateQuantity(skuId: String, next: Int, fromProduct: Boolean = false) {
+        // The backend mutation sets an absolute desired quantity, not an increment.
+        // Repeating the same request after an ambiguous timeout cannot double-add.
         if (busy) return
         busy = true
         feedback = null
+        if (fromProduct) {
+            addingSku = skuId
+            productAddFailure = null
+            cartReceipt = null
+        }
         scope.launch {
             try {
                 when (val result = repository.demoPost("commerce/cart/",
                     JSONObject().put("sku_id", skuId).put("quantity", next))) {
                     is ApiResult.Success -> if (repository.isCurrentSession()) {
                         cart = result.value
-                        feedback = "Cart updated."
+                        if (fromProduct) {
+                            val saved = shopCartReceiptFromResponse(result.value, skuId, next)
+                            if (saved != null && screen == "product" && selectedProductId == saved.productId) {
+                                cartReceipt = saved
+                            } else if (saved == null) {
+                                productAddFailure = skuId to
+                                    "We couldn't confirm the exact item and quantity. Open your cart to check before trying again."
+                            } else {
+                                feedback = "Your saved cart has been updated."
+                            }
+                        } else {
+                            feedback = "Cart updated."
+                        }
                     }
-                    is ApiResult.Failure -> if (repository.isCurrentSession()) feedback = result.message
+                    is ApiResult.Failure -> if (repository.isCurrentSession()) {
+                        if (fromProduct) {
+                            productAddFailure = skuId to
+                                ("We couldn't confirm the update. Check your cart before retrying. " + result.message)
+                        } else feedback = result.message
+                    }
                 }
-            } finally { busy = false }
+            } catch (error: Exception) {
+                if (error is java.util.concurrent.CancellationException) throw error
+                if (repository.isCurrentSession()) {
+                    if (fromProduct) {
+                        productAddFailure = skuId to
+                            "We couldn't verify the cart change. Check your saved cart before trying again."
+                    } else {
+                        feedback = "The cart could not be updated. Check its saved state before retrying."
+                    }
+                }
+            } finally {
+                // An obsolete account's request must not unlock a new user's
+                // still-pending operation or expose its original selection.
+                if (repository.isCurrentSession()) {
+                    busy = false
+                    if (fromProduct) addingSku = null
+                }
+            }
         }
     }
 
@@ -272,6 +320,21 @@ internal fun PlantupiaStoreShop(
                     quoteToAccept = null
                     updateOrder(quote.optString("id"), "accept", quote.optInt("shipping_quote_version"))
                 }) { Text("Confirm order") }
+            },
+        )
+    }
+
+    cartReceipt?.let { saved ->
+        PlantupiaCartReceiptSheet(
+            receipt = saved,
+            repository = repository,
+            onContinue = { cartReceipt = null },
+            onViewCart = {
+                cartReceipt = null
+                productAddFailure = null
+                screen = "cart"
+                selectedProductId = null
+                feedback = null
             },
         )
     }
@@ -431,6 +494,7 @@ internal fun PlantupiaStoreShop(
                             selectedProductId = it
                             screen = "product"
                             feedback = null
+                            productAddFailure = null
                         }
                         if (count > visibleCount) {
                             OutlinedButton(
@@ -453,7 +517,21 @@ internal fun PlantupiaStoreShop(
                 val id = selectedProductId.orEmpty()
                 val variants = products.filter { it.optString("product_id") == id }
                 if (variants.isNotEmpty()) {
-                    StoreProductDetails(id, variants, cart, repository, busy || !loaded, ::updateQuantity)
+                    StoreProductDetails(
+                        productId = id,
+                        variants = variants,
+                        cart = cart,
+                        repository = repository,
+                        busy = busy || !loaded,
+                        onAdd = { sku, quantity -> updateQuantity(sku, quantity, fromProduct = true) },
+                        adding = addingSku != null,
+                        addErrorForSku = productAddFailure,
+                        onViewCart = {
+                            screen = "cart"
+                            selectedProductId = null
+                            productAddFailure = null
+                        },
+                    )
                 } else if (loaded && loadError == null) {
                     Text("This product is no longer available.", style = PlantupiaText.body)
                 }
