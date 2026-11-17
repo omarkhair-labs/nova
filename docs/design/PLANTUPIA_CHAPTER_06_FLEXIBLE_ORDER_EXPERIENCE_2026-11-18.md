@@ -65,3 +65,15 @@ Visually: compact order header → primary current status → calm vertical prog
 - Beyond Chapter 06, resume agreed sequence: 07 Business Requests → 08 Plant Detail → 09 Care Guide → 10 Care & History → 11 Website Submission → 12 Integrated Acceptance, each with evidence and design review.
 
 **Design principle:** effortless for customer, useful for operator, truthful in every state.
+
+## 8. Implementation progress — first honest request/receipt slice (2026-11-18)
+
+**Committed on QA PR #321 ancestry, not production:**
+- `PlantupiaDeliveryQuoteJourney.kt`: authored post-submission request receipt, real reference, server-confirmed item snapshot, subtotal, recipient, delivery status, human next steps and meaningful navigation. Checkout text now says **send order request** with a clearly unconfirmed delivery amount; it does not falsely label it paid or finally purchased.
+- `PlantupiaDeliveryQuotePolicy.kt`: strengthen ACK to require line-level correspondence between requested SKU, quantity, unit price and subtotal and the backend-persisted CommerceOrder snapshots. No optimistic success if line data is missing/mismatched.
+- `PlantupiaOrderTracking.kt`, `PlantupiaStorePresentation.kt`, `PlantupiaStoreShop.kt`: truth-led `Request received` state, readable company-event history and natural Your orders navigation; no fabricated carrier/ETA.
+- Kotlin/JVM and Compose instrumentation fixtures updated to assert the receipt, exact lines, truthful not-yet-confirmed state, buttons and unsafe ACK rejection.
+
+**Important remaining boundary:** The backend still stores the first submission as `quote_pending`, requires a subsequent staff shipping quote plus customer acceptance before `confirmed`, and reserves stock at acceptance. This first slice improves the current real UX; it **does not yet implement one-tap direct confirmed checkout, a merchant-approved known-fee path, optional in-house handover without a carrier reference, or stock workflow flexibility**. Do not portray it as if those exist. Next bounded technical slice must simplify that default company/customer handshake while preserving consent to the actual amount, idempotency and meaningful stock accounting.
+
+**Verification:** exact-head GitHub CI and physical-device visual QA are required; commit writes alone are not a test pass. Keep the stacked PR draft until verified and reviewed by owner.
