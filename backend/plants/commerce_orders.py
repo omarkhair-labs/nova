@@ -1,9 +1,9 @@
 """Single real Plantupia commercial order/quote/reservation lifecycle.
 
-A customer's submission requests an exact delivery quote using the persisted
-commercial SKU cart. The company quotes shipping. The customer then accepts
-that specific quote, causing location-based stock reservation exactly once.
-No money is moved and no courier delivery is claimed by these actions.
+The canonical SKU cart supports one-step direct purchase when a merchant-approved
+city delivery fee is already known; a separate customer-request/quote path remains
+for unpriced exception cases. Confirmed orders hold inventory safely, but physical
+stock is deducted only on dispatch. Neither path records a payment or shipment.
 """
 import hashlib
 import json
@@ -287,6 +287,126 @@ def quote_shipping(*, staff, order_id, fee, version):
         return order
 
 
+def _reserve_exact_stock(order, lines):
+    """Lock actual SKU/location counts; hold stock, but do not deduct it now.
+
+    A hold keeps two simultaneous purchases from promising the same unit.
+    Physical stock is deducted once, later, at actual dispatch.
+    """
+    ids = sorted({line.sku_id for line in lines})
+    locked_skus = {
+        s.pk: s for s in CommerceSKU.objects.select_for_update()
+        .select_related("product").filter(pk__in=ids).order_by("pk")
+    }
+    locations = list(CommerceStockLocation.objects.select_for_update().filter(
+        active=True).order_by("code", "pk"))
+    planned = []
+    for line in lines:
+        sku = locked_skus.get(line.sku_id)
+        if (sku is None or sku.product.catalog_review_status !=
+                CommerceProduct.CatalogReviewStatus.APPROVED
+                or sku.product.storefront_published_at is None
+                or sku.price != line.unit_price_snapshot or sku.currency != "EGP"):
+            raise ValidationError("A product or its price changed. Review your cart.")
+        needed = line.quantity
+        for location in locations:
+            balance = max(location_available(sku.pk, location.pk), 0)
+            take = min(needed, balance)
+            if take:
+                planned.append(CommerceStockReservation(
+                    order=order, sku=sku, location=location, quantity=take,
+                ))
+                needed -= take
+            if not needed:
+                break
+        if needed:
+            raise ValidationError(f"Not enough current stock for SKU {sku.code}. Nothing was ordered.")
+    CommerceStockReservation.objects.bulk_create(planned)
+
+
+def place_direct_order(*, user, data):
+    """One confirmed order at the displayed merchant-approved city delivery fee.
+
+    Same canonical SKU cart; one customer action. No payment or physical stock
+    deduction happens here. Missing city fee must use the existing exception path.
+    """
+    from .commerce_delivery_rates import rate_for_city
+
+    customer_only(user)
+    client_id = _uuid(data["client_id"])
+    signature = _request_fingerprint(data)
+    with transaction.atomic():
+        get_user_model().objects.select_for_update().get(pk=user.pk)
+        replay = CommerceOrder.objects.filter(customer=user, client_id=client_id).first()
+        if replay:
+            if replay.fingerprint != signature or replay.status != CommerceOrder.Status.CONFIRMED:
+                raise ValidationError("This retry ID was already used for another request.")
+            return replay
+
+        rate = rate_for_city(data["city"], lock=True)
+        if rate is None:
+            raise ValidationError("Delivery pricing for this city is not configured. Review your options.")
+        if rate.revision != int(data["rate_revision"]):
+            raise ValidationError("The delivery price was updated. Review the latest total before ordering.")
+
+        cart = cart_json(user)
+        if (cart["fingerprint"] != data["cart_fingerprint"] or
+                not cart["all_items_available"]):
+            raise ValidationError("Your saved cart changed. Refresh the total before placing an order.")
+        lines = cart_lines(user)
+        if not 1 <= len(lines) <= 20:
+            raise ValidationError("Add between 1 and 20 currently available SKU options.")
+        now = timezone.now()
+        order = CommerceOrder(
+            customer=user, client_id=client_id, fingerprint=signature,
+            cart_fingerprint=cart["fingerprint"],
+            contact_name=data["contact_name"].strip(),
+            contact_phone=data["contact_phone"].strip(),
+            city=data["city"].strip(),
+            delivery_address=data["delivery_address"].strip(),
+            building_details=data.get("building_details", "").strip(),
+            landmark=data.get("landmark", "").strip(),
+            customer_note=data.get("customer_note", "").strip(),
+            delivery_latitude=data["delivery_latitude"],
+            delivery_longitude=data["delivery_longitude"],
+            delivery_pin_confirmed=True,
+            payment_preference=data["payment_preference"],
+            subtotal=Decimal(cart["subtotal"]),
+            shipping_fee=rate.fee,
+            status=CommerceOrder.Status.CONFIRMED,
+            confirmed_at=now, last_status_at=now,
+        )
+        order.full_clean()
+        order.save()
+        CommerceOrderLine.objects.bulk_create([
+            CommerceOrderLine(
+                order=order, sku=line.sku,
+                product_name_snapshot=line.sku.product.name,
+                sku_code_snapshot=line.sku.code,
+                option_snapshot=line.sku.option_label,
+                unit_price_snapshot=line.sku.price,
+                quantity=line.quantity,
+                line_subtotal_snapshot=line.sku.price * line.quantity,
+            )
+            for line in lines
+        ])
+        saved_lines = list(order.lines.all())
+        _reserve_exact_stock(order, saved_lines)
+        for line in saved_lines:
+            CommerceCartLine.objects.filter(
+                customer=user, sku_id=line.sku_id, quantity=line.quantity,
+            ).delete()
+        CommerceRealOrderEvent.objects.create(
+            order=order, actor=user, kind="order_placed",
+            label="You placed this order at the displayed total. Payment is not yet verified.",
+        )
+        company.audit(user, order,
+            f"Direct order at EGP {order.subtotal + rate.fee}; "
+            f"merchant city-rate {rate.city_key} rev {rate.revision}; "
+            "stock held, not deducted, payment not verified.")
+        return order
+
+
 def accept_shipping_quote(*, user, order_id, quote_version):
     """Confirm exact shipping total and atomically reserve from actual warehouse locations."""
     customer_only(user)
@@ -305,37 +425,7 @@ def accept_shipping_quote(*, user, order_id, quote_version):
                 or order.shipping_quote_expires_at <= timezone.now()):
             raise ValidationError("This delivery quote is not available; ask the team for a fresh quote.")
         lines = list(order.lines.all())
-        ids = sorted({line.sku_id for line in lines})
-        locked_skus = {
-            s.pk: s for s in CommerceSKU.objects.select_for_update()
-            .select_related("product").filter(pk__in=ids).order_by("pk")
-        }
-        locations = list(CommerceStockLocation.objects.select_for_update().filter(
-            active=True).order_by("code", "pk"))
-        planned = []
-        for line in lines:
-            sku = locked_skus.get(line.sku_id)
-            if (sku is None or sku.product.catalog_review_status !=
-                    CommerceProduct.CatalogReviewStatus.APPROVED
-                    or sku.product.storefront_published_at is None
-                    or sku.price != line.unit_price_snapshot or sku.currency != "EGP"):
-                raise ValidationError("A product or its price changed after your order request. No stock was reserved.")
-            needed = line.quantity
-            for location in locations:
-                balance = max(location_available(sku.pk, location.pk), 0)
-                take = min(needed, balance)
-                if take:
-                    planned.append(CommerceStockReservation(
-                        order=order, sku=sku, location=location, quantity=take,
-                    ))
-                    needed -= take
-                if not needed:
-                    break
-            if needed:
-                raise ValidationError(f"Not enough actual stock for SKU {sku.code}. No order was confirmed.")
-
-        # All SKU/location locks are held; no other checkout or count can take this stock.
-        CommerceStockReservation.objects.bulk_create(planned)
+        _reserve_exact_stock(order, lines)
         order.status = CommerceOrder.Status.CONFIRMED
         order.confirmed_at = timezone.now()
         order.last_status_at = order.confirmed_at
