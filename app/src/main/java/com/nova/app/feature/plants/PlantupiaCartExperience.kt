@@ -10,6 +10,7 @@ import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -291,9 +292,14 @@ private fun PlantupiaCartObjectCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     OutlinedButton(
-                        onClick = onDecrease,
-                        enabled = enabled && item.quantity > 1,
-                        modifier = Modifier.widthIn(min = 48.dp).heightIn(min = 48.dp),
+                        onClick = { if (item.quantity <= 1) onRemove() else onDecrease() },
+                        enabled = enabled && item.quantity > 0,
+                        modifier = Modifier.widthIn(min = 48.dp).heightIn(min = 48.dp)
+                            .semantics {
+                                contentDescription = if (item.quantity == 1)
+                                    "Remove the last unit of " + item.name
+                                else "Decrease quantity of " + item.name
+                            },
                         contentPadding = PaddingValues(horizontal = 9.dp),
                     ) { Text("−") }
                     Text(item.quantity.toString(),
@@ -302,7 +308,8 @@ private fun PlantupiaCartObjectCard(
                     OutlinedButton(
                         onClick = onIncrease,
                         enabled = enabled && shopCartCanIncrease(item),
-                        modifier = Modifier.widthIn(min = 48.dp).heightIn(min = 48.dp),
+                        modifier = Modifier.widthIn(min = 48.dp).heightIn(min = 48.dp)
+                            .semantics { contentDescription = "Increase quantity of " + item.name },
                         contentPadding = PaddingValues(horizontal = 9.dp),
                     ) { Text("+") }
                     Spacer(Modifier.weight(1f))
