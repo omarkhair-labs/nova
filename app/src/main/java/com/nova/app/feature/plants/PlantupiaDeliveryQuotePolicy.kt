@@ -87,6 +87,13 @@ internal fun shopDeliveryReceiptFromResponse(
     if (subtotal != requestedCart.optString("subtotal")) return null
     if (recipient != draft.recipient.trim() || city != draft.city.trim()) return null
     if (customer.optString("phone") != normalizedDeliveryPhone(draft.phone)) return null
+    if (customer.optString("address") != draft.street.trim()) return null
+    if (!customer.optBoolean("pin_confirmed")) return null
+    val acknowledgedLatitude = customer.optString("latitude").toDoubleOrNull() ?: return null
+    val acknowledgedLongitude = customer.optString("longitude").toDoubleOrNull() ?: return null
+    if (draft.latitude == null || draft.longitude == null ||
+        kotlin.math.abs(acknowledgedLatitude - draft.latitude) > 0.000001 ||
+        kotlin.math.abs(acknowledgedLongitude - draft.longitude) > 0.000001) return null
     if (response.optString("payment_preference") != draft.paymentPreference) return null
     return ShopDeliveryQuoteReceipt(
         reference = reference,
