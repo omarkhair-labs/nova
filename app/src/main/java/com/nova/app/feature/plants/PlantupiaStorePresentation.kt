@@ -1,6 +1,9 @@
 package com.nova.app.feature.plants
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -52,44 +55,75 @@ internal fun StoreCatalog(
     val fontScale = LocalDensity.current.fontScale
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val columns = plantupiaShopProductColumns(maxWidth.value, fontScale)
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             entries.chunked(columns).forEach { row ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     row.forEach { (id, variants) ->
                         key(id) {
                             val product = variants.first()
                             val available = variants.filter { it.optBoolean("in_stock") }
                             val priced = available.ifEmpty { variants }
-                            val price = priced.minBy { it.optString("price").toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO }
-                                .optString("price")
+                            val price = priced.minByOrNull {
+                                it.optString("price").toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO
+                            }?.optString("price").orEmpty()
+                            val gallery = product.optJSONArray("photos")
+                            val cover = product.optBoolean("has_image")
+                            val firstGallery = gallery?.optJSONObject(0)
+                            val hasPhoto = cover || firstGallery?.optString("id").orEmpty().isNotBlank()
+                            val kind = product.optString("kind")
                             Surface(
                                 modifier = Modifier.weight(1f),
                                 onClick = { onProduct(id) },
-                                shape = PlantupiaShapes.card,
+                                shape = RoundedCornerShape(13.dp),
                                 color = PlantupiaColors.paper,
                                 border = BorderStroke(1.dp, PlantupiaColors.border),
                             ) {
-                                Column(
-                                    Modifier.padding(10.dp),
-                                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                                ) {
-                                    if (product.optBoolean("has_image")) {
-                                        PlantupiaCatalogPhoto(
-                                            productId = id, repository = repository, compact = true,
-                                            photoAlt = product.optString("image_description"),
-                                            catalogPath = "commerce/catalog",
+                                Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                                    if (hasPhoto) {
+                                        Box(
+                                            Modifier.fillMaxWidth().height(174.dp)
+                                                .background(PlantupiaColors.softSage),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            PlantupiaCatalogPhoto(
+                                                productId = id, repository = repository,
+                                                compact = true, catalogPath = "commerce/catalog",
+                                                photoId = if (cover) null else firstGallery?.optString("id"),
+                                                photoAlt = if (cover) product.optString("image_description")
+                                                    else firstGallery?.optString("alt_text").orEmpty(),
+                                                fullObject = true,
+                                            )
+                                        }
+                                    } else {
+                                        PlantupiaShopObjectAwaitingPhoto(kind)
+                                    }
+                                    Column(
+                                        Modifier.fillMaxWidth().padding(13.dp),
+                                        verticalArrangement = Arrangement.spacedBy(7.dp),
+                                    ) {
+                                        Text(
+                                            storeCategoryLabel(kind).uppercase(),
+                                            style = PlantupiaText.sectionLabel,
+                                        )
+                                        Text(
+                                            product.optString("name"),
+                                            style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
+                                            minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                                        )
+                                        Text(
+                                            if (priced.size > 1) "From EGP $price" else "EGP $price",
+                                            style = PlantupiaText.body,
+                                        )
+                                        Text(
+                                            if (available.isEmpty()) "CURRENTLY UNAVAILABLE"
+                                            else "EXPLORE THE OBJECT  ↗",
+                                            style = PlantupiaText.sectionLabel.copy(
+                                                color = if (available.isEmpty())
+                                                    PlantupiaColors.secondaryText
+                                                else PlantupiaColors.forest,
+                                            ),
                                         )
                                     }
-                                    Text(storeCategoryLabel(product.optString("kind")), style = PlantupiaText.sectionLabel)
-                                    Text(product.optString("name"), style = PlantupiaText.body, fontWeight = FontWeight.SemiBold)
-                                    Text(
-                                        if (priced.size > 1) "From EGP " + price else "EGP " + price,
-                                        style = PlantupiaText.supporting,
-                                    )
-                                    Text(
-                                        if (available.isEmpty()) "Out of stock" else "View details",
-                                        style = PlantupiaText.sectionLabel,
-                                    )
                                 }
                             }
                         }
