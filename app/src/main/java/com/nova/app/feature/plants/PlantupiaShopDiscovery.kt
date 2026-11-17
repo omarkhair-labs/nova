@@ -191,6 +191,7 @@ internal fun PlantupiaShopObjectAwaitingPhoto(kind: String, height: androidx.com
         "care" -> "CARE OBJECT"
         else -> "OBJECT STUDY"
     }
+    val compact = height <= 120.dp
     Box(
         modifier = Modifier.fillMaxWidth().height(height)
             .background(PlantupiaColors.softSage),
@@ -205,13 +206,19 @@ internal fun PlantupiaShopObjectAwaitingPhoto(kind: String, height: androidx.com
             drawLine(ink, Offset(size.width - 20f, 20f), Offset(size.width - 20f, size.height - 20f), 1f)
         }
         Column(
-            Modifier.align(Alignment.BottomStart).padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            Modifier.align(Alignment.BottomStart).padding(if (compact) 8.dp else 14.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 1.dp else 4.dp),
         ) {
-            Text(category, fontFamily = FontFamily.Monospace,
-                fontSize = 9.sp, color = PlantupiaColors.secondaryText)
-            Text("Product photo pending", fontSize = 12.sp,
-                color = PlantupiaColors.forestText)
+            if (!compact) {
+                Text(category, fontFamily = FontFamily.Monospace,
+                    fontSize = 9.sp, color = PlantupiaColors.secondaryText)
+            }
+            Text(
+                if (compact) "PHOTO PENDING" else "Product photo pending",
+                fontFamily = if (compact) FontFamily.Monospace else FontFamily.Default,
+                fontSize = if (compact) 9.sp else 12.sp,
+                color = PlantupiaColors.forestText,
+            )
         }
     }
 }
