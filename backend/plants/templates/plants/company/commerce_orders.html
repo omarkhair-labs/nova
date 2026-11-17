@@ -14,6 +14,7 @@
 </div>
 <div class="task-shortcuts">
   <a class="button" href="{% url 'company:commerce-orders' %}">All orders</a>
+  <a class="button" href="{% url 'company:commerce-delivery-rates' %}">Delivery prices</a>
   {% if perms.plants.view_commerceproduct %}<a class="button" href="{% url 'company:commerce-products' %}">Products</a>{% endif %}
   {% if perms.plants.view_commercestockmovement %}<a class="button" href="{% url 'company:commerce-stock' %}">Warehouse stock</a>{% endif %}
 </div>
