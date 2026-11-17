@@ -41,6 +41,10 @@ def _request_fingerprint(data):
         "delivery_latitude", "delivery_longitude", "delivery_pin_confirmed",
         "payment_preference",
     )
+    # Keep legacy quote fingerprints unchanged; direct-order confirmation
+    # additionally binds the exact displayed amount and tariff revision.
+    if "expected_total" in data:
+        fields += ("rate_revision", "expected_total")
     clean = {key: str(data.get(key, "")).strip() for key in fields}
     return hashlib.sha256(
         json.dumps(clean, sort_keys=True, ensure_ascii=False).encode("utf-8")
@@ -356,6 +360,9 @@ def place_direct_order(*, user, data):
         lines = cart_lines(user)
         if not 1 <= len(lines) <= 20:
             raise ValidationError("Add between 1 and 20 currently available SKU options.")
+        accepted_total = Decimal(cart["subtotal"]) + rate.fee
+        if Decimal(str(data["expected_total"])) != accepted_total:
+            raise ValidationError("The total changed. Review the latest delivery price before ordering.")
         now = timezone.now()
         order = CommerceOrder(
             customer=user, client_id=client_id, fingerprint=signature,
