@@ -1,5 +1,7 @@
 package com.nova.app.feature.plants
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
@@ -7,6 +9,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -266,10 +269,15 @@ internal fun PlantupiaDeliveryQuoteJourney(
 
 @Composable
 private fun DeliveryPhase(number: String, name: String, active: Boolean, modifier: Modifier) {
+    val phaseColor by animateColorAsState(
+        targetValue = if (active) PlantupiaColors.forest else PlantupiaColors.softSage,
+        animationSpec = tween(190),
+        label = "delivery-phase-change",
+    )
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(10.dp),
-        color = if (active) PlantupiaColors.forest else PlantupiaColors.softSage,
+        color = phaseColor,
         border = BorderStroke(1.dp, if (active) PlantupiaColors.forest else PlantupiaColors.border),
     ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
