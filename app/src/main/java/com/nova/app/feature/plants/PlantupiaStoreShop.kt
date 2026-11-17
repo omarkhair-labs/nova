@@ -118,6 +118,7 @@ internal fun PlantupiaStoreShop(
         cartReceipt = null
         productAddFailure = null
         addingSku = null
+        busy = false
     }
     val dataPage = if (screen == "product") "catalog" else screen
     LaunchedEffect(accountId, dataPage, refresh) {
@@ -212,9 +213,23 @@ internal fun PlantupiaStoreShop(
                         } else feedback = result.message
                     }
                 }
+            } catch (error: Exception) {
+                if (error is java.util.concurrent.CancellationException) throw error
+                if (repository.isCurrentSession()) {
+                    if (fromProduct) {
+                        productAddFailure = skuId to
+                            "We couldn't verify the cart change. Check your saved cart before trying again."
+                    } else {
+                        feedback = "The cart could not be updated. Check its saved state before retrying."
+                    }
+                }
             } finally {
-                busy = false
-                if (fromProduct) addingSku = null
+                // An obsolete account's request must not unlock a new user's
+                // still-pending operation or expose its original selection.
+                if (repository.isCurrentSession()) {
+                    busy = false
+                    if (fromProduct) addingSku = null
+                }
             }
         }
     }
