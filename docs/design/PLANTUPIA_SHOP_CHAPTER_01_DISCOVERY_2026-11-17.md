@@ -1,6 +1,6 @@
 # 01 / Shop Home — The Living Collection
-**Status:** Implemented in isolated QA review branch; unit tests and exact-head CI/real-device acceptance required before declaring closed.  
-**Working baseline:** #253 / `02c4e6901320b4c78f101601ea998abd3f6c6e4a`.  
+**Status:** Implemented in isolated QA review branch; unit tests and exact-head CI/real-device acceptance required before declaring closed.
+**Working baseline:** #253 / `02c4e6901320b4c78f101601ea998abd3f6c6e4a`.
 **Scope:** Commercial-native customer Shop catalogue landing, discovery/filters, cart orientation, media preservation, loading/error/empty states. No product-detail or checkout redesign yet.
 
 ## Brief: what the user actually needs
