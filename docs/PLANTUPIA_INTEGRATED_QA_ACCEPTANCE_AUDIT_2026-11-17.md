@@ -1,8 +1,8 @@
 # Plantupia — Integrated QA / Acceptance Audit
-**Date:** 2026-11-17 (Cairo)  
-**Scope:** Public website + native Android + Django company workspace + commerce + care/QR + deployment boundaries.  
-**Reviewed integration commit:** `caba69e8c0aa6d05e6729657876b5620fe68e399` on `feature/plantupia-unified-experience-20261028` (**PR #253, Draft**).  
-**Public website deployment commit:** `822581c739c3c0eae4f9dd157921734bd2fe1619`, preview-only, `feature/plantupia-public-living-website-20261113`.  
+**Date:** 2026-11-17 (Cairo)
+**Scope:** Public website + native Android + Django company workspace + commerce + care/QR + deployment boundaries.
+**Reviewed integration commit:** `caba69e8c0aa6d05e6729657876b5620fe68e399` on `feature/plantupia-unified-experience-20261028` (**PR #253, Draft**).
+**Public website deployment commit:** `822581c739c3c0eae4f9dd157921734bd2fe1619`, preview-only, `feature/plantupia-public-living-website-20261113`.
 **Release classification:** QA/Design preview, **NOT an authorized commercial production release**.
 
 ## 1. Evidence vocabulary
@@ -50,8 +50,8 @@ Never infer production readiness merely from the existence of a route, a passing
 - Consolidated commit `caba69e8`: `Plantupia Public Web CI` **PASS** (run 44154278562). `Nova CI` run **44154278325 was still in progress at audit capture**; verify its latest conclusion before declaring the merged exact commit green.
 - CI passes do not mean tests were run on a physical phone or on the deployed Coolify container.
 
-Run links:  
-https://github.com/omarkhair-labs/nova/actions/runs/44154278562  
+Run links:
+https://github.com/omarkhair-labs/nova/actions/runs/44154278562
 https://github.com/omarkhair-labs/nova/actions/runs/44154278325
 
 ## 5. Capabilities by product surface
