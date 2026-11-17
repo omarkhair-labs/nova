@@ -27,6 +27,14 @@ class PlantupiaShopLayoutPolicyTest {
         assertEquals("Cart · 3", shopCartButtonLabel(3))
     }
 
+    @Test fun shopHeaderRespectsNarrowPhonesAndLargeText() {
+        assertEquals(true, plantupiaShopNavigationStacked(280f, 1f))
+        assertEquals(true, plantupiaShopNavigationStacked(329f, 1f))
+        assertEquals(false, plantupiaShopNavigationStacked(330f, 1f))
+        assertEquals(false, plantupiaShopNavigationStacked(390f, 1.2f))
+        assertEquals(true, plantupiaShopNavigationStacked(390f, 2f))
+    }
+
     @Test fun browsingIsIncrementalButEveryRealFamilyIsReachable() {
         assertEquals(0, plantupiaVisibleFamilies(0, 8))
         assertEquals(5, plantupiaVisibleFamilies(5, 8))
