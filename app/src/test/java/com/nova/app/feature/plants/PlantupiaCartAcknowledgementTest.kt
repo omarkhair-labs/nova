@@ -65,6 +65,18 @@ class PlantupiaCartAcknowledgementTest {
         assertEquals(true, saved?.hasPhoto)
     }
 
+    @Test fun savedButNoLongerAvailableCartLineRetainsActualServerWarning() {
+        val row = item().put("available", false)
+            .put("notice", "Item or quantity is no longer available. Please adjust your cart.")
+        val saved = shopCartReceiptFromResponse(cart(row), "sku-b", 2)
+        assertNotNull(saved)
+        assertFalse(saved!!.lineAvailable)
+        assertEquals(
+            "Item or quantity is no longer available. Please adjust your cart.",
+            saved.availabilityNotice,
+        )
+    }
+
     @Test fun imageAbsentDoesNotManufactureAProductPhoto() {
         val row = item(cover = false)
         row.getJSONObject("product").put("photos", JSONArray())
