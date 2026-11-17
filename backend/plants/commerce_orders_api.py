@@ -1,6 +1,7 @@
-"""Actual commercial checkout: quote -> customer accepts exact total -> reserve stock.
+"""Canonical customer Shop: direct order for known city fees, quote for exceptions.
 
-No payment provider or courier event is fabricated by these customer actions.
+Prices and inventory are verified by the backend. A successful order does not
+mean payment or physical dispatch.
 """
 import re
 from decimal import Decimal, ROUND_HALF_UP
@@ -65,6 +66,41 @@ class CommerceOrdersView(CommerceCustomerView):
         payload.is_valid(raise_exception=True)
         try:
             order = orders.request_shipping_quote(user=request.user, data=payload.validated_data)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages) from exc
+        return Response(orders.order_json(order), status=201)
+
+
+class CommerceDeliveryPriceView(CommerceCustomerView):
+    """Authenticated, server-calculated current total; no speculative price."""
+    def get(self, request):
+        city = str(request.query_params.get("city", "")).strip()
+        fingerprint = str(request.query_params.get("cart_fingerprint", "")).strip()
+        if not re.fullmatch(r"[0-9a-f]{64}", fingerprint):
+            raise serializers.ValidationError("Refresh the saved cart before reviewing delivery.")
+        from .commerce_delivery_rates import delivery_price
+        try:
+            price = delivery_price(
+                user=request.user, city=city, cart_fingerprint=fingerprint,
+            )
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages) from exc
+        return Response(price)
+
+
+class RealDirectOrderInput(RealOrderQuoteInput):
+    rate_revision = serializers.IntegerField(min_value=1)
+
+
+class CommerceDirectOrderView(CommerceCustomerView):
+    """One Place Order action: no staff-quote loop for known-fee cities."""
+    def post(self, request):
+        payload = RealDirectOrderInput(data=request.data)
+        payload.is_valid(raise_exception=True)
+        try:
+            order = orders.place_direct_order(
+                user=request.user, data=payload.validated_data,
+            )
         except DjangoValidationError as exc:
             raise serializers.ValidationError(exc.messages) from exc
         return Response(orders.order_json(order), status=201)
