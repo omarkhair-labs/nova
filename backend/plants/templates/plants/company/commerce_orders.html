@@ -4,13 +4,13 @@
   <div>
     <p class="eyebrow">SHOP / الطلبات</p>
     <h1>Customer orders</h1>
-    <p class="lead">Manage delivery quotes, accepted orders and their fulfillment.</p>
+    <p class="lead">Follow new customer requests, confirm delivery details, then prepare and fulfil accepted orders.</p>
   </div>
 </header>
 <div class="metrics order-queue">
-  <a href="{% url 'company:commerce-orders' %}?status=quote_pending"{% if status_filter == "quote_pending" %} aria-current="page"{% endif %}><div><span class="small-label">SHIPPING TO QUOTE</span><strong>{{ pending }}</strong><small>Awaiting company decision</small></div></a>
-  <a href="{% url 'company:commerce-orders' %}?status=quoted"{% if status_filter == "quoted" %} aria-current="page"{% endif %}><div><span class="small-label">CUSTOMER TO ACCEPT</span><strong>{{ quoted }}</strong><small>Price sent, stock not reserved yet</small></div></a>
-  <a href="{% url 'company:commerce-orders' %}?status=confirmed"{% if status_filter == "confirmed" %} aria-current="page"{% endif %}><div><span class="small-label">CONFIRMED</span><strong>{{ confirmed }}</strong><small>SKU stock reserved at actual locations</small></div></a>
+  <a href="{% url 'company:commerce-orders' %}?status=quote_pending"{% if status_filter == "quote_pending" %} aria-current="page"{% endif %}><div><span class="small-label">NEW REQUESTS</span><strong>{{ pending }}</strong><small>Review delivery cost and availability</small></div></a>
+  <a href="{% url 'company:commerce-orders' %}?status=quoted"{% if status_filter == "quoted" %} aria-current="page"{% endif %}><div><span class="small-label">WAITING FOR CUSTOMER</span><strong>{{ quoted }}</strong><small>Final total ready for customer review</small></div></a>
+  <a href="{% url 'company:commerce-orders' %}?status=confirmed"{% if status_filter == "confirmed" %} aria-current="page"{% endif %}><div><span class="small-label">CONFIRMED</span><strong>{{ confirmed }}</strong><small>Ready for company preparation</small></div></a>
 </div>
 <div class="task-shortcuts">
   <a class="button" href="{% url 'company:commerce-orders' %}">All orders</a>
@@ -24,14 +24,14 @@
   {% for order in records %}
   <div class="record-row">
     <div class="grow">
-      <strong>Order {{ order.pk|stringformat:"s"|slice:":8" }}</strong>
+      <strong>{% if order.status == "quote_pending" or order.status == "quoted" or order.status == "declined" %}Request{% else %}Order{% endif %} {{ order.pk|stringformat:"s"|slice:":8" }}</strong>
       <small>{{ order.contact_name }} · {{ order.city }} · {{ order.created_at|date:"j M Y, H:i" }}</small>
-      <small>{{ order.get_status_display }} · EGP {{ order.subtotal }} + {% if order.shipping_fee != None %}EGP {{ order.shipping_fee }} shipping{% else %}shipping pending{% endif %} · {{ order.get_payment_status_display }}</small>
+      <small>{% if order.status == "quote_pending" %}Request received{% elif order.status == "quoted" %}Delivery total awaiting customer acceptance{% else %}{{ order.get_status_display }}{% endif %} · Items EGP {{ order.subtotal }} · {% if order.shipping_fee != None %}Delivery EGP {{ order.shipping_fee }}{% else %}Delivery to be confirmed{% endif %} · {{ order.get_payment_status_display }}</small>
     </div>
-    <a href="{% url 'company:commerce-order' order.pk %}">Open order →</a>
+    <a href="{% url 'company:commerce-order' order.pk %}">Review →</a>
   </div>
   {% empty %}
-  <div class="empty compact">No customer orders in this view.</div>
+  <div class="empty compact">No customer requests or orders in this view.</div>
   {% endfor %}
 </section>
 {% include "plants/company/pagination.html" %}
