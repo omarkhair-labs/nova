@@ -233,6 +233,10 @@ internal fun PlantupiaDeliveryQuoteJourney(
                     )
                     Text("If the connection was interrupted, check Your requests before resubmitting.",
                         style = PlantupiaText.supporting)
+                    OutlinedButton(
+                        onClick = onOrders, enabled = !busy,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+                    ) { Text("Check your existing requests  ↗") }
                 }
                 if (!ready) {
                     Text(
@@ -241,7 +245,7 @@ internal fun PlantupiaDeliveryQuoteJourney(
                     )
                 }
                 Button(
-                    onClick = onSubmit, enabled = ready && !busy,
+                    onClick = onSubmit, enabled = ready && !busy && error == null,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = PlantupiaColors.forest),
                 ) {
