@@ -142,17 +142,18 @@ internal fun shopOrderTracking(order: JSONObject): ShopTrackingView {
 internal fun PlantupiaOrderTracking(order: JSONObject) {
     val tracking = shopOrderTracking(order)
     var showHistory by rememberSaveable(order.optString("id")) { mutableStateOf(false) }
+    var showJourney by rememberSaveable(order.optString("id")) { mutableStateOf(false) }
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = PlantupiaColors.paper,
         border = BorderStroke(1.dp, PlantupiaColors.border),
-        shape = RoundedCornerShape(13.dp),
+        shape = PlantupiaShapes.inset,
     ) {
         Column(
             Modifier.fillMaxWidth().padding(15.dp),
-            verticalArrangement = Arrangement.spacedBy(13.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp),
         ) {
-            Text("TRACK YOUR ORDER", style = PlantupiaText.sectionLabel)
+            Text("ORDER PROGRESS", style = PlantupiaText.sectionLabel)
             Column(
                 Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                 verticalArrangement = Arrangement.spacedBy(5.dp),
@@ -161,6 +162,16 @@ internal fun PlantupiaOrderTracking(order: JSONObject) {
                     fontWeight = FontWeight.SemiBold)
                 Text(tracking.description, style = PlantupiaText.supporting)
             }
+            TextButton(
+                onClick = { showJourney = !showJourney },
+                modifier = Modifier.heightIn(min = 48.dp),
+            ) {
+                Text(
+                    if (showJourney) "Hide delivery stages ↑" else "View delivery stages ↓",
+                    color = PlantupiaColors.forest,
+                )
+            }
+            if (showJourney) {
             HorizontalDivider(color = PlantupiaColors.border)
             tracking.steps.forEachIndexed { index, step ->
                 Row(
@@ -197,6 +208,7 @@ internal fun PlantupiaOrderTracking(order: JSONObject) {
                     }
                 }
             }
+            } // The summary is always visible; stage details are by request.
             if (tracking.carrier != null && tracking.trackingReference != null) {
                 HorizontalDivider(color = PlantupiaColors.border)
                 Text("CARRIER HANDOVER", style = PlantupiaText.sectionLabel)
