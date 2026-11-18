@@ -43,6 +43,11 @@ export default function ContactStudio({ available }: { available: boolean }) {
     const selected = params.get("space");
     const topic = params.get("topic");
     if (topic === "care" || topic === "general" || topic === "project") setMode(topic);
+    const item = params.get("item");
+    if (topic === "general" && item && item.length <= 160 && !/[<>]/.test(item)) {
+      setMessage("I'd like to ask about the Plantupia product: " + item +
+        ". Please share current available options and ordering steps.");
+    }
     if (environments.some(item => item.id === selected)) setEnvironment(selected ?? "");
     const spaceIndex = ["home", "work", "gather", "industrial", "retail", "public"].findIndex(key => key === selected);
     const focus = params.get("focus");
