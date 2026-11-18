@@ -295,12 +295,15 @@ internal fun PlantupiaBusinessInquiryScreen(
                             color = businessInk, fontWeight = FontWeight.SemiBold)
                         Text(item.optString("quote_note"), style = PlantupiaText.supporting)
                     }
-                    if (status == "quoted") {
+                    if (status == "quoted" || (status == "withdrawn" && staffReported)) {
                         Button(
                             enabled = !busy,
                             colors = ButtonDefaults.buttonColors(containerColor = businessInk),
                             onClick = { acceptBusinessQuote(id, item.optInt("quote_version")) },
-                        ) { Text("Accept quote for follow-up") }
+                        ) {
+                            Text(if (status == "withdrawn") "I do want to continue" else
+                                 "Accept quote for follow-up")
+                        }
                     }
                     Text("No purchase order, payment or project was created by this request.",
                         style = PlantupiaText.supporting)
