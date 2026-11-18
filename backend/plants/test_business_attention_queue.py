@@ -227,3 +227,67 @@ class RealBusinessAttentionQueueTests(DemoFixture, TestCase):
         })
         self.assertEqual(denied.status_code, 403)
         self.assertEqual(CommerceBusinessContactNote.objects.count(), 1)
+
+    def test_phone_reported_interest_moves_to_nonbinding_follow_up_with_real_provenance(self):
+        inquiry_id = self.enquiry(kind="installation")
+        self.client.post(reverse("company:business-inquiry-quote", args=[inquiry_id]), {
+            "action": "quote", "quote_version": 0, "amount": "14000.00",
+            "note": "Example installation proposal; subject to independent contract.",
+        })
+        uri = reverse("company:business-external-response", args=[inquiry_id])
+        payload = {
+            "channel": "phone", "decision": "interested",
+            "summary": "Customer said by phone that they want to discuss installation next week; nothing signed.",
+        }
+        unconfirmed = self.client.post(uri, payload)
+        self.assertEqual(unconfirmed.status_code, 302)
+        self.assertEqual(CommerceBusinessInquiry.objects.get(pk=inquiry_id).status, "quoted")
+        self.assertEqual(CommerceBusinessContactNote.objects.filter(inquiry_id=inquiry_id).count(), 0)
+        response = self.client.post(uri, {**payload, "confirm_staff_report": "yes"})
+        self.assertEqual(response.status_code, 302)
+        row = CommerceBusinessInquiry.objects.get(pk=inquiry_id)
+        self.assertEqual(row.status, "accepted")
+        self.assertEqual(row.customer_response_source, "staff_phone")
+        self.assertEqual(row.followup_state, "needs_staff")
+        self.assertEqual(self.current_queue().context["followup_count"], 1)
+        self.assertEqual(CommerceBusinessContactNote.objects.filter(inquiry_id=inquiry_id).count(), 1)
+        self.assertFalse(InstallationBatch.objects.filter(source_b2b_inquiry_id=inquiry_id).exists())
+        # A draft can be created later by an authorized project operator only.
+        self.assertEqual(self.client.post(
+            reverse("company:business-inquiry-installation", args=[inquiry_id])).status_code, 403)
+        customer_result = self.api.get(reverse("plantupia-real-business-inquiries"))
+        self.assertEqual(customer_result.data["results"][0]["customer_response_source"], "staff_phone")
+        self.assertIn("Staff reported", customer_result.data["results"][0]["notice"])
+        self.assertNotIn("Customer said by phone", str(customer_result.data))
+        # Explicit in-app acknowledgement is stronger and updates attribution.
+        independent = self.api.post(reverse("plantupia-real-business-accept", args=[inquiry_id]),
+            {"quote_version": 1}, format="json")
+        self.assertEqual(independent.status_code, 200)
+        self.assertEqual(independent.data["customer_response_source"], "customer_app")
+        self.assertEqual(CommerceBusinessInquiry.objects.get(pk=inquiry_id).status, "accepted")
+
+    def test_external_customer_decline_is_differentiated_from_company_decline(self):
+        inquiry_id = self.enquiry(kind="wholesale")
+        self.client.post(reverse("company:business-inquiry-quote", args=[inquiry_id]), {
+            "action": "quote", "quote_version": 0, "amount": "3000.00",
+            "note": "Nonbinding wholesale test scope and quantities for review.",
+        })
+        uri = reverse("company:business-external-response", args=[inquiry_id])
+        self.assertEqual(self.current_queue().context["waiting_count"], 1)
+        response = self.client.post(uri, {
+            "channel": "whatsapp", "decision": "not_proceeding",
+            "summary": "Buyer wrote on WhatsApp that the timing is not suitable and will not proceed.",
+            "confirm_staff_report": "yes",
+        })
+        self.assertEqual(response.status_code, 302)
+        row = CommerceBusinessInquiry.objects.get(pk=inquiry_id)
+        self.assertEqual(row.status, "withdrawn")
+        self.assertEqual(row.customer_response_source, "staff_whatsapp")
+        self.assertIsNone(row.accepted_at)
+        self.assertEqual(self.current_queue().context["waiting_count"], 0)
+        self.assertEqual(CommerceBusinessContactNote.objects.filter(inquiry_id=inquiry_id).count(), 1)
+        self.assertFalse(InstallationBatch.objects.filter(source_b2b_inquiry_id=inquiry_id).exists())
+        self.assertContains(self.current_queue("all"), "Customer no longer proceeding")
+        self.assertEqual(CommerceBusinessInquiry.objects.filter(status="declined").count(), 0)
+        self.assertEqual(self.api.post(reverse("plantupia-real-business-accept", args=[inquiry_id]),
+            {"quote_version": 1}, format="json").status_code, 400)
