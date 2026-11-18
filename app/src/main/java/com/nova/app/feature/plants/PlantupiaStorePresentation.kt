@@ -60,9 +60,10 @@ internal fun StoreCatalog(
     val fontScale = LocalDensity.current.fontScale
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val columns = plantupiaShopProductColumns(maxWidth.value, fontScale)
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        val tilePhotoHeight = plantupiaShopTilePhotoHeightDp(columns, maxWidth.value).dp
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             entries.chunked(columns).forEach { row ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     row.forEach { (id, variants) ->
                         key(id) {
                             val product = variants.first()
@@ -90,14 +91,14 @@ internal fun StoreCatalog(
                                 },
                                 interactionSource = interaction,
                                 onClick = { onProduct(id) },
-                                shape = RoundedCornerShape(13.dp),
+                                shape = PlantupiaShapes.inset,
                                 color = PlantupiaColors.paper,
                                 border = BorderStroke(1.dp, PlantupiaColors.border),
                             ) {
                                 Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
                                     if (hasPhoto) {
                                         Box(
-                                            Modifier.fillMaxWidth().height(174.dp)
+                                            Modifier.fillMaxWidth().height(tilePhotoHeight)
                                                 .background(PlantupiaColors.softSage),
                                             contentAlignment = Alignment.Center,
                                         ) {
@@ -111,11 +112,11 @@ internal fun StoreCatalog(
                                             )
                                         }
                                     } else {
-                                        PlantupiaShopObjectAwaitingPhoto(kind)
+                                        PlantupiaShopObjectAwaitingPhoto(kind, height = tilePhotoHeight)
                                     }
                                     Column(
-                                        Modifier.fillMaxWidth().padding(13.dp),
-                                        verticalArrangement = Arrangement.spacedBy(7.dp),
+                                        Modifier.fillMaxWidth().padding(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(5.dp),
                                     ) {
                                         Text(
                                             storeCategoryLabel(kind).uppercase(),
@@ -132,7 +133,7 @@ internal fun StoreCatalog(
                                         )
                                         Text(
                                             if (available.isEmpty()) "CURRENTLY UNAVAILABLE"
-                                            else "EXPLORE THE OBJECT  ↗",
+                                            else "SEE DETAILS  ↗",
                                             style = PlantupiaText.sectionLabel.copy(
                                                 color = if (available.isEmpty())
                                                     PlantupiaColors.secondaryText
