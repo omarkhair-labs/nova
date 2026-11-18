@@ -269,7 +269,7 @@ class PlantCoverPhotoView(APIView):
         PlantEvent.objects.create(
             plant=plant, actor=request.user,
             kind=PlantEvent.Kind.OBSERVATION,
-            evidence_type=PlantEvent.Evidence.REPORTED,
+            evidence_type=PlantEvent.Evidence.OBSERVED,
             observed_at=timezone.now(),
             note="A care-authorized person updated this plant's private portrait. "
                  "No plant treatment, health condition or species verification is implied.",
