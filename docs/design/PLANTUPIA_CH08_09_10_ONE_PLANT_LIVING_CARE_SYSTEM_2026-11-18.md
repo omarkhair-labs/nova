@@ -131,3 +131,65 @@ The Care and Support workspace must remain a source/operations platform, **not**
 **Explicit NOT DONE:** No full-screen pixel-approved screens, device screenshots, real customer research, approved botanical source text, production migration or release. No fabricated water frequency or diagnosis.
 
 **Reference links:** Planta https://getplanta.com/ ; Greg https://greg.app/support/ ; PictureThis https://apps.apple.com/eg/app/picturethis-plant-identifier/id1252497129 ; NN/g progressive disclosure https://www.nngroup.com/articles/progressive-disclosure/ ; NN/g workflow expectations https://www.nngroup.com/articles/workflow-expectations/ .
+
+## 18 November / Native design continuity — authored interactions and decision register
+
+This increment preserves the **nine original Native Canvas topic artworks** (Water, Light, Soil, Humidity, Nutrition, Pruning, Repotting, Observation and Cautions) and the palette distinctions already established by `PlantupiaCareGuideVisual.kt`. These assets communicate editorial *topic identity*, never plant diagnosis. We explicitly rejected a plain generic chip-only gallery: it reduces the time required to reach text but erases the illustrated chapter family the owner previously asked for. Working solution: a horizontal **illustrated chapter shelf**, selecting a single complete reading below in the focused source-aware guide reader.
+
+### Interaction map — the interface must carry context
+
+```text
+MY SPACE (real inventory)
+  -> PLANT OVERVIEW (real portrait, trust identity, current recorded next-check)
+      -> CARE (explicit care / observation / concern mode)
+          -> FIELD GUIDE (reviewed version, nine original topic illustrations,
+                          one source-backed reading, review provenance)
+              -> RECORD WHAT I ACTUALLY NOTICED
+                  -> observation editor for THIS SAME PlantUnit
+                     -> explicit user save + genuine backend ACK
+                         -> LIVING HISTORY / actual new record
+      -> HISTORY (real events, photos and linked outcomes only)
+          -> TIME LENS (two actually uploaded photos on different dates)
+              -> toggle earlier/later + open actual photo
+              -> never infer improved/healthy/grown
+      -> SETTINGS (rename/placement/archive) or Ask Circle (intent only)
+  -> SAME SPACE SCROLL OFFSET on exiting plant
+```
+
+**Guide-to-observation handoff:** opens a real human-editable Note/Observation intent, expands composer, and scrolls the care editor into view. It **does not** record watering, completed inspection, diagnosis, user location or a photo. Owners/carers with `PlantUnit.canRecord` permission see the CTA; read-only members do not.
+
+**Care composer:** three semantically distinct modes `Care / Observation / Concern` (mapped to existing event kinds `care / observation / issue`), the same saved `PlantEvent` backend and idempotent photo/retry journal. Record Care requires affirmative actual action selection; Note and Concern require genuine note/photo evidence, no chosen care action. Date and notification remain optional. One save button when expanded; compact quick-save for a selected care action never coexists with the expanded save action. Responsive 320dp/large system text mode buttons stack instead of truncating.
+
+**History and photo evidence:** Pending checks (including re-date or record actual outcome) now live in **Care**, because those are *actions*. History opens first on dated saved events. A new *Time Lens* switches between two distinct user-uploaded photographs from the same PlantUnit on different dates (existing `plantupiaLoadedPhotoPair` guard): one selected image + actual captured date, tappable to full-size viewer. Crossfade ~180ms, no automatic health labels, no invented before/after, a caveat when older pages remain unloaded. History still supports event filters, outcome attachment, source/caveat and older-page paging. The photo lens is useful as visual memory, **not a computer-vision comparison**.
+
+### External research transferred as mechanisms only
+
+- [Planta — own garden, plant-care profiles and journal](https://getplanta.com/): identity → tasks → journal. **Not imported:** automatic prescriptions/status from calendar.
+- [Greg — plant history timeline and original photographs](https://greg.app/post/2xznqg/as-earthmonth-comes-to-a-close-we-have-a-new-gregupdate-to-share-whats-new-gallery-view-of-all-the): history may have both timeline and gallery, but app-level state claims are not evidence for a Plantupia plant.
+- [Day One — journal timeline and media views](https://dayoneapp.com/guides/tips-and-tutorials/journal-views-in-day-one-for-macos/): date-led authentic narrative, not nine interchangeable metric cards.
+- [Are.na — content sources, collections and connection](https://www.are.na/about): care knowledge has provenance and conceptual relationships, not unsupported species-name matches.
+- [NN/g — progressive disclosure](https://www.nngroup.com/articles/progressive-disclosure/): first action and real context before exhaustive source details; do not hide essential identity/reviewer caveats.
+- [Android Compose semantics](https://developer.android.com/develop/ui/compose/accessibility/semantics): selected chapter/mode semantics, focus and touch; end-to-end TalkBack remains to validate on device.
+
+### QA / art-director critique sequence
+
+1. **320 / 360 / 390 / 430dp:** no clipped Care/Observation/Concern at system 200%; original nine illustrations recognizable and touchable; no giant repeated app masthead; real first viewport with identity and single CTA.
+2. **No-photo / one-photo / multiple-photo:** no placeholder pretending to be an actual plant; Time Lens only when distinct dated real photos exist; only loaded pages; photoviewer opens selected uploaded file without cropping its evidence.
+3. **Species trust:** user-selected species always qualified; verified species only after staff evidence; withdrawn/unknown guide shows honest blank, never AI-synthesized instructions.
+4. **Read→record→history:** guide open is read-only; pressing Record Observation does not persist; eventual ACK creates only one actual event; ambiguous network mutation remains recoverable; Back without saving cannot silently log.
+5. **Task vs journal:** scheduling does not mean Watered; Care handles pending checks; History shows source-linked real result, with no false completion, success or new plant identity.
+6. **Staff workflow:** original `CareGuideVersion` draft → source/topic review → authorization → publication/withdrawal and immutable revision, now surfaced as actual assigned queue at Care & Support homepage. Staff do not receive a private unconsented plant diary or an automated customer diagnosis.
+
+**What is coded now:** Compose chapter selector, focused guide reader, original topic art selection shelf, intent-specific care composer, contextual guide-to-note handoff, authentic photo Time Lens, staff assigned guide review summary and new tests.
+
+**Still pending:** exact-head CI (do not assume green), screenshots and actual device interaction review, performance/accessibility and back-stack behavior, approved media and typography tests, real Company staff UAT, visual owner sign-off and production rollout.
+
+### Visual evaluation alternatives still to examine before acceptance
+
+- Specimen hero A: actual image as specimen portrait + narrow provenance strip + one usable CTA. Test low light and no image; don't fake full-bleed aesthetics.
+- Specimen hero B: real photo as a small offset object with a larger handwritten-style record ledger area. Risk: looks theatrical or squeezes functional context.
+- Specimen hero C: split pane for tablet only with genuine photos next to factual action/history; not forced into one tiny phone viewport.
+- History A: spine-led chronological list; B: fieldbook dated pages with visually varied authentic entries; C: photo-first gallery linking back to events. Preserve chronology/IDs and source labels in all.
+- Care Guide A: horizontal illustrated topic rail + one full text reader (**working implementation candidate**); B: vertical illustrated contents + single selected text; C: two-pane master-detail on tablet. Source version/reviewer still prominent.
+
+No direction is declared pixel-approved without actual 320–430dp Android screenshots and 200% type inspection. Do not mutate source truth merely to support a visual effect.
