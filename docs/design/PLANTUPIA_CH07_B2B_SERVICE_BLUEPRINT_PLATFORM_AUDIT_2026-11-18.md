@@ -121,3 +121,31 @@ Existing Plantupia is not a green-field ERP. Preserve one native Android app, th
 - B2C Commerce home now leads with actual confirmed order preparation and exceptional requests; products, shipping rates and stock remain separate verified operations.
 - **Unresolved design decisions:** Whether desktop staff should be able to collapse the rail; compact list vs detail split-view for records; default grouping when a person has B2C + B2B + Care rights; what notification counts are most urgent; whether company will assign owners/due dates. These require observational QA, not arbitrary inventing of data.
 - **Release gate:** no migration or Production changes. Test results, real device/admin viewport review, staff feedback and owner sign-off remain distinct from merely having code on a Draft PR.
+
+## 18 November / Closing the external-work reality gap (QA implementation)
+
+**Owner clarification:** a working plant company does not conduct every sale, quote discussion, site survey, meeting, or agreement in its own web system. A phone or WhatsApp conversation is a valid human action. Plantupia should *remember its staff's reported outcome*, not impersonate a telephony tool, send customer messages automatically, or insist every commercial exchange move into a new CRM.
+
+**Compared with official external patterns:**
+- HubSpot CRM allows manual logging of calls, notes, and meetings against a contact/record including a call outcome: https://knowledge.hubspot.com/records/manually-log-activities-on-records
+- Odoo Activities allow short human notes and manual completion associated with an existing record: https://www.odoo.com/documentation/19.0/applications/sales/crm/optimize/utilize_activities.html
+- Salesforce's "Log a Call" shows the same separation between phone conversation and CRM record: https://help.salesforce.com/s/articleView?id=000232901&language=en_US&type=1
+
+### Implemented without a separate CRM
+1. Add a **manual, staff-only external contact note** to an existing `CommerceBusinessInquiry`. Channel is Phone, WhatsApp, meeting/site discussion, email outside platform, or other. Short summary, who recorded it, saved timestamp and internal work status. Notes are immutable historical entries, not fake call records or customer declarations.
+2. For **accepted commercial quotes only**, the staff may mark *needs staff action*, *waiting for an external response*, or *staff follow-up recorded complete*. This changes the **internal staff attention queue** but does **not** change accepted quote status, sale/order/payment, contract, installation manifest or QR handover. Staff may reopen by writing a new note. A non-accepted enquiry may have notes but cannot be marked done while still awaiting the initial business decision.
+3. Existing action queue now excludes accepted records explicitly paused or completed outside the platform; a separate *waiting outside* filter retains them for review. Quoted records remain "waiting for customer decision" rather than disappearing. Already linked installation drafts remain owned by their real installation workflow.
+4. **Installation quantity is optional when unknown**. The business customer may send a scoped project enquiry without inventing one plant. Wholesale SKU supply still requires an actual integer quantity. This changes one existing model field + API and native Android confirmation contract; the original submitted positive quantities remain unchanged. Staff views show "to be scoped" rather than 0/None.
+5. The notes timeline is authorized company-staff-only. Customer API does not expose internal notes or staff follow-up state. Only an explicit staff form saves a record; no integrated call recording, contact syncing or unseen background follow-up.
+
+### Explicit boundaries: "recorded" is not "verified"
+- A staff note "we agreed by phone" represents the **staff's account**, not a signed customer agreement. For legally binding terms Plantupia must independently obtain appropriate evidence outside this feature. Never auto-change `CommerceBusinessInquiry.status` to an order, and never auto-allocate stock or release QR.
+- No default owner or automatic due-date reminder is invented. Office can assign responsibilities outside the app; if real operational evidence later shows a recurring handoff problem, introduce a deliberately scoped assignment field then, not a speculative CRM workflow today.
+- Do not require a call note for every enquiry; use it when something meaningful happened outside the platform and another teammate needs that context.
+- Not a new company-wide communications centre. The same 'lightweight human outcome' principle can be considered during later B2C/Care chapters only where it actually solves recurring work.
+
+### Chapter 07 gate into Chapter 08 (Plant Detail)
+**Engineering / QA:** Run PostgreSQL migrations including `0034_b2b_contact_notes_and_optional_installation_quantity`, check system changes, QA B2B/API + Android unit/Compose tests, ensure role-view restrictions and no invented quote approvals, plus inspect screenshots (desktop 1440/768, narrow mobile), real staff handoff, keyboard focus and scroll.
+**Product/design:** Chapter 07 service blueprint and draft IA are recorded, major fake count / endless follow-up friction removed. Full visual acceptance and real operational staff interviews are **outstanding**, not silently claimed closed by a green CI.
+**Next chapter:** Chapter 08 Plant Detail: redesign Overview / Care / History, actual identity and plant truth, one primary Record Care action, shared navigation with My Plants; audit Care staff impact as its own connected service, without new backend records unless required by current real UX.
+
