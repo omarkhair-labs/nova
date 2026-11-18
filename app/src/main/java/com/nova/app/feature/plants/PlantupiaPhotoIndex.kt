@@ -46,53 +46,11 @@ internal fun PlantupiaPhotoIndex(
         // Two verified snapshots of the same person's private plant history.
         // The oldest *loaded* photo is not necessarily the first ever recorded.
         if (comparison != null) {
-            Text(
-                "TWO MOMENTS · SAME PLANT",
-                style = PlantupiaText.sectionLabel,
+            PlantupiaPhotoTimeLens(
+                pair = comparison,
+                hasOlderPages = hasOlderPages,
+                onOpenPhoto = onOpenPhoto,
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                listOf(
-                    "EARLIER RECORD" to comparison.earlier,
-                    "LATEST RECORD" to comparison.later,
-                ).forEach { (label, entry) ->
-                    Surface(
-                        color = PlantupiaColors.paper,
-                        border = BorderStroke(1.dp, PlantupiaColors.border),
-                        shape = RoundedCornerShape(15.dp),
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                            PlantupiaEvidencePhoto(
-                                photoUrl = entry.photoUrl,
-                                photoDescription = "Private plant observation dated " + entry.observedAt.take(10),
-                                modifier = Modifier.fillMaxWidth().height(146.dp),
-                                cornerRadius = 12.dp,
-                                framing = PlantupiaPhotoFraming.FULL_RECORD,
-                                onOpenPhoto = { onOpenPhoto(entry) },
-                            )
-                            Text(
-                                label,
-                                modifier = Modifier.padding(horizontal = 10.dp),
-                                style = PlantupiaText.sectionLabel,
-                            )
-                            Text(
-                                entry.observedAt.take(10),
-                                modifier = Modifier.padding(start = 10.dp, end = 10.dp, bottom = 10.dp),
-                                style = PlantupiaText.supporting,
-                            )
-                        }
-                    }
-                }
-            }
-            if (hasOlderPages) {
-                Text(
-                    "These are the earliest and latest photos loaded so far. Older history may change the comparison.",
-                    style = PlantupiaText.supporting,
-                )
-            }
         }
         if (photos.size != 2 || comparison == null) LazyRow(
             modifier = Modifier.fillMaxWidth(),
