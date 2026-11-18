@@ -2022,3 +2022,19 @@ dd {
   .company-attention { display:grid; gap:14px; }
   .company-attention .button { width:max-content; max-width:100%; }
 }
+
+/* Dense daily operations should not inherit the landing page's oversized editorial scale. */
+.workspace:not(.hub-workspace) .compact-workspace-heading h1 { font-size:clamp(29px,2.7vw,40px); margin-bottom:11px; }
+.workspace:not(.hub-workspace) .compact-workspace-heading { margin-top:0; margin-bottom:23px; }
+.workspace:not(.hub-workspace) .commerce-three { margin-top:20px; }
+.workspace:not(.hub-workspace) .commerce-path {
+  padding:clamp(18px,2vw,24px);
+  border-radius:7px;
+}
+.workspace:not(.hub-workspace) .commerce-path .path-figure { margin-bottom:18px; }
+.workspace:not(.hub-workspace) .commerce-path h2 { font-size:clamp(21px,2vw,28px); }
+.workspace:not(.hub-workspace) .commerce-path p:not(.eyebrow) { line-height:1.6; }
+.workspace:not(.hub-workspace) .commerce-path .path-bottom { padding-top:13px; }
+@media (max-width:860px) {
+  .workspace:not(.hub-workspace) .compact-workspace-heading h1 { font-size:clamp(28px,5vw,37px); }
+}
