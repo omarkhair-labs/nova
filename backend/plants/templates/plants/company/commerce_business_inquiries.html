@@ -1,27 +1,74 @@
 {% extends "plants/company/base.html" %}
 {% block content %}
 <header class="page-heading compact-workspace-heading">
-  <div><p class="eyebrow">B2B / REAL COMMERCIAL ENQUIRIES</p><h1>Business requests.</h1>
-    <p class="lead">Actual wholesale and installation enquiries from authenticated customers. These are not purchase orders or QA demonstrations.</p>
+  <div>
+    <p class="eyebrow">B2B / COMMERCIAL WORK</p>
+    <h1>Business requests.</h1>
+    <p class="lead">See which real requests need a decision, which are waiting for a customer, and which have moved into project delivery.</p>
   </div>
 </header>
-<div class="metrics"><a href="{% url 'company:business-inquiries' %}?status=received"><div>
-  <span class="small-label">REQUIRES RESPONSE</span><strong>{{ pending_count }}</strong><small>New real business requests</small>
-</div></a></div>
-<div class="task-shortcuts"><a class="button" href="{% url 'company:business-inquiries' %}">All enquiries</a>
-  <a class="button" href="{% url 'company:installations' %}">Recorded installations</a></div>
+<div class="metrics" aria-label="Business work queues">
+  <a href="{% url 'company:business-inquiries' %}?status=received" {% if status_filter == "received" %}aria-current="page"{% endif %}>
+    <div><span class="small-label">NEEDS A QUOTATION</span><strong>{{ pending_count }}</strong><small>New requests to review</small></div>
+  </a>
+  <a href="{% url 'company:business-inquiries' %}?status=action_needed" {% if status_filter == "action_needed" %}aria-current="page"{% endif %}>
+    <div><span class="small-label">ACCEPTED · NEEDS FOLLOW-UP</span><strong>{{ followup_count }}</strong><small>Not binding orders</small></div>
+  </a>
+  <a href="{% url 'company:business-inquiries' %}?status=quoted" {% if status_filter == "quoted" %}aria-current="page"{% endif %}>
+    <div><span class="small-label">WAITING ON CUSTOMER</span><strong>{{ waiting_count }}</strong><small>Quotations awaiting response</small></div>
+  </a>
+</div>
+<div class="task-shortcuts" aria-label="Business request filters">
+  <a class="button" href="{% url 'company:business-inquiries' %}?status=action_needed" {% if status_filter == "action_needed" %}aria-current="page"{% endif %}>Needs action</a>
+  <a class="button" href="{% url 'company:business-inquiries' %}?status=all" {% if status_filter == "all" %}aria-current="page"{% endif %}>All requests</a>
+  <a class="button" href="{% url 'company:business-inquiries' %}?status=waiting_outside" {% if status_filter == "waiting_outside" %}aria-current="page"{% endif %}>Waiting outside · {{ outside_count }}</a>
+  {% if perms.plants.view_installationbatch and can_full_company %}<a class="button" href="{% url 'company:installations' %}">Installation projects</a>{% endif %}
+</div>
 <section class="panel padded">
-  <p class="eyebrow">REAL B2B INBOX</p>
+  <p class="eyebrow">COMMERCIAL RECORDS / ACTUAL CUSTOMER REQUESTS</p>
+  <h2>{% if status_filter == "action_needed" %}Your team’s next decisions{% elif status_filter == "quoted" %}Waiting for customer decisions{% elif status_filter == "received" %}Requests to review{% elif status_filter == "accepted" %}All accepted quotations{% elif status_filter == "waiting_outside" %}Waiting on calls, visits or external replies{% else %}All business requests{% endif %}</h2>
   {% for enquiry in records %}
     <div class="record-row">
-      <div class="grow"><strong>{{ enquiry.company_name }} · {{ enquiry.get_kind_display }}</strong>
+      <div class="grow">
+        <strong>{{ enquiry.company_name }} · {{ enquiry.get_kind_display }}</strong>
         <small>{{ enquiry.contact_name }} · {{ enquiry.city }} · {{ enquiry.created_at|date:"j M Y, H:i" }}</small>
-        <small>{{ enquiry.get_status_display }} · {{ enquiry.quantity }} units</small>
+        <small>
+          {{ enquiry.get_status_display }}
+          {% if enquiry.kind == "wholesale" %} · {{ enquiry.quantity }} requested units
+          {% elif enquiry.quantity != None %} · {{ enquiry.quantity }} estimated items as supplied by customer
+          {% else %} · Site quantity not determined yet{% endif %}
+        </small>
+        <small>
+          {% if enquiry.status == "received" %}
+            Next: Review scope and decide on a quotation
+          {% elif enquiry.status == "quoted" %}
+            Next: Waiting for the customer's response
+          {% elif enquiry.status == "accepted" and enquiry.has_linked_project %}
+            Next: Continue linked installation from Projects
+          {% elif enquiry.status == "accepted" and enquiry.followup_state == "waiting_outside" %}
+            Waiting: Staff recorded an external reply pending
+          {% elif enquiry.status == "accepted" and enquiry.followup_state == "recorded_done" %}
+            Follow-up recorded as done by staff · No contract inferred
+          {% elif enquiry.status == "accepted" and enquiry.kind == "installation" %}
+            Next: Follow up; authorized staff may prepare installation draft
+          {% elif enquiry.status == "accepted" %}
+            Next: Follow up on wholesale supply terms
+          {% else %}
+            Closed: No quote action pending
+          {% endif %}
+        </small>
       </div>
-      <a href="{% url 'company:business-inquiry' enquiry.pk %}">Open enquiry →</a>
+      <a href="{% url 'company:business-inquiry' enquiry.pk %}">Open request →</a>
     </div>
-  {% empty %}<div class="empty compact">No actual business enquiries in this view.</div>{% endfor %}
+  {% empty %}<div class="empty compact">
+    {% if status_filter == "action_needed" %}
+      No business requests currently need staff action. Check Waiting outside or All requests for existing work.
+    {% else %}No business requests match this view.{% endif %}
+  </div>{% endfor %}
 </section>
 {% include "plants/company/pagination.html" %}
-<div class="commerce-reality"><strong>Commercial boundary</strong><span>Quotes are nonbinding and require separate signed purchase orders, inventory allocation, installation scheduling and handovers.</span></div>
+<div class="commerce-reality">
+  <strong>Stage boundaries</strong>
+  <span>Accepting a nonbinding quotation does not record a signed contract, purchase order, stock allocation or site handover. Physically verified installations remain a separate operating step.</span>
+</div>
 {% endblock %}

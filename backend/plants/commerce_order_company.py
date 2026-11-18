@@ -45,7 +45,7 @@ class DeliveryCityRateForm(forms.Form):
 def delivery_rates(request):
     from .commerce_models import CommerceDeliveryCityRate
     return page(request, "commerce_delivery_rates", {
-        "title": "Delivery prices", "section": "commerce_orders",
+        "title": "Delivery prices", "section": "commerce_delivery_rates",
         "rates": CommerceDeliveryCityRate.objects.select_related("updated_by")
             .order_by("city_label"),
         "can_change_rates": request.user.has_perm("plants.change_commerceorder"),

@@ -5,63 +5,107 @@
 <body class="{% if section == 'overview' %}is-hub{% elif section == 'commerce_orders' %}company-orders{% endif %}"><a class="skip" href="#main">Skip to workspace</a>
 {% block shell %}
 {% if section != 'overview' %}
-<aside class="sidebar" aria-label="Current workspace">
-  <a class="wordmark" href="{% url company_entry|default:'company:login' %}"><span class="brand-mark" aria-hidden="true">p</span>Plantupia<span class="wordmark-sub">COMPANY WORKSPACE</span></a>
-  {% if company_entry == 'company:overview' %}<a class="back-to-spaces" href="{% url 'company:overview' %}"><span aria-hidden="true">←</span> All workspaces <span lang="ar" dir="rtl">المساحات</span></a>{% endif %}
-  <nav aria-label="Workspace navigation">
-  {% if workspace_area == 'b2b' %}
-    <p class="nav-group-label">B2B / PROJECTS · <span lang="ar" dir="rtl">المشروعات</span></p>
-    {% if company_entry == 'company:overview' %}<a href="{% url 'company:projects-home' %}" {% if section == 'projects_home' %}aria-current="page"{% endif %}>Projects home</a>{% endif %}
-    {% if perms.plants.view_commercebusinessinquiry %}<a href="{% url 'company:business-inquiries' %}" {% if section == 'business_inquiries' %}aria-current="page"{% endif %}>Business requests · Real</a>{% endif %}
-    {% if show_b2b_rfqs %}<a href="{% url 'company:business-rfqs' %}" {% if section == 'business_rfqs' %}aria-current="page"{% endif %}>RFQs &amp; quotes · QA</a>{% endif %}
-    {% if perms.plants.view_installationbatch %}<a href="{% url 'company:installations' %}" {% if section == 'installations' %}aria-current="page"{% endif %}>Installations</a>{% endif %}
-    {% if can_inventory %}<a href="{% url 'company:inventory' %}" {% if section == 'inventory' %}aria-current="page"{% endif %}>Installed plant inventory</a>{% endif %}
-    {% if can_handovers %}<a href="{% url 'company:handovers' %}" {% if section == 'handovers' %}aria-current="page"{% endif %}>QR handovers</a>{% endif %}
-  {% elif workspace_area == 'b2c' %}
-    <p class="nav-group-label">B2C / SHOP · <span lang="ar" dir="rtl">المتجر</span></p>
-    {% if company_entry == 'company:overview' %}<a href="{% url 'company:commerce-home' %}" {% if section == 'commerce_home' %}aria-current="page"{% endif %}>Shop home</a>{% endif %}
-    {% if perms.plants.view_commerceproduct %}<a class="workspace-nav-link" href="{% url 'company:commerce-products' %}" {% if section == 'commerce_products' %}aria-current="page"{% endif %}><span class="nav-label-en">Products</span><span class="nav-label-ar" lang="ar" dir="rtl">المنتجات</span></a>{% endif %}
-    {% if perms.plants.view_commerceorder %}<a class="workspace-nav-link" href="{% url 'company:commerce-orders' %}" {% if section == 'commerce_orders' %}aria-current="page"{% endif %}><span class="nav-label-en">Orders</span><span class="nav-label-ar" lang="ar" dir="rtl">الطلبات</span></a>{% endif %}
-    {% if perms.plants.view_commercestockmovement %}<a class="workspace-nav-link" href="{% url 'company:commerce-stock' %}" {% if section == 'commerce_stock' %}aria-current="page"{% endif %}><span class="nav-label-en">Stock</span><span class="nav-label-ar" lang="ar" dir="rtl">المخزون</span></a>{% endif %}
-    {% if ceo_demo_enabled %}
-    <details class="sidebar-qa" {% if section == 'catalog' or section == 'orders' or section == 'commerce_qa_requests' %}open{% endif %}>
-      <summary>Testing tools <span aria-hidden="true">⌄</span></summary>
-      <div class="sidebar-qa-links">
-      {% if perms.plants.view_catalogproduct %}<a href="{% url 'company:catalog' %}" {% if section == 'catalog' %}aria-current="page"{% endif %}>Original QA catalog</a>{% endif %}
-      {% if perms.plants.view_demoorder %}<a href="{% url 'company:orders' %}" {% if section == 'orders' %}aria-current="page"{% endif %}>Original QA orders</a>{% endif %}
-      {% if commerce_qa_requests_enabled and perms.plants.view_commerceorderrequest %}<a href="{% url 'company:commerce-qa-requests' %}" {% if section == 'commerce_qa_requests' %}aria-current="page"{% endif %}>Historical QA order requests</a>{% endif %}
-      </div>
-    </details>
-    {% endif %}
-  {% elif workspace_area == 'care' %}
-    <p class="nav-group-label">LIVING CARE · <span lang="ar" dir="rtl">الرعاية</span></p>
-    <a href="{% url 'company:care-home' %}" {% if section == 'care_home' %}aria-current="page"{% endif %}>Care home</a>
-    {% if can_care %}<a href="{% url 'company:care' %}" {% if section == 'care' %}aria-current="page"{% endif %}>Botanical care library</a>{% endif %}
-    {% if ceo_demo_enabled and perms.plants.manage_service_requests %}<a href="{% url 'company:support' %}" {% if section == 'support' %}aria-current="page"{% endif %}>Service requests</a>{% endif %}
-    {% if ceo_demo_enabled %}
-    <details class="sidebar-qa" {% if section == 'plans' or section == 'access' %}open{% endif %}>
-      <summary>Testing tools <span aria-hidden="true">⌄</span></summary>
-      <div class="sidebar-qa-links">
-        {% if perms.plants.view_careinspectionplan %}<a href="{% url 'company:plans' %}" {% if section == 'plans' %}aria-current="page"{% endif %}>Inspection plans · QA</a>{% endif %}
+<aside class="sidebar workspace-rail" aria-label="Company navigation">
+  <a class="wordmark" href="{% url company_entry|default:'company:login' %}">
+    <span class="brand-mark" aria-hidden="true">p</span>Plantupia
+    <span class="wordmark-sub">COMPANY / WORKSPACE</span>
+  </a>
+  <div class="rail-workspaces">
+    <p class="rail-overline">WORKSPACES <span lang="ar" dir="rtl">مساحات العمل</span></p>
+    <nav class="workspace-switcher" aria-label="Switch workspaces">
+      {% if can_full_company %}
+      <a href="{% url 'company:overview' %}" class="rail-home">All workspaces <span aria-hidden="true">↗</span></a>
+      {% endif %}
+      {% if can_switch_b2b %}
+      <a href="{% url b2b_entry %}" class="workspace-choice {% if workspace_area == 'b2b' %}is-active{% endif %}" {% if workspace_area == 'b2b' %}aria-current="location"{% endif %}>
+        <span class="workspace-choice-index" aria-hidden="true">01</span>
+        <span class="workspace-choice-text"><strong>B2B · Projects</strong><small lang="ar" dir="rtl">المشروعات والتركيبات</small></span>
+      </a>
+      {% endif %}
+      {% if can_switch_b2c %}
+      <a href="{% url b2c_entry %}" class="workspace-choice {% if workspace_area == 'b2c' %}is-active{% endif %}" {% if workspace_area == 'b2c' %}aria-current="location"{% endif %}>
+        <span class="workspace-choice-index" aria-hidden="true">02</span>
+        <span class="workspace-choice-text"><strong>B2C · Commerce</strong><small lang="ar" dir="rtl">المنتجات والطلبات</small></span>
+      </a>
+      {% endif %}
+      {% if can_switch_care %}
+      <a href="{% url 'company:care-home' %}" class="workspace-choice {% if workspace_area == 'care' %}is-active{% endif %}" {% if workspace_area == 'care' %}aria-current="location"{% endif %}>
+        <span class="workspace-choice-index" aria-hidden="true">03</span>
+        <span class="workspace-choice-text"><strong>Care &amp; Support</strong><small lang="ar" dir="rtl">الرعاية والمساعدة</small></span>
+      </a>
+      {% endif %}
+    </nav>
+  </div>
+  <div class="rail-local">
+    {% if workspace_area == 'b2b' %}
+      <p class="rail-overline">IN PROJECTS <span lang="ar" dir="rtl">داخل المشروعات</span></p>
+      <nav class="local-tools" aria-label="B2B tools">
+        {% if can_full_company %}<a href="{% url 'company:projects-home' %}" {% if section == 'projects_home' %}aria-current="page"{% endif %}>Overview</a>{% endif %}
+        {% if perms.plants.view_commercebusinessinquiry %}<a href="{% url 'company:business-inquiries' %}" {% if section == 'business_inquiries' %}aria-current="page"{% endif %}>Requests &amp; quotations</a>{% endif %}
+        {% if can_full_company and perms.plants.view_installationbatch %}<a href="{% url 'company:installations' %}" {% if section == 'installations' %}aria-current="page"{% endif %}>Installation projects</a>{% endif %}
+        {% if can_full_company and can_inventory %}<a href="{% url 'company:inventory' %}" {% if section == 'inventory' %}aria-current="page"{% endif %}>Verified plants</a>{% endif %}
+        {% if can_full_company and can_handovers %}<a href="{% url 'company:handovers' %}" {% if section == 'handovers' %}aria-current="page"{% endif %}>QR handovers</a>{% endif %}
+      </nav>
+      {% if can_full_company and show_b2b_rfqs %}
+      <details class="rail-advanced" {% if section == 'business_rfqs' %}open{% endif %}>
+        <summary>QA &amp; archived requests</summary>
+        <a href="{% url 'company:business-rfqs' %}" {% if section == 'business_rfqs' %}aria-current="page"{% endif %}>Historical QA RFQs</a>
+      </details>
+      {% endif %}
+    {% elif workspace_area == 'b2c' %}
+      <p class="rail-overline">IN COMMERCE <span lang="ar" dir="rtl">داخل المتجر</span></p>
+      <nav class="local-tools" aria-label="Commerce tools">
+        {% if can_full_company %}<a href="{% url 'company:commerce-home' %}" {% if section == 'commerce_home' %}aria-current="page"{% endif %}>Overview</a>{% endif %}
+        {% if can_full_company and perms.plants.view_commerceproduct %}<a href="{% url 'company:commerce-products' %}" {% if section == 'commerce_products' %}aria-current="page"{% endif %}>Products &amp; publication</a>{% endif %}
+        {% if perms.plants.view_commerceorder %}<a href="{% url 'company:commerce-orders' %}" {% if section == 'commerce_orders' %}aria-current="page"{% endif %}>Orders &amp; fulfilment</a>{% endif %}
+        {% if can_full_company and perms.plants.view_commercestockmovement %}<a href="{% url 'company:commerce-stock' %}" {% if section == 'commerce_stock' %}aria-current="page"{% endif %}>Warehouse stock</a>{% endif %}
+        {% if perms.plants.view_commerceorder %}<a href="{% url 'company:commerce-delivery-rates' %}" {% if section == 'commerce_delivery_rates' %}aria-current="page"{% endif %}>Delivery prices</a>{% endif %}
+      </nav>
+      {% if ceo_demo_enabled %}
+      <details class="rail-advanced" {% if section == 'catalog' or section == 'orders' or section == 'commerce_qa_requests' %}open{% endif %}>
+        <summary>QA &amp; archived tools</summary>
+        {% if can_full_company and perms.plants.view_catalogproduct %}<a href="{% url 'company:catalog' %}" {% if section == 'catalog' %}aria-current="page"{% endif %}>Legacy catalog</a>{% endif %}
+        {% if can_full_company and perms.plants.view_demoorder %}<a href="{% url 'company:orders' %}" {% if section == 'orders' %}aria-current="page"{% endif %}>Legacy orders</a>{% endif %}
+        {% if can_full_company and commerce_qa_requests_enabled and perms.plants.view_commerceorderrequest %}<a href="{% url 'company:commerce-qa-requests' %}" {% if section == 'commerce_qa_requests' %}aria-current="page"{% endif %}>Historical order requests</a>{% endif %}
+      </details>
+      {% endif %}
+    {% elif workspace_area == 'care' %}
+      <p class="rail-overline">IN CARE <span lang="ar" dir="rtl">داخل الرعاية</span></p>
+      <nav class="local-tools" aria-label="Care and support tools">
+        {% if can_full_company %}<a href="{% url 'company:care-home' %}" {% if section == 'care_home' %}aria-current="page"{% endif %}>Overview</a>{% endif %}
+        {% if can_full_company and can_care %}<a href="{% url 'company:care' %}" {% if section == 'care' %}aria-current="page"{% endif %}>Botanical library</a>{% endif %}
+        {% if can_full_company and ceo_demo_enabled and perms.plants.manage_service_requests %}<a href="{% url 'company:support' %}" {% if section == 'support' %}aria-current="page"{% endif %}>Service requests</a>{% endif %}
+      </nav>
+      {% if ceo_demo_enabled and can_full_company %}
+      <details class="rail-advanced" {% if section == 'plans' or section == 'access' %}open{% endif %}>
+        <summary>QA &amp; archived tools</summary>
+        {% if perms.plants.view_careinspectionplan %}<a href="{% url 'company:plans' %}" {% if section == 'plans' %}aria-current="page"{% endif %}>Inspection plans</a>{% endif %}
         {% if perms.plants.view_demoentitlement %}<a href="{% url 'company:demo-access' %}" {% if section == 'access' %}aria-current="page"{% endif %}>QA access plans</a>{% endif %}
-      </div>
-    </details>
+      </details>
+      {% endif %}
+    {% elif workspace_area == 'shared' %}
+      <p class="rail-overline">SHARED WORK <span lang="ar" dir="rtl">الأعمال المشتركة</span></p>
+      {% if can_shared_inbox %}
+      <nav class="local-tools" aria-label="Shared tools">
+        <a href="{% url 'company:website-inbox' %}" {% if section == 'website_inbox' %}aria-current="page"{% endif %}>Website enquiries</a>
+      </nav>
+      {% endif %}
     {% endif %}
-  {% else %}
-    <p class="nav-group-label">CHOOSE A SPACE</p>
-    <a href="{% url 'company:projects-home' %}">B2B / Projects</a>
-    <a href="{% url 'company:commerce-home' %}">B2C / Shop</a>
-    <a href="{% url 'company:care-home' %}">Care / Support</a>
+  </div>
+  {% if can_shared_inbox %}
+  <div class="rail-shared">
+    <a class="rail-shared-link {% if workspace_area == 'shared' %}is-active{% endif %}" href="{% url 'company:website-inbox' %}" {% if workspace_area == 'shared' %}aria-current="location"{% endif %}>
+      <span aria-hidden="true">↗</span> Website inbox <span lang="ar" dir="rtl">رسائل الموقع</span>
+    </a>
+  </div>
   {% endif %}
-  {% if perms.plants.view_websiteenquiry %}<a class="workspace-nav-link inbox-nav-link" href="{% url 'company:website-inbox' %}" {% if section == 'website_inbox' %}aria-current="page"{% endif %}><span class="nav-label-en">Website inbox</span><span class="nav-label-ar" lang="ar" dir="rtl">رسائل الموقع</span></a>{% endif %}
-  </nav>
-  <div class="sidebar-note"><span class="small-label">A CONTINUOUS LIVING RECORD</span><p>Prepare carefully.<br>Review honestly.<br>Hand over with confidence.</p><span class="small-label">Transforming Spaces.<br>Inspiring People.</span></div>
+  <div class="rail-footer"><span>PLANTUPIA / COMPANY</span><span>Private staff workspace</span></div>
 </aside>
 {% endif %}
 <div class="workspace {% if section == 'overview' %}hub-workspace{% endif %}">
 <header class="topbar">
 {% if section == 'overview' %}<a class="hub-wordmark" href="{% url 'company:overview' %}"><span class="hub-wordmark-mark" aria-hidden="true">p</span> Plantupia <span class="hub-wordmark-tag">Company</span></a>
-{% else %}<span class="environment"><span class="status-dot"></span>Isolated QA workspace</span>{% endif %}
+{% else %}<span class="environment"><span class="status-dot"></span>{% if company_is_qa %}QA / preview{% else %}Company operations{% endif %}</span>{% endif %}
 {% if show_real_order_alert %}
 <a class="commerce-alert" href="{% url 'company:commerce-orders' %}">
 <span aria-hidden="true">●</span> Orders to review <strong>{{ new_real_orders }}</strong></a>
@@ -71,6 +115,21 @@
 <div class="account"><span>{{ request.user.username }}</span>{% if request.user.is_authenticated %}<form method="post" action="{% url 'company:logout' %}">{% csrf_token %}<button class="text-button" type="submit">Sign out</button></form>{% endif %}</div>
 </header>
 <main id="main" tabindex="-1">
+{% if section != 'overview' and company_entry %}
+<nav class="workspace-trail" aria-label="You are here">
+  {% if can_full_company %}<a href="{% url 'company:overview' %}">Workspaces</a><span aria-hidden="true">/</span>{% endif %}
+  {% if workspace_area == 'b2b' %}
+    <a href="{% url b2b_entry %}">B2B · Projects</a>
+  {% elif workspace_area == 'b2c' %}
+    <a href="{% url b2c_entry %}">B2C · Commerce</a>
+  {% elif workspace_area == 'care' %}
+    <a href="{% url 'company:care-home' %}">Care &amp; Support</a>
+  {% elif workspace_area == 'shared' %}
+    <span>Shared</span>
+  {% endif %}
+  <span aria-hidden="true">/</span><span aria-current="page">{{ title }}</span>
+</nav>
+{% endif %}
 {% if messages %}<div aria-live="polite">{% for message in messages %}<p class="notice {{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}
 {% block content %}{% endblock %}
 <footer class="footer">Plantupia Company · Private staff workspace<span>QA records and approvals are separate from company acceptance.</span></footer>

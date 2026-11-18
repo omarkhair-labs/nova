@@ -5,6 +5,7 @@ from urllib.parse import urlencode
 
 import qrcode
 import qrcode.image.svg
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.core.cache import cache
@@ -57,15 +58,32 @@ def page(request, template, context=None, status=200):
                "can_care": user.has_perms(("plants.view_careguideversion", "plants.view_botanicalspecies")),
                "can_handovers": user.has_perm("plants.view_handoverinvitation"),
                "handover_enabled": pilot_enabled(), **(context or {})}
+    # One persistent, role-aware wayfinding shell. This is presentation only:
+    # links never grant access; every actual view still enforces service.require.
+    full_company_access = user.has_perms(service.ACCESS)
+    can_b2b_requests = user.has_perm("plants.view_commercebusinessinquiry")
+    can_b2c_orders = user.has_perm("plants.view_commerceorder")
+    context.update({
+        "can_full_company": full_company_access,
+        "can_switch_b2b": full_company_access or can_b2b_requests,
+        "can_switch_b2c": full_company_access or can_b2c_orders,
+        "can_switch_care": full_company_access,
+        "can_shared_inbox": full_company_access and user.has_perm("plants.view_websiteenquiry"),
+        "b2b_entry": "company:projects-home" if full_company_access else "company:business-inquiries",
+        "b2c_entry": "company:commerce-home" if full_company_access else "company:commerce-orders",
+        "company_is_qa": not settings.IS_PRODUCTION,
+    })
     # One contextual workspace navigation, without reclassifying persisted data.
     section = context.get("section", "")
     if section in {"projects_home", "business_rfqs", "business_inquiries", "installations", "inventory", "handovers"}:
         context["workspace_area"] = "b2b"
     elif section in {"commerce_home", "commerce_products", "commerce_stock", "commerce_orders",
-                     "commerce_qa_requests", "catalog", "orders"}:
+                     "commerce_qa_requests", "catalog", "orders", "commerce_delivery_rates"}:
         context["workspace_area"] = "b2c"
     elif section in {"care_home", "care", "plans", "support", "access"}:
         context["workspace_area"] = "care"
+    elif section == "website_inbox":
+        context["workspace_area"] = "shared"
     else:
         context["workspace_area"] = "hub"
     return render(request, "plants/company/" + template + ".html", context, status=status)
@@ -158,8 +176,16 @@ def overview(request):
     guides = CareGuideVersion.objects.filter(published=False, ever_published=False).select_related("species", "assigned_reviewer").order_by("pk")[:4] if can_care else []
     pending_guides = CareGuideVersion.objects.filter(published=False, ever_published=False).count() if can_care else None
     invitations = HandoverInvitation.objects.filter(batch__in=qs).select_related("batch", "intended_recipient").order_by("-created_at")[:4] if request.user.has_perm("plants.view_handoverinvitation") else []
+    b2b_action_count = None
+    if request.user.has_perm("plants.view_commercebusinessinquiry"):
+        from .commerce_business_real_company import (
+            business_inquiry_needs_attention, business_inquiry_work_queue,
+        )
+        b2b_action_count = business_inquiry_work_queue().filter(
+            business_inquiry_needs_attention()).count()
     return page(request, "overview", {"title": "Overview", "section": "overview", "counts": counts, "drafts": drafts,
-        "guides": guides, "pending_guides": pending_guides, "invitations": invitations})
+        "guides": guides, "pending_guides": pending_guides,
+        "b2b_action_count": b2b_action_count, "invitations": invitations})
 
 
 @portal(methods=("GET",))

@@ -1,6 +1,7 @@
 """Actual Company B2B inquiry queue, independent of QA RFQs/Installations."""
 from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.db.models import Exists, OuterRef, Q
 from django.shortcuts import get_object_or_404, redirect
 
 from . import commerce_business_real as business, commerce_business_project as project, company_services as company
@@ -9,16 +10,58 @@ from .models import InstallationBatch
 from .company_views import page, paginated, portal
 
 
+def business_inquiry_work_queue():
+    """One factual queue over the existing B2B record, not another CRM.
+
+    An accepted installation WITH a linked draft already belongs to
+    Installations, not the incoming commercial work queue.
+    """
+    existing_project = InstallationBatch.objects.filter(source_b2b_inquiry=OuterRef("pk"))
+    return CommerceBusinessInquiry.objects.select_related("requester").annotate(
+        has_linked_project=Exists(existing_project),
+    )
+
+
+def business_inquiry_needs_attention():
+    return (
+        Q(status=CommerceBusinessInquiry.Status.RECEIVED)
+        | Q(status=CommerceBusinessInquiry.Status.ACCEPTED,
+            followup_state=CommerceBusinessInquiry.Followup.NEEDS_STAFF,
+            has_linked_project=False)
+    )
+
+
 @portal("plants.view_commercebusinessinquiry", methods=("GET",))
 def real_business_inquiries(request):
-    status = request.GET.get("status", "").strip()
-    records = CommerceBusinessInquiry.objects.select_related("requester").order_by("-created_at", "pk")
-    if status in CommerceBusinessInquiry.Status.values:
+    status = request.GET.get("status", "action_needed").strip()
+    all_records = business_inquiry_work_queue()
+    records = all_records
+    if status == "action_needed":
+        records = records.filter(business_inquiry_needs_attention())
+    elif status == "waiting_outside":
+        records = records.filter(status=CommerceBusinessInquiry.Status.ACCEPTED,
+            followup_state=CommerceBusinessInquiry.Followup.WAITING_OUTSIDE,
+            has_linked_project=False)
+    elif status in CommerceBusinessInquiry.Status.values:
         records = records.filter(status=status)
+    elif status != "all":
+        status = "action_needed"
+        records = records.filter(business_inquiry_needs_attention())
+    records = records.order_by("-created_at", "pk")
     return page(request, "commerce_business_inquiries", {
-        "title": "Real business requests", "section": "business_inquiries",
+        "title": "Business requests", "section": "business_inquiries",
         "records": paginated(request, records), "status_filter": status,
-        "pending_count": CommerceBusinessInquiry.objects.filter(status="received").count(),
+        "pending_count": all_records.filter(status=CommerceBusinessInquiry.Status.RECEIVED).count(),
+        "followup_count": all_records.filter(
+            status=CommerceBusinessInquiry.Status.ACCEPTED,
+            followup_state=CommerceBusinessInquiry.Followup.NEEDS_STAFF,
+            has_linked_project=False).count(),
+        "waiting_count": all_records.filter(
+            status=CommerceBusinessInquiry.Status.QUOTED).count(),
+        "outside_count": all_records.filter(
+            status=CommerceBusinessInquiry.Status.ACCEPTED,
+            followup_state=CommerceBusinessInquiry.Followup.WAITING_OUTSIDE,
+            has_linked_project=False).count(),
     })
 
 
@@ -28,13 +71,69 @@ def real_business_inquiry(request, inquiry_id):
         CommerceBusinessInquiry.objects.select_related("requester", "quoted_by", "sku"),
         pk=inquiry_id,
     )
+    prepared = (
+        InstallationBatch.objects.filter(source_b2b_inquiry=record)
+        .filter(prepared_by=request.user).first()
+        if not request.user.is_superuser else
+        InstallationBatch.objects.filter(source_b2b_inquiry=record).first()
+    )
+    has_existing_project = InstallationBatch.objects.filter(source_b2b_inquiry=record).exists()
+    if record.status == CommerceBusinessInquiry.Status.RECEIVED:
+        next_title = "Review the need and prepare a quotation"
+        next_explanation = (
+            "Check the requested scope and real constraints. Record one clear "
+            "nonbinding quotation, or decline if Plantupia cannot provide it."
+        )
+    elif record.status == CommerceBusinessInquiry.Status.QUOTED:
+        next_title = "Waiting for the customer"
+        next_explanation = (
+            "The quotation is on the customer's record. Do not create an "
+            "installation, reserve stock or claim acceptance while it is pending."
+        )
+    elif record.status == CommerceBusinessInquiry.Status.ACCEPTED:
+        if record.followup_state == CommerceBusinessInquiry.Followup.WAITING_OUTSIDE:
+            next_title = "Waiting for the external response"
+            next_explanation = (
+                "Staff recorded a pending customer/vendor reply outside Plantupia. "
+                "This is an internal note, not proof of a signed order or payment. "
+                "Add a new note when circumstances change."
+            )
+        elif record.followup_state == CommerceBusinessInquiry.Followup.RECORDED_DONE:
+            next_title = "Commercial follow-up recorded as finished"
+            next_explanation = (
+                "A staff member marked their external follow-up complete. This "
+                "does not confirm any contract, shipment, payment or installation. "
+                "The external record remains available for review."
+            )
+        elif record.kind == CommerceBusinessInquiry.Kind.INSTALLATION:
+            if prepared:
+                next_title = "Continue the linked installation"
+            elif has_existing_project:
+                next_title = "Project draft belongs to another authorized operator"
+            else:
+                next_title = "Prepare the project draft after commercial follow-up"
+            next_explanation = (
+                "The accepted nonbinding quote is not a signed contract. "
+                "Any existing draft must be continued by its assigned operator. "
+                "Otherwise authorized staff can create a linked draft only after "
+                "commercial terms have been independently verified."
+            )
+        else:
+            next_title = "Continue commercial wholesale follow-up"
+            next_explanation = (
+                "Agree the actual supply terms separately. This acceptance "
+                "does not create a purchase order, allocate stock or collect money."
+            )
+    else:
+        next_title = "Enquiry closed"
+        next_explanation = "No further quote action is available on this record."
     return page(request, "commerce_business_inquiry", {
         "title": record.company_name, "section": "business_inquiries",
-        "record": record,
-        "prepared_installation": InstallationBatch.objects.filter(
-            source_b2b_inquiry=record,
-        ).filter(prepared_by=request.user).first() if not request.user.is_superuser else
-            InstallationBatch.objects.filter(source_b2b_inquiry=record).first(),
+        "record": record, "prepared_installation": prepared,
+        "linked_project_exists": has_existing_project,
+        "next_title": next_title, "next_explanation": next_explanation,
+        "external_notes": record.staff_contact_notes.select_related(
+            "recorded_by").order_by("-created_at", "-id")[:30],
     })
 
 
@@ -78,3 +177,51 @@ def create_business_installation(request, inquiry_id):
         "Draft project prepared. Add physical plant inventory, review, then issue a recipient-bound handover.",
     )
     return redirect("company:installation", batch_id=batch.pk)
+
+
+@portal("plants.change_commercebusinessinquiry", methods=("POST",))
+def record_business_external_contact(request, inquiry_id):
+    """Explicit staff account of a real phone/WhatsApp/meeting/email exchange."""
+    company.require(request.user, "plants.view_commercebusinessinquiry")
+    try:
+        business.record_external_contact(
+            staff=request.user, inquiry_id=inquiry_id,
+            channel=request.POST.get("channel", ""),
+            summary=request.POST.get("summary", ""),
+            followup=request.POST.get(
+                "followup_state", CommerceBusinessInquiry.Followup.NEEDS_STAFF,
+            ),
+        )
+        messages.success(
+            request,
+            "Your internal communication note was saved. No customer reply, "
+            "contract or payment was generated.",
+        )
+    except ValidationError as exc:
+        for message in exc.messages:
+            messages.error(request, message)
+    return redirect("company:business-inquiry", inquiry_id=inquiry_id)
+
+
+@portal("plants.change_commercebusinessinquiry", methods=("POST",))
+def record_business_external_customer_response(request, inquiry_id):
+    """An explicit staff-reported commercial response, not verified consent."""
+    company.require(request.user, "plants.view_commercebusinessinquiry")
+    if request.POST.get("confirm_staff_report") != "yes":
+        messages.error(request, "Confirm this is your own truthful report of an outside exchange.")
+        return redirect("company:business-inquiry", inquiry_id=inquiry_id)
+    try:
+        business.record_reported_customer_response(
+            staff=request.user, inquiry_id=inquiry_id,
+            channel=request.POST.get("channel", ""),
+            summary=request.POST.get("summary", ""),
+            decision=request.POST.get("decision", ""),
+        )
+        messages.success(
+            request, "Customer response recorded as a staff report. "
+            "No contract, sale, payment or installation was confirmed.",
+        )
+    except ValidationError as exc:
+        for message in exc.messages:
+            messages.error(request, message)
+    return redirect("company:business-inquiry", inquiry_id=inquiry_id)

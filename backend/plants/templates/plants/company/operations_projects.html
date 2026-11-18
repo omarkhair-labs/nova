@@ -2,9 +2,22 @@
 {% block content %}
 <div class="page-heading task-first-heading">
   <div><p class="eyebrow">01 / B2B · PROJECT DELIVERY</p><h1>Projects &amp; installations.</h1>
-    <p class="lead">Continue an installation, review its plants, or complete an approved QR handover. Actual business quote requests now have a separate commercial queue; the older RFQs remain QA-only.</p></div>
-  {% if perms.plants.add_installationbatch %}<a class="button primary" href="{% url 'company:installation-create' %}">New installation +</a>{% endif %}
+    <p class="lead">Start with the work requiring attention. Continue a real installation, review its verified plant inventory, or complete a recipient-bound handover.</p></div>
+  {% if perms.plants.view_commercebusinessinquiry %}
+    <a class="button primary" href="{% url 'company:business-inquiries' %}?status=action_needed">Review business requests{% if real_business_count %} · {{ real_business_count }}{% endif %}</a>
+  {% elif perms.plants.add_installationbatch %}
+    <a class="button" href="{% url 'company:installation-create' %}">New independent installation</a>
+  {% endif %}
 </div>
+{% if real_business_count != None %}
+<section class="company-attention" aria-label="Commercial requests that require action">
+  <div><p class="eyebrow">YOUR NEXT COMMERCIAL TASK</p>
+    <h2>{% if real_business_count %}{{ real_business_count }} business requests need action{% else %}Business requests are up to date{% endif %}</h2>
+    <p>New enquiries need scoping; accepted quotations need commercial follow-up. Quotations awaiting the customer are not staff tasks.</p>
+  </div>
+  <a class="button" href="{% url 'company:business-inquiries' %}?status=action_needed">Open work queue →</a>
+</section>
+{% endif %}
 <section class="panel padded history work-queue">
   <p class="eyebrow">YOUR RECORDED INSTALLATIONS / التركيبات</p><h2>Continue where you left off</h2>
   {% for batch in recent %}
@@ -25,14 +38,7 @@
 </section>
 <p class="eyebrow">WORKSPACE TOOLS / أدوات العمل</p>
 <div class="installation-grid">
-  {% if real_business_count != None %}
-  <article class="installation-card">
-    <p class="small-label">B2B · REAL CUSTOMER ENQUIRIES</p>
-    <h2>{{ real_business_count }} to review</h2>
-    <p>Real wholesale and installation scope requests with staff quotes and customer follow-up.</p>
-    <div class="card-bottom"><span>Actual business inbox</span>
-      <a href="{% url 'company:business-inquiries' %}">Open real enquiries →</a></div>
-  </article>{% endif %}
+
   {% if rfq_new_count != None %}
   <article class="installation-card">
     <p class="small-label">B2B · QUOTES / عروض الأسعار</p>
@@ -55,5 +61,5 @@
   </article>{% endif %}
 </div>
 
-<div class="notice">Actual B2B RFQs and nonbinding quotes are recorded. Signed purchase orders, commercial fulfillment, multi-site scheduling and project QR handover still require distinct verified workflows.</div>
+<div class="notice">A commercial quotation is not a signed purchase order. An installation draft carries the same source reference, but physical plant records and QR handover still require separate verified steps.</div>
 {% endblock %}

@@ -834,6 +834,7 @@ internal fun PlantupiaStoreShop(
                 PlantupiaBusinessInquiryScreen(
                     repository = repository,
                     onBack = { screen = "catalog"; refresh++ },
+                    onAcknowledged = { scope.launch { screenScroll.animateScrollTo(0) } },
                 )
             }
             "orders" -> {
