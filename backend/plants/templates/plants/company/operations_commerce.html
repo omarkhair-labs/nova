@@ -2,7 +2,7 @@
 {% block content %}
 <header class="page-heading compact-workspace-heading">
   <div><p class="eyebrow">B2C · SHOP OPERATIONS / المتجر</p><h1>Shop operations.</h1>
-    <p class="lead">Manage actual products, delivery quotes, confirmed orders and warehouse stock in one Company workspace.</p></div>
+    <p class="lead">Work with reviewed products, confirmed customer orders, delivery prices and real warehouse stock from one operations space.</p></div>
   {% if can_products and perms.plants.add_commerceproduct %}<a class="button primary" href="{% url 'company:commerce-product-create' %}">New product +</a>{% endif %}
 </header>
 <div class="task-shortcuts" aria-label="Commerce quick actions">
@@ -11,6 +11,7 @@
   {% endif %}
   {% if can_requests %}
   <a class="button" href="{% url 'company:commerce-orders' %}">Customer orders ↗</a>
+  <a class="button" href="{% url 'company:commerce-delivery-rates' %}">Delivery prices ↗</a>
   {% endif %}
   {% if can_stock %}
   <a class="button" href="{% url 'company:commerce-stock' %}">Warehouse stock ↗</a>
@@ -28,8 +29,8 @@
   <article class="commerce-path">
     <span class="path-figure" aria-hidden="true">02 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14v18l-3-2-4 2-4-2-3 2V3Z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg></span>
     <p class="eyebrow">ORDER INBOX / الطلبات</p><h2>Orders</h2>
-    <p>Real customer addresses, shipping quotes, accepted totals and held warehouse stock.</p>
-    <div class="path-bottom">{% if can_requests %}<span><strong>{{ counts.quote_pending_orders }}</strong> shipping quotes pending<br><small>{{ counts.real_orders }} actual order records · {{ counts.confirmed_orders }} confirmed</small></span><a class="button primary" href="{% url 'company:commerce-orders' %}">Open orders ↗</a>{% else %}<span><strong>Staff access needed</strong><br><small>Contact your Company administrator for real order access.</small></span>{% endif %}</div>
+    <p>New orders at known delivery prices, exceptional shipping requests, recorded totals and evidence-led fulfillment.</p>
+    <div class="path-bottom">{% if can_requests %}<span><strong>{{ counts.confirmed_orders }}</strong> confirmed orders awaiting preparation<br><small>{{ counts.quote_pending_orders }} delivery requests requiring review · {{ counts.real_orders }} total records</small></span><a class="button primary" href="{% url 'company:commerce-orders' %}">Open orders ↗</a>{% else %}<span><strong>Staff access needed</strong><br><small>Contact your Company administrator for real order access.</small></span>{% endif %}</div>
   </article>
 {% if can_stock %}
   <article class="commerce-path">
@@ -40,7 +41,7 @@
   </article>
 {% endif %}
 </section>
-<div class="commerce-reality"><strong>Operational boundaries</strong><span>Actual customer shipping quotes and location-level stock holds are implemented. Product publication is not enabled yet, and payment reconciliation, dispatch proof and returns remain to be completed before Production.</span></div>
+<div class="commerce-reality"><strong>Operational boundaries</strong><span>Known-fee city checkout creates a confirmed order without staff repricing; unpriced locations remain exceptional requests. Customer payments, physical dispatch, delivery proof and returns require separate recorded evidence. Actual merchant data and QA acceptance are required before Production.</span></div>
 {% if ceo_demo_enabled %}
 <details class="qa-archive">
   <summary><span><strong>Testing tools &amp; archived flows</strong><small>Separate fictional Shop records, kept for compatibility and QA</small></span><span aria-hidden="true">+</span></summary>
