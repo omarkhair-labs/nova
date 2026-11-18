@@ -24,6 +24,8 @@ urlpatterns = [
     path("projects/business/<uuid:inquiry_id>/quote/", actual_business.real_business_quote_decision, name="business-inquiry-quote"),
     path("projects/business/<uuid:inquiry_id>/external-contact/",
         actual_business.record_business_external_contact, name="business-external-contact"),
+    path("projects/business/<uuid:inquiry_id>/external-response/",
+        actual_business.record_business_external_customer_response, name="business-external-response"),
     path("projects/business/<uuid:inquiry_id>/installation/", actual_business.create_business_installation, name="business-inquiry-installation"),
     path("projects/rfqs/", business.rfq_list, name="business-rfqs"),
     path("projects/rfqs/<uuid:rfq_id>/", business.rfq_detail, name="business-rfq"),
