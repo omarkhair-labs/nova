@@ -47,7 +47,8 @@ class CompanyWayfindingTests(DemoFixture, TestCase):
     def test_finance_only_user_does_not_get_project_care_or_stock_actions(self):
         User = get_user_model()
         finance = User.objects.create_user(
-            username="staff_finance_nav", password="qa-only", is_staff=True,
+            username="staff_finance_nav", email="finance-nav@example.invalid",
+            password="qa-only", is_staff=True,
         )
         finance.groups.add(create_finance_reviewer_role())
         self.client.force_login(finance)
