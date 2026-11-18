@@ -13,7 +13,7 @@ from .demo_api import (DemoAccessView, InspectionPlansView, InspectionActionView
 from .views import HandoverClaimView, HandoverPreviewView
 from .views import PlantCareGuideView
 from .views import PlantEventSubmissionsView, PlantQuestionSubmissionsView
-from .views import SpaceDetailView, PlantDetailView, PlantEventsView, PlantFollowUpDateView, PlantNicknameView, PlantsView, SpacesView, PlantQuestionsView, PlantQuestionResolveView, PlantCircleView
+from .views import SpaceDetailView, PlantDetailView, PlantCoverPhotoView, PlantEventsView, PlantFollowUpDateView, PlantNicknameView, PlantsView, SpacesView, PlantQuestionsView, PlantQuestionResolveView, PlantCircleView
 
 from .website_inbox import receive_website_enquiry
 
@@ -65,6 +65,7 @@ urlpatterns = [
     path("spaces/<uuid:space_id>/", SpaceDetailView.as_view(), name="plantupia-space-detail"),
     path("plants/", PlantsView.as_view(), name="plantupia-plants"),
     path("plants/<uuid:plant_id>/", PlantDetailView.as_view(), name="plantupia-plant-detail"),
+    path("plants/<uuid:plant_id>/cover/", PlantCoverPhotoView.as_view(), name="plantupia-plant-cover"),
     path("plants/<uuid:plant_id>/events/", PlantEventsView.as_view(), name="plantupia-events"),
     path("plants/<uuid:plant_id>/events/<uuid:event_id>/follow-up/", PlantFollowUpDateView.as_view(), name="plantupia-follow-up-date"),
     path("plants/<uuid:plant_id>/nickname/", PlantNicknameView.as_view(), name="plantupia-nickname"),
