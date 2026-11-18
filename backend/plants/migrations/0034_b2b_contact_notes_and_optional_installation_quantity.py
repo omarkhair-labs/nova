@@ -32,7 +32,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="commercebusinessinquiry",
             name="customer_response_source",
-            field=models.CharField(max_length=24, blank=True, choices=[
+            field=models.CharField(max_length=24, blank=True, default="", choices=[
                 ("customer_app", "Customer confirmed in the app"),
                 ("staff_phone", "Staff reported phone conversation"),
                 ("staff_whatsapp", "Staff reported WhatsApp conversation"),
