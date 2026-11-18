@@ -4,7 +4,6 @@ No new CRM, fabricated replies or implied binding purchase order.
 """
 import uuid
 
-from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -18,6 +17,8 @@ from .test_ceo_demo import DemoFixture, SETTINGS
 class RealBusinessAttentionQueueTests(DemoFixture, TestCase):
     def setUp(self):
         super().setUp()
+        # Do not inherit the QA operator's installation privileges in this test.
+        self.staff.groups.clear()
         self.staff.groups.add(create_b2b_commercial_role())
         self.staff.refresh_from_db()
         self.client.force_login(self.staff)
