@@ -65,7 +65,10 @@ class CompanyWorkspaceNavigationTests(DemoFixture, TestCase):
         self.assertLess(html.index('class="panel padded history work-queue"'),
                         html.index('class="project-status-summary"'))
         self.assertContains(response, "Continue where you left off")
-        self.assertContains(response, reverse("company:installation-create"))
+        # The primary step is the genuine business attention queue when staff can
+        # review enquiries. Independent installation creation remains available
+        # from Installations, not falsely prioritized ahead of new customer work.
+        self.assertContains(response, reverse("company:business-inquiries"))
 
     def test_commerce_has_import_action_before_overview_cards(self):
         response = self.client.get(reverse("company:commerce-home"))
