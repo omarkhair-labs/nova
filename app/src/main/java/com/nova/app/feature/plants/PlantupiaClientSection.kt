@@ -1480,6 +1480,7 @@ private fun PlantupiaAccountClientSection(
             ) {
                 PlantupiaCareGuidePanel(
                     selectedPlant.id, repository,
+                    canRecord = selectedPlant.canRecord,
                     onRecordObservation = {
                         if (selectedPlant.canRecord) {
                             selectedEntryMode = PlantupiaCareEntryMode.NOTE.name
