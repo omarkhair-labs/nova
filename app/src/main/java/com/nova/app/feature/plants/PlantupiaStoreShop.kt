@@ -877,5 +877,7 @@ internal fun PlantupiaStoreShop(
                 }
             }
         }
+        // Room beneath the final action on phones with persistent bottom nav.
+        Spacer(Modifier.height(24.dp))
     }
 }
