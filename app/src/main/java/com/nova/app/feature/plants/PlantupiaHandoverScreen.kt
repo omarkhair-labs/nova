@@ -162,8 +162,12 @@ internal fun PlantupiaHandoverScreen(
                     Text(summary.spaceLabel, style = MaterialTheme.typography.titleMedium)
                     Text("${summary.plantCount} individual plants prepared", style = PlantupiaText.body)
                     if (summary.spaceId != null) {
+                        Text(
+                            "Next: open a plant in My Plants, add its first real photo, then use Care to record what you actually notice. History will remember each saved moment.",
+                            style = PlantupiaText.supporting,
+                        )
                         Button(onClick = { if (current()) { store.clear(); onConnected(requireNotNull(summary.spaceId)) } },
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Open My Space") }
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Open My Plants →") }
                     } else {
                         Text(
                             "Checking a delivery does not add plants to your account. Confirm only after checking the account, space and plant count.",
