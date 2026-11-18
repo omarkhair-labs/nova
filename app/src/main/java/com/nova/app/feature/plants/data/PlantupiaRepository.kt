@@ -294,6 +294,35 @@ class PlantupiaRepository(
         }
     }
 
+    /** Upload a real private photo for an already connected or delivered plant.
+
+     * The server applies per-plant care permissions, image normalization and
+     * auditing. Nothing is made public, and the botanical identity is unchanged.
+     */
+    suspend fun updatePlantCoverPhoto(
+        plantId: String,
+        photoUri: Uri,
+    ): ApiResult<Unit> = authorized { token ->
+        val photo = when (val result = loadPrivatePhoto(photoUri)) {
+            is ApiResult.Failure -> return@authorized result
+            is ApiResult.Success -> result.value
+        }
+        when (val response = api.requestMultipart(
+            path = "plantupia/plants/$plantId/cover/",
+            method = "POST",
+            fields = emptyMap(),
+            fileField = "cover_photo",
+            file = photo,
+            bearerToken = token,
+        )) {
+            is ApiResult.Failure -> response
+            is ApiResult.Success -> parsePlantupiaResponse(response.value) {
+                requiredPlantupiaId(it, plantId)
+                Unit
+            }
+        }
+    }
+
     /** Reversible server-authorized archive; private photos and events remain intact. */
     suspend fun setPlantArchived(plantId: String, archived: Boolean): ApiResult<Unit> =
         authorized { token ->
