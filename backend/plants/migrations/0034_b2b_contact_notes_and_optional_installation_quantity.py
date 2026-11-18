@@ -18,6 +18,29 @@ class Migration(migrations.Migration):
             field=models.PositiveIntegerField(
                 null=True, blank=True, validators=[MinValueValidator(1)]),
         ),
+        migrations.AlterField(
+            model_name="commercebusinessinquiry",
+            name="status",
+            field=models.CharField(max_length=12, default="received", choices=[
+                ("received", "Company reviewing request"),
+                ("quoted", "Actual nonbinding quote sent"),
+                ("accepted", "Customer accepts quote for follow-up"),
+                ("declined", "Company unable to quote"),
+                ("withdrawn", "Customer no longer proceeding (staff report)"),
+            ]),
+        ),
+        migrations.AddField(
+            model_name="commercebusinessinquiry",
+            name="customer_response_source",
+            field=models.CharField(max_length=24, blank=True, choices=[
+                ("customer_app", "Customer confirmed in the app"),
+                ("staff_phone", "Staff reported phone conversation"),
+                ("staff_whatsapp", "Staff reported WhatsApp conversation"),
+                ("staff_meeting", "Staff reported meeting"),
+                ("staff_email", "Staff reported external email"),
+                ("staff_other", "Staff reported other external exchange"),
+            ]),
+        ),
         migrations.AddField(
             model_name="commercebusinessinquiry",
             name="followup_state",
