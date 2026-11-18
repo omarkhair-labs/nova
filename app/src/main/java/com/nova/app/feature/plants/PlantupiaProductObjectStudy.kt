@@ -64,10 +64,13 @@ internal fun StoreProductDetails(
 
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val wide = maxWidth >= 660.dp && LocalDensity.current.fontScale < 1.3f
+        val heroHeight = plantupiaShopHeroHeightDp(maxWidth.value,
+            LocalDensity.current.fontScale).dp
         if (wide) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                 Box(Modifier.weight(1.05f)) {
-                    ShopObjectGallery(productId, photos, repository, product.optString("kind"))
+                    ShopObjectGallery(productId, photos, repository, product.optString("kind"),
+                        heroHeight = heroHeight)
                 }
                 Box(Modifier.weight(.95f)) {
                     ShopObjectDecision(product, variants, id, available, inCart, cart != null,
@@ -78,13 +81,22 @@ internal fun StoreProductDetails(
                 }
             }
         } else {
-            Column(verticalArrangement = Arrangement.spacedBy(22.dp)) {
-                ShopObjectGallery(productId, photos, repository, product.optString("kind"))
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // The name and real selected price precede a large image on phones.
+                // This fixes the first-screen viewport without inventing a mini cart.
+                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text(product.optString("name"),
+                        style = PlantupiaText.editorialHeading)
+                    Text("EGP " + selected.optString("price"),
+                        style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
+                }
+                ShopObjectGallery(productId, photos, repository, product.optString("kind"),
+                    heroHeight = heroHeight)
                 ShopObjectDecision(product, variants, id, available, inCart, cart != null,
                     busy, onVariant = { selectedSku = it }, onAdd = onAdd,
                     adding = adding && addErrorForSku == null,
                     addError = addErrorForSku?.takeIf { it.first == id }?.second,
-                    onViewCart = onViewCart)
+                    onViewCart = onViewCart, showIdentity = false)
             }
         }
     }
@@ -96,6 +108,7 @@ private fun ShopObjectGallery(
     photos: List<ShopProductPhoto>,
     repository: PlantupiaRepository,
     kind: String,
+    heroHeight: androidx.compose.ui.unit.Dp,
 ) {
     var chosenPhoto by rememberSaveable(productId) { mutableIntStateOf(0) }
     val index = chosenPhoto.coerceIn(0, (photos.size - 1).coerceAtLeast(0))
@@ -103,7 +116,8 @@ private fun ShopObjectGallery(
 
     Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
         Box(
-            Modifier.fillMaxWidth().height(306.dp).background(PlantupiaColors.softSage)
+            Modifier.fillMaxWidth().height(heroHeight)
+                .background(PlantupiaColors.softSage)
                 .then(if (photos.size > 1) Modifier.pointerInput(productId, photos.size, index) {
                     var dragged = 0f
                     detectHorizontalDragGestures(
@@ -116,14 +130,14 @@ private fun ShopObjectGallery(
             contentAlignment = Alignment.Center,
         ) {
             if (photos.isEmpty()) {
-                PlantupiaShopObjectAwaitingPhoto(kind, height = 306.dp)
+                PlantupiaShopObjectAwaitingPhoto(kind, height = heroHeight)
             } else {
                 Crossfade(targetState = index, animationSpec = tween(180), label = "product-photo") { photoIndex ->
                     val photo = photos[photoIndex]
                     PlantupiaCatalogPhoto(
                         productId, repository, photoId = photo.id,
                         photoAlt = photo.description, catalogPath = "commerce/catalog",
-                        fullObject = true, displayHeight = 306.dp,
+                        fullObject = true, displayHeight = heroHeight,
                     )
                 }
                 Text(
@@ -175,9 +189,9 @@ private fun ShopObjectGallery(
                 ) { Text("Next →", color = PlantupiaColors.forest) }
             }
         }
-        if (photos.isNotEmpty()) {
-            Text("Catalogue image references · " + photos.size + " view(s)",
-                style = PlantupiaText.sectionLabel)
+        if (photos.size > 1) {
+            Text(photos.size.toString() + " actual catalogue views",
+                style = PlantupiaText.supporting)
         }
     }
 
@@ -268,6 +282,7 @@ private fun ShopObjectDecision(
     adding: Boolean,
     addError: String?,
     onViewCart: () -> Unit,
+    showIdentity: Boolean = true,
 ) {
     val selected = variants.firstOrNull { it.optString("id") == selectedId } ?: return
     val kind = product.optString("kind")
@@ -277,9 +292,11 @@ private fun ShopObjectDecision(
         "care" -> "CARE ESSENTIAL"
         else -> "OBJECT STUDY"
     }
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text("PLANTUPIA / " + family, style = PlantupiaText.sectionLabel)
-        Text(product.optString("name"), style = PlantupiaText.pageHeading)
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (showIdentity) {
+            Text("PLANTUPIA / " + family, style = PlantupiaText.sectionLabel)
+            Text(product.optString("name"), style = PlantupiaText.pageHeading)
+        }
         product.optString("description").takeIf { it.isNotBlank() }?.let {
             Text(it, style = PlantupiaText.body)
         }
@@ -287,7 +304,7 @@ private fun ShopObjectDecision(
         if (kind == "plant" && species.isNotBlank()) {
             Text("Species reference · " + species, style = PlantupiaText.supporting)
             Text("A reference only, not a verified identity for an individual delivered plant.",
-                style = PlantupiaText.sectionLabel)
+                style = PlantupiaText.supporting)
         }
         HorizontalDivider(color = PlantupiaColors.border)
         if (variants.size > 1) {
@@ -326,13 +343,15 @@ private fun ShopObjectDecision(
             Text("Photos show this product family, not necessarily the chosen option.",
                 style = PlantupiaText.supporting)
         }
-        Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Text("YOUR SELECTION", style = PlantupiaText.sectionLabel)
             Text(storeVariantName(selected), style = PlantupiaText.body,
                 fontWeight = FontWeight.SemiBold)
-            Text("EGP " + selected.optString("price"),
-                modifier = Modifier.semantics { contentDescription = "Selected price EGP " + selected.optString("price") },
-                style = PlantupiaText.editorialHeading)
+            if (showIdentity) {
+                Text("EGP " + selected.optString("price"),
+                    modifier = Modifier.semantics { contentDescription = "Selected price EGP " + selected.optString("price") },
+                    style = PlantupiaText.editorialHeading)
+            }
             Text(shopStockDescription(available, selected.optBoolean("in_stock")),
                 style = PlantupiaText.supporting)
             selected.optString("sku").takeIf { it.isNotBlank() }?.let {
@@ -379,7 +398,7 @@ private fun ShopObjectDecision(
         } else if (inCart >= 10) {
             Text("Maximum 10 of this option per cart.", style = PlantupiaText.supporting)
         }
-        Text("Adding an item does not reserve stock. Delivery is quoted separately.",
+        Text("Your cart does not reserve stock. Delivery is calculated at checkout.",
             style = PlantupiaText.supporting)
     }
 }
