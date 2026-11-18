@@ -133,6 +133,22 @@ class PlantCreateSerializer(serializers.ModelSerializer):
         return clean
 
 
+class PlantCoverPhotoUploadSerializer(serializers.Serializer):
+    """A real, private specimen portrait uploaded after delivery or handover."""
+
+    cover_photo = serializers.ImageField(required=True, allow_empty_file=False)
+
+    def validate_cover_photo(self, photo):
+        from .media import sanitize_public_plant_photo
+
+        try:
+            clean = sanitize_public_plant_photo(photo)
+        except ValueError as error:
+            raise serializers.ValidationError(str(error)) from error
+        clean.name = "plant-cover.jpg"
+        return clean
+
+
 class PlantUpdateSerializer(serializers.ModelSerializer):
     """Human-corrected shared metadata and reversible archiving; no hard deletion."""
 
