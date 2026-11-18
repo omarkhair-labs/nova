@@ -7,6 +7,7 @@ from .commerce_checkout import enabled as qa_orders_enabled
 from .commerce_business_real_company import business_inquiry_work_queue, business_inquiry_needs_attention
 from .commerce_models import CommerceBusinessRFQ, CommerceBusinessInquiry
 from .commerce_models import CommerceProduct, CommerceSKU, CommerceStockMovement, CommerceOrderRequest, CommerceOrder
+from .models import CareGuideVersion
 
 
 @portal(methods=("GET",))
@@ -65,6 +66,19 @@ def care_home(request):
     Do not imply there is an AI diagnostic, paid membership or an approved
     field service schedule where none exists.
     """
+    has_guide_access = (
+        request.user.has_perm("plants.view_careguideversion") and
+        request.user.has_perm("plants.view_botanicalspecies")
+    )
+    # These are actual source-authored guide versions, never plant diagnoses.
+    review_count = CareGuideVersion.objects.filter(
+        published=False, ever_published=False, assigned_reviewer=request.user,
+    ).count() if has_guide_access else None
+    published_count = CareGuideVersion.objects.filter(
+        published=True,
+    ).count() if has_guide_access else None
     return page(request, "operations_care", {
         "title": "Care & Support", "section": "care_home",
+        "assigned_draft_guide_count": review_count,
+        "published_guide_count": published_count,
     })
