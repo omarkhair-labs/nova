@@ -5,6 +5,18 @@
   <p class="eyebrow">B2B / REAL ENQUIRY</p><h1>{{ record.company_name }}</h1>
   <p class="lead">{{ record.get_kind_display }} · {{ record.get_status_display }}</p>
 </div></header>
+<section class="panel padded" aria-label="Next action for this request">
+  <p class="eyebrow">NOW / THE NEXT LEGITIMATE STEP</p>
+  <h2>{{ next_title }}</h2>
+  <p>{{ next_explanation }}</p>
+  {% if prepared_installation %}
+    {% if perms.plants.view_installationbatch %}
+      <a class="button primary" href="{% url 'company:installation' prepared_installation.pk %}">Open linked project →</a>
+    {% endif %}
+  {% elif record.status == "accepted" and record.kind == "installation" %}
+    <p class="fine">Draft project creation is an explicit authorized staff action below. No physical plant is added automatically.</p>
+  {% endif %}
+</section>
 <div class="two-column">
   <section class="panel padded">
     <p class="eyebrow">BUSINESS REQUEST</p>
