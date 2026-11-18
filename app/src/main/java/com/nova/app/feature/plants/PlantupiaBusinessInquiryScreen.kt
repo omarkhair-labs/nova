@@ -9,6 +9,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.unit.dp
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.plants.data.PlantupiaRepository
@@ -26,6 +30,7 @@ private val businessInk = Color(0xFF123B2E)
 internal fun PlantupiaBusinessInquiryScreen(
     repository: PlantupiaRepository,
     onBack: () -> Unit,
+    onAcknowledged: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     var companyName by rememberSaveable { mutableStateOf("") }
@@ -39,6 +44,7 @@ internal fun PlantupiaBusinessInquiryScreen(
     var busy by remember { mutableStateOf(false) }
     var loaded by remember { mutableStateOf(false) }
     var feedback by remember { mutableStateOf<String?>(null) }
+    var receipt by remember { mutableStateOf<PlantupiaBusinessRequestReceipt?>(null) }
     var inquiries by remember { mutableStateOf(emptyList<JSONObject>()) }
     var refresh by remember { mutableIntStateOf(0) }
 
@@ -80,10 +86,29 @@ internal fun PlantupiaBusinessInquiryScreen(
                     "real-business-inquiry", "commerce/business/inquiries/", payload,
                 )) {
                     is ApiResult.Success -> if (repository.isCurrentSession()) {
-                        feedback = "Business request submitted. Plantupia will review the scope; this is not a purchase order."
+                        val confirmed = verifiedPlantupiaBusinessReceipt(
+                            response = result.value,
+                            kind = kind,
+                            organization = companyName,
+                            contact = contact,
+                            phone = phone,
+                            city = city,
+                            quantity = number,
+                            scope = description,
+                        )
+                        if (confirmed != null) {
+                            receipt = confirmed
+                            feedback = null
+                            onAcknowledged()
+                        } else {
+                            feedback = "The reply did not confirm this exact request. Check the saved requests before trying again."
+                        }
                         refresh++
                     }
-                    is ApiResult.Failure -> if (repository.isCurrentSession()) feedback = result.message
+                    is ApiResult.Failure -> if (repository.isCurrentSession()) {
+                        feedback = "We couldn't verify your request. Check the list before retrying. " + result.message
+                        refresh++
+                    }
                 }
             } finally { busy = false }
         }
@@ -110,11 +135,63 @@ internal fun PlantupiaBusinessInquiryScreen(
     }
 
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Wholesale supply or installation project", style = PlantupiaText.editorialHeading)
-        Text("Describe what your organization needs. Plantupia can return a nonbinding EGP quotation. " +
-            "A signed contract, stock allocation, installation and QR handover are separate steps.",
-            style = PlantupiaText.supporting)
+        Text(
+            if (receipt != null) "Your business request arrived."
+            else "Wholesale supply or installation project",
+            style = PlantupiaText.editorialHeading,
+        )
+        Text(
+            if (receipt != null)
+                "Your brief is saved under the reference below. The team can review it and respond with a quotation."
+            else
+                "Describe what your organization needs. Plantupia can return a nonbinding EGP quotation. " +
+                    "A signed contract, stock allocation, installation and QR handover are separate steps.",
+            style = PlantupiaText.supporting,
+        )
         OutlinedButton(onClick = onBack, enabled = !busy) { Text("Back to products") }
+        val savedReceipt = receipt
+        if (savedReceipt != null) {
+            Surface(
+                color = Color(0xFFF0F4ED),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth().semantics {
+                    liveRegion = LiveRegionMode.Polite
+                },
+            ) {
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("RECEIVED / BUSINESS ENQUIRY", style = PlantupiaText.sectionLabel)
+                    Text(savedReceipt.organization, style = PlantupiaText.editorialHeading)
+                    Text(
+                        (if (savedReceipt.kind == "installation") "Installation project" else "Wholesale supply") +
+                            " · " + savedReceipt.city,
+                        style = PlantupiaText.body,
+                    )
+                    Text("Your reference", style = PlantupiaText.sectionLabel)
+                    SelectionContainer {
+                        Text(savedReceipt.reference, style = PlantupiaText.body)
+                    }
+                    Text(
+                        "The team will review your stated requirements. This is not a purchase order, " +
+                            "a confirmed installation, or a payment. No response time is promised.",
+                        style = PlantupiaText.supporting,
+                    )
+                    OutlinedButton(onClick = {
+                        receipt = null
+                        companyName = ""
+                        contact = ""
+                        phone = ""
+                        email = ""
+                        city = ""
+                        kind = "wholesale"
+                        quantity = "1"
+                        description = ""
+                        feedback = null
+                    }, enabled = !busy) {
+                        Text("Send another business request")
+                    }
+                }
+            }
+        } else {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(
                 modifier = Modifier.weight(1f),
@@ -156,6 +233,7 @@ internal fun PlantupiaBusinessInquiryScreen(
             onClick = { submitInquiry() },
         ) { Text(if (busy) "Submitting…" else "Request business quotation") }
 
+        }
         feedback?.let { Text(it, style = PlantupiaText.supporting) }
         HorizontalDivider()
         Text("Your business requests", style = PlantupiaText.editorialHeading)
