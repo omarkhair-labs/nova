@@ -146,6 +146,8 @@ private fun PlantupiaAccountClientSection(
     var showPlantManagement by remember(currentPlantId) { mutableStateOf(false) }
     var showPlantSharing by remember(currentPlantId) { mutableStateOf(false) }
     var showFullHistory by remember(currentPlantId) { mutableStateOf(false) }
+    // One shared plant context; the chapter selects visible intent, not a new screen/database.
+    var selectedDetailChapter by rememberSaveable { mutableStateOf(PlantupiaDetailChapter.OVERVIEW.name) }
     var showAssistant by remember { mutableStateOf(false) }
     var showTeam by remember { mutableStateOf(false) }
     var supportTicketId by remember { mutableStateOf<String?>(null) }
@@ -207,6 +209,7 @@ private fun PlantupiaAccountClientSection(
     var plantName by remember { mutableStateOf("") }
     var note by rememberSaveable { mutableStateOf("") }
     var selectedCareAction by rememberSaveable { mutableStateOf<PlantupiaCareAction?>(null) }
+    var selectedEntryMode by rememberSaveable { mutableStateOf(PlantupiaCareEntryMode.CARE.name) }
     var careDetailsExpanded by rememberSaveable { mutableStateOf(false) }
     var pendingPrivateSaves by remember { mutableStateOf<List<com.nova.app.feature.plants.data.PlantupiaSubmission>>(emptyList()) }
     var carePhotoUri by rememberSaveable { mutableStateOf<Uri?>(null) }
@@ -286,6 +289,9 @@ private fun PlantupiaAccountClientSection(
         sharedSpecies = plant.species
         sharedPlacement = plant.placement
         showCareEditor = openDetailMode == PlantupiaCreateMode.OBSERVATION
+        selectedDetailChapter = plantupiaOpeningChapter(
+            observationIntent = openDetailMode == PlantupiaCreateMode.OBSERVATION,
+        ).name
         PlantupiaCreateIntent.clear()
         currentPlantId = plant.id
         saving = false
@@ -297,6 +303,7 @@ private fun PlantupiaAccountClientSection(
         plantName = plant.name
         note = ""
         selectedCareAction = null
+        selectedEntryMode = PlantupiaCareEntryMode.CARE.name
         careDetailsExpanded = false
         carePhotoUri = null
         carePhotoRequestGeneration = null
@@ -392,8 +399,13 @@ private fun PlantupiaAccountClientSection(
                     repository.confirmSubmission(plant.id, "event", eventId)
                     if (!current()) return@runPlantupiaMutation
                     note = ""; carePhotoUri = null; selectedCareAction = null; showCareEditor = false
+                    selectedEntryMode = PlantupiaCareEntryMode.CARE.name
                     val reloadGeneration = detailRequestGeneration + 1
                     openPlant(plant)
+                    if (isCurrentRequest(plant.id, reloadGeneration)) {
+                        selectedDetailChapter = PlantupiaDetailChapter.HISTORY.name
+                        showFullHistory = true
+                    }
                     if (isCurrentRequest(plant.id, reloadGeneration) && !reminderScheduled) {
                         error = "Your entry was saved, but the reminder couldn't be scheduled. Check notification permissions."
                     }
@@ -409,6 +421,7 @@ private fun PlantupiaAccountClientSection(
         newlyAddedPlantId = null
         showAssistant = false
         currentPlantId = null
+        selectedDetailChapter = PlantupiaDetailChapter.OVERVIEW.name
         saving = false
         pendingArchiveAction = null
         requestedExistingReminder = null
@@ -450,9 +463,14 @@ private fun PlantupiaAccountClientSection(
         dismissButton = { TextButton(onClick = { confirmDiscard = false; pendingPlantAfterDiscard = null; pendingTicketAfterDiscard = null }) { Text("Keep editing") } })
 
     BackHandler(enabled = selectedPlant != null) {
-        // The first Android Back returns to the customer's living space,
-        // instead of unexpectedly leaving the existing Nova tab.
-        requestClosePlant()
+        if (openDetailMode != PlantupiaCreateMode.QUESTION &&
+            selectedDetailChapter != PlantupiaDetailChapter.OVERVIEW.name
+        ) {
+            // Chapter navigation is inside the same plant. A draft is preserved.
+            selectedDetailChapter = PlantupiaDetailChapter.OVERVIEW.name
+        } else {
+            requestClosePlant()
+        }
     }
 
     LaunchedEffect(currentPlantId, saving, detailRequestGeneration) {
@@ -965,53 +983,50 @@ private fun PlantupiaAccountClientSection(
             }
         } else {
             val overviewAnchor = remember(selectedPlant.id) { BringIntoViewRequester() }
-            val careAnchor = remember(selectedPlant.id) { BringIntoViewRequester() }
-            val historyAnchor = remember(selectedPlant.id) { BringIntoViewRequester() }
-            TextButton(onClick = { requestClosePlant() }) {
-                Text("← Back to space", color = deepGreen)
-            }
-            if (openDetailMode != PlantupiaCreateMode.QUESTION) {
-                var activeAnchor by remember(selectedPlant.id) { mutableStateOf("Overview") }
-                val anchors = listOf(
-                    "Overview" to overviewAnchor,
-                    "Care" to careAnchor,
-                    "History" to historyAnchor,
-                )
-                // Real 48dp surfaces avoid Material button default padding,
-                // which previously split Overview and History across two lines.
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+            val careComposerAnchor = remember(selectedPlant.id) { BringIntoViewRequester() }
+            val activeChapter = runCatching {
+                PlantupiaDetailChapter.valueOf(selectedDetailChapter)
+            }.getOrDefault(PlantupiaDetailChapter.OVERVIEW)
+            TextButton(onClick = {
+                if (openDetailMode != PlantupiaCreateMode.QUESTION &&
+                    activeChapter != PlantupiaDetailChapter.OVERVIEW
                 ) {
-                    items(anchors.size) { index ->
-                        val (label, anchor) = anchors[index]
-                        val active = activeAnchor == label
-                        Surface(
-                            onClick = {
-                                activeAnchor = label
-                                scope.launch { anchor.bringIntoView() }
-                            },
-                            modifier = Modifier.heightIn(min = 48.dp),
-                            color = if (active) deepGreen else Color(0xFFE8EDE3),
-                            border = BorderStroke(1.dp, if (active) deepGreen else PlantupiaColors.border),
-                            shape = RoundedCornerShape(15.dp),
-                        ) {
-                            Text(
-                                label, maxLines = 1, softWrap = false,
-                                color = if (active) white else deepGreen,
-                                fontSize = 14.sp, fontWeight = FontWeight.Medium,
-                                modifier = Modifier.padding(horizontal = 17.dp, vertical = 13.dp),
-                            )
-                        }
+                    selectedDetailChapter = PlantupiaDetailChapter.OVERVIEW.name
+                    scope.launch {
+                        androidx.compose.runtime.withFrameNanos { }
+                        overviewAnchor.bringIntoView()
                     }
+                } else {
+                    requestClosePlant()
                 }
+            }) {
+                Text(
+                    if (openDetailMode != PlantupiaCreateMode.QUESTION &&
+                        activeChapter != PlantupiaDetailChapter.OVERVIEW
+                    ) "← Back to plant" else "← Back to space",
+                    color = deepGreen,
+                )
             }
             Box(modifier = Modifier.bringIntoViewRequester(overviewAnchor)) {
-                BrandEyebrow(
-                if (openDetailMode == PlantupiaCreateMode.QUESTION) "ASK THE CIRCLE"
-                else "MY PLANTS"
-                )
+                if (openDetailMode != PlantupiaCreateMode.QUESTION) {
+                    PlantupiaDetailChapters(
+                        selected = activeChapter,
+                        onSelect = { target ->
+                            selectedDetailChapter = plantupiaNextChapter(activeChapter, target).name
+                            if (target == PlantupiaDetailChapter.HISTORY) showFullHistory = true
+                            scope.launch {
+                                androidx.compose.runtime.withFrameNanos { }
+                                overviewAnchor.bringIntoView()
+                            }
+                        },
+                    )
+                }
             }
+            if (activeChapter == PlantupiaDetailChapter.OVERVIEW ||
+                openDetailMode == PlantupiaCreateMode.QUESTION
+            ) {
+            BrandEyebrow(if (openDetailMode == PlantupiaCreateMode.QUESTION)
+                "ASK THE CIRCLE" else "MY PLANTS")
             if (openDetailMode == PlantupiaCreateMode.QUESTION) {
                 Text(
                     "Choose what to share. Your care records and place stay private.",
@@ -1063,10 +1078,9 @@ private fun PlantupiaAccountClientSection(
             if (selectedPlant.id == newlyAddedPlantId) {
                 PlantupiaArrivalCard(
                     onOpenCare = {
-                        scope.launch {
-                            careAnchor.bringIntoView()
-                            newlyAddedPlantId = null
-                        }
+                        selectedDetailChapter = PlantupiaDetailChapter.CARE.name
+                        showCareEditor = selectedPlant.canRecord
+                        newlyAddedPlantId = null
                     },
                     onDismiss = { newlyAddedPlantId = null },
                 )
@@ -1089,6 +1103,71 @@ private fun PlantupiaAccountClientSection(
             }
             if (!selectedPlant.active) {
                 Text("Archived · history is read-only", color = muted, fontSize = 12.sp)
+            }
+            if (openDetailMode != PlantupiaCreateMode.QUESTION) {
+                if (selectedPlant.canRecord) {
+                    Button(
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
+                        onClick = {
+                            selectedDetailChapter = PlantupiaDetailChapter.CARE.name
+                            showCareEditor = true
+                        },
+                    ) { Text("Record care", color = white) }
+                } else {
+                    Text("View-only plant · you can read the guide and history.",
+                        style = PlantupiaText.supporting)
+                }
+                if (!detailLoading && !historyLoadFailed) {
+                    val latest = groupPlantupiaHistory(events).firstOrNull()
+                    if (latest != null) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                selectedDetailChapter = PlantupiaDetailChapter.HISTORY.name
+                                showFullHistory = true
+                            },
+                            color = PlantupiaColors.softSage,
+                            shape = RoundedCornerShape(12.dp),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(14.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("LATEST RECORDED MOMENT", style = PlantupiaText.sectionLabel)
+                                    Text(eventLabel(latest.event.kind), style = PlantupiaText.body)
+                                    Text(
+                                        latest.outcomes.lastOrNull()?.observedAt?.take(10)
+                                            ?: latest.event.observedAt.take(10),
+                                        style = PlantupiaText.supporting,
+                                    )
+                                }
+                                Text("History →", color = deepGreen, fontSize = 13.sp)
+                            }
+                        }
+                    }
+                }
+            }
+            } else {
+                // Only a compact identity strip when reading or inspecting.
+                BrandEyebrow("MY PLANT / " + activeChapter.title.uppercase())
+                Text(selectedPlant.name, fontFamily = FontFamily.Serif, fontSize = 23.sp, color = deepGreen)
+                Text(
+                    listOf(selectedPlant.placement, selectedPlant.species)
+                        .filter(String::isNotBlank).joinToString(" · ")
+                        .ifBlank { "Your individual plant" },
+                    style = PlantupiaText.supporting,
+                )
+                Text(
+                    when (selectedPlant.identityState) {
+                        "staff_verified" -> "Botanical identity verified by Plantupia"
+                        "user_selected" -> "Based on the type you selected · not individually verified"
+                        else -> "Plant type not confirmed"
+                    },
+                    style = PlantupiaText.supporting,
+                )
             }
 
             pendingPrivateSaves.filter { it.plant == selectedPlant.id }.forEach { pending ->
@@ -1123,8 +1202,10 @@ private fun PlantupiaAccountClientSection(
             // Care is the primary reason to open a plant. Keep the
             // record-action composer near the identity, not after
             // rename + pending results + lengthy timeline.
-            if (openDetailMode != PlantupiaCreateMode.QUESTION) {
-                Box(modifier = Modifier.bringIntoViewRequester(careAnchor)) {
+            if (openDetailMode != PlantupiaCreateMode.QUESTION &&
+                activeChapter == PlantupiaDetailChapter.CARE
+            ) {
+                Box(modifier = Modifier.bringIntoViewRequester(careComposerAnchor)) {
                     BrandEyebrow("CARE & OBSERVATIONS")
                 }
                 if (selectedPlant.canRecord) {
@@ -1136,9 +1217,22 @@ private fun PlantupiaAccountClientSection(
                         Text(if (showCareEditor) "Close care actions ↑" else "Record care", color = white)
                     }
                 if (showCareEditor) PlantupiaPanel {
-                    Text("What did you do?", color = forestText, fontWeight = FontWeight.Medium, fontSize = 13.sp)
-                    // Respect the true editor width and fontScale, not only device pixels.
-                    // Each readable action still retains its authored native pictogram.
+                    Text("What would you like to record?", color = forestText,
+                        fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                    val entryMode = PlantupiaCareEntryMode.valueOf(selectedEntryMode)
+                    PlantupiaCareEntryModePicker(
+                        selectedMode = entryMode,
+                        enabled = !saving,
+                        onSelect = { type ->
+                            selectedEntryMode = type.name
+                            if (type != PlantupiaCareEntryMode.CARE) {
+                                careDetailsExpanded = true
+                            }
+                        },
+                    )
+                    if (entryMode == PlantupiaCareEntryMode.CARE) {
+                    Text("Select what you actually did", color = muted, fontSize = 12.sp)
+                    // Preserve existing native pictograms, real action semantics and font-scale policy.
                     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                         val columns = plantupiaCareActionColumns(
                             availableWidthDp = maxWidth.value,
@@ -1167,7 +1261,10 @@ private fun PlantupiaAccountClientSection(
                         }
                     }
                     Text("These record real actions, never predicted watering or feeding.", color = muted, fontSize = 11.sp)
-                    if (selectedCareAction != null && !careDetailsExpanded) {
+                    }
+                    if (entryMode == PlantupiaCareEntryMode.CARE &&
+                        selectedCareAction != null && !careDetailsExpanded
+                    ) {
                         Button(
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                             enabled = !saving && isValidCheckInDate(customFollowUpDate, LocalDate.now()),
@@ -1179,18 +1276,20 @@ private fun PlantupiaAccountClientSection(
                         Text("One action recorded to private Living History; no check-in date or photo required.",
                             color = muted, fontSize = 11.sp)
                     }
-                    TextButton(
-                        onClick = { careDetailsExpanded = !careDetailsExpanded },
-                        enabled = !saving,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    ) {
-                        Text(
-                            if (careDetailsExpanded) "Hide extra details ↑"
-                            else "Add a note, photo, follow-up date or concern ↓",
-                            color = deepGreen,
-                        )
+                    if (entryMode == PlantupiaCareEntryMode.CARE) {
+                        TextButton(
+                            onClick = { careDetailsExpanded = !careDetailsExpanded },
+                            enabled = !saving,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        ) {
+                            Text(
+                                if (careDetailsExpanded) "Hide extra details ↑"
+                                else "Add a note, photo or optional next check ↓",
+                                color = deepGreen,
+                            )
+                        }
                     }
-                    if (careDetailsExpanded) {
+                    if (careDetailsExpanded || entryMode != PlantupiaCareEntryMode.CARE) {
                     OutlinedTextField(
                         value = note,
                         onValueChange = { note = it.take(1500) },
@@ -1319,32 +1418,28 @@ private fun PlantupiaAccountClientSection(
                             color = muted, fontSize = 11.sp,
                         )
                     }
-                    // Each save action has its own full-width touch target.
-                    // Never force three unequal labels into a single weighted row:
-                    // large fonts made "Concerning change" render letter-by-letter.
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    Button(
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+                        enabled = !saving && plantupiaCanSaveCareEntry(
+                            mode = entryMode,
+                            careActionSelected = selectedCareAction != null,
+                            noteOrPhotoPresent = note.isNotBlank() || carePhotoUri != null,
+                            validFollowUpDate = validFollowUpDate,
+                        ),
+                        onClick = {
+                            saveMoment(
+                                selectedPlant, entryMode.eventKind,
+                                if (entryMode == PlantupiaCareEntryMode.CARE)
+                                    buildPlantupiaCareNote(selectedCareAction, note)
+                                else note,
+                            )
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
                     ) {
-                        OutlinedButton(
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                            enabled = !saving && validFollowUpDate && (note.isNotBlank() || carePhotoUri != null),
-                            onClick = { saveMoment(selectedPlant, "observation", note) },
-                        ) { Text("Save observation", color = deepGreen) }
-                        Button(
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                            enabled = !saving && validFollowUpDate && selectedCareAction != null,
-                            onClick = { saveMoment(selectedPlant, "care", buildPlantupiaCareNote(selectedCareAction, note)) },
-                            colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
-                        ) { Text("Save care", color = white) }
-                        OutlinedButton(
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                            enabled = !saving && validFollowUpDate && (note.isNotBlank() || carePhotoUri != null),
-                            onClick = { saveMoment(selectedPlant, "issue", note) },
-                        ) { Text("Record a concern", color = deepGreen) }
+                        Text(if (saving) "Saving…" else entryMode.saveLabel, color = white)
                     }
                     Text(
-                        "Record what you actually noticed. You don't need to diagnose the cause.",
+                        "Save only what you actually noticed or did. A guide or check date is not care.",
                         color = muted, fontSize = 11.sp,
                     )
                     }
@@ -1358,13 +1453,41 @@ private fun PlantupiaAccountClientSection(
             // In the new care journey, the reviewed field guide and the next
             // real inspection live immediately after Record care. Do not bury
             // them after settings, space administration and community sharing.
-            PlantupiaCareGuidePanel(selectedPlant.id, repository)
-            PlantupiaInspectionPanel(
-                selectedPlant, repository,
-                onRecorded = { scope.launch { reloadPlantRecords(selectedPlant.id) } },
-            )
+            if (openDetailMode != PlantupiaCreateMode.QUESTION &&
+                activeChapter == PlantupiaDetailChapter.CARE
+            ) {
+                PlantupiaCareGuidePanel(
+                    selectedPlant.id, repository,
+                    canRecord = selectedPlant.canRecord,
+                    onRecordObservation = {
+                        if (selectedPlant.canRecord) {
+                            selectedEntryMode = PlantupiaCareEntryMode.NOTE.name
+                            careDetailsExpanded = true
+                            showCareEditor = true
+                            scope.launch {
+                                androidx.compose.runtime.withFrameNanos { }
+                                careComposerAnchor.bringIntoView()
+                            }
+                        }
+                    },
+                )
+                PlantupiaInspectionPanel(
+                    selectedPlant, repository,
+                    onRecorded = { scope.launch { reloadPlantRecords(selectedPlant.id) } },
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { showAssistant = true }) {
+                        Text("Ask Plantupia AI", color = deepGreen)
+                    }
+                    TextButton(onClick = { supportTicketId = null; showTeam = true }) {
+                        Text("Talk to our team", color = deepGreen)
+                    }
+                }
+            }
 
-            if (openDetailMode != PlantupiaCreateMode.QUESTION) {
+            if (openDetailMode != PlantupiaCreateMode.QUESTION &&
+                activeChapter == PlantupiaDetailChapter.OVERVIEW
+            ) {
                 // Human support and AI are secondary to recording real care.
                 BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                     val compactHelp = maxWidth >= 280.dp && LocalDensity.current.fontScale <= 1.2f
@@ -1639,10 +1762,14 @@ private fun PlantupiaAccountClientSection(
                 )
             }
 
-            // Asking the Circle is a focused public workflow. Private check-ins,
-            // history and record administration belong to the normal plant detail.
-            if (openDetailMode != PlantupiaCreateMode.QUESTION) {
+            // Due/check actions belong to Care. History stays a factual record,
+            // not an overwhelming action queue before the first dated event.
+            if (openDetailMode != PlantupiaCreateMode.QUESTION &&
+                activeChapter == PlantupiaDetailChapter.CARE
+            ) {
             BrandEyebrow("CHECK BACK")
+            Text("Review a real scheduled check and record only what you observed.",
+                style = PlantupiaText.supporting)
             if (pendingState is PlantupiaPendingCheckInsState.Loading) {
                 Text("Loading check-ins…", color = muted, fontSize = 12.sp)
             } else if (pendingState is PlantupiaPendingCheckInsState.Unavailable) {
@@ -1865,6 +1992,8 @@ private fun PlantupiaAccountClientSection(
                                             followUpTarget = null
                                             followUpResult = ""
                                             reloadPlantRecords(selectedPlant.id)
+                                            selectedDetailChapter = PlantupiaDetailChapter.HISTORY.name
+                                            showFullHistory = true
                                         }
                                     },
                                     onFailure = { error = it.message },
@@ -1876,8 +2005,15 @@ private fun PlantupiaAccountClientSection(
                     ) { Text(if (saving) "Saving outcome…" else "Save outcome and close check-in", color = white) }
                 }
             }
+            } // actual next-check actions belong to the Care chapter
+            if (openDetailMode != PlantupiaCreateMode.QUESTION &&
+                activeChapter == PlantupiaDetailChapter.HISTORY
+            ) {
+            Text("Your plant's living record", style = PlantupiaText.editorialHeading)
+            Text("Only saved care, observations, concerns, outcomes and their real photos.",
+                style = PlantupiaText.supporting)
             Row(
-                modifier = Modifier.fillMaxWidth().bringIntoViewRequester(historyAnchor),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {

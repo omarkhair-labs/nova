@@ -1,11 +1,10 @@
 package com.nova.app.feature.plants
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -27,7 +26,12 @@ import com.nova.app.feature.plants.data.PlantupiaRepository
  * placement note and review/source record. No client-generated plant advice.
  */
 @Composable
-internal fun PlantupiaCareGuidePanel(plantId: String, repository: PlantupiaRepository) {
+internal fun PlantupiaCareGuidePanel(
+    plantId: String,
+    repository: PlantupiaRepository,
+    canRecord: Boolean,
+    onRecordObservation: () -> Unit,
+) {
     key(plantId, repository) {
         var open by remember { mutableStateOf(false) }
         var provenanceOpen by remember { mutableStateOf(false) }
@@ -53,7 +57,17 @@ internal fun PlantupiaCareGuidePanel(plantId: String, repository: PlantupiaRepos
         }
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Surface(
-                onClick = { open = !open },
+                onClick = {
+                    if (!open) {
+                        loading = true
+                        guide = null
+                        error = null
+                        expandedTopic = null
+                        narrativeOpen = false
+                        provenanceOpen = false
+                    }
+                    open = !open
+                },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 92.dp),
                 color = Color(0xFFE6EDE3),
                 shape = RoundedCornerShape(22.dp),
@@ -81,14 +95,43 @@ internal fun PlantupiaCareGuidePanel(plantId: String, repository: PlantupiaRepos
                             style = PlantupiaText.supporting,
                         )
                     }
-                    Text(if (open) "−" else "+", style = PlantupiaText.editorialHeading)
+                    Text("Read →", style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
                 }
             }
-            AnimatedVisibility(
-                visible = open,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically(),
-            ) {
+            if (open) {
+                Dialog(
+                    onDismissRequest = { open = false },
+                    properties = DialogProperties(usePlatformDefaultWidth = false),
+                ) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(0.96f)
+                            .widthIn(max = 620.dp)
+                            .fillMaxHeight(0.91f),
+                        color = PlantupiaColors.cream,
+                        shape = RoundedCornerShape(18.dp),
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                                .padding(horizontal = 18.dp, vertical = 17.dp),
+                            verticalArrangement = Arrangement.spacedBy(15.dp),
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column {
+                                    Text("THE FIELD GUIDE", style = PlantupiaText.sectionLabel)
+                                    Text("Reviewed care", style = PlantupiaText.editorialHeading)
+                                }
+                                TextButton(onClick = { open = false },
+                                    modifier = Modifier.heightIn(min = 48.dp)) {
+                                    Text("Close", color = PlantupiaColors.forest)
+                                }
+                            }
+                            Text("Read about this plant type. Nothing here records an action.",
+                                style = PlantupiaText.supporting)
                 if (loading) {
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                     Text("Loading care guidance…", style = PlantupiaText.supporting)
@@ -203,7 +246,7 @@ internal fun PlantupiaCareGuidePanel(plantId: String, repository: PlantupiaRepos
                                 PlantupiaCareChapterGallery(
                                     topics = value.topics,
                                     selectedTopic = expandedTopic,
-                                    onSelect = { topic -> expandedTopic = if (expandedTopic == topic) null else topic },
+                                    onSelect = { topic -> expandedTopic = topic },
                                     onOpenSource = { source ->
                                         try { uriHandler.openUri(source) }
                                         catch (_: Exception) { error = "The topic source couldn't open on this device." }
@@ -246,9 +289,24 @@ internal fun PlantupiaCareGuidePanel(plantId: String, repository: PlantupiaRepos
                         }
                         if (value.placement.isNotBlank()) Text("Recorded placement: ${value.placement}",
                             style = PlantupiaText.supporting)
+                    } // guide value column
+                } // published guide value
+                if (canRecord) {
+                    OutlinedButton(
+                        onClick = {
+                            open = false
+                            // Deliberate navigation, never an automatic care mutation.
+                            onRecordObservation()
+                        },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+                    ) {
+                        Text("Record what I actually noticed", color = PlantupiaColors.forest)
                     }
                 }
-            }
-        }
-    }
+            } // focused reading body
+        } // reader surface
+    } // native modal
+} // open reader
+        } // parent guide entry
+    } // plant-scoped key
 }

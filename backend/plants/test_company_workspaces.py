@@ -6,6 +6,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from .commerce_models import CommerceProduct, CommerceSKU
+from .models import CareGuideVersion
 from .test_ceo_demo import DemoFixture, SETTINGS
 
 
@@ -112,6 +113,20 @@ class CompanyWorkspaceNavigationTests(DemoFixture, TestCase):
         self.assertContains(response, "Service requests")
         self.assertContains(response, reverse("company:care"))
         self.assertNotContains(response, "Commercial publishing")
+
+    def test_care_home_shows_only_genuine_assigned_guide_review_work(self):
+        response = self.client.get(reverse("company:care-home"))
+        self.assertEqual(response.status_code, 200)
+        expected = CareGuideVersion.objects.filter(
+            published=False, ever_published=False, assigned_reviewer=self.staff,
+        ).count()
+        published = CareGuideVersion.objects.filter(published=True).count()
+        self.assertEqual(response.context["assigned_draft_guide_count"], expected)
+        self.assertEqual(response.context["published_guide_count"], published)
+        self.assertContains(response, "View assigned guides")
+        self.assertContains(response, "Published advice and private customer care events remain separate"
+                            if not expected else "Read the actual topics and sources")
+        self.assertNotContains(response, "Plant health score")
 
     def test_commerce_metrics_are_persisted_drafts_not_qa_store_revenue(self):
         product = CommerceProduct.objects.create(

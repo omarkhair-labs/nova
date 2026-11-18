@@ -1,29 +1,20 @@
 package com.nova.app.feature.plants
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -34,8 +25,6 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -61,6 +50,13 @@ internal fun careChapterPalette(topic: String): CareChapterPalette = when (topic
     else -> CareChapterPalette(PlantupiaColors.softSage, PlantupiaColors.forest, "Care")
 }
 
+/** Only reviewed topics returned by the server may become readable chapters. */
+internal fun selectedReviewedCareTopic(
+    topics: List<PlantupiaCareTopic>,
+    selectedKey: String?,
+): PlantupiaCareTopic? =
+    topics.firstOrNull { it.topic == selectedKey } ?: topics.firstOrNull()
+
 @Composable
 internal fun PlantupiaCareChapterGallery(
     topics: List<PlantupiaCareTopic>,
@@ -68,101 +64,88 @@ internal fun PlantupiaCareChapterGallery(
     onSelect: (String) -> Unit,
     onOpenSource: (String) -> Unit,
 ) {
-    val fontScale = LocalDensity.current.fontScale
-    BoxWithConstraints {
-        // The care guide lives inside Plant Detail; 320dp and enlarged-font
-        // layouts must not force two tiny unreadable cards side by side.
-        val columns = if (maxWidth >= 290.dp && fontScale <= 1.25f) 2 else 1
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            topics.chunked(columns).forEach { pair ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+    if (topics.isEmpty()) return
+    val chapter = selectedReviewedCareTopic(topics, selectedTopic)
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Text("CHAPTERS / SELECT WHAT TO READ", style = PlantupiaText.sectionLabel)
+        androidx.compose.foundation.lazy.LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
+            items(topics.size) { index ->
+                val item = topics[index]
+                val palette = careChapterPalette(item.topic)
+                val active = chapter?.topic == item.topic
+                Surface(
+                    onClick = { onSelect(item.topic) },
+                    modifier = Modifier
+                        .widthIn(min = 134.dp)
+                        .heightIn(min = 132.dp)
+                        .semantics {
+                            selected = active
+                            contentDescription = "Read reviewed " + palette.label + " chapter"
+                        },
+                    color = palette.background,
+                    shape = RoundedCornerShape(15.dp),
+                    border = BorderStroke(
+                        if (active) 2.dp else 1.dp,
+                        palette.ink.copy(alpha = if (active) 0.88f else 0.22f),
+                    ),
                 ) {
-                    pair.forEach { topic ->
-                        PlantupiaCareChapterTile(
-                            topic = topic,
-                            active = selectedTopic == topic.topic,
-                            onClick = { onSelect(topic.topic) },
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                    if (pair.size < columns) {
-                        androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
-                    }
-                }
-                pair.firstOrNull { it.topic == selectedTopic }?.let { topic ->
-                    val palette = careChapterPalette(topic.topic)
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = fadeIn() + expandVertically(),
-                        exit = fadeOut() + shrinkVertically(),
+                    Column(
+                        modifier = Modifier.padding(horizontal = 15.dp, vertical = 13.dp),
+                        verticalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth().animateContentSize(),
-                            color = PlantupiaColors.paper,
-                            shape = RoundedCornerShape(20.dp),
-                            border = BorderStroke(1.dp, palette.ink.copy(alpha = .26f)),
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(17.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                Text(palette.label.uppercase(), style = PlantupiaText.sectionLabel.copy(color = palette.ink))
-                                Text(topic.title, style = PlantupiaText.editorialHeading)
-                                Text(topic.instructions, style = PlantupiaText.body)
-                                if (topic.contextNotes.isNotBlank()) {
-                                    Text("CONTEXT & CAUTIONS", style = PlantupiaText.sectionLabel.copy(color = palette.ink))
-                                    Text(topic.contextNotes, style = PlantupiaText.body)
-                                }
-                                if (topic.sourceUrl.startsWith("https://")) {
-                                    TextButton(
-                                        onClick = { onOpenSource(topic.sourceUrl) },
-                                        modifier = Modifier.heightIn(min = 48.dp),
-                                    ) {
-                                        Text("Reviewed source · " + topic.sourceReference, color = palette.ink)
-                                    }
-                                }
-                            }
+                        CareChapterIllustration(
+                            item.topic, palette.ink, Modifier.size(53.dp),
+                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(palette.label, fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold, color = palette.ink)
+                            Text(if (active) "Reading this chapter" else "Explore chapter",
+                                style = PlantupiaText.supporting.copy(
+                                    color = palette.ink, fontSize = 11.sp,
+                                ))
                         }
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun PlantupiaCareChapterTile(
-    topic: PlantupiaCareTopic,
-    active: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val palette = careChapterPalette(topic.topic)
-    val scale by animateFloatAsState(
-        targetValue = if (active) 1.012f else 1f,
-        animationSpec = spring(dampingRatio = .82f, stiffness = 480f),
-        label = "care-chapter-focus",
-    )
-    Surface(
-        onClick = onClick,
-        modifier = modifier
-            .graphicsLayer { scaleX = scale; scaleY = scale }
-            .semantics { selected = active; contentDescription = "Read " + palette.label + " care" },
-        color = palette.background,
-        shape = RoundedCornerShape(22.dp),
-        border = BorderStroke(if (active) 2.dp else 1.dp, palette.ink.copy(alpha = if (active) .82f else .13f)),
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().heightIn(min = 159.dp).padding(15.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
-        ) {
-            CareChapterIllustration(topic.topic, palette.ink, Modifier.size(67.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text(palette.label, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = palette.ink)
-                Text(if (active) "Reading chapter −" else "Explore chapter +",
-                    style = PlantupiaText.supporting.copy(color = palette.ink))
+        // A single, full-length reading: distinct, illustrated chapter pickers
+        // keep the nine native authored pictograms without nested expanding tiles.
+        chapter?.let { item ->
+            val palette = careChapterPalette(item.topic)
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = PlantupiaColors.paper,
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, palette.ink.copy(alpha = 0.28f)),
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(13.dp),
+                ) {
+                    Text(palette.label.uppercase(),
+                        style = PlantupiaText.sectionLabel.copy(color = palette.ink))
+                    Text(item.title, style = PlantupiaText.editorialHeading)
+                    Text(item.instructions, style = PlantupiaText.body)
+                    if (item.contextNotes.isNotBlank()) {
+                        Text("CONTEXT & CAUTIONS",
+                            style = PlantupiaText.sectionLabel.copy(color = palette.ink))
+                        Text(item.contextNotes, style = PlantupiaText.body)
+                    }
+                    if (item.sourceUrl.startsWith("https://")) {
+                        TextButton(
+                            onClick = { onOpenSource(item.sourceUrl) },
+                            modifier = Modifier.heightIn(min = 48.dp),
+                        ) {
+                            Text("Reviewed source · " + item.sourceReference,
+                                color = palette.ink)
+                        }
+                    } else if (item.sourceReference.isNotBlank()) {
+                        Text("Source: " + item.sourceReference,
+                            style = PlantupiaText.supporting)
+                    }
+                }
             }
         }
     }
