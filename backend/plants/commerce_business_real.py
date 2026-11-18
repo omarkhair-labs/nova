@@ -15,7 +15,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
 from . import company_services as company
-from .commerce_models import CommerceBusinessInquiry, CommerceSKU
+from .commerce_models import CommerceBusinessInquiry, CommerceBusinessContactNote, CommerceSKU
 from .commerce_storefront import customer_only, listed_skus
 
 
@@ -77,7 +77,7 @@ def submit_inquiry(*, user, data):
         contact_name=data["contact_name"].strip(), phone=data["phone"].strip(),
         email=data.get("email", "").strip(), city=data["city"].strip(),
         sku=sku, sku_code_snapshot=sku.code if sku else "",
-        quantity=data["quantity"], scope=data["scope"].strip(),
+        quantity=data.get("quantity"), scope=data["scope"].strip(),
     )
     enquiry.full_clean()
     enquiry.save()
@@ -130,8 +130,9 @@ def accept_quote(*, user, inquiry_id, version):
     if enquiry.status != CommerceBusinessInquiry.Status.QUOTED or enquiry.quoted_amount is None:
         raise ValidationError("No current company quote is available for acceptance.")
     enquiry.status = CommerceBusinessInquiry.Status.ACCEPTED
+    enquiry.followup_state = CommerceBusinessInquiry.Followup.NEEDS_STAFF
     enquiry.accepted_at = timezone.now()
-    enquiry.save(update_fields=["status", "accepted_at", "updated_at"])
+    enquiry.save(update_fields=["status", "followup_state", "accepted_at", "updated_at"])
     company.audit(user, enquiry, "Customer accepted B2B nonbinding quote for commercial follow-up only.")
     return enquiry
 
