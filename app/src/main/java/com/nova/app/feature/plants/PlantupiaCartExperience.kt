@@ -46,14 +46,14 @@ internal fun PlantupiaCartExperience(
     val units = objects.sumOf { it.quantity }
     val isActionBlocked = busy || error != null || incomplete
 
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(19.dp)) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text("THE SAVED COLLECTION / 04", style = PlantupiaText.sectionLabel)
+                Text("SAVED CART", style = PlantupiaText.sectionLabel)
                 Text(
                     if (incomplete) "Some saved objects need review"
                     else if (objects.isEmpty()) "Nothing saved yet"
@@ -154,12 +154,12 @@ internal fun PlantupiaCartExperience(
 
             Surface(
                 color = PlantupiaColors.softSage,
-                shape = RoundedCornerShape(13.dp),
+                shape = PlantupiaShapes.inset,
                 border = BorderStroke(1.dp, PlantupiaColors.border),
             ) {
-                Column(Modifier.fillMaxWidth().padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(13.dp)) {
-                    Text("YOUR SAVED COLLECTION", style = PlantupiaText.sectionLabel)
+                Column(Modifier.fillMaxWidth().padding(15.dp),
+                    verticalArrangement = Arrangement.spacedBy(11.dp)) {
+                    Text("ORDER SUMMARY", style = PlantupiaText.sectionLabel)
                     HorizontalDivider(color = PlantupiaColors.border)
                     Row(
                         Modifier.fillMaxWidth(),
@@ -176,7 +176,7 @@ internal fun PlantupiaCartExperience(
                         }
                     }
                     Text(
-                        "Delivery is not included. Plantupia will quote its cost before you decide whether to confirm. No payment or stock reservation happens here.",
+                        "Delivery is calculated for your address at checkout, before you place the order.",
                         style = PlantupiaText.supporting,
                     )
                     if (!cart.optBoolean("all_items_available") || incomplete) {
@@ -212,42 +212,39 @@ private fun PlantupiaCartObjectCard(
 ) {
     Surface(
         color = PlantupiaColors.paper,
-        shape = RoundedCornerShape(13.dp),
+        shape = PlantupiaShapes.inset,
         border = BorderStroke(1.dp, PlantupiaColors.border),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(Modifier.fillMaxWidth().padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(Modifier.fillMaxWidth().padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.Top,
             ) {
-                BoxWithConstraints {
-                    val size = if (maxWidth >= 370.dp) 110.dp else 92.dp
-                    Surface(
-                        onClick = onOpenProduct,
-                        enabled = enabled,
-                        modifier = Modifier.width(size).height(111.dp),
-                        shape = RoundedCornerShape(9.dp),
-                        color = PlantupiaColors.softSage,
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            if (item.photo != null) {
-                                PlantupiaCatalogPhoto(
-                                    productId = item.productId,
-                                    repository = repository,
-                                    photoId = item.photo.id,
-                                    photoAlt = item.photo.description.ifBlank { item.name },
-                                    catalogPath = "commerce/catalog", fullObject = true,
-                                    displayHeight = 106.dp,
-                                )
-                            } else {
-                                PlantupiaShopObjectAwaitingPhoto(item.kind, height = 106.dp)
-                            }
+                Surface(
+                    onClick = onOpenProduct,
+                    enabled = enabled,
+                    modifier = Modifier.size(86.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    color = PlantupiaColors.softSage,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        if (item.photo != null) {
+                            PlantupiaCatalogPhoto(
+                                productId = item.productId,
+                                repository = repository,
+                                photoId = item.photo.id,
+                                photoAlt = item.photo.description.ifBlank { item.name },
+                                catalogPath = "commerce/catalog", fullObject = true,
+                                displayHeight = 86.dp,
+                            )
+                        } else {
+                            PlantupiaShopObjectAwaitingPhoto(item.kind, height = 86.dp)
                         }
                     }
                 }
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text("OBJECT / " + index.toString().padStart(2, '0'),
                         style = PlantupiaText.sectionLabel)
                     TextButton(
@@ -262,13 +259,6 @@ private fun PlantupiaCartObjectCard(
                     }
                     if (item.variant.isNotBlank()) {
                         Text(item.variant, style = PlantupiaText.supporting)
-                    }
-                    if (item.photo != null && item.variant.isNotBlank()) {
-                        Text("Photo shows the product family, not necessarily this option.",
-                            style = PlantupiaText.sectionLabel)
-                    }
-                    if (item.skuCode.isNotBlank()) {
-                        Text("SKU / " + item.skuCode, style = PlantupiaText.sectionLabel)
                     }
                     if (item.unitPrice.isNotBlank()) {
                         Text("EGP " + item.unitPrice + " each",
@@ -288,7 +278,7 @@ private fun PlantupiaCartObjectCard(
             HorizontalDivider(color = PlantupiaColors.border)
 
             // Independent, full-width controls survive narrow screens and large text.
-            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("QUANTITY", style = PlantupiaText.sectionLabel)
