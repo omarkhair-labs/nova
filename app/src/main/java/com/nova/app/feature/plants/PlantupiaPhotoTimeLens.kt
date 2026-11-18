@@ -75,7 +75,7 @@ internal fun PlantupiaPhotoTimeLens(
                         modifier = Modifier.weight(1f).heightIn(min = 56.dp)
                             .semantics {
                                 role = Role.Tab
-                                selected = active
+                                this.selected = active
                                 contentDescription = (if (later) "Later recorded photo, "
                                     else "Earlier recorded photo, ") + entry.observedAt.take(10)
                             },
