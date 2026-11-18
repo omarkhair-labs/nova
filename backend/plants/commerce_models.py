@@ -658,6 +658,11 @@ class CommerceBusinessInquiry(models.Model):
         ACCEPTED = "accepted", "Customer accepts quote for follow-up"
         DECLINED = "declined", "Company unable to quote"
 
+    class Followup(models.TextChoices):
+        NEEDS_STAFF = "needs_staff", "Staff follow-up needed"
+        WAITING_OUTSIDE = "waiting_outside", "Waiting for external response"
+        RECORDED_DONE = "recorded_done", "Staff recorded follow-up complete"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     requester = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
         related_name="plantupia_real_business_inquiries")
@@ -671,9 +676,14 @@ class CommerceBusinessInquiry(models.Model):
     city = models.CharField(max_length=120)
     sku = models.ForeignKey(CommerceSKU, on_delete=models.PROTECT, null=True, blank=True)
     sku_code_snapshot = models.CharField(max_length=64, blank=True)
-    quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
+    # Installation enquiry may be exploratory; never invent a count of one.
+    # Wholesale needs a real quantity; validation below and API enforce it.
+    quantity = models.PositiveIntegerField(null=True, blank=True, validators=[MinValueValidator(1)])
     scope = models.TextField(max_length=2000)
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.RECEIVED)
+    # Internal staff attention, separate from customer quote/order/contract status.
+    followup_state = models.CharField(max_length=16, choices=Followup.choices,
+        default=Followup.NEEDS_STAFF)
     quoted_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     quote_version = models.PositiveIntegerField(default=0)
     quoted_at = models.DateTimeField(null=True, blank=True)
@@ -690,6 +700,39 @@ class CommerceBusinessInquiry(models.Model):
             models.UniqueConstraint(fields=("requester", "client_id"),
                 name="plant_real_b2b_retry_unique"),
         ]
+
+    def clean(self):
+        super().clean()
+        if self.kind == self.Kind.WHOLESALE and self.quantity is None:
+            raise ValidationError({"quantity": "Wholesale requires a real requested quantity."})
+
+
+class CommerceBusinessContactNote(models.Model):
+    """Staff's own summary of communication that happened outside Plantupia.
+
+    This records neither proof that a call happened nor a binding customer
+    approval. Immutable entries remain after follow-up state changes.
+    """
+    class Channel(models.TextChoices):
+        PHONE = "phone", "Phone"
+        WHATSAPP = "whatsapp", "WhatsApp"
+        MEETING = "meeting", "In-person meeting"
+        EMAIL = "email", "Email outside Plantupia"
+        OTHER = "other", "Other offline conversation"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    inquiry = models.ForeignKey(CommerceBusinessInquiry, on_delete=models.PROTECT,
+        related_name="staff_contact_notes")
+    recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="plantupia_b2b_contact_notes")
+    channel = models.CharField(max_length=16, choices=Channel.choices)
+    summary = models.TextField(max_length=1200)
+    followup_state_after = models.CharField(max_length=16,
+        choices=CommerceBusinessInquiry.Followup.choices)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at", "-id")
 
 
 class CommerceStockReservation(models.Model):
