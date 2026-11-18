@@ -126,6 +126,7 @@ export default function SiteIndex({ current, tone = "light" }: { current: SiteSe
         </div>
         <div className="si-foot">
           <span>SPACE / DESIGN / TIME / PEOPLE</span>
+          <a className="si-sidepath" href="/shop" onClick={dismiss}>SHOP / AN EDITED COLLECTION ↗</a>
           <span>DESIGN STUDY · NOT THE OFFICIAL LIVE SITE</span>
         </div>
       </dialog>
