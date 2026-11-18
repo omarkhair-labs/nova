@@ -1,5 +1,6 @@
 from django.urls import path
 from .commerce_storefront_api import CommerceCatalogView, CommerceCatalogPhotoView, CommerceCartView
+from .commerce_public_catalog_api import PublicCommerceCatalogView, PublicCommerceCoverView
 from .commerce_business_real_api import BusinessInquiriesView, BusinessAcceptQuoteView
 from .commerce_orders_api import CommerceOrdersView, CommerceOrderDetailView, CommerceOrderAcceptQuoteView, CommerceOrderCancelView, CommerceOrderTransferClaimView, CommerceOrderReturnView
 from .commerce_orders_api import CommerceDeliveryPriceView, CommerceDirectOrderView
@@ -19,6 +20,9 @@ from .website_inbox import receive_website_enquiry
 urlpatterns = [
     path("website/enquiries/", receive_website_enquiry, name="plantupia-website-enquiries"),
     # The sole future customer Shop data source; no QA models or active checkout.
+    # Curated anonymous web showcase. Never exposes private carts, prices in draft or checkout.
+    path("commerce/public/catalog/", PublicCommerceCatalogView.as_view(), name="plantupia-public-commerce-catalog"),
+    path("commerce/public/products/<uuid:product_id>/cover/", PublicCommerceCoverView.as_view(), name="plantupia-public-commerce-cover"),
     path("commerce/catalog/", CommerceCatalogView.as_view(), name="plantupia-real-commerce-catalog"),
     path("commerce/catalog/<uuid:product_id>/image/", CommerceCatalogPhotoView.as_view(), name="plantupia-real-commerce-image"),
     path("commerce/cart/", CommerceCartView.as_view(), name="plantupia-real-commerce-cart"),
