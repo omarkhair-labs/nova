@@ -201,3 +201,27 @@ def record_business_external_contact(request, inquiry_id):
         for message in exc.messages:
             messages.error(request, message)
     return redirect("company:business-inquiry", inquiry_id=inquiry_id)
+
+
+@portal("plants.change_commercebusinessinquiry", methods=("POST",))
+def record_business_external_customer_response(request, inquiry_id):
+    """An explicit staff-reported commercial response, not verified consent."""
+    company.require(request.user, "plants.view_commercebusinessinquiry")
+    if request.POST.get("confirm_staff_report") != "yes":
+        messages.error(request, "Confirm this is your own truthful report of an outside exchange.")
+        return redirect("company:business-inquiry", inquiry_id=inquiry_id)
+    try:
+        business.record_reported_customer_response(
+            staff=request.user, inquiry_id=inquiry_id,
+            channel=request.POST.get("channel", ""),
+            summary=request.POST.get("summary", ""),
+            decision=request.POST.get("decision", ""),
+        )
+        messages.success(
+            request, "Customer response recorded as a staff report. "
+            "No contract, sale, payment or installation was confirmed.",
+        )
+    except ValidationError as exc:
+        for message in exc.messages:
+            messages.error(request, message)
+    return redirect("company:business-inquiry", inquiry_id=inquiry_id)
