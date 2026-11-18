@@ -30,8 +30,7 @@ jobs:
 
       - name: Smoke-test site routes and scene
         run: |
-          # Trace the route assertion that fails, without printing app secrets.
-          set -euxo pipefail
+          set -euo pipefail
           npm run start -- -p 3017 >/tmp/plantupia-web-start.log 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
@@ -65,7 +64,7 @@ jobs:
           grep -q 'PUBLIC COLLECTION PREVIEW' /tmp/plantupia-world-_shop.html
           grep -q 'Explore the edited collection' /tmp/plantupia-world-_.html
           grep -q 'SHOP / AN EDITED COLLECTION' /tmp/plantupia-world-_.html
-          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3017/api/commerce/products/not-a-uuid/cover/)" = 404
+          test "$(curl -Ls -o /dev/null -w '%{http_code}' http://127.0.0.1:3017/api/commerce/products/not-a-uuid/cover/)" = 404
 
           # Each authored passage has a real next-chapter link, independent of JS.
           for entry in '_:2:/spaces' '_spaces:3:/studio' '_studio:4:/living-systems' '_living-systems:5:/about' '_about:6:/start-a-space'; do
