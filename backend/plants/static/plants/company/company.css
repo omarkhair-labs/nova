@@ -1752,11 +1752,11 @@ dd {
    with only current-area tools below. Clear location > more menu depth. */
 @media (min-width:861px) {
   .sidebar.workspace-rail { width:264px; }
-  .workspace:has(> .topbar) { margin-left:264px; }
+  .workspace:not(.hub-workspace) { margin-left:264px; }
 }
 @media (min-width:861px) and (max-width:1180px) {
   .sidebar.workspace-rail { width:246px; }
-  .workspace:has(> .topbar) { margin-left:246px; }
+  .workspace:not(.hub-workspace) { margin-left:246px; }
 }
 .sidebar.workspace-rail {
   padding:24px 16px 16px;
