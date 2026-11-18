@@ -125,7 +125,7 @@ class CommercialIntegratedAcceptanceTests(DemoFixture, TestCase):
         self.assertEqual(self.client.post(fulfillment_url, {"action": "prepare"}).status_code, 302)
         order_detail = reverse("company:commerce-order", args=[oid])
         preparing = self.client.get(order_detail)
-        self.assertContains(preparing, "Record carrier handover")
+        self.assertContains(preparing, "Record actual delivery handover")
         self.assertContains(preparing, 'for="tracking-ref"')
         self.assertNotContains(preparing, 'id="paid-amount"')
         handover = {
