@@ -209,6 +209,7 @@ private fun PlantupiaAccountClientSection(
     var plantName by remember { mutableStateOf("") }
     var note by rememberSaveable { mutableStateOf("") }
     var selectedCareAction by rememberSaveable { mutableStateOf<PlantupiaCareAction?>(null) }
+    var selectedEntryMode by rememberSaveable { mutableStateOf(PlantupiaCareEntryMode.CARE.name) }
     var careDetailsExpanded by rememberSaveable { mutableStateOf(false) }
     var pendingPrivateSaves by remember { mutableStateOf<List<com.nova.app.feature.plants.data.PlantupiaSubmission>>(emptyList()) }
     var carePhotoUri by rememberSaveable { mutableStateOf<Uri?>(null) }
@@ -302,6 +303,7 @@ private fun PlantupiaAccountClientSection(
         plantName = plant.name
         note = ""
         selectedCareAction = null
+        selectedEntryMode = PlantupiaCareEntryMode.CARE.name
         careDetailsExpanded = false
         carePhotoUri = null
         carePhotoRequestGeneration = null
@@ -397,6 +399,7 @@ private fun PlantupiaAccountClientSection(
                     repository.confirmSubmission(plant.id, "event", eventId)
                     if (!current()) return@runPlantupiaMutation
                     note = ""; carePhotoUri = null; selectedCareAction = null; showCareEditor = false
+                    selectedEntryMode = PlantupiaCareEntryMode.CARE.name
                     val reloadGeneration = detailRequestGeneration + 1
                     openPlant(plant)
                     if (isCurrentRequest(plant.id, reloadGeneration)) {
@@ -1194,9 +1197,43 @@ private fun PlantupiaAccountClientSection(
                         Text(if (showCareEditor) "Close care actions ↑" else "Record care", color = white)
                     }
                 if (showCareEditor) PlantupiaPanel {
-                    Text("What did you do?", color = forestText, fontWeight = FontWeight.Medium, fontSize = 13.sp)
-                    // Respect the true editor width and fontScale, not only device pixels.
-                    // Each readable action still retains its authored native pictogram.
+                    Text("What would you like to record?", color = forestText,
+                        fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                    val entryMode = PlantupiaCareEntryMode.valueOf(selectedEntryMode)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(7.dp),
+                    ) {
+                        PlantupiaCareEntryMode.entries.forEach { type ->
+                            val chosen = entryMode == type
+                            OutlinedButton(
+                                onClick = {
+                                    selectedEntryMode = type.name
+                                    if (type != PlantupiaCareEntryMode.CARE) careDetailsExpanded = true
+                                },
+                                enabled = !saving,
+                                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                                contentPadding = PaddingValues(horizontal = 3.dp, vertical = 10.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = if (chosen) PlantupiaColors.softSage else white,
+                                ),
+                                border = BorderStroke(1.dp, if (chosen) deepGreen else sage),
+                            ) {
+                                Text(
+                                    when (type) {
+                                        PlantupiaCareEntryMode.CARE -> "Care"
+                                        PlantupiaCareEntryMode.NOTE -> "Note"
+                                        PlantupiaCareEntryMode.CONCERN -> "Concern"
+                                    },
+                                    fontSize = 13.sp, color = deepGreen,
+                                    fontWeight = if (chosen) FontWeight.SemiBold else FontWeight.Normal,
+                                )
+                            }
+                        }
+                    }
+                    if (entryMode == PlantupiaCareEntryMode.CARE) {
+                    Text("Select what you actually did", color = muted, fontSize = 12.sp)
+                    // Preserve existing native pictograms, real action semantics and font-scale policy.
                     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                         val columns = plantupiaCareActionColumns(
                             availableWidthDp = maxWidth.value,
@@ -1225,7 +1262,10 @@ private fun PlantupiaAccountClientSection(
                         }
                     }
                     Text("These record real actions, never predicted watering or feeding.", color = muted, fontSize = 11.sp)
-                    if (selectedCareAction != null && !careDetailsExpanded) {
+                    }
+                    if (entryMode == PlantupiaCareEntryMode.CARE &&
+                        selectedCareAction != null && !careDetailsExpanded
+                    ) {
                         Button(
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                             enabled = !saving && isValidCheckInDate(customFollowUpDate, LocalDate.now()),
@@ -1237,18 +1277,20 @@ private fun PlantupiaAccountClientSection(
                         Text("One action recorded to private Living History; no check-in date or photo required.",
                             color = muted, fontSize = 11.sp)
                     }
-                    TextButton(
-                        onClick = { careDetailsExpanded = !careDetailsExpanded },
-                        enabled = !saving,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    ) {
-                        Text(
-                            if (careDetailsExpanded) "Hide extra details ↑"
-                            else "Add a note, photo, follow-up date or concern ↓",
-                            color = deepGreen,
-                        )
+                    if (entryMode == PlantupiaCareEntryMode.CARE) {
+                        TextButton(
+                            onClick = { careDetailsExpanded = !careDetailsExpanded },
+                            enabled = !saving,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        ) {
+                            Text(
+                                if (careDetailsExpanded) "Hide extra details ↑"
+                                else "Add a note, photo or optional next check ↓",
+                                color = deepGreen,
+                            )
+                        }
                     }
-                    if (careDetailsExpanded) {
+                    if (careDetailsExpanded || entryMode != PlantupiaCareEntryMode.CARE) {
                     OutlinedTextField(
                         value = note,
                         onValueChange = { note = it.take(1500) },
@@ -1377,32 +1419,28 @@ private fun PlantupiaAccountClientSection(
                             color = muted, fontSize = 11.sp,
                         )
                     }
-                    // Each save action has its own full-width touch target.
-                    // Never force three unequal labels into a single weighted row:
-                    // large fonts made "Concerning change" render letter-by-letter.
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    Button(
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+                        enabled = !saving && plantupiaCanSaveCareEntry(
+                            mode = entryMode,
+                            careActionSelected = selectedCareAction != null,
+                            noteOrPhotoPresent = note.isNotBlank() || carePhotoUri != null,
+                            validFollowUpDate = validFollowUpDate,
+                        ),
+                        onClick = {
+                            saveMoment(
+                                selectedPlant, entryMode.eventKind,
+                                if (entryMode == PlantupiaCareEntryMode.CARE)
+                                    buildPlantupiaCareNote(selectedCareAction, note)
+                                else note,
+                            )
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
                     ) {
-                        OutlinedButton(
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                            enabled = !saving && validFollowUpDate && (note.isNotBlank() || carePhotoUri != null),
-                            onClick = { saveMoment(selectedPlant, "observation", note) },
-                        ) { Text("Save observation", color = deepGreen) }
-                        Button(
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                            enabled = !saving && validFollowUpDate && selectedCareAction != null,
-                            onClick = { saveMoment(selectedPlant, "care", buildPlantupiaCareNote(selectedCareAction, note)) },
-                            colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
-                        ) { Text("Save care", color = white) }
-                        OutlinedButton(
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                            enabled = !saving && validFollowUpDate && (note.isNotBlank() || carePhotoUri != null),
-                            onClick = { saveMoment(selectedPlant, "issue", note) },
-                        ) { Text("Record a concern", color = deepGreen) }
+                        Text(if (saving) "Saving…" else entryMode.saveLabel, color = white)
                     }
                     Text(
-                        "Record what you actually noticed. You don't need to diagnose the cause.",
+                        "Save only what you actually noticed or did. A guide or check date is not care.",
                         color = muted, fontSize = 11.sp,
                     )
                     }
