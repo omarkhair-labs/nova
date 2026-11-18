@@ -80,6 +80,6 @@ export default function SceneStudy() {
       </main>
     </section>
     <section className="ps-fieldnotes" id="scene-notes"><details><summary>Three photographic studies <span aria-hidden="true">+</span></summary><p>Independent editorial references, not before-and-after images or completed Plantupia projects. Images: DAIPI, Alpha En and mingche lee via Pexels. Generated concept images are used if a photograph is unavailable.</p><h2>{scene.label}</h2><p>{scene.detail}</p><div className="ps-note-grid">{scene.markerLabels.map((label,i)=><article key={label}><h3>{label}</h3><p>{scene.markerDescriptions[i]}</p></article>)}</div></details></section>
-    <WorldThreshold/><CompanyIntroduction/><ChapterThreshold from="experience"/>
+    <WorldThreshold/><CompanyIntroduction/><ShopBridge/><ChapterThreshold from="experience"/>
   </div>;
 }
