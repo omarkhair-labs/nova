@@ -32,6 +32,7 @@ def inquiry_json(record):
         "quantity": record.quantity,
         "scope": record.scope,
         "status": record.status,
+        "customer_response_source": record.customer_response_source or None,
         "quoted_amount": str(record.quoted_amount) if record.quoted_amount is not None else None,
         "currency": "EGP",
         "quote_note": record.quote_note,
@@ -39,7 +40,11 @@ def inquiry_json(record):
         "created_at": record.created_at.isoformat(),
         "quoted_at": record.quoted_at.isoformat() if record.quoted_at else None,
         "accepted_at": record.accepted_at.isoformat() if record.accepted_at else None,
-        "notice": "Request/quote for commercial follow-up only; not a confirmed purchase order, payment or installation.",
+        "notice": (
+            "Staff reported an external customer response; contact Plantupia if this does not reflect the conversation. No purchase order, payment or installation is confirmed."
+            if (record.customer_response_source or "").startswith("staff_") else
+            "Request/quote for commercial follow-up only; not a confirmed purchase order, payment or installation."
+        ),
     }
 
 
@@ -126,13 +131,21 @@ def accept_quote(*, user, inquiry_id, version):
     if version != enquiry.quote_version:
         raise ValidationError("The quote changed. Review the latest version.")
     if enquiry.status == CommerceBusinessInquiry.Status.ACCEPTED:
+        # The customer can later independently confirm staff-reported interest.
+        if enquiry.customer_response_source != CommerceBusinessInquiry.ResponseSource.CUSTOMER_APP:
+            enquiry.customer_response_source = CommerceBusinessInquiry.ResponseSource.CUSTOMER_APP
+            enquiry.save(update_fields=["customer_response_source", "updated_at"])
+            company.audit(user, enquiry,
+                "Customer independently confirmed earlier staff-reported nonbinding quote interest.")
         return enquiry
     if enquiry.status != CommerceBusinessInquiry.Status.QUOTED or enquiry.quoted_amount is None:
         raise ValidationError("No current company quote is available for acceptance.")
     enquiry.status = CommerceBusinessInquiry.Status.ACCEPTED
+    enquiry.customer_response_source = CommerceBusinessInquiry.ResponseSource.CUSTOMER_APP
     enquiry.followup_state = CommerceBusinessInquiry.Followup.NEEDS_STAFF
     enquiry.accepted_at = timezone.now()
-    enquiry.save(update_fields=["status", "followup_state", "accepted_at", "updated_at"])
+    enquiry.save(update_fields=["status", "customer_response_source",
+        "followup_state", "accepted_at", "updated_at"])
     company.audit(user, enquiry, "Customer accepted B2B nonbinding quote for commercial follow-up only.")
     return enquiry
 
@@ -189,3 +202,49 @@ def record_external_contact(*, staff, inquiry_id, channel, summary, followup):
         f"Internal follow-up: {inquiry.followup_state}. "
         "No payment, sale, customer approval or site handover inferred.")
     return note
+
+
+@transaction.atomic
+def record_reported_customer_response(*, staff, inquiry_id, channel, summary, decision):
+    """A commercial reviewer says what a customer said outside the app.
+
+    This is a *staff attestation*, never independent consent, a signed contract,
+    a charge or a reservation. It may unblock a nonbinding installation DRAFT.
+    """
+    company.require(staff, "plants.change_commercebusinessinquiry")
+    if channel not in CommerceBusinessContactNote.Channel.values:
+        raise ValidationError("Choose the external communication channel.")
+    if decision not in ("interested", "not_proceeding"):
+        raise ValidationError("Choose the customer response that staff actually heard.")
+    summary = (summary or "").strip()
+    if not 20 <= len(summary) <= 1200:
+        raise ValidationError("Summarize the customer's actual response (20–1200 characters).")
+    inquiry = get_object_or_404(
+        CommerceBusinessInquiry.objects.select_for_update(), pk=inquiry_id,
+    )
+    if inquiry.status != CommerceBusinessInquiry.Status.QUOTED or inquiry.quoted_amount is None:
+        raise ValidationError(
+            "Only a current quoted inquiry may record a reported customer response."
+        )
+    inquiry.customer_response_source = "staff_" + channel
+    if decision == "interested":
+        inquiry.status = CommerceBusinessInquiry.Status.ACCEPTED
+        inquiry.followup_state = CommerceBusinessInquiry.Followup.NEEDS_STAFF
+        inquiry.accepted_at = timezone.now()
+    else:
+        inquiry.status = CommerceBusinessInquiry.Status.WITHDRAWN
+        inquiry.followup_state = CommerceBusinessInquiry.Followup.RECORDED_DONE
+    inquiry.save(update_fields=[
+        "status", "customer_response_source", "followup_state",
+        "accepted_at", "updated_at",
+    ])
+    note = CommerceBusinessContactNote(
+        inquiry=inquiry, recorded_by=staff, channel=channel,
+        summary=summary, followup_state_after=inquiry.followup_state,
+    )
+    note.full_clean()
+    note.save()
+    company.audit(staff, inquiry,
+        f"Staff reported external customer response {decision} via {channel}; "
+        "commercial inquiry only, no verified signature, order, payment or site handover.")
+    return inquiry
