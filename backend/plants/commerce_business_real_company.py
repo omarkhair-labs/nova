@@ -65,6 +65,7 @@ def real_business_inquiry(request, inquiry_id):
         if not request.user.is_superuser else
         InstallationBatch.objects.filter(source_b2b_inquiry=record).first()
     )
+    has_existing_project = InstallationBatch.objects.filter(source_b2b_inquiry=record).exists()
     if record.status == CommerceBusinessInquiry.Status.RECEIVED:
         next_title = "Review the need and prepare a quotation"
         next_explanation = (
@@ -79,14 +80,17 @@ def real_business_inquiry(request, inquiry_id):
         )
     elif record.status == CommerceBusinessInquiry.Status.ACCEPTED:
         if record.kind == CommerceBusinessInquiry.Kind.INSTALLATION:
-            next_title = (
-                "Continue the linked installation" if prepared else
-                "Prepare the project draft after commercial follow-up"
-            )
+            if prepared:
+                next_title = "Continue the linked installation"
+            elif has_existing_project:
+                next_title = "Project draft belongs to another authorized operator"
+            else:
+                next_title = "Prepare the project draft after commercial follow-up"
             next_explanation = (
                 "The accepted nonbinding quote is not a signed contract. "
-                "Once commercial terms have been independently verified, "
-                "authorized staff can prepare the linked draft and review physical plants."
+                "Any existing draft must be continued by its assigned operator. "
+                "Otherwise authorized staff can create a linked draft only after "
+                "commercial terms have been independently verified."
             )
         else:
             next_title = "Continue commercial wholesale follow-up"
@@ -100,6 +104,7 @@ def real_business_inquiry(request, inquiry_id):
     return page(request, "commerce_business_inquiry", {
         "title": record.company_name, "section": "business_inquiries",
         "record": record, "prepared_installation": prepared,
+        "linked_project_exists": has_existing_project,
         "next_title": next_title, "next_explanation": next_explanation,
     })
 
