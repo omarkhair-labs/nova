@@ -9,7 +9,7 @@ internal data class PlantupiaBusinessRequestReceipt(
     val kind: String,
     val organization: String,
     val city: String,
-    val quantity: Int,
+    val quantity: Int?,
     val scope: String,
 )
 
@@ -20,7 +20,7 @@ internal fun verifiedPlantupiaBusinessReceipt(
     contact: String,
     phone: String,
     city: String,
-    quantity: Int,
+    quantity: Int?,
     scope: String,
 ): PlantupiaBusinessRequestReceipt? {
     val id = response.optString("id")
@@ -32,7 +32,9 @@ internal fun verifiedPlantupiaBusinessReceipt(
         response.optString("contact_name").trim() != contact.trim() ||
         response.optString("phone").trim() != phone.trim() ||
         response.optString("city").trim() != city.trim() ||
-        response.optInt("quantity", -1) != quantity ||
+        !response.has("quantity") ||
+        (if (response.isNull("quantity")) quantity != null
+         else response.optInt("quantity", -1) != quantity) ||
         response.optString("scope").trim() != scope.trim() ||
         !response.isNull("quoted_amount")
     ) return null
