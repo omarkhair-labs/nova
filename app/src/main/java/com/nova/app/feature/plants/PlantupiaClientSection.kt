@@ -984,6 +984,35 @@ private fun PlantupiaAccountClientSection(
         } else {
             val overviewAnchor = remember(selectedPlant.id) { BringIntoViewRequester() }
             val careComposerAnchor = remember(selectedPlant.id) { BringIntoViewRequester() }
+            // Connected inventory from a handover often has no personal photo.
+            // The user can add an actual specimen portrait right here, without
+            // creating a duplicate plant or publishing a public Nova post.
+            val coverPhotoPicker = rememberLauncherForActivityResult(
+                ActivityResultContracts.GetContent(),
+            ) { uri ->
+                if (uri != null && selectedPlant.active && selectedPlant.canRecord &&
+                    currentPlantId == selectedPlant.id && lifetime.isCurrent()
+                ) {
+                    val plantId = selectedPlant.id
+                    val generation = detailRequestGeneration
+                    scope.launch {
+                        runPlantupiaMutation(
+                            isAccountCurrent = lifetime::isCurrent,
+                            isDetailCurrent = {
+                                isCurrentRequest(plantId, generation)
+                            },
+                            request = { repository.updatePlantCoverPhoto(plantId, uri) },
+                            onStarted = { saving = true },
+                            onSuccess = {
+                                error = null
+                                reloadPlantRecords(plantId)
+                            },
+                            onFailure = { error = it.message },
+                            onFinished = { saving = false },
+                        )
+                    }
+                }
+            }
             val activeChapter = runCatching {
                 PlantupiaDetailChapter.valueOf(selectedDetailChapter)
             }.getOrDefault(PlantupiaDetailChapter.OVERVIEW)
@@ -1058,22 +1087,72 @@ private fun PlantupiaAccountClientSection(
                     cornerRadius = 18.dp,
                     onOpenPhoto = { photoToView = selectedPlant.coverPhoto to selectedPlant.name },
                 )
-            } else {
-                // Only actual customer/uploaded media, never generic stock stand-ins.
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = PlantupiaColors.softSage,
-                    shape = RoundedCornerShape(18.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(15.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                if (selectedPlant.active && selectedPlant.canRecord) {
+                    TextButton(
+                        onClick = { coverPhotoPicker.launch("image/*") },
+                        enabled = !saving,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     ) {
-                        PlantupiaMissingPhotoMark(modifier = Modifier.size(52.dp))
-                        Text("Add a photo of this plant", style = PlantupiaText.supporting)
+                        Text("Change this plant's photo", color = deepGreen)
                     }
                 }
+            } else {
+                // Never turn a decorative blank photo state into a dead action.
+                // Real connected plants can have their first photo added later.
+                if (selectedPlant.active && selectedPlant.canRecord) {
+                    OutlinedButton(
+                        onClick = { coverPhotoPicker.launch("image/*") },
+                        enabled = !saving,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 88.dp),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = PlantupiaColors.softSage,
+                        ),
+                    ) {
+                        PlantupiaMissingPhotoMark(modifier = Modifier.size(52.dp))
+                        Column(
+                            modifier = Modifier.weight(1f).padding(start = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Text("Add your first plant photo", color = deepGreen)
+                            Text(
+                                "Choose an actual photo from your device",
+                                style = PlantupiaText.supporting,
+                            )
+                        }
+                        Text("↗", color = deepGreen)
+                    }
+                    Text(
+                        "Your plant is connected. Start with a real photograph, then use Care to record what you notice. This photo is not a public post.",
+                        style = PlantupiaText.supporting,
+                    )
+                } else {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = PlantupiaColors.softSage,
+                        shape = RoundedCornerShape(18.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(15.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            PlantupiaMissingPhotoMark(modifier = Modifier.size(52.dp))
+                            Text(
+                                if (!selectedPlant.active)
+                                    "Archived plant · restore before adding a photograph"
+                                else "No plant photo yet · view-only access",
+                                style = PlantupiaText.supporting,
+                            )
+                        }
+                    }
+                }
+            }
+            if (saving) {
+                Text(
+                    "Saving your plant update…",
+                    style = PlantupiaText.supporting,
+                )
             }
             if (selectedPlant.id == newlyAddedPlantId) {
                 PlantupiaArrivalCard(
