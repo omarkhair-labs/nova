@@ -5,6 +5,7 @@ from urllib.parse import urlencode
 
 import qrcode
 import qrcode.image.svg
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.core.cache import cache
@@ -57,6 +58,21 @@ def page(request, template, context=None, status=200):
                "can_care": user.has_perms(("plants.view_careguideversion", "plants.view_botanicalspecies")),
                "can_handovers": user.has_perm("plants.view_handoverinvitation"),
                "handover_enabled": pilot_enabled(), **(context or {})}
+    # One persistent, role-aware wayfinding shell. This is presentation only:
+    # links never grant access; every actual view still enforces service.require.
+    full_company_access = user.has_perms(service.ACCESS)
+    can_b2b_requests = user.has_perm("plants.view_commercebusinessinquiry")
+    can_b2c_orders = user.has_perm("plants.view_commerceorder")
+    context.update({
+        "can_full_company": full_company_access,
+        "can_switch_b2b": full_company_access or can_b2b_requests,
+        "can_switch_b2c": full_company_access or can_b2c_orders,
+        "can_switch_care": full_company_access,
+        "can_shared_inbox": full_company_access and user.has_perm("plants.view_websiteenquiry"),
+        "b2b_entry": "company:projects-home" if full_company_access else "company:business-inquiries",
+        "b2c_entry": "company:commerce-home" if full_company_access else "company:commerce-orders",
+        "company_is_qa": not settings.IS_PRODUCTION,
+    })
     # One contextual workspace navigation, without reclassifying persisted data.
     section = context.get("section", "")
     if section in {"projects_home", "business_rfqs", "business_inquiries", "installations", "inventory", "handovers"}:
@@ -66,6 +82,8 @@ def page(request, template, context=None, status=200):
         context["workspace_area"] = "b2c"
     elif section in {"care_home", "care", "plans", "support", "access"}:
         context["workspace_area"] = "care"
+    elif section == "website_inbox":
+        context["workspace_area"] = "shared"
     else:
         context["workspace_area"] = "hub"
     return render(request, "plants/company/" + template + ".html", context, status=status)
