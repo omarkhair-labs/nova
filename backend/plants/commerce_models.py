@@ -657,6 +657,15 @@ class CommerceBusinessInquiry(models.Model):
         QUOTED = "quoted", "Actual nonbinding quote sent"
         ACCEPTED = "accepted", "Customer accepts quote for follow-up"
         DECLINED = "declined", "Company unable to quote"
+        WITHDRAWN = "withdrawn", "Customer no longer proceeding (staff report)"
+
+    class ResponseSource(models.TextChoices):
+        CUSTOMER_APP = "customer_app", "Customer confirmed in the app"
+        STAFF_PHONE = "staff_phone", "Staff reported phone conversation"
+        STAFF_WHATSAPP = "staff_whatsapp", "Staff reported WhatsApp conversation"
+        STAFF_MEETING = "staff_meeting", "Staff reported meeting"
+        STAFF_EMAIL = "staff_email", "Staff reported external email"
+        STAFF_OTHER = "staff_other", "Staff reported other external exchange"
 
     class Followup(models.TextChoices):
         NEEDS_STAFF = "needs_staff", "Staff follow-up needed"
@@ -681,6 +690,9 @@ class CommerceBusinessInquiry(models.Model):
     quantity = models.PositiveIntegerField(null=True, blank=True, validators=[MinValueValidator(1)])
     scope = models.TextField(max_length=2000)
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.RECEIVED)
+    # Empty means older record has no recorded source; never infer customer signoff.
+    customer_response_source = models.CharField(max_length=24, blank=True,
+        choices=ResponseSource.choices)
     # Internal staff attention, separate from customer quote/order/contract status.
     followup_state = models.CharField(max_length=16, choices=Followup.choices,
         default=Followup.NEEDS_STAFF)
