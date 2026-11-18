@@ -1767,15 +1767,14 @@ private fun PlantupiaAccountClientSection(
                 )
             }
 
-            // Asking the Circle is a focused public workflow. Private check-ins,
-            // history and record administration belong to the normal plant detail.
+            // Due/check actions belong to Care. History stays a factual record,
+            // not an overwhelming action queue before the first dated event.
             if (openDetailMode != PlantupiaCreateMode.QUESTION &&
-                activeChapter == PlantupiaDetailChapter.HISTORY
+                activeChapter == PlantupiaDetailChapter.CARE
             ) {
-            BrandEyebrow("HISTORY / CHECK-INS")
-            Text("Real observations, explicit care actions and their documented outcomes.",
-                style = PlantupiaText.supporting)
             BrandEyebrow("CHECK BACK")
+            Text("Review a real scheduled check and record only what you observed.",
+                style = PlantupiaText.supporting)
             if (pendingState is PlantupiaPendingCheckInsState.Loading) {
                 Text("Loading check-ins…", color = muted, fontSize = 12.sp)
             } else if (pendingState is PlantupiaPendingCheckInsState.Unavailable) {
@@ -1998,6 +1997,8 @@ private fun PlantupiaAccountClientSection(
                                             followUpTarget = null
                                             followUpResult = ""
                                             reloadPlantRecords(selectedPlant.id)
+                                            selectedDetailChapter = PlantupiaDetailChapter.HISTORY.name
+                                            showFullHistory = true
                                         }
                                     },
                                     onFailure = { error = it.message },
@@ -2009,6 +2010,13 @@ private fun PlantupiaAccountClientSection(
                     ) { Text(if (saving) "Saving outcome…" else "Save outcome and close check-in", color = white) }
                 }
             }
+            } // actual next-check actions belong to the Care chapter
+            if (openDetailMode != PlantupiaCreateMode.QUESTION &&
+                activeChapter == PlantupiaDetailChapter.HISTORY
+            ) {
+            Text("Your plant's living record", style = PlantupiaText.editorialHeading)
+            Text("Only saved care, observations, concerns, outcomes and their real photos.",
+                style = PlantupiaText.supporting)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
