@@ -7,12 +7,13 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .handovers import HandoverError, claim_handover, preview_handover
 from .models import CareGuideVersion, PlantDiscussion, PlantEvent, PlantNickname, PlantUnit, Space, SpaceMember
-from .serializers import (PlantCreateSerializer, PlantEventSerializer, PlantSerializer, PlantUpdateSerializer, SpaceCreateSerializer, SpaceSerializer, SpaceUpdateSerializer)
+from .serializers import (PlantCreateSerializer, PlantEventSerializer, PlantSerializer, PlantUpdateSerializer, PlantCoverPhotoUploadSerializer, SpaceCreateSerializer, SpaceSerializer, SpaceUpdateSerializer)
 from .media import sanitize_public_plant_photo
 from .submissions import submit, save_submission_photo
 
@@ -233,6 +234,55 @@ class PlantDetailView(APIView):
         return Response(PlantSerializer(
             plant, context={"request": request, "editable_space_ids": {plant.space_id}},
         ).data)
+
+
+class PlantCoverPhotoView(APIView):
+    """The customer's first REAL specimen photo after receiving their plant.
+
+    Care-authorized members may photograph a shared PlantUnit. This does not
+    change the company's botanical verification, inventory, customer order, or
+    create a public social post. Viewers and strangers cannot write any photo.
+    """
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    @transaction.atomic
+    def post(self, request, plant_id):
+        plant = get_object_or_404(
+            accessible_plants(request.user).select_for_update(), pk=plant_id,
+        )
+        if not plant.is_active:
+            return Response(
+                {"detail": "Restore this plant before changing its photograph."},
+                status=409,
+            )
+        if not can_record(request.user, plant):
+            return Response({"detail": "Read-only plant membership."}, status=403)
+        serializer = PlantCoverPhotoUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        plant.cover_photo = serializer.validated_data["cover_photo"]
+        plant.save(update_fields=["cover_photo"])
+        # This is a real user upload, but not a watered/treated/healthy event.
+        # The actual photograph is the private PlantUnit cover; timeline event
+        # is an auditable description, not a second potentially stale photo.
+        PlantEvent.objects.create(
+            plant=plant, actor=request.user,
+            kind=PlantEvent.Kind.OBSERVATION,
+            evidence_type=PlantEvent.Evidence.REPORTED,
+            observed_at=timezone.now(),
+            note="A care-authorized person updated this plant's private portrait. "
+                 "No plant treatment, health condition or species verification is implied.",
+        )
+        return Response(
+            PlantSerializer(
+                plant,
+                context={
+                    "request": request,
+                    "editable_space_ids": {plant.space_id},
+                },
+            ).data,
+        )
 
 
 class PlantEventsView(APIView):
