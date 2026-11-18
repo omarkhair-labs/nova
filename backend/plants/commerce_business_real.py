@@ -149,3 +149,43 @@ def decline_inquiry(*, staff, inquiry_id):
     enquiry.save(update_fields=["status", "updated_at"])
     company.audit(staff, enquiry, "Company declined business enquiry; no purchase order or stock movement.")
     return enquiry
+
+
+@transaction.atomic
+def record_external_contact(*, staff, inquiry_id, channel, summary, followup):
+    """Staff describes an OFF-PLATFORM exchange, without faking the exchange itself.
+
+    Notes remain internal. A follow-up outcome changes staff attention only for
+    accepted quotes; it cannot change quotation, payment or installation status.
+    """
+    company.require(staff, "plants.change_commercebusinessinquiry")
+    if channel not in CommerceBusinessContactNote.Channel.values:
+        raise ValidationError("Choose where the external conversation happened.")
+    summary = (summary or "").strip()
+    if not 8 <= len(summary) <= 1200:
+        raise ValidationError("Summarize the actual conversation in 8–1200 characters.")
+    if followup not in CommerceBusinessInquiry.Followup.values:
+        raise ValidationError("Choose an honest internal follow-up state.")
+    inquiry = get_object_or_404(
+        CommerceBusinessInquiry.objects.select_for_update(), pk=inquiry_id,
+    )
+    if (inquiry.status != CommerceBusinessInquiry.Status.ACCEPTED and
+            followup != CommerceBusinessInquiry.Followup.NEEDS_STAFF):
+        raise ValidationError(
+            "Follow-up can be closed or paused only after the customer accepts "
+            "a quotation; earlier notes never change the commercial stage."
+        )
+    if inquiry.status == CommerceBusinessInquiry.Status.ACCEPTED:
+        inquiry.followup_state = followup
+        inquiry.save(update_fields=["followup_state", "updated_at"])
+    note = CommerceBusinessContactNote(
+        inquiry=inquiry, recorded_by=staff, channel=channel,
+        summary=summary, followup_state_after=inquiry.followup_state,
+    )
+    note.full_clean()
+    note.save()
+    company.audit(staff, inquiry,
+        f"Staff recorded a private external {channel} note. "
+        f"Internal follow-up: {inquiry.followup_state}. "
+        "No payment, sale, customer approval or site handover inferred.")
+    return note
