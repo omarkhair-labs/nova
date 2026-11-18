@@ -284,11 +284,12 @@ internal fun PlantupiaCareGuidePanel(plantId: String, repository: PlantupiaRepos
                         }
                         if (value.placement.isNotBlank()) Text("Recorded placement: ${value.placement}",
                             style = PlantupiaText.supporting)
-                    }
-                        } // focused reading body
-                    } // reader surface
-                } // native modal
-            } // open reader
-        }
-    }
+                    } // guide value column
+                } // published guide value
+            } // focused reading body
+        } // reader surface
+    } // native modal
+} // open reader
+        } // parent guide entry
+    } // plant-scoped key
 }
