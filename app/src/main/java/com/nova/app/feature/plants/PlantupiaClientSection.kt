@@ -984,6 +984,7 @@ private fun PlantupiaAccountClientSection(
             }
         } else {
             val overviewAnchor = remember(selectedPlant.id) { BringIntoViewRequester() }
+            val careComposerAnchor = remember(selectedPlant.id) { BringIntoViewRequester() }
             val activeChapter = runCatching {
                 PlantupiaDetailChapter.valueOf(selectedDetailChapter)
             }.getOrDefault(PlantupiaDetailChapter.OVERVIEW)
@@ -1205,7 +1206,9 @@ private fun PlantupiaAccountClientSection(
             if (openDetailMode != PlantupiaCreateMode.QUESTION &&
                 activeChapter == PlantupiaDetailChapter.CARE
             ) {
-                BrandEyebrow("CARE & OBSERVATIONS")
+                Box(modifier = Modifier.bringIntoViewRequester(careComposerAnchor)) {
+                    BrandEyebrow("CARE & OBSERVATIONS")
+                }
                 if (selectedPlant.canRecord) {
                     Button(
                         onClick = { showCareEditor = !showCareEditor },
@@ -1475,7 +1478,20 @@ private fun PlantupiaAccountClientSection(
             if (openDetailMode != PlantupiaCreateMode.QUESTION &&
                 activeChapter == PlantupiaDetailChapter.CARE
             ) {
-                PlantupiaCareGuidePanel(selectedPlant.id, repository)
+                PlantupiaCareGuidePanel(
+                    selectedPlant.id, repository,
+                    onRecordObservation = {
+                        if (selectedPlant.canRecord) {
+                            selectedEntryMode = PlantupiaCareEntryMode.NOTE.name
+                            careDetailsExpanded = true
+                            showCareEditor = true
+                            scope.launch {
+                                androidx.compose.runtime.withFrameNanos { }
+                                careComposerAnchor.bringIntoView()
+                            }
+                        }
+                    },
+                )
                 PlantupiaInspectionPanel(
                     selectedPlant, repository,
                     onRecorded = { scope.launch { reloadPlantRecords(selectedPlant.id) } },
