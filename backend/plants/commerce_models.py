@@ -691,7 +691,7 @@ class CommerceBusinessInquiry(models.Model):
     scope = models.TextField(max_length=2000)
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.RECEIVED)
     # Empty means older record has no recorded source; never infer customer signoff.
-    customer_response_source = models.CharField(max_length=24, blank=True,
+    customer_response_source = models.CharField(max_length=24, blank=True, default="",
         choices=ResponseSource.choices)
     # Internal staff attention, separate from customer quote/order/contract status.
     followup_state = models.CharField(max_length=16, choices=Followup.choices,
