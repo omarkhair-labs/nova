@@ -658,3 +658,88 @@ class PlantupiaPermissionTests(TestCase):
         self.assertEqual(ok.status_code, 200, ok.content)
         self.space.refresh_from_db()
         self.assertEqual(self.space.name, "Manager edit")
+
+    def _specimen_photo(self):
+        specimen = Image.new("RGB", (28, 28), (33, 117, 55))
+        meta = Image.Exif()
+        meta[0x010E] = "Private location must not be retained"
+        payload = BytesIO()
+        specimen.save(payload, format="JPEG", exif=meta)
+        return SimpleUploadedFile(
+            "my-private-balcony.jpg", payload.getvalue(), content_type="image/jpeg",
+        )
+
+    def test_delivered_plant_can_add_its_first_private_photo_after_creation(self):
+        """The user must not have to create a duplicate PlantUnit for a cover."""
+        url = reverse("plantupia-plant-cover", args=[self.plant.pk])
+        self.client.force_authenticate(user=self.owner)
+        with TemporaryDirectory() as directory, override_settings(MEDIA_ROOT=directory):
+            response = self.client.post(
+                url, {"cover_photo": self._specimen_photo()}, format="multipart",
+            )
+            self.assertEqual(response.status_code, 200, response.content)
+            self.assertTrue(response.json()["can_record"])
+            self.assertTrue(response.json()["cover_photo"])
+            self.assertEqual(PlantUnit.objects.count(), 1)
+            self.assertEqual(self.plant.space.owner_id, self.owner.pk)
+            self.plant.refresh_from_db()
+            with self.plant.cover_photo.open("rb") as stream:
+                uploaded = Image.open(stream)
+                self.assertEqual(uploaded.format, "JPEG")
+                self.assertFalse(uploaded.getexif())
+            from accounts.models import Post
+            self.assertFalse(Post.objects.exists())
+            event = PlantEvent.objects.get(plant=self.plant)
+            self.assertEqual(event.actor, self.owner)
+            self.assertEqual(event.kind, "observation")
+            self.assertNotEqual(event.kind, "care")
+            self.assertIn("private portrait", event.note)
+            self.assertFalse(event.photo)
+            self.assertEqual(
+                self.client.get(reverse("plantupia-plants")).json()["results"][0]["cover_photo"],
+                response.json()["cover_photo"],
+            )
+
+    def test_care_authorized_handover_member_can_update_photo_but_viewer_cannot(self):
+        """Customer-claimed company-owned Space can assign the carer role."""
+        url = reverse("plantupia-plant-cover", args=[self.plant.pk])
+        membership = SpaceMember.objects.create(
+            space=self.space, user=self.stranger, role=SpaceMember.Role.CARER,
+        )
+        self.client.force_authenticate(user=self.stranger)
+        with TemporaryDirectory() as directory, override_settings(MEDIA_ROOT=directory):
+            permitted = self.client.post(
+                url, {"cover_photo": self._specimen_photo()}, format="multipart",
+            )
+            self.assertEqual(permitted.status_code, 200, permitted.content)
+            membership.role = SpaceMember.Role.VIEWER
+            membership.save(update_fields=("role",))
+            denied = self.client.post(
+                url, {"cover_photo": self._specimen_photo()}, format="multipart",
+            )
+            self.assertEqual(denied.status_code, 403)
+            self.assertEqual(PlantEvent.objects.count(), 1)
+            self.client.force_authenticate(user=self.owner)
+            self.assertEqual(self.client.get(reverse("plantupia-plants")).status_code, 200)
+
+    def test_photo_upload_rejects_unrelated_users_bad_files_and_archived_plants(self):
+        url = reverse("plantupia-plant-cover", args=[self.plant.pk])
+        self.assertEqual(self.client.post(url, {}, format="multipart").status_code, 401)
+        self.client.force_authenticate(user=self.stranger)
+        self.assertEqual(self.client.post(
+            url, {"cover_photo": self._specimen_photo()}, format="multipart",
+        ).status_code, 404)
+        self.client.force_authenticate(user=self.owner)
+        unsupported = SimpleUploadedFile(
+            "not-a-real-photo.gif", b"GIF89a" + b"0" * 32, content_type="image/gif",
+        )
+        self.assertEqual(self.client.post(
+            url, {"cover_photo": unsupported}, format="multipart",
+        ).status_code, 400)
+        self.assertEqual(PlantEvent.objects.count(), 0)
+        self.plant.is_active = False
+        self.plant.save(update_fields=("is_active",))
+        self.assertEqual(self.client.post(
+            url, {"cover_photo": self._specimen_photo()}, format="multipart",
+        ).status_code, 409)
+        self.assertEqual(PlantEvent.objects.count(), 0)
