@@ -272,8 +272,24 @@ internal fun PlantupiaBusinessInquiryScreen(
             ) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Text(item.optString("company_name"), fontWeight = FontWeight.SemiBold)
-                    Text(item.optString("kind") + " · " + status,
+                    val staffReported = item.optString("customer_response_source")
+                        .startsWith("staff_")
+                    val clearStatus = when (status) {
+                        "received" -> "Request received"
+                        "quoted" -> "Quotation available for your decision"
+                        "accepted" -> if (staffReported) "Staff-reported interest · follow-up"
+                                      else "Quote accepted for follow-up"
+                        "withdrawn" -> "Staff reported: customer not proceeding"
+                        "declined" -> "Plantupia cannot offer a quotation"
+                        else -> status
+                    }
+                    Text(item.optString("kind") + " · " + clearStatus,
                         style = PlantupiaText.supporting)
+                    if (staffReported) {
+                        Text("Plantupia staff recorded this outcome from an outside " +
+                            "conversation. Contact them if the record doesn't match " +
+                            "what you said.", style = PlantupiaText.supporting)
+                    }
                     if (!item.isNull("quoted_amount")) {
                         Text("Company quotation · EGP " + item.optString("quoted_amount"),
                             color = businessInk, fontWeight = FontWeight.SemiBold)
