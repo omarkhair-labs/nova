@@ -17,8 +17,16 @@ class BusinessInquiryInput(serializers.Serializer):
     email = serializers.EmailField(required=False, allow_blank=True)
     city = serializers.CharField(min_length=2, max_length=120)
     sku_id = serializers.UUIDField(required=False, allow_null=True)
-    quantity = serializers.IntegerField(min_value=1, max_value=10000)
+    quantity = serializers.IntegerField(min_value=1, max_value=10000,
+        allow_null=True, required=False)
     scope = serializers.CharField(min_length=20, max_length=2000)
+
+    def validate(self, attrs):
+        if attrs.get("kind") == "wholesale" and attrs.get("quantity") is None:
+            raise serializers.ValidationError({
+                "quantity": "Wholesale supply needs a real product quantity."
+            })
+        return attrs
 
     def validate_phone(self, value):
         if not re.fullmatch(r"[+0-9 ()-]{7,32}", value):
