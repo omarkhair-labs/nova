@@ -36,6 +36,34 @@ class PlantupiaBusinessRequestReceiptTest {
         assertEquals("installation", receipt.kind)
     }
 
+    @Test fun installationMayHaveUnknownCountWithoutInventingOne() {
+        val response = server().put("quantity", JSONObject.NULL)
+        val receipt = verifiedPlantupiaBusinessReceipt(
+            response,
+            kind = "installation",
+            organization = "Green office",
+            contact = "Test operator",
+            phone = "+201000000000",
+            city = "Cairo",
+            quantity = null,
+            scope = "Installation to be scoped following a site review.",
+        )
+        assertNotNull(receipt)
+        assertNull(receipt!!.quantity)
+        // A server that invents a number cannot confirm an unknown estimate.
+        assertNull(read(response))
+        assertNull(verifiedPlantupiaBusinessReceipt(
+            server(),
+            kind = "installation",
+            organization = "Green office",
+            contact = "Test operator",
+            phone = "+201000000000",
+            city = "Cairo",
+            quantity = null,
+            scope = "Installation to be scoped following a site review.",
+        ))
+    }
+
     @Test fun neverShowReceivedIfServerRecordDidNotMatchSubmission() {
         assertNull(read(server().put("status", "quoted")))
         assertNull(read(server().put("kind", "wholesale")))
