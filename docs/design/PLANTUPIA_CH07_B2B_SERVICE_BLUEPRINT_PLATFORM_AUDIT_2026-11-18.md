@@ -97,3 +97,27 @@ Existing Plantupia is not a green-field ERP. Preserve one native Android app, th
 - CI + emulator/physical device walkthrough + visual review of actual screenshots before calling the design 'approved' or releasing anything.
 
 **The new B2B changes are stacked on the still-draft QA PR #322. Nothing here merges into master or deploys production.**
+
+## Company Platform / actual shell redesign slice — 18 November 2026
+
+**Problem verified in source:** Previously `base.html` replaced the entire sidebar according to B2B/B2C/Care section. The Company overview had three strong destinations, but inner pages didn't preserve that mental map. The Website inbox section fell back to a generic hub-like menu despite being shared work. The B2C pricing editor was grouped under the Orders active nav marker. Early QA tools competed with real workflows. The existing look had a 244px dark sidebar, a large decorative sidebar note, repeated page heading and numerous large workspace cards.
+
+**Architecture choice (implemented in Draft):** *One stable workspace switcher*, then *only relevant local tools*. Users may switch directly between permitted workspaces without backing out to the hub. On each inner page the compact breadcrumb shows Workspaces / Current workspace / Current page or record. A business reviewer without installation rights sees the B2B request list, not misleading inventory/project actions. Website Inbox has its own shared state rather than pretending to be a B2B/B2C section. Existing role checks in `service.require()` stay the authorization source of truth; menu visibility alone is never access control.
+
+**Visual and interaction direction (code candidate, needs screenshots):**
+- Quiet, dark green *navigation rail*, not full-screen marketing cards. Cream highlight for the active workspace, a restrained line marker for the actual page. Real text labels, small bilingual supporting names; keyboard-focused and accessible `aria-current` and `nav` landmarks.
+- Primary navigation has **three persistent areas** when staff permission allows: B2B Projects, B2C Commerce, Care & Support. Website Inbox is shared, not repeated inside every section. Admin/QA-era views live behind a clearly secondary disclosure.
+- Current-area tools directly underneath: **B2B** overview, requests/quotes, installations, verified plants, QR; **B2C** overview, products/publication, orders/fulfillment, stock, delivery prices; **Care** overview, library, customer support. Nonexistent integrations have no fake navigation items.
+- A real business request/page starts with *actual next recorded action*, not status trivia. The company home and B2B/B2C pages surface actionable records before utilities. Status counts are real, derived and role scoped.
+- At desktop the shell has a ~264px rail; at tablet/mobile workspaces become compact always-visible choices and local actions wrap below, rather than an inaccessible hover or third level of nested menus. Reduce motion appropriately.
+- Company workspace should optimize for repeated daily tasks: controlled density, clear tables, consistent form labels, quiet empty states, real metadata. Brand/editorial is present but subordinate to legibility and speed.
+- Don't claim the redesign is visually accepted until actual QA at ~360, 390, 768 and 1440 CSS px plus 200% text, screen reader/focus order, staff-role views and screenshots.
+
+**Reference mechanisms checked:** Shopify Admin navigation/search and order roles: https://help.shopify.com/en/manual/shopify-admin/shopify-admin-overview ; HubSpot's separate CRM/Sales workspaces: https://knowledge.hubspot.com/help-and-resources/a-guide-to-hubspots-navigation ; NN/g menu and local navigation: https://www.nngroup.com/articles/menu-design/ and https://www.nngroup.com/articles/local-navigation/ ; breadcrumbs: https://www.nngroup.com/articles/breadcrumbs/ ; progressive disclosure: https://www.nngroup.com/articles/progressive-disclosure/ . No vendor design copied, no user UI study yet.
+
+### Implementation checks and outstanding user choices
+- Changed `company_views.page` + `templates/plants/company/base.html` + `company.css`, with role-aware switcher, context labels, real QA/production environment text, breadcrumbs, and semantic active state. Added regression tests for staff vs finance-only navigation and shared inbox.
+- B2B Projects home now leads with the genuine actionable enquiry queue; existing install/project records remain visible but QR/physical inventory stay independent.
+- B2C Commerce home now leads with actual confirmed order preparation and exceptional requests; products, shipping rates and stock remain separate verified operations.
+- **Unresolved design decisions:** Whether desktop staff should be able to collapse the rail; compact list vs detail split-view for records; default grouping when a person has B2C + B2B + Care rights; what notification counts are most urgent; whether company will assign owners/due dates. These require observational QA, not arbitrary inventing of data.
+- **Release gate:** no migration or Production changes. Test results, real device/admin viewport review, staff feedback and owner sign-off remain distinct from merely having code on a Draft PR.
