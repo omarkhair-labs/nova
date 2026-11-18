@@ -181,3 +181,62 @@ class CanonicalCommerceCustomerTests(DemoFixture, TestCase):
         self.assertEqual(cart["subtotal"], "390.00")
         self.assertEqual(self.add_to_cart(self.sku_large, 1).status_code, 400)
         self.assertEqual(self.add_to_cart(self.sku_small, 0).status_code, 200)
+
+    def test_public_website_reveals_only_explicitly_published_sku_choices(self):
+        url = reverse("plantupia-public-commerce-catalog")
+        self.client.logout()
+        unpublished = self.client.get(url)
+        self.assertEqual(unpublished.status_code, 200)
+        self.assertEqual(unpublished.json()["results"], [])
+        self.publish_after_review()
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        rows = response.json()["results"]
+        self.assertEqual({line["sku_id"] for line in rows},
+                         {str(self.sku_small.pk), str(self.sku_large.pk)})
+        self.assertEqual({line["price"] for line in rows}, {"175.00", "250.00"})
+        self.assertTrue(all(line["in_stock"] for line in rows))
+        self.assertTrue(all(line["currency"] == "EGP" for line in rows))
+        self.assertTrue(all(line["image_alt"] == "A real fern in its nursery container" for line in rows))
+        self.assertNotIn("available_units", str(rows))
+        self.assertNotIn("created_by", str(rows))
+        self.assertNotIn("staff", str(rows))
+        self.assertFalse(response.json()["checkout_available_on_web"])
+        self.assertEqual(response["Cache-Control"], "no-store")
+        self.assertEqual(self.client.post(url, data={}).status_code, 405)
+        self.assertFalse(CommerceCartLine.objects.exists())
+
+    def test_public_web_cover_is_actual_approved_photo_never_a_draft(self):
+        url = reverse("plantupia-public-commerce-cover", args=[self.product_real.pk])
+        self.client.logout()
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.publish_after_review()
+        available = self.client.get(url)
+        self.assertEqual(available.status_code, 200)
+        self.assertEqual(available["Content-Type"], "image/jpeg")
+        self.assertEqual(available.content, self.image_bytes)
+        self.assertEqual(available["X-Content-Type-Options"], "nosniff")
+        self.product_real.storefront_published_at = None
+        self.product_real.save(update_fields=["storefront_published_at"])
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.assertEqual(self.client.get(reverse("plantupia-public-commerce-catalog")).json()["results"], [])
+        self.assertEqual(self.client.get(reverse("plantupia-public-commerce-cover",
+            args=[uuid.uuid4()])).status_code, 404)
+
+    def test_public_web_catalog_does_not_leak_private_carts_or_company_qa_drafts(self):
+        self.publish_after_review()
+        self.add_to_cart(self.sku_small, 2)
+        draft = CommerceProduct.objects.create(
+            name="Private unreviewed product", description="Not for publication",
+            kind="planter", created_by=self.staff,
+        )
+        CommerceSKU.objects.create(product=draft, code="PRIVATE-UNREVIEWED",
+                                   price="999.00", currency="EGP")
+        self.client.logout()
+        data = self.client.get(reverse("plantupia-public-commerce-catalog")).json()
+        self.assertEqual(len(data["results"]), 2)
+        self.assertNotIn("Private unreviewed", str(data))
+        self.assertNotIn("999.00", str(data))
+        self.assertNotIn("quantity", str(data))
+        self.assertNotIn("customer", str(data))
+        self.assertEqual(CommerceCartLine.objects.count(), 1)
