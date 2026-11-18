@@ -29,6 +29,7 @@ import com.nova.app.feature.plants.data.PlantupiaRepository
 internal fun PlantupiaCareGuidePanel(
     plantId: String,
     repository: PlantupiaRepository,
+    canRecord: Boolean,
     onRecordObservation: () -> Unit,
 ) {
     key(plantId, repository) {
@@ -290,15 +291,17 @@ internal fun PlantupiaCareGuidePanel(
                             style = PlantupiaText.supporting)
                     } // guide value column
                 } // published guide value
-                OutlinedButton(
-                    onClick = {
-                        open = false
-                        // Deliberate navigation, never an automatic care mutation.
-                        onRecordObservation()
-                    },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
-                ) {
-                    Text("Record what I actually noticed", color = PlantupiaColors.forest)
+                if (canRecord) {
+                    OutlinedButton(
+                        onClick = {
+                            open = false
+                            // Deliberate navigation, never an automatic care mutation.
+                            onRecordObservation()
+                        },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+                    ) {
+                        Text("Record what I actually noticed", color = PlantupiaColors.forest)
+                    }
                 }
             } // focused reading body
         } // reader surface
