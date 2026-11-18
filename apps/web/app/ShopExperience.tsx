@@ -105,7 +105,7 @@ export default function ShopExperience({ catalog }: { catalog: PublicCatalogResu
           <div className="sh-collection-head">
             <p className="sh-micro">02 / THE COLLECTION <span>REVIEWED & PUBLISHED OBJECTS ONLY</span></p>
             <h2 id="collection-title">Considered.<br/><em>Not crowded.</em></h2>
-            <p>The assortment below is drawn only from Plantupia&apos;s published product records. Prices and availability are indications until an order is placed in the authenticated customer app.</p>
+            <p>Only reviewed, published products appear here. Prices and availability are confirmed when you place an order in the Plantupia app.</p>
           </div>
           <nav className="sh-filters" aria-label="Filter by product type">
             {shelves.map(shelf => (
@@ -121,7 +121,7 @@ export default function ShopExperience({ catalog }: { catalog: PublicCatalogResu
               <div>
                 <p className="sh-micro">THE COLLECTION / NOT YET PUBLIC</p>
                 <h3>{catalog.state === "empty" ? "Good things deserve a proper introduction." : "The published collection is not available right now."}</h3>
-                <p>{catalog.state === "empty" ? "Nothing has been released for public purchase here yet. The team will publish verified products, photographs and current prices when they are ready." : "We won’t substitute a fictional catalogue or old prices. You can still talk to the team about the plants and objects you’re looking for."}</p>
+                <p>{catalog.state === "empty" ? "We’ll share plants and objects here once their photos, options and prices have been confirmed. For now, tell us what you need." : "We can’t show the collection right now. Tell us what you need, and the Plantupia team can help."}</p>
                 <a href="/start-a-space?topic=general">Talk about what you need <span aria-hidden="true">↗</span></a>
               </div>
             </div>
