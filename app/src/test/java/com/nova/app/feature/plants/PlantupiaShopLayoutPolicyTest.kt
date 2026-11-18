@@ -42,4 +42,27 @@ class PlantupiaShopLayoutPolicyTest {
         assertEquals(16, plantupiaVisibleFamilies(100, 16))
         assertEquals(100, plantupiaVisibleFamilies(100, 112))
     }
+
+    @Test fun productHeroesRemainUsefulWithoutHidingNameAndPriceOnPhones() {
+        assertEquals(216, plantupiaShopHeroHeightDp(300f, 1f))
+        assertEquals(244, plantupiaShopHeroHeightDp(359f, 1f))
+        assertEquals(292, plantupiaShopHeroHeightDp(700f, 1f))
+        assertEquals(204, plantupiaShopHeroHeightDp(390f, 2f))
+    }
+
+    @Test fun catalogTilesHaveBoundedPhotoSizeAcrossOneAndTwoColumnLayouts() {
+        assertEquals(192, plantupiaShopTilePhotoHeightDp(1, 320f))
+        assertEquals(224, plantupiaShopTilePhotoHeightDp(1, 400f))
+        assertEquals(148, plantupiaShopTilePhotoHeightDp(2, 345f))
+        assertEquals(180, plantupiaShopTilePhotoHeightDp(2, 520f))
+        assertEquals(125, plantupiaShopTilePhotoHeightDp(2, 260f))
+    }
+
+    @Test fun shoppingFlowKeepsCompactHeadingsButCollectionRemainsEditorial() {
+        for (name in listOf("product", "cart", "checkout", "orders")) {
+            assertEquals(true, plantupiaShopIsFlowPage(name))
+        }
+        assertEquals(false, plantupiaShopIsFlowPage("catalog"))
+        assertEquals(false, plantupiaShopIsFlowPage("business"))
+    }
 }
