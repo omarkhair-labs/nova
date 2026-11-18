@@ -16,6 +16,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.plants.data.PlantupiaRepository
 import kotlinx.coroutines.launch
@@ -456,30 +457,37 @@ internal fun PlantupiaStoreShop(
     Column(
         modifier = modifier.fillMaxWidth().imePadding()
             .verticalScroll(if (screen == "catalog") catalogScroll else screenScroll)
-            .padding(horizontal = 18.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+            .padding(horizontal = 16.dp, vertical = 9.dp),
+        verticalArrangement = Arrangement.spacedBy(11.dp),
     ) {
         val cartUnits = cart?.optJSONArray("results")?.let { lines ->
             (0 until lines.length()).sumOf { index ->
                 lines.optJSONObject(index)?.optInt("quantity") ?: 0
             }
         }
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("PLANTUPIA  /  THE SHOP", style = PlantupiaText.sectionLabel)
-                    Text(
-                        when (screen) {
-                            "cart" -> "Your selection"
-                            "checkout" -> "Delivery details"
-                            "orders" -> "Your orders"
-                            "business" -> "For the places we share"
-                            "product" -> "Object study"
-                            else -> "The living collection"
-                        },
-                        style = PlantupiaText.pageHeading,
-                    )
-                }
+        Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Column(
+                Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    if (screen == "catalog") "THE SHOP / COLLECTION"
+                    else "THE SHOP / " + screen.uppercase(),
+                    style = PlantupiaText.sectionLabel,
+                )
+                Text(
+                    when (screen) {
+                        "cart" -> "Your cart"
+                        "checkout" -> "Checkout"
+                        "orders" -> "Orders & updates"
+                        "business" -> "For shared spaces"
+                        "product" -> "The object"
+                        else -> "The living collection"
+                    },
+                    style = if (plantupiaShopIsFlowPage(screen))
+                        PlantupiaText.pageHeading.copy(fontSize = 25.sp, lineHeight = 31.sp)
+                    else PlantupiaText.pageHeading,
+                )
             }
             PlantupiaShopNavigation(
                 screen = screen,
@@ -516,14 +524,14 @@ internal fun PlantupiaStoreShop(
 
         when (screen) {
             "catalog" -> {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         "OBJECTS / PLACES / CONTINUITY",
                         style = PlantupiaText.sectionLabel,
                     )
                     Text(
-                        "Plants, vessels and the things that help us care for them.",
-                        style = PlantupiaText.body,
+                        "Plants, vessels and simple things for their care.",
+                        style = PlantupiaText.supporting,
                     )
                 }
                 OutlinedTextField(
