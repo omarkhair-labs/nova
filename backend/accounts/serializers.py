@@ -24,6 +24,7 @@ class AvatarUrlMixin:
 class UserSerializer(AvatarUrlMixin, serializers.ModelSerializer):
     avatar_url = serializers.SerializerMethodField()
     avatar = serializers.ImageField(write_only=True, required=False)
+    plantupia_avatar_variant = serializers.IntegerField(min_value=-1, max_value=7, required=False)
     followers_count = serializers.SerializerMethodField()
     following_count = serializers.SerializerMethodField()
     posts_count = serializers.SerializerMethodField()
@@ -41,6 +42,7 @@ class UserSerializer(AvatarUrlMixin, serializers.ModelSerializer):
             "link",
             "interests",
             "profile_theme",
+            "plantupia_avatar_variant",
             "show_orbit",
             "is_verified",
             "avatar_url",
@@ -127,6 +129,7 @@ class PersonSerializer(AvatarUrlMixin, serializers.ModelSerializer):
             "link",
             "interests",
             "profile_theme",
+            "plantupia_avatar_variant",
             "show_orbit",
             "is_verified",
             "avatar_url",
@@ -175,7 +178,7 @@ class PostAuthorSerializer(AvatarUrlMixin, serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ("id", "username", "name", "avatar_url")
+        fields = ("id", "username", "name", "avatar_url", "plantupia_avatar_variant")
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -183,6 +186,8 @@ class PostAuthorSerializer(AvatarUrlMixin, serializers.ModelSerializer):
             data["username"] = "deleted"
             data["name"] = "Deleted user"
             data["avatar_url"] = ""
+            # A deleted user must not retain public personal identity styling.
+            data["plantupia_avatar_variant"] = -1
         return data
 
 
@@ -407,6 +412,9 @@ class NotificationSerializer(serializers.ModelSerializer):
             "comment_preview",
             "created_at",
             "is_read",
+            "plantupia_ticket_id",
+            "plantupia_plant_id",
+            "plantupia_order_id",
         )
         read_only_fields = fields
 

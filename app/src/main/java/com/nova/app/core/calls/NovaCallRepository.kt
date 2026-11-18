@@ -2,6 +2,8 @@ package com.nova.app.core.calls
 
 import android.content.Context
 import com.nova.app.core.auth.NovaSessionStore
+import com.nova.app.core.auth.authenticatedRequest
+import com.nova.app.core.auth.realtimeToken
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.feature.calls.data.CallRepository
@@ -27,6 +29,7 @@ class NovaCallRepository(
     context: Context,
     private val api: NovaCallsApiClient = NovaCallsApiClient(PRODUCTION_API_URL),
     private val authApi: NovaApiClient = NovaApiClient(PRODUCTION_API_URL),
+    private val expectedLogin: NovaSessionStore.LoginIdentity? = null,
 ) : CallRepository {
     private val appContext = context.applicationContext
     private val sessionStore = NovaSessionStore(appContext)
@@ -50,21 +53,8 @@ class NovaCallRepository(
     override suspend fun realtimeAccessToken(): ApiResult<String> {
         val stored = sessionStore.load()
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
-
-        return when (val refreshed = authApi.refresh(stored.refreshToken)) {
-            is ApiResult.Success -> {
-                sessionStore.updateAccessToken(refreshed.value)
-                ApiResult.Success(refreshed.value)
-            }
-            is ApiResult.Failure -> {
-                if (refreshed.statusCode == 400 || refreshed.statusCode == 401) {
-                    sessionStore.clear()
-                    ApiResult.Failure("Your session expired. Please log in again.", 401)
-                } else {
-                    ApiResult.Success(stored.accessToken)
-                }
-            }
-        }
+        if (expectedLogin != null && stored.identity != expectedLogin) return com.nova.app.core.auth.changedSession()
+        return sessionStore.realtimeToken(stored) { authApi.refresh(stored.refreshToken) }
     }
 
     private suspend fun <T> authenticatedCall(
@@ -72,25 +62,17 @@ class NovaCallRepository(
     ): ApiResult<T> {
         val stored = sessionStore.load()
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
-
-        val first = block(stored.accessToken)
-        if (first !is ApiResult.Failure || first.statusCode != 401) return first
-
-        return when (val refreshed = authApi.refresh(stored.refreshToken)) {
-            is ApiResult.Success -> {
-                sessionStore.updateAccessToken(refreshed.value)
-                block(refreshed.value)
-            }
-            is ApiResult.Failure -> {
-                sessionStore.clear()
-                ApiResult.Failure("Your session expired. Please log in again.", 401)
-            }
-        }
+        if (expectedLogin != null && stored.identity != expectedLogin) return com.nova.app.core.auth.changedSession()
+        return sessionStore.authenticatedRequest(
+            stored = stored,
+            refresh = { authApi.refresh(stored.refreshToken) },
+            request = block,
+        )
     }
 
     companion object {
-        const val PRODUCTION_API_URL = "https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/"
-        const val PRODUCTION_WS_URL = "wss://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/ws/"
+        val PRODUCTION_API_URL = com.nova.app.core.network.NovaServerConfig.API_URL
+        val PRODUCTION_WS_URL = com.nova.app.core.network.NovaServerConfig.WS_URL
     }
 }
 
@@ -100,15 +82,16 @@ object NovaCallActionDispatcher {
 
     fun dispatch(context: Context, callId: String, action: String) {
         val appContext = context.applicationContext
+        val owner = NovaSessionStore(appContext).load()?.identity ?: return
         scope.launch {
-            val repository = NovaCallRepository(appContext)
+            val repository = NovaCallRepository(appContext, expectedLogin = owner)
             val retryDelays = longArrayOf(0L, 800L, 2_000L, 5_000L)
             for (waitMs in retryDelays) {
                 if (waitMs > 0) delay(waitMs)
                 when (val result = repository.callAction(callId, action)) {
                     is ApiResult.Success -> return@launch
                     is ApiResult.Failure -> {
-                        if (result.statusCode == 400 || result.statusCode == 401 || result.statusCode == 404) {
+                        if (result.statusCode in listOf(400, 401, 404, 409)) {
                             return@launch
                         }
                     }

@@ -28,4 +28,6 @@ data class NovaNotificationPreferences(
     val reelsStories: Boolean = true,
     val eventsSpaces: Boolean = true,
     val productUpdates: Boolean = true,
+    val plantupiaTeam: Boolean = true,
+    val plantupiaOrders: Boolean = true,
 )

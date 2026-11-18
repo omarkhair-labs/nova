@@ -81,7 +81,7 @@ for required in (
     "fun logout() {",
     "NovaPendingRegistrationPhoto.clear()",
     "NovaPushRegistration.logout(",
-    "sessionStore.clear()",
+    "sessionStore.logoutSession()",
 ):
     if required not in auth_repository:
         errors.append(f"Settings logout behavior changed or disappeared: {required}")

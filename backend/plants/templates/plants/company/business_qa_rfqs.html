@@ -1,0 +1,18 @@
+{% extends 'plants/company/base.html' %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">B2B · BUSINESS REQUESTS</p>
+<h1>RFQs &amp; quotes.</h1>
+<p class="lead">Short customer enquiries. Open each request, send a QA estimate or decline. No contract, invoice or installation starts automatically.</p></div>
+<a class="button" href="{% url 'company:projects-home' %}">Projects →</a></div>
+<div class="notice"><strong>{{ new_count }} new RFQ{{ new_count|pluralize }}</strong> awaiting first view.</div>
+<section class="panel">
+{% for rfq in records %}
+<a class="record-row" href="{% url 'company:business-rfq' rfq.pk %}">
+<span class="grow"><strong>{{ rfq.company_name }} · {{ rfq.city }}</strong>
+<small>{{ rfq.sku_snapshot|default:"Custom scope" }} · {{ rfq.quantity }} units · {{ rfq.created_at|date:"j M Y H:i" }}</small>
+{% if not rfq.staff_first_seen_at %}<small><strong>● New enquiry</strong></small>{% endif %}</span>
+<span class="badge">{{ rfq.get_status_display }}</span></a>
+{% empty %}<div class="empty compact"><p>No B2B enquiries have been submitted.</p></div>{% endfor %}
+</section>
+{% include 'plants/company/pagination.html' %}
+{% endblock %}

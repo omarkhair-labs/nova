@@ -279,7 +279,7 @@ private fun MemoryContent(
                     }
                 }
                 if (drafts.isEmpty()) {
-                    Text("Start a recap or film and Nova will autosave it here.", color = NovaMuted, fontSize = 10.sp)
+                    Text("Keep a living timeline of your space and the people around it.", color = NovaMuted, fontSize = 10.sp)
                 } else {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                         items(drafts, key = { it.id }) { draft ->
@@ -824,7 +824,7 @@ private fun MemoryDraftDialog(
                     onValueChange = { if (it.length <= 120) title = it },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("Title") },
-                    placeholder = { Text("Seoul nights") },
+                    placeholder = { Text("A month of growth") },
                     supportingText = { Text("${title.length}/120") },
                 )
                 OutlinedTextField(

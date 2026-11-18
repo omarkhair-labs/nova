@@ -3,7 +3,7 @@ name: Nova CI
 on:
   pull_request:
   push:
-    branches: [master]
+    branches: [master, feature/plantupia-native-experience-20261012]
 
 permissions:
   contents: read
@@ -79,6 +79,9 @@ jobs:
 
       - name: Check migrations
         run: python manage.py makemigrations --check
+
+      - name: Validate company dashboard static assets
+        run: python manage.py collectstatic --noinput
 
       - name: Validate Google Play release script
         run: python -m py_compile ../scripts/publish_google_play.py
@@ -165,6 +168,9 @@ jobs:
       - name: Check alive feature design system
         run: python3 scripts/check_design_system_alive_features.py
 
+      - name: Check Plantupia English-first surfaces
+        run: python3 scripts/check_plantupia_english.py
+
       - name: Check whitespace errors
         run: git diff --check HEAD^1 HEAD
 
@@ -203,6 +209,17 @@ jobs:
           }
           JSON
 
+      - name: Configure isolated QA Firebase placeholder
+        shell: bash
+        run: |
+          mkdir -p app/src/qa
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          config = json.loads(Path('app/google-services.json').read_text())
+          config['client'][0]['client_info']['android_client_info']['package_name'] = 'com.omarkhair70.nova.qa'
+          Path('app/src/qa/google-services.json').write_text(json.dumps(config))
+          PY
       - name: Run Android unit tests
         run: ./gradlew --no-daemon testDebugUnitTest
 
@@ -217,6 +234,44 @@ jobs:
 
       - name: Assemble Android debug APK
         run: ./gradlew --no-daemon assembleDebug
+
+      - name: Assemble side-by-side Plantupia QA APK
+        run: ./gradlew --no-daemon assembleQa
+
+      - name: Upload Plantupia QA APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: plantupia-qa-pr241-apk
+          path: app/build/outputs/apk/qa/app-qa.apk
+          if-no-files-found: error
+          retention-days: 7
+      # Distinct from the normal QA artifact: this APK talks only to the developer
+      # machine's disposable local backend through the Android emulator loopback.
+      # It is not suitable for a physical phone or an online/customer demo.
+      - name: Assemble local-emulator-only Plantupia demo APK
+        run: ./gradlew --no-daemon assembleQa -PplantupiaQaApiUrl=http://10.0.2.2:8765/api/v1/
+
+      - name: Upload local-emulator-only Plantupia demo APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: plantupia-pr241-local-emulator-only-apk
+          path: app/build/outputs/apk/qa/app-qa.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      # Real Android phone connected by USB: adb reverse tcp:8765 tcp:8765
+      # maps its own 127.0.0.1 to the disposable Django QA server on the PC.
+      # Not a network-deployed, public, or production APK.
+      - name: Assemble USB-tethered physical-phone Plantupia QA APK
+        run: ./gradlew --no-daemon assembleQa -PplantupiaQaApiUrl=http://127.0.0.1:8765/api/v1/
+
+      - name: Upload USB-only physical-phone Plantupia QA APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: plantupia-pr241-physical-phone-usb-localhost-apk
+          path: app/build/outputs/apk/qa/app-qa.apk
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Assemble Android instrumentation APK
         run: ./gradlew --no-daemon assembleDebugAndroidTest

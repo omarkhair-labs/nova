@@ -17,6 +17,7 @@ class HealthView(APIView):
 
 
 urlpatterns = [
+    path("company/", include("plants.company_urls")),
     path("admin/", admin.site.urls),
     path(
         "privacy/",
@@ -35,6 +36,7 @@ urlpatterns = [
     ),
     path("api/v1/health/", HealthView.as_view(), name="health"),
     path("api/v1/", include("accounts.urls")),
+    path("api/v1/plantupia/", include("plants.urls")),
 ]
 
 if settings.DEBUG:

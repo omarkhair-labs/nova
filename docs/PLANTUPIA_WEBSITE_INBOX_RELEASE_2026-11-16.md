@@ -1,0 +1,9 @@
+# Public website intake — isolated preview release
+The public website intake is a separate enquiry queue; do not create a fake authenticated customer, order, quotation or installation. It retains visitor-supplied details and exposes them only to authorized company staff, with audited review status. No email is sent by the application.
+
+## Deployment gates
+1. Review and test the backend draft against PR #253, including Django checks, makemigrations --check, Postgres tests, permission tests and a database backup. Apply additive migration 0032 only to the isolated preview before enabling intake.
+2. In the backend preview set PLANTUPIA_WEBSITE_INBOX_ENABLED=1 and PLANTUPIA_WEBSITE_INBOX_TOKEN to a newly generated high-entropy secret (at least 32 characters). Use the same secret as a server-only Vercel preview environment variable; never use NEXT_PUBLIC_ variables for it. Set PLANTUPIA_WEBSITE_INBOX_BACKEND to the exact HTTPS preview backend origin and PLANTUPIA_WEBSITE_INBOX_ENABLED=1 in Vercel Preview only.
+3. Assign view_websiteenquiry and, if authorized to change status, change_websiteenquiry to explicit staff with existing company dashboard access and view_installationbatch. No automatic staff assignment.
+4. Confirm shared Redis cache for distributed throttles, gateway request limits/bot protection and an approved retention/privacy policy before public rollout. The server validates payloads and uses a global and email-hash throttle; these are not a substitute for edge abuse protection.
+5. Submit synthetic project, care and general messages via the preview UI. Verify each reference appears in /company/website/inbox/, retry produces one row, unauthorized users cannot read/change records, errors do not imply success, and no data is sent to another environment. Confirm browser and phone UX. Do not enable public Production until acceptance.

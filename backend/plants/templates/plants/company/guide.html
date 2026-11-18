@@ -1,0 +1,76 @@
+{% extends 'plants/company/base.html' %}
+{% block content %}
+<a class="back-link" href="{% url 'company:care' %}">← Care library</a>
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">BOTANICAL CARE · VERSION {{ guide.version }}</p>
+    <h1>{{ guide.species.scientific_name }}</h1>
+    <span class="badge {% if guide.published %}ready{% else %}draft{% endif %}">
+      {% if guide.published %}Published{% elif guide.ever_published %}Withdrawn · immutable{% else %}Unreviewed draft{% endif %}
+    </span>
+  </div>
+  <div class="actions">
+    {% if not guide.ever_published and perms.plants.change_careguideversion %}
+      <a class="button" href="{% url 'company:guide-edit' guide.pk %}">Edit guide version</a>
+      <a class="button primary" href="{% url 'company:guide-section-create' guide.pk %}">Add care topic +</a>
+    {% endif %}
+  </div>
+</div>
+<div class="two-column">
+  <article class="panel padded guide-content">
+    <p class="eyebrow">REVIEWED TOPICS · PER VERSION</p>
+    {% for topic in guide.sections.all %}
+      <section class="care-topic">
+        <p class="eyebrow">{{ topic.get_topic_display }}</p>
+        <h2>{{ topic.title }}</h2>
+        <div class="authored-text">{{ topic.instructions|linebreaksbr }}</div>
+        {% if topic.context_notes %}<p class="fine">{{ topic.context_notes|linebreaksbr }}</p>{% endif %}
+        <p class="fine">Source: <a href="{{ topic.source_url|default:guide.source_url }}" target="_blank" rel="noopener noreferrer">{{ topic.source_reference|default:guide.source_reference }}</a></p>
+        {% if not guide.ever_published and perms.plants.change_careguideversion %}
+          <a class="button" href="{% url 'company:guide-section-edit' guide.pk topic.pk %}">Edit draft topic</a>
+        {% endif %}
+      </section>
+      <hr>
+    {% empty %}
+      <p class="fine">No topic sections yet. An existing published narrative remains available without automatically splitting or rewriting it.</p>
+    {% endfor %}
+    {% if guide.instructions %}
+      <p class="eyebrow">{% if guide.sections.exists %}LEGACY / FULL REVIEWED NARRATIVE{% else %}REVIEWED NARRATIVE{% endif %}</p>
+      <div class="authored-text">{{ guide.instructions|linebreaksbr }}</div>
+    {% endif %}
+    {% if guide.context_notes %}
+      <hr><h2>General context and cautions</h2>
+      <div class="authored-text">{{ guide.context_notes|linebreaksbr }}</div>
+    {% endif %}
+    <p class="fine">Guidance is not a recorded care act, an automatic treatment, or a watering schedule.</p>
+  </article>
+  <aside>
+    <section class="panel padded">
+      <p class="eyebrow">SOURCE PROVENANCE</p>
+      <h2>The source comes first.</h2>
+      <p>{{ guide.source_reference }}</p>
+      <a class="source-link" href="{{ guide.source_url }}" target="_blank" rel="noopener noreferrer">Open HTTPS source ↗</a>
+      <dl>
+        <dt>Curated species key</dt><dd>{{ guide.species.key }}</dd>
+        <dt>Assigned reviewer</dt><dd>{{ guide.assigned_reviewer.username|default:'Unassigned' }}</dd>
+        <dt>Actual approval</dt>
+        <dd>{% if guide.reviewer %}{{ guide.reviewer.username }} · {{ guide.reviewed_at|date:'j M Y, H:i' }}{% else %}Not reviewed{% endif %}</dd>
+      </dl>
+      <p class="fine">Staff permissions aren't botanical qualifications. Verify the exact evidence, plant context, content and source rights independently.</p>
+    </section>
+    {% if can_publish %}
+      <section class="panel padded approval">
+        <h2>{% if guide.published %}Withdraw publication{% else %}Explicit source review{% endif %}</h2>
+        <p>{% if guide.published %}Withdraw this immutable version without deleting its source-backed content.{% else %}Review every topic above and the source links. Your approval is bound to this exact guide and these exact sections.{% endif %}</p>
+        <form method="post" class="fields">
+          {% csrf_token %}{{ form.as_div }}
+          <input type="hidden" name="action" value="{% if guide.published %}withdraw{% else %}publish{% endif %}">
+          <button class="button primary" type="submit">{% if guide.published %}Confirm withdrawal{% else %}Review and publish{% endif %} →</button>
+        </form>
+      </section>
+    {% else %}
+      <p class="subtle-panel fine">Publication requires review permission and, when assigned, the authorized reviewer.</p>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

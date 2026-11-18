@@ -14,12 +14,12 @@ data class PulseMediaPalette(
 )
 
 object PulseTheme {
-    private val deepSpace = Color(0xFF0A0B14)
+    private val deepSpace = Color(0xFF10281F)
 
     val media = PulseMediaPalette(
         background = deepSpace,
         ink = NovaBrandSoftLight,
-        muted = Color(0xFFB9B4CE),
+        muted = Color(0xFFD7D2C1),
         overlay = deepSpace.copy(alpha = 0.78f),
         panelBorder = NovaBrandPurple.copy(alpha = 0.24f),
     )

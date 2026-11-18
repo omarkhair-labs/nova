@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.Uri
 import android.webkit.MimeTypeMap
 import com.nova.app.core.auth.NovaSessionStore
+import com.nova.app.core.auth.authenticatedRequest
+import com.nova.app.core.auth.realtimeToken
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.core.network.UploadFile
@@ -68,6 +70,7 @@ class NovaMessagingRepository(
         audioFile: File?,
         audioDurationMs: Long?,
     ): ApiResult<NovaMessage> {
+        val origin = sessionStore.load() ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
         if (imageUri != null && audioFile != null) {
             return ApiResult.Failure("Send either a photo or a voice message, not both at once.")
         }
@@ -93,7 +96,7 @@ class NovaMessagingRepository(
             null
         }
 
-        return authenticatedCall { accessToken ->
+        return authenticatedCall(origin = origin) { accessToken ->
             api.sendMessage(
                 accessToken = accessToken,
                 conversationId = conversationId,
@@ -137,22 +140,7 @@ class NovaMessagingRepository(
     override suspend fun realtimeAccessToken(): ApiResult<String> {
         val stored = sessionStore.load()
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
-
-        return when (val refreshed = authApi.refresh(stored.refreshToken)) {
-            is ApiResult.Success -> {
-                sessionStore.updateAccessToken(refreshed.value)
-                ApiResult.Success(refreshed.value)
-            }
-
-            is ApiResult.Failure -> {
-                if (refreshed.statusCode == 400 || refreshed.statusCode == 401) {
-                    sessionStore.clear()
-                    ApiResult.Failure("Your session expired. Please log in again.", 401)
-                } else {
-                    ApiResult.Success(stored.accessToken)
-                }
-            }
-        }
+        return sessionStore.realtimeToken(stored) { authApi.refresh(stored.refreshToken) }
     }
 
     private suspend fun prepareImage(uri: Uri): ApiResult<UploadFile> {
@@ -209,42 +197,21 @@ class NovaMessagingRepository(
     }
 
     private suspend fun <T> authenticatedCall(
+        origin: NovaSessionStore.StoredSession? = sessionStore.load(),
         call: suspend (String) -> ApiResult<T>,
     ): ApiResult<T> {
-        val stored = sessionStore.load()
+        val stored = origin
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
-
-        when (val first = call(stored.accessToken)) {
-            is ApiResult.Success -> return first
-            is ApiResult.Failure -> if (first.statusCode != 401) return first
-        }
-
-        return when (val refreshed = authApi.refresh(stored.refreshToken)) {
-            is ApiResult.Success -> {
-                sessionStore.updateAccessToken(refreshed.value)
-                when (val retried = call(refreshed.value)) {
-                    is ApiResult.Success -> retried
-                    is ApiResult.Failure -> {
-                        if (retried.statusCode == 401) sessionStore.clear()
-                        retried
-                    }
-                }
-            }
-
-            is ApiResult.Failure -> {
-                if (refreshed.statusCode == 400 || refreshed.statusCode == 401) {
-                    sessionStore.clear()
-                    ApiResult.Failure("Your session expired. Please log in again.", 401)
-                } else {
-                    refreshed
-                }
-            }
-        }
+        return sessionStore.authenticatedRequest(
+            stored = stored,
+            refresh = { authApi.refresh(stored.refreshToken) },
+            request = call,
+        )
     }
 
     companion object {
-        const val PRODUCTION_API_URL = "https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/"
-        const val PRODUCTION_WS_URL = "wss://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/ws/"
+        val PRODUCTION_API_URL = com.nova.app.core.network.NovaServerConfig.API_URL
+        val PRODUCTION_WS_URL = com.nova.app.core.network.NovaServerConfig.WS_URL
     }
 }
 
@@ -464,6 +431,7 @@ class NovaMessagingApiClient(
                         username = item.optString("username"),
                         name = item.optString("name"),
                         avatarUrl = resolveMediaUrl(item.optString("avatar_url")),
+                        plantupiaAvatarVariant = item.optInt("plantupia_avatar_variant", -1),
                     )
                 )
             }
@@ -475,6 +443,7 @@ class NovaMessagingApiClient(
                 username = user.optString("username"),
                 name = user.optString("name"),
                 avatarUrl = resolveMediaUrl(user.optString("avatar_url")),
+                plantupiaAvatarVariant = user.optInt("plantupia_avatar_variant", -1),
             )
         } else {
             NovaPostAuthor(
@@ -514,6 +483,7 @@ class NovaMessagingApiClient(
                     username = replySender.optString("username"),
                     name = replySender.optString("name"),
                     avatarUrl = resolveMediaUrl(replySender.optString("avatar_url")),
+                    plantupiaAvatarVariant = replySender.optInt("plantupia_avatar_variant", -1),
                 ),
                 body = it.optString("body"),
                 imageUrl = resolveMediaUrl(it.optString("image_url")),
@@ -531,6 +501,7 @@ class NovaMessagingApiClient(
                 username = sender.optString("username"),
                 name = sender.optString("name"),
                 avatarUrl = resolveMediaUrl(sender.optString("avatar_url")),
+                plantupiaAvatarVariant = sender.optInt("plantupia_avatar_variant", -1),
             ),
             body = json.optString("body"),
             imageUrl = resolveMediaUrl(json.optString("image_url")),
@@ -566,6 +537,7 @@ class NovaMessagingApiClient(
                     username = author.optString("username"),
                     name = author.optString("name"),
                     avatarUrl = resolveMediaUrl(author.optString("avatar_url")),
+                    plantupiaAvatarVariant = author.optInt("plantupia_avatar_variant", -1),
                 ),
                 imageUrl = resolveMediaUrl(item.optString("image_url")),
                 caption = item.optString("caption"),
@@ -580,6 +552,7 @@ class NovaMessagingApiClient(
                 username = item.optString("username"),
                 name = item.optString("name"),
                 avatarUrl = resolveMediaUrl(item.optString("avatar_url")),
+                plantupiaAvatarVariant = item.optInt("plantupia_avatar_variant", -1),
             )
         }
         val reel = json.optJSONObject("reel")?.let { item ->
@@ -591,6 +564,7 @@ class NovaMessagingApiClient(
                     username = author.optString("username"),
                     name = author.optString("name"),
                     avatarUrl = resolveMediaUrl(author.optString("avatar_url")),
+                    plantupiaAvatarVariant = author.optInt("plantupia_avatar_variant", -1),
                 ),
                 videoUrl = resolveMediaUrl(item.optString("video_url")),
                 caption = item.optString("caption"),

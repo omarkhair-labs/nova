@@ -1,11 +1,15 @@
 package com.nova.app
 
 import android.content.Intent
+import android.content.ActivityNotFoundException
 import android.net.Uri
+import android.graphics.Color
 import android.os.Bundle
+import android.widget.Toast
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -60,14 +64,32 @@ private const val SUPPORT_EMAIL = "omar.khair70@gmail.com"
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+        )
 
         val appContainer = applicationContext.appContainer
         val username = appContainer.currentCachedUsername()
         val appVersion = packageManager.getPackageInfo(packageName, 0).versionName ?: ""
 
+        // QA devices often have no configured email client or browser app.
+        // An unsupported external Intent must never crash the Plantupia task.
+        fun launchOptionalExternal(intent: Intent, unavailableMessage: String) {
+            try {
+                startActivity(intent)
+            } catch (_: ActivityNotFoundException) {
+                Toast.makeText(this, unavailableMessage, Toast.LENGTH_LONG).show()
+            } catch (_: SecurityException) {
+                Toast.makeText(this, unavailableMessage, Toast.LENGTH_LONG).show()
+            }
+        }
+
         fun openExternalUrl(url: String) {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            launchOptionalExternal(
+                Intent(Intent.ACTION_VIEW, Uri.parse(url)),
+                "No browser available to open this link.",
+            )
         }
 
         setContent {
@@ -101,14 +123,18 @@ class SettingsActivity : ComponentActivity() {
                         )
                     },
                     onDataStorage = {
-                        startActivity(
+                        launchOptionalExternal(
                             Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                                 data = Uri.parse("package:$packageName")
-                            }
+                            },
+                            "Device settings could not be opened.",
                         )
                     },
                     onHelpSupport = {
-                        startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$SUPPORT_EMAIL?subject=Nova%20support")))
+                        launchOptionalExternal(
+                            Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$SUPPORT_EMAIL?subject=Plantupia%20support")),
+                            "No email app is available. Support address: $SUPPORT_EMAIL",
+                        )
                     },
                     onTonight = {
                         NovaRootNavigationSignal.requestTonight()
@@ -206,48 +232,48 @@ private fun SettingsScreen(
                 SettingsRow(
                     icon = NovaIconAsset.Privacy,
                     title = "Privacy",
-                    subtitle = "Private account, requests and Close Friends",
+                    subtitle = "Account privacy, follow requests and Close Friends",
                     onClick = onPrivacy,
                 )
                 SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.Notifications,
                     title = "Notifications",
-                    subtitle = "Activity, messages and live sessions",
+                    subtitle = "Community activity and messages; care reminders are separate",
                     onClick = onNotifications,
                 )
                 SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.Blocked,
                     title = "Blocked accounts",
-                    subtitle = "Review people you've blocked",
+                    subtitle = "Review blocked accounts",
                     onClick = onBlockedAccounts,
                 )
             }
         }
 
         Spacer(modifier = Modifier.size(NovaSpacing.xxl))
-        SettingsSectionLabel("Nova & device")
+        SettingsSectionLabel("Plantupia & device")
 
         NovaCard(modifier = Modifier.fillMaxWidth()) {
             Column {
                 SettingsRow(
                     icon = NovaIconAsset.Orbit,
-                    title = "Tonight (Full)",
-                    subtitle = "Open Nova's live night experience",
+                    title = "Community gatherings",
+                    subtitle = "Open live community spaces (optional)",
                     onClick = onTonight,
                 )
                 SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.AccountDeletion,
                     title = "Android app settings",
-                    subtitle = "Manage Nova permissions and storage in Android",
+                    subtitle = "Manage app permissions, notifications and storage in Android",
                     onClick = onDataStorage,
                 )
                 SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.Info,
-                    title = "About Nova",
+                    title = "About Plantupia",
                     subtitle = "Version $appVersion",
                     onClick = { showAbout = true },
                 )
@@ -255,7 +281,7 @@ private fun SettingsScreen(
         }
 
         Spacer(modifier = Modifier.size(NovaSpacing.xxl))
-        SettingsSectionLabel("Legal & support")
+        SettingsSectionLabel("Help & privacy")
 
         NovaCard(modifier = Modifier.fillMaxWidth()) {
             Column {
@@ -269,14 +295,14 @@ private fun SettingsScreen(
                 SettingsRow(
                     icon = NovaIconAsset.Policy,
                     title = "Privacy policy",
-                    subtitle = "How Nova handles and protects your information",
+                    subtitle = "Learn how account information is handled",
                     onClick = onPrivacyPolicy,
                 )
                 SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.AccountDeletion,
                     title = "Account deletion help",
-                    subtitle = "Web instructions; delete directly from Security",
+                    subtitle = "Deletion instructions; or delete directly from Security",
                     onClick = onAccountDeletion,
                 )
             }
@@ -354,11 +380,11 @@ private fun AboutNovaDialog(
                     }
                 }
                 Spacer(modifier = Modifier.size(NovaSpacing.lg))
-                Text(text = "Nova", color = NovaInk, style = NovaType.screenTitle)
+                Text(text = "Plantupia", color = NovaInk, style = NovaType.screenTitle)
                 Text(text = "Version $appVersion", color = NovaMuted, style = NovaType.meta)
                 Spacer(modifier = Modifier.size(NovaSpacing.lg))
                 Text(
-                    text = "Quiet Orbit. Real connections, when it matters.",
+                    text = "Transforming Spaces. Inspiring People.",
                     color = NovaMuted,
                     style = NovaType.bodyCompact,
                 )

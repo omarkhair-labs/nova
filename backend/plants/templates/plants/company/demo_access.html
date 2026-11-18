@@ -1,0 +1,7 @@
+{% extends 'plants/company/base.html' %}
+{% block content %}
+<p class="eyebrow">QA ACCESS · NO BILLING</p><h1>Concept plans &amp; test access</h1><p class="lead">Prices are provisional. No subscription sale, payment receipt or commercial service promise.</p>
+<div class="installation-grid">{% for offer in offers %}<article class="installation-card"><h2>{{ offer.name }}</h2><p>{{ offer.currency }} {{ offer.proposed_monthly_price }} / month · concept only</p><p>{{ offer.ai_daily_limit }} AI questions/day · {{ offer.human_requests_per_30_days }} support requests/30 days · {{ offer.qa_hours }} hours QA access</p><a href="{% url 'company:offer-edit' offer.pk %}">Configure provisional limits →</a></article>{% endfor %}</div>
+<section class="panel"><div class="panel-heading"><h2>Persisted test grants</h2></div>{% for grant in records %}<div class="record-row"><span class="grow"><strong>{{ grant.user.username }} · {{ grant.offer.name }}</strong><small>Expires {{ grant.expires_at }} · {% if grant.revoked_at %}Revoked{% elif grant.expires_at <= now %}Expired{% else %}Active QA{% endif %}</small></span>{% if not grant.revoked_at and perms.plants.change_demoentitlement %}<form method="post">{% csrf_token %}<input type="hidden" name="grant_id" value="{{ grant.pk }}"><button class="button">Revoke QA access</button></form>{% endif %}</div>{% empty %}<p class="empty">No test user has activated QA access.</p>{% endfor %}</section>
+{% include 'plants/company/pagination.html' %}
+{% endblock %}

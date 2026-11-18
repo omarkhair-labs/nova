@@ -1,0 +1,38 @@
+{% extends 'plants/company/base.html' %}
+{% block content %}
+<div class="page-heading"><div>
+  <p class="eyebrow">NONCOMMERCIAL · ISOLATED QA</p>
+  <h1>Import QA catalogue</h1>
+  <p class="lead">Upload one ZIP containing <code>products.xlsx</code> and an <code>images/</code> directory.</p>
+  <p class="fine">Existing products are never overwritten. No payment, official stock or delivery is activated by this operation.</p>
+</div><a class="button" href="{% url 'company:catalog' %}">Back to catalogue</a></div>
+
+<div class="panel">
+  <h2>Bulk import package</h2>
+  <p>Choose <strong>Validate only</strong> to inspect every entry, image and provisional price without changing data. To save, reselect the same ZIP and choose <strong>Confirm import</strong>. Limit: 20 MiB ZIP, 100 QA products, 2 MiB per image.</p>
+  <form method="post" enctype="multipart/form-data" autocomplete="off">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="button primary">Validate / Import selected ZIP</button>
+  </form>
+  {% if outcome %}<p class="notice success">{{ outcome }}</p>{% endif %}
+</div>
+
+{% if preview %}
+<div class="panel">
+  <h2>Validated catalogue — no changes saved</h2>
+  <p class="fine">Review the full product names and prices before performing a separate confirmed upload.</p>
+  <div class="installation-grid">
+    {% for product in preview %}
+    <article class="installation-card">
+      <span class="badge">{{ product.kind }} · {{ product.sku }}</span>
+      <h3>{{ product.name }}</h3>
+      <p>{{ product.description }}</p>
+      <p>EGP {{ product.price }} · {{ product.qa_stock }} fictional units</p>
+      <p class="fine">Image sanitized and accepted. No merchandise is verified.</p>
+    </article>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -453,6 +453,8 @@ private fun PostContext(
                             source = post.author.avatarUrl,
                             fallbackText = post.author.name.ifBlank { post.author.username },
                             size = 27.dp,
+                            plantupiaUserId = post.author.id,
+                            plantupiaAvatarVariant = post.author.plantupiaAvatarVariant,
                         )
                         Text(
                             text = post.author.name.ifBlank { post.author.username },
@@ -530,6 +532,8 @@ private fun CommentRow(
                 source = comment.author.avatarUrl,
                 fallbackText = comment.author.name.ifBlank { comment.author.username },
                 size = if (isReply) 32.dp else 40.dp,
+                plantupiaUserId = comment.author.id,
+                plantupiaAvatarVariant = comment.author.plantupiaAvatarVariant,
             )
         }
 

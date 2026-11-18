@@ -1,0 +1,37 @@
+{% extends 'plants/company/base.html' %}
+{% block content %}
+<div class="catalog-workspace">
+  <header class="page-heading task-first-heading">
+    <div><p class="eyebrow">B2C / SHOP CATALOGUE</p><h1>Products</h1><p class="lead">Manage the product families and exact SKU options customers see in the Shop.</p></div>
+    {% if perms.plants.add_commerceproduct %}<a class="button primary" href="{% url 'company:commerce-product-create' %}">Create draft product +</a>{% endif %}
+  </header>
+  <div class="catalog-actions" aria-label="Catalogue operations">
+    {% if perms.plants.add_commerceproduct %}<a class="catalog-action" href="{% url 'company:commerce-product-import' %}"><span class="small-label">01 / ADD</span><strong>Import Excel + photos</strong><small>Products, variants and opening stock</small><span aria-hidden="true">↗</span></a>{% endif %}
+    <a class="catalog-action" href="{% url 'company:commerce-catalog-batch' %}"><span class="small-label">02 / REVIEW</span><strong>Bulk catalogue &amp; stock</strong><small>Review, approve, publish and count</small><span aria-hidden="true">↗</span></a>
+  </div>
+  <section class="panel catalog-collection" aria-labelledby="catalog-title">
+    <div class="catalog-toolbar">
+      <div><h2 id="catalog-title">Product collection</h2><p class="fine">{{ records.paginator.count }} matching product{{ records.paginator.count|pluralize }}</p></div>
+      <form class="catalog-search" method="get"><label class="small-label" for="commercial-product-query">Find a product</label><div><input id="commercial-product-query" type="search" name="q" value="{{ query }}" placeholder="Name or exact SKU" maxlength="120"><button class="button" type="submit">Search</button>{% if query %}<a class="button" href="{% url 'company:commerce-products' %}">Clear</a>{% endif %}</div></form>
+    </div>
+    <p class="catalog-note">Only reviewed, explicitly published products appear in the customer Shop. Publication does not confirm payment or dispatch.</p>
+    <div class="catalog-grid">
+      {% for product in records %}
+      <article class="catalog-card">
+        <a class="catalog-image" href="{% url 'company:commerce-product' product.pk %}" aria-label="Open {{ product.name }}">
+          {% if product.cover_photo %}<img src="{% url 'company:commerce-product-photo' product.pk %}" alt="{{ product.image_description }}" loading="lazy">{% else %}<span class="catalog-no-photo">No photo uploaded</span>{% endif %}
+        </a>
+        <div class="catalog-card-body">
+          <div class="catalog-card-meta"><span class="small-label">{{ product.get_kind_display }}</span>
+          {% if product.storefront_published_at %}<span class="badge ready">Published</span>{% elif product.catalog_review_status == "approved" %}<span class="badge">Approved</span>{% else %}<span class="badge draft">Needs review</span>{% endif %}</div>
+          <h3><a href="{% url 'company:commerce-product' product.pk %}">{{ product.name }}</a></h3>
+          <p>{{ product.description|truncatechars:120|default:"No product description recorded yet." }}</p>
+          <div class="catalog-card-foot"><span>{{ product.variants.count }} SKU{{ product.variants.count|pluralize }} · {{ product.gallery.count }} gallery photo{{ product.gallery.count|pluralize }}</span><a href="{% url 'company:commerce-product' product.pk %}">Manage →</a></div>
+        </div>
+      </article>
+      {% empty %}<div class="empty catalog-empty"><h3>No matching products</h3><p>{% if query %}Try a different name or SKU.{% else %}Import a catalogue or create a draft product to get started.{% endif %}</p>{% if query %}<a class="button" href="{% url 'company:commerce-products' %}">Clear search</a>{% endif %}</div>{% endfor %}
+    </div>
+    {% include 'plants/company/pagination.html' %}
+  </section>
+</div>
+{% endblock %}

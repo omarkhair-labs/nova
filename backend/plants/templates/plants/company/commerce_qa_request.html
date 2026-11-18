@@ -1,0 +1,81 @@
+{% extends 'plants/company/base.html' %}
+{% block content %}
+<a class="back-link" href="{% url 'company:commerce-qa-requests' %}">← QA request inbox</a>
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">QA REQUEST / NO CHARGE</p>
+    <h1>Request {{ order.pk|slice:":8" }}</h1>
+    <p class="lead">Submitted {{ order.created_at|date:"j M Y H:i" }} · {{ order.get_status_display }}</p>
+  </div>
+  <span class="badge draft">Not a commercial sale</span>
+</div>
+<div class="two-column">
+  <section class="panel padded">
+    <p class="eyebrow">REQUESTED PRODUCTS</p>
+    <h2>Frozen SKU snapshots</h2>
+    {% for line in order.lines.all %}
+      <div class="record-row">
+        <span class="grow">
+          <strong>{{ line.product_name_snapshot }}</strong>
+          <small>SKU {{ line.sku_code_snapshot }} · {{ line.option_snapshot|default:"Standard" }}</small>
+          <small>{{ line.quantity }} × EGP {{ line.unit_price_snapshot }}</small>
+        </span>
+        <strong>EGP {{ line.line_subtotal_snapshot }}</strong>
+      </div>
+    {% endfor %}
+    <div class="notice">
+      <strong>Provisional subtotal: EGP {{ order.provisional_subtotal }}</strong>
+      <p>QA delivery fee: {% if order.qa_shipping_fee != None %}EGP {{ order.qa_shipping_fee }}{% else %}Awaiting company estimate{% endif %}</p>
+      <p>QA quoted total: {% if qa_total != None %}EGP {{ qa_total }}{% else %}Pending estimate{% endif %}</p>
+      <p>Payment collected: none. This is an internal request preview.</p>
+    </div>
+    <p class="fine">SKU changes after submission do not rewrite these request snapshots. Stock is NOT reserved.</p>
+  </section>
+  <section class="panel padded">
+    <p class="eyebrow">CUSTOMER REQUEST DETAILS · AUTHORIZED STAFF ONLY</p>
+    <h2>{{ order.contact_name }}</h2>
+    <p class="fine">Customer account: {{ order.customer.username }}</p>
+    <p class="fine">Contact phone: {{ order.contact_phone }}</p>
+    <p class="fine">Requested destination: {{ order.city }} — {{ order.delivery_address }}</p>
+    {% if order.building_details %}<p class="fine">Building / floor / apartment: {{ order.building_details }}</p>{% endif %}
+    {% if order.landmark %}<p class="fine">Nearby landmark: {{ order.landmark }}</p>{% endif %}
+    {% if order.delivery_pin_confirmed and order.delivery_latitude != None and order.delivery_longitude != None %}
+      <div class="subtle-panel">
+        <p class="eyebrow">CUSTOMER-CONFIRMED MAP PIN</p>
+        <p class="fine">Latitude {{ order.delivery_latitude }} · Longitude {{ order.delivery_longitude }}</p>
+        <a class="button" target="_blank" rel="noopener noreferrer" href="https://www.openstreetmap.org/?mlat={{ order.delivery_latitude }}&amp;mlon={{ order.delivery_longitude }}#map=17/{{ order.delivery_latitude }}/{{ order.delivery_longitude }}">View delivery pin on map ↗</a>
+        <p class="fine">The customer placed this pin. Staff must still validate the address before actual shipment.</p>
+      </div>
+    {% else %}<p class="fine">No map pin recorded for this older QA request.</p>{% endif %}
+    <p class="fine">Requested payment method: {{ order.get_payment_preference_display }}</p>
+    <p class="fine">Customer note: {{ order.customer_note|default:"None" }}</p>
+    <p class="fine">No shipping coverage, cash collection, InstaPay beneficiary, courier or delivery schedule has been confirmed.</p>
+  </section>
+</div>
+<section class="panel padded">
+  <p class="eyebrow">ORDER TRACKING · LIVE QA RECORD</p>
+  <h2>{{ order.get_status_display }}</h2>
+  {% if order.qa_tracking_reference %}<p class="fine">QA dispatch reference: {{ order.qa_tracking_reference }}</p>{% endif %}
+  {% if order.customer_cancel_requested_at %}<p class="notice warning">Customer requested cancellation. Review before continuing.</p>{% endif %}
+  {% if order.customer_return_requested_at %}<p class="notice warning">Customer requested a return. No refund is inferred.</p>{% endif %}
+  {% for event in order.status_events.all %}
+    <div class="record-row"><span class="grow"><strong>{{ event.label }}</strong><small>{{ event.note|default:"Status recorded." }}</small></span><small>{{ event.created_at|date:"j M Y H:i" }}</small></div>
+  {% empty %}<p class="fine">This older request has no recorded timeline events yet.</p>{% endfor %}
+</section>
+<section class="panel padded">
+  <p class="eyebrow">ONE ACTION AT A TIME · COMPANY INBOX</p>
+  <h2>{% if order.status == "qa_submitted" %}Review this request{% else %}Update tracking{% endif %}</h2>
+  {% if form and perms.plants.change_commerceorderrequest %}
+    <form class="fields form-panel" method="post">
+      {% csrf_token %}
+      {{ form.as_div }}
+      <div class="form-actions"><button class="button primary" type="submit">Save update</button></div>
+    </form>
+  {% elif not perms.plants.change_commerceorderrequest %}
+    <p class="fine">Your role can view but not change tracking.</p>
+  {% else %}
+    <p class="fine">No further tracking action is available for this QA state.</p>
+  {% endif %}
+  <div class="notice warning">These stages are QA simulations, not proof of actual delivery. Neither these controls nor the displayed price collect COD/InstaPay payments, issue a refund or generate an installation QR.</div>
+</section>
+{% endblock %}

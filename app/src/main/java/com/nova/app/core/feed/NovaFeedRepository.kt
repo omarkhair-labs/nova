@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.webkit.MimeTypeMap
 import com.nova.app.core.auth.NovaSessionStore
+import com.nova.app.core.auth.authenticatedRequest
 import com.nova.app.core.media.NovaVideoPreparer
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
@@ -23,7 +24,7 @@ import kotlinx.coroutines.withContext
 
 class NovaFeedRepository(
     context: Context,
-    private val api: NovaApiClient = NovaApiClient("https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/"),
+    private val api: NovaApiClient = NovaApiClient(com.nova.app.core.network.NovaServerConfig.API_URL),
 ) : FeedRepository, PostRepository {
     private val appContext = context.applicationContext
     private val sessionStore = NovaSessionStore(appContext)
@@ -34,11 +35,15 @@ class NovaFeedRepository(
     private val videoPreparer = NovaVideoPreparer(appContext)
 
     override suspend fun feed(cursor: String?): ApiResult<NovaPostPage> {
-        val cachedUserId = sessionStore.load()?.cachedUser?.id?.takeIf { it > 0L }
-        val result = authenticatedCall { accessToken ->
+        val origin = sessionStore.load() ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
+        val cachedUserId = origin.cachedUser?.id?.takeIf { it > 0L }
+        val result = authenticatedCall(origin = origin) { accessToken ->
             postsRemote.feed(accessToken, cursor)
         }
 
+        if (!sessionStore.isCurrent(origin.identity)) {
+            return if (result is ApiResult.Failure && result.statusCode == 401) result else com.nova.app.core.auth.changedSession()
+        }
         if (cursor.isNullOrBlank()) {
             when (result) {
                 is ApiResult.Success -> {
@@ -89,7 +94,8 @@ class NovaFeedRepository(
         onProgress: (Int?) -> Unit,
         expectedUserId: Long?,
     ): ApiResult<NovaPost> {
-        if (!publishAccountMatches(expectedUserId, sessionStore.load()?.cachedUser?.id)) {
+        val origin = sessionStore.load() ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
+        if (!publishAccountMatches(expectedUserId, origin.cachedUser?.id)) {
             return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)
         }
         val mimeType = appContext.contentResolver.getType(mediaUri)
@@ -102,7 +108,7 @@ class NovaFeedRepository(
                 is ApiResult.Failure -> return prepared
             }
 
-            return authenticatedCall(expectedUserId) { accessToken ->
+            return authenticatedCall(expectedUserId, origin = origin) { accessToken ->
                 postsRemote.createPost(
                     accessToken = accessToken,
                     caption = caption.trim(),
@@ -127,7 +133,7 @@ class NovaFeedRepository(
         }
 
         return try {
-            authenticatedCall(expectedUserId) { accessToken ->
+            authenticatedCall(expectedUserId, origin = origin) { accessToken ->
                 postsRemote.createPost(
                     accessToken = accessToken,
                     caption = caption.trim(),
@@ -234,48 +240,19 @@ class NovaFeedRepository(
 
     private suspend fun <T> authenticatedCall(
         expectedUserId: Long? = null,
+        origin: NovaSessionStore.StoredSession? = sessionStore.load(),
         call: suspend (String) -> ApiResult<T>,
     ): ApiResult<T> {
-        val stored = sessionStore.load()
+        val stored = origin
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
         if (!publishAccountMatches(expectedUserId, stored.cachedUser?.id)) {
             return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)
         }
-
-        when (val first = call(stored.accessToken)) {
-            is ApiResult.Success -> return first
-            is ApiResult.Failure -> {
-                if (first.statusCode != 401) return first
-            }
-        }
-
-        return when (val refreshed = authRemote.refresh(stored.refreshToken)) {
-            is ApiResult.Success -> {
-                if (!publishAccountMatches(expectedUserId, sessionStore.load()?.cachedUser?.id)) {
-                    return ApiResult.Failure(
-                        "This publish belongs to a different signed-in account.",
-                        409,
-                    )
-                }
-                sessionStore.updateAccessToken(refreshed.value)
-                when (val retried = call(refreshed.value)) {
-                    is ApiResult.Success -> retried
-                    is ApiResult.Failure -> {
-                        if (retried.statusCode == 401) sessionStore.clear()
-                        retried
-                    }
-                }
-            }
-
-            is ApiResult.Failure -> {
-                if (refreshed.statusCode == 400 || refreshed.statusCode == 401) {
-                    sessionStore.clear()
-                    ApiResult.Failure("Your session expired. Please log in again.", 401)
-                } else {
-                    refreshed
-                }
-            }
-        }
+        return sessionStore.authenticatedRequest(
+            stored = stored,
+            refresh = { authRemote.refresh(stored.refreshToken) },
+            request = call,
+        )
     }
 
     private companion object {

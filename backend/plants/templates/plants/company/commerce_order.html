@@ -1,0 +1,246 @@
+{% extends "plants/company/base.html" %}
+{% load l10n %}
+{% block content %}
+<div class="order-record">
+<a class="back-link" href="{% url 'company:commerce-orders' %}">← Customer orders / الطلبات</a>
+<header class="page-heading compact-workspace-heading">
+  <div><p class="eyebrow">SHOP / تفاصيل الطلب</p>
+    <h1>{% if order.status == "quote_pending" or order.status == "quoted" or order.status == "declined" %}Request{% else %}Order{% endif %} {{ order.pk|stringformat:"s"|slice:":8" }}</h1>
+    <p class="lead">{% if order.status == "quote_pending" %}Request received · Delivery cost to be confirmed{% elif order.status == "quoted" %}Final total waiting for customer review{% else %}{{ order.get_status_display }}{% endif %} · {{ order.created_at|date:"j M Y, H:i" }}</p>
+  </div>
+  <span class="badge order-payment-status">{{ order.get_payment_status_display }}</span>
+</header>
+{% if next_step %}
+<section class="order-next panel" aria-labelledby="order-next-title">
+  <div><p class="eyebrow">NEXT STEP / الخطوة التالية</p><h2 id="order-next-title">{{ next_step.0 }}</h2><p>{{ next_step.1 }}</p></div>
+  <a class="button" href="#order-{{ next_step.2 }}">Go to section ↓</a>
+</section>
+{% endif %}
+<nav class="order-links" aria-label="Order sections">
+  <a href="#order-items">Items</a><a href="#order-quote">Price & delivery</a><a href="#order-fulfillment">Fulfillment</a>
+  <a href="#order-payment">Payment</a><a href="#order-returns">Returns</a><a href="#order-history">Activity</a>
+</nav>
+<div class="order-overview">
+  <section class="panel padded">
+    <p class="eyebrow">CUSTOMER & DELIVERY / العميل والتوصيل</p>
+    <h2>{{ order.contact_name }}</h2>
+    <p>{{ order.contact_phone }} · {{ order.city }}</p>
+    <p>{{ order.delivery_address }}</p>
+    {% if order.building_details %}<p>{{ order.building_details }}</p>{% endif %}
+    {% if order.landmark %}<p>Landmark: {{ order.landmark }}</p>{% endif %}
+    {% if order.delivery_pin_confirmed %}
+    <p class="fine">Customer-confirmed coordinates: {{ order.delivery_latitude }}, {{ order.delivery_longitude }}</p>
+    <a href="https://www.google.com/maps?q={{ order.delivery_latitude|unlocalize }},{{ order.delivery_longitude|unlocalize }}" target="_blank" rel="noopener noreferrer">View confirmed delivery pin ↗</a>
+    {% endif %}
+    {% if order.customer_note %}<p class="fine">Customer note: {{ order.customer_note }}</p>{% endif %}
+    <p class="fine">Payment preference: {{ order.get_payment_preference_display }} · Recorded status: {{ order.get_payment_status_display }}</p>
+  </section>
+  <section class="panel padded" id="order-quote">
+    <p class="eyebrow">ORDER REVIEW / مراجعة الطلب</p>
+    <h2>Items and delivery</h2>
+    <dl class="order-totals">
+      <div><dt>Items</dt><dd>EGP {{ order.subtotal }}</dd></div>
+      <div><dt>Shipping</dt><dd>{% if order.shipping_fee != None %}EGP {{ order.shipping_fee }}{% else %}To be confirmed{% endif %}</dd></div>
+      <div><dt>Total</dt><dd>{% if total != None %}EGP {{ total }}{% else %}Waiting for confirmed delivery cost{% endif %}</dd></div>
+    </dl>
+    <p class="fine">Quote revision {{ order.shipping_quote_version }}{% if order.shipping_quote_expires_at %} · Expires {{ order.shipping_quote_expires_at|date:"j M Y, H:i" }}{% endif %}</p>
+    {% if perms.plants.change_commerceorder and order.status == "quote_pending" or perms.plants.change_commerceorder and order.status == "quoted" %}
+    <form class="order-form" method="post" action="{% url 'company:commerce-order-shipping' order.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="version" value="{{ order.shipping_quote_version }}">
+      <div class="order-field">
+        <label for="shipping-fee">Confirmed delivery fee (EGP)</label>
+        <input id="shipping-fee" type="number" min="0" step=".01" name="shipping_fee" inputmode="decimal" required>
+      </div>
+      <div class="order-actions">
+        <button class="button primary" type="submit" name="action" value="quote">{% if order.status == "quoted" %}Update delivery cost{% else %}Send delivery total for customer review{% endif %}</button>
+        <button class="button" type="submit" name="action" value="decline" formnovalidate>Decline request</button>
+      </div>
+    </form>
+    {% endif %}
+  </section>
+</div>
+<section class="panel padded" id="order-items">
+  <h2>Order contents</h2>
+  {% for line in order.lines.all %}
+  <div class="record-row"><div class="grow"><strong>{{ line.product_name_snapshot }}</strong><small>{{ line.sku_code_snapshot }} · {{ line.option_snapshot }}</small></div>
+    <span>{{ line.quantity }} × EGP {{ line.unit_price_snapshot }} = EGP {{ line.line_subtotal_snapshot }}</span>
+  </div>
+  {% endfor %}
+</section>
+{% if order.stock_reservations.all %}
+<details class="panel padded order-reference">
+  <summary>Stock allocations</summary>
+  {% for allocation in order.stock_reservations.all %}
+  <div class="record-row"><span>{{ allocation.sku.code }} · {{ allocation.location.name }}</span>
+    <span>{{ allocation.quantity }} units · {% if allocation.released_at %}Released{% else %}Reserved{% endif %}</span>
+  </div>
+  {% endfor %}
+</details>
+{% endif %}
+<section class="panel padded" id="order-fulfillment">
+  <p class="eyebrow">PHYSICAL FULFILLMENT / تجهيز وتسليم</p>
+  <h2>Fulfillment</h2>
+  {% if order.status == "confirmed" %}
+    <p>Customer accepted the exact price; reserved stock has not been physically dispatched.</p>
+    {% if perms.plants.change_commerceorder %}
+      <form class="order-form" method="post" action="{% url 'company:commerce-order-fulfillment' order.pk %}">
+        {% csrf_token %}
+        <div class="order-actions">
+          <button class="button primary" type="submit" name="action" value="prepare">Start preparation</button>
+        </div>
+      </form>
+    {% endif %}
+  {% elif order.status == "preparing" %}
+    <p>When the items actually leave Plantupia, record who received them and the handover reference. This can be an internal delivery team or an external carrier; a courier integration is not required.</p>
+    {% if perms.plants.change_commerceorder %}
+      <form class="order-form" method="post" action="{% url 'company:commerce-order-fulfillment' order.pk %}">
+        {% csrf_token %}
+        <div class="order-field">
+          <label for="carrier-name">Carrier / internal delivery team</label>
+          <input id="carrier-name" name="carrier_name" maxlength="120" required>
+        </div>
+        <div class="order-field">
+          <label for="tracking-ref">Actual handover / tracking reference</label>
+          <input id="tracking-ref" name="tracking_reference" maxlength="120" required>
+        </div>
+        <div class="order-field order-field-wide">
+          <label for="dispatch-note">Physical handover evidence note</label>
+          <textarea id="dispatch-note" name="dispatch_note" maxlength="300" required></textarea>
+        </div>
+        <div class="order-actions">
+          <button class="button primary" type="submit" name="action" value="dispatch">Record dispatch & consume stock</button>
+        </div>
+      </form>
+    {% endif %}
+  {% elif order.fulfillment_receipt %}
+    <p><strong>Carrier:</strong> {{ order.fulfillment_receipt.carrier_name }} ·
+       <strong>Reference:</strong> {{ order.fulfillment_receipt.tracking_reference }}</p>
+    <p class="fine">Handover {{ order.fulfillment_receipt.dispatched_at|date:"j M Y, H:i" }}.
+       Recorded by {{ order.fulfillment_receipt.dispatched_by.username }}.</p>
+    {% if order.status == "dispatched" and perms.plants.change_commerceorder %}
+      <p>Do not mark delivered without a reference to retained proof of delivery.</p>
+      <form class="order-form" method="post" action="{% url 'company:commerce-order-fulfillment' order.pk %}">
+        {% csrf_token %}
+        <div class="order-field">
+          <label for="proof-reference">Retained proof of delivery reference</label>
+          <input id="proof-reference" name="proof_reference" maxlength="180" minlength="8" required>
+        </div>
+        <div class="order-actions">
+          <button class="button primary" type="submit" name="action" value="delivered">Record delivery evidence</button>
+        </div>
+      </form>
+    {% elif order.fulfillment_receipt.delivered_at %}
+      <p>Delivery evidence reference: {{ order.fulfillment_receipt.delivery_proof_reference }}</p>
+    {% endif %}
+  {% else %}
+    <p class="fine">No active physical fulfillment action is available for this order status.</p>
+  {% endif %}
+</section>
+<section class="panel padded" id="order-payment">
+  <p class="eyebrow">PAYMENT RECONCILIATION / التحصيل</p>
+  <h2>{{ order.get_payment_status_display }} · {{ order.get_payment_preference_display }}</h2>
+  {% if order.transfer_claim %}
+    <p>Customer-submitted transfer reference: <code>{{ order.transfer_claim.reference }}</code></p>
+    <p class="fine">Customer claimed transfer {{ order.transfer_claim.created_at|date:"j M Y, H:i" }}. A claim is not payment proof.</p>
+  {% endif %}
+  {% if order.verified_payment %}
+    <p>Company finance settlement: EGP {{ order.verified_payment.amount }} · {{ order.verified_payment.settlement_reference }}</p>
+    <p class="fine">Verified by {{ order.verified_payment.verified_by.username }} at {{ order.verified_payment.verified_at|date:"j M Y, H:i" }}.</p>
+  {% elif can_reconcile %}
+    <p>Match the accepted total of <strong>EGP {{ total }}</strong> against the bank statement or COD receipt.</p>
+    <form class="order-form" method="post" action="{% url 'company:commerce-order-payment' order.pk %}">
+      {% csrf_token %}
+      <div class="order-field">
+        <label for="paid-amount">Actually reconciled EGP amount</label>
+        <input id="paid-amount" type="number" name="amount" min="0.01" step=".01" inputmode="decimal" required>
+      </div>
+      <div class="order-field">
+        <label for="settlement-ref">Official bank statement / COD receipt reference</label>
+        <input id="settlement-ref" name="settlement_reference" maxlength="120" minlength="6" required>
+      </div>
+      <div class="order-field order-field-wide">
+        <label for="payment-evidence">Independent matching evidence note</label>
+        <textarea id="payment-evidence" name="evidence_note" maxlength="500" minlength="20" required></textarea>
+      </div>
+      <div class="order-actions">
+        <button class="button primary" type="submit">Record verified settlement</button>
+      </div>
+    </form>
+  {% elif payment_blocker %}
+    <p class="fine">{{ payment_blocker }}</p>
+  {% endif %}
+</section>
+<section class="panel padded" id="order-returns">
+  <p class="eyebrow">RETURNS & REFUNDS / المرتجعات</p><h2>Returns & refunds</h2>
+  {% if order.return_case %}
+    <p>Customer reason: {{ order.return_case.reason }} · {{ order.return_case.customer_note }}</p>
+    <p>Case decision: <strong>{{ order.return_case.get_decision_display }}</strong></p>
+    {% if order.return_case.staff_note %}<p>Review note: {{ order.return_case.staff_note }}</p>{% endif %}
+    {% if order.return_case.decision == "requested" and perms.plants.change_commerceorder %}
+      <form class="order-form" method="post" action="{% url 'company:commerce-order-return' order.pk %}">
+        {% csrf_token %}
+        <div class="order-field order-field-wide">
+          <label for="return-staff-note">Operator decision and policy reason</label>
+          <textarea id="return-staff-note" name="staff_note" maxlength="500" minlength="8" required></textarea>
+        </div>
+        <div class="order-actions">
+          <button class="button primary" type="submit" name="action" value="approve">Approve return intake</button>
+          <button class="button" type="submit" name="action" value="decline">Decline request</button>
+        </div>
+      </form>
+    {% elif order.return_case.decision == "approved" and perms.plants.change_commerceorder %}
+      <p>Record the actual physical return only after checking its receipt; no stock is automatically restocked.</p>
+      <form class="order-form" method="post" action="{% url 'company:commerce-order-return' order.pk %}">
+        {% csrf_token %}
+        <div class="order-field">
+          <label for="return-evidence">Physical return receipt reference</label>
+          <input id="return-evidence" name="evidence_reference" maxlength="180" minlength="8" required>
+        </div>
+        <div class="order-actions">
+          <button class="button primary" type="submit" name="action" value="receive">Record physical receipt</button>
+        </div>
+      </form>
+    {% elif order.return_case.decision == "received" %}
+      <p>Received with evidence reference {{ order.return_case.received_evidence_reference }}.</p>
+    {% endif %}
+  {% else %}
+    <p class="fine">No customer return request has been filed for this order.</p>
+  {% endif %}
+  {% if order.payment_status == "refunded" %}
+    <p>External refund: EGP {{ order.verified_refund.amount }} ·
+       {{ order.verified_refund.refund_reference }}.</p>
+  {% elif can_refund %}
+    <p>Only a separately authorized finance reviewer may record a refund after independently verifying actual external payout.</p>
+    <form class="order-form" method="post" action="{% url 'company:commerce-order-refund' order.pk %}">
+      {% csrf_token %}
+      <div class="order-field">
+        <label for="refund-amount">Externally refunded EGP amount</label>
+        <input id="refund-amount" type="number" name="amount" min="0.01" step=".01" inputmode="decimal" required>
+      </div>
+      <div class="order-field">
+        <label for="refund-ref">Actual bank/cash refund statement reference</label>
+        <input id="refund-ref" name="refund_reference" minlength="6" maxlength="120" required>
+      </div>
+      <div class="order-field order-field-wide">
+        <label for="refund-note">Independent refund reconciliation note</label>
+        <textarea id="refund-note" name="refund_note" minlength="20" maxlength="500" required></textarea>
+      </div>
+      <div class="order-actions">
+        <button class="button primary" type="submit">Record verified external refund</button>
+      </div>
+    </form>
+  {% endif %}
+</section>
+<section class="panel padded" id="order-history">
+  <h2>Activity / سجل الطلب</h2>
+  {% for event in order.status_events.all %}
+    <div class="record-row">
+      <div class="grow"><strong>{{ event.label }}</strong><small>{{ event.created_at|date:"j M Y, H:i" }} · {{ event.actor.username }}</small></div>
+    </div>
+  {% empty %}
+    <p class="fine">No persisted real order events. Older orders may predate timeline activation.</p>
+  {% endfor %}
+</section>
+</div>
+{% endblock %}

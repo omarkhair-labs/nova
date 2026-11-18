@@ -1,0 +1,33 @@
+{% extends 'plants/company/base.html' %}
+{% block content %}
+<a class="back-link" href="{% url 'company:commerce-products' %}">← Products / المنتجات</a>
+<div class="page-heading"><div><p class="eyebrow">CATALOGUE / BATCH OPERATIONS · إدارة جماعية</p>
+<h1>Review once. Work in batches.</h1><p class="lead">Review selected products together, approve, then publish explicitly. Record initial warehouse counts below.</p></div></div>
+<form class="filter-bar" method="get"><label for="batch-query">Find products or SKUs</label><input id="batch-query" name="q" type="search" value="{{ query }}" maxlength="120"><button class="button" type="submit">Search</button></form>
+{% if truncated %}<div class="notice warning">Showing up to 600 products and SKUs. Narrow the search for the next batch.</div>{% endif %}
+{% if can_review %}<section class="panel padded">
+<h2>01 / Review &amp; publication</h2><p>Open product details to verify full descriptions, images and variant prices before selecting.</p>
+{% if not publication_enabled %}<p class="notice warning">Customer publication is locked in this environment.</p>{% endif %}
+<form method="post" action="{% url 'company:commerce-catalog-batch' %}">
+{% csrf_token %}
+<div class="actions"><button type="button" class="button" data-batch-toggle="all">Select all shown</button><button type="button" class="button" data-batch-toggle="none">Clear selection</button></div>
+{% for product in records %}<div class="record-row">
+<label><input type="checkbox" name="product_ids" value="{{ product.pk }}"> Select</label>
+<div class="grow"><strong><a href="{% url 'company:commerce-product' product.pk %}">{{ product.name }}</a></strong><small>{{ product.description|truncatechars:180 }}</small>
+{% for sku in product.variants.all %}<small>{{ sku.code }} · {{ sku.option_label }} · {{ sku.currency }} {{ sku.price }}</small>{% empty %}<small>No priced SKU</small>{% endfor %}</div>
+{% if product.cover_photo %}<a href="{% url 'company:commerce-product' product.pk %}"><img src="{% url 'company:commerce-product-photo' product.pk %}" alt="{{ product.image_description }}" width="64" height="64" loading="lazy"></a>{% endif %}
+<span class="badge">{% if product.storefront_published_at %}Published{% elif product.catalog_review_status == "approved" %}Approved{% else %}Needs review{% endif %}</span></div>
+{% empty %}<p>No matching products.</p>{% endfor %}
+<p><label><input type="checkbox" name="acknowledge" value="1" required> I reviewed these selected items and authorize this action.</label></p>
+<div class="actions"><button class="button primary" name="operation" value="approve" type="submit">Approve selected</button>{% if publication_enabled %}<button class="button" name="operation" value="publish" type="submit">Publish selected to Shop</button>{% endif %}</div>
+<p class="fine">All selected records must pass the existing checks or the entire batch is rolled back. No purchase, payment or dispatch is created.</p>
+</form></section>{% endif %}
+{% if can_count %}<section class="panel padded"><h2>02 / Opening warehouse counts</h2><p>Enter actual initial quantities. Leave an SKU blank to skip it. Existing history at this location must be adjusted through Stock correction.</p>
+<form method="post" action="{% url 'company:commerce-catalog-batch' %}">
+{% csrf_token %}<input type="hidden" name="operation" value="opening">
+<label for="batch-location">Warehouse</label><select id="batch-location" name="location" required><option value="">Select active warehouse</option>{% for location in locations %}<option value="{{ location.pk }}">{{ location.name }} · {{ location.code }}</option>{% endfor %}</select>
+{% for sku in skus %}<div class="record-row"><label class="grow" for="opening-{{ sku.pk }}"><strong>{{ sku.product.name }}</strong><small>{{ sku.code }} · {{ sku.option_label }} · {{ sku.counted_balance }} counted across locations</small></label><input id="opening-{{ sku.pk }}" name="opening_{{ sku.pk }}" type="number" min="1" max="100000" step="1" placeholder="Opening qty"></div>{% empty %}<p>No SKU rows.</p>{% endfor %}
+<label for="batch-stock-note">Count reference</label><input id="batch-stock-note" name="reference_note" maxlength="200" required>
+<p><label><input type="checkbox" name="acknowledge" value="1" required> I confirm these physical opening counts.</label></p><button class="button primary" type="submit">Record opening counts</button>
+</form></section>{% endif %}
+{% endblock %}

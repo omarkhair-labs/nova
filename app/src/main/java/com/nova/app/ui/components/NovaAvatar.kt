@@ -26,7 +26,22 @@ fun NovaAvatar(
     fallbackText: String,
     size: Dp = 86.dp,
     modifier: Modifier = Modifier,
+    plantupiaUserId: Long? = null,
+    plantupiaAvatarVariant: Int = -1,
 ) {
+    // Explicit Plantupia opt-in preserves Nova's existing shared identity seam.
+    // Default/legacy Nova rendering is unchanged, including real uploaded media.
+    if (plantupiaUserId != null) {
+        PlantupiaAvatar(
+            userId = plantupiaUserId,
+            displayName = fallbackText,
+            photoUrl = source,
+            size = size,
+            modifier = modifier,
+            chosenVariant = plantupiaAvatarVariant,
+        )
+        return
+    }
     val fallbackInitial = fallbackText.trim().firstOrNull()?.uppercase()
 
     Box(

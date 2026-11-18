@@ -82,9 +82,9 @@ fun PasswordRecoveryScreen(
             PasswordRecoveryStage.Done -> "Password changed"
         },
         subtitle = when (state.stage) {
-            PasswordRecoveryStage.Email -> "Enter the email on your Nova account. We'll send a 6-digit code."
+            PasswordRecoveryStage.Email -> "Enter the email on your Plantupia account. We'll send a 6-digit code."
             PasswordRecoveryStage.Code -> "Enter the code sent to ${state.email} and choose a new password."
-            PasswordRecoveryStage.Done -> "Your old password and previous Nova sessions can no longer be used."
+            PasswordRecoveryStage.Done -> "Your old password and previous Plantupia sessions can no longer be used."
         },
         onBack = onBack,
     ) {
@@ -230,7 +230,7 @@ fun AccountSecurityScreen(
             ) {
                 Column(modifier = Modifier.padding(22.dp)) {
                     Text(
-                        "Delete your Nova account?",
+                        "Delete your Plantupia account?",
                         color = NovaInk,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
@@ -267,7 +267,7 @@ fun AccountSecurityScreen(
 
     SecurityScrollablePage(
         title = "Security",
-        subtitle = "Change your password or remove every other signed-in Nova session.",
+        subtitle = "Change your password or remove other signed-in Plantupia sessions.",
         onBack = onBack,
     ) {
         Text("Password", color = NovaInk, fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -386,7 +386,7 @@ fun AccountSecurityScreen(
         Spacer(Modifier.height(6.dp))
         Text(
             if (appLockAvailable) {
-                "Require your device screen lock whenever Nova returns to the foreground."
+                "Require your device screen lock when Plantupia returns to the foreground."
             } else {
                 "Set a device PIN, pattern, password or biometric lock before enabling this protection."
             },
@@ -407,7 +407,7 @@ fun AccountSecurityScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Lock Nova on return", color = NovaInk, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Lock Plantupia on return", color = NovaInk, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                         Text(
                             if (appLockEnabled) "Uses your device screen lock" else "Off",
                             color = NovaMuted,
@@ -435,7 +435,7 @@ fun AccountSecurityScreen(
         )
         Spacer(Modifier.height(6.dp))
         Text(
-            "Deleting your account removes your public Nova identity and can't be undone.",
+            "Deleting your account removes your public Plantupia identity and can't be undone.",
             color = NovaMuted,
             fontSize = 12.sp,
             lineHeight = 18.sp,

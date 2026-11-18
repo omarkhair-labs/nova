@@ -1,0 +1,34 @@
+{% extends 'plants/company/base.html' %}
+{% block content %}
+<div class="inbox-workspace">
+  <header class="enquiry-heading">
+    <div><p class="eyebrow">PUBLIC WEBSITE / CORRESPONDENCE</p><h1>Website enquiries</h1><p class="lead">Review project requests, care questions and general messages from the website.</p></div>
+    <div class="inbox-count"><strong>{{ records.paginator.count }}</strong><span>Matching enquiries</span></div>
+  </header>
+  <section class="panel inbox-list" aria-labelledby="inbox-title">
+    <div class="inbox-list-heading"><h2 id="inbox-title">Inbox</h2><p class="fine">Enquiries are not orders or confirmed customer records.</p></div>
+    <form class="inbox-filters" method="get">
+      <div class="enquiry-field"><label for="topic">Topic</label><select name="topic" id="topic"><option value="">All topics</option><option value="project" {% if topic_filter == 'project' %}selected{% endif %}>Project</option><option value="care" {% if topic_filter == 'care' %}selected{% endif %}>Care &amp; support</option><option value="general" {% if topic_filter == 'general' %}selected{% endif %}>General</option></select></div>
+      <div class="enquiry-field"><label for="status">Status</label><select name="status" id="status"><option value="">All statuses</option><option value="new" {% if status_filter == 'new' %}selected{% endif %}>New</option><option value="reviewed" {% if status_filter == 'reviewed' %}selected{% endif %}>Reviewed</option><option value="closed" {% if status_filter == 'closed' %}selected{% endif %}>Closed</option></select></div>
+      <button class="button primary" type="submit">Apply filters</button>
+      {% if topic_filter or status_filter %}<a class="button" href="{% url 'company:website-inbox' %}">Clear</a>{% endif %}
+    </form>
+    <div class="inbox-list-labels" aria-hidden="true"><span>Sender &amp; message</span><span>Topic</span><span>Status</span><span>Received</span><span></span></div>
+    <ul class="inbox-items">
+      {% for item in records %}
+      <li><a class="inbox-row{% if item.status == 'new' %} inbox-row--new{% endif %}" href="{% url 'company:website-enquiry' enquiry_id=item.id %}">
+        <div class="inbox-sender"><strong dir="auto">{{ item.name }}</strong>{% if item.organization %}<span dir="auto">{{ item.organization }}</span>{% endif %}<p dir="auto">{{ item.message|truncatechars:130 }}</p></div>
+        <span class="inbox-topic">{{ item.get_topic_display }}</span><span class="inbox-state inbox-state--{{ item.status }}">{{ item.get_status_display }}</span>
+        <time class="inbox-date" datetime="{{ item.created_at|date:'c' }}">{{ item.created_at|date:"j M Y" }}<small>{{ item.created_at|date:"H:i" }}</small></time>
+        <span class="inbox-open" aria-hidden="true">↗</span>
+      </a></li>
+      {% empty %}<li class="empty"><span class="empty-mark" aria-hidden="true">◇</span><h3>No matching enquiries</h3><p>Messages sent from the website will appear here when they match the selected filters.</p>{% if topic_filter or status_filter %}<a class="button" href="{% url 'company:website-inbox' %}">Clear filters</a>{% endif %}</li>{% endfor %}
+    </ul>
+    <nav class="pagination inbox-pagination" aria-label="Enquiry pages">
+      {% if records.has_previous %}<a href="?topic={{ topic_filter|urlencode }}&amp;status={{ status_filter|urlencode }}&amp;page={{ records.previous_page_number }}">← Previous</a>{% endif %}
+      <span>Page {{ records.number }} of {{ records.paginator.num_pages }}</span>
+      {% if records.has_next %}<a href="?topic={{ topic_filter|urlencode }}&amp;status={{ status_filter|urlencode }}&amp;page={{ records.next_page_number }}">Next →</a>{% endif %}
+    </nav>
+  </section>
+</div>
+{% endblock %}

@@ -24,7 +24,7 @@ import org.junit.Test
 
 class PeopleStateOwnersTest {
     @Test
-    fun `people paging skips existing ids but preserves duplicates inside incoming page`() = runBlocking {
+    fun `people paging skips existing ids and duplicates inside the same incoming page`() = runBlocking {
         val paging = QueuePeoplePagingRepository(
             ApiResult.Success(NovaPersonPage(listOf(person(1)), "next")),
             ApiResult.Success(NovaPersonPage(listOf(person(1), person(2), person(2), person(3)), null)),
@@ -34,9 +34,39 @@ class PeopleStateOwnersTest {
         owner.loadPageNow(reset = true)
         owner.loadPageNow(reset = false, cursorOverride = "next")
 
-        assertEquals(listOf(1L, 2L, 2L, 3L), owner.state.people.map { it.id })
+        assertEquals(listOf(1L, 2L, 3L), owner.state.people.map { it.id })
         assertNull(owner.state.nextCursor)
         assertFalse(owner.state.loadingMore)
+    }
+
+    @Test
+    fun `changing people search hides old people and privacy before new results arrive`() = runBlocking {
+        val original = person(27)
+        val owner = PeopleStateOwner(
+            NoOpPeopleRepository(),
+            QueuePeoplePagingRepository(
+                ApiResult.Success(
+                    NovaPersonPage(
+                        people = listOf(original),
+                        nextCursor = "older",
+                        privacyByUserId = mapOf(
+                            original.id to NovaPersonPrivacyState(true, false, false)
+                        ),
+                    )
+                )
+            ),
+            CoroutineScope(Dispatchers.Unconfined),
+        )
+        owner.loadPageNow(reset = true)
+        assertEquals(listOf(27L), owner.state.people.map { it.id })
+
+        owner.setQuery("new visitor")
+        assertEquals("new visitor", owner.state.query)
+        assertEquals(emptyList<NovaPerson>(), owner.state.people)
+        assertEquals(emptyMap<Long, NovaPersonPrivacyState>(), owner.state.privacyByUserId)
+        assertNull(owner.state.nextCursor)
+        assertEquals(true, owner.state.firstPageLoading)
+        owner.reset() // Cancels the pending 280ms search debounce.
     }
 
     @Test

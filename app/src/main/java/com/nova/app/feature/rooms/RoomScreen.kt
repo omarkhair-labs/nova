@@ -133,7 +133,7 @@ fun RoomScreen(
 
             state.detail == null -> {
                 RoomLoadError(
-                    message = state.error ?: "Nova couldn't open this Room.",
+                    message = state.error ?: "Plantupia couldn't open this gathering.",
                     onBack = onBack,
                     onRetry = { owner.load(showSpinner = true) },
                 )
@@ -253,7 +253,7 @@ fun RoomScreen(
                         else -> {
                             item {
                                 Text(
-                                    text = if (state.selectedKind == null) "Room timeline" else sectionTitle(state.selectedKind),
+                                    text = if (state.selectedKind == null) "Gathering timeline" else sectionTitle(state.selectedKind),
                                     color = NovaInk,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
@@ -432,13 +432,13 @@ private fun DescriptionCard(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (description.isBlank()) "This Room doesn't have a description yet." else description,
+                    text = if (description.isBlank()) "This gathering doesn't have a description yet." else description,
                     color = if (description.isBlank()) NovaMuted else NovaInk,
                     fontSize = 11.sp,
                     lineHeight = 16.sp,
                 )
                 Text(
-                    text = if (detail.isPublic) "Public Room" else "Private Room",
+                    text = if (detail.isPublic) "Public gathering" else "Private gathering",
                     modifier = Modifier.padding(top = 6.dp),
                     color = NovaAccent,
                     fontSize = 9.sp,
@@ -494,7 +494,7 @@ private fun AddToRoomCard(
             Spacer(modifier = Modifier.width(11.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (creating) "Adding to Room…" else "Add to Room",
+                    text = if (creating) "Adding to gathering…" else "Add to gathering",
                     color = NovaInk,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
@@ -631,7 +631,7 @@ private fun RoomItemCard(
                 NovaMediaImage(
                     source = item.mediaUrl,
                     modifier = Modifier.fillMaxWidth().height(220.dp),
-                    contentDescription = "Room photo",
+                    contentDescription = "Gathering photo",
                 )
             }
             if (item.kind == "video" && item.mediaUrl.isNotBlank()) {
@@ -640,7 +640,7 @@ private fun RoomItemCard(
                     modifier = Modifier.fillMaxWidth().height(220.dp),
                     autoplay = false,
                     useController = true,
-                    description = "Room video",
+                    description = "Gathering video",
                 )
             }
             Column(
@@ -794,7 +794,7 @@ private fun EmptyRoomSection(kind: String?) {
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = if (kind == null) "This Room is waiting for its first shared thing." else "Nothing in ${sectionTitle(kind).lowercase()} yet.",
+                text = if (kind == null) "This gathering is waiting for its first shared moment." else "Nothing in ${sectionTitle(kind).lowercase()} yet.",
                 color = NovaMuted,
                 fontSize = 11.sp,
             )
@@ -817,7 +817,7 @@ private fun RoomDescriptionDialog(
     var topics by remember(initialTopics) { mutableStateOf(initialTopics.joinToString(", ")) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Room details") },
+        title = { Text("Gathering details") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
@@ -826,7 +826,7 @@ private fun RoomDescriptionDialog(
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 3,
                     maxLines = 5,
-                    placeholder = { Text("What is this Room about?", color = NovaMuted) },
+                    placeholder = { Text("What is this gathering about?", color = NovaMuted) },
                     shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = NovaAccent,
@@ -848,7 +848,7 @@ private fun RoomDescriptionDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Public Room", color = NovaInk, fontWeight = FontWeight.SemiBold)
+                        Text("Public gathering", color = NovaInk, fontWeight = FontWeight.SemiBold)
                         Text("Anyone can discover, follow and join.", color = NovaMuted, fontSize = 10.sp)
                     }
                     Switch(checked = isPublic, onCheckedChange = { isPublic = it })
@@ -924,7 +924,7 @@ private fun sectionTitle(kind: String?): String = when (kind) {
     "music" -> "Music"
     "plan" -> "Plans"
     "saved" -> "Saved"
-    else -> "Room timeline"
+    else -> "Gathering timeline"
 }
 
 

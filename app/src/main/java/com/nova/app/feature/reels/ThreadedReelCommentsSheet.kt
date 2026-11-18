@@ -275,6 +275,8 @@ private fun ReelCommentRow(
             source = comment.author.avatarUrl,
             fallbackText = comment.author.displayName,
             size = if (isReply) 29.dp else 34.dp,
+            plantupiaUserId = comment.author.id.takeIf { it > 0L },
+            plantupiaAvatarVariant = comment.author.plantupiaAvatarVariant,
             modifier = Modifier.clickable { onPersonClick(comment.author.username) },
         )
         Column(modifier = Modifier.weight(1f)) {
