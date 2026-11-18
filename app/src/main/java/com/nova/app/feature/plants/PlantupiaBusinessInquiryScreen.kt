@@ -68,8 +68,9 @@ internal fun PlantupiaBusinessInquiryScreen(
 
     fun submitInquiry() {
         if (busy) return
-        val number = quantity.toIntOrNull() ?: return
-        if (number !in 1..10000) return
+        val number = quantity.trim().toIntOrNull()
+        if ((kind == "wholesale" && number == null) ||
+            (quantity.isNotBlank() && (number == null || number !in 1..10000))) return
         busy = true
         feedback = null
         scope.launch {
@@ -81,7 +82,7 @@ internal fun PlantupiaBusinessInquiryScreen(
                     .put("phone", phone.trim())
                     .put("email", email.trim())
                     .put("city", city.trim())
-                    .put("quantity", number)
+                    .put("quantity", number ?: JSONObject.NULL)
                     .put("scope", description.trim())
                 when (val result = repository.demoMutation(
                     "real-business-inquiry", "commerce/business/inquiries/", payload,
@@ -224,7 +225,15 @@ internal fun PlantupiaBusinessInquiryScreen(
         OutlinedTextField(quantity,
             { input -> quantity = input.filter { it.isDigit() }.take(5) },
             modifier = Modifier.fillMaxWidth(), singleLine = true,
-            label = { Text("Estimated number of items") })
+            label = {
+                Text(if (kind == "installation") "Estimated plants (optional if unknown)"
+                     else "Required number of wholesale items")
+            })
+        if (kind == "installation") {
+            Text("No accurate plant count yet? Describe the space and goals. " +
+                 "Plantupia can scope quantities during the real conversation or site visit.",
+                style = PlantupiaText.supporting)
+        }
         OutlinedTextField(description, { description = it.take(2000) },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("What should be supplied or installed?") },
@@ -233,7 +242,9 @@ internal fun PlantupiaBusinessInquiryScreen(
         Button(
             enabled = !busy && companyName.trim().length >= 2 &&
                 contact.trim().length >= 2 && phone.trim().length >= 7 &&
-                city.trim().length >= 2 && amount != null && amount in 1..10000 &&
+                city.trim().length >= 2 &&
+                ((kind == "installation" && quantity.isBlank()) ||
+                  (amount != null && amount in 1..10000)) &&
                 description.trim().length >= 20,
             modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
             colors = ButtonDefaults.buttonColors(containerColor = businessInk),
