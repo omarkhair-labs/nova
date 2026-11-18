@@ -8,7 +8,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from .company_roles import create_b2b_commercial_role
-from .commerce_models import CommerceBusinessInquiry
+from .commerce_models import CommerceBusinessInquiry, CommerceBusinessContactNote
 from .models import InstallationBatch
 from .test_ceo_demo import DemoFixture, SETTINGS
 
@@ -124,3 +124,106 @@ class RealBusinessAttentionQueueTests(DemoFixture, TestCase):
         self.assertEqual(inbox.context["followup_count"], 1)
         self.assertContains(inbox, "Follow up on wholesale supply terms")
         self.assertFalse(InstallationBatch.objects.filter(source_b2b_inquiry_id=inquiry_id).exists())
+
+    def test_installation_may_start_without_unknown_quantity_but_wholesale_cannot(self):
+        payload = {
+            "client_id": str(uuid.uuid4()), "kind": "installation",
+            "company_name": "QA site not yet surveyed",
+            "contact_name": "Facility representative", "phone": "+201001234567",
+            "city": "Cairo",
+            "scope": "Office site with plant requirements not yet measured or decided.",
+        }
+        unknown = self.api.post(reverse("plantupia-real-business-inquiries"), payload, format="json")
+        self.assertEqual(unknown.status_code, 201, unknown.data)
+        self.assertIsNone(unknown.data["quantity"])
+        row = CommerceBusinessInquiry.objects.get(pk=unknown.data["id"])
+        self.assertIsNone(row.quantity)
+        self.assertContains(self.current_queue(), "Site quantity not determined yet")
+        payload.update(kind="wholesale", client_id=str(uuid.uuid4()))
+        missing = self.api.post(reverse("plantupia-real-business-inquiries"), payload, format="json")
+        self.assertEqual(missing.status_code, 400)
+        payload["quantity"] = 0
+        invalid = self.api.post(reverse("plantupia-real-business-inquiries"), payload, format="json")
+        self.assertEqual(invalid.status_code, 400)
+        self.assertEqual(CommerceBusinessInquiry.objects.count(), 1)
+
+    def test_external_contact_moves_only_staff_work_not_customer_contract(self):
+        inquiry_id = self.enquiry(kind="wholesale", company_name="QA telephone follow-up")
+        self.client.post(reverse("company:business-inquiry-quote", args=[inquiry_id]), {
+            "action": "quote", "quote_version": 0, "amount": "4500.00",
+            "note": "Synthetic quotation; commercial terms are not contractual.",
+        })
+        accepted = self.api.post(reverse("plantupia-real-business-accept", args=[inquiry_id]),
+            {"quote_version": 1}, format="json")
+        self.assertEqual(accepted.status_code, 200)
+        self.assertEqual(self.current_queue().context["followup_count"], 1)
+        url = reverse("company:business-external-contact", args=[inquiry_id])
+        note = self.client.post(url, {
+            "channel": "phone",
+            "summary": "Spoke to the buyer on the phone; they will confirm their purchasing timeline.",
+            "followup_state": "waiting_outside",
+        })
+        self.assertEqual(note.status_code, 302)
+        row = CommerceBusinessInquiry.objects.get(pk=inquiry_id)
+        self.assertEqual(row.status, "accepted")
+        self.assertEqual(row.followup_state, "waiting_outside")
+        self.assertEqual(row.quoted_amount, 4500)
+        self.assertEqual(self.current_queue().context["followup_count"], 0)
+        self.assertEqual(self.current_queue().context["outside_count"], 1)
+        self.assertContains(self.current_queue("waiting_outside"), "Waiting: Staff recorded an external reply")
+        self.assertContains(self.client.get(reverse("company:business-inquiry", args=[inquiry_id])),
+            "Spoke to the buyer on the phone")
+        done = self.client.post(url, {
+            "channel": "whatsapp",
+            "summary": "Staff completed the commercial follow-up outside the system.",
+            "followup_state": "recorded_done",
+        })
+        self.assertEqual(done.status_code, 302)
+        row.refresh_from_db()
+        self.assertEqual(row.followup_state, "recorded_done")
+        self.assertEqual(row.status, "accepted")
+        self.assertEqual(self.current_queue().context["outside_count"], 0)
+        self.assertEqual(self.current_queue().context["followup_count"], 0)
+        self.assertEqual(CommerceBusinessContactNote.objects.filter(inquiry_id=inquiry_id).count(), 2)
+        for activity in CommerceBusinessContactNote.objects.filter(inquiry_id=inquiry_id):
+            self.assertEqual(activity.recorded_by_id, self.staff.id)
+        # Staff records are private, and no customer sale or quote acceptance was fabricated.
+        customer = self.api.get(reverse("plantupia-real-business-inquiries"))
+        self.assertEqual(customer.status_code, 200)
+        self.assertNotIn("followup_state", customer.data["results"][0])
+        self.assertNotIn("staff_contact_notes", customer.data["results"][0])
+        self.assertNotIn("Spoke to the buyer", str(customer.data))
+        self.assertFalse(InstallationBatch.objects.filter(source_b2b_inquiry_id=inquiry_id).exists())
+        reopened = self.client.post(url, {
+            "channel": "other",
+            "summary": "Further real action is now needed after the previous follow-up.",
+            "followup_state": "needs_staff",
+        })
+        self.assertEqual(reopened.status_code, 302)
+        self.assertEqual(self.current_queue().context["followup_count"], 1)
+
+    def test_external_notes_do_not_forge_early_completion_and_require_staff_rights(self):
+        inquiry_id = self.enquiry()
+        url = reverse("company:business-external-contact", args=[inquiry_id])
+        invalid = self.client.post(url, {
+            "channel": "phone",
+            "summary": "Contact made outside; staff reports agreement.",
+            "followup_state": "recorded_done",
+        })
+        self.assertEqual(invalid.status_code, 302)
+        self.assertEqual(CommerceBusinessContactNote.objects.count(), 0)
+        self.assertEqual(self.current_queue().context["pending_count"], 1)
+        informational = self.client.post(url, {
+            "channel": "meeting",
+            "summary": "Met the facility manager; site dimensions are not confirmed.",
+            "followup_state": "needs_staff",
+        })
+        self.assertEqual(informational.status_code, 302)
+        self.assertEqual(CommerceBusinessContactNote.objects.count(), 1)
+        self.client.force_login(self.owner)
+        denied = self.client.post(url, {
+            "channel": "phone", "summary": "Customer cannot record a private staff contact note.",
+            "followup_state": "needs_staff",
+        })
+        self.assertEqual(denied.status_code, 403)
+        self.assertEqual(CommerceBusinessContactNote.objects.count(), 1)
