@@ -138,8 +138,13 @@ def accept_quote(*, user, inquiry_id, version):
             company.audit(user, enquiry,
                 "Customer independently confirmed earlier staff-reported nonbinding quote interest.")
         return enquiry
-    if enquiry.status != CommerceBusinessInquiry.Status.QUOTED or enquiry.quoted_amount is None:
+    if (enquiry.status not in (
+        CommerceBusinessInquiry.Status.QUOTED,
+        CommerceBusinessInquiry.Status.WITHDRAWN,
+    ) or enquiry.quoted_amount is None):
         raise ValidationError("No current company quote is available for acceptance.")
+    # A customer may correct a staff-reported withdrawal and independently
+    # accept the same nonbinding quote. Staff reports never override the owner.
     enquiry.status = CommerceBusinessInquiry.Status.ACCEPTED
     enquiry.customer_response_source = CommerceBusinessInquiry.ResponseSource.CUSTOMER_APP
     enquiry.followup_state = CommerceBusinessInquiry.Followup.NEEDS_STAFF
