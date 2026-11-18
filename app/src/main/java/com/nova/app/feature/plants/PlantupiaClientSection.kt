@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -1221,37 +1220,16 @@ private fun PlantupiaAccountClientSection(
                     Text("What would you like to record?", color = forestText,
                         fontWeight = FontWeight.Medium, fontSize = 14.sp)
                     val entryMode = PlantupiaCareEntryMode.valueOf(selectedEntryMode)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(7.dp),
-                    ) {
-                        PlantupiaCareEntryMode.entries.forEach { type ->
-                            val chosen = entryMode == type
-                            OutlinedButton(
-                                onClick = {
-                                    selectedEntryMode = type.name
-                                    if (type != PlantupiaCareEntryMode.CARE) careDetailsExpanded = true
-                                },
-                                enabled = !saving,
-                                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                                contentPadding = PaddingValues(horizontal = 3.dp, vertical = 10.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    containerColor = if (chosen) PlantupiaColors.softSage else white,
-                                ),
-                                border = BorderStroke(1.dp, if (chosen) deepGreen else sage),
-                            ) {
-                                Text(
-                                    when (type) {
-                                        PlantupiaCareEntryMode.CARE -> "Care"
-                                        PlantupiaCareEntryMode.NOTE -> "Note"
-                                        PlantupiaCareEntryMode.CONCERN -> "Concern"
-                                    },
-                                    fontSize = 13.sp, color = deepGreen,
-                                    fontWeight = if (chosen) FontWeight.SemiBold else FontWeight.Normal,
-                                )
+                    PlantupiaCareEntryModePicker(
+                        selectedMode = entryMode,
+                        enabled = !saving,
+                        onSelect = { type ->
+                            selectedEntryMode = type.name
+                            if (type != PlantupiaCareEntryMode.CARE) {
+                                careDetailsExpanded = true
                             }
-                        }
-                    }
+                        },
+                    )
                     if (entryMode == PlantupiaCareEntryMode.CARE) {
                     Text("Select what you actually did", color = muted, fontSize = 12.sp)
                     // Preserve existing native pictograms, real action semantics and font-scale policy.
