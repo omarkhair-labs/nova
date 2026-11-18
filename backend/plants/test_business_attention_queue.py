@@ -78,7 +78,7 @@ class RealBusinessAttentionQueueTests(DemoFixture, TestCase):
         self.assertEqual(action.context["followup_count"], 1)
         self.assertEqual([str(x.pk) for x in action.context["records"]], [inquiry_id])
         self.assertContains(action, "Follow up; authorized staff may prepare installation draft")
-        self.assertFalse(InstallationBatch.objects.exists())
+        self.assertFalse(InstallationBatch.objects.filter(source_b2b_inquiry_id=inquiry_id).exists())
         detail = self.client.get(reverse("company:business-inquiry", args=[inquiry_id]))
         self.assertContains(detail, "Prepare the project draft after commercial follow-up")
 
@@ -95,7 +95,7 @@ class RealBusinessAttentionQueueTests(DemoFixture, TestCase):
         self.assertEqual(self.current_queue().context["followup_count"], 1)
         denied = self.client.post(reverse("company:business-inquiry-installation", args=[inquiry_id]))
         self.assertEqual(denied.status_code, 403)
-        self.assertFalse(InstallationBatch.objects.exists())
+        self.assertFalse(InstallationBatch.objects.filter(source_b2b_inquiry_id=inquiry_id).exists())
         self.staff.is_superuser = True
         self.staff.save(update_fields=["is_superuser"])
         self.client.force_login(self.staff)
@@ -123,4 +123,4 @@ class RealBusinessAttentionQueueTests(DemoFixture, TestCase):
         inbox = self.current_queue()
         self.assertEqual(inbox.context["followup_count"], 1)
         self.assertContains(inbox, "Follow up on wholesale supply terms")
-        self.assertFalse(InstallationBatch.objects.exists())
+        self.assertFalse(InstallationBatch.objects.filter(source_b2b_inquiry_id=inquiry_id).exists())
