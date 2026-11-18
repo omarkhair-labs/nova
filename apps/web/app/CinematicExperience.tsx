@@ -5,6 +5,7 @@ import SiteIndex from "./SiteIndex";
 import ChapterThreshold from "./ChapterThreshold";
 import WorldThreshold from "./WorldThreshold";
 import { CompanyIntroduction } from "./CompanyStory";
+import ShopBridge from "./ShopBridge";
 type Stage = 0 | 1 | 2;
 
 const scenes = [
