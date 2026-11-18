@@ -158,8 +158,16 @@ def overview(request):
     guides = CareGuideVersion.objects.filter(published=False, ever_published=False).select_related("species", "assigned_reviewer").order_by("pk")[:4] if can_care else []
     pending_guides = CareGuideVersion.objects.filter(published=False, ever_published=False).count() if can_care else None
     invitations = HandoverInvitation.objects.filter(batch__in=qs).select_related("batch", "intended_recipient").order_by("-created_at")[:4] if request.user.has_perm("plants.view_handoverinvitation") else []
+    b2b_action_count = None
+    if request.user.has_perm("plants.view_commercebusinessinquiry"):
+        from .commerce_business_real_company import (
+            business_inquiry_needs_attention, business_inquiry_work_queue,
+        )
+        b2b_action_count = business_inquiry_work_queue().filter(
+            business_inquiry_needs_attention()).count()
     return page(request, "overview", {"title": "Overview", "section": "overview", "counts": counts, "drafts": drafts,
-        "guides": guides, "pending_guides": pending_guides, "invitations": invitations})
+        "guides": guides, "pending_guides": pending_guides,
+        "b2b_action_count": b2b_action_count, "invitations": invitations})
 
 
 @portal(methods=("GET",))
