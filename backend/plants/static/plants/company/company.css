@@ -2000,3 +2000,25 @@ dd {
 @media (prefers-reduced-motion:reduce) {
   .sidebar.workspace-rail nav.workspace-switcher a.workspace-choice { transition:none; }
 }
+
+/* Work before decorative metrics: B2B and B2C share the same readable task block. */
+.company-attention {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:24px;
+  margin:0 0 22px;
+  padding:22px clamp(18px,2.6vw,30px);
+  border:1px solid #c9d6ca;
+  border-left:4px solid #7b967f;
+  background:#fbfcf9;
+  border-radius:6px;
+}
+.company-attention .eyebrow { margin:0 0 6px; }
+.company-attention h2 { font-size:clamp(19px,2vw,26px); margin:0 0 6px; }
+.company-attention p:not(.eyebrow) { font-size:13px; color:#51665b; margin:0; max-width:72ch; }
+.company-attention .button { flex-shrink:0; }
+@media (max-width:700px) {
+  .company-attention { display:grid; gap:14px; }
+  .company-attention .button { width:max-content; max-width:100%; }
+}
