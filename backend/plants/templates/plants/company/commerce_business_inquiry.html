@@ -24,7 +24,7 @@
     <p class="eyebrow">BUSINESS REQUEST</p>
     <h2>{{ record.contact_name }}</h2>
     <p>{{ record.phone }} · {{ record.email }} · {{ record.city }}</p>
-    <p>Requested quantity: {{ record.quantity }}{% if record.sku_code_snapshot %} · SKU {{ record.sku_code_snapshot }}{% endif %}</p>
+    <p>Requested quantity: {% if record.quantity != None %}{{ record.quantity }}{% else %}Not specified yet · confirm during scoping{% endif %}{% if record.sku_code_snapshot %} · SKU {{ record.sku_code_snapshot }}{% endif %}</p>
     <p>{{ record.scope|linebreaksbr }}</p>
     <p class="fine">Received {{ record.created_at|date:"j M Y, H:i" }}. No purchase order, stock reservation or installation was created.</p>
   </section>
@@ -62,4 +62,58 @@
     {% endif %}
   </section>
 </div>
+<section class="panel padded b2b-external-log" aria-label="Human-recorded external conversations">
+  <p class="eyebrow">COMMERCIAL FOLLOW-UP / OUTSIDE PLANTUPIA</p>
+  <h2>Record what happened elsewhere</h2>
+  <p class="lead">A phone call, WhatsApp discussion, site visit or email can happen outside the platform. Save only an honest short summary so the next staff member understands the situation.</p>
+  {% if record.status == "accepted" %}
+    <p class="fine">Internal attention: <strong>{{ record.get_followup_state_display }}</strong>. This does not indicate a signed contract, accepted payment or completed installation.</p>
+  {% endif %}
+  {% if perms.plants.change_commercebusinessinquiry %}
+  <form method="post" action="{% url 'company:business-external-contact' record.pk %}" class="b2b-contact-form">
+    {% csrf_token %}
+    <div class="b2b-contact-fields">
+      <label for="contact-channel">Where did the exchange happen?
+        <select id="contact-channel" name="channel" required>
+          <option value="phone">Phone call</option>
+          <option value="whatsapp">WhatsApp</option>
+          <option value="meeting">In-person meeting / site discussion</option>
+          <option value="email">Email outside the platform</option>
+          <option value="other">Another external conversation</option>
+        </select>
+      </label>
+      {% if record.status == "accepted" %}
+      <label for="contact-followup">What does staff need to do now?
+        <select id="contact-followup" name="followup_state" required>
+          <option value="needs_staff" {% if record.followup_state == "needs_staff" %}selected{% endif %}>Still needs staff action</option>
+          <option value="waiting_outside" {% if record.followup_state == "waiting_outside" %}selected{% endif %}>Waiting for external reply</option>
+          <option value="recorded_done" {% if record.followup_state == "recorded_done" %}selected{% endif %}>My commercial follow-up is done</option>
+        </select>
+      </label>
+      {% else %}
+        <input type="hidden" name="followup_state" value="needs_staff">
+      {% endif %}
+    </div>
+    <label for="contact-summary">What was actually discussed or agreed?
+      <textarea id="contact-summary" name="summary" minlength="8" maxlength="1200" rows="3" placeholder="Short factual summary. No need to transcribe the entire conversation." required></textarea>
+    </label>
+    <p class="fine">Internal staff note only. It does not notify the customer, update their quote, sign a contract or change physical inventory.</p>
+    <button class="button primary" type="submit">Save communication note</button>
+  </form>
+  {% endif %}
+  <div class="b2b-contact-history" aria-label="Recent human-recorded commercial contact notes">
+    <h3>Recent recorded contact</h3>
+    {% for note in external_notes %}
+      <div class="b2b-contact-event">
+        <div class="b2b-contact-meta">
+          <strong>{{ note.get_channel_display }}</strong>
+          <span>{{ note.created_at|date:"j M Y, H:i" }} · {{ note.recorded_by.username }} · {{ note.get_followup_state_after_display }}</span>
+        </div>
+        <p>{{ note.summary|linebreaksbr }}</p>
+      </div>
+    {% empty %}
+      <p class="fine">No external conversations have been summarized here yet. That's fine if no contact has occurred.</p>
+    {% endfor %}
+  </div>
+</section>
 {% endblock %}
