@@ -78,7 +78,7 @@ def page(request, template, context=None, status=200):
     if section in {"projects_home", "business_rfqs", "business_inquiries", "installations", "inventory", "handovers"}:
         context["workspace_area"] = "b2b"
     elif section in {"commerce_home", "commerce_products", "commerce_stock", "commerce_orders",
-                     "commerce_qa_requests", "catalog", "orders"}:
+                     "commerce_qa_requests", "catalog", "orders", "commerce_delivery_rates"}:
         context["workspace_area"] = "b2c"
     elif section in {"care_home", "care", "plans", "support", "access"}:
         context["workspace_area"] = "care"
