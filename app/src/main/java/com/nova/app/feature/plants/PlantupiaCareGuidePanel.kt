@@ -26,7 +26,11 @@ import com.nova.app.feature.plants.data.PlantupiaRepository
  * placement note and review/source record. No client-generated plant advice.
  */
 @Composable
-internal fun PlantupiaCareGuidePanel(plantId: String, repository: PlantupiaRepository) {
+internal fun PlantupiaCareGuidePanel(
+    plantId: String,
+    repository: PlantupiaRepository,
+    onRecordObservation: () -> Unit,
+) {
     key(plantId, repository) {
         var open by remember { mutableStateOf(false) }
         var provenanceOpen by remember { mutableStateOf(false) }
@@ -286,6 +290,16 @@ internal fun PlantupiaCareGuidePanel(plantId: String, repository: PlantupiaRepos
                             style = PlantupiaText.supporting)
                     } // guide value column
                 } // published guide value
+                OutlinedButton(
+                    onClick = {
+                        open = false
+                        // Deliberate navigation, never an automatic care mutation.
+                        onRecordObservation()
+                    },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+                ) {
+                    Text("Record what I actually noticed", color = PlantupiaColors.forest)
+                }
             } // focused reading body
         } // reader surface
     } // native modal
