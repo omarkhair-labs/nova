@@ -3,7 +3,11 @@
 <header class="page-heading compact-workspace-heading">
   <div><p class="eyebrow">B2C · SHOP OPERATIONS / المتجر</p><h1>Shop operations.</h1>
     <p class="lead">Work with reviewed products, confirmed customer orders, delivery prices and real warehouse stock from one operations space.</p></div>
-  {% if can_products and perms.plants.add_commerceproduct %}<a class="button primary" href="{% url 'company:commerce-product-create' %}">New product +</a>{% endif %}
+  {% if can_requests %}
+    <a class="button primary" href="{% url 'company:commerce-orders' %}">Process customer orders{% if counts.confirmed_orders %} · {{ counts.confirmed_orders }}{% endif %}</a>
+  {% elif can_products and perms.plants.add_commerceproduct %}
+    <a class="button primary" href="{% url 'company:commerce-product-create' %}">New product +</a>
+  {% endif %}
 </header>
 <div class="task-shortcuts" aria-label="Commerce quick actions">
   {% if can_products and perms.plants.add_commerceproduct and perms.plants.add_commercesku %}
@@ -17,6 +21,16 @@
   <a class="button" href="{% url 'company:commerce-stock' %}">Warehouse stock ↗</a>
   {% endif %}
 </div>
+{% if can_requests %}
+<section class="company-attention" aria-label="Orders requiring staff actions">
+  <div>
+    <p class="eyebrow">NEXT / COMMERCE WORK</p>
+    <h2>{% if counts.confirmed_orders %}{{ counts.confirmed_orders }} orders ready for preparation{% else %}No confirmed orders waiting for preparation{% endif %}</h2>
+    <p>{% if counts.quote_pending_orders %}{{ counts.quote_pending_orders }} exceptional delivery requests also need review.{% else %}Known-fee orders enter this workspace directly; no routine staff shipping-quote step.{% endif %}</p>
+  </div>
+  <a class="button" href="{% url 'company:commerce-orders' %}">Open order queue →</a>
+</section>
+{% endif %}
 <section class="commerce-three" aria-label="Commerce operations">
 {% if can_products %}
   <article class="commerce-path">
