@@ -289,5 +289,10 @@ class RealBusinessAttentionQueueTests(DemoFixture, TestCase):
         self.assertFalse(InstallationBatch.objects.filter(source_b2b_inquiry_id=inquiry_id).exists())
         self.assertContains(self.current_queue("all"), "Customer no longer proceeding")
         self.assertEqual(CommerceBusinessInquiry.objects.filter(status="declined").count(), 0)
-        self.assertEqual(self.api.post(reverse("plantupia-real-business-accept", args=[inquiry_id]),
-            {"quote_version": 1}, format="json").status_code, 400)
+        # Customer-authenticated decision has priority over an unverified staff report.
+        correction = self.api.post(reverse("plantupia-real-business-accept", args=[inquiry_id]),
+            {"quote_version": 1}, format="json")
+        self.assertEqual(correction.status_code, 200)
+        self.assertEqual(correction.data["status"], "accepted")
+        self.assertEqual(correction.data["customer_response_source"], "customer_app")
+        self.assertEqual(self.current_queue().context["followup_count"], 1)
