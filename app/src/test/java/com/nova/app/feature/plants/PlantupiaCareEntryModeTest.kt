@@ -17,6 +17,13 @@ class PlantupiaCareEntryModeTest {
         assertFalse(plantupiaCanSaveCareEntry(PlantupiaCareEntryMode.CONCERN, false, false, true))
     }
 
+    @Test fun careChoiceIsStackedOnNarrowScreenOrLargeSystemText() {
+        assertTrue(careEntryModesNeedStack(290f, 1f))
+        assertTrue(careEntryModesNeedStack(390f, 2f))
+        assertFalse(careEntryModesNeedStack(390f, 1f))
+        assertTrue(careEntryModesNeedStack(330f, 1.3f))
+    }
+
     @Test fun careRequiresAffirmativeActionAndNoInvalidCheckDate() {
         assertFalse(plantupiaCanSaveCareEntry(PlantupiaCareEntryMode.CARE, false, true, true))
         assertTrue(plantupiaCanSaveCareEntry(PlantupiaCareEntryMode.CARE, true, false, true))
