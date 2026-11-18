@@ -78,31 +78,40 @@ internal fun PlantupiaCareChapterGallery(
                 Surface(
                     onClick = { onSelect(item.topic) },
                     modifier = Modifier
-                        .widthIn(min = 110.dp)
-                        .heightIn(min = 51.dp)
+                        .widthIn(min = 134.dp)
+                        .heightIn(min = 132.dp)
                         .semantics {
                             selected = active
                             contentDescription = "Read reviewed " + palette.label + " chapter"
                         },
-                    color = if (active) palette.background else PlantupiaColors.paper,
-                    shape = RoundedCornerShape(11.dp),
+                    color = palette.background,
+                    shape = RoundedCornerShape(15.dp),
                     border = BorderStroke(
                         if (active) 2.dp else 1.dp,
-                        palette.ink.copy(alpha = if (active) 0.9f else 0.28f),
+                        palette.ink.copy(alpha = if (active) 0.88f else 0.22f),
                     ),
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 9.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    Column(
+                        modifier = Modifier.padding(horizontal = 15.dp, vertical = 13.dp),
+                        verticalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        CareChapterIllustration(item.topic, palette.ink, Modifier.size(29.dp))
-                        Text(palette.label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
-                            color = palette.ink)
+                        CareChapterIllustration(
+                            item.topic, palette.ink, Modifier.size(53.dp),
+                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(palette.label, fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold, color = palette.ink)
+                            Text(if (active) "Reading this chapter" else "Explore chapter",
+                                style = PlantupiaText.supporting.copy(
+                                    color = palette.ink, fontSize = 11.sp,
+                                ))
+                        }
                     }
                 }
             }
         }
+        // A single, full-length reading: distinct, illustrated chapter pickers
+        // keep the nine native authored pictograms without nested expanding tiles.
         chapter?.let { item ->
             val palette = careChapterPalette(item.topic)
             Surface(
