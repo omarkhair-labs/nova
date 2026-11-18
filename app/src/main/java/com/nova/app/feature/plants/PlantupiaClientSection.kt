@@ -986,8 +986,25 @@ private fun PlantupiaAccountClientSection(
             val activeChapter = runCatching {
                 PlantupiaDetailChapter.valueOf(selectedDetailChapter)
             }.getOrDefault(PlantupiaDetailChapter.OVERVIEW)
-            TextButton(onClick = { requestClosePlant() }) {
-                Text("← Back to space", color = deepGreen)
+            TextButton(onClick = {
+                if (openDetailMode != PlantupiaCreateMode.QUESTION &&
+                    activeChapter != PlantupiaDetailChapter.OVERVIEW
+                ) {
+                    selectedDetailChapter = PlantupiaDetailChapter.OVERVIEW.name
+                    scope.launch {
+                        androidx.compose.runtime.withFrameNanos { }
+                        overviewAnchor.bringIntoView()
+                    }
+                } else {
+                    requestClosePlant()
+                }
+            }) {
+                Text(
+                    if (openDetailMode != PlantupiaCreateMode.QUESTION &&
+                        activeChapter != PlantupiaDetailChapter.OVERVIEW
+                    ) "← Back to plant" else "← Back to space",
+                    color = deepGreen,
+                )
             }
             Box(modifier = Modifier.bringIntoViewRequester(overviewAnchor)) {
                 if (openDetailMode != PlantupiaCreateMode.QUESTION) {
