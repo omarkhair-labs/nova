@@ -28,7 +28,7 @@ class CompanyWorkspaceNavigationTests(DemoFixture, TestCase):
         self.assertContains(commercial, "Product drafts, SKUs")
         self.assertContains(commercial, "Warehouse stock")
         self.assertNotContains(commercial, "B2B / PROJECTS")
-        self.assertContains(commercial, "B2C / SHOP")
+        self.assertContains(commercial, "B2C · SHOP OPERATIONS")
 
     def test_home_has_three_one_click_world_destinations(self):
         response = self.client.get(reverse("company:overview"))
