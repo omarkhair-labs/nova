@@ -39,12 +39,13 @@ internal fun PlantupiaBusinessInquiryScreen(
     var email by rememberSaveable { mutableStateOf("") }
     var city by rememberSaveable { mutableStateOf("") }
     var kind by rememberSaveable { mutableStateOf("wholesale") }
-    var quantity by rememberSaveable { mutableStateOf("1") }
+    var quantity by rememberSaveable { mutableStateOf("") }
     var description by rememberSaveable { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var loaded by remember { mutableStateOf(false) }
     var feedback by remember { mutableStateOf<String?>(null) }
     var receipt by remember { mutableStateOf<PlantupiaBusinessRequestReceipt?>(null) }
+    var showHistory by rememberSaveable { mutableStateOf(false) }
     var inquiries by remember { mutableStateOf(emptyList<JSONObject>()) }
     var refresh by remember { mutableIntStateOf(0) }
 
@@ -59,7 +60,7 @@ internal fun PlantupiaBusinessInquiryScreen(
             }
             is ApiResult.Failure -> if (repository.isCurrentSession()) {
                 inquiries = emptyList()
-                feedback = result.message
+                if (receipt == null) feedback = result.message
                 loaded = true
             }
         }
@@ -98,6 +99,7 @@ internal fun PlantupiaBusinessInquiryScreen(
                         )
                         if (confirmed != null) {
                             receipt = confirmed
+                            showHistory = false
                             feedback = null
                             onAcknowledged()
                         } else {
@@ -183,12 +185,17 @@ internal fun PlantupiaBusinessInquiryScreen(
                         email = ""
                         city = ""
                         kind = "wholesale"
-                        quantity = "1"
+                        quantity = ""
                         description = ""
+                        showHistory = false
                         feedback = null
                     }, enabled = !busy) {
                         Text("Send another business request")
                     }
+                    OutlinedButton(
+                        onClick = { showHistory = true },
+                        enabled = !busy && !showHistory,
+                    ) { Text("View your saved requests & updates") }
                 }
             }
         } else {
@@ -235,12 +242,16 @@ internal fun PlantupiaBusinessInquiryScreen(
 
         }
         feedback?.let { Text(it, style = PlantupiaText.supporting) }
-        HorizontalDivider()
-        Text("Your business requests", style = PlantupiaText.editorialHeading)
-        if (!loaded) LinearProgressIndicator(Modifier.fillMaxWidth())
-        if (loaded && inquiries.isEmpty()) Text("No commercial enquiries yet.",
-            style = PlantupiaText.supporting)
-        inquiries.forEach { item ->
+        TextButton(onClick = { showHistory = !showHistory }, enabled = !busy) {
+            Text(if (showHistory) "Hide saved requests" else "View saved requests & updates")
+        }
+        if (showHistory) {
+            HorizontalDivider()
+            Text("Your business requests", style = PlantupiaText.editorialHeading)
+            if (!loaded) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (loaded && inquiries.isEmpty()) Text("No commercial enquiries yet.",
+                style = PlantupiaText.supporting)
+            inquiries.forEach { item ->
             val id = item.optString("id")
             val status = item.optString("status")
             Surface(
@@ -267,6 +278,7 @@ internal fun PlantupiaBusinessInquiryScreen(
                     Text("No purchase order, payment or project was created by this request.",
                         style = PlantupiaText.supporting)
                 }
+            }
             }
         }
     }
