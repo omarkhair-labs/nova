@@ -56,28 +56,28 @@ internal fun PlantupiaDeliveryQuoteJourney(
 ) {
     val issues = shopDeliveryFieldIssues(draft)
     val ready = shopDeliveryReady(draft, cart)
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(13.dp)) {
         if (step == "received" && receipt != null) {
             DeliveryQuoteReceived(receipt, onOrders, onCollection)
             return@Column
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("THE DELIVERY READING / 05", style = PlantupiaText.sectionLabel)
+        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text("DELIVERY / " + if (step == "review") "REVIEW" else "ADDRESS",
+                style = PlantupiaText.sectionLabel)
             Text(
-                if (step == "review") "Before you send"
-                else "Where should these objects go?",
+                if (step == "review") "Review your total"
+                else "Where should we deliver?",
                 style = PlantupiaText.editorialHeading,
             )
-            Text(
-                "Choose a delivery address and review your items, delivery price and total " +
-                    "before deciding to place the order.",
-                style = PlantupiaText.body,
-            )
+            if (step == "details") {
+                Text("See the delivery fee and full price before placing an order.",
+                    style = PlantupiaText.supporting)
+            }
         }
 
         // A compact progress rail, not a tab strip with hidden form state.
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
             DeliveryPhase(
                 number = "01", name = "Address & contact",
                 active = step == "details", modifier = Modifier.weight(1f),
@@ -89,7 +89,7 @@ internal fun PlantupiaDeliveryQuoteJourney(
         }
 
         if (step == "details") {
-            DeliverySection("01 / THE RECIPIENT", "Tell us where the delivery should arrive") {
+            DeliverySection("01 / ADDRESS", "Recipient and delivery point") {
                 PlantupiaDeliveryAddressFields(
                     name = draft.recipient, onNameChange = onRecipient,
                     phone = draft.phone, onPhoneChange = onPhone,
@@ -101,13 +101,10 @@ internal fun PlantupiaDeliveryQuoteJourney(
                     pinConfirmed = draft.pinConfirmed, onPinConfirmed = onPin,
                     showErrors = showErrors,
                 )
-                Text(
-                    "The location picker is an exact point you choose, not an automatic " +
-                        "verification of the building or your current location.",
-                    style = PlantupiaText.supporting,
-                )
+                Text("Your map pin is chosen by you, not independently verified.",
+                    style = PlantupiaText.supporting)
             }
-            DeliverySection("02 / PAYMENT PREFERENCE", "How would you prefer to settle later?") {
+            DeliverySection("02 / PAYMENT", "Choose a payment preference") {
                 Column(
                     Modifier.fillMaxWidth().selectableGroup(),
                     verticalArrangement = Arrangement.spacedBy(9.dp),
@@ -126,7 +123,7 @@ internal fun PlantupiaDeliveryQuoteJourney(
                     )
                 }
             }
-            DeliverySection("03 / A HUMAN NOTE", "Anything useful about the entrance?") {
+            DeliverySection("03 / OPTIONAL", "Delivery instructions") {
                 OutlinedTextField(
                     value = draft.note,
                     onValueChange = { onNote(it.take(500)) },
@@ -137,7 +134,7 @@ internal fun PlantupiaDeliveryQuoteJourney(
                 )
                 Text("${draft.note.length} / 500", style = PlantupiaText.sectionLabel)
             }
-            DeliverySection("BEFORE REVIEW", "Items and delivery") {
+            DeliverySection("COST", "Items and delivery") {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Saved items subtotal", style = PlantupiaText.body)
                     Text("EGP " + (cart?.optString("subtotal") ?: "—"),
@@ -169,13 +166,13 @@ internal fun PlantupiaDeliveryQuoteJourney(
                     onClick = onReview, enabled = !busy,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = PlantupiaColors.forest),
-                ) { Text("Review your request  ↗") }
+                ) { Text("Review total  ↗") }
                 TextButton(onClick = onCart, enabled = !busy) {
                     Text("← Back to saved cart", color = PlantupiaColors.forest)
                 }
             }
         } else if (step == "review") {
-            DeliverySection("01 / WHAT YOU CHOSE", "The saved cart") {
+            DeliverySection("01 / ITEMS", "Your cart") {
                 val lines = shopCartObjects(cart)
                 lines.forEach { item ->
                     Row(
@@ -212,7 +209,7 @@ internal fun PlantupiaDeliveryQuoteJourney(
                         style = PlantupiaText.supporting)
                 }
             }
-            DeliverySection("02 / WHERE TO GO", "The recipient and chosen pin") {
+            DeliverySection("02 / DELIVERY", "Send to") {
                 Text(draft.recipient.trim(), style = PlantupiaText.body, fontWeight = FontWeight.SemiBold)
                 Text(normalizedDeliveryPhone(draft.phone), style = PlantupiaText.supporting)
                 Text(draft.street.trim() + " · " + draft.city.trim(), style = PlantupiaText.body)
@@ -242,15 +239,13 @@ internal fun PlantupiaDeliveryQuoteJourney(
                 ) { Text("Edit address or preference") }
             }
 
-            DeliverySection("03 / WHAT HAPPENS NEXT",
-                if (exactPrice != null) "Place your order" else "Review delivery with the team") {
+            DeliverySection("03 / CONFIRMATION",
+                if (exactPrice != null) "Place your order" else "Delivery needs review") {
                 Text(
                     if (exactPrice != null)
-                        "You are placing an order at the total shown above. Plantupia will " +
-                            "prepare the order after receiving it. Payment is handled separately."
+                        "This confirms the total shown above. Payment is handled separately."
                     else
-                        "There is no approved delivery fee for this city. If you send a request, " +
-                            "Plantupia will contact you with the final total before any confirmation.",
+                        "No approved fee for this city yet. The team must confirm a final total before you can place an order.",
                     style = PlantupiaText.body,
                 )
                 if (priceLoading || !priceChecked) {
@@ -319,7 +314,7 @@ private fun DeliveryPhase(number: String, name: String, active: Boolean, modifie
     )
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(12.dp),
         color = phaseColor,
         border = BorderStroke(1.dp, if (active) PlantupiaColors.forest else PlantupiaColors.border),
     ) {
@@ -337,7 +332,7 @@ private fun DeliverySection(
     eyebrow: String, heading: String,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(eyebrow, style = PlantupiaText.sectionLabel)
         Text(heading, style = PlantupiaText.body, fontWeight = FontWeight.SemiBold)
         content()
