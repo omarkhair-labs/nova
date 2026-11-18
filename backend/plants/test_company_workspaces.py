@@ -96,7 +96,7 @@ class CompanyWorkspaceNavigationTests(DemoFixture, TestCase):
         self.assertContains(response, reverse("company:commerce-orders"))
         with patch.dict(os.environ, {"PLANTUPIA_COMMERCE_QA_REQUESTS_ENABLED": "1"}):
             qa_response = self.client.get(reverse("company:commerce-home"))
-            self.assertContains(qa_response, 'class="workspace-nav-link"', count=3)
+            self.assertContains(qa_response, 'class="workspace-choice', count=3)
             self.assertContains(qa_response, "Historical QA shipping requests")
         self.assertContains(response, 'viewBox="0 0 24 24"', count=3)
         self.assertNotContains(response, 'class="path-figure" aria-hidden="true">02 <span>≋')
