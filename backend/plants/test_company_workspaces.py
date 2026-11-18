@@ -80,8 +80,8 @@ class CompanyWorkspaceNavigationTests(DemoFixture, TestCase):
         self.assertContains(response, "Testing tools")
         self.assertContains(response, reverse("company:plans"))
         self.assertContains(response, reverse("company:demo-access"))
-        self.assertLess(html.index("Botanical care library"), html.index("Testing tools"))
-        self.assertContains(response, 'class="sidebar-qa"')
+        self.assertLess(html.index("Botanical library"), html.index("Testing tools"))
+        self.assertContains(response, 'class="rail-advanced"')
         self.assertContains(response, 'class="qa-archive"')
 
     def test_mixed_language_navigation_and_b2c_icons_have_explicit_layout(self):
@@ -89,10 +89,10 @@ class CompanyWorkspaceNavigationTests(DemoFixture, TestCase):
         self.assertEqual(response.status_code, 200)
         # The actual Orders inbox is always a B2C destination for authorized
         # operators. Historical QA requests appear only under Testing tools.
-        self.assertContains(response, 'class="workspace-nav-link"', count=3)
-        self.assertContains(response, '<span class="nav-label-ar" lang="ar" dir="rtl">المنتجات</span>')
-        self.assertContains(response, '<span class="nav-label-ar" lang="ar" dir="rtl">الطلبات</span>')
-        self.assertContains(response, '<span class="nav-label-ar" lang="ar" dir="rtl">المخزون</span>')
+        self.assertContains(response, 'class="workspace-choice', count=3)
+        self.assertContains(response, '<small lang="ar" dir="rtl">المنتجات والطلبات</small>')
+        self.assertContains(response, 'Orders &amp; fulfilment')
+        self.assertContains(response, 'Warehouse stock')
         self.assertContains(response, reverse("company:commerce-orders"))
         with patch.dict(os.environ, {"PLANTUPIA_COMMERCE_QA_REQUESTS_ENABLED": "1"}):
             qa_response = self.client.get(reverse("company:commerce-home"))
