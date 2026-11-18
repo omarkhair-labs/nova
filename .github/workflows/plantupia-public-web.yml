@@ -47,7 +47,7 @@ jobs:
             exit 1
           fi
           grep -q 'A Space' /tmp/plantupia-scene.html
-          for route in / /spaces /studio /living-systems /about; do
+          for route in / /spaces /studio /living-systems /about /shop; do
             curl -fsSL "http://127.0.0.1:3017${route}" -o "/tmp/plantupia-world-${route//\//_}.html"
             grep -q 'Plantupia' "/tmp/plantupia-world-${route//\//_}.html"
           done
@@ -57,6 +57,14 @@ jobs:
           grep -q 'SELECTED WORKS' /tmp/plantupia-world-_about.html
           grep -q 'project archive is in preparation' /tmp/plantupia-world-_about.html
           grep -q 'MEET PLANTUPIA' /tmp/plantupia-world-_.html
+          # Commerce remains a separate, understated edited collection.
+          # With no backend configured this build must show a truthful empty/offline state.
+          grep -q 'Things to' /tmp/plantupia-world-_shop.html
+          grep -q 'THE COLLECTION' /tmp/plantupia-world-_shop.html
+          grep -q 'PUBLIC COLLECTION PREVIEW' /tmp/plantupia-world-_shop.html
+          grep -q 'Explore the edited collection' /tmp/plantupia-world-_.html
+          grep -q 'SHOP / AN EDITED COLLECTION' /tmp/plantupia-world-_.html
+          test "$(curl -Ls -o /dev/null -w '%{http_code}' http://127.0.0.1:3017/api/commerce/products/not-a-uuid/cover/)" = 404
 
           # Each authored passage has a real next-chapter link, independent of JS.
           for entry in '_:2:/spaces' '_spaces:3:/studio' '_studio:4:/living-systems' '_living-systems:5:/about' '_about:6:/start-a-space'; do
