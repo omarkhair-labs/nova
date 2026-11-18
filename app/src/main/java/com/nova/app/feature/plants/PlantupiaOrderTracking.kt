@@ -90,9 +90,10 @@ internal fun shopOrderTracking(order: JSONObject): ShopTrackingView {
     val isException = status in listOf("cancelled", "return_requested", "returned")
     val stages = listOf(
         ShopTrackingStage(
-            "quote_accepted", "Order confirmed",
-            "You accepted a final price and the backend recorded stock reservation.",
-            events["quote_accepted"],
+            if (events["order_placed"] != null) "order_placed" else "quote_accepted",
+            if (events["order_placed"] != null) "Order placed" else "Order confirmed",
+            "Your order was accepted at the displayed total; payment and dispatch are separate.",
+            events["order_placed"] ?: events["quote_accepted"],
         ),
         ShopTrackingStage(
             "preparing", "Preparing your order",

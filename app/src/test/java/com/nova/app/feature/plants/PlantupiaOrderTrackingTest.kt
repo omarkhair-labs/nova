@@ -105,4 +105,15 @@ class PlantupiaOrderTrackingTest {
         assertEquals("Return recorded", returned.stageTitle)
         assertFalse(returned.liveLocationAvailable)
     }
+
+    @Test fun directOrderEventIsFirstGenuineConfirmedTimelineStep() {
+        val result = shopOrderTracking(order("confirmed",
+            events("order_placed" to t0)))
+        assertEquals("Order confirmed", result.stageTitle)
+        assertEquals("order_placed", result.steps[0].key)
+        assertTrue(result.steps[0].recorded)
+        assertEquals("Order placed", result.steps[0].title)
+        assertTrue(result.steps.drop(1).none { it.recorded })
+        assertFalse(result.liveLocationAvailable)
+    }
 }

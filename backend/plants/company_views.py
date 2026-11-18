@@ -47,7 +47,8 @@ def page(request, template, context=None, status=200):
     ).count() if show_commerce_alert else 0
     show_real_order_alert = user.is_authenticated and user.is_active and user.is_staff and user.has_perm("plants.view_commerceorder")
     new_real_orders = CommerceOrder.objects.filter(
-        status=CommerceOrder.Status.QUOTE_PENDING).count() if show_real_order_alert else 0
+        status__in=(CommerceOrder.Status.QUOTE_PENDING,
+                    CommerceOrder.Status.CONFIRMED)).count() if show_real_order_alert else 0
     context = {"show_b2b_rfqs": show_b2b_rfqs, "show_commerce_alert": show_commerce_alert,
                "show_real_order_alert": show_real_order_alert, "new_real_orders": new_real_orders,
                "company_entry": service.entry_route(user),

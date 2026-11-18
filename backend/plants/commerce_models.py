@@ -392,6 +392,40 @@ class CommerceBusinessRFQ(models.Model):
         return f"Business RFQ {self.id}"
 
 
+class CommerceDeliveryCityRate(models.Model):
+    """Staff-maintained, approved delivery charge for an exact city key.
+
+    No merchant prices are seeded. Absent/inactive city means the total cannot
+    be confirmed automatically, not that the delivery is free.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    city_key = models.CharField(max_length=120, unique=True)
+    city_label = models.CharField(max_length=120)
+    fee = models.DecimalField(max_digits=10, decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.00"))])
+    active = models.BooleanField(default=True)
+    revision = models.PositiveIntegerField(default=1)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="plantupia_delivery_city_rates_updated")
+    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("city_label",)
+
+    def clean(self):
+        super().clean()
+        self.city_label = (self.city_label or "").strip()
+        self.city_key = self.city_label.casefold()
+        if len(self.city_label) < 2 or len(self.city_key) > 120:
+            raise ValidationError({"city_label": "Use a city name (2–120 characters)."})
+        if self.fee is None or not self.fee.is_finite() or self.fee < 0:
+            raise ValidationError({"fee": "Delivery fee must be a valid nonnegative amount."})
+
+    def __str__(self):
+        return f"{self.city_label} · EGP {self.fee}"
+
+
 class CommerceOrder(models.Model):
     """Real customer order, first awaiting an exact shipping quote.
 

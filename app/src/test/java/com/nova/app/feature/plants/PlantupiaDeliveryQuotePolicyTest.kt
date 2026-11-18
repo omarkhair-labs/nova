@@ -157,4 +157,51 @@ class PlantupiaDeliveryQuotePolicyTest {
         assertTrue(shopDeliveryFieldIssues(original.copy(street = "New street", pinConfirmed = false))
             .contains("Confirmed map pin"))
     }
+
+    private fun exactPriceReply() = JSONObject()
+        .put("available", true)
+        .put("city", "Cairo")
+        .put("cart_fingerprint", validFingerprint)
+        .put("subtotal", "640.00")
+        .put("shipping_fee", "35.00")
+        .put("final_total", "675.00")
+        .put("currency", "EGP")
+        .put("rate_revision", 2)
+
+    @Test fun directPriceRequiresExactCurrentCityCartAndServerArithmetic() {
+        val price = shopDeliveryExactPrice(exactPriceReply(), draft(), cart())
+        assertNotNull(price)
+        assertEquals("675.00", price!!.total)
+        assertEquals("35.00", price.shippingFee)
+        assertEquals(2, price.rateRevision)
+        assertNull(shopDeliveryExactPrice(exactPriceReply().put("city", "Giza"), draft(), cart()))
+        assertNull(shopDeliveryExactPrice(
+            exactPriceReply().put("cart_fingerprint", "b".repeat(64)), draft(), cart()))
+        assertNull(shopDeliveryExactPrice(
+            exactPriceReply().put("final_total", "665.00"), draft(), cart()))
+        assertNull(shopDeliveryExactPrice(
+            exactPriceReply().put("available", false), draft(), cart()))
+        assertNull(shopDeliveryExactPrice(
+            exactPriceReply().put("rate_revision", 0), draft(), cart()))
+    }
+
+    @Test fun directReceiptIsOnlyRenderedAfterBackendConfirmedExactKnownTotal() {
+        val price = shopDeliveryExactPrice(exactPriceReply(), draft(), cart())!!
+        val direct = response()
+            .put("status", "confirmed")
+            .put("stock_reserved", true)
+            .put("shipping_fee", "35.00")
+            .put("final_total", "675.00")
+        val receipt = shopDeliveryReceiptFromResponse(direct, draft(), cart(), price)
+        assertNotNull(receipt)
+        assertTrue(receipt!!.confirmed)
+        assertEquals("675.00", receipt.finalTotal)
+        assertEquals("35.00", receipt.shippingFee)
+        assertNull(shopDeliveryReceiptFromResponse(direct, draft(), cart()))
+        assertNull(shopDeliveryReceiptFromResponse(
+            direct.put("final_total", "800.00"), draft(), cart(), price))
+        assertNull(shopDeliveryReceiptFromResponse(
+            direct.put("shipping_fee", "80.00").put("final_total", "675.00"),
+            draft(), cart(), price))
+    }
 }

@@ -34,6 +34,46 @@ class ShippingDecisionForm(forms.Form):
         return values
 
 
+class DeliveryCityRateForm(forms.Form):
+    city = forms.CharField(min_length=2, max_length=120)
+    fee = forms.DecimalField(min_value=0, max_value=9999999.99, max_digits=10,
+        decimal_places=2, help_text="Approved EGP delivery amount, not an estimate.")
+    active = forms.BooleanField(required=False)
+
+
+@portal("plants.view_commerceorder", methods=("GET",))
+def delivery_rates(request):
+    from .commerce_models import CommerceDeliveryCityRate
+    return page(request, "commerce_delivery_rates", {
+        "title": "Delivery prices", "section": "commerce_orders",
+        "rates": CommerceDeliveryCityRate.objects.select_related("updated_by")
+            .order_by("city_label"),
+        "can_change_rates": request.user.has_perm("plants.change_commerceorder"),
+    })
+
+
+@portal("plants.change_commerceorder", methods=("POST",))
+def delivery_rate_set(request):
+    from .commerce_delivery_rates import set_city_rate
+    form = DeliveryCityRateForm(request.POST)
+    if form.is_valid():
+        try:
+            rate = set_city_rate(
+                staff=request.user, city=form.cleaned_data["city"],
+                fee=form.cleaned_data["fee"], active=form.cleaned_data["active"],
+            )
+            messages.success(request,
+                f"Delivery price saved for {rate.city_label}. Applies to new orders.")
+        except ValidationError as exc:
+            for error in exc.messages:
+                messages.error(request, error)
+    else:
+        for errors in form.errors.values():
+            for error in errors:
+                messages.error(request, error)
+    return redirect("company:commerce-delivery-rates")
+
+
 @portal("plants.view_commerceorder", methods=("GET",))
 def real_orders(request):
     status = request.GET.get("status", "").strip()

@@ -48,6 +48,11 @@ internal fun PlantupiaDeliveryQuoteJourney(
     onCart: () -> Unit,
     onOrders: () -> Unit,
     onCollection: () -> Unit,
+    exactPrice: ShopDeliveryExactPrice? = null,
+    priceChecked: Boolean = false,
+    priceLoading: Boolean = false,
+    priceError: String? = null,
+    onReloadPrice: () -> Unit = {},
 ) {
     val issues = shopDeliveryFieldIssues(draft)
     val ready = shopDeliveryReady(draft, cart)
@@ -65,8 +70,8 @@ internal fun PlantupiaDeliveryQuoteJourney(
                 style = PlantupiaText.editorialHeading,
             )
             Text(
-                "Choose where we should deliver, then review your selection once. " +
-                    "If the delivery cost needs confirming, the team will follow up before you agree to a total.",
+                "Choose a delivery address and review your items, delivery price and total " +
+                    "before deciding to place the order.",
                 style = PlantupiaText.body,
             )
         }
@@ -78,7 +83,7 @@ internal fun PlantupiaDeliveryQuoteJourney(
                 active = step == "details", modifier = Modifier.weight(1f),
             )
             DeliveryPhase(
-                number = "02", name = "Review request",
+                number = "02", name = "Review & order",
                 active = step == "review", modifier = Modifier.weight(1f),
             )
         }
@@ -132,15 +137,20 @@ internal fun PlantupiaDeliveryQuoteJourney(
                 )
                 Text("${draft.note.length} / 500", style = PlantupiaText.sectionLabel)
             }
-            DeliverySection("BEFORE REVIEW", "Items, not yet a final order") {
+            DeliverySection("BEFORE REVIEW", "Items and delivery") {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Saved items subtotal", style = PlantupiaText.body)
                     Text("EGP " + (cart?.optString("subtotal") ?: "—"),
                         style = PlantupiaText.body, fontWeight = FontWeight.SemiBold)
                 }
                 Text(
-                    "Delivery cost is awaiting confirmation. This will record your request, " +
-                        "not collect payment, guarantee stock or begin delivery.",
+                    when {
+                        exactPrice != null -> "Delivery · EGP " + exactPrice.shippingFee +
+                            " · Total EGP " + exactPrice.total
+                        priceLoading || !priceChecked -> "Checking the delivery price for this city…"
+                        priceError != null -> "Delivery price unavailable; retry before continuing."
+                        else -> "No set delivery fee for this city. The team can review a request."
+                    },
                     style = PlantupiaText.supporting,
                 )
                 if (showErrors && issues.isNotEmpty()) {
@@ -188,8 +198,19 @@ internal fun PlantupiaDeliveryQuoteJourney(
                     Text("EGP " + (cart?.optString("subtotal") ?: "—"),
                         style = PlantupiaText.editorialHeading)
                 }
-                Text("Delivery · To be confirmed. No final total yet.",
-                    style = PlantupiaText.supporting)
+                if (exactPrice != null) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Delivery", style = PlantupiaText.body)
+                        Text("EGP " + exactPrice.shippingFee, style = PlantupiaText.body)
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Total to confirm", style = PlantupiaText.body)
+                        Text("EGP " + exactPrice.total, style = PlantupiaText.editorialHeading)
+                    }
+                } else {
+                    Text("Delivery · To be confirmed. No final total yet.",
+                        style = PlantupiaText.supporting)
+                }
             }
             DeliverySection("02 / WHERE TO GO", "The recipient and chosen pin") {
                 Text(draft.recipient.trim(), style = PlantupiaText.body, fontWeight = FontWeight.SemiBold)
@@ -221,13 +242,27 @@ internal fun PlantupiaDeliveryQuoteJourney(
                 ) { Text("Edit address or preference") }
             }
 
-            DeliverySection("03 / WHAT HAPPENS NEXT", "Send your request") {
+            DeliverySection("03 / WHAT HAPPENS NEXT",
+                if (exactPrice != null) "Place your order" else "Review delivery with the team") {
                 Text(
-                    "We'll save these items and your delivery details as a request. " +
-                        "Plantupia will confirm the delivery cost before asking you to accept a final total. " +
-                        "Nothing has been charged or reserved yet.",
+                    if (exactPrice != null)
+                        "You are placing an order at the total shown above. Plantupia will " +
+                            "prepare the order after receiving it. Payment is handled separately."
+                    else
+                        "There is no approved delivery fee for this city. If you send a request, " +
+                            "Plantupia will contact you with the final total before any confirmation.",
                     style = PlantupiaText.body,
                 )
+                if (priceLoading || !priceChecked) {
+                    Text("Checking the latest delivery price…", style = PlantupiaText.supporting)
+                }
+                if (priceError != null) {
+                    Text(priceError, color = PlantupiaColors.errorText,
+                        style = PlantupiaText.supporting)
+                    TextButton(onClick = onReloadPrice, enabled = !busy) {
+                        Text("Retry delivery price check", color = PlantupiaColors.forest)
+                    }
+                }
                 if (error != null) {
                     Text(
                         error, color = PlantupiaColors.errorText,
@@ -248,7 +283,9 @@ internal fun PlantupiaDeliveryQuoteJourney(
                     )
                 }
                 Button(
-                    onClick = onSubmit, enabled = ready && !busy && error == null,
+                    onClick = onSubmit,
+                    enabled = ready && !busy && error == null && priceChecked &&
+                        !priceLoading && priceError == null,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = PlantupiaColors.forest),
                 ) {
@@ -257,7 +294,13 @@ internal fun PlantupiaDeliveryQuoteJourney(
                             color = PlantupiaColors.paper)
                         Spacer(Modifier.width(9.dp))
                     }
-                    Text(if (busy) "Sending your request…" else "Send order request")
+                    Text(
+                        when {
+                            busy -> if (exactPrice != null) "Placing your order…" else "Sending your request…"
+                            exactPrice != null -> "Place Order"
+                            else -> "Request delivery confirmation"
+                        },
+                    )
                 }
                 TextButton(onClick = onCart, enabled = !busy) {
                     Text("← Review saved cart", color = PlantupiaColors.forest)
@@ -339,11 +382,17 @@ private fun DeliveryQuoteReceived(
         Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
         verticalArrangement = Arrangement.spacedBy(19.dp),
     ) {
-        Text("PLANTUPIA  /  YOUR REQUEST", style = PlantupiaText.sectionLabel)
-        Text("We've received your request.", style = PlantupiaText.editorialHeading)
+        Text(if (receipt.confirmed) "PLANTUPIA  /  ORDER CONFIRMED"
+             else "PLANTUPIA  /  YOUR REQUEST", style = PlantupiaText.sectionLabel)
+        Text(if (receipt.confirmed) "Your order is confirmed."
+             else "We've received your request.", style = PlantupiaText.editorialHeading)
         Text(
-            "Your selection and delivery details are saved. Plantupia will review the " +
-                "delivery cost before you decide whether to confirm the final total.",
+            if (receipt.confirmed)
+                "Your items have been ordered at the displayed total. The Plantupia " +
+                    "team can now prepare them. Follow the order for real updates."
+            else
+                "Your selection and delivery details are saved. Plantupia will review " +
+                    "delivery cost before you decide whether to confirm the final total.",
             style = PlantupiaText.body,
         )
 
@@ -386,7 +435,15 @@ private fun DeliveryQuoteReceived(
                     Text("EGP " + receipt.productSubtotal, style = PlantupiaText.body,
                         fontWeight = FontWeight.SemiBold)
                 }
-                Text("Delivery · To be confirmed", style = PlantupiaText.supporting)
+                Text(
+                    if (receipt.confirmed) "Delivery · EGP " + receipt.shippingFee
+                    else "Delivery · To be confirmed",
+                    style = PlantupiaText.supporting,
+                )
+                if (receipt.confirmed) {
+                    Text("Total · EGP " + receipt.finalTotal, style = PlantupiaText.body,
+                        fontWeight = FontWeight.SemiBold)
+                }
                 Text("To · " + receipt.recipient + ", " + receipt.city,
                     style = PlantupiaText.supporting)
             }
@@ -394,19 +451,26 @@ private fun DeliveryQuoteReceived(
 
         Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
             Text("WHAT HAPPENS NEXT", style = PlantupiaText.sectionLabel)
-            Text("01  Your request has been recorded.", style = PlantupiaText.body)
-            Text("02  The team checks delivery and availability.", style = PlantupiaText.body)
-            Text("03  You review any final price before confirming.", style = PlantupiaText.body)
-            Text(
-                "No payment, stock reservation or shipment has been recorded.",
-                style = PlantupiaText.supporting,
-            )
+            if (receipt.confirmed) {
+                Text("01  Your order is confirmed.", style = PlantupiaText.body)
+                Text("02  Plantupia prepares the items.", style = PlantupiaText.body)
+                Text("03  Follow the recorded delivery updates.", style = PlantupiaText.body)
+                Text("No payment or shipment has been recorded yet.",
+                    style = PlantupiaText.supporting)
+            } else {
+                Text("01  Your request has been recorded.", style = PlantupiaText.body)
+                Text("02  The team checks delivery and availability.", style = PlantupiaText.body)
+                Text("03  You review any final price before confirming.", style = PlantupiaText.body)
+                Text("No payment, stock reservation or shipment has been recorded.",
+                    style = PlantupiaText.supporting)
+            }
         }
         Button(
             onClick = onOrders,
             modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
             colors = ButtonDefaults.buttonColors(containerColor = PlantupiaColors.forest),
-        ) { Text("See your request & updates  ↗") }
+        ) { Text(if (receipt.confirmed) "Track your order  ↗"
+             else "See your request & updates  ↗") }
         OutlinedButton(
             onClick = onCollection,
             modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
