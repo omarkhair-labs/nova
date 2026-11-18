@@ -13,6 +13,8 @@
     {% if perms.plants.view_installationbatch %}
       <a class="button primary" href="{% url 'company:installation' prepared_installation.pk %}">Open linked project →</a>
     {% endif %}
+  {% elif record.status == "accepted" and record.kind == "installation" and linked_project_exists %}
+    <p class="fine">An existing installation draft is assigned to a different authorized operator. No duplicate project can be created.</p>
   {% elif record.status == "accepted" and record.kind == "installation" %}
     <p class="fine">Draft project creation is an explicit authorized staff action below. No physical plant is added automatically.</p>
   {% endif %}
@@ -47,6 +49,8 @@
       {% if record.kind == "installation" %}
         {% if prepared_installation %}
           <a class="button primary" href="{% url 'company:installation' prepared_installation.pk %}">Open linked draft installation →</a>
+        {% elif linked_project_exists %}
+          <p class="fine">A linked draft already exists; contact the assigned operator instead of creating another.</p>
         {% elif perms.plants.add_installationbatch and perms.plants.add_space %}
           <form method="post" action="{% url 'company:business-inquiry-installation' record.pk %}">
             {% csrf_token %}
