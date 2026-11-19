@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -34,25 +33,20 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.nova.app.app.appContainer
 import com.nova.app.feature.orbit.domain.model.OrbitEvent
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
-import com.nova.app.ui.components.NovaCard
 import com.nova.app.ui.components.NovaEmptyState
 import com.nova.app.ui.components.NovaInlineLoading
 import com.nova.app.ui.components.NovaInlineRetry
 import com.nova.app.ui.components.NovaLoadingState
 import com.nova.app.ui.components.NovaMediaImage
-import com.nova.app.ui.components.NovaOrbitRing
 import com.nova.app.ui.components.NovaTab
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
@@ -84,11 +78,10 @@ private enum class CircleSection(val label: String) {
     PeopleActivity("People & moments"),
 }
 
-private enum class OrbitFilter(val label: String) {
+private enum class CircleFilter(val label: String) {
     All("All"),
-    Posts("Posts"),
+    Moments("Shared moments"),
     People("People"),
-    Pulse("Pulse"),
 }
 
 
@@ -114,8 +107,7 @@ fun OrbitScreen(
     val owner = remember(repository, scope) { OrbitStateOwner(repository, scope) }
     val state = owner.state
     var selectedSection by rememberSaveable { mutableStateOf(CircleSection.PlantQuestions) }
-    var selectedFilter by rememberSaveable { mutableStateOf(OrbitFilter.All) }
-    var selectedUsername by remember { mutableStateOf<String?>(null) }
+    var selectedFilter by rememberSaveable { mutableStateOf(CircleFilter.All) }
 
     LaunchedEffect(owner, selectedSection) {
         if (selectedSection == CircleSection.PeopleActivity) owner.load(showSpinner = true)
@@ -129,7 +121,7 @@ fun OrbitScreen(
     }
 
     Scaffold(
-        containerColor = NovaBackground,
+        containerColor = PlantupiaColors.cream,
         bottomBar = {
             NovaBottomBar(
                 selected = NovaTab.Orbit,
@@ -158,8 +150,8 @@ fun OrbitScreen(
                     com.nova.app.feature.plants.PlantupiaAccountHeader(displayName, username, avatarUrl, userId, avatarVariant, onProfileClick)
                     PlantupiaCircleEditorialIntro()
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        androidx.compose.material3.TextButton(onClick = onSharedMoments, modifier = Modifier.weight(1f)) { Text("Shared moments") }
-                        androidx.compose.material3.TextButton(onClick = onDiscoveryClick, modifier = Modifier.weight(1f)) { Text("Explore people") }
+                        CircleDestinationLink("Shared moments", "What people chose to publish", onSharedMoments, Modifier.weight(1f))
+                        CircleDestinationLink("People", "Find and follow intentionally", onDiscoveryClick, Modifier.weight(1f))
                     }
                 }
             }
@@ -174,7 +166,7 @@ fun OrbitScreen(
                         Surface(
                             onClick = { selectedSection = section },
                             modifier = Modifier.weight(1f),
-                            shape = CircleShape,
+                            shape = com.nova.app.feature.plants.PlantupiaShapes.badge,
                             color = if (isSelected) PlantupiaColors.forest else PlantupiaColors.paper,
                             border = BorderStroke(
                                 1.dp,
@@ -184,8 +176,8 @@ fun OrbitScreen(
                             Text(
                                 text = section.label,
                                 modifier = Modifier.padding(horizontal = NovaSpacing.sm, vertical = 12.dp),
-                                color = if (isSelected) PlantupiaColors.paper else PlantupiaColors.forest,
-                                style = NovaType.meta.copy(fontWeight = FontWeight.SemiBold),
+                                color = if (isSelected) PlantupiaColors.cream else PlantupiaColors.forest,
+                                style = com.nova.app.feature.plants.PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
                             )
                         }
                     }
@@ -203,7 +195,7 @@ fun OrbitScreen(
                         },
                         modifier = Modifier.fillMaxWidth(),
                         color = PlantupiaColors.softSage,
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+                        shape = com.nova.app.feature.plants.PlantupiaShapes.card,
                     ) {
                         Row(
                             modifier = Modifier.padding(NovaSpacing.md),
@@ -211,14 +203,14 @@ fun OrbitScreen(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                Text("ASK FROM A PLANT", color = NovaAccent, style = NovaType.micro)
-                                Text("Ask the Circle", color = NovaInk, style = NovaType.label)
-                                Text("Choose a plant, then review what you share.", color = NovaMuted, style = NovaType.meta)
+                                Text("ASK FROM A PLANT", style = com.nova.app.feature.plants.PlantupiaText.sectionLabel)
+                                Text("Ask the Circle", style = com.nova.app.feature.plants.PlantupiaText.editorialHeading)
+                                Text("Choose a plant, then review exactly what becomes public.", style = com.nova.app.feature.plants.PlantupiaText.supporting)
                             }
                             NovaIcon(
                                 asset = NovaIconAsset.Create,
                                 contentDescription = null,
-                                tint = NovaAccent,
+                                tint = PlantupiaColors.forest,
                                 modifier = Modifier.size(24.dp),
                             )
                         }
@@ -241,49 +233,37 @@ fun OrbitScreen(
             }
             item {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm)) {
-                    items(OrbitFilter.entries) { filter ->
+                    items(CircleFilter.entries) { filter ->
                         val selected = filter == selectedFilter
                         Surface(
                             onClick = { selectedFilter = filter },
                             shape = CircleShape,
-                            color = if (selected) NovaAccent else NovaSurface,
+                            color = if (selected) PlantupiaColors.forest else PlantupiaColors.paper,
                             border = BorderStroke(
                                 1.dp,
-                                if (selected) NovaAccent else NovaBorder,
+                                if (selected) PlantupiaColors.forest else PlantupiaColors.border,
                             ),
                         ) {
                             Text(
                                 text = filter.label,
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                                color = if (selected) NovaSurface else NovaMuted,
-                                style = NovaType.meta.copy(fontWeight = FontWeight.SemiBold),
+                                color = if (selected) PlantupiaColors.cream else PlantupiaColors.forestText,
+                                style = com.nova.app.feature.plants.PlantupiaText.supporting.copy(fontWeight = FontWeight.SemiBold),
                             )
                         }
                     }
                 }
             }
 
-            if (state.events.isNotEmpty()) {
-                item {
-                    OrbitConstellation(
-                        displayName = displayName,
-                        username = username,
-                        avatarUrl = avatarUrl,
-                        events = state.events,
-                        onPersonClick = { selectedUsername = it },
-                    )
-                }
-            }
-
             when {
                 state.loading && state.events.isEmpty() -> item {
-                    NovaLoadingState(message = "Waking your orbit…")
+                    NovaLoadingState(message = "Loading your Circle...")
                 }
 
                 state.events.isEmpty() -> item {
                     NovaEmptyState(
                         title = "Your circle is quiet",
-                        message = "Discover people and their real activity will gather here.",
+                        message = "People you follow and activity they share will appear here.",
                         actionLabel = "Discover people",
                         onAction = onDiscoveryClick,
                     )
@@ -291,13 +271,13 @@ fun OrbitScreen(
 
                 filteredEvents.isEmpty() && state.nextCursor != null -> item {
                     LaunchedEffect(selectedFilter, state.nextCursor) { owner.loadMore() }
-                    NovaInlineLoading(message = "Looking deeper in your orbit…")
+                    NovaInlineLoading(message = "Loading more Circle activity...")
                 }
 
                 filteredEvents.isEmpty() -> item {
                     NovaEmptyState(
                         title = "Nothing in ${selectedFilter.label.lowercase()} yet",
-                        message = "Your relationship activity will gather here as it happens.",
+                        message = "This view will fill as real Circle activity happens.",
                     )
                 }
 
@@ -308,16 +288,16 @@ fun OrbitScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("People in your circle", color = NovaInk, style = NovaType.sectionTitle)
+                            Text("Circle activity", style = com.nova.app.feature.plants.PlantupiaText.editorialHeading)
                             Text(
-                                if (state.loading) "Refreshing…" else "${filteredEvents.size} moments",
+                                if (state.loading) "Refreshing..." else "${filteredEvents.size} updates",
                                 color = NovaMuted,
                                 style = NovaType.micro,
                             )
                         }
                     }
                     items(filteredEvents, key = { it.id }) { event ->
-                        OrbitActivityRow(
+                        CircleActivityRow(
                             event = event,
                             onActorClick = { onPersonClick(event.actor.username) },
                             onClick = {
@@ -332,9 +312,9 @@ fun OrbitScreen(
                         )
                     }
                     if (state.nextCursor != null) {
-                        item(key = "orbit-next-${state.nextCursor}") {
+                        item(key = "circle-next-${state.nextCursor}") {
                             LaunchedEffect(state.nextCursor) { owner.loadMore() }
-                            NovaInlineLoading(message = "Loading more orbit activity…")
+                            NovaInlineLoading(message = "Loading more Circle activity...")
                         }
                     }
                 }
@@ -355,166 +335,33 @@ fun OrbitScreen(
         }
     }
 
-    selectedUsername?.let { selected ->
-        val personEvents = state.events.filter { it.actor.username == selected }
-        personEvents.firstOrNull()?.actor?.let { actor ->
-            OrbitPersonDetailDialog(
-                name = actor.name.ifBlank { actor.username },
-                username = actor.username,
-                avatarUrl = actor.avatarUrl,
-                events = personEvents,
-                onDismiss = { selectedUsername = null },
-                onOpenProfile = {
-                    selectedUsername = null
-                    onPersonClick(actor.username)
-                },
-            )
-        }
-    }
 }
 
 
 @Composable
-private fun OrbitPersonDetailDialog(
-    name: String,
-    username: String,
-    avatarUrl: String,
-    events: List<OrbitEvent>,
-    onDismiss: () -> Unit,
-    onOpenProfile: () -> Unit,
-) {
-    val night = Color(0xFF080B17)
-    val panel = Color(0xFF12172A)
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize().background(night).statusBarsPadding().padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Surface(onClick = onDismiss, shape = CircleShape, color = panel) {
-                    NovaIcon(
-                        asset = NovaIconAsset.Back,
-                        contentDescription = "Back",
-                        modifier = Modifier.padding(10.dp).size(22.dp),
-                        tint = Color.White,
-                    )
-                }
-                Spacer(modifier = Modifier.weight(1f))
-                Text("Circle Activity", color = Color.White, style = NovaType.sectionTitle)
-                Spacer(modifier = Modifier.weight(1f))
-                Spacer(modifier = Modifier.size(42.dp))
-            }
-            NovaOrbitRing(modifier = Modifier.size(210.dp), rings = 4, showLivePoint = events.any { it.pulse != null }) {
-                NovaAvatar(source = avatarUrl, fallbackText = name, size = 92.dp)
-            }
-            Text(name, color = Color.White, style = NovaType.pageTitle)
-            Text("@$username · ${events.size} shared moments", color = Color(0xFFB8C0D8), style = NovaType.bodyCompact)
-            Surface(
-                onClick = onOpenProfile,
-                modifier = Modifier.fillMaxWidth(),
-                shape = androidx.compose.material3.MaterialTheme.shapes.medium,
-                color = NovaAccent,
-            ) {
-                Text(
-                    "Open profile · message or call",
-                    modifier = Modifier.padding(13.dp),
-                    color = Color.White,
-                    style = NovaType.label,
-                )
-            }
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                items(events, key = { it.id }) { event ->
-                    Surface(modifier = Modifier.fillMaxWidth(), shape = androidx.compose.material3.MaterialTheme.shapes.medium, color = panel) {
-                        Column(Modifier.padding(14.dp)) {
-                            Text(orbitActionText(event), color = Color.White, style = NovaType.bodyCompact)
-                            orbitContextText(event)?.let { Text(it, color = Color(0xFF9AA5C4), style = NovaType.micro) }
-                            if (event.pulse != null) {
-                                Text("LIVE IN YOUR ORBIT", color = Color(0xFF22D3EE), style = NovaType.badge)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-
-@Composable
-private fun OrbitConstellation(
-    displayName: String,
-    username: String,
-    avatarUrl: String,
-    events: List<OrbitEvent>,
-    onPersonClick: (String) -> Unit,
-) {
-    val people = events.map { it.actor }.distinctBy { it.id }.take(4)
-    NovaCard(
-        modifier = Modifier.fillMaxWidth(),
-        containerColor = NovaAccentSoft.copy(alpha = 0.42f),
-        borderColor = NovaAccent.copy(alpha = 0.18f),
-    ) {
-        Box(
-            modifier = Modifier.fillMaxWidth().height(238.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            NovaOrbitRing(
-                modifier = Modifier.size(218.dp),
-                rings = 4,
-                showLivePoint = events.any { it.pulse != null },
-            ) {
-                NovaAvatar(
-                    source = avatarUrl,
-                    fallbackText = displayName.ifBlank { username },
-                    size = 74.dp,
-                )
-            }
-            people.getOrNull(0)?.let { person ->
-                OrbitPersonNode(person.name, person.username, person.avatarUrl, onPersonClick, Modifier.align(Alignment.TopCenter).offset(y = 17.dp))
-            }
-            people.getOrNull(1)?.let { person ->
-                OrbitPersonNode(person.name, person.username, person.avatarUrl, onPersonClick, Modifier.align(Alignment.CenterEnd).offset(x = (-17).dp))
-            }
-            people.getOrNull(2)?.let { person ->
-                OrbitPersonNode(person.name, person.username, person.avatarUrl, onPersonClick, Modifier.align(Alignment.BottomCenter).offset(y = (-17).dp))
-            }
-            people.getOrNull(3)?.let { person ->
-                OrbitPersonNode(person.name, person.username, person.avatarUrl, onPersonClick, Modifier.align(Alignment.CenterStart).offset(x = 17.dp))
-            }
-        }
-    }
-}
-
-
-@Composable
-private fun OrbitPersonNode(
-    name: String,
-    username: String,
-    avatarUrl: String,
-    onPersonClick: (String) -> Unit,
-    modifier: Modifier,
+private fun CircleDestinationLink(
+    title: String,
+    body: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Surface(
-        onClick = { onPersonClick(username) },
-        modifier = modifier.size(52.dp),
-        shape = CircleShape,
-        color = NovaSurface,
-        border = BorderStroke(2.dp, NovaAccent.copy(alpha = 0.75f)),
+        onClick = onClick,
+        modifier = modifier,
+        color = PlantupiaColors.paper,
+        border = BorderStroke(1.dp, PlantupiaColors.border),
+        shape = com.nova.app.feature.plants.PlantupiaShapes.inset,
     ) {
-        NovaAvatar(source = avatarUrl, fallbackText = name.ifBlank { username }, size = 48.dp)
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(title, style = com.nova.app.feature.plants.PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
+            Text(body, style = com.nova.app.feature.plants.PlantupiaText.supporting)
+        }
     }
 }
 
 
 @Composable
-private fun OrbitActivityRow(
+private fun CircleActivityRow(
     event: OrbitEvent,
     onActorClick: () -> Unit,
     onClick: () -> Unit,
@@ -536,14 +383,14 @@ private fun OrbitActivityRow(
                 Surface(
                     modifier = Modifier.align(Alignment.BottomEnd).size(20.dp),
                     shape = CircleShape,
-                    color = NovaAccentSoft,
-                    border = BorderStroke(1.dp, NovaBackground),
+                    color = PlantupiaColors.softSage,
+                    border = BorderStroke(1.dp, PlantupiaColors.cream),
                 ) {
                     NovaIcon(
                         asset = orbitIcon(event.kind),
                         contentDescription = null,
                         modifier = Modifier.padding(4.dp),
-                        tint = NovaAccent,
+                        tint = PlantupiaColors.forest,
                     )
                 }
             }
@@ -555,28 +402,28 @@ private fun OrbitActivityRow(
                 ) {
                     Text(
                         event.actor.name.ifBlank { event.actor.username },
-                        color = NovaInk,
-                        style = NovaType.label,
+                        color = PlantupiaColors.forestText,
+                        style = com.nova.app.feature.plants.PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
                     )
                     Text(
                         orbitRelativeTime(event.createdAt),
-                        color = NovaMuted,
-                        style = NovaType.badge,
+                        color = PlantupiaColors.secondaryText,
+                        style = com.nova.app.feature.plants.PlantupiaText.sectionLabel,
                     )
                 }
                 Text(
                     orbitActionText(event),
-                    color = NovaMuted,
-                    style = NovaType.bodyCompact,
+                    color = PlantupiaColors.secondaryText,
+                    style = com.nova.app.feature.plants.PlantupiaText.supporting,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 orbitContextText(event)?.let { context ->
                     Spacer(modifier = Modifier.height(NovaSpacing.xs))
-                    Text(context, color = NovaMuted, style = NovaType.micro, maxLines = 1)
+                    Text(context, color = PlantupiaColors.secondaryText, style = com.nova.app.feature.plants.PlantupiaText.supporting, maxLines = 1)
                 }
             }
             val preview = event.post?.previewUrl?.takeIf(String::isNotBlank)
@@ -592,20 +439,19 @@ private fun OrbitActivityRow(
                     asset = NovaIconAsset.Back,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp).graphicsLayer { scaleX = -1f },
-                    tint = NovaMuted,
+                    tint = PlantupiaColors.secondaryText,
                 )
             }
         }
-        HorizontalDivider(color = NovaBorder.copy(alpha = 0.72f))
+        HorizontalDivider(color = PlantupiaColors.border.copy(alpha = 0.82f))
     }
 }
 
 
-private fun OrbitFilter.accepts(event: OrbitEvent): Boolean = when (this) {
-    OrbitFilter.All -> true
-    OrbitFilter.Posts -> event.kind in setOf("like", "comment", "repost")
-    OrbitFilter.People -> event.kind == "follow"
-    OrbitFilter.Pulse -> event.kind == "pulse_reply" || event.pulse != null
+private fun CircleFilter.accepts(event: OrbitEvent): Boolean = when (this) {
+    CircleFilter.All -> true
+    CircleFilter.Moments -> event.post != null || event.pulse != null || event.kind in setOf("like", "comment", "repost", "pulse_reply")
+    CircleFilter.People -> event.kind == "follow"
 }
 
 

@@ -198,21 +198,21 @@ private fun OrbitPersonRailItem(
 
 
 internal fun orbitActionText(event: OrbitEvent): String = when (event.kind) {
-    "like" -> "liked a post"
+    "like" -> "liked a shared moment"
     "comment" -> "joined a conversation"
-    "repost" -> "moved a post forward"
+    "repost" -> "reshared a moment"
     "follow" -> event.person?.let { person ->
         "followed ${person.name.ifBlank { "@${person.username}" }}"
     } ?: "followed someone"
-    "pulse_reply" -> "replied with a live moment"
-    else -> "did something in your orbit"
+    "pulse_reply" -> "replied to a short update"
+    else -> "shared activity"
 }
 
 
 internal fun orbitContextText(event: OrbitEvent): String? = when (event.kind) {
-    "comment" -> event.commentPreview.takeIf { it.isNotBlank() }?.let { "“$it”" }
+    "comment" -> event.commentPreview.takeIf { it.isNotBlank() }?.let { "\"$it\"" }
     "like", "repost" -> event.post?.author?.let {
-        "on ${it.name.ifBlank { "@${it.username}" }}’s post"
+        "on ${it.name.ifBlank { "@${it.username}" }}'s shared moment"
     }
     "pulse_reply" -> event.person?.let {
         "to ${it.name.ifBlank { "@${it.username}" }}"
@@ -223,12 +223,12 @@ internal fun orbitContextText(event: OrbitEvent): String? = when (event.kind) {
 
 internal fun orbitIcon(kind: String): NovaIconAsset = when (kind) {
     "like" -> NovaIconAsset.LikeFilled
-    "comment" -> NovaIconAsset.Comment
+    "comment", "pulse_reply" -> NovaIconAsset.Comment
     "repost" -> NovaIconAsset.Repost
-    "follow" -> NovaIconAsset.Create
-    "pulse_reply" -> NovaIconAsset.Orbit
-    else -> NovaIconAsset.Orbit
+    "follow" -> NovaIconAsset.Profile
+    else -> NovaIconAsset.Notifications
 }
+
 
 
 @Composable
