@@ -61,7 +61,7 @@ export default function SpaceExplorer({ privateReview = false }: { privateReview
           </div>
           <figure className="sx-figure">
             <div className="sx-frame" data-residential-study={privateReview && active === 0} data-hospitality-study={privateReview && active === 2} data-industry-study={privateReview && active === 3} data-retail-study={privateReview && active === 4} aria-hidden="true">
-              {photos.map((item,i)=><div key={item.source} className={"sx-layer"+(active===i?" sx-current":"")}>
+              {photos.map((item,i)=><div key={keys[i]} className={"sx-layer"+(active===i?" sx-current":"")}>
                 <img src={failed.includes(i)?item.fallback:item.src} alt="" loading={i===order[0]?"eager":"lazy"} fetchPriority={i===order[0]?"high":"auto"}
                   onError={()=>setFailed(previous=>previous.includes(i)?previous:[...previous,i])}/>
               </div>)}

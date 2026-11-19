@@ -168,3 +168,11 @@ Code verification:
 - TypeScript passes after the legacy component deletion.
 - git diff --check passes.
 - The local visual review uses the same private-review asset source as the protected Preview workflow.
+
+## Final development-console polish
+
+A visual mobile review exposed one Next.js development warning in Spaces: every private image layer had inherited the same source string as its React key. The layer key now uses the stable environment key, preserving identity across selection changes.
+
+The browser also requested `/favicon.ico` because the app had no icon metadata asset. An `app/icon.svg` was added using the existing circular `◕` wordmark language and the established dark-green / ivory palette rather than introducing a new brand symbol.
+
+After both fixes, a fresh hydrated Spaces session was inspected for console warnings/errors, page errors and HTTP responses >= 400; the captured issue set was empty.
