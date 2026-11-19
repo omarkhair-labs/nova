@@ -1,10 +1,10 @@
-> **CURRENT STATUS / 2026-11-17:** This README contains the original iterative website blueprint and historical implementation notes. For current, source-verified full-product state, release blockers and exact commit references read [the integrated QA acceptance audit](../../docs/PLANTUPIA_INTEGRATED_QA_ACCEPTANCE_AUDIT_2026-11-17.md). The canonical preview is **https://plantupia-website-qa.vercel.app**. The six chapters are live design previews, and /start-a-space now submits to the configured private Company inbox, rather than only copying a draft. Actual browser/device sign-off, authorized media and production approval are still outstanding. Do not mistake older historical statements below for current functionality.
+> **CURRENT STATUS / 2026-11-19:** The refined source-led website is now released to Vercel Production at **https://plantupia-public-preview.vercel.app**. The exact Production deployment was staged, tested and promoted without rebuilding; release evidence, rollback details and current domain status are recorded in [PRODUCTION_RELEASE_2026-11-19.md](./PRODUCTION_RELEASE_2026-11-19.md). **https://plantupia-website-qa.vercel.app** remains an authenticated QA alias. No custom Plantupia domain is attached yet. The blueprint and implementation notes below are historical context and should not be read as the current release state.
 
 ---
 
 # Plantupia Creative Website — Whole-Site Blueprint + Chapter Threshold / Slice 02
 
-**Status:** English-only, desktop-led, connected design preview. **Not** the official Plantupia website or a production release.
+**Historical blueprint status:** this section began as an English-only, desktop-led design preview. The current Vercel Production release is documented above; custom-domain migration remains separate.
 
 ## Website experience blueprint
 

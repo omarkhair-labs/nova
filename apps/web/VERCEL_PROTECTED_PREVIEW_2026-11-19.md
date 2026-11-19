@@ -185,6 +185,6 @@ Earlier unsafe intermediate deployments that exposed live enquiry conditions had
 - `dpl_3MCCbgnBqqYagSZp3DTuWANSELdy`
 - `dpl_EG6gswjzX7mLw9CWEtT4S7kFARdC`
 
-## Release gate
+## Release transition
 
-This deployment is for authenticated review only. Publication permission for supplied proposal/catalogue imagery remains a release gate before any Production publication.
+This document records the authenticated review deployment history. The final curated experience subsequently passed staged-Production acceptance and was promoted to Production on 2026-11-19. Canonical release evidence is now in `PRODUCTION_RELEASE_2026-11-19.md`.

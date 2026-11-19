@@ -143,7 +143,7 @@ The removal is architectural cleanup, not a feature reduction: current routes us
 - no repeated generic chapter ending where the page already resolves itself;
 - no duplicate CTA to the same destination in the same flow;
 - every retained interaction has a written reason above;
-- Production remains untouched until publication and imagery gates are explicitly cleared.
+- This criterion described the protected-review phase. Production was later authorized, staged, verified and promoted; see `PRODUCTION_RELEASE_2026-11-19.md`.
 
 ## Verified result
 
