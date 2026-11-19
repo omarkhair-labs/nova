@@ -35,7 +35,7 @@ data class NotificationsUiState(
 
 sealed interface NotificationOpenTarget {
     data class Team(val ticketId: String, val plantId: String) : NotificationOpenTarget
-    data class QaOrder(val orderId: String) : NotificationOpenTarget
+    data class Order(val orderId: String) : NotificationOpenTarget
     data object Unavailable : NotificationOpenTarget
     data class Person(val username: String) : NotificationOpenTarget
     data class Post(val postId: Long) : NotificationOpenTarget
@@ -261,7 +261,7 @@ class NotificationsStateOwner(
             "plant_team" -> if (notification.plantupiaTicketId != null && notification.plantupiaPlantId != null)
                 NotificationOpenTarget.Team(notification.plantupiaTicketId, notification.plantupiaPlantId)
                 else NotificationOpenTarget.Unavailable
-            "plant_order" -> notification.plantupiaOrderId?.let(NotificationOpenTarget::QaOrder) ?: NotificationOpenTarget.Unavailable
+            "plant_order" -> notification.plantupiaOrderId?.let(NotificationOpenTarget::Order) ?: NotificationOpenTarget.Unavailable
             "follow" -> NotificationOpenTarget.Person(notification.actor.username)
             "like", "comment", "comment_reply" -> {
                 notification.postId?.let(NotificationOpenTarget::Post)

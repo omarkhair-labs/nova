@@ -163,8 +163,8 @@ class PlantupiaExperienceInstrumentedTest {
     @Test fun notificationCategoriesAndCareRemainPrivate() {
         compose.waitUntil(30_000) { compose.onAllNodes(hasContentDescription("Notifications")).fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithContentDescription("Notifications").performClick()
-        node("Care, team replies, QA orders and your Circle.").assertExists()
-        click("Care"); node("Your scheduled checks").assertExists(); capture("11-notifications-care")
+        node("Care dates, team replies, orders and Circle activity.", true).assertExists()
+        click("Care"); node("Planned and recorded stay distinct").assertExists(); capture("11-notifications-care")
         click("Team"); capture("12-notifications-team")
         click("Orders"); capture("13-notifications-orders")
         click("Circle"); capture("14-notifications-circle")
@@ -215,7 +215,7 @@ class PlantupiaExperienceInstrumentedTest {
     @Test fun actualOrderNoticeOpensOwnPersistedOrder() {
         compose.onNodeWithContentDescription("Notifications").performClick()
         click("Orders")
-        click("prepared a separate QA order draft", true)
+        click("updated your order", true)
         node("Draft prepared · awaiting review", true).assertExists()
         node("charged: no", true).assertExists(); capture("29-order-notice-open")
     }
