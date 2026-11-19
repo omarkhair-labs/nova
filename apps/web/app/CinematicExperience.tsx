@@ -4,7 +4,6 @@ import { privateSceneOverrides } from "./arrival-private-scenes";
 import "./study/scene/scene.css";
 import "./arrival-photo-direction.css";
 import SiteIndex from "./SiteIndex";
-import ChapterThreshold from "./ChapterThreshold";
 import WorldThreshold from "./WorldThreshold";
 import { CompanyIntroduction } from "./CompanyStory";
 import ShopBridge from "./ShopBridge";
@@ -84,6 +83,6 @@ export default function SceneStudy({ privateReview = false }: { privateReview?: 
       </main>
     </section>
     <section className="ps-fieldnotes" id="scene-notes"><details><summary>Three photographic studies <span aria-hidden="true">+</span></summary><p>{privateReview ? "Independent studies from supplied Plantupia proposals and catalogue. Not evidence of completed installation, before-and-after or growth. Generated concept images are used if a source image is unavailable." : "Independent editorial references, not before-and-after images or completed Plantupia projects. Images: DAIPI, Alpha En and mingche lee via Pexels. Generated concept images are used if a photograph is unavailable."}</p><h2>{scene.label}</h2><p>{scene.detail}</p><div className="ps-note-grid">{scene.markerLabels.map((label,i)=><article key={label}><h3>{label}</h3><p>{scene.markerDescriptions[i]}</p></article>)}</div></details></section>
-    {privateReview&&<HomeVisualField/>}<WorldThreshold privateReview={privateReview}/><CompanyIntroduction privateReview={privateReview}/><ShopBridge privateReview={privateReview}/><ChapterThreshold from="experience" privateReview={privateReview}/>
+    {privateReview&&<HomeVisualField/>}<WorldThreshold privateReview={privateReview}/><CompanyIntroduction privateReview={privateReview}/><ShopBridge privateReview={privateReview}/>
   </div>;
 }

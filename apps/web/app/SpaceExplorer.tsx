@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
 import SiteIndex from "./SiteIndex";
-import ChapterThreshold from "./ChapterThreshold";
 import { spaces, editorialSpaces, spacePrompts } from "./space-contexts";
 import { projects } from "./project-archive-data";
 import "./space-explorer.css";
@@ -50,7 +49,7 @@ export default function SpaceExplorer({ privateReview = false }: { privateReview
       </header>
       <main id="sx-main">
         <section className="sx-exhibit" aria-label="Explore living environments">
-          <div className="sx-intro"><div><p className="sx-kicker">02 / SPACES</p><h1>Every space <em>has its own life.</em></h1></div><p>{privateReview ? "Biophilic design for hospitality, commercial destinations and workplaces. Explore the other environments where living material can belong." : "From a quiet home to the scale of a factory. Nature can belong wherever people build."}</p></div>
+          <div className="sx-intro"><div><p className="sx-kicker">02 / SPACES</p><h1>Every space <em>has its own life.</em></h1></div><p>{privateReview ? "Hospitality, commercial destinations and workplaces are the current business focus. Other environments remain part of the practice." : "From a quiet home to the scale of a factory. Nature can belong wherever people build."}</p></div>
           <div className="sx-environment-index" data-commercial-focus={privateReview}>
             {privateReview && <p className="sx-index-label">PRIMARY SECTORS</p>}
             <div className="sx-picker" role="group" aria-label={privateReview ? "Primary commercial sectors" : "Choose an environment"}>
@@ -84,7 +83,7 @@ export default function SpaceExplorer({ privateReview = false }: { privateReview
           {privateReview && active === 2 && <p className="hs-sector-link"><a className="sx-underlink" href="/spaces/hospitality">Explore the hospitality sector ↗</a></p>}
           {privateReview && active === 1 && <p className="of-sector-link"><a className="sx-underlink" href="/spaces/offices">Explore offices &amp; HQs &#8599;</a></p>}
           {privateReview && active === 1 && <section className="sx-work-palette" aria-labelledby="sx-work-palette-title">
-            <div><p className="sx-kicker">MATERIAL STUDY / WORKPLACES</p><h2 id="sx-work-palette-title">A palette for working spaces.</h2><p>Explore individual plants, grouped vessels and linear planting from the Plantupia collection. The right arrangement depends on available light, circulation and maintenance access.</p></div>
+            <div><p className="sx-kicker">MATERIAL STUDY / WORKPLACES</p><h2 id="sx-work-palette-title">A palette for working spaces.</h2><p>The catalogue groups individual plants, grouped vessels and linear planting. The right arrangement depends on available light, circulation and maintenance access.</p></div>
             <figure><img src="/api/private-arrival/spaces-workplace-palette.webp" alt="Catalogue arrangement of individual green plants and rectangular planted vessels in light neutral planters" loading="lazy"/><figcaption>Plantupia Hospitality Greenery Catalogue / page 28 / collection illustration, not an installed office project.</figcaption></figure>
           </section>}
           {privateReview && active === 4 && <p className="cm-sector-link"><a className="sx-underlink" href="/spaces/commercial">Explore the commercial sector &#8599;</a></p>}
@@ -112,7 +111,6 @@ export default function SpaceExplorer({ privateReview = false }: { privateReview
             </div>
           </section>
         </section>
-        <div className="sx-archive-link"><a href={privateReview ? "/spaces/projects" : "/about#selected-works"} className="sx-underlink">Discover our approach &amp; project archive ↗</a></div><ChapterThreshold from="spaces" privateReview={privateReview}/>
       </main>
       <footer className="sx-footer"><a href="/">Plantupia</a><span>Living architecture / Design preview</span><a href="/start-a-space">Contact ↗</a></footer>
     </div>

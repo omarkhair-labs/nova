@@ -125,7 +125,7 @@ export default function ContactStudio({ available }: { available: boolean }) {
           <nav aria-label="How can we help?" className="ct-modes">
             {modes.map(item=><button key={item.id} aria-pressed={mode===item.id} type="button" disabled={pending} onClick={() => {setMode(item.id);setFeedback("");setReference("");}}>{item.title}</button>)}
           </nav>
-          <p className="ct-mode-intro" aria-live="polite">{current.intro}</p>{!available&&<div className="ct-preview-note" role="note"><strong>Preview mode</strong><span>You can explore the full brief and compose a message. Sending is disabled, so nothing will be submitted or stored.</span></div>}
+          <p className="ct-mode-intro" aria-live="polite">{current.intro}</p>{!available&&<div className="ct-preview-note" role="note"><strong>Preview mode</strong><span>You can complete the brief and compose a message. Sending is disabled, so nothing will be submitted or stored.</span></div>}
           <form className="ct-form" onSubmit={send}>
             <fieldset className="ct-fields" disabled={pending}>
               <label htmlFor="ct-name">Your name</label>
@@ -153,7 +153,7 @@ export default function ContactStudio({ available }: { available: boolean }) {
             </div>
           </form>
         </section>
-        <section className="ct-end"><span>NOT SURE WHERE TO BEGIN?</span><a href="/spaces">Explore the possibilities ↗</a></section>
+        <section className="ct-end"><span>NOT SURE WHERE TO BEGIN?</span><a href="/spaces">See the space types ↗</a></section>
       </main>
       <footer className="ct-footer"><a href="/">Plantupia</a><span>Living architecture / Design preview</span><a href="/about">About us ↗</a></footer>
     </div>
