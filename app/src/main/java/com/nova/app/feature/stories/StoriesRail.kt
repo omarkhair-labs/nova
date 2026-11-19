@@ -765,7 +765,7 @@ private fun StoryViewer(
                             )
                             Spacer(Modifier.width(9.dp))
                             Column(Modifier.weight(1f)) {
-                                Text("Watch original Reel", color = StoryInk, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text("Watch original video moment", color = StoryInk, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 Text("@${shared.author.username}", color = StoryMuted, fontSize = 9.sp)
                             }
                             NovaIcon(
@@ -800,7 +800,7 @@ private fun StoryViewer(
                             )
                             Spacer(Modifier.width(9.dp))
                             Column(Modifier.weight(1f)) {
-                                Text("View original post", color = StoryInk, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text("View original shared moment", color = StoryInk, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 Text("@${shared.author.username}", color = StoryMuted, fontSize = 9.sp)
                             }
                             NovaIcon(

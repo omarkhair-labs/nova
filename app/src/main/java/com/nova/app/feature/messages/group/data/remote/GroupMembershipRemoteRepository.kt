@@ -185,7 +185,7 @@ class GroupMembershipRemoteRepository(
                             401 -> "Your session expired. Please log in again."
                             403 -> "You can't manage this group."
                             404 -> "That group is no longer available."
-                            in 500..599 -> "Nova's server had a problem. Try again in a moment."
+                            in 500..599 -> "Plantupia's server had a problem. Try again in a moment."
                             else -> "Something went wrong. Please try again."
                         }
                     },
@@ -193,7 +193,7 @@ class GroupMembershipRemoteRepository(
                 )
             }
         } catch (_: Exception) {
-            ApiResult.Failure("Can't reach Nova right now. Check your connection and try again.")
+            ApiResult.Failure("Can't reach Plantupia right now. Check your connection and try again.")
         } finally {
             connection?.disconnect()
         }
@@ -234,7 +234,7 @@ class GroupMembershipRemoteRepository(
             otherUser = NovaPostAuthor(
                 id = 0L,
                 username = "group",
-                name = title.ifBlank { "Nova group" },
+                name = title.ifBlank { "Group conversation" },
                 avatarUrl = "",
             ),
             lastMessage = null,

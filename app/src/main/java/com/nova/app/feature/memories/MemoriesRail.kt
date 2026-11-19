@@ -116,7 +116,7 @@ fun MemoriesRail(
                     Text(
                         text = when {
                             state.error != null && state.memory == null -> "Try again when Plantupia reconnects."
-                            state.memory == null -> "Pulse · Rooms · Posts"
+                            state.memory == null -> "Short updates · Gatherings · Shared moments"
                             else -> railSummary(
                                 state.memory!!.stats.highlights,
                                 state.memory!!.stats.people,

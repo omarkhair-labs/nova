@@ -172,7 +172,7 @@ class PostsRemoteDataSource(
                 val comment = response.value.optJSONObject("comment")
                 val post = response.value.optJSONObject("post")
                 if (comment == null || post == null) {
-                    ApiResult.Failure("Nova returned an invalid comment response.")
+                    ApiResult.Failure("Plantupia returned an invalid comment response.")
                 } else {
                     ApiResult.Success(
                         NovaCommentMutation(
@@ -234,7 +234,7 @@ class PostsRemoteDataSource(
             is ApiResult.Success -> {
                 val post = response.value.optJSONObject("post")
                 if (post == null) {
-                    ApiResult.Failure("Nova returned an invalid comment response.")
+                    ApiResult.Failure("Plantupia returned an invalid comment response.")
                 } else {
                     ApiResult.Success(parseNovaPost(post, api::resolveMediaUrl))
                 }

@@ -124,7 +124,7 @@ class NovaFeedRepository(
             val prepared = videoPreparer.prepare(
                 source = mediaUri,
                 maxSourceBytes = MAX_POST_VIDEO_BYTES,
-                sizeMessage = "Post video must be 120 MB or smaller.",
+                sizeMessage = "Shared-moment video must be 120 MB or smaller.",
                 onProgress = onProgress,
             )
         ) {
@@ -222,7 +222,7 @@ class NovaFeedRepository(
                     ?: throw IllegalStateException("Couldn't read that photo.")
 
                 if (bytes.size > 10 * 1024 * 1024) {
-                    return@withContext ApiResult.Failure("Post photo must be 10 MB or smaller.")
+                    return@withContext ApiResult.Failure("Shared-moment photo must be 10 MB or smaller.")
                 }
 
                 ApiResult.Success(
@@ -233,7 +233,7 @@ class NovaFeedRepository(
                     ),
                 )
             }.getOrElse {
-                ApiResult.Failure("Nova couldn't read that photo. Pick another image and try again.")
+                ApiResult.Failure("Plantupia couldn't read that photo. Pick another image and try again.")
             }
         }
     }

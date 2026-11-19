@@ -100,7 +100,7 @@ private fun PlantupiaIllustrationFamilyPreview() {
             }
         }
         Text(
-            "Artwork is illustrative, never evidence of a real plant or public post",
+            "Artwork is illustrative, never evidence of a real plant or shared moment",
             color = Color(0xFF526859),
             fontSize = 11.sp,
         )

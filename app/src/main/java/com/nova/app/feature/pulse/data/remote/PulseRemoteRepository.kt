@@ -204,8 +204,8 @@ class PulseRemoteRepository(
         category: String,
     ): ApiResult<NovaPulse> {
         val cleanNote = note.trim()
-        if (cleanNote.isBlank()) return ApiResult.Failure("Write something for your Pulse.")
-        if (cleanNote.length > 180) return ApiResult.Failure("Pulse note must be 180 characters or fewer.")
+        if (cleanNote.isBlank()) return ApiResult.Failure("Write something for your short update.")
+        if (cleanNote.length > 180) return ApiResult.Failure("Short-update text must be 180 characters or fewer.")
         val cleanAudience = validateAudience(audience) ?: return invalidAudience()
         val cleanCategory = validateCategory(category) ?: return invalidCategory()
 
@@ -245,7 +245,7 @@ class PulseRemoteRepository(
             return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)
         }
         val cleanNote = note.trim()
-        if (cleanNote.length > 180) return ApiResult.Failure("Pulse note must be 180 characters or fewer.")
+        if (cleanNote.length > 180) return ApiResult.Failure("Short-update text must be 180 characters or fewer.")
         val cleanAudience = validateAudience(audience) ?: return invalidAudience()
         val cleanCategory = validateCategory(category) ?: return invalidCategory()
         val media = when (val prepared = prepareUpload(mediaUri, onProgress)) {
@@ -303,7 +303,7 @@ class PulseRemoteRepository(
                     val prepared = videoPreparer.prepare(
                         source = uri,
                         maxSourceBytes = MAX_PULSE_VIDEO_BYTES,
-                        sizeMessage = "Pulse video must be 60 MB or smaller.",
+                        sizeMessage = "Short-update video must be 60 MB or smaller.",
                         onProgress = onProgress,
                     )
                 ) {
@@ -328,7 +328,7 @@ class PulseRemoteRepository(
                     is ApiResult.Failure -> prepared
                 }
             } else {
-                ApiResult.Failure("Pulses support photos and videos only.")
+                ApiResult.Failure("Short updates support photos and videos only.")
             }
         }
     }
@@ -349,7 +349,7 @@ class PulseRemoteRepository(
         val mimeType = resolveMimeType(uri)
 
         val maxBytes = 15L * 1024 * 1024
-        val sizeMessage = "Pulse photo must be 15 MB or smaller."
+        val sizeMessage = "Short-update photo must be 15 MB or smaller."
 
         val reportedSize = mediaSize(uri)
         if (reportedSize != null && reportedSize > maxBytes) {
@@ -358,7 +358,7 @@ class PulseRemoteRepository(
 
         val bytes = runCatching {
             resolver.openInputStream(uri)?.use { input -> input.readBytes() }
-        }.getOrNull() ?: return ApiResult.Failure("Nova couldn't read that file.")
+        }.getOrNull() ?: return ApiResult.Failure("Plantupia couldn't read that file.")
         if (bytes.size.toLong() > maxBytes) return ApiResult.Failure(sizeMessage)
 
         val fileName = displayName(uri).ifBlank {
@@ -420,13 +420,13 @@ class PulseRemoteRepository(
         value.trim().lowercase().takeIf { it == "followers" || it == "close_friends" }
 
     private fun invalidAudience(): ApiResult.Failure =
-        ApiResult.Failure("Choose a valid Pulse audience.")
+        ApiResult.Failure("Choose a valid short-update audience.")
 
     private fun validateCategory(value: String): String? =
         value.trim().lowercase().takeIf { it in setOf("live", "music", "talks", "vibes") }
 
     private fun invalidCategory(): ApiResult.Failure =
-        ApiResult.Failure("Choose a valid Pulse category.")
+        ApiResult.Failure("Choose a valid short-update category.")
 
     private suspend fun <T> authenticatedCall(
         expectedUserId: Long? = null,

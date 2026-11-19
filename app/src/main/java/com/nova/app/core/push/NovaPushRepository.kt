@@ -36,7 +36,7 @@ class NovaPushRepository(
         call: suspend (String) -> ApiResult<T>,
     ): ApiResult<T> {
         val stored = sessionStore.load()
-            ?: return ApiResult.Failure("No signed-in Nova session.", 401)
+            ?: return ApiResult.Failure("No signed-in Plantupia session.", 401)
         if (expectedLogin != null && stored.identity != expectedLogin) return com.nova.app.core.auth.changedSession()
         return sessionStore.authenticatedRequest(
             stored = stored,
@@ -119,15 +119,15 @@ class NovaPushApiClient(
                         message = detail.ifBlank {
                             when (statusCode) {
                                 401 -> "Your session expired. Please log in again."
-                                in 500..599 -> "Nova couldn't update push notifications right now."
-                                else -> "Nova couldn't update push notifications."
+                                in 500..599 -> "Plantupia couldn't update push notifications right now."
+                                else -> "Plantupia couldn't update push notifications."
                             }
                         },
                         statusCode = statusCode,
                     )
                 }
             } catch (_: Exception) {
-                ApiResult.Failure("Can't reach Nova right now. Check your connection and try again.")
+                ApiResult.Failure("Can't reach Plantupia right now. Check your connection and try again.")
             } finally {
                 connection?.disconnect()
             }

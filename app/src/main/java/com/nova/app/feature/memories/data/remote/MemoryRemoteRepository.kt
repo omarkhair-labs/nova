@@ -172,7 +172,7 @@ class MemoryRemoteRepository(
             return ApiResult.Failure("Memory drafts support photos and videos only.")
         }
         val bytes = runCatching { resolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
-            ?: return ApiResult.Failure("Nova couldn't read that file.")
+            ?: return ApiResult.Failure("Plantupia couldn't read that file.")
         if (bytes.size > 60 * 1024 * 1024) return ApiResult.Failure("Memory media must be 60 MB or smaller.")
         val displayName = runCatching {
             resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->

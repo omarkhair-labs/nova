@@ -52,7 +52,7 @@ class Media3MemoryFilmExporter(context: Context) : MemoryFilmExporter {
             .sortedBy { it.index }
             .mapNotNull(::editedItem)
         if (editedItems.isEmpty()) {
-            return Result.failure(IllegalStateException("Nova couldn't prepare any film scenes."))
+            return Result.failure(IllegalStateException("Plantupia couldn't prepare any film scenes."))
         }
 
         val outputDirectory = File(appContext.cacheDir, "memory-films").apply { mkdirs() }

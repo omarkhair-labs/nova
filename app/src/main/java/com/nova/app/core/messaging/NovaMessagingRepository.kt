@@ -168,7 +168,7 @@ class NovaMessagingRepository(
                     )
                 )
             }.getOrElse {
-                ApiResult.Failure("Nova couldn't read that photo. Pick another image and try again.")
+                ApiResult.Failure("Plantupia couldn't read that photo. Pick another image and try again.")
             }
         }
     }
@@ -191,7 +191,7 @@ class NovaMessagingRepository(
                     )
                 )
             }.getOrElse {
-                ApiResult.Failure("Nova couldn't read that voice message. Record it again and try once more.")
+                ApiResult.Failure("Plantupia couldn't read that voice message. Record it again and try once more.")
             }
         }
     }
@@ -369,7 +369,7 @@ class NovaMessagingApiClient(
         ) {
             is ApiResult.Success -> {
                 val deletedAt = response.value.optString("deleted_at")
-                if (deletedAt.isBlank()) ApiResult.Failure("Nova couldn't confirm that deletion.")
+                if (deletedAt.isBlank()) ApiResult.Failure("Plantupia couldn't confirm that deletion.")
                 else ApiResult.Success(deletedAt)
             }
             is ApiResult.Failure -> response
@@ -449,7 +449,7 @@ class NovaMessagingApiClient(
             NovaPostAuthor(
                 id = 0L,
                 username = "group",
-                name = title.ifBlank { "Nova group" },
+                name = title.ifBlank { "Group conversation" },
                 avatarUrl = "",
             )
         }
@@ -670,7 +670,7 @@ class NovaMessagingApiClient(
 
                 parseConnectionResponse(connection)
             } catch (_: Exception) {
-                ApiResult.Failure("Can't reach Nova right now. Check your connection and try again.")
+                ApiResult.Failure("Can't reach Plantupia right now. Check your connection and try again.")
             } finally {
                 connection?.disconnect()
             }
@@ -703,7 +703,7 @@ class NovaMessagingApiClient(
                 }
                 parseConnectionResponse(connection)
             } catch (_: Exception) {
-                ApiResult.Failure("Can't reach Nova right now. Check your connection and try again.")
+                ApiResult.Failure("Can't reach Plantupia right now. Check your connection and try again.")
             } finally {
                 connection?.disconnect()
             }
@@ -721,14 +721,14 @@ class NovaMessagingApiClient(
         } else {
             ApiResult.Failure(
                 message = when (statusCode) {
-                    400 -> json.optString("detail").ifBlank { "Nova couldn't complete that message request." }
+                    400 -> json.optString("detail").ifBlank { "Plantupia couldn't complete that message request." }
                     401 -> "Your session expired. Please log in again."
                     403 -> json.optString("detail").ifBlank { "You can't change that message." }
                     404 -> "That message or conversation is no longer available."
                     409 -> json.optString("detail").ifBlank { "That message request conflicted with another one." }
                     413 -> "That attachment is too large to send."
-                    429 -> "Too many requests. Give Nova a moment and try again."
-                    in 500..599 -> "Nova's server had a problem. Try again in a moment."
+                    429 -> "Too many requests. Give Plantupia a moment and try again."
+                    in 500..599 -> "Plantupia's server had a problem. Try again in a moment."
                     else -> json.optString("detail").ifBlank { "Something went wrong. Please try again." }
                 },
                 statusCode = statusCode,

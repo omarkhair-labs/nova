@@ -55,7 +55,7 @@ internal fun NovaProfileReelThumbnail(
                 NovaMediaImage(
                     source = reel.thumbnailUrl,
                     modifier = Modifier.fillMaxSize(),
-                    contentDescription = "Reel preview by ${reel.author.displayName}",
+                    contentDescription = "Video moment preview by ${reel.author.displayName}",
                     failureLabel = "Preview unavailable",
                 )
             }

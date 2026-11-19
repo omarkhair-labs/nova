@@ -1139,7 +1139,7 @@ private fun PlantupiaAccountClientSection(
                         Text("↗", color = deepGreen)
                     }
                     Text(
-                        "Your plant is connected. Start with a real photograph, then use Care to record what you notice. This photo is not a public post.",
+                        "Your plant is connected. Start with a real photograph, then use Care to record what you notice. This photo is not a shared moment.",
                         style = PlantupiaText.supporting,
                     )
                 } else {
@@ -1813,7 +1813,7 @@ private fun PlantupiaAccountClientSection(
                     },
                 )
                 TextButton(onClick = onCommunityCreateClick) {
-                    Text("Create a separate public post →", color = deepGreen)
+                    Text("Create a separate shared moment →", color = deepGreen)
                 }
                 Text(
                     "Only the question, text and photo you approve are shared publicly. Private history stays in this plant.",

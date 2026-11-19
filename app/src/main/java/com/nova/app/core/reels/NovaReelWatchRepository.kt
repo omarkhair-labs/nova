@@ -89,12 +89,12 @@ class NovaReelWatchRepository(
                 ApiResult.Success(json)
             } else {
                 ApiResult.Failure(
-                    message = json.optString("detail").ifBlank { "Couldn't record Reel playback." },
+                    message = json.optString("detail").ifBlank { "Couldn't record video-moment playback." },
                     statusCode = statusCode,
                 )
             }
         } catch (_: Exception) {
-            ApiResult.Failure("Couldn't record Reel playback.")
+            ApiResult.Failure("Couldn't record video-moment playback.")
         } finally {
             connection?.disconnect()
         }

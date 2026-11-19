@@ -211,12 +211,12 @@ class NovaCallsApiClient(
                 ApiResult.Success(json)
             } else {
                 ApiResult.Failure(
-                    message = json.optString("detail").ifBlank { "Nova couldn't complete that call request." },
+                    message = json.optString("detail").ifBlank { "Plantupia couldn't complete that call request." },
                     statusCode = statusCode,
                 )
             }
         } catch (_: Exception) {
-            ApiResult.Failure("Nova couldn't reach the call service. Check your connection and try again.")
+            ApiResult.Failure("Plantupia couldn't reach the call service. Check your connection and try again.")
         } finally {
             connection?.disconnect()
         }

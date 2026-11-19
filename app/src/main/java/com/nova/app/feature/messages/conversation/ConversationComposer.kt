@@ -544,9 +544,9 @@ internal fun isConversationComposerSendEnabled(
 
 private fun composerReplyPreview(message: NovaMessage): String = when {
     message.isDeleted -> "Message deleted"
-    message.share?.kind == "post" -> "Shared post"
+    message.share?.kind == "post" -> "Shared moment"
     message.share?.kind == "profile" -> "Shared profile"
-    message.share?.kind == "reel" -> "Shared Reel"
+    message.share?.kind == "reel" -> "Shared video moment"
     message.body.isNotBlank() -> message.body
     message.audioUrl.isNotBlank() -> "Voice message"
     message.imageUrl.isNotBlank() -> "Photo"

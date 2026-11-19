@@ -157,7 +157,7 @@ fun ProfileReelsViewerScreen(
                     type = "text/plain"
                     putExtra(Intent.EXTRA_TEXT, shareText)
                 },
-                "Share Reel",
+                "Share video moment",
             )
         )
     }
@@ -174,7 +174,7 @@ fun ProfileReelsViewerScreen(
                     CircularProgressIndicator(color = NovaAccent)
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "Opening @$username's Reels…",
+                        text = "Opening @$username's video moments…",
                         color = ProfileViewerMuted,
                         fontSize = 12.sp,
                     )
@@ -211,14 +211,14 @@ fun ProfileReelsViewerScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        text = "No Reels available",
+                        text = "No video moments available",
                         color = ProfileViewerInk,
                         fontSize = 19.sp,
                         fontWeight = FontWeight.Bold,
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = error ?: "These Reels may no longer be visible.",
+                        text = error ?: "These video moments may no longer be visible.",
                         color = ProfileViewerMuted,
                         fontSize = 12.sp,
                     )
@@ -323,7 +323,7 @@ fun ProfileReelsViewerScreen(
                         color = Color.Black.copy(alpha = 0.44f),
                     ) {
                         Text(
-                            text = "@$username · Reels",
+                            text = "@$username · Video moments",
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                             color = ProfileViewerInk,
                             fontSize = 12.sp,
@@ -378,7 +378,7 @@ fun ProfileReelsViewerScreen(
 
     shareReelTarget?.let { reel ->
         NovaShareDialog(
-            title = "Share this Reel",
+            title = "Share this video moment",
             reelId = reel.id,
             onExternalShare = { shareReelOutsideNova(reel) },
             onDismiss = { shareReelTarget = null },
@@ -442,7 +442,7 @@ private fun ProfileViewerReelPage(
             modifier = Modifier.fillMaxSize(),
             useController = false,
             resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM,
-            description = "Reel by ${reel.author.username}",
+            description = "Video moment by ${reel.author.username}",
         )
 
         Box(
@@ -467,7 +467,7 @@ private fun ProfileViewerReelPage(
                 Box(contentAlignment = Alignment.Center) {
                     NovaIcon(
                         asset = NovaIconAsset.Play,
-                        contentDescription = "Resume Reel",
+                        contentDescription = "Resume video moment",
                         modifier = Modifier.size(28.dp),
                         tint = ProfileViewerInk,
                     )
@@ -484,7 +484,7 @@ private fun ProfileViewerReelPage(
         ) {
             NovaImmersiveAction(
                 icon = if (reel.isLiked) NovaIconAsset.LikeFilled else NovaIconAsset.Like,
-                contentDescription = if (reel.isLiked) "Unlike Reel" else "Like Reel",
+                contentDescription = if (reel.isLiked) "Unlike video moment" else "Like video moment",
                 label = reel.likesCount.toString(),
                 active = reel.isLiked,
                 busy = isLiking,
@@ -495,13 +495,13 @@ private fun ProfileViewerReelPage(
             )
             NovaImmersiveAction(
                 icon = NovaIconAsset.Comment,
-                contentDescription = "Open Reel comments",
+                contentDescription = "Open video-moment comments",
                 label = reel.commentsCount.toString(),
                 onClick = onComments,
             )
             NovaImmersiveAction(
                 icon = NovaIconAsset.Repost,
-                contentDescription = if (reel.isReposted) "Remove Reel repost" else "Repost Reel",
+                contentDescription = if (reel.isReposted) "Remove reshare" else "Reshare video moment",
                 label = reel.repostsCount.toString(),
                 active = reel.isReposted,
                 busy = isReposting,
@@ -509,14 +509,14 @@ private fun ProfileViewerReelPage(
             )
             NovaImmersiveAction(
                 icon = NovaIconAsset.Share,
-                contentDescription = "Share Reel",
+                contentDescription = "Share video moment",
                 label = "Share",
                 onClick = onShare,
             )
             if (reel.isMine) {
                 NovaImmersiveAction(
                     icon = NovaIconAsset.Delete,
-                    contentDescription = "Delete Reel",
+                    contentDescription = "Delete video moment",
                     label = "Delete",
                     busy = isDeleting,
                     onClick = onDelete,
@@ -524,7 +524,7 @@ private fun ProfileViewerReelPage(
             }
             NovaImmersiveAction(
                 icon = if (muted) NovaIconAsset.VolumeOff else NovaIconAsset.VolumeOn,
-                contentDescription = if (muted) "Unmute Reel" else "Mute Reel",
+                contentDescription = if (muted) "Unmute video moment" else "Mute video moment",
                 label = if (muted) "Muted" else "Sound",
                 active = !muted,
                 onClick = { muted = !muted },
@@ -591,10 +591,10 @@ private fun ProfileReelDeleteDialog(
             border = BorderStroke(1.dp, NovaBorder),
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
-                Text("Delete Reel?", color = NovaInk, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text("Delete video moment?", color = NovaInk, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(7.dp))
                 Text(
-                    "This Reel and its interactions will be permanently removed from Plantupia.",
+                    "This video moment and its interactions will be permanently removed from Plantupia.",
                     color = NovaMuted,
                     fontSize = 13.sp,
                 )

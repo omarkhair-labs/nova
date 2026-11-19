@@ -55,7 +55,7 @@ class NovaVideoPreparer(context: Context) {
         if (sourceDuration <= 0L || !hasVideoTrack(sourceFile)) {
             sourceFile.delete()
             return ApiResult.Failure(
-                "Nova couldn't find a complete video track in that file. Pick another video.",
+                "Plantupia couldn't find a complete video track in that file. Pick another video.",
             )
         }
 
@@ -65,7 +65,7 @@ class NovaVideoPreparer(context: Context) {
                 ?: run {
                     sourceFile.delete()
                     return ApiResult.Failure(
-                        "Nova couldn't read a visible frame from that video. Nothing was uploaded.",
+                        "Plantupia couldn't read a visible frame from that video. Nothing was uploaded.",
                     )
                 }
             onProgress(100)
@@ -85,7 +85,7 @@ class NovaVideoPreparer(context: Context) {
         transformed.exceptionOrNull()?.let {
             outputFile.delete()
             return ApiResult.Failure(
-                "That video isn't compatible with Nova yet. Choose another clip and try again.",
+                "That video isn't compatible with Plantupia yet. Choose another clip and try again.",
             )
         }
 
@@ -98,7 +98,7 @@ class NovaVideoPreparer(context: Context) {
         if (!isDurationPreserved(sourceDuration, outputDuration)) {
             outputFile.delete()
             return ApiResult.Failure(
-                "Nova couldn't preserve the full video. Nothing was uploaded; choose another clip.",
+                "Plantupia couldn't preserve the full video. Nothing was uploaded; choose another clip.",
             )
         }
 
@@ -106,7 +106,7 @@ class NovaVideoPreparer(context: Context) {
             ?: run {
                 outputFile.delete()
                 return ApiResult.Failure(
-                    "Nova couldn't read a visible frame from that video. Nothing was uploaded.",
+                    "Plantupia couldn't read a visible frame from that video. Nothing was uploaded.",
                 )
             }
         onProgress(100)
@@ -146,13 +146,13 @@ class NovaVideoPreparer(context: Context) {
             }
             if (target.length() <= 0L) {
                 target.delete()
-                ApiResult.Failure("Nova couldn't read that video. Pick it again and retry.")
+                ApiResult.Failure("Plantupia couldn't read that video. Pick it again and retry.")
             } else {
                 ApiResult.Success(target)
             }
         } catch (_: Exception) {
             target.delete()
-            ApiResult.Failure("Nova couldn't read that video. Pick it again and retry.")
+            ApiResult.Failure("Plantupia couldn't read that video. Pick it again and retry.")
         }
     }
 

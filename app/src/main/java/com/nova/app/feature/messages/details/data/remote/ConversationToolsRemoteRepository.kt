@@ -244,18 +244,18 @@ class ConversationToolsRemoteRepository(
                 } else {
                     ApiResult.Failure(
                         message = when (statusCode) {
-                            400 -> json.optString("detail").ifBlank { "Nova couldn't complete that request." }
+                            400 -> json.optString("detail").ifBlank { "Plantupia couldn't complete that request." }
                             401 -> "Your session expired. Please log in again."
                             403 -> "You can't access that conversation."
                             404 -> json.optString("detail").ifBlank { "That message or conversation is no longer available." }
-                            in 500..599 -> "Nova's server had a problem. Try again in a moment."
+                            in 500..599 -> "Plantupia's server had a problem. Try again in a moment."
                             else -> json.optString("detail").ifBlank { "Something went wrong. Please try again." }
                         },
                         statusCode = statusCode,
                     )
                 }
             } catch (_: Exception) {
-                ApiResult.Failure("Can't reach Nova right now. Check your connection and try again.")
+                ApiResult.Failure("Can't reach Plantupia right now. Check your connection and try again.")
             } finally {
                 connection?.disconnect()
             }

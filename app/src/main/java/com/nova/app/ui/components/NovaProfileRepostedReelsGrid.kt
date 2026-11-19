@@ -63,7 +63,7 @@ fun NovaProfileRepostedReelsGrid(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(
-            text = "Reposted Reels",
+            text = "Reshared video moments",
             color = NovaInk,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
@@ -97,9 +97,9 @@ fun NovaProfileRepostedReelsGrid(
             reels.isEmpty() -> {
                 Text(
                     text = if (isOwnProfile) {
-                        "Reels you repost will show up here."
+                        "Video moments you reshare will show up here."
                     } else {
-                        "@$username hasn't reposted any Reels yet."
+                        "@$username hasn't reshared any video moments yet."
                     },
                     color = NovaMuted,
                     fontSize = 11.sp,
@@ -138,10 +138,10 @@ fun NovaProfileRepostedReelsGrid(
                 }
                 if (nextCursor != null) {
                     if (loadingMore) {
-                        NovaInlineLoading(message = "Loading more Reposted Reels…")
+                        NovaInlineLoading(message = "Loading more reshared video moments…")
                     } else {
                         NovaSecondaryButton(
-                            text = "Load more Reposted Reels",
+                            text = "Load more reshared video moments",
                             onClick = { owner.loadMore() },
                         )
                     }

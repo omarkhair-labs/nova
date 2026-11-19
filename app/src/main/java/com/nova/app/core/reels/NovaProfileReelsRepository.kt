@@ -95,18 +95,18 @@ class NovaProfileReelsRepository(
             } else {
                 ApiResult.Failure(
                     message = when (statusCode) {
-                        400 -> json.optString("detail").ifBlank { "Nova couldn't load those Reels." }
+                        400 -> json.optString("detail").ifBlank { "Plantupia couldn't load those video moments." }
                         401 -> "Your session expired. Please log in again."
-                        403 -> json.optString("detail").ifBlank { "You can't view these Reels." }
+                        403 -> json.optString("detail").ifBlank { "You can't view these video moments." }
                         404 -> "That profile is no longer available."
-                        in 500..599 -> "Nova's server had a problem. Try again in a moment."
+                        in 500..599 -> "Plantupia's server had a problem. Try again in a moment."
                         else -> json.optString("detail").ifBlank { "Something went wrong. Please try again." }
                     },
                     statusCode = statusCode,
                 )
             }
         } catch (_: Exception) {
-            ApiResult.Failure("Can't reach Nova right now. Check your connection and try again.")
+            ApiResult.Failure("Can't reach Plantupia right now. Check your connection and try again.")
         } finally {
             connection?.disconnect()
         }

@@ -157,7 +157,7 @@ private fun NotificationPreferencesScreen(
             Spacer(Modifier.height(8.dp))
             NotificationToggle("Calls & live", "Calls and live invitations.", "live_sessions", preferences?.liveSessions == true, busyKey, ::update)
             NotificationToggle("Shared videos & stories", "Updates from people you follow.", "reels_stories", preferences?.reelsStories == true, busyKey, ::update)
-            NotificationToggle("Events & spaces", "Rooms, plans and reminders.", "events_spaces", preferences?.eventsSpaces == true, busyKey, ::update)
+            NotificationToggle("Events & spaces", "Gatherings, plans and reminders.", "events_spaces", preferences?.eventsSpaces == true, busyKey, ::update)
             NotificationToggle("Plantupia Team", "Private support reply alerts. The Messages preference also applies.", "plantupia_team", preferences?.plantupiaTeam == true, busyKey, ::update)
             NotificationToggle("Order updates", "Status changes for orders attached to your account.", "plantupia_orders", preferences?.plantupiaOrders == true, busyKey, ::update)
             Text("Care reminders are chosen for each check-in. Inspection schedules never enable alerts automatically.", color = NovaMuted)

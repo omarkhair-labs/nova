@@ -71,7 +71,7 @@ fun PrivacyScreen(onBack: () -> Unit) {
         sections = listOf(
             LegalSection(
                 "Information you provide",
-                "This includes your email, username, display name, profile photo, posts, comments, messages, voice notes and reports you choose to submit.",
+                "This includes your email, username, display name, profile photo, shared moments, comments, messages, voice notes and reports you choose to submit.",
             ),
             LegalSection(
                 "Product and device data",

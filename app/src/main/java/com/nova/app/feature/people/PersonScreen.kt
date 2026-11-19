@@ -660,7 +660,7 @@ fun PersonScreen(
                                     privacyLoading -> "Checking the account's sharing permissions."
                                     !privacyResolved -> "Your access could not be confirmed. No private contributions will be shown."
                                     privacyState.followRequested -> "Your follow request is waiting for approval."
-                                    else -> "Follow @${person.username} and wait for approval to see posts and connections."
+                                    else -> "Follow @${person.username} and wait for approval to see shared moments and connections."
                                 },
                                 color = PlantupiaColors.secondaryText,
                                 fontSize = 12.sp,

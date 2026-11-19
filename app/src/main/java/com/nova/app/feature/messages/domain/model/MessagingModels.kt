@@ -93,7 +93,7 @@ data class NovaConversation(
 
     val displayName: String
         get() = if (isGroup) {
-            title.ifBlank { "Nova group" }
+            title.ifBlank { "Group conversation" }
         } else {
             otherUser.name.ifBlank { otherUser.username }
         }

@@ -72,12 +72,12 @@ class NovaReelsRepository(
             return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)
         }
         resolveVideoMimeType(videoUri)
-            ?: return ApiResult.Failure("Reels support video files only.")
+            ?: return ApiResult.Failure("Video moments support video files only.")
         val prepared = when (
             val result = videoPreparer.prepare(
                 source = videoUri,
                 maxSourceBytes = MAX_REEL_VIDEO_BYTES,
-                sizeMessage = "Reel video must be 120 MB or smaller.",
+                sizeMessage = "Video-moment file must be 120 MB or smaller.",
                 onProgress = onProgress,
             )
         ) {
@@ -207,7 +207,7 @@ class NovaReelsRepository(
                     val comment = result.value.optJSONObject("comment")
                     val reel = result.value.optJSONObject("reel")
                     if (comment == null || reel == null) {
-                        ApiResult.Failure("Nova returned an invalid Reel comment response.")
+                        ApiResult.Failure("Plantupia returned an invalid video-moment comment response.")
                     } else {
                         ApiResult.Success(
                             NovaReelCommentMutation(
@@ -234,7 +234,7 @@ class NovaReelsRepository(
                 is ApiResult.Success -> {
                     val reel = result.value.optJSONObject("reel")
                     if (reel == null) {
-                        ApiResult.Failure("Nova returned an invalid Reel comment response.")
+                        ApiResult.Failure("Plantupia returned an invalid video-moment comment response.")
                     } else {
                         ApiResult.Success(parseReel(reel))
                     }
@@ -256,7 +256,7 @@ class NovaReelsRepository(
                 is ApiResult.Success -> {
                     val reel = result.value.optJSONObject("reel")
                     if (reel == null) {
-                        ApiResult.Failure("Nova returned an invalid Reel comment response.")
+                        ApiResult.Failure("Plantupia returned an invalid video-moment comment response.")
                     } else {
                         ApiResult.Success(parseReel(reel))
                     }
@@ -336,7 +336,7 @@ class NovaReelsRepository(
             }
             readJsonResponse(connection)
         } catch (_: Exception) {
-            ApiResult.Failure("Can't reach Nova right now. Check your connection and try again.")
+            ApiResult.Failure("Can't reach Plantupia right now. Check your connection and try again.")
         } finally {
             connection?.disconnect()
         }
@@ -353,12 +353,12 @@ class NovaReelsRepository(
         } else {
             ApiResult.Failure(
                 message = when (statusCode) {
-                    400 -> json.optString("detail").ifBlank { "Nova couldn't process that Reel." }
+                    400 -> json.optString("detail").ifBlank { "Plantupia couldn't process that video moment." }
                     401 -> "Your session expired. Please log in again."
-                    403 -> json.optString("detail").ifBlank { "You can't interact with this Reel." }
-                    404 -> "That Reel is no longer available."
-                    413 -> "That Reel video is too large."
-                    in 500..599 -> "Nova's server had a problem. Try again in a moment."
+                    403 -> json.optString("detail").ifBlank { "You can't interact with this video moment." }
+                    404 -> "That video moment is no longer available."
+                    413 -> "That video-moment file is too large."
+                    in 500..599 -> "Plantupia's server had a problem. Try again in a moment."
                     else -> json.optString("detail").ifBlank { "Something went wrong. Please try again." }
                 },
                 statusCode = statusCode,

@@ -82,9 +82,9 @@ fun RoomTonightSection(
         ) {
             Text(
                 text = when {
-                    state.snapshot?.roomsCount == 1 -> "1 Room is alive"
-                    (state.snapshot?.roomsCount ?: 0) > 1 -> "${state.snapshot?.roomsCount} Rooms are alive"
-                    else -> "Rooms tonight"
+                    state.snapshot?.roomsCount == 1 -> "1 gathering is active"
+                    (state.snapshot?.roomsCount ?: 0) > 1 -> "${state.snapshot?.roomsCount} gatherings are active"
+                    else -> "Gatherings tonight"
                 },
                 color = RoomTonightInk,
                 fontSize = 11.sp,
@@ -127,7 +127,7 @@ fun RoomTonightSection(
                     border = BorderStroke(1.dp, RoomTonightBorder),
                 ) {
                     Text(
-                        text = "Couldn't refresh live Rooms · tap to retry",
+                        text = "Couldn't refresh live gatherings · tap to retry",
                         modifier = Modifier.padding(11.dp),
                         color = RoomTonightMuted,
                         fontSize = 9.sp,
@@ -137,7 +137,7 @@ fun RoomTonightSection(
 
             state.snapshot?.rooms.isNullOrEmpty() -> {
                 Text(
-                    text = "Your Rooms are quiet right now. Add something to a Room and it will wake up here.",
+                    text = "Your gatherings are quiet right now. Add something to a gathering and it will appear here.",
                     color = RoomTonightMuted,
                     fontSize = 9.sp,
                     lineHeight = 13.sp,

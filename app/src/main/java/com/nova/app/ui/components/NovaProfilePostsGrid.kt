@@ -34,11 +34,11 @@ fun NovaProfilePostsGrid(
     errorMessage: String?,
     onRetry: () -> Unit,
     onPostClick: (NovaPost) -> Unit,
-    emptyTitle: String = "No posts yet",
+    emptyTitle: String = "No shared moments yet",
     emptyMessage: String = "Shared moments will show up here.",
-    sectionTitle: String? = "Posts",
-    loadingLabel: String = "Loading posts…",
-    errorTitle: String = "Couldn't load posts",
+    sectionTitle: String? = "Shared moments",
+    loadingLabel: String = "Loading shared moments…",
+    errorTitle: String = "Couldn't load shared moments",
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -155,7 +155,7 @@ fun NovaProfilePostsGrid(
                                         .fillMaxWidth()
                                         .aspectRatio(1f)
                                         .clip(RoundedCornerShape(8.dp)),
-                                    contentDescription = "Post by ${post.author.username}",
+                                    contentDescription = "Shared moment by ${post.author.username}",
                                 )
                             }
                         }

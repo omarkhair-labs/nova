@@ -136,7 +136,7 @@ private fun parseRoomConversation(
     resolveMediaUrl: (String) -> String,
 ): RoomConversation = RoomConversation(
     id = json.optLong("id"),
-    title = json.optString("title").ifBlank { "Nova Room" },
+    title = json.optString("title").ifBlank { "Gathering" },
     avatarUrl = resolveMediaUrl(json.optString("group_avatar_url")),
     membersCount = json.optInt("members_count", 0),
     currentUserRole = json.optString("current_user_role"),

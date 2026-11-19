@@ -108,18 +108,18 @@ class RoomRemoteRepository(
     ): ApiResult<RoomItem> {
         val origin = sessionStore.load() ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
         val cleanKind = kind.trim().lowercase()
-        if (cleanKind !in ROOM_ITEM_KINDS) return ApiResult.Failure("Choose a valid Room item type.")
+        if (cleanKind !in ROOM_ITEM_KINDS) return ApiResult.Failure("Choose a valid gathering item type.")
         val cleanTitle = title.trim()
         val cleanBody = body.trim()
         val cleanUrl = url.trim()
         val cleanScheduledFor = scheduledFor?.trim()?.takeIf { it.isNotBlank() }
-        if (cleanTitle.length > 120) return ApiResult.Failure("Room item title must be 120 characters or fewer.")
-        if (cleanBody.length > 500) return ApiResult.Failure("Room item text must be 500 characters or fewer.")
-        if (cleanUrl.length > 700) return ApiResult.Failure("Room item link is too long.")
+        if (cleanTitle.length > 120) return ApiResult.Failure("Gathering item title must be 120 characters or fewer.")
+        if (cleanBody.length > 500) return ApiResult.Failure("Gathering item text must be 500 characters or fewer.")
+        if (cleanUrl.length > 700) return ApiResult.Failure("Gathering item link is too long.")
         when (cleanKind) {
-            "note" -> if (cleanBody.isBlank()) return ApiResult.Failure("Write something for this Room note.")
+            "note" -> if (cleanBody.isBlank()) return ApiResult.Failure("Write something for this gathering note.")
             "plan" -> if (cleanTitle.isBlank()) return ApiResult.Failure("Give this plan a title.")
-            "music", "saved" -> if (cleanUrl.isBlank()) return ApiResult.Failure("Add a link for this Room item.")
+            "music", "saved" -> if (cleanUrl.isBlank()) return ApiResult.Failure("Add a link for this gathering item.")
             "photo", "video" -> if (mediaUri == null) return ApiResult.Failure("Choose a $cleanKind first.")
         }
 
@@ -131,7 +131,7 @@ class RoomRemoteRepository(
                     val prepared = videoPreparer.prepare(
                         source = source,
                         maxSourceBytes = MAX_ROOM_VIDEO_BYTES,
-                        sizeMessage = "Room video must be 60 MB or smaller.",
+                        sizeMessage = "Gathering video must be 60 MB or smaller.",
                         onProgress = onProgress,
                     )
                 ) {
@@ -321,17 +321,17 @@ class RoomRemoteRepository(
                 MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension).orEmpty()
             }
         if (!mimeType.startsWith("image/")) {
-            return ApiResult.Failure("Room photos must be image files.")
+            return ApiResult.Failure("Gathering photos must be image files.")
         }
 
         val maxBytes = MAX_ROOM_PHOTO_BYTES
-        val sizeMessage = "Room photo must be 12 MB or smaller."
+        val sizeMessage = "Gathering photo must be 12 MB or smaller."
         val reportedSize = mediaSize(uri)
         if (reportedSize != null && reportedSize > maxBytes) return ApiResult.Failure(sizeMessage)
 
         val bytes = runCatching {
             resolver.openInputStream(uri)?.use { input -> input.readBytes() }
-        }.getOrNull() ?: return ApiResult.Failure("Nova couldn't read that file.")
+        }.getOrNull() ?: return ApiResult.Failure("Plantupia couldn't read that file.")
         if (bytes.size.toLong() > maxBytes) return ApiResult.Failure(sizeMessage)
 
         val fileName = displayName(uri).ifBlank {

@@ -243,7 +243,7 @@ internal fun ThreadedReelCommentsSheet(
                         } else {
                             NovaIcon(
                                 asset = NovaIconAsset.Send,
-                                contentDescription = "Send Reel comment",
+                                contentDescription = "Send comment",
                                 modifier = Modifier.size(22.dp),
                                 tint = Color.White,
                             )

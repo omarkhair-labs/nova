@@ -322,7 +322,7 @@ private fun FilmContent(
                             fontWeight = FontWeight.Bold,
                         )
                         Text(
-                            text = "Photos or videos from Pulse, Posts or Rooms will become film scenes.",
+                            text = "Photos or videos from short updates, shared moments or gatherings will become film scenes.",
                             color = NovaMuted,
                             fontSize = 9.sp,
                         )

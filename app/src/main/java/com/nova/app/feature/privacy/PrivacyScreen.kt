@@ -134,7 +134,7 @@ fun PrivacyScreen(
                         Spacer(Modifier.height(4.dp))
                         Text(
                             text = if (state.summary?.isPrivate == true) {
-                                "Only people you approve can see your posts, followers and following."
+                                "Only people you approve can see your shared moments, followers and following."
                             } else {
                                 "Anyone on Plantupia can follow you and see what you share publicly."
                             },

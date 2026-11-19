@@ -241,7 +241,7 @@ fun AccountSecurityScreen(
                     )
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        "Your profile, posts and social connections will be removed. Shared direct-message history stays with the other participant under Deleted user. This can't be undone.",
+                        "Your public profile, shared moments and social connections will be removed. Shared direct-message history stays with the other participant under Deleted user. This can't be undone.",
                         color = NovaMuted,
                         fontSize = 13.sp,
                         lineHeight = 19.sp,

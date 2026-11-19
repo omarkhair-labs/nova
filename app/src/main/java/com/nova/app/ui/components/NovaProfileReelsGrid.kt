@@ -70,7 +70,7 @@ fun NovaProfileReelsGrid(
                     NovaPresenceIndicator(modifier = Modifier.size(34.dp))
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = "Loading Reels…",
+                        text = "Loading video moments…",
                         color = NovaMuted,
                         fontSize = 12.sp,
                     )
@@ -89,7 +89,7 @@ fun NovaProfileReelsGrid(
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(
-                            text = if (error != null) "Couldn't load Reels" else "No Reels yet",
+                            text = if (error != null) "Couldn't load video moments" else "No video moments yet",
                             color = NovaInk,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
@@ -97,9 +97,9 @@ fun NovaProfileReelsGrid(
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = error ?: if (isOwnProfile) {
-                                "Reels you share will show up here."
+                                "Video moments you share will show up here."
                             } else {
-                                "@$username hasn't shared any Reels yet."
+                                "@$username hasn't shared any video moments yet."
                             },
                             color = NovaMuted,
                             fontSize = 12.sp,
@@ -165,10 +165,10 @@ fun NovaProfileReelsGrid(
                 if (nextCursor != null) {
                     Spacer(modifier = Modifier.height(12.dp))
                     if (isLoadingMore) {
-                        NovaInlineLoading(message = "Loading more Reels…")
+                        NovaInlineLoading(message = "Loading more video moments…")
                     } else {
                         NovaSecondaryButton(
-                            text = "Load more Reels",
+                            text = "Load more video moments",
                             onClick = { owner.loadMore() },
                         )
                     }

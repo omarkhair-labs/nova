@@ -357,7 +357,7 @@ private fun MemoryContent(
         if (memory.rooms.isNotEmpty()) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SectionTitle("Rooms you lived in")
+                    SectionTitle("Gatherings you joined")
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                         items(memory.rooms, key = { it.room.id }) { row ->
                             Surface(
@@ -563,7 +563,7 @@ private fun StatsCard(stats: MemoryStats) {
         "${stats.highlights} moments",
         "${stats.nights} nights",
         "${stats.people} people",
-        "${stats.rooms} rooms",
+        "${stats.rooms} gatherings",
     )
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         items(chips) { label ->
@@ -938,9 +938,9 @@ private fun parseMemoryTime(raw: String): OffsetDateTime? =
 
 
 private fun memorySourceLabel(source: String): String = when (source) {
-    "pulse" -> "PULSE"
-    "post" -> "POST"
-    "room_item" -> "ROOM"
+    "pulse" -> "SHORT UPDATE"
+    "post" -> "SHARED MOMENT"
+    "room_item" -> "GATHERING"
     else -> "MEMORY"
 }
 
@@ -959,7 +959,7 @@ private fun shareMemory(context: android.content.Context, memory: WeeklyMemory) 
         append("${memory.stats.highlights} moments")
         if (memory.stats.nights > 0) append(" · ${memory.stats.nights} nights")
         if (memory.stats.people > 0) append(" · ${memory.stats.people} people")
-        if (memory.stats.rooms > 0) append(" · ${memory.stats.rooms} rooms")
+        if (memory.stats.rooms > 0) append(" · ${memory.stats.rooms} gatherings")
     }
     val intent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"

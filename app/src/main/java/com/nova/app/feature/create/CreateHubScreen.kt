@@ -90,7 +90,7 @@ fun CreateHubScreen(
     var showOtherFormats by rememberSaveable { mutableStateOf(false) }
     var formatOpenRevision by remember { mutableIntStateOf(0) }
     val createListState = rememberLazyListState()
-    // Secondary Nova formats render after the existing five primary sections.
+    // Secondary community formats render after the primary living-space actions.
     // Repeated taps also return to the live editor if the user has scrolled away.
     LaunchedEffect(formatOpenRevision) {
         if (formatOpenRevision > 0 && activeFormat != null) {
@@ -113,12 +113,12 @@ fun CreateHubScreen(
         CreateHubAction(
             "Ask about your plant",
             "Review the exact question and photo before sharing",
-            NovaIconAsset.Orbit,
+            NovaIconAsset.Comment,
         ) { enterPlant(PlantupiaCreateMode.QUESTION) },
         CreateHubAction(
             "Explore the Circle",
             "Browse public plant questions and people's experiences",
-            NovaIconAsset.Orbit,
+            NovaIconAsset.People,
             onOrbitClick,
         ),
         CreateHubAction(
@@ -136,7 +136,7 @@ fun CreateHubScreen(
     val otherFormats = listOf(
         // Existing social engines stay available without becoming Plantupia's
         // primary creation language.
-        CreateHubAction("Short update", "A brief community moment", NovaIconAsset.Orbit) { openFormat("pulse") },
+        CreateHubAction("Short update", "A brief community moment", NovaIconAsset.Edit) { openFormat("pulse") },
         CreateHubAction("Gathering", "Meet around a shared interest", NovaIconAsset.Room) { openFormat("gathering") },
         CreateHubAction("Memory", "Return to something you chose to keep", NovaIconAsset.Memory) { openFormat("memory") },
     )
@@ -238,7 +238,7 @@ fun CreateHubScreen(
                             )
                         }
                         "pulse" -> {
-                            CreateSectionLabel("Pulse", "Short moments")
+                            CreateSectionLabel("Short update", "Brief community moment")
                             PulseRail(
                                 displayName = displayName,
                                 username = username,

@@ -78,7 +78,7 @@ fun NovaProfileContentTabs(
             horizontalArrangement = Arrangement.spacedBy(7.dp),
         ) {
             ProfileTab(
-                label = "Posts",
+                label = "Shared",
                 selected = state.selectedTab == ProfileContentTab.Posts,
                 modifier = Modifier.weight(1f),
             ) {
@@ -87,7 +87,7 @@ fun NovaProfileContentTabs(
                 }
             }
             ProfileTab(
-                label = "Reels",
+                label = "Video",
                 selected = state.selectedTab == ProfileContentTab.Reels,
                 modifier = Modifier.weight(1f),
             ) {
@@ -96,7 +96,7 @@ fun NovaProfileContentTabs(
                 }
             }
             ProfileTab(
-                label = "Reposts",
+                label = "Reshared",
                 selected = state.selectedTab == ProfileContentTab.Reposts,
                 modifier = Modifier.weight(1f),
             ) {
@@ -189,7 +189,7 @@ private fun ProfilePosts(
         if (state.posts.isNotEmpty() && state.postsNextCursor != null) {
             Spacer(Modifier.height(12.dp))
             NovaSecondaryButton(
-                text = if (state.postsLoadingMore) "Loading more…" else "Load more posts",
+                text = if (state.postsLoadingMore) "Loading more…" else "Load more moments",
                 onClick = { if (!state.postsLoadingMore) onLoadMore() },
             )
         }
@@ -214,7 +214,7 @@ private fun ProfileReposts(
 
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
-                text = "Reposted Posts",
+                text = "Reshared moments",
                 color = NovaInk,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
@@ -225,19 +225,19 @@ private fun ProfileReposts(
                 errorMessage = state.repostsError,
                 onRetry = onRetry,
                 onPostClick = onPostClick,
-                emptyTitle = "No Reposted Posts",
+                emptyTitle = "No reshared moments",
                 emptyMessage = if (isOwnProfile) {
-                    "Posts you repost will show up here."
+                    "Moments you reshare will show up here."
                 } else {
-                    "@$username hasn't reposted any Posts yet."
+                    "@$username hasn't reshared any moments yet."
                 },
                 sectionTitle = null,
-                loadingLabel = "Loading Reposted Posts…",
-                errorTitle = "Couldn't load Reposted Posts",
+                loadingLabel = "Loading reshared moments…",
+                errorTitle = "Couldn't load reshared moments",
             )
             if (state.reposts.isNotEmpty() && state.repostsNextCursor != null) {
                 NovaSecondaryButton(
-                    text = if (state.repostsLoadingMore) "Loading more…" else "Load more Reposted Posts",
+                    text = if (state.repostsLoadingMore) "Loading more…" else "Load more reshared moments",
                     onClick = { if (!state.repostsLoadingMore) onLoadMore() },
                 )
             }

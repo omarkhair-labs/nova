@@ -52,7 +52,7 @@ class MemoryFilmWorker(
                 )
             },
             onFailure = { error ->
-                Result.failure(workDataOf(KEY_ERROR to (error.message ?: "Nova couldn't render this film.")))
+                Result.failure(workDataOf(KEY_ERROR to (error.message ?: "Plantupia couldn't render this film.")))
             },
         )
     }
@@ -73,7 +73,7 @@ class MemoryFilmWorker(
         )
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_nova_notification)
-            .setContentTitle("Rendering your Nova Memory")
+            .setContentTitle("Rendering your Plantupia Memory")
             .setContentText(if (progress > 0) "$progress% complete" else "Preparing your moments…")
             .setProgress(100, progress, progress == 0)
             .setOngoing(true)

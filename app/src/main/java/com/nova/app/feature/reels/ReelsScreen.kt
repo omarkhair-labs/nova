@@ -177,7 +177,7 @@ fun ReelsScreen(
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, shareText)
         }
-        context.startActivity(Intent.createChooser(intent, "Share Reel"))
+        context.startActivity(Intent.createChooser(intent, "Share video moment"))
     }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -223,7 +223,7 @@ fun ReelsScreen(
                             monochromeColor = ReelInk,
                         )
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text("Loading Reels…", color = ReelMuted, fontSize = 12.sp)
+                        Text("Loading video moments…", color = ReelMuted, fontSize = 12.sp)
                     }
                 }
             }
@@ -242,7 +242,7 @@ fun ReelsScreen(
                         Text("Living moments", color = ReelInk, fontSize = 31.sp, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = error ?: "No Reels yet. Share the first one.",
+                            text = error ?: "No video moments yet. Share the first one.",
                             color = ReelMuted,
                             fontSize = 14.sp,
                         )
@@ -262,7 +262,7 @@ fun ReelsScreen(
                             color = NovaAccent,
                         ) {
                             Text(
-                                text = "Create Reel",
+                                text = "Create video moment",
                                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
@@ -346,7 +346,7 @@ fun ReelsScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = "Reels",
+                            text = "Video moments",
                             color = ReelInk,
                             fontSize = 25.sp,
                             fontWeight = FontWeight.Bold,
@@ -467,7 +467,7 @@ fun ReelsScreen(
 
     shareReelTarget?.let { reel ->
         NovaShareDialog(
-            title = "Share this Reel",
+            title = "Share this video moment",
             reelId = reel.id,
             onExternalShare = { shareReelOutsideNova(reel) },
             onDismiss = { shareReelTarget = null },
@@ -550,7 +550,7 @@ private fun ReelPage(
             modifier = Modifier.fillMaxSize(),
             useController = false,
             resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT,
-            description = "Reel by ${reel.author.username}",
+            description = "Video moment by ${reel.author.username}",
         )
 
         Box(
@@ -575,7 +575,7 @@ private fun ReelPage(
                 Box(contentAlignment = Alignment.Center) {
                     NovaIcon(
                         asset = NovaIconAsset.Play,
-                        contentDescription = "Resume Reel",
+                        contentDescription = "Resume video moment",
                         modifier = Modifier.size(28.dp),
                         tint = ReelInk,
                     )
@@ -592,7 +592,7 @@ private fun ReelPage(
         ) {
             NovaImmersiveAction(
                 icon = if (reel.isLiked) NovaIconAsset.LikeFilled else NovaIconAsset.Like,
-                contentDescription = if (reel.isLiked) "Unlike Reel" else "Like Reel",
+                contentDescription = if (reel.isLiked) "Unlike video moment" else "Like video moment",
                 label = reel.likesCount.toString(),
                 active = reel.isLiked,
                 busy = isLiking,
@@ -603,13 +603,13 @@ private fun ReelPage(
             )
             NovaImmersiveAction(
                 icon = NovaIconAsset.Comment,
-                contentDescription = "Open Reel comments",
+                contentDescription = "Open video-moment comments",
                 label = reel.commentsCount.toString(),
                 onClick = onComments,
             )
             NovaImmersiveAction(
                 icon = NovaIconAsset.Repost,
-                contentDescription = if (reel.isReposted) "Remove Reel repost" else "Repost Reel",
+                contentDescription = if (reel.isReposted) "Remove reshare" else "Reshare video moment",
                 label = reel.repostsCount.toString(),
                 active = reel.isReposted,
                 busy = isReposting,
@@ -617,14 +617,14 @@ private fun ReelPage(
             )
             NovaImmersiveAction(
                 icon = NovaIconAsset.Share,
-                contentDescription = "Share Reel",
+                contentDescription = "Share video moment",
                 label = "Share",
                 onClick = onShare,
             )
             if (reel.isMine) {
                 NovaImmersiveAction(
                     icon = NovaIconAsset.Delete,
-                    contentDescription = "Delete Reel",
+                    contentDescription = "Delete video moment",
                     label = "Delete",
                     busy = isDeleting,
                     onClick = onDelete,
@@ -632,7 +632,7 @@ private fun ReelPage(
             }
             NovaImmersiveAction(
                 icon = if (muted) NovaIconAsset.VolumeOff else NovaIconAsset.VolumeOn,
-                contentDescription = if (muted) "Unmute Reel" else "Mute Reel",
+                contentDescription = if (muted) "Unmute video moment" else "Mute video moment",
                 label = if (muted) "Muted" else "Sound",
                 active = !muted,
                 onClick = { muted = !muted },
@@ -714,13 +714,13 @@ private fun ReelDeleteDialog(
             border = BorderStroke(1.dp, NovaBorder),
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
-                Text("Delete Reel?", color = NovaInk, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text("Delete video moment?", color = NovaInk, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(7.dp))
                 Text(
                     text = if (reel.caption.isBlank()) {
-                        "This Reel will be permanently removed from Plantupia."
+                        "This video moment will be permanently removed from Plantupia."
                     } else {
-                        "This Reel and its interactions will be permanently removed from Plantupia."
+                        "This video moment and its interactions will be permanently removed from Plantupia."
                     },
                     color = NovaMuted,
                     fontSize = 13.sp,
@@ -821,7 +821,7 @@ private fun ReelComposerDialog(
                         repeat = true,
                         muted = true,
                         useController = true,
-                        description = "Selected Reel video preview",
+                        description = "Selected video-moment preview",
                     )
                 }
                 Spacer(modifier = Modifier.height(12.dp))
@@ -881,7 +881,7 @@ private fun ReelComposerDialog(
                                 )
                             } else {
                                 Text(
-                                    "Post Reel",
+                                    "Share video moment",
                                     color = Color.White,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,

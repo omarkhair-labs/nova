@@ -118,7 +118,7 @@ fun PulseViewerDialog(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = if (activePulse.isMine) {
-                            "Your Pulse"
+                            "Your short update"
                         } else {
                             activePulse.author.name.ifBlank { activePulse.author.username }
                         },
@@ -137,7 +137,7 @@ fun PulseViewerDialog(
                 }
                 NovaIcon(
                     asset = NovaIconAsset.Close,
-                    contentDescription = "Close Pulse",
+                    contentDescription = "Close short update",
                     tint = palette.ink,
                     modifier = Modifier
                         .size(48.dp)
@@ -238,9 +238,9 @@ fun PulseViewerDialog(
                                             NovaIconAsset.Like
                                         },
                                         contentDescription = if (activePulse.isReacted) {
-                                            "Remove Pulse reaction"
+                                            "Remove short-update reaction"
                                         } else {
-                                            "React to Pulse"
+                                            "React to short update"
                                         },
                                         modifier = Modifier.size(17.dp),
                                         tint = if (activePulse.isReacted) NovaBackground else palette.ink,
@@ -324,7 +324,7 @@ fun PulseViewerDialog(
     if (replyComposerVisible) {
         PulseComposerDialog(
             title = "Reply with a moment",
-            subtitle = "Your reply becomes its own 12-hour Pulse.",
+            subtitle = "Your reply becomes its own 12-hour short update.",
             pendingMedia = replyMedia,
             uploading = state.replying,
             error = state.error,
@@ -404,7 +404,7 @@ private fun PulseViewerMedia(
         "image" -> NovaMediaImage(
             source = pulse.mediaUrl,
             modifier = Modifier.fillMaxSize(),
-            contentDescription = "${pulse.author.username} Pulse",
+            contentDescription = "${pulse.author.username} short update",
         )
         "video" -> NovaVideoPlayer(
             source = pulse.mediaUrl,
@@ -415,7 +415,7 @@ private fun PulseViewerMedia(
             repeat = true,
             useController = false,
             resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT,
-            description = "${pulse.author.username} Pulse video",
+            description = "${pulse.author.username} short-update video",
         )
         else -> Box(
             modifier = Modifier.fillMaxSize(),

@@ -223,8 +223,8 @@ class PeoplePagingRemoteRepository(
                         when (statusCode) {
                             401 -> "Your session expired. Please log in again."
                             403 -> "Follow this private account to see this content."
-                            404 -> "Nova couldn't find that profile."
-                            in 500..599 -> "Nova's server had a problem. Try again in a moment."
+                            404 -> "Plantupia couldn't find that profile."
+                            in 500..599 -> "Plantupia's server had a problem. Try again in a moment."
                             else -> "Something went wrong. Please try again."
                         }
                     },
@@ -232,7 +232,7 @@ class PeoplePagingRemoteRepository(
                 )
             }
         } catch (_: Exception) {
-            ApiResult.Failure("Can't reach Nova right now. Check your connection and try again.")
+            ApiResult.Failure("Can't reach Plantupia right now. Check your connection and try again.")
         } finally {
             connection?.disconnect()
         }
