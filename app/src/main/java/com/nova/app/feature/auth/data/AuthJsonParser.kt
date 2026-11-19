@@ -15,7 +15,7 @@ internal fun parseAuthSession(
     val userJson = json.optJSONObject("user")
 
     if (access.isBlank() || refresh.isBlank() || userJson == null) {
-        return ApiResult.Failure("Nova returned an invalid authentication response.")
+        return ApiResult.Failure("Plantupia returned an invalid authentication response.")
     }
 
     return ApiResult.Success(

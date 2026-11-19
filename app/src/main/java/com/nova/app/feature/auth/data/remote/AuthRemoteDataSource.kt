@@ -100,7 +100,7 @@ class AuthRemoteDataSource(
             is ApiResult.Success -> {
                 val access = response.value.optString("access")
                 if (access.isBlank()) {
-                    ApiResult.Failure("Nova returned an invalid session response.")
+                    ApiResult.Failure("Plantupia returned an invalid session response.")
                 } else {
                     ApiResult.Success(access)
                 }

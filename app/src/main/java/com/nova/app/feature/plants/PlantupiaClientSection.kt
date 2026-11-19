@@ -555,6 +555,7 @@ private fun PlantupiaAccountClientSection(
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        val firstArrival = !loading && error == null && spaces.isEmpty() && plants.isEmpty()
         if (selectedPlant == null) {
             if (section == PlantupiaPrimarySection.PLANTS) {
                 // The schedule belongs to the My Plants heading, not a floating fourth
@@ -620,15 +621,29 @@ private fun PlantupiaAccountClientSection(
             }
             // The selected Space chip already carries its real count.
             // Avoid a second collection summary under Today's masthead.
-            if (!loading && (plants.none { it.active } || (section == PlantupiaPrimarySection.PLANTS && spaces.isEmpty()))) {
-                Text(
-                    if (plants.any { it.active }) "${plants.count { it.active }} plants in your care"
-                    else "Your plants start here.",
-                    color = muted, fontSize = 13.sp,
+            if (firstArrival) {
+                PlantupiaFirstSpaceArrival(
+                    onConnectDelivery = { PlantupiaHandoverNavigation.open() },
+                    onStartOwnSpace = {
+                        PlantupiaCreateIntent.request(PlantupiaCreateMode.ADD_SPACE)
+                        NovaRootNavigationSignal.request(NovaRootTab.Plants)
+                    },
                 )
-            }
-            if (section == PlantupiaPrimarySection.PLANTS || plants.none { it.active }) TextButton(onClick = { PlantupiaHandoverNavigation.open() }) {
-                Text(if (plants.any { it.active }) "Connect another delivery" else "Connect your plants", color = deepGreen)
+            } else {
+                // The selected Space chip already carries its real count.
+                // Avoid a second collection summary under Today's masthead.
+                if (!loading && (plants.none { it.active } || (section == PlantupiaPrimarySection.PLANTS && spaces.isEmpty()))) {
+                    Text(
+                        if (plants.any { it.active }) "${plants.count { it.active }} plants in your care"
+                        else "Your plants start here.",
+                        color = muted, fontSize = 13.sp,
+                    )
+                }
+                if (section == PlantupiaPrimarySection.PLANTS || plants.none { it.active }) {
+                    TextButton(onClick = { PlantupiaHandoverNavigation.open() }) {
+                        Text(if (plants.any { it.active }) "Connect another delivery" else "Connect your plants", color = deepGreen)
+                    }
+                }
             }
             if (PlantupiaCreateIntent.pending.needsPlantSelection()) {
                 PlantupiaPanel {
@@ -672,7 +687,7 @@ private fun PlantupiaAccountClientSection(
                 }
             }
             // Quiet Care: real persisted inspections and check-ins before optional help.
-            if (!loading && error == null && section == PlantupiaPrimarySection.TODAY) {
+            if (!loading && error == null && section == PlantupiaPrimarySection.TODAY && !firstArrival) {
                 // Actual company-approved inspections take priority over a
                 // duplicated empty personal check-in message on the first fold.
                 PlantupiaDemoHome(
@@ -961,9 +976,10 @@ private fun PlantupiaAccountClientSection(
                 preferredSpaceId = focusedSpaceId,
                 enabled = !loading && error == null,
                 creationRequest = PlantupiaCreateIntent.pending,
+                showEmptyStartCard = !firstArrival,
                 onRequestConsumed = { PlantupiaCreateIntent.clear() },
             )
-            OutlinedButton(
+            if (!firstArrival) OutlinedButton(
                 onClick = { showAssistant = true },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(15.dp),
@@ -2341,6 +2357,67 @@ private fun PlantupiaAccountClientSection(
             repository = repository,
             onDismiss = { showAssistant = false },
         )
+    }
+}
+
+@Composable
+private fun PlantupiaFirstSpaceArrival(
+    onConnectDelivery: () -> Unit,
+    onStartOwnSpace: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = PlantupiaColors.forest,
+        shape = PlantupiaShapes.card,
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                "BEGIN / YOUR LIVING SPACE",
+                style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage),
+            )
+            Text(
+                "Start with a real place.",
+                style = PlantupiaText.editorialHeading.copy(color = PlantupiaColors.paper),
+            )
+            Text(
+                "Connect a Plantupia delivery, or create the first private space where your own plants live. Nothing is shared just by starting.",
+                style = PlantupiaText.supporting.copy(color = PlantupiaColors.cream),
+            )
+            Surface(
+                onClick = onConnectDelivery,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                color = PlantupiaColors.paper,
+                shape = PlantupiaShapes.inset,
+            ) {
+                Column(Modifier.padding(horizontal = 14.dp, vertical = 11.dp)) {
+                    Text("FROM PLANTUPIA", style = PlantupiaText.sectionLabel)
+                    Text("Connect a delivery \u2192", style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
+                }
+            }
+            Surface(
+                onClick = onStartOwnSpace,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                color = Color(0xFF315947),
+                shape = PlantupiaShapes.inset,
+            ) {
+                Column(Modifier.padding(horizontal = 14.dp, vertical = 11.dp)) {
+                    Text(
+                        "MY OWN PLANTS",
+                        style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage),
+                    )
+                    Text(
+                        "Start my first space \u2192",
+                        style = PlantupiaText.body.copy(
+                            color = PlantupiaColors.paper,
+                            fontWeight = FontWeight.SemiBold,
+                        ),
+                    )
+                }
+            }
+        }
     }
 }
 

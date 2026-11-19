@@ -59,6 +59,7 @@ fun PlantupiaSelfServiceForms(
     preferredSpaceId: String? = null,
     enabled: Boolean = true,
     creationRequest: PlantupiaCreateMode? = null,
+    showEmptyStartCard: Boolean = true,
     onRequestConsumed: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
@@ -160,7 +161,7 @@ fun PlantupiaSelfServiceForms(
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (spaces.isEmpty() && !spaceOpen && !plantOpen) {
-            Surface(color = paper, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+            if (showEmptyStartCard) Surface(color = paper, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                     Text("Start with your space", color = ink, fontSize = 22.sp)
                     Text(

@@ -94,7 +94,7 @@ class NovaAccountSecurityRepository(
                     add(
                         SecuritySession(
                             id = row.optString("id"),
-                            deviceName = row.optString("device_name").ifBlank { "Nova session" },
+                            deviceName = row.optString("device_name").ifBlank { "Plantupia session" },
                             platform = row.optString("platform"),
                             ipAddress = row.optString("ip_address"),
                             lastSeenAt = row.optString("last_seen_at"),
@@ -118,7 +118,7 @@ class NovaAccountSecurityRepository(
         return when (response) {
             is ApiResult.Success -> {
                 if (!sessionStore.clear(stored.identity)) return changedSession()
-                ApiResult.Success(response.value.optString("detail").ifBlank { "Your Nova account was deleted." })
+                ApiResult.Success(response.value.optString("detail").ifBlank { "Your Plantupia account was deleted." })
             }
             is ApiResult.Failure -> response
         }
@@ -218,14 +218,14 @@ class NovaAccountSecurityRepository(
                             403 -> json.optString("detail").ifBlank { "That action isn't available." }
                             429 -> "Too many attempts. Try again shortly."
                             503 -> json.optString("detail").ifBlank { "Password recovery is temporarily unavailable." }
-                            in 500..599 -> "Nova's server had a problem. Try again in a moment."
+                            in 500..599 -> "Plantupia's server had a problem. Try again in a moment."
                             else -> json.optString("detail").ifBlank { "Something went wrong. Please try again." }
                         },
                         statusCode = statusCode,
                     )
                 }
             } catch (_: Exception) {
-                ApiResult.Failure("Can't reach Nova right now. Check your connection and try again.")
+                ApiResult.Failure("Can't reach Plantupia right now. Check your connection and try again.")
             } finally {
                 connection?.disconnect()
             }

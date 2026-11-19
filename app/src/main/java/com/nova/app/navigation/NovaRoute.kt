@@ -6,7 +6,6 @@ sealed interface NovaRoute : java.io.Serializable {
     data object Privacy : NovaRoute
     data object CreateAccount : NovaRoute
     data object Login : NovaRoute
-    data object ProfileSetup : NovaRoute
     data object Home : NovaRoute
     data object Plants : NovaRoute
     data object Shop : NovaRoute

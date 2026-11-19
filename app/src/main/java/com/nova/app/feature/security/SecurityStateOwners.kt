@@ -210,7 +210,7 @@ class AccountSecurityStateOwner(
         if (state.loadingAction != null || state.currentPassword.isBlank()) return
         state = state.copy(loadingAction = "revoke", error = null, info = null)
         when (val result = repository.revokeOtherSessions(state.currentPassword)) {
-            is ApiResult.Success -> state = state.copy(info = "Other Nova sessions were signed out.")
+            is ApiResult.Success -> state = state.copy(info = "Other Plantupia sessions were signed out.")
             is ApiResult.Failure -> state = state.copy(error = result.message)
         }
         state = state.copy(loadingAction = null)

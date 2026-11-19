@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -43,6 +44,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.nova.app.app.appContainer
+import com.nova.app.feature.plants.PlantupiaBrandGlyph
+import com.nova.app.feature.plants.PlantupiaColors
+import com.nova.app.feature.plants.PlantupiaText
 import com.nova.app.feature.security.AccountSecurityStateOwner
 import com.nova.app.feature.security.PasswordRecoveryStage
 import com.nova.app.feature.security.PasswordRecoveryStateOwner
@@ -322,7 +326,7 @@ fun AccountSecurityScreen(
         Spacer(Modifier.height(6.dp))
         Text(
             "If you don't recognize another device, sign every other session out. Your password stays the same.",
-            color = NovaMuted,
+            color = PlantupiaColors.secondaryText,
             fontSize = 12.sp,
             lineHeight = 18.sp,
         )
@@ -460,14 +464,14 @@ private fun SecurityPage(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(NovaBackground)
+            .background(PlantupiaColors.cream)
             .statusBarsPadding()
             .navigationBarsPadding()
             .imePadding()
-            .padding(horizontal = 24.dp, vertical = 18.dp),
+            .padding(horizontal = 20.dp, vertical = 16.dp),
     ) {
-        NovaHeader(title = title, subtitle = subtitle, onBack = onBack)
-        Spacer(Modifier.height(30.dp))
+        PlantupiaSecurityHeader(title, subtitle, onBack)
+        Spacer(Modifier.height(26.dp))
         content()
     }
 }
@@ -483,17 +487,46 @@ private fun SecurityScrollablePage(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(NovaBackground)
+            .background(PlantupiaColors.cream)
             .statusBarsPadding()
             .navigationBarsPadding()
             .imePadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 18.dp),
+            .padding(horizontal = 20.dp, vertical = 16.dp),
     ) {
-        NovaHeader(title = title, subtitle = subtitle, onBack = onBack)
-        Spacer(Modifier.height(30.dp))
+        PlantupiaSecurityHeader(title, subtitle, onBack)
+        Spacer(Modifier.height(26.dp))
         content()
     }
+}
+
+@Composable
+private fun PlantupiaSecurityHeader(
+    title: String,
+    subtitle: String,
+    onBack: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TextButton(onClick = onBack) {
+            Text("? Back", color = PlantupiaColors.forest, fontWeight = FontWeight.SemiBold)
+        }
+        Spacer(Modifier.weight(1f))
+        PlantupiaBrandGlyph(Modifier.size(28.dp))
+        Text(
+            "PLANTUPIA",
+            modifier = Modifier.padding(start = 7.dp),
+            style = PlantupiaText.sectionLabel,
+        )
+    }
+    Spacer(Modifier.height(28.dp))
+    Text("ACCOUNT / SECURITY", style = PlantupiaText.sectionLabel)
+    Spacer(Modifier.height(6.dp))
+    Text(title, style = PlantupiaText.pageHeading)
+    Spacer(Modifier.height(8.dp))
+    Text(subtitle, style = PlantupiaText.body)
 }
 
 

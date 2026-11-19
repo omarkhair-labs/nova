@@ -1,9 +1,6 @@
 package com.nova.app
 
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import android.app.KeyguardManager
 import android.graphics.Color
@@ -83,7 +80,6 @@ class MainActivity : ComponentActivity() {
         routePushIntent(intent)
         NovaPushRegistration.ensureChannel(this)
         NovaPushRegistration.syncForCurrentSession(this)
-        requestNotificationPermissionIfNeeded()
         syncMessageUnreadCount()
 
         setContent {
@@ -194,19 +190,4 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun requestNotificationPermissionIfNeeded() {
-        if (
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            requestPermissions(
-                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                NOTIFICATION_PERMISSION_REQUEST,
-            )
-        }
-    }
-
-    private companion object {
-        const val NOTIFICATION_PERMISSION_REQUEST = 4201
-    }
 }

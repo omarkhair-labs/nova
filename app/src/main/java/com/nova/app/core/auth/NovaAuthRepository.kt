@@ -213,7 +213,7 @@ class NovaAuthRepository(
                     ),
                 )
             }.getOrElse {
-                ApiResult.Failure("Nova couldn't read that photo. Pick another image and try again.")
+                ApiResult.Failure("Plantupia couldn't read that photo. Pick another image and try again.")
             }
         }
     }

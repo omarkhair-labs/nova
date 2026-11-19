@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="plantupia_forest">#FF123B2E</color>
+    <color name="plantupia_cream">#FFF3EEDE</color>
     <color name="nova_deep_space">#FF0A0B14</color>
     <color name="nova_purple">#FF7B5CFF</color>
     <color name="nova_electric_blue">#FF2D8BFF</color>

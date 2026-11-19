@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,7 +52,6 @@ import com.nova.app.feature.feed.FeedStateOwner
 import com.nova.app.feature.home.HomeScreen
 import com.nova.app.feature.legal.PrivacyScreen
 import com.nova.app.feature.legal.TermsScreen
-import com.nova.app.feature.onboarding.ProfileSetupScreen
 import com.nova.app.feature.orbit.OrbitScreen
 import com.nova.app.feature.plants.PlantupiaAiRoute
 import com.nova.app.feature.plants.PlantupiaPlantsRoute
@@ -124,8 +124,6 @@ fun NovaApp(
     val tonightRequestVersion = NovaRootNavigationSignal.tonightRequestVersion
     val personRequestVersion = NovaRootNavigationSignal.personRequestVersion
 
-    var pendingEmail by remember { mutableStateOf("") }
-    var pendingPassword by remember { mutableStateOf("") }
     var authLoading by remember { mutableStateOf(false) }
     var authError by remember { mutableStateOf<String?>(null) }
     val handoverStore = remember(context) { com.nova.app.feature.plants.data.PlantupiaHandoverStore(context) }
@@ -175,8 +173,6 @@ fun NovaApp(
     }
 
     fun clearSessionUi() {
-        pendingEmail = ""
-        pendingPassword = ""
         authError = null
         resetToWelcome()
     }
@@ -284,7 +280,7 @@ fun NovaApp(
     LaunchedEffect(Unit) {
         val hydratedFromCache = appViewModel.hydrateCachedSession()
         if (hydratedFromCache) {
-            if (navigationAccount != appViewModel.state.currentUser?.id || backStack.lastOrNull() in setOf(NovaRoute.Welcome, NovaRoute.Login, NovaRoute.CreateAccount, NovaRoute.ProfileSetup)) openHome()
+            if (navigationAccount != appViewModel.state.currentUser?.id || backStack.lastOrNull() in setOf(NovaRoute.Welcome, NovaRoute.Login, NovaRoute.CreateAccount)) openHome()
         }
         appViewModel.bootstrapSession()
         if (appViewModel.state.currentUser != null) {
@@ -330,8 +326,8 @@ fun NovaApp(
 
     HomeScreen(
         communityOnly = communityOnly,
-        displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
-        username = user?.username ?: "nova",
+        displayName = user?.name?.ifBlank { user.username } ?: "Plantupia member",
+        username = user?.username ?: "plantupia",
         avatarUrl = user?.avatarUrl.orEmpty(),
         userId = user?.id ?: 0L,
         avatarVariant = user?.plantupiaAvatarVariant ?: -1,
@@ -501,50 +497,6 @@ fun NovaApp(
                     )
                 }
 
-                NovaRoute.ProfileSetup -> NavEntry(route) {
-                    ProfileSetupScreen(
-                        email = pendingEmail,
-                        isLoading = authLoading,
-                        errorMessage = authError,
-                        onBack = {
-                            if (!authLoading) {
-                                authError = null
-                                backStack.removeLastOrNull()
-                            }
-                        },
-                        onFinish = { name, handle ->
-                            if (!authLoading) {
-                                scope.launch {
-                                    authLoading = true
-                                    authError = null
-
-                                    when (
-                                        val result = authRepository.register(
-                                            email = pendingEmail,
-                                            password = pendingPassword,
-                                            username = handle,
-                                            name = name,
-                                        )
-                                    ) {
-                                        is ApiResult.Success -> {
-                                            appViewModel.onAuthenticated(result.value)
-                                            pendingPassword = ""
-                                            resetSocialState()
-                                            authLoading = false
-                                            openHome()
-                                        }
-
-                                        is ApiResult.Failure -> {
-                                            authError = result.message
-                                            authLoading = false
-                                        }
-                                    }
-                                }
-                            }
-                        },
-                    )
-                }
-
                 NovaRoute.Plants -> NavEntry(route) {
                     val plantScope = rememberCoroutineScope()
                     PlantupiaPlantsRoute(
@@ -596,8 +548,8 @@ fun NovaApp(
                         onSharedMoments = { if (backStack.lastOrNull() != NovaRoute.CircleFeed) backStack.add(NovaRoute.CircleFeed) },
                         userId = user?.id ?: 0L,
                         avatarVariant = user?.plantupiaAvatarVariant ?: -1,
-                        displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
-                        username = user?.username ?: "nova",
+                        displayName = user?.name?.ifBlank { user.username } ?: "Plantupia member",
+                        username = user?.username ?: "plantupia",
                         avatarUrl = user?.avatarUrl.orEmpty(),
                         onPersonClick = { username -> backStack.add(NovaRoute.Person(username)) },
                         onPostClick = { postId -> backStack.add(NovaRoute.PostDetail(postId)) },
@@ -612,8 +564,8 @@ fun NovaApp(
                 NovaRoute.Create -> NavEntry(route) {
                     val user = appState.currentUser
                     CreateHubScreen(
-                        displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
-                        username = user?.username ?: "nova",
+                        displayName = user?.name?.ifBlank { user.username } ?: "Plantupia member",
+                        username = user?.username ?: "plantupia",
                         avatarUrl = user?.avatarUrl.orEmpty(),
                         userId = user?.id ?: 0L,
                         avatarVariant = user?.plantupiaAvatarVariant ?: -1,
@@ -744,7 +696,7 @@ fun NovaApp(
                             initialPost = feedState.posts.firstOrNull { it.id == route.postId },
                             currentUser = appState.currentUser?.let {
                                 NovaPostAuthor(it.id, it.username, it.name, it.avatarUrl)
-                            } ?: NovaPostAuthor(0L, "nova", "Nova user", ""),
+                            } ?: NovaPostAuthor(0L, "plantupia", "Plantupia member", ""),
                             repository = postRepository,
                             scope = commentsScope,
                         )
@@ -943,10 +895,10 @@ fun NovaApp(
                     }
 
                     ProfileScreen(
-                        displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
+                        displayName = user?.name?.ifBlank { user.username } ?: "Plantupia member",
                         userId = user?.id ?: 0L,
                         avatarVariant = user?.plantupiaAvatarVariant ?: -1,
-                        username = user?.username ?: "nova",
+                        username = user?.username ?: "plantupia",
                         avatarUrl = user?.avatarUrl.orEmpty(),
                         bio = user?.bio.orEmpty(),
                         location = user?.location.orEmpty(),
@@ -976,10 +928,10 @@ fun NovaApp(
                 NovaRoute.EditProfile -> NavEntry(route) {
                     val user = appState.currentUser
                     EditProfileScreen(
-                        displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
+                        displayName = user?.name?.ifBlank { user.username } ?: "Plantupia member",
                         userId = user?.id ?: 0L,
                         avatarVariant = user?.plantupiaAvatarVariant ?: -1,
-                        username = user?.username ?: "nova",
+                        username = user?.username ?: "plantupia",
                         avatarUrl = user?.avatarUrl.orEmpty(),
                         bio = user?.bio.orEmpty(),
                         location = user?.location.orEmpty(),
@@ -1068,23 +1020,34 @@ private fun NovaStartupScreen() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(NovaBackground),
+            .background(com.nova.app.feature.plants.PlantupiaColors.cream),
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = "N",
-                color = NovaAccent,
-                fontSize = 48.sp,
-                fontWeight = FontWeight.Black,
-            )
-            Spacer(modifier = Modifier.height(18.dp))
-            CircularProgressIndicator(color = NovaAccent)
+            com.nova.app.feature.plants.PlantupiaBrandGlyph(modifier = Modifier.size(56.dp))
             Spacer(modifier = Modifier.height(14.dp))
             Text(
-                text = "Opening your space…",
-                color = NovaMuted,
-                fontSize = 13.sp,
+                text = "PLANTUPIA",
+                color = com.nova.app.feature.plants.PlantupiaColors.forestText,
+                fontSize = 28.sp,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(modifier = Modifier.height(7.dp))
+            Text(
+                text = "NATURE \u00D7 ARCHITECTURE",
+                style = com.nova.app.feature.plants.PlantupiaText.sectionLabel,
+            )
+            Spacer(modifier = Modifier.height(30.dp))
+            CircularProgressIndicator(
+                color = com.nova.app.feature.plants.PlantupiaColors.forest,
+                strokeWidth = 2.dp,
+                modifier = Modifier.size(28.dp),
+            )
+            Spacer(modifier = Modifier.height(13.dp))
+            Text(
+                text = "Opening your living space\u2026",
+                style = com.nova.app.feature.plants.PlantupiaText.supporting,
             )
         }
     }

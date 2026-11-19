@@ -4,12 +4,14 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -122,90 +124,266 @@ internal fun PlantupiaHandoverScreen(
         usePlatformDefaultWidth = false, securePolicy = SecureFlagPolicy.SecureOn,
     )) {
         Surface(color = PlantupiaColors.cream, modifier = Modifier.fillMaxSize()) {
-            Column(Modifier.fillMaxSize().imePadding().safeDrawingPadding()
-                .verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                TextButton(onClick = onClose) { Text("← Back") }
-                Text("PLANTUPIA · DELIVERY", style = PlantupiaText.sectionLabel)
-                Text("Your plants, in your care.", style = MaterialTheme.typography.headlineLarge, color = PlantupiaColors.forest)
+            Column(
+                Modifier.fillMaxSize()
+                    .imePadding()
+                    .safeDrawingPadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(onClick = onClose) { Text("? Back", color = PlantupiaColors.forest) }
+                    Spacer(Modifier.weight(1f))
+                    PlantupiaBrandGlyph(Modifier.size(28.dp))
+                    Text(
+                        "PLANTUPIA",
+                        modifier = Modifier.padding(start = 7.dp),
+                        style = PlantupiaText.sectionLabel,
+                    )
+                }
+
+                Text("DELIVERY / PRIVATE CONNECTION", style = PlantupiaText.sectionLabel)
                 Text(
-                    if (delivery == null) "Have a Plantupia delivery? Scan its QR or enter the code to check what the team prepared."
-                    else "Review the delivery details before connecting any plants to your space.",
+                    if (delivery == null) "Connect what arrived." else "Review before you connect.",
+                    style = PlantupiaText.pageHeading,
+                )
+                Text(
+                    if (delivery == null)
+                        "Scan the delivery QR or enter its code. Nothing is added to your account until you review and confirm it."
+                    else
+                        "Check the space and plant count first. Confirmation is the moment these plants become part of your private Plantupia space.",
                     style = PlantupiaText.body,
                 )
-                if (accountId != null) Text("Account · $accountName", style = PlantupiaText.supporting)
-                if (delivery == null) {
-                    Button(enabled = !busy, onClick = {
-                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) scan()
-                        else permission.launch(Manifest.permission.CAMERA)
-                    }, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = PlantupiaColors.forest)) { Text("Scan QR code") }
-                    OutlinedTextField(value = code, onValueChange = {
-                        code = it; error = null; confirmsRecipient = false
-                        deliveryCode(it)?.let { token ->
-                            if (current() && !store.save(token, accountId)) error = "The code couldn't be stored securely. Please retry."
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = PlantupiaColors.softSage,
+                    shape = PlantupiaShapes.inset,
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        HandoverStep("01", "SCAN", active = delivery == null, modifier = Modifier.weight(1f))
+                        HandoverStep("02", "REVIEW", active = delivery != null && delivery?.spaceId == null, modifier = Modifier.weight(1f))
+                        HandoverStep("03", "CONNECT", active = delivery?.spaceId != null, modifier = Modifier.weight(1f))
+                    }
+                }
+
+                if (accountId != null) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = PlantupiaColors.paper,
+                        shape = PlantupiaShapes.inset,
+                        border = BorderStroke(1.dp, PlantupiaColors.border),
+                    ) {
+                        Column(Modifier.padding(12.dp)) {
+                            Text("SIGNED IN AS", style = PlantupiaText.sectionLabel)
+                            Text(accountName, style = PlantupiaText.body.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold))
                         }
-                    },
-                        enabled = !busy, label = { Text("Delivery code") }, singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
-                        visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+                    }
+                }
+
+                if (delivery == null) {
+                    Button(
+                        enabled = !busy,
+                        onClick = {
+                            if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) scan()
+                            else permission.launch(Manifest.permission.CAMERA)
+                        },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = PlantupiaColors.forest),
+                        shape = PlantupiaShapes.inset,
+                    ) { Text("Scan delivery QR") }
+
+                    Text("OR ENTER THE DELIVERY CODE", style = PlantupiaText.sectionLabel)
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = PlantupiaColors.paper,
+                        shape = PlantupiaShapes.card,
+                        border = BorderStroke(1.dp, PlantupiaColors.border),
+                    ) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            OutlinedTextField(
+                                value = code,
+                                onValueChange = {
+                                    code = it
+                                    error = null
+                                    confirmsRecipient = false
+                                    deliveryCode(it)?.let { token ->
+                                        if (current() && !store.save(token, accountId)) {
+                                            error = "The code couldn't be stored securely. Please retry."
+                                        }
+                                    }
+                                },
+                                enabled = !busy,
+                                label = { Text("Delivery code") },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Password,
+                                    autoCorrectEnabled = false,
+                                ),
+                                visualTransformation = PasswordVisualTransformation(),
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Text(
+                                "The code stays private and is used only to look up this delivery.",
+                                style = PlantupiaText.supporting,
+                            )
+                        }
+                    }
+
                     if (accountId == null) {
-                        Text("Use the account named on your delivery. New account? Ask the team for a new code.", style = PlantupiaText.supporting)
-                        Button(onClick = { if (preserve()) onLogin() }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Continue to log in") }
-                        OutlinedButton(onClick = { if (preserve()) onRegister() }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Create account and continue") }
+                        Text(
+                            "Sign in or create an account to keep this delivery code and continue the connection safely.",
+                            style = PlantupiaText.supporting,
+                        )
+                        Button(
+                            onClick = { if (preserve()) onLogin() },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = PlantupiaColors.forest),
+                        ) { Text("Continue to log in") }
+                        OutlinedButton(
+                            onClick = { if (preserve()) onRegister() },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+                        ) { Text("Create account and continue", color = PlantupiaColors.forest) }
                     } else {
-                        Button(enabled = !busy && deliveryCode(code) != null, onClick = { request(false) },
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Review delivery details") }
+                        Button(
+                            enabled = !busy && deliveryCode(code) != null,
+                            onClick = { request(false) },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = PlantupiaColors.forest),
+                        ) { Text("Review delivery details") }
                     }
                 } else {
                     val summary = requireNotNull(delivery)
-                    Text(if (summary.spaceId != null) "Your plants are connected." else "Your plants are waiting.", style = MaterialTheme.typography.titleLarge)
-                    Text(summary.spaceLabel, style = MaterialTheme.typography.titleMedium)
-                    Text("${summary.plantCount} individual plants prepared", style = PlantupiaText.body)
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = PlantupiaColors.paper,
+                        shape = PlantupiaShapes.card,
+                        border = BorderStroke(1.dp, PlantupiaColors.border),
+                    ) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                if (summary.spaceId != null) "CONNECTED" else "READY TO CONFIRM",
+                                style = PlantupiaText.sectionLabel,
+                            )
+                            Text(summary.spaceLabel, style = PlantupiaText.editorialHeading)
+                            Text("${summary.plantCount} individual plants prepared", style = PlantupiaText.body)
+                        }
+                    }
+
                     if (summary.spaceId != null) {
                         Text(
-                            "Next: open a plant in My Plants, add its first real photo, then use Care to record what you actually notice. History will remember each saved moment.",
+                            "Next, open a plant in My Plants and add its first real photo. Care and Living History begin only when you record something that actually happened.",
                             style = PlantupiaText.supporting,
                         )
-                        Button(onClick = { if (current()) { store.clear(); onConnected(requireNotNull(summary.spaceId)) } },
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Open My Plants →") }
+                        Button(
+                            onClick = {
+                                if (current()) {
+                                    store.clear()
+                                    onConnected(requireNotNull(summary.spaceId))
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = PlantupiaColors.forest),
+                        ) { Text("Open My Plants ?") }
                     } else {
                         Text(
-                            "Checking a delivery does not add plants to your account. Confirm only after checking the account, space and plant count.",
+                            "Reviewing does not add anything yet. Confirm only after checking the account, space and plant count.",
                             style = PlantupiaText.supporting,
                         )
-                        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                            Checkbox(
-                                checked = confirmsRecipient,
-                                onCheckedChange = { confirmsRecipient = it },
-                                enabled = !busy,
-                            )
-                            Text("This is my delivery and this is the right account.",
-                                modifier = Modifier.weight(1f), style = PlantupiaText.body)
+                        Surface(
+                            color = PlantupiaColors.softSage,
+                            shape = PlantupiaShapes.inset,
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Checkbox(
+                                    checked = confirmsRecipient,
+                                    onCheckedChange = { confirmsRecipient = it },
+                                    enabled = !busy,
+                                )
+                                Text(
+                                    "This is my delivery and this is the right account.",
+                                    modifier = Modifier.weight(1f),
+                                    style = PlantupiaText.body,
+                                )
+                            }
                         }
                         Button(
                             enabled = !busy && confirmsRecipient,
                             onClick = { request(true) },
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = PlantupiaColors.forest),
-                        ) {
-                            Text("Confirm and connect my plants")
-                        }
+                        ) { Text("Confirm and connect my plants") }
                     }
                 }
+
                 if (accountId != null && delivery == null) {
                     TextButton(onClick = onOwnPlants, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-                        Text("No delivery? Go to my plants")
+                        Text("No delivery? Start with my own plants", color = PlantupiaColors.forest)
                     }
                 }
-                if (busy) { LinearProgressIndicator(Modifier.fillMaxWidth()); Text("Confirming with Plantupia…") }
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                if (busy) {
+                    LinearProgressIndicator(Modifier.fillMaxWidth(), color = PlantupiaColors.forest)
+                    Text("Checking with Plantupia\u2026", style = PlantupiaText.supporting)
+                }
+                error?.let {
+                    Surface(color = PlantupiaColors.paper, shape = PlantupiaShapes.inset) {
+                        Text(
+                            it,
+                            modifier = Modifier.fillMaxWidth().padding(12.dp),
+                            color = MaterialTheme.colorScheme.error,
+                            style = PlantupiaText.supporting,
+                        )
+                    }
+                }
                 if (code.isNotBlank()) {
                     TextButton(enabled = !busy, onClick = { if (current()) { store.clear(); onClose() } }) {
-                        Text("Not my delivery? Remove code")
+                        Text("Not my delivery? Remove code", color = PlantupiaColors.forest)
                     }
                 }
-                Text("Your code is stored privately for up to 24 hours; it may expire sooner.", style = MaterialTheme.typography.bodySmall)
+                Text(
+                    "Your code is stored privately for up to 24 hours; it may expire sooner.",
+                    style = PlantupiaText.supporting,
+                )
             }
+        }
+    }
+}
+
+@Composable
+private fun HandoverStep(
+    number: String,
+    label: String,
+    active: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        color = if (active) PlantupiaColors.forest else PlantupiaColors.paper,
+        shape = PlantupiaShapes.badge,
+    ) {
+        Column(Modifier.padding(horizontal = 9.dp, vertical = 8.dp)) {
+            Text(
+                number,
+                style = PlantupiaText.sectionLabel.copy(
+                    color = if (active) PlantupiaColors.sage else PlantupiaColors.secondaryText,
+                ),
+            )
+            Text(
+                label,
+                style = PlantupiaText.sectionLabel.copy(
+                    color = if (active) PlantupiaColors.paper else PlantupiaColors.forest,
+                ),
+            )
         }
     }
 }

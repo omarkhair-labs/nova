@@ -82,7 +82,7 @@ class NovaApiClient(
             is ApiResult.Success -> {
                 val access = response.value.optString("access")
                 if (access.isBlank()) {
-                    ApiResult.Failure("Nova returned an invalid session response.")
+                    ApiResult.Failure("Plantupia returned an invalid session response.")
                 } else {
                     ApiResult.Success(access)
                 }
@@ -135,7 +135,7 @@ class NovaApiClient(
             readJsonResponse(connection)
         } catch (_: Exception) {
             ApiResult.Failure(
-                message = "Can't reach Nova right now. Check your connection and try again.",
+                message = "Can't reach Plantupia right now. Check your connection and try again.",
             )
         } finally {
             connection?.disconnect()
@@ -223,7 +223,7 @@ class NovaApiClient(
                 error = error::class.java.simpleName,
             )
             ApiResult.Failure(
-                message = "Nova couldn't upload that right now. Check your connection and try again.",
+                message = "Plantupia couldn't upload that right now. Check your connection and try again.",
             )
         }
     }
@@ -251,7 +251,7 @@ class NovaApiClient(
                     require(value is JSONObject && reader.nextClean() == '\u0000')
                     value
                 }.getOrElse {
-                    return ApiResult.Failure("Nova returned an invalid server response. Please try again.", status)
+                    return ApiResult.Failure("Plantupia returned an invalid server response. Please try again.", status)
                 }
             }
         } else {
@@ -305,9 +305,9 @@ class NovaApiClient(
         return when (statusCode) {
             400 -> "Check your details and try again."
             401 -> "Your session expired. Please log in again."
-            404 -> "Nova couldn't find that resource."
-            429 -> "Too many requests. Give Nova a moment and try again."
-            in 500..599 -> "Nova's server had a problem. Try again in a moment."
+            404 -> "Plantupia couldn't find that resource."
+            429 -> "Too many requests. Give Plantupia a moment and try again."
+            in 500..599 -> "Plantupia's server had a problem. Try again in a moment."
             else -> "Something went wrong. Please try again."
         }
     }

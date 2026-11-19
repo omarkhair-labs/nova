@@ -55,7 +55,7 @@ internal object NovaSessionCoordinator {
                                 store.current(owner) == null -> changedSession()
                                 response is ApiResult.Success -> {
                                     if (store.updateAccessToken(owner, response.value)) response
-                                    else ApiResult.Failure("Nova couldn't save the refreshed session. Please retry.")
+                                    else ApiResult.Failure("Plantupia couldn't save the refreshed session. Please retry.")
                                 }
                                 response is ApiResult.Failure && response.statusCode in listOf(400, 401) -> {
                                     store.clear(owner)
@@ -74,7 +74,7 @@ internal object NovaSessionCoordinator {
                             if (flights[owner] === created) flights.remove(owner)
                             // Cancellation/throwing transports cannot strand other waiters.
                             created.result.complete(Delivery(
-                                ApiResult.Failure("Nova couldn't refresh this session. Please retry."), owner,
+                                ApiResult.Failure("Plantupia couldn't refresh this session. Please retry."), owner,
                             ))
                         }
                     }
