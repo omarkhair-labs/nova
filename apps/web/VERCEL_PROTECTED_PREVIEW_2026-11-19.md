@@ -2,8 +2,8 @@
 
 ## Canonical current deployment
 
-- Deployment ID: `dpl_EmxWxzXKfwWDLbKDfoCrJpQeNfJ3`
-- Preview URL: https://plantupia-public-preview-f3k3k7vqj-omarkhair70-droids-projects.vercel.app
+- Deployment ID: `dpl_4kNjzezDA38YFxFJXFiJ6BrCbWNd`
+- Preview URL: https://plantupia-public-preview-g3bwkztpc-omarkhair70-droids-projects.vercel.app
 - Target: Preview, not Production.
 - Status: READY.
 - Protection: Vercel Authentication / SSO enabled for deployment URLs.
@@ -11,7 +11,7 @@
 - Project root remains `apps/web`.
 - No billing, Production alias, master merge, or Production deployment was changed.
 
-This is the canonical protected review deployment after the whole-site refinement, legacy cleanup and final development-console polish.
+This is the canonical protected review deployment after the whole-site refinement, legacy cleanup, development-console polish and micro art-direction pass.
 
 ## Source state
 
@@ -21,6 +21,7 @@ Git branch:
 Runtime source commits:
 - `b7c603593d3bef4fb6c1bc26920e5b8a379439f1` — whole-site refinement and legacy cleanup.
 - `c76dcaadf3cca14a7c3a3761e938692eb81e9d1b` — final stable React key fix and site icon.
+- `d39a5651d1bfce6c979a20d03f81ceddcdcc17dc` — micro art-direction pass for line wrapping, mobile case-study rhythm and source metadata readability.
 
 Relevant earlier visual-curation commits:
 - `fe9414c` — flagship case studies become distinct visual journeys.
@@ -153,9 +154,24 @@ The final `c76dcaa` delta is limited to the stable React key and site icon:
 - deployed `/icon.svg` returned HTTP 200 with command exit code 0;
 - unauthenticated `/spaces` returned HTTP 302 to Vercel Authentication.
 
+### Micro art-direction delta verification
+The `d39a565` delta changes presentation only: balanced display wrapping, prettier copy wrapping, mobile Spaces case-study rhythm and small source-label readability.
+- local regression loaded all 17 live routes at 390 and 1440 (34 combinations);
+- every route returned HTTP 200 with zero horizontal overflow, broken loaded images, browser console warnings/errors or page errors;
+- staging contains the full-width Spaces case-study rule below 520 px, 9.5 px Studio narrow-screen sheet metadata and the shared balanced-heading rule;
+- staging TypeScript passed with `VERCEL_ENV=preview`;
+- Vercel build completed READY;
+- deployed Spaces, Studio and Shop returned their current refined content;
+- deployed Start a Space retains disabled submission;
+- deployed icon returned HTTP 200 with exit code 0;
+- unauthenticated Spaces access returns HTTP 302 to Vercel Authentication.
+
 ## Preview cleanup
 
-Removed after the final replacement reached READY and passed verification:
+Removed after the micro art-direction replacement reached READY and passed verification:
+- `plantupia-public-preview-f3k3k7vqj-omarkhair70-droids-projects.vercel.app`
+
+Removed after the preceding final replacement reached READY and passed verification:
 - `plantupia-public-preview-55dwz0n04-omarkhair70-droids-projects.vercel.app`
 
 Removed after the preceding whole-site replacement passed full route verification:
