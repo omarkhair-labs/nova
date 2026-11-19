@@ -176,3 +176,53 @@ A visual mobile review exposed one Next.js development warning in Spaces: every 
 The browser also requested `/favicon.ico` because the app had no icon metadata asset. An `app/icon.svg` was added using the existing circular `◕` wordmark language and the established dark-green / ivory palette rather than introducing a new brand symbol.
 
 After both fixes, a fresh hydrated Spaces session was inspected for console warnings/errors, page errors and HTTP responses >= 400; the captured issue set was empty.
+
+## Micro art-direction pass
+
+The next pass intentionally did not change the site architecture. It refined how the existing authored system reads at real viewport sizes.
+
+### Typography
+- Display headings across the live page systems now use balanced wrapping and no automatic hyphenation.
+- Paragraphs, list copy, captions and definition values use prettier line wrapping where supported.
+- This changes line endings only; it does not rewrite source language or force identical measures across pages.
+
+### Mobile case-study rhythm
+The Spaces case-study index was the one place where the small-screen composition became too compressed. At 390 px some half-width cards forced a project title into four lines inside roughly 150 px of text width.
+
+Below 520 px:
+- the six case studies now read as full-width editorial entries;
+- image ratios stay consistent;
+- title measure is capped rather than allowed to stretch across the full viewport;
+- the change prioritizes reading the work over preserving a desktop-derived two-column pattern.
+
+The main Project Archive remains separate and keeps its own authored wall.
+
+### Micro metadata
+The pass measured visible copy at 390 px and distinguished provenance labels from substantive copy rather than increasing all small type.
+
+Adjusted:
+- Studio sheet headers/footers: 8 px → 9.5 px on narrow screens;
+- Studio source caption: 9 px → 10 px;
+- Hospitality source captions: 9 px → 10 px;
+- Offices source captions: 9 px → 10 px;
+- Project Archive source captions and case-study action label: 9 px → 10 px;
+- Shop material-library/source labels: 10 px on narrow screens;
+- About source labels/captions: 10 px on narrow screens;
+- Spaces active-study caption: 10 px on narrow screens.
+
+Kept intentionally small:
+- short provenance/index micro-labels where they are not the only carrier of substantive information;
+- the illustrative Living Systems specimen annotations, which function as drawing notation rather than body copy.
+
+### Verification
+Before/after visual review was performed at 390 and 1440 on the refined pages.
+
+The micro-pass regression then loaded all 17 live routes at both 390 and 1440:
+- 34 route/viewport combinations passed;
+- HTTP 200 on every route;
+- zero horizontal overflow;
+- zero broken loaded images;
+- zero browser console warnings/errors;
+- zero page errors.
+
+TypeScript and `git diff --check` also pass after the pass.

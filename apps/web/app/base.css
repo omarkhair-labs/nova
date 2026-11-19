@@ -17,3 +17,7 @@ a,button{-webkit-tap-highlight-color:transparent}
   ::view-transition-image-pair(root){isolation:isolate}
 }
 @media(prefers-reduced-motion:reduce){@view-transition{navigation:none}::view-transition-old(root),::view-transition-new(root){animation:none}}
+
+/* Micro art direction: preserve editorial line breaks without leaving accidental widows. */
+:where(.ps-site,.sx-page,.cm-page,.hs-page,.of-page,.pa-page,.pc-page,.cs-page,.sr-world,.ct-page) :is(h1,h2,h3){text-wrap:balance;hyphens:none}
+:where(.ps-site,.sx-page,.cm-page,.hs-page,.of-page,.pa-page,.pc-page,.cs-page,.sr-world,.ct-page) :is(p,li,figcaption,dd){text-wrap:pretty}

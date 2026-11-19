@@ -42,3 +42,5 @@
 .cs-focus-grid>a>span{font:600 10px Consolas,monospace;color:#66806d}.cs-focus-grid h3{font:400 clamp(26px,2.8vw,43px)/1.08 Georgia,serif;margin:10px 0}.cs-focus-grid p{font:400 13px/1.65 Arial,sans-serif;color:#4c6252;max-width:34ch}
 .cs-archive-preview{margin-top:35px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.cs-archive-preview>div{border-top:1px solid #acbbad;padding-top:14px}.cs-archive-preview>div span{font:400 clamp(48px,5vw,82px)/1 Georgia,serif;color:#5f7e65}.cs-archive-preview>div p{font:400 13px/1.6 Arial,sans-serif;color:#4c6252;max-width:28ch}.cs-archive-note{grid-column:1/-1;font:400 12px/1.65 Arial,sans-serif;color:#596e5d;border-top:1px solid #acbbad;padding-top:14px;margin:6px 0 0}.cs-archive-preview .cs-link{grid-column:1/-1;justify-self:start}
 @media(max-width:800px){.cs-focus-head,.cs-focus-grid,.cs-archive-preview{grid-template-columns:1fr}.cs-focus-grid img{aspect-ratio:auto;max-height:390px}.cs-archive-note,.cs-archive-preview .cs-link{grid-column:1}}
+
+@media(max-width:650px){.cs-image span,.cs-focus-grid figcaption{font-size:10px;line-height:1.5}}
