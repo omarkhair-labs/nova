@@ -1,8 +1,8 @@
 # Vercel Protected Preview — 2026-11-19
 
 Final corrected deployment:
-- Deployment ID: dpl_7UDVGRdoJ9XJTi4NgSaBDeuUGceR
-- Preview URL: https://plantupia-public-preview-pxya92ry5-omarkhair70-droids-projects.vercel.app
+- Deployment ID: dpl_J4V4UWpEwxwBwzPMAuGx6znhYP1h
+- Preview URL: https://plantupia-public-preview-bar96mcn1-omarkhair70-droids-projects.vercel.app
 - Target: Preview (target=null), not Production.
 - Vercel Authentication / SSO protection is enabled for deployment URLs.
 - Project root remains apps/web; no project setting, billing, production alias, or master merge changed.
@@ -30,3 +30,6 @@ Verification:
 This preview is for authenticated review. Publication permission for supplied proposal/catalogue imagery remains a release gate.
 ## Visual-first update
 The protected preview was redeployed after the visual-first correction: six direct case-study cards in Spaces, 56 case-study visual frames exposed through image archives, Plantupia imagery replacing external editorial images in private Spaces, image-led Studio/Offices review, and drawings removed from the private World Index/chapter passages. Previous protected preview dpl_7p6Ktj7n6DxPPcajf6tdptoUYJBw was removed after the replacement reached READY.
+
+## Home + Shop production-set update
+The protected preview now includes the first curated production set: 15 newly extracted source assets (8 Home / 7 Shop), three curated opening scenes on Home, an eight-image Selected Work field, and a Shop material world built from Hospitality catalogue SPACE / OBJECT / PLANTS / VESSELS studies before the live catalogue. Preview staging contains 96 private review assets total. Home and Shop were verified at 390 and 1440 locally with zero page errors/overflow/broken review assets. Deployed responses were verified to contain the new visual sections, direct review assets return HTTP 200, live catalogue markup remains present, and Start a Space remains locked in Preview mode. Previous READY preview dpl_7VMF7twoU7BywynTi3ULDMnj55WQ was removed after replacement.
