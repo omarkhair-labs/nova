@@ -1,17 +1,126 @@
 "use client";
-import{useMemo,useState}from"react";import SiteIndex from"./SiteIndex";import ProposalImageIndex from"./ProposalImageIndex";import{villaChoices,villaAreas}from"./villa-case-data";import"./space-explorer.css";import"./villa-case.css";
-export default function VillaCaseStudy(){const[area,setArea]=useState(1);const[selected,setSelected]=useState<Record<number,number>>({});const choices=useMemo(()=>villaChoices.filter(c=>c.area===area),[area]);const fallback=selected[area]??choices[0].id;const current=choices.find(c=>c.id===fallback)??choices[0];const selectedRows=villaAreas.map(a=>({area:a,choice:villaChoices.find(c=>c.id===selected[a.id])}));const done=selectedRows.filter(x=>x.choice).length;
-function choose(id:number){setSelected(s=>({...s,[area]:id}));}
-return <div className="sx-page vl-page"><a className="sx-skip" href="#vl-main">Skip to Villa 7 study</a><header className="sx-header"><a href="/" className="sx-brand">Plantupia</a><SiteIndex current="spaces"/><a className="sx-contact" href="/start-a-space?space=home">Get in touch <span aria-hidden="true">&#8599;</span></a></header><main id="vl-main" className="vl-main">
-<div className="vl-crumb"><a className="sx-underlink" href="/spaces/projects">&#8592; Project archive</a><span>Residential / Landscape &amp; interior planting / Proposal</span></div>
-<section className="vl-hero" aria-labelledby="vl-title"><div><p className="sx-kicker">CASE STUDY 06 / VILLA 7</p><h1 id="vl-title">A garden for<br/><em>every space.</em></h1></div><div><p>The proposal divides the villa into ten indoor and outdoor areas, with twenty-four planting choices. This digital study follows the source's selection-sheet logic.</p><dl><div><dt>Areas</dt><dd>10</dd></div><div><dt>Choices</dt><dd>24</dd></div><div><dt>Status</dt><dd>Design proposal / installation not verified</dd></div></dl></div></section>
-<ProposalImageIndex label="Villa 7 proposal visual archive" items={villaChoices.map(c=>({id:c.id,title:c.areaName+" / "+c.title,image:c.asset,meta:"P"+c.page}))} active={current.id} onSelect={id=>{const choice=villaChoices.find(c=>c.id===Number(id))!;setArea(choice.area);choose(choice.id);}}/>
-<section className="vl-journey" aria-labelledby="vl-journey-title"><div className="vl-section-head"><div><p className="sx-kicker">AREA-BY-AREA SELECTION</p><h2 id="vl-journey-title">Walk the villa.<br/>Choose as you go.</h2></div><p>Select an area, inspect its proposal alternatives and mark one if you want to add it to the local selection sheet. Nothing is submitted.</p></div>
-<div className="vl-area-groups"><AreaGroup title="OUTDOOR / 01—06" areas={villaAreas.filter(a=>a.context==="Outdoor")} active={area} selected={selected} onChange={setArea}/><AreaGroup title="INDOOR / 07—10" areas={villaAreas.filter(a=>a.context==="Indoor")} active={area} selected={selected} onChange={setArea}/></div>
-<div className="vl-choice-tabs" role="group" aria-label={"Choices for "+villaAreas[area-1].name}>{choices.map(c=><button key={c.id} type="button" data-villa-choice={c.id} aria-pressed={current.id===c.id} onClick={()=>{choose(c.id)}}><span>{c.letter}</span><span><strong>{c.title}</strong><small>P{c.page}</small></span></button>)}</div>
-<article className="vl-current" data-active-choice={current.id} key={current.id} aria-live="polite"><figure><img src={"/api/private-arrival/"+current.asset} alt={"Villa 7 "+current.areaName+", "+current.title+" proposal"}/><figcaption><span>AREA {String(current.area).padStart(2,"0")} / {current.areaName.toUpperCase()}</span><span>OPTION {current.letter} / P{current.page}</span></figcaption></figure><div className="vl-current-copy"><div><p className="sx-kicker">{current.context.toUpperCase()} / OPTION {current.letter}</p><h3>{current.title}</h3><p>{current.description}</p></div><div><p className="vl-label">Planting / finish</p><p>{current.plants}</p><button type="button" className="vl-mark" aria-pressed={selected[area]===current.id} onClick={()=>choose(current.id)}>{selected[area]===current.id?"Selected for area ✓":"Select this option"}</button></div></div></article></section>
-<details className="vl-sheet vl-sheet-collapsed"><summary><span><p className="sx-kicker">SELECTION SHEET / SOURCE PP27-29</p><h2 id="vl-sheet-title">Your choices.</h2></span><strong>{done} / 10 marked</strong></summary><div className="vl-sheet-body"><p>This mirrors the proposal's selection workflow but remains only in this browser session.</p><ol>{selectedRows.map(({area:a,choice})=><li key={a.id} className={choice?"is-selected":""}><button type="button" onClick={()=>setArea(a.id)}><span>{String(a.id).padStart(2,"0")}</span><span><strong>{a.name}</strong><small>{a.context}</small></span><span>{choice?choice.letter+" / "+choice.title:"Not selected"}</span></button></li>)}</ol></div></details>
-<section className="vl-care" aria-labelledby="vl-care-title"><div><p className="sx-kicker">INCLUDED WITH EVERY OPTION / P32</p><h2 id="vl-care-title">Planted, watered,<br/>always in shape.</h2></div><ol><li><span>01</span>Supply &amp; installation</li><li><span>02</span>Smart irrigation</li><li><span>03</span>Scheduled maintenance</li><li><span>04</span>Plant warranty</li></ol></section>
-<section className="vl-next"><p className="sx-kicker">NEXT STEP / P33</p><h2>Choose your garden.</h2><p>The source asks the client to mark choices on the selection sheet before the detailed quotation.</p><a className="sx-underlink" href="/start-a-space?space=home">Discuss a residential space &#8599;</a></section>
-</main><footer className="sx-footer"><a href="/spaces/projects">Project archive</a><span>Plantupia / Villa 7 proposal study</span><a href="/spaces">Residential context &#8599;</a></footer></div>}
-function AreaGroup({title,areas,active,selected,onChange}:{title:string;areas:typeof villaAreas[number][];active:number;selected:Record<number,number>;onChange:(id:number)=>void}){return <div><p className="sx-kicker">{title}</p><div className="vl-area-list">{areas.map(a=><button key={a.id} type="button" data-villa-area={a.id} aria-pressed={active===a.id} onClick={()=>onChange(a.id)}><span>{String(a.id).padStart(2,"0")}</span><strong>{a.name}</strong><small>{selected[a.id]?"✓":"—"}</small></button>)}</div></div>}
+
+import SiteIndex from "./SiteIndex";
+import { villaAreas, villaChoices } from "./villa-case-data";
+import "./space-explorer.css";
+import "./villa-case.css";
+
+function AreaChapter({ area }: { area: (typeof villaAreas)[number] }) {
+  const choices = villaChoices.filter(choice => choice.area === area.id);
+  return <section className="vl-area" id={"villa-area-" + area.id} aria-labelledby={"villa-area-title-" + area.id}>
+    <header className="vl-area-head">
+      <div>
+        <p className="sx-kicker">{area.context.toUpperCase()} / AREA {String(area.id).padStart(2, "0")}</p>
+        <h2 id={"villa-area-title-" + area.id}>{area.name}</h2>
+      </div>
+      <p>{choices.length === 1 ? "One proposal direction for this space." : choices.length + " proposal directions for the same space."}</p>
+    </header>
+    <div className={"vl-visual-field vl-visual-field--" + choices.length}>
+      {choices.map((choice, index) => <figure className="vl-option" key={choice.id}>
+        <div className="vl-option-media">
+          <img src={"/api/private-arrival/" + choice.asset} alt={"Villa 7 " + choice.areaName + ", option " + choice.letter + ", " + choice.title} loading={area.id <= 2 && index === 0 ? "eager" : "lazy"} />
+        </div>
+        <figcaption>
+          <span className="vl-option-letter">{choice.letter}</span>
+          <div>
+            <p className="sx-kicker">OPTION {choice.letter} / PROPOSAL P{choice.page}</p>
+            <h3>{choice.title}</h3>
+            <p>{choice.description}</p>
+            <small>{choice.plants}</small>
+          </div>
+        </figcaption>
+      </figure>)}
+    </div>
+  </section>;
+}
+
+export default function VillaCaseStudy() {
+  return <div className="sx-page vl-page">
+    <a className="sx-skip" href="#vl-main">Skip to Villa 7 study</a>
+    <header className="sx-header">
+      <a href="/" className="sx-brand">Plantupia</a>
+      <SiteIndex current="spaces" />
+      <a className="sx-contact" href="/start-a-space?space=home">Get in touch <span aria-hidden="true">&#8599;</span></a>
+    </header>
+
+    <main id="vl-main" className="vl-main">
+      <div className="vl-crumb">
+        <a className="sx-underlink" href="/spaces/projects">&#8592; Project archive</a>
+        <span>Residential / Landscape &amp; interior planting / Proposal</span>
+      </div>
+
+      <section className="vl-hero" aria-labelledby="vl-title">
+        <div>
+          <p className="sx-kicker">CASE STUDY 06 / VILLA 7</p>
+          <h1 id="vl-title">24 ways<br/><em>through one home.</em></h1>
+        </div>
+        <div>
+          <p>The proposal covers ten indoor and outdoor areas through twenty-four planting choices. Instead of turning those choices into a long selection interface, this study lets every space become its own visual chapter.</p>
+          <dl>
+            <div><dt>Areas</dt><dd>10 spatial chapters</dd></div>
+            <div><dt>Choices</dt><dd>24 proposal directions</dd></div>
+            <div><dt>Status</dt><dd>Design proposal / installation not verified</dd></div>
+          </dl>
+        </div>
+      </section>
+
+      <nav className="vl-area-index" aria-label="Villa 7 area index">
+        <p className="sx-kicker">THE HOUSE / 01—10</p>
+        <div>{villaAreas.map(area => <a key={area.id} href={"#villa-area-" + area.id}><span>{String(area.id).padStart(2, "0")}</span>{area.name}</a>)}</div>
+      </nav>
+
+      <div className="vl-context-banner">
+        <span>OUTDOOR / 01—06</span>
+        <p>The garden moves from arrival and pool edges to dining, covered terrace and lounge conditions.</p>
+      </div>
+
+      {villaAreas.slice(0, 6).map(area => <AreaChapter key={area.id} area={area} />)}
+
+      <div className="vl-context-banner vl-context-banner--indoor">
+        <span>INDOOR / 07—10</span>
+        <p>The same proposal language continues inside through entrance, living, lounge and dining moments.</p>
+      </div>
+
+      {villaAreas.slice(6).map(area => <AreaChapter key={area.id} area={area} />)}
+
+      <section className="vl-sheet-note" aria-labelledby="vl-sheet-title">
+        <div>
+          <p className="sx-kicker">SOURCE SELECTION SHEET / PP27—29</p>
+          <h2 id="vl-sheet-title">The proposal asks for choices.<br/>The website shows the spaces first.</h2>
+        </div>
+        <p>The original proposal includes a client selection sheet. That logic remains part of the source record, but it is intentionally secondary here: the twenty-four images are the project story, not controls in a configurator.</p>
+      </section>
+
+      <section className="vl-care" aria-labelledby="vl-care-title">
+        <div>
+          <p className="sx-kicker">INCLUDED WITH EVERY OPTION / P32</p>
+          <h2 id="vl-care-title">Planted, watered,<br/>always in shape.</h2>
+          <p>The proposal connects every visual direction to supply, irrigation and ongoing care.</p>
+        </div>
+        <ol>
+          <li><span>01</span>Supply &amp; installation</li>
+          <li><span>02</span>Smart irrigation</li>
+          <li><span>03</span>Scheduled maintenance</li>
+          <li><span>04</span>Plant warranty</li>
+        </ol>
+      </section>
+
+      <section className="vl-source-note">
+        <span>VISUAL SOURCE NOTE</span>
+        <p>All twenty-four images are proposal visuals. They remain labelled as options and are not presented as completed Villa 7 installations or confirmed client selections.</p>
+      </section>
+
+      <section className="vl-next">
+        <p className="sx-kicker">NEXT STEP / P33</p>
+        <h2>Shape a garden around the space.</h2>
+        <a className="sx-underlink" href="/start-a-space?space=home">Discuss a residential space &#8599;</a>
+      </section>
+    </main>
+
+    <footer className="sx-footer">
+      <a href="/spaces/projects">Project archive</a>
+      <span>Plantupia / Villa 7 proposal study</span>
+      <a href="/spaces">Residential context &#8599;</a>
+    </footer>
+  </div>;
+}

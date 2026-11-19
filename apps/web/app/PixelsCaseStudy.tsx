@@ -1,11 +1,103 @@
 "use client";
-import{useState}from"react";import SiteIndex from"./SiteIndex";import ProposalImageIndex from"./ProposalImageIndex";import{pixelsPrinciples,pixelsScenes}from"./pixels-case-data";import"./space-explorer.css";import"./pixels-case.css";
-export default function PixelsCaseStudy(){const[active,setActive]=useState(5);const scene=pixelsScenes.find(x=>x.id===active)!;return <div className="sx-page px-page"><a className="sx-skip" href="#px-main">Skip to Pixels Mall study</a><header className="sx-header"><a href="/" className="sx-brand">Plantupia</a><SiteIndex current="spaces"/><a className="sx-contact" href="/start-a-space?space=retail">Get in touch <span aria-hidden="true">&#8599;</span></a></header><main id="px-main" className="px-main">
-<div className="px-crumb"><a className="sx-underlink" href="/spaces/projects">&#8592; Project archive</a><span>Commercial / Architecture / Proposal</span></div>
-<section className="px-hero" aria-labelledby="px-title"><div><p className="sx-kicker">CASE STUDY 04 / MT ARCHITECTS / NEW CAIRO</p><h1 id="px-title">Planting<br/><em>at scale.</em></h1></div><div><p>The proposal describes a nature-infused commercial destination where planting participates in the architecture, visitor journey and identity of the place.</p><dl><div><dt>Context</dt><dd>High-end commercial destination</dd></div><div><dt>Location</dt><dd>New Cairo</dd></div><div><dt>Status</dt><dd>Design proposal / installation not verified</dd></div></dl></div></section>
-<ProposalImageIndex label="Pixels Mall proposal visual archive" items={pixelsScenes.map(x=>({id:x.id,title:x.note.replace("Proposal visual / ",""),image:x.image,meta:"P"+x.page}))} active={active} onSelect={id=>setActive(Number(id))}/>
-<section className="px-principles" aria-labelledby="px-principles-title"><div><p className="sx-kicker">DESIGN PRINCIPLES / P02</p><h2 id="px-principles-title">Five intentions.<br/>One landscape.</h2><p>The proposal names these five principles explicitly. They are shown here without adding performance claims.</p></div><ol>{pixelsPrinciples.map(([n,t])=><li key={n}><span>{n}</span><strong>{t}</strong></li>)}</ol></section>
-<section className="px-scenes" aria-labelledby="px-scenes-title"><div className="px-section-head"><div><p className="sx-kicker">PROPOSAL VISUAL FIELD</p><h2 id="px-scenes-title">Read the project<br/>through five frames.</h2></div><p>These later proposal pages form a visually coherent group. The scene labels below are descriptive readings of what is visible, not source chapter titles.</p></div><div className="px-scene-tabs" role="group" aria-label="Choose a proposal scene">{pixelsScenes.map(s=><button type="button" key={s.id} data-pixels-scene={s.id} aria-pressed={active===s.id} onClick={()=>setActive(s.id)}><span>0{s.id}</span><small>P{s.page}</small></button>)}</div><article className="px-current" data-active-scene={scene.id} key={scene.id} aria-live="polite"><figure><img src={"/api/private-arrival/"+scene.image} alt={"Pixels Mall proposal visual, page "+scene.page}/><figcaption><span>SCENE 0{scene.id} / PROPOSAL P{scene.page}</span><span>VISUALIZATION</span></figcaption></figure><div><p className="sx-kicker">VISUAL READING / NOT A SOURCE HEADING</p><h3>{scene.note.replace("Proposal visual / ","")}</h3><p>The image is kept within the proposal context. It is not presented as evidence of construction or a completed installation.</p></div></article></section>
-<section className="px-system" aria-labelledby="px-system-title"><div><p className="sx-kicker">THE SYSTEM</p><h2 id="px-system-title">Architecture.<br/>Planting.<br/>Movement.</h2></div><div className="px-system-grid"><article><span>01</span><h3>Landmarks</h3><p>Use planting as a spatial marker, reflecting the proposal's signature-tree principle.</p></article><article><span>02</span><h3>Layers</h3><p>Compose foreground, edge and architectural planting rather than isolated decorative pots.</p></article><article><span>03</span><h3>Zones</h3><p>Recognize plazas, terraces and arrival points as different experiential conditions.</p></article><article><span>04</span><h3>Vessels</h3><p>Treat custom planters as part of the architectural material language.</p></article></div></section>
-<section className="px-next"><p className="sx-kicker">YOUR COMMERCIAL DESTINATION</p><h2>Begin with the architecture.</h2><a className="sx-underlink" href="/start-a-space?space=retail">Discuss a commercial project &#8599;</a></section>
-</main><footer className="sx-footer"><a href="/spaces/projects">Project archive</a><span>Plantupia / Pixels Mall proposal study</span><a href="/spaces/commercial">Commercial &#8599;</a></footer></div>}
+
+import SiteIndex from "./SiteIndex";
+import { pixelsPrinciples, pixelsSequence } from "./pixels-case-data";
+import "./space-explorer.css";
+import "./pixels-case.css";
+
+function SequenceFrame({ frame, index }: { frame: (typeof pixelsSequence)[number]; index: number }) {
+  return <figure className={"px-frame px-frame--" + frame.tone + (index % 2 ? " px-frame--reverse" : "")}>
+    <div className="px-frame-media">
+      <img src={"/api/private-arrival/" + frame.image} alt={"Pixels Mall proposal visualization, page " + frame.page} loading={index < 2 ? "eager" : "lazy"} />
+    </div>
+    <figcaption>
+      <span className="px-frame-no">{frame.id}</span>
+      <div>
+        <p className="sx-kicker">PROPOSAL VISUAL / P{frame.page}</p>
+        <h3>{frame.title}</h3>
+        <p>{frame.note}</p>
+        <small>Descriptive visual reading — not a source chapter title.</small>
+      </div>
+    </figcaption>
+  </figure>;
+}
+
+export default function PixelsCaseStudy() {
+  return <div className="sx-page px-page">
+    <a className="sx-skip" href="#px-main">Skip to Pixels Mall study</a>
+    <header className="sx-header">
+      <a href="/" className="sx-brand">Plantupia</a>
+      <SiteIndex current="spaces" />
+      <a className="sx-contact" href="/start-a-space?space=retail">Get in touch <span aria-hidden="true">&#8599;</span></a>
+    </header>
+
+    <main id="px-main" className="px-main">
+      <div className="px-crumb">
+        <a className="sx-underlink" href="/spaces/projects">&#8592; Project archive</a>
+        <span>Commercial / Architecture / Proposal</span>
+      </div>
+
+      <section className="px-hero" aria-labelledby="px-title">
+        <div>
+          <p className="sx-kicker">CASE STUDY 04 / MT ARCHITECTS / NEW CAIRO</p>
+          <h1 id="px-title">A landscape<br/><em>through the building.</em></h1>
+        </div>
+        <div className="px-hero-copy">
+          <p>The proposal imagines planting as part of the commercial destination itself: arrival marker, circulation layer, terrace edge, facade material and interior atmosphere.</p>
+          <dl>
+            <div><dt>Context</dt><dd>High-end commercial destination</dd></div>
+            <div><dt>Location</dt><dd>New Cairo</dd></div>
+            <div><dt>Status</dt><dd>Design proposal / installation not verified</dd></div>
+          </dl>
+        </div>
+      </section>
+
+      <section className="px-sequence" aria-label="Pixels Mall proposal visual sequence">
+        {pixelsSequence.slice(0, 2).map((frame, index) => <SequenceFrame key={frame.id} frame={frame} index={index} />)}
+      </section>
+
+      <section className="px-principles" aria-labelledby="px-principles-title">
+        <div>
+          <p className="sx-kicker">DESIGN PRINCIPLES / SOURCE P02</p>
+          <h2 id="px-principles-title">Five intentions.<br/>One continuous landscape.</h2>
+          <p>The proposal names these five principles explicitly. They interrupt the image sequence once, then the project returns to space and movement.</p>
+        </div>
+        <ol>{pixelsPrinciples.map(([n, t]) => <li key={n}><span>{n}</span><strong>{t}</strong></li>)}</ol>
+      </section>
+
+      <section className="px-sequence px-sequence--continuation" aria-label="Pixels Mall proposal sequence continued">
+        {pixelsSequence.slice(2).map((frame, index) => <SequenceFrame key={frame.id} frame={frame} index={index + 2} />)}
+      </section>
+
+      <section className="px-system" aria-labelledby="px-system-title">
+        <div>
+          <p className="sx-kicker">WHAT THE SEQUENCE REVEALS</p>
+          <h2 id="px-system-title">Not pots in a mall.<br/>A planted spatial system.</h2>
+        </div>
+        <div className="px-system-grid">
+          <article><span>01</span><h3>Landmarks</h3><p>Planting establishes recognizable spatial markers at arrival and circulation points.</p></article>
+          <article><span>02</span><h3>Continuity</h3><p>Greenery repeats across ground, terrace, facade and interior conditions.</p></article>
+          <article><span>03</span><h3>Edges</h3><p>Planters work with architectural boundaries, curves and thresholds rather than floating independently.</p></article>
+          <article><span>04</span><h3>Care</h3><p>Low-maintenance intent belongs to the system, but the visual story leads before operational detail.</p></article>
+        </div>
+      </section>
+
+      <section className="px-source-note">
+        <span>VISUAL SOURCE NOTE</span>
+        <p>All imagery on this page is retained inside its proposal context. Nothing here is presented as evidence of completed construction, installation or client approval.</p>
+      </section>
+
+      <section className="px-next">
+        <p className="sx-kicker">YOUR COMMERCIAL DESTINATION</p>
+        <h2>Begin with the architecture.</h2>
+        <a className="sx-underlink" href="/start-a-space?space=retail">Discuss a commercial project &#8599;</a>
+      </section>
+    </main>
+
+    <footer className="sx-footer">
+      <a href="/spaces/projects">Project archive</a>
+      <span>Plantupia / Pixels Mall proposal study</span>
+      <a href="/spaces/commercial">Commercial &#8599;</a>
+    </footer>
+  </div>;
+}
