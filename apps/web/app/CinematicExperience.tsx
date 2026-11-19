@@ -8,6 +8,7 @@ import ChapterThreshold from "./ChapterThreshold";
 import WorldThreshold from "./WorldThreshold";
 import { CompanyIntroduction } from "./CompanyStory";
 import ShopBridge from "./ShopBridge";
+import HomeVisualField from "./HomeVisualField";
 type Stage = 0 | 1 | 2;
 
 const originalScenes = [
@@ -58,8 +59,8 @@ const originalScenes = [
   },
 ] as const;
 
-export default function SceneStudy({ privateReview = false, selectedHospitality = false }: { privateReview?: boolean; selectedHospitality?: boolean }) {
-  const scenes = privateReview ? originalScenes.map((scene, i) => ({ ...scene, ...privateSceneOverrides[i], ...(i === 1 && selectedHospitality ? { visual: "/api/private-arrival/arrival-hero.webp", detail: "Hospitality greenery catalogue, page 6. Illustrative reference of planting integrated into an interior. Not a verified installation." } : {}) })) : originalScenes;
+export default function SceneStudy({ privateReview = false }: { privateReview?: boolean }) {
+  const scenes = privateReview ? originalScenes.map((scene, i) => ({ ...scene, ...privateSceneOverrides[i] })) : originalScenes;
   const [stage,setStage]=useState<Stage>(0);
   const [failed,setFailed]=useState<number[]>([]);
   const scene=scenes[stage];
@@ -83,6 +84,6 @@ export default function SceneStudy({ privateReview = false, selectedHospitality 
       </main>
     </section>
     <section className="ps-fieldnotes" id="scene-notes"><details><summary>Three photographic studies <span aria-hidden="true">+</span></summary><p>{privateReview ? "Independent studies from supplied Plantupia proposals and catalogue. Not evidence of completed installation, before-and-after or growth. Generated concept images are used if a source image is unavailable." : "Independent editorial references, not before-and-after images or completed Plantupia projects. Images: DAIPI, Alpha En and mingche lee via Pexels. Generated concept images are used if a photograph is unavailable."}</p><h2>{scene.label}</h2><p>{scene.detail}</p><div className="ps-note-grid">{scene.markerLabels.map((label,i)=><article key={label}><h3>{label}</h3><p>{scene.markerDescriptions[i]}</p></article>)}</div></details></section>
-    <WorldThreshold privateReview={privateReview}/><CompanyIntroduction privateReview={privateReview}/><ShopBridge privateReview={privateReview}/><ChapterThreshold from="experience" privateReview={privateReview}/>
+    {privateReview&&<HomeVisualField/>}<WorldThreshold privateReview={privateReview}/><CompanyIntroduction privateReview={privateReview}/><ShopBridge privateReview={privateReview}/><ChapterThreshold from="experience" privateReview={privateReview}/>
   </div>;
 }

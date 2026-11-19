@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import SiteIndex from "./SiteIndex";
 import type { PublicCatalogResult, PublicCommerceSku } from "./shop/catalog";
+import { shopField } from "./visual-production-map";
 import "./shop-retail.css";
 
 type Kind = PublicCommerceSku["kind"];
@@ -19,7 +20,7 @@ function ProductPhoto({product,eager=false}:{product:Product;eager?:boolean}){
     {product.hasImage&&!failed?<img src={"/api/commerce/products/"+product.id+"/cover/"} alt={product.alt} loading={eager?"eager":"lazy"} onError={()=>setFailed(true)}/>:<div className="sr-photo-empty"><span>{label[product.kind]}</span><small>Photo not available</small></div>}
   </div>;
 }
-export default function ShopExperience({catalog}:{catalog:PublicCatalogResult}){
+export default function ShopExperience({catalog,privateReview=false}:{catalog:PublicCatalogResult;privateReview?:boolean}){
   const [category,setCategory]=useState<Shelf>("all");
   const [query,setQuery]=useState("");
   const [sort,setSort]=useState<Sort>("default");
@@ -57,10 +58,11 @@ export default function ShopExperience({catalog}:{catalog:PublicCatalogResult}){
     <main>
       <section className={"sr-hero"+(featured?" sr-hero-with-photo":"")} aria-labelledby="shop-title">
         <div className="sr-intro"><p className="sr-eyebrow">THE PLANTUPIA SHOP</p><h1 id="shop-title">Make room<br/>for <em>life.</em></h1><p>Living plants, considered planters and essentials for the spaces you inhabit.</p><a className="sr-primary" href="#shop-collection">Explore the collection <span aria-hidden="true">↓</span></a></div>
-        {featured&&<div className="sr-hero-visual"><ProductPhoto key={featured.id} product={featured} eager/><div className="sr-feature-note"><span>From the collection</span><button onClick={event=>openProduct(featured,event)}>{featured.name} ↗</button></div></div>}
+        {privateReview?<div className="sr-hero-field" aria-label="Plantupia material world">{shopField.slice(0,3).map((item,i)=><figure key={item.asset} className={"sr-hero-field-"+(i+1)}><img src={"/api/private-arrival/"+item.asset} alt={item.label+" catalogue study"}/><figcaption><span>{item.role}</span><strong>{item.label}</strong><small>{item.meta}</small></figcaption></figure>)}</div>:featured&&<div className="sr-hero-visual"><ProductPhoto key={featured.id} product={featured} eager/><div className="sr-feature-note"><span>From the collection</span><button onClick={event=>openProduct(featured,event)}>{featured.name} &#8599;</button></div></div>}
       </section>
+      {privateReview&&<section className="sr-material-world" aria-labelledby="sr-material-title"><header><div><p className="sr-eyebrow">PLANT / VESSEL / CONDITION</p><h2 id="sr-material-title">Objects belong<br/>to places.</h2></div><p>The supplied catalogue treats plants, vessels, finishes and spatial conditions as one design problem. This private review uses those studies as an editorial material library before the live catalogue.</p></header><div className="sr-material-grid">{shopField.slice(3).map((item,i)=><figure key={item.asset} className={"sr-material-"+(i+1)}><img src={"/api/private-arrival/"+item.asset} alt={item.label+" catalogue study"} loading="lazy"/><figcaption><span>{item.role}</span><strong>{item.label}</strong><small>{item.meta}</small></figcaption></figure>)}</div><footer><span>CATALOGUE STUDIES / NOT LIVE SKU PHOTOGRAPHY</span><a href="/living-systems">Continue into care &#8599;</a></footer></section>}
       <section className="sr-collection" id="shop-collection" aria-labelledby="collection-title">
-        <div className="sr-section-head"><div><p className="sr-eyebrow">FIND SOMETHING TO LIVE WITH</p><h2 id="collection-title">{categories.find(c=>c.id===category)?.name}</h2></div><p>Discover the current Plantupia collection.</p></div>
+        <div className="sr-section-head"><div><p className="sr-eyebrow">{privateReview?"LIVE CATALOGUE / CURRENT PUBLISHED ITEMS":"FIND SOMETHING TO LIVE WITH"}</p><h2 id="collection-title">{categories.find(c=>c.id===category)?.name}</h2></div><p>Discover the current Plantupia collection.</p></div>
         <nav className="sr-categories" aria-label="Shop categories">{categories.map(c=><button key={c.id} type="button" aria-pressed={category===c.id} onClick={()=>setCategory(c.id)}>{c.name}<span>{c.id==="all"?products.length:products.filter(p=>p.kind===c.id).length}</span></button>)}</nav>
         <div className="sr-toolbar">
           <label className="sr-search"><span>Search</span><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Plant, planter, name…"/></label>

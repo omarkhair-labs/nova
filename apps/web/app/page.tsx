@@ -1,6 +1,4 @@
 import type { Metadata } from "next";
-import { existsSync } from "node:fs";
-import path from "node:path";
 import CinematicExperience from "./CinematicExperience";
 
 export const metadata: Metadata = {
@@ -12,6 +10,5 @@ export const metadata: Metadata = {
 export default function HomePage() {
   const root = process.env.PLANTUPIA_PRIVATE_ARRIVAL_DIR;
   const privateReview = process.env.NODE_ENV === "development" && !!root;
-  const selectedHospitality = privateReview && !!root && existsSync(path.join(root, "arrival-hero.webp"));
-  return <CinematicExperience privateReview={privateReview} selectedHospitality={selectedHospitality} />;
+  return <CinematicExperience privateReview={privateReview} />;
 }

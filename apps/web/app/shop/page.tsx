@@ -11,5 +11,5 @@ export const metadata: Metadata = {
 
 export default async function CommercePage() {
   const catalog = await getPublicCatalog();
-  return <ShopExperience catalog={catalog}/>;
+  return <ShopExperience catalog={catalog} privateReview={process.env.NODE_ENV === "development" && !!process.env.PLANTUPIA_PRIVATE_ARRIVAL_DIR}/>;
 }
