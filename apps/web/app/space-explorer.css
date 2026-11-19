@@ -51,3 +51,31 @@
 @media(max-width:850px){.sx-brief{grid-template-columns:minmax(0,1fr);gap:24px}.sx-brief-intro>p:last-child{max-width:520px}}
 @media(max-width:420px){.sx-note{grid-template-columns:20px minmax(0,1fr) 30px;gap:7px;padding-inline:4px}}
 .sx-archive-link{padding:0 var(--pl-gutter) clamp(28px,4vw,56px)}
+
+/* Preserve the complete residential proposal on small screens without tall letterboxing. */
+@media(max-width:850px){.sx-frame[data-residential-study="true"]{height:auto;aspect-ratio:1280/699}}
+
+/* Workplaces: supplied material illustration, separate from the editorial office reference. */
+.sx-work-palette{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:clamp(24px,5vw,80px);align-items:center;padding:clamp(28px,4vw,64px) 0;border-top:1px solid #b9c5ba}
+.sx-work-palette h2{font:400 clamp(30px,3.5vw,54px)/1.08 Georgia,serif;letter-spacing:-.05em;margin:0 0 16px}
+.sx-work-palette div>p:last-child{font-size:14px;line-height:1.7;color:#425a49;max-width:46ch}
+.sx-work-palette figure{margin:0;min-width:0}
+.sx-work-palette img{width:100%;height:auto;display:block;max-height:420px;object-fit:contain;background:#f3eee7}
+.sx-work-palette figcaption{font-size:10px;line-height:1.6;color:#59695d;padding:10px 0}
+@media(max-width:850px){.sx-work-palette{grid-template-columns:minmax(0,1fr);gap:18px}}
+/* Keep the complete El Hallab interior composition on narrow screens. */
+@media(max-width:850px){.sx-frame[data-hospitality-study="true"]{height:auto;aspect-ratio:1448/1086}}
+
+/* Industry editorial reference: avoid oversized letterboxing on narrow displays. */
+@media(max-width:850px){.sx-frame[data-industry-study="true"]{height:auto;aspect-ratio:3/2}}
+
+/* Meeting-aligned sector hierarchy, private review only; original chapter grammar retained. */
+.sx-environment-index[data-commercial-focus="true"] .sx-picker{grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:12px}
+.sx-index-label{font:600 10px/1.5 Arial,sans-serif;letter-spacing:.14em;color:#526b58;margin:0 0 6px}
+.sx-index-secondary{margin-top:10px}
+.sx-environment-index[data-commercial-focus="true"] .sx-picker-secondary button{font-size:clamp(11px,1vw,14px);min-height:44px;padding-block:10px}
+.sx-environment-index[data-commercial-focus="true"] .sx-picker:not(.sx-picker-secondary) button{font-size:clamp(12px,1.45vw,20px);min-height:56px;overflow-wrap:anywhere}
+@media(max-width:420px){.sx-environment-index[data-commercial-focus="true"] .sx-picker button{padding-inline:4px;gap:5px}.sx-environment-index[data-commercial-focus="true"] .sx-picker:not(.sx-picker-secondary) button{font-size:12px}}
+
+/* Pixels Mall: preserve its panoramic composition on narrow displays. */
+@media(max-width:850px){.sx-frame[data-retail-study="true"]{height:auto;aspect-ratio:2/1}}

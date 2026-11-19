@@ -1,0 +1,25 @@
+.of-main{padding:clamp(18px,2.2vw,36px) clamp(16px,5vw,90px) 0}
+.of-back{min-height:44px;align-items:center;margin-bottom:clamp(22px,3vw,46px)}
+.of-intro,.of-material,.of-brief{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(24px,5vw,80px);align-items:center}
+.of-intro h1{font:400 clamp(46px,6.5vw,102px)/.98 Georgia,serif;letter-spacing:-.06em;margin:0 0 24px}.of-intro h1 em{font-weight:400;color:#617e66}
+.of-page h2{font:400 clamp(32px,4.3vw,64px)/1.04 Georgia,serif;letter-spacing:-.045em;margin:0 0 18px}
+.of-main p:not(.sx-kicker){font-size:15px;line-height:1.7;color:#425a49;max-width:57ch}
+.of-main figure{margin:0;min-width:0}.of-main img{width:100%;height:auto;display:block;object-fit:contain;background:#e4e8e0}.of-main figcaption{font-size:11px;line-height:1.5;color:#526258;padding:10px 0}
+.of-main .sx-underlink{min-height:44px;align-items:center}
+.of-arrangements,.of-material,.of-brief,.of-service{border-top:1px solid #bac7ba;padding:clamp(32px,5vw,80px) 0;margin-top:clamp(24px,4vw,54px)}
+.of-arrangements>div:first-child{max-width:750px}
+.of-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-block:1px solid #bac7ba;margin-top:24px}
+.of-options button{padding:14px 12px;min-height:64px;display:flex;align-items:center;gap:10px;text-align:left;background:none;border:0;border-bottom:2px solid transparent;overflow-wrap:anywhere}.of-options button[aria-pressed=true]{background:#e0e7db;border-color:#245f3e}.of-options button span{font-size:10px;color:#567663}
+.of-option-detail{padding:24px 0 0;max-width:720px;min-height:145px}.of-option-detail h3{font:400 28px Georgia,serif;margin:0 0 10px}
+.of-material dl{margin:24px 0 0}.of-material dl>div{display:grid;grid-template-columns:minmax(70px,.65fr) minmax(0,1.35fr);gap:12px;padding:10px 0;border-top:1px solid #bac7ba;font-size:13px;line-height:1.5}.of-material dd{margin:0;font-weight:600}
+.of-brief{align-items:start}.of-brief-sheet{background:#e9ede4;padding:clamp(14px,3vw,30px);border:1px solid #bac7ba}.of-note{display:grid;grid-template-columns:24px minmax(0,1fr) 20px;gap:12px;align-items:center;text-align:left;width:100%;min-height:72px;padding:12px 6px;background:none;border:0;border-bottom:1px solid #bac7ba}.of-note[aria-pressed=true]{background:#dce8d8;color:#245f3e}.of-note small{display:block;margin-top:5px;font-size:12px;line-height:1.5}.of-note>span:first-child{font-size:10px}
+.of-service{padding-bottom:clamp(50px,8vw,100px)}
+@media(max-width:850px){.of-intro,.of-material,.of-brief{grid-template-columns:minmax(0,1fr);gap:22px}.of-intro h1{font-size:clamp(44px,9vw,76px)}}
+@media(max-width:420px){.of-options button{font-size:12px;gap:4px;padding:10px 4px}.of-option-detail{min-height:190px}}
+
+/* Authored schematic: differentiate arrangement decisions from catalogue illustrations. */
+.of-arrangement-study{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.8fr);gap:clamp(24px,5vw,70px);align-items:center;padding-top:24px}
+.of-plan svg{width:100%;height:auto;display:block;background:#e7ebe0}
+.of-arrangement-study .of-option-detail{padding:0;min-height:0}
+@media(max-width:850px){.of-arrangement-study{grid-template-columns:minmax(0,1fr);gap:14px}}
+@media(max-width:420px){.of-options button{flex-direction:column;align-items:flex-start;justify-content:center;font-size:13px;padding:8px;gap:5px;min-height:64px}}

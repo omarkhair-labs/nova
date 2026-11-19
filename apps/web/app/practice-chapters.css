@@ -117,3 +117,21 @@
 @media(max-width:900px){.lc-workspace{grid-template-columns:minmax(0,1fr)}.lc-object{position:relative;top:auto}.lc-specimen{max-height:340px}.lc-time-button{grid-template-columns:60px minmax(0,1fr) 27px}}
 @media(max-height:700px){.lc-object{position:relative;top:auto}}
 @media(max-width:420px){.lc-specimen{max-height:260px}.lc-time-button{grid-template-columns:52px minmax(0,1fr) 25px;gap:7px;padding-inline:5px}.lc-reading{margin-left:7px;padding-left:14px}}
+
+/* Private source-led Studio review: authored process stays intact, evidence now comes from Plantupia proposals. */
+.pc-material-source img{object-fit:contain;background:#eef0e7}
+.pc-source-record{border-block:1px solid #afbead;padding:13px 0;margin:18px 0 12px;display:grid;grid-template-columns:minmax(100px,.65fr) minmax(0,1.35fr);gap:6px 15px;align-items:baseline}
+.pc-source-record span{font-size:9px;letter-spacing:.1em;font-weight:600;color:#56715c}
+.pc-source-record strong{font:400 22px/1.2 Georgia,serif}.pc-source-record small{grid-column:2;font-size:10px;color:#58715d}
+.pc-proof{padding:clamp(42px,6vw,92px) var(--pl-gutter);display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:clamp(25px,6vw,95px);border-top:1px solid var(--pc-rule)}
+.pc-proof>div>h2{font:400 clamp(37px,5vw,76px)/1.03 Georgia,serif;letter-spacing:-.055em;margin:0 0 16px}.pc-proof>div>p:not(.pc-kicker){font-size:14px;line-height:1.7;color:#4c6451;max-width:52ch}
+.pc-proof ol{list-style:none;padding:0;margin:0;border-top:1px solid var(--pc-rule)}.pc-proof li{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;border-bottom:1px solid var(--pc-rule);padding:14px 0}
+.pc-proof li>span{font-size:10px;color:#56715c}.pc-proof li strong{font:400 25px/1.1 Georgia,serif}.pc-proof li p{font-size:13px;line-height:1.6;color:#4c6451;margin:6px 0 0}
+@media(max-width:900px){.pc-proof{grid-template-columns:1fr;gap:22px}.pc-source-record{grid-template-columns:90px minmax(0,1fr)}}
+
+/* Living Systems / separate source-supported physical care from the illustrative digital record. */
+.lc-care-programme{background:#f3f4ed;color:#20382a;padding:clamp(42px,6vw,95px) var(--pl-gutter);display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:clamp(25px,6vw,95px);border-top:1px solid #b5c6b4}
+.lc-care-programme h2{font:400 clamp(38px,5vw,78px)/1.03 Georgia,serif;letter-spacing:-.06em;margin:0 0 18px}.lc-care-programme>div>p:not(.pc-kicker){font-size:14px;line-height:1.7;color:#4b6551;max-width:54ch}
+.lc-care-programme ol{list-style:none;margin:0;padding:0;border-top:1px solid #b5c6b4}.lc-care-programme li{display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px;border-bottom:1px solid #b5c6b4;padding:14px 0}
+.lc-care-programme li>span{font-size:10px;color:#56715c}.lc-care-programme strong{font:400 24px/1.15 Georgia,serif}.lc-care-programme li p{font-size:13px;line-height:1.6;color:#4b6551;margin:6px 0 0}
+@media(max-width:900px){.lc-care-programme{grid-template-columns:1fr;gap:22px}}

@@ -6,5 +6,5 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 export default function AboutPage() {
-  return <CompanyStory />;
+  return <CompanyStory privateReview={process.env.NODE_ENV === "development" && !!process.env.PLANTUPIA_PRIVATE_ARRIVAL_DIR} />;
 }

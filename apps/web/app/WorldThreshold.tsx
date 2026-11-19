@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { editorialSpaces } from "./space-contexts";
 import "./world-threshold.css";
+import { privateWorldStudies } from "./world-private-studies";
 
-const chapters = [
+const originalChapters = [
   {
     number: "02",
     name: "Spaces",
@@ -31,15 +32,16 @@ const chapters = [
   },
 ] as const;
 
-type Chapter = (typeof chapters)[number];
+type Chapter = (typeof originalChapters)[number];
 
-export default function WorldThreshold() {
+export default function WorldThreshold({ privateReview = false }: { privateReview?: boolean }) {
+  const chapters = originalChapters;
   const [active, setActive] = useState(0);
   const [failed, setFailed] = useState<number[]>([]);
   const current = chapters[active];
 
   function imageFor(chapter: Chapter, index: number) {
-    return failed.includes(index) ? chapter.photo.fallback : chapter.photo.src;
+    return failed.includes(index) ? chapter.photo.fallback : privateReview ? privateWorldStudies[index].src : chapter.photo.src;
   }
 
   function onPhotoError(index: number) {
@@ -47,7 +49,7 @@ export default function WorldThreshold() {
   }
 
   return (
-    <section className="wt-section" id="world" aria-labelledby="wt-title">
+    <section className="wt-section" id="world" data-private-review={privateReview} aria-labelledby="wt-title">
       <div className="wt-intro">
         <p>PLANTUPIA / 02—04</p>
         <h2 id="wt-title">The world beyond the frame.</h2>
@@ -71,7 +73,7 @@ export default function WorldThreshold() {
           ))}
         </nav>
         <figure className="wt-picture">
-          <div className="wt-photo-field" role="img" aria-label={failed.includes(active) ? "Generated architectural concept" : current.photo.subject}>
+          <div className="wt-photo-field" role="img" aria-label={failed.includes(active) ? "Generated architectural concept" : privateReview ? privateWorldStudies[active].subject : current.photo.subject}>
             {chapters.map((chapter, i) => (
               <div key={chapter.href} className={"wt-photo" + (i === active ? " wt-visible" : "")} aria-hidden="true">
                 <img src={imageFor(chapter, i)} alt="" loading="lazy" onError={() => onPhotoError(i)} />
@@ -80,12 +82,12 @@ export default function WorldThreshold() {
             <span className="wt-image-index" aria-hidden="true">{current.number} / 04</span>
           </div>
           <figcaption>
-            <span>{failed.includes(active) ? "Generated concept illustration" : current.note}. Not a Plantupia project.</span>
-            {!failed.includes(active) && <a href={current.photo.source} target="_blank" rel="noreferrer">{current.photo.credit} ↗</a>}
+            <span>{failed.includes(active) ? "Generated concept illustration" : privateReview ? privateWorldStudies[active].note : current.note}. {privateReview ? "Not a verified installation." : "Not a Plantupia project."}</span>
+            {!privateReview && !failed.includes(active) && <a href={current.photo.source} target="_blank" rel="noreferrer">{current.photo.credit} ↗</a>}
           </figcaption>
         </figure>
       </div>
-      <p className="wt-mobile-credit">Editorial references or generated concept fallbacks. Not completed Plantupia projects.</p>
+      <p className="wt-mobile-credit">{privateReview ? "Supplied design proposals: Pixels Mall p28, EM Sherif p4 and El Hallab p3. Not verified installations." : "Editorial references or generated concept fallbacks. Not completed Plantupia projects."}</p>
       <div className="wt-end"><span>PLACE — DESIGN — CONTINUITY</span><a href="/about">Meet Plantupia ↗</a></div>
     </section>
   );

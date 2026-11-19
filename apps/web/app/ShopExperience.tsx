@@ -1,186 +1,83 @@
 "use client";
-
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import SiteIndex from "./SiteIndex";
 import type { PublicCatalogResult, PublicCommerceSku } from "./shop/catalog";
-import "./shop-experience.css";
+import "./shop-retail.css";
 
-type ShelfKind = "all" | PublicCommerceSku["kind"];
-type Product = {
-  id: string;
-  name: string;
-  description: string;
-  kind: PublicCommerceSku["kind"];
-  hasImage: boolean;
-  alt: string;
-  variants: PublicCommerceSku[];
-};
-
-const shelves: { id: ShelfKind; name: string; count?: string }[] = [
-  { id: "all", name: "All objects" },
-  { id: "plant", name: "Living plants" },
-  { id: "planter", name: "Planters" },
-  { id: "care", name: "Care objects" },
-];
-const nouns: Record<PublicCommerceSku["kind"], string> = {
-  plant: "THE LIVING",
-  planter: "THE VESSELS",
-  care: "THE RITUAL",
-};
-function price(value: string): string {
-  return Number(value).toLocaleString("en-EG", {
-    minimumFractionDigits: 2, maximumFractionDigits: 2,
-  }) + " EGP";
+type Kind = PublicCommerceSku["kind"];
+type Shelf = "all" | Kind;
+type Sort = "default" | "low" | "high" | "name";
+type Product = { id:string; name:string; description:string; kind:Kind; hasImage:boolean; alt:string; variants:PublicCommerceSku[] };
+const categories:{id:Shelf;name:string}[]=[{id:"all",name:"Shop all"},{id:"plant",name:"Plants"},{id:"planter",name:"Planters"},{id:"care",name:"Plant care"}];
+const label:Record<Kind,string>={plant:"Plant",planter:"Planter",care:"Plant care"};
+const money=(value:number)=>new Intl.NumberFormat("en-EG",{style:"currency",currency:"EGP",maximumFractionDigits:2}).format(value);
+const minPrice=(p:Product)=>Math.min(...p.variants.map(v=>Number(v.price)));
+const hasStock=(p:Product)=>p.variants.some(v=>v.in_stock);
+function ProductPhoto({product,eager=false}:{product:Product;eager?:boolean}){
+  const [failed,setFailed]=useState(false);
+  return <div className="sr-photo">
+    {product.hasImage&&!failed?<img src={"/api/commerce/products/"+product.id+"/cover/"} alt={product.alt} loading={eager?"eager":"lazy"} onError={()=>setFailed(true)}/>:<div className="sr-photo-empty"><span>{label[product.kind]}</span><small>Photo not available</small></div>}
+  </div>;
 }
-
-export default function ShopExperience({ catalog }: { catalog: PublicCatalogResult }) {
-  const [active, setActive] = useState<ShelfKind>("all");
-  const products = useMemo(() => {
-    const grouped = new Map<string, Product>();
-    for (const sku of catalog.items) {
-      let item = grouped.get(sku.product_id);
-      if (!item) {
-        item = {
-          id: sku.product_id,
-          name: sku.name,
-          description: sku.description,
-          kind: sku.kind,
-          hasImage: sku.has_image,
-          alt: sku.image_alt || sku.name,
-          variants: [],
-        };
-        grouped.set(item.id, item);
-      }
-      item.variants.push(sku);
+export default function ShopExperience({catalog}:{catalog:PublicCatalogResult}){
+  const [category,setCategory]=useState<Shelf>("all");
+  const [query,setQuery]=useState("");
+  const [sort,setSort]=useState<Sort>("default");
+  const [stock,setStock]=useState(false);
+  const [selected,setSelected]=useState<Product|null>(null);
+  const [variantId,setVariantId]=useState("");
+  const dialog=useRef<HTMLDialogElement>(null);
+  const opener=useRef<HTMLElement|null>(null);
+  const products=useMemo(()=>{
+    const grouped=new Map<string,Product>();
+    for(const sku of catalog.items){
+      const existing=grouped.get(sku.product_id);
+      if(existing){existing.variants.push(sku);existing.hasImage ||= sku.has_image;continue;}
+      grouped.set(sku.product_id,{id:sku.product_id,name:sku.name,description:sku.description,kind:sku.kind,hasImage:sku.has_image,alt:sku.image_alt||sku.name,variants:[sku]});
     }
     return [...grouped.values()];
-  }, [catalog.items]);
-  const visible = active === "all" ? products : products.filter(item => item.kind === active);
+  },[catalog.items]);
+  const visible=useMemo(()=>{
+    const text=query.trim().toLocaleLowerCase();
+    const matches=products.filter(p=>(category==="all"||p.kind===category)&&(!stock||hasStock(p))&&(!text||[p.name,p.description,label[p.kind],...p.variants.map(v=>v.option)].join(" ").toLocaleLowerCase().includes(text)));
+    return matches.sort((a,b)=>sort==="low"?minPrice(a)-minPrice(b):sort==="high"?minPrice(b)-minPrice(a):sort==="name"?a.name.localeCompare(b.name):0);
+  },[products,category,query,sort,stock]);
+  const featured=products.find(p=>p.kind==="plant"&&p.hasImage&&hasStock(p))??products.find(p=>p.hasImage&&hasStock(p))??products.find(p=>p.hasImage);
+  const selectedVariant=selected?.variants.find(v=>v.sku_id===variantId);
+  useEffect(()=>{if(selected && dialog.current && !dialog.current.open) dialog.current.showModal();},[selected]);
+  function openProduct(p:Product,event:React.MouseEvent<HTMLButtonElement>){
+    opener.current=event.currentTarget;
+    setSelected(p);setVariantId((p.variants.find(v=>v.in_stock)??p.variants[0]).sku_id);
 
-  return (
-    <div className="sh-world">
-      <a className="sh-skip" href="#shop-collection">Skip to the collection</a>
-      <header className="sh-top">
-        <a href="/" className="sh-brand">◕ Plantupia</a>
-        <SiteIndex current={null} tone="dark"/>
-        <a href="/start-a-space?topic=general" className="sh-contact">Ask the studio <span aria-hidden="true">↗</span></a>
-      </header>
-
-      <main>
-        <section className="sh-opening" aria-labelledby="shop-title">
-          <div className="sh-edition">
-            <p className="sh-micro">PLANTUPIA / AN EDITED COLLECTION <span>01 — OBJECTS</span></p>
-            <div className="sh-opening-copy">
-              <span className="sh-side-number" aria-hidden="true">P—01</span>
-              <h1 id="shop-title">Things to<br/><em>live with.</em></h1>
-              <p>Plants, vessels and the small materials of care. An extension of the spaces we make — selected with intention, kept alive through attention.</p>
-            </div>
-            <div className="sh-opening-foot">
-              <span>OBJECT / PLACE / CONTINUITY</span>
-              <a href="#shop-collection">Explore the collection <span aria-hidden="true">↓</span></a>
-            </div>
-          </div>
-          <div className="sh-study" aria-label="A conceptual architectural study, not a product photograph">
-            <div className="sh-study-head"><span>THE LIVING OBJECT</span><span>FIELD STUDY / 001</span></div>
-            <svg viewBox="0 0 600 720" fill="none" aria-hidden="true">
-              <g stroke="currentColor" strokeWidth="1.15">
-                <path opacity=".23" d="M40 652H560M300 50V684M95 80H505M95 83V652M505 83V652"/>
-                <path opacity=".34" d="M95 652L300 594L505 652M95 652L95 224L300 146L505 224V652M95 224L300 302L505 224M300 302V594"/>
-                <path opacity=".64" d="M194 547V454H406V547C406 608 365 646 300 646C235 646 194 608 194 547Z"/>
-                <path strokeWidth="2.2" d="M300 453C289 362 295 250 329 161M296 376C215 350 178 281 183 211C245 226 290 267 296 376ZM302 340C364 326 426 269 437 202C359 213 316 259 302 340ZM304 264C266 225 262 179 288 116C324 155 328 208 304 264Z"/>
-                <path opacity=".7" d="M195 503H405M195 547H405M213 583H386"/>
-                <circle cx="300" cy="376" r="220" opacity=".18" strokeDasharray="3 9"/>
-                <path d="M530 192H580M530 377H580M530 560H580M30 192H80M30 377H80M30 560H80" opacity=".45"/>
-              </g>
-              <g fill="currentColor" fontFamily="monospace" fontSize="11" opacity=".64">
-                <text x="49" y="178">01</text><text x="49" y="364">02</text><text x="49" y="551">03</text>
-                <text x="438" y="680">NOT TO SCALE</text>
-              </g>
-            </svg>
-            <div className="sh-study-foot"><span>DRAWN CONCEPT / NOT AN OFFERED PRODUCT</span><span>PLANTUPIA / 2026</span></div>
-          </div>
-        </section>
-
-        <section className="sh-collection" id="shop-collection" aria-labelledby="collection-title">
-          <div className="sh-collection-head">
-            <p className="sh-micro">02 / THE COLLECTION <span>REVIEWED & PUBLISHED OBJECTS ONLY</span></p>
-            <h2 id="collection-title">Considered.<br/><em>Not crowded.</em></h2>
-            <p>The assortment below is drawn only from Plantupia&apos;s published product records. Prices and availability are indications until an order is placed in the authenticated customer app.</p>
-          </div>
-          <nav className="sh-filters" aria-label="Filter by product type">
-            {shelves.map(shelf => (
-              <button key={shelf.id} type="button" className={active === shelf.id ? "sh-filter sh-selected" : "sh-filter"} aria-pressed={active === shelf.id} onClick={() => setActive(shelf.id)}>
-                {shelf.name}<span>{shelf.id === "all" ? String(products.length).padStart(2, "0") : String(products.filter(p => p.kind === shelf.id).length).padStart(2, "0")}</span>
-              </button>
-            ))}
-          </nav>
-
-          {catalog.state !== "available" ? (
-            <div className="sh-unavailable" role="status">
-              <span className="sh-unavailable-mark" aria-hidden="true">◌</span>
-              <div>
-                <p className="sh-micro">THE COLLECTION / NOT YET PUBLIC</p>
-                <h3>{catalog.state === "empty" ? "Good things deserve a proper introduction." : "The published collection is not available right now."}</h3>
-                <p>{catalog.state === "empty" ? "Nothing has been released for public purchase here yet. The team will publish verified products, photographs and current prices when they are ready." : "We won’t substitute a fictional catalogue or old prices. You can still talk to the team about the plants and objects you’re looking for."}</p>
-                <a href="/start-a-space?topic=general">Talk about what you need <span aria-hidden="true">↗</span></a>
-              </div>
-            </div>
-          ) : visible.length === 0 ? (
-            <div className="sh-unavailable" role="status"><div><h3>No published objects in this category.</h3><p>Choose another shelf to see what is currently available.</p></div></div>
-          ) : (
-            <div className="sh-objects">
-              {visible.map((product, i) => (
-                <article className="sh-object" key={product.id}>
-                  <div className="sh-object-media">
-                    <div className="sh-object-media-label">{nouns[product.kind]} <span>{String(i + 1).padStart(2, "0")}/{String(visible.length).padStart(2, "0")}</span></div>
-                    <div className="sh-object-photo">
-                      <span className="sh-no-photo">NO APPROVED PHOTO AVAILABLE</span>
-                      {product.hasImage && (
-                        <img
-                          src={"/api/commerce/products/" + product.id + "/cover/"}
-                          alt={product.alt} loading="lazy"
-                          onError={event => { event.currentTarget.style.display = "none"; }}
-                        />
-                      )}
-                    </div>
-                  </div>
-                  <div className="sh-object-copy">
-                    <span className="sh-micro">PRODUCT REFERENCE / {product.kind.toUpperCase()}</span>
-                    <h3>{product.name}</h3>
-                    {product.description && <p className="sh-object-description">{product.description}</p>}
-                    <div className="sh-variants" aria-label={"Current published options for " + product.name}>
-                      {product.variants.map(sku => (
-                        <div className="sh-variant" key={sku.sku_id}>
-                          <div>
-                            <span className="sh-variant-name">{sku.option || "Standard"}</span>
-                            <span className="sh-stock">{sku.in_stock ? "IN STOCK AT LAST CHECK" : "CURRENTLY UNAVAILABLE"}</span>
-                          </div>
-                          <strong>{price(sku.price)}</strong>
-                        </div>
-                      ))}
-                    </div>
-                    <a className="sh-ask" href={"/start-a-space?topic=general&item=" + encodeURIComponent(product.name)}>
-                      Ask about this object <span aria-hidden="true">↗</span>
-                    </a>
-                    <p className="sh-object-note">This is product discovery, not a web checkout. An enquiry does not place or reserve an order.</p>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="sh-continuity" aria-labelledby="sh-continuity-title">
-          <div><p className="sh-micro">03 / AFTER THE OBJECT</p><h2 id="sh-continuity-title">A plant does not end<br/>at delivery.</h2></div>
-          <div className="sh-continuity-notes">
-            <p><span>01 / CHOOSE</span> One actual product and its published variant.</p>
-            <p><span>02 / PLACE</span> A real location, with conditions and people.</p>
-            <p><span>03 / RETURN</span> Recorded care, honest observations and living history in the customer app.</p>
-            <a href="/living-systems">Explore the living system <span aria-hidden="true">↗</span></a>
-          </div>
-        </section>
-      </main>
-      <footer className="sh-footer"><a href="/">PLANTUPIA / THE WORLD</a><span>PUBLIC COLLECTION PREVIEW</span><a href="/start-a-space?topic=general">GET IN TOUCH ↗</a></footer>
-    </div>
-  );
+  }
+  function clear(){setCategory("all");setQuery("");setStock(false);setSort("default");}
+  return <div className="sr-world">
+    <a className="sr-skip" href="#shop-collection">Skip to products</a>
+    <header className="sr-header"><a href="/" className="sr-wordmark">◕ Plantupia</a><SiteIndex current={null} tone="dark"/><a className="sr-contact" href="/start-a-space?topic=general">Get in touch ↗</a></header>
+    <main>
+      <section className={"sr-hero"+(featured?" sr-hero-with-photo":"")} aria-labelledby="shop-title">
+        <div className="sr-intro"><p className="sr-eyebrow">THE PLANTUPIA SHOP</p><h1 id="shop-title">Make room<br/>for <em>life.</em></h1><p>Living plants, considered planters and essentials for the spaces you inhabit.</p><a className="sr-primary" href="#shop-collection">Explore the collection <span aria-hidden="true">↓</span></a></div>
+        {featured&&<div className="sr-hero-visual"><ProductPhoto key={featured.id} product={featured} eager/><div className="sr-feature-note"><span>From the collection</span><button onClick={event=>openProduct(featured,event)}>{featured.name} ↗</button></div></div>}
+      </section>
+      <section className="sr-collection" id="shop-collection" aria-labelledby="collection-title">
+        <div className="sr-section-head"><div><p className="sr-eyebrow">FIND SOMETHING TO LIVE WITH</p><h2 id="collection-title">{categories.find(c=>c.id===category)?.name}</h2></div><p>Discover the current Plantupia collection.</p></div>
+        <nav className="sr-categories" aria-label="Shop categories">{categories.map(c=><button key={c.id} type="button" aria-pressed={category===c.id} onClick={()=>setCategory(c.id)}>{c.name}<span>{c.id==="all"?products.length:products.filter(p=>p.kind===c.id).length}</span></button>)}</nav>
+        <div className="sr-toolbar">
+          <label className="sr-search"><span>Search</span><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Plant, planter, name…"/></label>
+          <label className="sr-stock-filter"><input type="checkbox" checked={stock} onChange={e=>setStock(e.target.checked)}/> In stock</label>
+          <label className="sr-sort"><span>Sort by</span><select value={sort} onChange={e=>setSort(e.target.value as Sort)}><option value="default">Featured</option><option value="low">Price: low to high</option><option value="high">Price: high to low</option><option value="name">Name: A–Z</option></select></label>
+        </div>
+        <div className="sr-results"><span role="status">{visible.length} {visible.length===1?"product":"products"}</span>{(category!=="all"||query||stock||sort!=="default")&&<button onClick={clear}>Clear filters ×</button>}</div>
+        {catalog.state!=="available"?<div className="sr-empty" role="status"><h3>{catalog.state==="empty"?"The collection is coming soon.":"The collection is temporarily unavailable."}</h3><p>Get in touch with Plantupia to discuss what you are looking for.</p><a href="/start-a-space?topic=general">Contact Plantupia ↗</a></div>:visible.length===0?<div className="sr-empty"><h3>No matching products.</h3><p>Try a different search or category.</p><button onClick={clear}>Clear filters</button></div>:<div className="sr-grid">
+          {visible.map(p=><article className="sr-product" key={p.id}><button className="sr-product-open" onClick={event=>openProduct(p,event)} aria-label={"View "+p.name}><div className="sr-product-media"><ProductPhoto product={p}/>{!hasStock(p)&&<span className="sr-stock-badge">Unavailable</span>}</div><div className="sr-product-meta"><span className="sr-kind">{label[p.kind]}</span><h3>{p.name}</h3><p>{p.variants.some(v=>Number(v.price)!==minPrice(p))?"From ":""}{money(minPrice(p))}</p><span className="sr-option-count">{p.variants.length} {p.variants.length===1?"option":"options"} available to explore</span></div></button></article>)}
+        </div>}
+        <p className="sr-catalog-note">Prices and stock reflect the published catalogue at the time of viewing. Ordering and final delivery pricing are confirmed through the Plantupia customer app.</p>
+      </section>
+      <section className="sr-service"><div><p className="sr-eyebrow">MORE THAN A SINGLE PLANT</p><h2>Planning a whole space?</h2><p>Explore our design practice for homes, hospitality and commercial interiors.</p></div><a className="sr-primary" href="/spaces">Explore spaces ↗</a><a className="sr-text-link" href="/living-systems">Discover ongoing care ↗</a></section>
+    </main>
+    <footer className="sr-footer"><a href="/">Plantupia</a><a href="/start-a-space">Contact</a><span>Collection preview</span></footer>
+    <dialog className="sr-dialog" ref={dialog} aria-labelledby="sr-detail-name" onClose={()=>{setSelected(null);opener.current?.focus();}} onClick={e=>{if(e.target===e.currentTarget)dialog.current?.close();}}>
+      {selected&&<div className="sr-detail"><button type="button" className="sr-close" aria-label="Close product details" onClick={()=>dialog.current?.close()}>×</button><ProductPhoto key={selected.id} product={selected}/><div className="sr-detail-copy"><p className="sr-eyebrow">{label[selected.kind]}</p><h2 id="sr-detail-name">{selected.name}</h2>{selectedVariant&&<p className="sr-detail-price">{money(Number(selectedVariant.price))}</p>}{selected.description&&<p className="sr-description">{selected.description}</p>}<fieldset><legend>Choose an option</legend>{selected.variants.map(v=><label className="sr-variant" key={v.sku_id}><input type="radio" name="sr-variant" value={v.sku_id} checked={variantId===v.sku_id} onChange={()=>setVariantId(v.sku_id)}/><span>{v.option||"Standard"}<small>{v.in_stock?"In stock at last check":"Currently unavailable"}</small></span><strong>{money(Number(v.price))}</strong></label>)}</fieldset><a className="sr-primary" href={"/start-a-space?topic=general&item="+encodeURIComponent(selected.name+(selectedVariant?.option?" — "+selectedVariant.option:""))}>Ask about this product ↗</a><p className="sr-catalog-note">An enquiry is not an order or reservation.</p></div></div>}
+    </dialog>
+  </div>;
 }

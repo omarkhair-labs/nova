@@ -16,9 +16,7 @@ const stageMarks=["01 / CONDITIONS","02 / COMPOSITION","03 / ACCESS","04 / CONTI
 const zones=[{x:164,y:147,r:43},{x:238,y:149,r:28},{x:530,y:175,r:43},{x:544,y:331,r:35},{x:166,y:336,r:28}];
 
 function Plan({stage}:{stage:number}){
-  return <svg viewBox="0 0 730 490" role="img" aria-labelledby="plan-title plan-desc" className="pc-plan">
-    <title id="plan-title">Illustrative architectural plan: {stages[stage].name}</title>
-    <desc id="plan-desc">A hypothetical rectangular interior with northern windows, a central clear route and example planting placements. Layers change with the selected design phase. This is not a surveyed plan.</desc>
+  return <svg viewBox="0 0 730 490" role="img" aria-label={"Illustrative architectural plan / "+stages[stage].name+" phase. Hypothetical interior; not a surveyed plan."} className="pc-plan">
     <defs><pattern id="pc-grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#c1c9bc" strokeWidth=".5"/></pattern><pattern id="pc-light" width="13" height="13" patternUnits="userSpaceOnUse" patternTransform="rotate(28)"><path d="M0 0V13" stroke="#b69d55" strokeWidth="2"/></pattern></defs>
     <rect width="730" height="490" fill="#f0f1e8"/><rect x="28" y="28" width="674" height="434" fill="url(#pc-grid)"/>
     <g fill="none" stroke="#9eae9e" strokeWidth="1"><path d="M110 75V50H610V75M110 55H610M75 95H52V395H75M58 95V395"/><path d="M105 50L115 60M605 50L615 60M47 90L63 100M47 390L63 400"/></g>
@@ -34,12 +32,19 @@ function Plan({stage}:{stage:number}){
   </svg>
 }
 
-export default function StudioAtelier(){
+export default function StudioAtelier({privateReview=false}:{privateReview?:boolean}){
   const [active,setActive]=useState(0);const [failed,setFailed]=useState<number[]>([]);
   const readings=useRef<Array<HTMLElement|null>>([]);
   const study=useRef<HTMLElement|null>(null);
   const manualUntil=useRef(0);
   const step=stages[active],photo=editorialSpaces[step.photo];
+  const evidence = [
+    {src:"/api/private-arrival/world-spaces.webp",title:"Read the place",meta:"Pixels Mall / architectural study",caption:"Commercial proposal / p28",note:"Study architecture, circulation and existing spatial conditions before specifying planting."},
+    {src:"/api/private-arrival/mazal-option-03.webp",title:"Compose alternatives",meta:"Mazal / option study",caption:"Facade proposal / option 03 / p5",note:"Use alternatives to test how different planting directions change the character of the same architecture."},
+    {src:"/api/private-arrival/sector-hospitality-seating.webp",title:"Specify the object",meta:"EM Sherif / custom planter",caption:"Planting proposal / option E / p7",note:"Move from atmosphere to dimensions, vessel construction, planting choice and practical site coordination."},
+    {src:"/api/private-arrival/sector-commercial-brand.webp",title:"Design the return",meta:"Audi Cairo / Living Interiors",caption:"Proposal / Framing the Brand / p14",note:"Plan for continuing care. The Audi proposal also defines selection, irrigation, maintenance and plant warranty as an ongoing programme."},
+  ] as const;
+  const source=privateReview?evidence[active]:null;
 
   useEffect(()=>{
     let frame=0;
@@ -101,7 +106,8 @@ export default function StudioAtelier(){
           </article>)}
         </div>
       </section>
-      <section className="pc-material"><figure><img key={step.photo} src={failed.includes(step.photo)?photo.fallback:photo.src} alt={failed.includes(step.photo)?"Generated architectural concept":photo.subject} loading="lazy" onError={()=>setFailed(prev=>prev.includes(step.photo)?prev:[...prev,step.photo])}/><figcaption>{failed.includes(step.photo)?"Concept illustration":photo.credit} · Editorial reference, not client work</figcaption></figure><div><p className="pc-kicker">FROM THE DRAWING TO THE PLACE</p><h2>Life is not a finishing detail.</h2><p>Planting, placement and care belong in the conversation from the beginning. Conditions differ across homes, hotels, workplaces and industrial sites.</p><a className="pc-link" href="/spaces">Explore the environments ↗</a></div></section>
+      <section className={"pc-material"+(privateReview?" pc-material-source":"")}>{privateReview&&source?<figure><img key={source.src} src={source.src} alt={source.meta+" design proposal visual"} loading="lazy"/><figcaption>{source.meta} / {source.caption}. Design proposal; installation not verified.</figcaption></figure>:<figure><img key={step.photo} src={failed.includes(step.photo)?photo.fallback:photo.src} alt={failed.includes(step.photo)?"Generated architectural concept":photo.subject} loading="lazy" onError={()=>setFailed(prev=>prev.includes(step.photo)?prev:[...prev,step.photo])}/><figcaption>{failed.includes(step.photo)?"Concept illustration":photo.credit} · Editorial reference, not client work</figcaption></figure>}<div>{privateReview&&source?<><p className="pc-kicker">SOURCE STUDY / {stageMarks[active]}</p><h2>{source.title}.</h2><p>{source.note}</p><div className="pc-source-record"><span>DESIGN OUTPUT</span><strong>{step.output}</strong><small>{source.meta}</small></div><a className="pc-link" href="/spaces/projects">Explore the project archive ↗</a></>:<><p className="pc-kicker">FROM THE DRAWING TO THE PLACE</p><h2>Life is not a finishing detail.</h2><p>Planting, placement and care belong in the conversation from the beginning. Conditions differ across homes, hotels, workplaces and industrial sites.</p><a className="pc-link" href="/spaces">Explore the environments ↗</a></>}</div></section>
+      {privateReview&&<section className="pc-proof" aria-labelledby="pc-proof-title"><div><p className="pc-kicker">FROM SOURCE PROPOSALS / DESIGN PRACTICE</p><h2 id="pc-proof-title">The same four acts appear in the work.</h2><p>This is a reading of the supplied proposal material, not a claim that every project follows one fixed sequence.</p></div><ol><li><span>01</span><div><strong>Read</strong><p>Site conditions, dimensions, sun exposure and circulation shape the brief.</p></div></li><li><span>02</span><div><strong>Compose</strong><p>Multiple planting directions test atmosphere, identity and spatial relationships.</p></div></li><li><span>03</span><div><strong>Introduce</strong><p>Planter specification, installation access and coordination make the idea physical.</p></div></li><li><span>04</span><div><strong>Return</strong><p>Smart irrigation, scheduled maintenance and plant warranty appear in several proposals as continuing care.</p></div></li></ol></section>}
       <ChapterThreshold from="studio"/>
     </main><footer className="pc-footer"><a href="/">Plantupia</a><span>Living architecture / Design preview</span><a href="/start-a-space">Contact ↗</a></footer>
   </div>

@@ -40,3 +40,9 @@
 .ct-field-notes ul{display:flex;list-style:none;flex-wrap:wrap;gap:7px 18px;padding:0;margin:10px 0 12px;color:#435f48;font-size:13px}
 .ct-field-notes li::before{content:"· ";font-weight:bold}
 .ct-field-notes button{border:0;border-bottom:1px solid currentColor;background:none;padding:8px 0;min-height:44px;font-size:13px;text-align:left;font-weight:600}
+
+/* Preview remains fully explorable while submission stays disabled at the final action. */
+.ct-preview-note{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px 18px;align-items:start;border:1px solid #c4d0c3;background:#eef2e8;padding:13px 16px;margin:-14px 0 30px;font-size:12px;line-height:1.55;color:#506456}
+.ct-preview-note strong{font:600 10px/1.5 Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#28533a}
+.ct-action button:disabled{background:#698071;color:#edf1e8}
+@media(max-width:520px){.ct-preview-note{grid-template-columns:1fr;gap:4px}}

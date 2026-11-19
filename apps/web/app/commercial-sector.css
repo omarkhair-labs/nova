@@ -1,0 +1,28 @@
+.cm-main{padding:clamp(18px,2.2vw,36px) clamp(16px,5vw,90px) 0}
+.cm-back{min-height:44px;align-items:center;margin-bottom:clamp(20px,3vw,46px)}
+.cm-heading{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,.6fr);gap:clamp(20px,5vw,75px);align-items:end;margin-bottom:26px}
+.cm-heading h1{font:400 clamp(44px,7vw,108px)/.97 Georgia,serif;letter-spacing:-.065em;margin:0}.cm-heading h1 em{font-weight:400;color:#617e66}
+.cm-page h2{font:400 clamp(34px,4.5vw,66px)/1.05 Georgia,serif;letter-spacing:-.05em;margin:0 0 18px}
+.cm-heading>p,.cm-framework p,.cm-care p{font-size:15px;line-height:1.7;color:#425a49;max-width:56ch;margin:0 0 12px}
+.cm-page figure{margin:0;min-width:0}.cm-page figure img{width:100%;height:auto;display:block;object-fit:contain;background:#e4e8e0}
+.cm-page figcaption{font-size:11px;line-height:1.5;color:#526258;padding:10px 0;overflow-wrap:anywhere}
+.cm-hero img{max-height:65svh}
+.cm-framework,.cm-care{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(24px,6vw,95px);align-items:start;border-block:1px solid #bac7ba;padding:clamp(32px,5vw,76px) 0;margin-top:20px}
+.cm-framework-intro figure{margin-top:24px}.cm-principles details{border-bottom:1px solid #bac7ba}.cm-principles details:first-child{border-top:1px solid #bac7ba}
+.cm-principles summary{min-height:56px;display:grid;grid-template-columns:24px minmax(0,1fr) 18px;align-items:center;gap:12px;padding:12px 0;cursor:pointer;list-style:none}.cm-principles summary::-webkit-details-marker{display:none}
+.cm-principles summary span,.cm-care li span{font-size:11px;color:#567663}.cm-principles summary strong{font:400 clamp(21px,2.2vw,32px) Georgia,serif}.cm-principles summary:after{content:"+";font-size:20px}.cm-principles details[open] summary:after{content:"−"}.cm-principles details[open]>div{padding:0 15px 12px 36px}.cm-principles .cm-source-term{font-size:12px;font-weight:600;color:#245f3e}
+.cm-brand{padding:clamp(38px,6vw,90px) 0 28px}.cm-brand-pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
+.cm-care ol{margin:0;padding:0;list-style:none}.cm-care li{display:flex;gap:14px;align-items:center;min-height:54px;border-bottom:1px solid #bac7ba;font-size:16px}
+.cm-contact{padding:clamp(40px,6vw,90px) 0}.cm-contact a{min-height:44px;align-items:center}
+@media(max-width:850px){.cm-heading,.cm-framework,.cm-care,.cm-brand-pair{grid-template-columns:minmax(0,1fr);gap:18px}.cm-heading h1{font-size:clamp(44px,9vw,76px)}.cm-hero img{max-height:none}}
+
+/* The architecture study has its own native-ratio exhibit; the adjacent rail provides context, not empty letterbox. */
+.cm-hero-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(200px,.34fr);gap:clamp(22px,4vw,60px);align-items:start}
+.cm-hero img{max-height:none;aspect-ratio:1448/1086}
+.cm-hero-note{border-top:1px solid #bac7ba;padding-top:20px}
+.cm-hero-note h2{font-size:clamp(30px,3vw,44px)}
+.cm-hero-note>p:not(.sx-kicker){font-size:15px;line-height:1.65;color:#425a49;margin:0 0 22px}
+.cm-hero-note dl{margin:0 0 14px}.cm-hero-note dl>div{border-top:1px solid #bac7ba;padding:10px 0;display:grid;grid-template-columns:64px minmax(0,1fr);gap:8px;font-size:12px;line-height:1.5}
+.cm-hero-note dt{color:#526258}.cm-hero-note dd{margin:0;font-weight:600}.cm-hero-note a{min-height:44px;align-items:center}
+.cm-brand-pair{grid-template-columns:minmax(0,1.601fr) minmax(0,1.829fr)}
+@media(max-width:850px){.cm-hero-layout,.cm-brand-pair{grid-template-columns:minmax(0,1fr);gap:18px}.cm-hero-note{padding-top:16px}.cm-hero-note h2{margin-bottom:10px}}

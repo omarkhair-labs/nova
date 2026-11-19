@@ -1,0 +1,31 @@
+/* Private photo art direction. The original scene composition, navigation and transitions stay unchanged. */
+.ps-site[data-private-review="true"] .ps-image img{object-position:50% 50%;filter:saturate(1)}
+.ps-site[data-private-review="true"] .ps-image:nth-child(3) img{object-position:58% 50%}
+.ps-site[data-private-review="true"] .ps-grading{
+ background:linear-gradient(90deg,#0e1c15e3 0%,#0e1c158b 28%,#0e1c1520 52%,transparent 78%),
+ linear-gradient(0deg,#0e1c15e8 0%,#0e1c1563 15%,transparent 38%,transparent 76%,#0e1c156b 100%);
+}
+.ps-site[data-private-review="true"][data-stage="1"] .ps-grading{
+ background:linear-gradient(90deg,#0e1c15e8 0%,#0e1c1599 28%,#0e1c1520 52%,transparent 78%),
+ linear-gradient(0deg,#0e1c15eb 0%,#0e1c1570 17%,transparent 40%,transparent 74%,#0e1c157d 100%);
+}
+@media(max-width:900px){
+ .ps-site[data-private-review="true"] .ps-grading{
+ background:linear-gradient(180deg,#0e1c15aa 0%,#0e1c15a8 28%,#0e1c1538 48%,transparent 58%,#0e1c15ad 78%,#0e1c15ed 100%),
+ linear-gradient(90deg,#0e1c1573,transparent 100%);
+ }
+ .ps-site[data-private-review="true"][data-stage="1"] .ps-grading{
+ background:linear-gradient(180deg,#0e1c15bb 0%,#0e1c15ba 31%,#0e1c1540 48%,transparent 60%,#0e1c15b5 78%,#0e1c15ef 100%),
+ linear-gradient(90deg,#0e1c157d,transparent 100%);
+ }
+ .ps-site[data-private-review="true"] .ps-image:nth-child(1) img{object-position:51% 50%}
+ .ps-site[data-private-review="true"] .ps-image:nth-child(2) img{object-position:48% 50%}
+ .ps-site[data-private-review="true"] .ps-image:nth-child(3) img{object-position:66% 50%}
+}
+
+/* Meeting-aligned private positioning: technology and sustainability as a quiet architectural system. */
+.ps-site[data-private-review="true"] .ps-system-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border-block:1px solid #dce8dc66;margin:18px 0 6px;max-width:620px}
+.ps-site[data-private-review="true"] .ps-system-strip span{display:flex;gap:8px;align-items:center;padding:9px 10px 9px 0;font:600 9px/1.35 Arial,sans-serif;letter-spacing:.08em;color:#e6efe4}
+.ps-site[data-private-review="true"] .ps-system-strip span+span{border-left:1px solid #dce8dc44;padding-left:10px}
+.ps-site[data-private-review="true"] .ps-system-strip b{font:600 8px/1 Arial,sans-serif;color:#a8c5ad}
+@media(max-width:620px){.ps-site[data-private-review="true"] .ps-system-strip{grid-template-columns:1fr}.ps-site[data-private-review="true"] .ps-system-strip span+span{border-left:0;border-top:1px solid #dce8dc44;padding-left:0}.ps-site[data-private-review="true"] .ps-system-strip span{padding-block:7px}}

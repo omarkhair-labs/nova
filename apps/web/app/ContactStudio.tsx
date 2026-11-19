@@ -13,10 +13,10 @@ const modes = [
 const environments = [
   { id: "", label: "Select a type of space" },
   { id: "home", label: "Home / residence" },
-  { id: "work", label: "Workplace / office" },
-  { id: "gather", label: "Hotel / hospitality" },
+  { id: "work", label: "Offices / HQs / workplace" },
+  { id: "gather", label: "Hospitality / hotel / restaurant / cafe" },
   { id: "industrial", label: "Industrial site / factory" },
-  { id: "retail", label: "Retail / destination" },
+  { id: "retail", label: "Commercial / mall / developer / showroom" },
   { id: "public", label: "Public / shared space" },
   { id: "other", label: "Something else" },
 ] as const;
@@ -125,9 +125,9 @@ export default function ContactStudio({ available }: { available: boolean }) {
           <nav aria-label="How can we help?" className="ct-modes">
             {modes.map(item=><button key={item.id} aria-pressed={mode===item.id} type="button" disabled={pending} onClick={() => {setMode(item.id);setFeedback("");setReference("");}}>{item.title}</button>)}
           </nav>
-          <p className="ct-mode-intro" aria-live="polite">{current.intro}</p>
+          <p className="ct-mode-intro" aria-live="polite">{current.intro}</p>{!available&&<div className="ct-preview-note" role="note"><strong>Preview mode</strong><span>You can explore the full brief and compose a message. Sending is disabled, so nothing will be submitted or stored.</span></div>}
           <form className="ct-form" onSubmit={send}>
-            <fieldset className="ct-fields" disabled={pending || !available}>
+            <fieldset className="ct-fields" disabled={pending}>
               <label htmlFor="ct-name">Your name</label>
               <input id="ct-name" required autoComplete="name" value={name} maxLength={100} placeholder="Full name" onChange={event=>update(setName,event.target.value)}/>
               <label htmlFor="ct-email">Email address</label>
@@ -142,10 +142,10 @@ export default function ContactStudio({ available }: { available: boolean }) {
                 <p className="ct-field-notes-kicker">FROM YOUR SPACE STUDY</p>
                 <p>{spaces[["home", "work", "gather", "industrial", "retail", "public"].indexOf(fieldNotes.environment)].name}</p>
                 <ul>{fieldNotes.labels.map(label => <li key={label}>{label}</li>)}</ul>
-                <button type="button" disabled={pending || !available || !!reference} onClick={() => { const addition = "I would like to discuss: " + fieldNotes.labels.join(", ") + "."; const next = message.trim() ? message + "\n\n" + addition : addition; if(next.length <= 2000) {update(setMessage, next);setFieldNotes(null);} else {setFeedback("There is not enough room to add the notes. Please shorten your message first.");} }}>Add these notes to my message ↗</button>
+                <button type="button" disabled={pending || !!reference} onClick={() => { const addition = "I would like to discuss: " + fieldNotes.labels.join(", ") + "."; const next = message.trim() ? message + "\n\n" + addition : addition; if(next.length <= 2000) {update(setMessage, next);setFieldNotes(null);} else {setFeedback("There is not enough room to add the notes. Please shorten your message first.");} }}>Add these notes to my message ↗</button>
               </div>}
               <label htmlFor="ct-message">Your message</label>
-              <textarea id="ct-message" disabled={pending || !available} rows={7} required maxLength={2000} value={message} placeholder={current.placeholder} onChange={event=>update(setMessage,event.target.value)}/>
+              <textarea id="ct-message" disabled={pending} rows={7} required maxLength={2000} value={message} placeholder={current.placeholder} onChange={event=>update(setMessage,event.target.value)}/>
               <div hidden aria-hidden="true"><label htmlFor="ct-website">Leave this empty</label><input id="ct-website" tabIndex={-1} autoComplete="off" value={website} onChange={event => setWebsite(event.target.value)} /></div>
               <div className="ct-action"><button type="submit" disabled={!available || pending || !!reference}>{pending ? "Sending…" : reference ? "Message received" : "Send your message"} <span aria-hidden="true">↗</span></button><p>{available ? "Your details and message will be saved in Plantupia’s private company inbox so the team can respond. Please do not include sensitive information." : "Website submissions are not enabled on this preview. Nothing is sent or stored."}</p></div>
               <p role="status" className="ct-status">{feedback}</p>

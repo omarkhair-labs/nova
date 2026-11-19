@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function SpacesPage() {
-  return <SpaceExplorer />;
+  return <SpaceExplorer privateReview={process.env.NODE_ENV === "development" && !!process.env.PLANTUPIA_PRIVATE_ARRIVAL_DIR}/>;
 }

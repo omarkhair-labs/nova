@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function LivingSystemsPage() {
-  return <LivingContinuity />;
+  return <LivingContinuity privateReview={process.env.NODE_ENV === "development" && !!process.env.PLANTUPIA_PRIVATE_ARRIVAL_DIR} />;
 }

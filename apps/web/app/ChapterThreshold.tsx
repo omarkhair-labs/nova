@@ -27,12 +27,12 @@ function PassageDrawing({number}:{number:number}){
 
 export default function ChapterThreshold({from}:{from:Chapter}){
   const p=passages[from];
-  return <section className={"ch-threshold ch-passage-"+p.number} data-next-chapter={p.number} aria-label={"Continue to "+p.name}>
+  return <section className={"ch-threshold ch-passage-"+p.number} id={from === "experience" ? "next-chapter" : undefined} data-next-chapter={p.number} aria-label={"Continue to "+p.name}>
     <div className="ch-meta"><span>PLANTUPIA / THE PASSAGE</span><span>{String(p.number-1).padStart(2,"0")} — {String(p.number).padStart(2,"0")} / 06</span></div>
     <a href={p.href} className="ch-main">
       <div className="ch-copy"><span className="ch-label">NEXT CHAPTER / {String(p.number).padStart(2,"0")}</span><h2>{p.line}</h2><p>{p.note}</p><span className="ch-enter">Enter {p.name} <span aria-hidden="true">↗</span></span></div>
       <div className="ch-art"><PassageDrawing number={p.number}/></div>
     </a>
-    <div className="ch-bottom"><div className="ch-progress" aria-hidden="true">{[1,2,3,4,5,6].map(n=><i key={n} data-filled={n<p.number} data-next={n===p.number}/>)}</div>{p.previous?<a href={p.previous.href}>← {p.previous.name}</a>:<a href="#world">↑ Return to the chapter index</a>}</div>
+    <div className="ch-bottom"><div className="ch-progress" role="img" aria-label={"Chapter " + (p.number-1) + " of 6; next: " + p.name}>{[1,2,3,4,5,6].map(n=><i key={n} data-filled={n<p.number} data-next={n===p.number}/>)}</div>{p.previous?<a href={p.previous.href}>← {p.previous.name}</a>:<a href="#world">↑ Return to the chapter index</a>}</div>
   </section>
 }

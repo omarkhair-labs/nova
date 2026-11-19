@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
+import { privateSceneOverrides } from "./arrival-private-scenes";
 import "./study/scene/scene.css";
+import "./arrival-photo-direction.css";
 import SiteIndex from "./SiteIndex";
 import ChapterThreshold from "./ChapterThreshold";
 import WorldThreshold from "./WorldThreshold";
@@ -8,7 +10,7 @@ import { CompanyIntroduction } from "./CompanyStory";
 import ShopBridge from "./ShopBridge";
 type Stage = 0 | 1 | 2;
 
-const scenes = [
+const originalScenes = [
   {
     eyebrow: "01 / THE SPACE",
     label: "The Space",
@@ -56,12 +58,13 @@ const scenes = [
   },
 ] as const;
 
-export default function SceneStudy() {
+export default function SceneStudy({ privateReview = false, selectedHospitality = false }: { privateReview?: boolean; selectedHospitality?: boolean }) {
+  const scenes = privateReview ? originalScenes.map((scene, i) => ({ ...scene, ...privateSceneOverrides[i], ...(i === 1 && selectedHospitality ? { visual: "/api/private-arrival/arrival-hero.webp", detail: "Hospitality greenery catalogue, page 6. Illustrative reference of planting integrated into an interior. Not a verified installation." } : {}) })) : originalScenes;
   const [stage,setStage]=useState<Stage>(0);
   const [failed,setFailed]=useState<number[]>([]);
   const scene=scenes[stage];
   function move(direction:number){setStage(previous=>((previous+direction+scenes.length)%scenes.length) as Stage)}
-  return <div className="ps-site" data-stage={stage}>
+  return <div className="ps-site" data-stage={stage} data-private-review={privateReview}>
     <a href="#ps-main" className="ps-skip">Skip to experience</a>
     <section className="ps-opening" aria-labelledby="ps-title">
       <div className="ps-stage-images" role="img" aria-label={failed.includes(stage)?"Generated architectural concept illustration":scene.alt}>
@@ -70,7 +73,7 @@ export default function SceneStudy() {
       </div>
       <header className="ps-topbar"><a href="/" className="ps-brand" aria-label="Plantupia home">◕ Plantupia</a><SiteIndex current="experience" tone="dark"/><a className="ps-contact" href="/start-a-space">Get in touch ↗</a></header>
       <main className="ps-main" id="ps-main">
-        <div className="ps-story"><p className="ps-kicker"><span className="ps-kicker-rule"/> LIVING ARCHITECTURE</p><h1 id="ps-title">A Space<br/>Becoming <em>Alive.</em></h1><p>Plantupia brings nature into the built environment — from a single room to the places an entire city shares.</p><a className="ps-cta" href="#world">CONTINUE INTO PLANTUPIA <span aria-hidden="true">↓</span></a></div>
+        <div className="ps-story"><p className="ps-kicker"><span className="ps-kicker-rule"/> {privateReview?"GREEN TECHNOLOGY / BIOPHILIC INTEGRATION":"LIVING ARCHITECTURE"}</p><h1 id="ps-title">A Space<br/>Becoming <em>Alive.</em></h1><p>{privateReview?"Plantupia integrates living material into the built environment through design, installation and continuing care — with technology and sustainability treated as part of the system, not decoration.":"Plantupia brings nature into the built environment — from a single room to the places an entire city shares."}</p>{privateReview&&<div className="ps-system-strip" aria-label="Plantupia design system"><span><b>01</b> SITE CONDITIONS</span><span><b>02</b> LIVING MATERIAL</span><span><b>03</b> CONTINUING CARE</span></div>}<a className="ps-cta" href="#world">CONTINUE INTO PLANTUPIA <span aria-hidden="true">↓</span></a></div>
         <div className="ps-rail">
           <div className="ps-scene-caption" key={stage} aria-live="polite"><p className="ps-kicker">{String(stage+1).padStart(2,"0")} / 03 · {scene.label.toUpperCase()}</p><p>{scene.line}</p></div>
           <div className="ps-sequence" role="group" aria-label="Choose a photographic study">{scenes.map((item,i)=><button type="button" key={item.label} className="ps-chapter" aria-pressed={stage===i} onClick={()=>setStage(i as Stage)}><span aria-hidden="true"/>{item.label}</button>)}</div>
@@ -79,7 +82,7 @@ export default function SceneStudy() {
         <div className="ps-utility-row ps-source-row"><span>THREE INDEPENDENT ARCHITECTURAL STUDIES</span><a href="#scene-notes">About these images ↗</a></div>
       </main>
     </section>
-    <section className="ps-fieldnotes" id="scene-notes"><details><summary>Three photographic studies <span aria-hidden="true">+</span></summary><p>Independent editorial references, not before-and-after images or completed Plantupia projects. Images: DAIPI, Alpha En and mingche lee via Pexels. Generated concept images are used if a photograph is unavailable.</p><h2>{scene.label}</h2><p>{scene.detail}</p><div className="ps-note-grid">{scene.markerLabels.map((label,i)=><article key={label}><h3>{label}</h3><p>{scene.markerDescriptions[i]}</p></article>)}</div></details></section>
-    <WorldThreshold/><CompanyIntroduction/><ShopBridge/><ChapterThreshold from="experience"/>
+    <section className="ps-fieldnotes" id="scene-notes"><details><summary>Three photographic studies <span aria-hidden="true">+</span></summary><p>{privateReview ? "Independent studies from supplied Plantupia proposals and catalogue. Not evidence of completed installation, before-and-after or growth. Generated concept images are used if a source image is unavailable." : "Independent editorial references, not before-and-after images or completed Plantupia projects. Images: DAIPI, Alpha En and mingche lee via Pexels. Generated concept images are used if a photograph is unavailable."}</p><h2>{scene.label}</h2><p>{scene.detail}</p><div className="ps-note-grid">{scene.markerLabels.map((label,i)=><article key={label}><h3>{label}</h3><p>{scene.markerDescriptions[i]}</p></article>)}</div></details></section>
+    <WorldThreshold privateReview={privateReview}/><CompanyIntroduction privateReview={privateReview}/><ShopBridge privateReview={privateReview}/><ChapterThreshold from="experience"/>
   </div>;
 }
