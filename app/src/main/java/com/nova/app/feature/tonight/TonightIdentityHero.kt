@@ -116,7 +116,7 @@ internal fun TonightIdentityHero(
                             append("Live")
                         }
                         withStyle(SpanStyle(color = palette.ink)) {
-                            append(" with your orbit")
+                            append(" with your Circle")
                         }
                     },
                     style = NovaType.body,

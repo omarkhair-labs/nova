@@ -93,7 +93,7 @@ fun NewMessageDialog(
         text = {
             Column {
                 Text(
-                    text = "Search Nova and open a conversation directly.",
+                    text = "Search people and open a conversation directly.",
                     color = NovaMuted,
                     fontSize = 12.sp,
                 )

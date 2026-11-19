@@ -126,7 +126,7 @@ internal class ConversationComposerState(
                 onRecordingChanged(true)
             }
             .onFailure {
-                onErrorMessage("Nova couldn't start the microphone. Try again.")
+                onErrorMessage("Plantupia couldn't start the microphone. Try again.")
             }
     }
 
@@ -144,7 +144,7 @@ internal class ConversationComposerState(
                 onErrorMessage(null)
             }
         }.onFailure {
-            onErrorMessage("Nova couldn't finish that recording. Record it again.")
+            onErrorMessage("Plantupia couldn't finish that recording. Record it again.")
         }
     }
 

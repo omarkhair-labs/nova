@@ -132,7 +132,7 @@ fun MemoryScreen(
             }
 
             state.memory == null -> MemoryError(
-                message = state.error ?: "Nova couldn't build this memory.",
+                message = state.error ?: "Plantupia couldn't build this memory.",
                 onBack = onBack,
                 onRetry = {
                     owner.load(memoryUtcOffsetMinutes(), state.weeksAgo, showSpinner = true)
@@ -428,7 +428,7 @@ private fun MemoryContent(
                             fontWeight = FontWeight.Bold,
                         )
                         Text(
-                            text = "Nova didn't find shared moments to replay here.",
+                            text = "No shared moments were found to replay here.",
                             color = NovaMuted,
                             fontSize = 10.sp,
                         )
@@ -955,7 +955,7 @@ private fun memoryHeroLine(stats: MemoryStats): String = when {
 
 private fun shareMemory(context: android.content.Context, memory: WeeklyMemory) {
     val text = buildString {
-        append("My Nova week · ${memoryDateRange(memory)}\n")
+        append("My Plantupia week · ${memoryDateRange(memory)}\n")
         append("${memory.stats.highlights} moments")
         if (memory.stats.nights > 0) append(" · ${memory.stats.nights} nights")
         if (memory.stats.people > 0) append(" · ${memory.stats.people} people")
@@ -965,7 +965,7 @@ private fun shareMemory(context: android.content.Context, memory: WeeklyMemory) 
         type = "text/plain"
         putExtra(Intent.EXTRA_TEXT, text)
     }
-    context.startActivity(Intent.createChooser(intent, "Share your Nova week"))
+    context.startActivity(Intent.createChooser(intent, "Share your Plantupia week"))
 }
 
 

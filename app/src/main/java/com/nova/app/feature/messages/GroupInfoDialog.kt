@@ -124,7 +124,7 @@ fun GroupInfoDialog(
                     }
                     currentDetail == null -> {
                         Text(
-                            text = state.errorMessage ?: "Nova couldn't open this group.",
+                            text = state.errorMessage ?: "Plantupia couldn't open this group.",
                             color = NovaMuted,
                             fontSize = 12.sp,
                         )

@@ -78,7 +78,7 @@ fun OrbitRail(
         ) {
             Column {
                 Text(
-                    text = "Your Orbit",
+                    text = "Your Circle",
                     color = NovaInk,
                     style = NovaType.title.copy(fontWeight = FontWeight.Bold),
                 )
@@ -294,7 +294,7 @@ private fun OrbitEmptyCard(onRetry: () -> Unit) {
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Your orbit is quiet",
+                    text = "Your Circle is quiet",
                     color = NovaInk,
                     style = NovaType.meta.copy(fontWeight = FontWeight.Bold),
                 )

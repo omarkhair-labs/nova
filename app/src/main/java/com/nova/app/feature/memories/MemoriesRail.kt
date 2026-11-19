@@ -115,7 +115,7 @@ fun MemoriesRail(
                     )
                     Text(
                         text = when {
-                            state.error != null && state.memory == null -> "Tap after Nova reconnects."
+                            state.error != null && state.memory == null -> "Try again when Plantupia reconnects."
                             state.memory == null -> "Pulse · Rooms · Posts"
                             else -> railSummary(
                                 state.memory!!.stats.highlights,
@@ -176,7 +176,7 @@ fun MemoriesRail(
                             style = NovaType.meta.copy(fontWeight = FontWeight.Bold),
                         )
                         Text(
-                            text = "Nova picks the scenes · you get the MP4",
+                            text = "Scenes are arranged automatically · you get the MP4",
                             color = NovaMuted,
                             style = NovaType.badge,
                         )
