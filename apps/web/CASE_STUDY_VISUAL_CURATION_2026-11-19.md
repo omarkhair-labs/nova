@@ -70,3 +70,38 @@ Evidence is stored locally under:
 - temp/audi-villa-visual-review/
 
 No Production deployment is part of this pass. Start a Space must remain disabled on protected Preview deployments.
+
+## Round 02 — material library and comparison-led studies
+
+### Shop — Plant / Vessel / Condition / Finish
+Source: Plantupia_Hospitality_Greenery_catalog_part_2_compressed.pdf
+
+The private review now treats the supplied hospitality catalogue as a material/specification layer before live commerce:
+- Three spatial-condition scenes remain in the opening field: outdoor, executive office and indoor greenery.
+- Augusta is presented as a vessel-in-space study plus an object study, rather than two anonymous catalogue tiles.
+- The plant collection is presented as a material palette.
+- The fiberglass planter collection becomes the finish/specification chapter, with source-supported references to fiberglass, RAL colour selection and custom sizing.
+- The live catalogue remains the transactional layer after the editorial material library; the private studies are explicitly not live SKU photography.
+
+Verification: 320 / 390 / 768 / 1440, 3 hero studies + 4 material studies, zero broken review images, zero horizontal overflow, live catalogue still present, zero page errors.
+
+### Mazal — nine-facade visual wall
+The image archive, family filter and single active-image UI are no longer the primary experience. All nine source proposal directions are visible first, grouped by Tropical (4), Statement (3) and Evergreen (2). The two-direction compare tool remains because it adds a useful second-order interaction after the full field is visible.
+
+Verification: 320 / 390 / 768 / 1440, all 9 visual directions present, two comparison selectors working, comparison state verified with options 04 and 09, zero broken images, zero horizontal overflow, zero page errors.
+
+### EM Sherif — same vessel / seven personalities
+The source logic is now explicit: the navy planter is the constant and planting is the variable. All seven A—G directions remain visible together; the former tabs and single-image state are removed. Object specifications remain before the visual field as supporting source information.
+
+Verification: 320 / 390 / 768 / 1440, all 7 options and all 7 at-a-glance rows present, zero broken images, zero horizontal overflow, zero page errors.
+
+### El Hallab — visual directions before technical matrix
+All five terrace directions are now shown at full scale before the source comparison matrix. The matrix remains intact as the technical second layer, including all five options and seven source comparison measures.
+
+Verification: 320 / 390 / 768 / 1440, all 5 directions present, matrix 6 columns including Measure and 7 body rows, zero broken images, zero horizontal overflow, zero page errors.
+
+Evidence is stored locally under:
+- temp/shop-material-library-review/
+- temp/comparison-cases-visual-review/
+
+This round still does not authorize a Production deployment. Protected Preview keeps website enquiry submission disabled.
