@@ -75,8 +75,8 @@ fun NovaPostCard(
 
     if (showDeleteConfirm) {
         NovaConfirmDeleteDialog(
-            title = "Delete this post?",
-            message = "This removes the post and its comments from Nova. This can't be undone.",
+            title = "Delete this shared moment?",
+            message = "This removes the public moment and its comments from Plantupia. This can't be undone.",
             isBusy = isDeleting,
             onDismiss = { showDeleteConfirm = false },
             onConfirm = {
@@ -92,7 +92,7 @@ fun NovaPostCard(
             postId = post.id,
             onExternalShare = {
                 val shareText = buildString {
-                    append("See @${post.author.username}'s moment on Nova")
+                    append("See @${post.author.username}'s shared moment on Plantupia")
                     if (post.caption.isNotBlank()) append("\n\n${post.caption}")
                 }
                 context.startActivity(
@@ -101,7 +101,7 @@ fun NovaPostCard(
                             type = "text/plain"
                             putExtra(Intent.EXTRA_TEXT, shareText)
                         },
-                        "Share post",
+                        "Share moment",
                     )
                 )
             },
@@ -135,7 +135,7 @@ fun NovaPostCard(
                         tint = NovaAccent,
                     )
                     Text(
-                        text = "${reposter.name.ifBlank { "@${reposter.username}" }} moved this into your orbit",
+                        text = "${reposter.name.ifBlank { "@${reposter.username}" }} shared this with the Circle",
                         color = NovaMuted,
                         style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
                         maxLines = 1,
@@ -193,7 +193,7 @@ fun NovaPostCard(
                     Box(contentAlignment = Alignment.Center) {
                         NovaIcon(
                             asset = NovaIconAsset.More,
-                            contentDescription = if (isDeleting) "Deleting post" else "Post options",
+                            contentDescription = if (isDeleting) "Deleting moment" else "Moment options",
                             modifier = Modifier.size(22.dp),
                             tint = NovaMuted,
                         )
@@ -222,7 +222,7 @@ fun NovaPostCard(
             NovaMediaImage(
                 source = if (post.mediaType == "video") post.thumbnailUrl else post.mediaUrl,
                 modifier = Modifier.fillMaxWidth().aspectRatio(4f / 3f),
-                contentDescription = "Post by ${post.author.username}",
+                contentDescription = "Shared moment by ${post.author.username}",
             )
             if (post.mediaType == "video") {
                 Surface(
@@ -231,7 +231,7 @@ fun NovaPostCard(
                 ) {
                     NovaIcon(
                         asset = NovaIconAsset.Reels,
-                        contentDescription = "Open video post",
+                        contentDescription = "Open video moment",
                         tint = androidx.compose.ui.graphics.Color.White,
                         modifier = Modifier.padding(14.dp).size(28.dp),
                     )
@@ -250,7 +250,7 @@ fun NovaPostCard(
         ) {
             NovaSocialAction(
                 icon = if (post.isLiked) NovaIconAsset.LikeFilled else NovaIconAsset.Like,
-                contentDescription = if (post.isLiked) "Unlike post" else "Like post",
+                contentDescription = if (post.isLiked) "Unlike moment" else "Like moment",
                 count = post.likesCount,
                 active = post.isLiked,
                 busy = isLiking,
@@ -276,7 +276,7 @@ fun NovaPostCard(
             )
             NovaSocialAction(
                 icon = NovaIconAsset.Share,
-                contentDescription = "Share post",
+                contentDescription = "Share moment",
                 onClick = { showShare = true },
             )
         }

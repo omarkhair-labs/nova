@@ -25,6 +25,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,8 +44,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.feature.posts.domain.model.NovaComment
 import com.nova.app.feature.posts.domain.model.NovaPost
+import com.nova.app.feature.plants.PlantupiaColors
+import com.nova.app.feature.plants.PlantupiaText
 import com.nova.app.ui.components.NovaAvatar
-import com.nova.app.ui.components.NovaBackButton
 import com.nova.app.ui.components.NovaConfirmDeleteDialog
 import com.nova.app.ui.components.NovaMediaImage
 import com.nova.app.ui.components.NovaSecondaryButton
@@ -171,8 +173,8 @@ fun PostCommentsScreen(
                 post == null && !isLoading -> {
                     item {
                         EmptyCommentsState(
-                            title = "Post unavailable",
-                            message = visibleError ?: "This post may have been deleted or is no longer available.",
+                            title = "Moment unavailable",
+                            message = visibleError ?: "This shared moment may have been removed or is no longer available.",
                         )
                     }
                 }
@@ -206,7 +208,7 @@ fun PostCommentsScreen(
                     item {
                         EmptyCommentsState(
                             title = "No comments yet",
-                            message = "Be the first to join the conversation.",
+                            message = "A shared moment can stay quiet. Add something only if you have something to say.",
                         )
                     }
                 }
@@ -273,30 +275,30 @@ private fun CommentsTopBar(
     onBack: () -> Unit,
 ) {
     Surface(
-        color = NovaSurface,
-        shadowElevation = 1.dp,
+        color = PlantupiaColors.paper,
+        shadowElevation = 0.dp,
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 14.dp, vertical = 9.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            NovaBackButton(onClick = onBack)
-            Spacer(modifier = Modifier.size(12.dp))
-            Column {
+            TextButton(onClick = onBack) {
+                Text("? Back", color = PlantupiaColors.forest, fontWeight = FontWeight.SemiBold)
+            }
+            Spacer(modifier = Modifier.size(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text("SHARED MOMENT / CONVERSATION", style = PlantupiaText.sectionLabel)
                 Text(
                     text = "Comments",
-                    color = NovaInk,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = PlantupiaText.editorialHeading,
                 )
                 if (count != null) {
                     Text(
                         text = "$count ${if (count == 1) "comment" else "comments"}",
-                        color = NovaMuted,
-                        fontSize = 11.sp,
+                        style = PlantupiaText.supporting,
                     )
                 }
             }
@@ -404,7 +406,7 @@ private fun CommentComposer(
                         } else {
                             NovaIcon(
                                 asset = NovaIconAsset.Send,
-                                contentDescription = "Send comment",
+                                contentDescription = "Send comment to this shared moment",
                                 modifier = Modifier.size(22.dp),
                                 tint = if (enabled) NovaBackground else NovaMuted,
                             )
@@ -438,7 +440,7 @@ private fun PostContext(
                 modifier = Modifier
                     .size(58.dp)
                     .clip(RoundedCornerShape(13.dp)),
-                contentDescription = "Post preview",
+                contentDescription = "Shared moment preview",
             )
             Column(modifier = Modifier.weight(1f)) {
                 Surface(

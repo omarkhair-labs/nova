@@ -6,17 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -24,6 +14,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,10 +27,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nova.app.ui.components.NovaHeader
 import com.nova.app.ui.components.NovaMediaImage
 import com.nova.app.ui.components.NovaPrimaryButton
 import com.nova.app.ui.components.NovaVideoPlayer
+import com.nova.app.feature.plants.PlantupiaColors
+import com.nova.app.feature.plants.PlantupiaShapes
+import com.nova.app.feature.plants.PlantupiaText
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
@@ -78,29 +71,42 @@ fun CreatePostScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(NovaBackground)
+            .background(PlantupiaColors.cream)
             .statusBarsPadding()
             .navigationBarsPadding()
             .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 22.dp, vertical = 18.dp),
     ) {
-        NovaHeader(
-            title = "Public moment",
-            subtitle = "A photo or video you choose to share with others.",
-            onBack = { if (!isLoading) onBack() },
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(onClick = { if (!isLoading) onBack() }, enabled = !isLoading) {
+                Text("? Back", color = PlantupiaColors.forest, fontWeight = FontWeight.SemiBold)
+            }
+            Spacer(Modifier.weight(1f))
+            Text("SHARED MOMENT / PUBLIC", style = PlantupiaText.sectionLabel)
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+        Text("Share a moment", style = PlantupiaText.pageHeading)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            "Choose one photo or video that you intentionally want other people to see.",
+            style = PlantupiaText.body,
+            modifier = Modifier.fillMaxWidth(0.94f),
         )
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = NovaAccentSoft,
-            shape = RoundedCornerShape(16.dp),
+            color = PlantupiaColors.softSage,
+            shape = PlantupiaShapes.inset,
         ) {
             Text(
-                text = "PUBLIC / This post is visible to others. Your private plant history and spaces are never shared automatically.",
+                text = "PRIVATE RECORDS STAY PRIVATE / Publishing this moment does not expose your plant history, spaces or care records.",
                 modifier = Modifier.padding(14.dp),
-                color = NovaInk,
+                color = PlantupiaColors.forestText,
                 fontSize = 12.sp,
                 lineHeight = 18.sp,
             )
@@ -112,8 +118,8 @@ fun CreatePostScreen(
             onClick = { if (!isLoading) picker.launch(arrayOf("image/*", "video/*")) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(28.dp),
-            color = NovaSurface,
-            border = BorderStroke(1.dp, NovaBorder),
+            color = PlantupiaColors.paper,
+            border = BorderStroke(1.dp, PlantupiaColors.border),
         ) {
             if (selectedMedia != null) {
                 if (selectedMime.startsWith("video/")) {
@@ -124,7 +130,7 @@ fun CreatePostScreen(
                         repeat = true,
                         muted = true,
                         useController = true,
-                        description = "Selected post video preview",
+                        description = "Selected shared-moment video preview",
                     )
                 } else {
                     NovaMediaImage(
@@ -133,7 +139,7 @@ fun CreatePostScreen(
                             .fillMaxWidth()
                             .aspectRatio(1f)
                             .clip(RoundedCornerShape(28.dp)),
-                        contentDescription = "Selected post photo",
+                        contentDescription = "Selected shared-moment photo",
                     )
                 }
             } else {
@@ -159,14 +165,14 @@ fun CreatePostScreen(
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Choose a photo or video",
+                        text = "Choose the moment",
                         color = NovaInk,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "Pick something from your phone to share.",
+                        text = "A photo or video from your world, shared only because you chose it.",
                         color = NovaMuted,
                         fontSize = 13.sp,
                     )
@@ -199,7 +205,7 @@ fun CreatePostScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(150.dp),
-            label = { Text("Caption") },
+            label = { Text("Caption (optional)") },
             placeholder = { Text("Say something about this moment…", color = NovaMuted) },
             enabled = !isLoading,
             maxLines = 6,
@@ -253,7 +259,7 @@ fun CreatePostScreen(
 
         Spacer(modifier = Modifier.height(14.dp))
         Text(
-            text = "Publishing continues if you navigate Plantupia or leave the app. Home will show progress and retry options.",
+            text = "Plantupia can finish publishing in the background. You can continue using the app while this moment is prepared.",
             color = NovaMuted,
             fontSize = 12.sp,
             lineHeight = 18.sp,
