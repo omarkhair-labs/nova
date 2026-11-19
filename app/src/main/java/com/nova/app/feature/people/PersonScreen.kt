@@ -52,12 +52,11 @@ import com.nova.app.feature.posts.domain.model.NovaPost
 import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState
 import com.nova.app.feature.sharing.NovaShareDialog
 import com.nova.app.ui.components.NovaErrorState
-import com.nova.app.ui.components.NovaHeader
 import com.nova.app.ui.components.NovaLoadingState
 import com.nova.app.ui.components.NovaPagedProfilePostsGrid
 import com.nova.app.ui.components.NovaPrimaryButton
 import com.nova.app.ui.components.NovaSecondaryButton
-import com.nova.app.feature.profile.NovaProfileIdentity
+import com.nova.app.feature.profile.PlantupiaMeIdentity
 import com.nova.app.feature.profile.PlantupiaProfileSectionHeading
 import com.nova.app.feature.profile.PlantupiaProfileSocialStats
 import com.nova.app.feature.plants.PlantupiaText
@@ -391,13 +390,18 @@ fun PersonScreen(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 22.dp, vertical = 18.dp),
     ) {
-        NovaHeader(
-            title = "Profile",
-            subtitle = "Identity, public moments and ways to connect.",
-            onBack = onBack,
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(onClick = onBack) {
+                Text("? Back", color = PlantupiaColors.forest, fontWeight = FontWeight.SemiBold)
+            }
+            Spacer(Modifier.weight(1f))
+            Text("PUBLIC PROFILE", style = PlantupiaText.sectionLabel)
+        }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         when {
             person == null && isLoading -> {
@@ -417,26 +421,25 @@ fun PersonScreen(
             }
 
             else -> {
-                NovaProfileIdentity(
+                PlantupiaMeIdentity(
                     displayName = person.name,
+                    userId = person.id,
+                    avatarVariant = person.plantupiaAvatarVariant,
                     username = person.username,
                     avatarUrl = person.avatarUrl,
                     bio = person.bio,
                     location = person.location,
                     link = person.link,
                     interests = person.interests,
-                    profileTheme = person.profileTheme,
-                    showOrbit = person.showOrbit,
                     isVerified = person.isVerified,
-                    plantupiaIdentityId = person.id,
-                    plantupiaAvatarVariant = person.plantupiaAvatarVariant,
+                    showLabel = false,
                 )
                 if (privacyResolved && shouldShowPrivateProfileBadge(privacyState)) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Surface(
                         modifier = Modifier.align(Alignment.CenterHorizontally),
                         shape = RoundedCornerShape(14.dp),
-                        color = NovaAccentSoft,
+                        color = PlantupiaColors.softSage,
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
@@ -447,11 +450,11 @@ fun PersonScreen(
                                 asset = NovaIconAsset.Lock,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp),
-                                tint = NovaAccent,
+                                tint = PlantupiaColors.forest,
                             )
                             Text(
                                 text = "Private account",
-                                color = NovaAccent,
+                                color = PlantupiaColors.forest,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
                             )
@@ -478,13 +481,13 @@ fun PersonScreen(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(18.dp),
-                        color = NovaSurface,
-                        border = BorderStroke(1.dp, NovaBorder),
+                        color = PlantupiaColors.paper,
+                        border = BorderStroke(1.dp, PlantupiaColors.border),
                     ) {
                         Text(
                             text = visibleError,
                             modifier = Modifier.padding(14.dp),
-                            color = NovaMuted,
+                            color = PlantupiaColors.secondaryText,
                             fontSize = 12.sp,
                         )
                     }
@@ -493,12 +496,12 @@ fun PersonScreen(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(18.dp),
-                        color = NovaAccentSoft,
+                        color = PlantupiaColors.softSage,
                     ) {
                         Text(
                             text = safetyMessage.orEmpty(),
                             modifier = Modifier.padding(14.dp),
-                            color = NovaAccent,
+                            color = PlantupiaColors.forest,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                         )
@@ -627,8 +630,8 @@ fun PersonScreen(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(22.dp),
-                        color = NovaSurface,
-                        border = BorderStroke(1.dp, NovaBorder),
+                        color = PlantupiaColors.paper,
+                        border = BorderStroke(1.dp, PlantupiaColors.border),
                     ) {
                         Column(
                             modifier = Modifier.padding(horizontal = 22.dp, vertical = 30.dp),
@@ -638,7 +641,7 @@ fun PersonScreen(
                                 asset = NovaIconAsset.Lock,
                                 contentDescription = null,
                                 modifier = Modifier.size(28.dp),
-                                tint = NovaAccent,
+                                tint = PlantupiaColors.forest,
                             )
                             Spacer(Modifier.height(10.dp))
                             Text(
@@ -659,7 +662,7 @@ fun PersonScreen(
                                     privacyState.followRequested -> "Your follow request is waiting for approval."
                                     else -> "Follow @${person.username} and wait for approval to see posts and connections."
                                 },
-                                color = NovaMuted,
+                                color = PlantupiaColors.secondaryText,
                                 fontSize = 12.sp,
                                 lineHeight = 18.sp,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,

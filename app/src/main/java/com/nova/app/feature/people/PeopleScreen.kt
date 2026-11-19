@@ -103,13 +103,18 @@ fun PeopleScreen(
                 .padding(horizontal = NovaSpacing.xl),
         ) {
             Text(
-                text = "People",
-                style = PlantupiaText.editorialHeading,
+                text = "THE CIRCLE / DISCOVERY",
+                style = PlantupiaText.sectionLabel,
                 modifier = Modifier.padding(top = NovaSpacing.lg),
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "Find people",
+                style = PlantupiaText.pageHeading,
             )
             Spacer(modifier = Modifier.height(NovaSpacing.sm))
             Text(
-                text = "Meet people who share their worlds with plants. Follow only when you choose.",
+                text = "Search public identities by name or username, or browse through the details people chose to share.",
                 style = PlantupiaText.body,
             )
 
@@ -176,7 +181,7 @@ fun PeopleScreen(
                 horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
             ) {
                 listOf(
-                    "people" to "People",
+                    "people" to "All",
                     "nearby" to "Nearby",
                     "interests" to "Interests",
                     "verified" to "Verified",
@@ -212,7 +217,7 @@ fun PeopleScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = if (state.query.isBlank()) "PEOPLE TO DISCOVER" else "SEARCH RESULTS",
+                        text = if (state.query.isBlank()) "PUBLIC PEOPLE" else "SEARCH RESULTS",
                         color = PlantupiaColors.forestText,
                         style = NovaType.label,
                     )
@@ -228,7 +233,7 @@ fun PeopleScreen(
                             )
                         }
                         Text(
-                            text = "${state.people.size} loaded",
+                            text = if (state.query.isBlank()) "${state.people.size} people" else "${state.people.size} found",
                             color = PlantupiaColors.secondaryText,
                             style = NovaType.micro,
                         )
@@ -264,7 +269,7 @@ fun PeopleScreen(
                         )
                     }
                     NovaEmptyState(
-                        title = if (state.query.isBlank()) "No one to show yet" else "No matches",
+                        title = if (state.query.isBlank()) "No public profiles to show yet" else "No matches",
                         message = peopleEmptyMessage(state.filter, state.query),
                         modifier = Modifier.weight(1f),
                     )
@@ -328,7 +333,7 @@ internal fun discoveryFilterDescription(filter: String): String = when (filter) 
     "interests" -> "People with interests that overlap your saved profile interests."
     "verified" -> "Verified community accounts."
     "new" -> "Newly joined community accounts."
-    else -> "People you can discover in the community."
+    else -> "Public identities available through the Circle."
 }
 
 
@@ -338,5 +343,5 @@ internal fun peopleEmptyMessage(filter: String, query: String): String = when {
     filter == "interests" -> "Add interests to your profile or try another filter."
     filter == "verified" -> "No verified accounts are available here yet."
     filter == "new" -> "New accounts will appear here as people join."
-    else -> "Your discovery space will grow with the community."
+    else -> "Public identities will appear here as the Circle grows."
 }
