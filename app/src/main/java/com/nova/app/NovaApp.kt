@@ -959,6 +959,7 @@ fun NovaApp(
                         followersCount = user?.followersCount ?: 0,
                         followingCount = user?.followingCount ?: 0,
                         profileContentOwner = profileContentOwner,
+                        onPlantsClick = { openRoot(NovaRootTab.Plants) },
                         onPostClick = { post ->
                             backStack.add(NovaRoute.PostDetail(post.id))
                         },

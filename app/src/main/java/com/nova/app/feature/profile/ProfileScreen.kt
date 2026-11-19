@@ -1,6 +1,7 @@
 package com.nova.app.feature.profile
 
 import android.content.Intent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,7 +15,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -24,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nova.app.SettingsActivity
 import com.nova.app.SocialGraphActivity
@@ -31,6 +33,7 @@ import com.nova.app.feature.plants.PlantupiaProfileSpaces
 import com.nova.app.feature.plants.PlantupiaMembershipSheet
 import com.nova.app.feature.plants.PlantupiaShopOpenSignal
 import com.nova.app.feature.plants.PlantupiaColors
+import com.nova.app.feature.plants.PlantupiaShapes
 import com.nova.app.feature.plants.PlantupiaText
 import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.core.messaging.NovaMessagesSignal
@@ -44,6 +47,7 @@ import com.nova.app.ui.components.NovaIconButton
 import com.nova.app.ui.components.NovaPagedProfilePostsGrid
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.components.NovaTab
+import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaSpacing
 
@@ -67,6 +71,7 @@ fun ProfileScreen(
     profileContentOwner: ProfileContentStateOwner,
     onPostClick: (NovaPost) -> Unit,
     onHomeClick: () -> Unit,
+    onPlantsClick: () -> Unit,
     onOrbitClick: () -> Unit,
     onCreateClick: () -> Unit,
     onEditProfile: () -> Unit,
@@ -110,7 +115,7 @@ fun ProfileScreen(
             ) {
                 Column {
                     Text(text = "PLANTUPIA / ME", style = PlantupiaText.sectionLabel)
-                    Text(text = "Your profile", style = PlantupiaText.editorialHeading)
+                    Text(text = "My Plantupia", style = PlantupiaText.editorialHeading)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box {
@@ -133,7 +138,46 @@ fun ProfileScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "Private places, care and orders first. Public identity and shared moments stay separate.",
+                style = PlantupiaText.supporting,
+            )
+
             Spacer(modifier = Modifier.height(NovaSpacing.xl))
+            PlantupiaProfileSpaces(accountId = userId, onOpenSpaces = onPlantsClick)
+
+            Spacer(modifier = Modifier.height(NovaSpacing.lg))
+            PlantupiaProfileSectionHeading(
+                eyebrow = "SERVICE / YOUR PLANTUPIA",
+                description = "Care access and purchases belong to your private account, not your public profile.",
+            )
+            Spacer(modifier = Modifier.height(NovaSpacing.sm))
+            PlantupiaProfileActionCard(
+                icon = NovaIconAsset.CareCalendar,
+                eyebrow = "CARE & ACCESS",
+                title = "Plans and service",
+                body = "See the Plantupia care access attached to your account.",
+                action = "Open care access",
+                onClick = { showCarePlans = true },
+            )
+            Spacer(modifier = Modifier.height(NovaSpacing.sm))
+            PlantupiaProfileActionCard(
+                icon = NovaIconAsset.Shop,
+                eyebrow = "ORDERS",
+                title = "Purchases and status",
+                body = "Open orders, receipts and the latest status attached to this account.",
+                action = "Open my orders",
+                enabled = userId > 0L,
+                onClick = { PlantupiaShopOpenSignal.openOrders(userId) },
+            )
+
+            Spacer(modifier = Modifier.height(NovaSpacing.xl))
+            PlantupiaProfileSectionHeading(
+                eyebrow = "PUBLIC / WHAT YOU SHARE",
+                description = "Only these profile details and moments are public. Your plants, places and care records stay private.",
+            )
+            Spacer(modifier = Modifier.height(NovaSpacing.sm))
             PlantupiaMeIdentity(
                 displayName = displayName,
                 userId = userId,
@@ -145,32 +189,16 @@ fun ProfileScreen(
                 link = link,
                 interests = interests,
                 isVerified = isVerified,
+                showLabel = false,
             )
-
             Spacer(modifier = Modifier.height(NovaSpacing.md))
             NovaSecondaryButton(
-                text = "Edit profile",
+                text = "Edit public profile",
                 onClick = onEditProfile,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Spacer(modifier = Modifier.height(NovaSpacing.lg))
-            // The personal, authenticated view only. Plantupia sites and
-            // care records must never be injected into public Nova posts
-            // or another user's PersonScreen.
-            PlantupiaProfileSpaces(accountId = userId, onOpenSpaces = onHomeClick)
-            Spacer(modifier = Modifier.height(NovaSpacing.md))
-            OutlinedButton(
-                onClick = { showCarePlans = true },
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text("Plantupia Care · Plans and access") }
-            Spacer(modifier = Modifier.height(NovaSpacing.sm))
-            OutlinedButton(
-                onClick = { PlantupiaShopOpenSignal.openOrders(userId) },
-                enabled = userId > 0L,
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text("My orders") }
 
-            Spacer(modifier = Modifier.height(NovaSpacing.lg))
+            Spacer(modifier = Modifier.height(NovaSpacing.xl))
             PlantupiaProfileSectionHeading(
                 eyebrow = "SHARED MOMENTS",
                 description = "What you choose to make public, separate from your private plants and care.",
@@ -197,4 +225,52 @@ fun ProfileScreen(
         }
     }
     if (showCarePlans) PlantupiaMembershipSheet(onDismiss = { showCarePlans = false })
+}
+
+@Composable
+private fun PlantupiaProfileActionCard(
+    icon: NovaIconAsset,
+    eyebrow: String,
+    title: String,
+    body: String,
+    action: String,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth(),
+        color = if (enabled) PlantupiaColors.paper else PlantupiaColors.cream,
+        shape = PlantupiaShapes.card,
+        border = BorderStroke(1.dp, PlantupiaColors.border),
+    ) {
+        Row(
+            Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                color = PlantupiaColors.softSage,
+                shape = PlantupiaShapes.inset,
+            ) {
+                Box(Modifier.padding(11.dp)) {
+                    NovaIcon(
+                        asset = icon,
+                        contentDescription = null,
+                        tint = PlantupiaColors.forest,
+                    )
+                }
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(eyebrow, style = PlantupiaText.sectionLabel)
+                Text(title, style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
+                Text(body, style = PlantupiaText.supporting)
+                Text(
+                    if (enabled) "$action \u2192" else "Unavailable",
+                    style = PlantupiaText.sectionLabel,
+                )
+            }
+        }
+    }
 }

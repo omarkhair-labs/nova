@@ -51,6 +51,7 @@ internal fun PlantupiaMeIdentity(
     link: String,
     interests: List<String>,
     isVerified: Boolean,
+    showLabel: Boolean = true,
 ) {
     val uriHandler = LocalUriHandler.current
     val verifiedUrl = remember(link) { normalizedProfileExternalUrl(link) }
@@ -64,12 +65,14 @@ internal fun PlantupiaMeIdentity(
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 22.dp),
             verticalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
         ) {
-            Text(
-                text = "PUBLIC IDENTITY",
-                style = PlantupiaText.sectionLabel,
-                color = PlantupiaColors.forest,
-            )
-            Spacer(modifier = Modifier.height(4.dp))
+            if (showLabel) {
+                Text(
+                    text = "PUBLIC IDENTITY",
+                    style = PlantupiaText.sectionLabel,
+                    color = PlantupiaColors.forest,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+            }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
