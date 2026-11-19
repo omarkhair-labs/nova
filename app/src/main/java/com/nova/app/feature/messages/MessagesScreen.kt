@@ -21,13 +21,19 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,10 +46,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nova.app.app.appContainer
+import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.messages.domain.model.NovaConversation
 import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.feature.messages.inbox.InboxViewModel
 import com.nova.app.feature.messages.inbox.InboxFilter
+import com.nova.app.feature.plants.PlantupiaColors
+import com.nova.app.feature.plants.PlantupiaEvidencePhoto
+import com.nova.app.feature.plants.PlantupiaShapes
+import com.nova.app.feature.plants.PlantupiaTeamSheet
+import com.nova.app.feature.plants.PlantupiaText
+import com.nova.app.feature.plants.data.PlantupiaPlant
+import com.nova.app.feature.plants.data.PlantupiaRepository
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.PlantupiaAvatar
 import com.nova.app.ui.components.NovaBottomBar
@@ -65,6 +79,7 @@ import com.nova.app.ui.theme.NovaSurface
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MessagesScreen(
     onConversationClick: (NovaConversation) -> Unit,
@@ -90,6 +105,28 @@ fun MessagesScreen(
     val inboxRefreshVersion = NovaMessagesSignal.inboxRefreshVersion
     val initialInboxRefreshVersion = remember { inboxRefreshVersion }
     val listState = rememberLazyListState()
+    val plantRepository = remember(context) { PlantupiaRepository(context.applicationContext) }
+    var teamPlants by remember { mutableStateOf<List<PlantupiaPlant>>(emptyList()) }
+    var teamPlantsLoading by remember { mutableStateOf(true) }
+    var teamPlantsError by remember { mutableStateOf<String?>(null) }
+    var teamPlantsRefresh by remember { mutableIntStateOf(0) }
+    var teamPickerOpen by remember { mutableStateOf(false) }
+    var selectedTeamPlant by remember { mutableStateOf<PlantupiaPlant?>(null) }
+
+    LaunchedEffect(plantRepository, teamPlantsRefresh) {
+        teamPlantsLoading = true
+        teamPlantsError = null
+        when (val result = plantRepository.plants()) {
+            is ApiResult.Success -> if (plantRepository.isCurrentSession()) {
+                teamPlants = result.value.filter { it.active }.sortedBy { it.name.lowercase() }
+            }
+            is ApiResult.Failure -> if (plantRepository.isCurrentSession()) {
+                teamPlants = emptyList()
+                teamPlantsError = result.message
+            }
+        }
+        teamPlantsLoading = false
+    }
 
     LaunchedEffect(inboxRefreshVersion) {
         if (inboxRefreshVersion != initialInboxRefreshVersion) {
@@ -130,7 +167,7 @@ fun MessagesScreen(
     }
 
     Scaffold(
-        containerColor = NovaBackground,
+        containerColor = PlantupiaColors.cream,
         bottomBar = {
             NovaBottomBar(
                 selected = NovaTab.Inbox,
@@ -146,7 +183,7 @@ fun MessagesScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(NovaBackground)
+                .background(PlantupiaColors.cream)
                 .padding(innerPadding)
                 .statusBarsPadding()
                 .padding(horizontal = 20.dp),
@@ -156,24 +193,41 @@ fun MessagesScreen(
                     .fillMaxWidth()
                     .padding(top = 22.dp),
             ) {
+                Text("MESSAGES / PRIVATE & COMMUNITY", style = PlantupiaText.sectionLabel)
+                Spacer(Modifier.height(6.dp))
                 Text(
-                    text = "Inbox",
-                    color = NovaInk,
-                    style = com.nova.app.ui.theme.NovaType.pageTitle,
+                    text = "Conversations",
+                    style = PlantupiaText.pageHeading,
                 )
-                Spacer(Modifier.height(3.dp))
+                Spacer(Modifier.height(5.dp))
                 Text(
                     text = when {
-                        unreadCount > 0 -> "$unreadCount unread ${if (unreadCount == 1) "conversation" else "conversations"}"
-                        conversations.isNotEmpty() -> "Pick up where you left off."
-                        else -> "All your conversations, together."
+                        unreadCount > 0 -> "$unreadCount unread ${if (unreadCount == 1) "conversation" else "conversations"}. Team support stays private and separate."
+                        else -> "Private Plantupia support first. People and groups stay together below."
                     },
-                    color = NovaMuted,
-                    fontSize = 13.sp,
+                    style = PlantupiaText.supporting,
                 )
             }
 
             Spacer(modifier = Modifier.height(18.dp))
+
+            PlantupiaTeamEntry(
+                plants = teamPlants,
+                loading = teamPlantsLoading,
+                error = teamPlantsError,
+                onOpen = {
+                    when (teamPlants.size) {
+                        0 -> if (teamPlantsError != null) teamPlantsRefresh += 1
+                        1 -> selectedTeamPlant = teamPlants.first()
+                        else -> teamPickerOpen = true
+                    }
+                },
+                onRetry = { teamPlantsRefresh += 1 },
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+            Text("YOUR CONVERSATIONS", style = PlantupiaText.sectionLabel)
+            Spacer(modifier = Modifier.height(10.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -231,7 +285,7 @@ fun MessagesScreen(
                             query.isNotBlank() -> "Try another name, username, or group name."
                             state.filter == InboxFilter.Unread -> "New unread conversations will appear here."
                             state.filter == InboxFilter.Mentions -> "Conversations that mention your username will appear here."
-                            else -> "Start a private message or create a group when you want to connect."
+                            else -> "People you message and groups you join will appear here. Plantupia Team stays separate above."
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -246,14 +300,14 @@ fun MessagesScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = if (query.isBlank()) "Recent" else "Results",
+                            text = if (query.isBlank()) "RECENT" else "RESULTS",
                             color = NovaInk,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                         )
                         Spacer(Modifier.weight(1f))
                         Text(
-                            text = "${conversations.size} loaded",
+                            text = "${conversations.size} ${if (conversations.size == 1) "conversation" else "conversations"}",
                             color = NovaMuted,
                             fontSize = 11.sp,
                         )
@@ -292,8 +346,155 @@ fun MessagesScreen(
             }
         }
     }
+
+    if (teamPickerOpen) {
+        PlantupiaTeamPlantPicker(
+            plants = teamPlants,
+            onChoose = { plant ->
+                teamPickerOpen = false
+                selectedTeamPlant = plant
+            },
+            onDismiss = { teamPickerOpen = false },
+        )
+    }
+    selectedTeamPlant?.let { plant ->
+        PlantupiaTeamSheet(
+            plant = plant,
+            repository = plantRepository,
+            onDismiss = { selectedTeamPlant = null },
+        )
+    }
 }
 
+
+
+@Composable
+private fun PlantupiaTeamEntry(
+    plants: List<PlantupiaPlant>,
+    loading: Boolean,
+    error: String?,
+    onOpen: () -> Unit,
+    onRetry: () -> Unit,
+) {
+    val actionable = !loading && (plants.isNotEmpty() || error != null)
+    Surface(
+        onClick = onOpen,
+        enabled = actionable,
+        modifier = Modifier.fillMaxWidth(),
+        shape = PlantupiaShapes.card,
+        color = PlantupiaColors.forest,
+        border = BorderStroke(1.dp, PlantupiaColors.forest),
+    ) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    modifier = Modifier.size(44.dp),
+                    shape = CircleShape,
+                    color = PlantupiaColors.cream,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        NovaIcon(
+                            asset = NovaIconAsset.Messages,
+                            contentDescription = null,
+                            modifier = Modifier.size(21.dp),
+                            tint = PlantupiaColors.forest,
+                        )
+                    }
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "PLANTUPIA TEAM",
+                        style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage),
+                    )
+                    Text(
+                        "Private support for your plants",
+                        style = PlantupiaText.editorialHeading.copy(color = PlantupiaColors.cream),
+                    )
+                }
+            }
+            Text(
+                "Requests, staff replies and the plant context you explicitly choose to share. This is separate from community messages.",
+                style = PlantupiaText.supporting.copy(color = PlantupiaColors.cream.copy(alpha = 0.82f)),
+            )
+            HorizontalDivider(color = PlantupiaColors.cream.copy(alpha = 0.22f))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    when {
+                        loading -> "Checking your plants..."
+                        error != null -> "Team access couldn't load"
+                        plants.isEmpty() -> "Claim or add a plant to start a private request"
+                        plants.size == 1 -> "Open support for ${plants.first().name}"
+                        else -> "Choose from ${plants.size} plants"
+                    },
+                    modifier = Modifier.weight(1f),
+                    style = PlantupiaText.supporting.copy(color = PlantupiaColors.cream),
+                )
+                if (error != null) {
+                    Surface(onClick = onRetry, color = PlantupiaColors.cream, shape = PlantupiaShapes.badge) {
+                        Text("Retry", Modifier.padding(horizontal = 11.dp, vertical = 7.dp), color = PlantupiaColors.forest, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                } else if (plants.isNotEmpty()) {
+                    Text("Open \u2192", style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.cream))
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PlantupiaTeamPlantPicker(
+    plants: List<PlantupiaPlant>,
+    onChoose: (PlantupiaPlant) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = PlantupiaColors.paper,
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("PLANTUPIA TEAM / PRIVATE SUPPORT", style = PlantupiaText.sectionLabel)
+            Text("Which plant is this about?", style = PlantupiaText.pageHeading)
+            Text(
+                "Support stays attached to the plant it belongs to. Private history and photos are not shared unless a support request explicitly includes them.",
+                style = PlantupiaText.supporting,
+            )
+            Spacer(Modifier.height(4.dp))
+            plants.forEach { plant ->
+                Surface(
+                    onClick = { onChoose(plant) },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = PlantupiaColors.cream,
+                    shape = PlantupiaShapes.inset,
+                    border = BorderStroke(1.dp, PlantupiaColors.border),
+                ) {
+                    Row(
+                        Modifier.padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        PlantupiaEvidencePhoto(
+                            photoUrl = plant.coverPhoto,
+                            photoDescription = plant.name,
+                            modifier = Modifier.size(56.dp),
+                            compact = true,
+                        )
+                        Column(Modifier.weight(1f)) {
+                            Text(plant.name, style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
+                            val detail = listOf(plant.species, plant.placement).filter { it.isNotBlank() }.joinToString(" \u00B7 ")
+                            if (detail.isNotBlank()) Text(detail, style = PlantupiaText.supporting, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        }
+                        Text("Open \u2192", style = PlantupiaText.sectionLabel)
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun InboxFilterTab(
@@ -306,13 +507,13 @@ private fun InboxFilterTab(
         onClick = onClick,
         modifier = modifier.heightIn(min = 48.dp),
         shape = RoundedCornerShape(16.dp),
-        color = if (selected) NovaAccent else NovaSurface,
-        border = BorderStroke(1.dp, if (selected) NovaAccent else NovaBorder),
+        color = if (selected) PlantupiaColors.forest else PlantupiaColors.paper,
+        border = BorderStroke(1.dp, if (selected) PlantupiaColors.forest else PlantupiaColors.border),
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(
                 text = filter.label,
-                color = if (selected) NovaBackground else NovaInk,
+                color = if (selected) PlantupiaColors.cream else PlantupiaColors.forestText,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -332,8 +533,8 @@ private fun InboxSearchField(
             .fillMaxWidth()
             .heightIn(min = 52.dp),
         shape = RoundedCornerShape(18.dp),
-        color = NovaSurface,
-        border = BorderStroke(1.dp, NovaBorder),
+        color = PlantupiaColors.paper,
+        border = BorderStroke(1.dp, PlantupiaColors.border),
     ) {
         Row(
             modifier = Modifier.padding(start = 14.dp, end = 6.dp),
@@ -343,7 +544,7 @@ private fun InboxSearchField(
                 asset = NovaIconAsset.Search,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
-                tint = NovaMuted,
+                tint = PlantupiaColors.secondaryText,
             )
             Spacer(modifier = Modifier.width(10.dp))
             BasicTextField(
@@ -352,16 +553,16 @@ private fun InboxSearchField(
                 modifier = Modifier.weight(1f),
                 singleLine = true,
                 textStyle = androidx.compose.ui.text.TextStyle(
-                    color = NovaInk,
+                    color = PlantupiaColors.forestText,
                     fontSize = 14.sp,
                 ),
-                cursorBrush = SolidColor(NovaAccent),
+                cursorBrush = SolidColor(PlantupiaColors.forest),
                 decorationBox = { innerField ->
                     Box(contentAlignment = Alignment.CenterStart) {
                         if (value.isBlank()) {
                             Text(
-                                text = "Search conversations or groups",
-                                color = NovaMuted,
+                                text = "Search people, groups or conversations",
+                                color = PlantupiaColors.secondaryText,
                                 fontSize = 13.sp,
                             )
                         }
@@ -381,7 +582,7 @@ private fun InboxSearchField(
                             asset = NovaIconAsset.Close,
                             contentDescription = "Clear search",
                             modifier = Modifier.size(18.dp),
-                            tint = NovaAccent,
+                            tint = PlantupiaColors.forest,
                         )
                     }
                 }
@@ -436,7 +637,7 @@ private fun ConversationRow(
                 }
             },
         shape = RoundedCornerShape(0.dp),
-        color = if (hasUnread) NovaAccentSoft.copy(alpha = 0.56f) else NovaBackground,
+        color = if (hasUnread) PlantupiaColors.softSage else PlantupiaColors.cream,
     ) {
         Column {
             Row(
@@ -489,12 +690,12 @@ private fun ConversationRow(
                         if (hasUnread) {
                             Surface(
                                 shape = RoundedCornerShape(11.dp),
-                                color = NovaAccent,
+                                color = PlantupiaColors.forest,
                             ) {
                                 Text(
                                     text = if (conversation.unreadCount > 99) "99+" else conversation.unreadCount.toString(),
                                     modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
-                                    color = NovaBackground,
+                                    color = PlantupiaColors.cream,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                 )
@@ -522,7 +723,7 @@ private fun ConversationRow(
                     }
                 }
             }
-            HorizontalDivider(color = NovaBorder.copy(alpha = 0.72f))
+            HorizontalDivider(color = PlantupiaColors.border.copy(alpha = 0.82f))
         }
     }
 }

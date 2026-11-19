@@ -126,58 +126,119 @@ internal fun PlantupiaCareActivity(accountId: Long, onViewChanged: () -> Unit = 
     val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMMM yyyy", locale) }
     val dayFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEE d MMM yyyy", locale) }
 
-    Column(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Planned care  ·  Recorded moments", style = PlantupiaText.supporting)
+    Column(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("CARE SCHEDULE", style = PlantupiaText.sectionLabel)
+                Text(
+                    if (weekMode) "Week of ${visible.first().format(DateTimeFormatter.ofPattern("d MMM", locale))}"
+                    else month.format(dateFormatter),
+                    style = PlantupiaText.editorialHeading,
+                )
+                Text(
+                    "Dates you planned and moments you actually recorded stay distinct.",
+                    style = PlantupiaText.supporting,
+                )
+            }
+            Surface(
+                color = PlantupiaColors.softSage,
+                shape = PlantupiaShapes.badge,
+            ) {
+                Text(
+                    if (weekMode) "WEEK" else "MONTH",
+                    Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                    style = PlantupiaText.sectionLabel,
+                )
+            }
+        }
         if (busy || historyBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
 
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            TextButton(onClick = {
-                if (weekMode) {
-                    selected = selected.minusWeeks(1)
-                    month = YearMonth.from(selected)
-                } else {
-                    month = month.minusMonths(1)
-                    selected = month.atDay(1)
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = PlantupiaColors.paper,
+            shape = PlantupiaShapes.card,
+            border = BorderStroke(1.dp, PlantupiaColors.border),
+        ) {
+            Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    TextButton(
+                        onClick = {
+                            if (weekMode) {
+                                selected = selected.minusWeeks(1)
+                                month = YearMonth.from(selected)
+                            } else {
+                                month = month.minusMonths(1)
+                                selected = month.atDay(1)
+                            }
+                            onViewChanged()
+                        },
+                        modifier = Modifier.semantics { contentDescription = if (weekMode) "Previous week" else "Previous month" },
+                    ) { Text("\u2039", style = PlantupiaText.editorialHeading) }
+                    Text(
+                        if (weekMode) {
+                            val first = visible.first().format(DateTimeFormatter.ofPattern("d MMM", locale))
+                            val last = visible.last().format(DateTimeFormatter.ofPattern("d MMM", locale))
+                            "$first \u2014 $last"
+                        } else month.format(dateFormatter),
+                        style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center,
+                    )
+                    TextButton(
+                        onClick = {
+                            if (weekMode) {
+                                selected = selected.plusWeeks(1)
+                                month = YearMonth.from(selected)
+                            } else {
+                                month = month.plusMonths(1)
+                                selected = month.atDay(1)
+                            }
+                            onViewChanged()
+                        },
+                        modifier = Modifier.semantics { contentDescription = if (weekMode) "Next week" else "Next month" },
+                    ) { Text("\u203A", style = PlantupiaText.editorialHeading) }
                 }
-                onViewChanged()
-            }) { Text("‹") }
-            Text(
-                if (weekMode) "Week of ${visible.first().format(DateTimeFormatter.ofPattern("d MMM", locale))}" else month.format(dateFormatter),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.weight(1f),
-                textAlign = TextAlign.Center,
-            )
-            TextButton(onClick = {
-                if (weekMode) {
-                    selected = selected.plusWeeks(1)
-                    month = YearMonth.from(selected)
-                } else {
-                    month = month.plusMonths(1)
-                    selected = month.atDay(1)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(onClick = {
+                        selected = LocalDate.now()
+                        month = YearMonth.from(selected)
+                        onViewChanged()
+                    }) { Text("Today", color = PlantupiaColors.forest) }
+                    Spacer(Modifier.weight(1f))
+                    FilterChip(selected = weekMode, onClick = {
+                        if (!weekMode) {
+                            weekMode = true
+                            onViewChanged()
+                        }
+                    }, label = { Text("Week") })
+                    FilterChip(selected = !weekMode, onClick = {
+                        if (weekMode) {
+                            weekMode = false
+                            month = YearMonth.from(selected)
+                            onViewChanged()
+                        }
+                    }, label = { Text("Month") })
                 }
-                onViewChanged()
-            }) { Text("›") }
+            }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = {
-                selected = LocalDate.now()
-                month = YearMonth.from(selected)
-                onViewChanged()
-            }) { Text("Today") }
-            Spacer(Modifier.weight(1f))
-            FilterChip(selected = weekMode, onClick = {
-                if (!weekMode) {
-                    weekMode = true
-                    onViewChanged()
-                }
-            }, label = { Text("Week") })
-            FilterChip(selected = !weekMode, onClick = {
-                if (weekMode) {
-                    weekMode = false
-                    month = YearMonth.from(selected)
-                    onViewChanged()
-                }
-            }, label = { Text("Month") })
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text("\u2022 Planned", style = PlantupiaText.supporting.copy(color = PlantupiaColors.mutedSage))
+            Text("\u2713 Recorded", style = PlantupiaText.supporting.copy(color = PlantupiaColors.forest))
         }
         // One weekday ruler, then a compact navigable grid. Month cells stay
         // 48dp tappable without a wall of outlined rectangular cards.
@@ -258,10 +319,21 @@ internal fun PlantupiaCareActivity(accountId: Long, onViewChanged: () -> Unit = 
                 }
             }
         }
-        HorizontalDivider()
-        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        HorizontalDivider(color = PlantupiaColors.border)
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("SELECTED DAY", style = PlantupiaText.sectionLabel)
             Text(selected.format(dayFormatter), style = PlantupiaText.editorialHeading)
-            Text("✓ Recorded  ·  • Planned", style = PlantupiaText.supporting)
+            val recordedOnDay = selectedEntries.count { it.recorded }
+            val plannedOnDay = selectedEntries.size - recordedOnDay
+            Text(
+                when {
+                    selectedEntries.isEmpty() -> "Nothing planned or recorded."
+                    recordedOnDay > 0 && plannedOnDay > 0 -> "$recordedOnDay recorded \u00B7 $plannedOnDay planned"
+                    recordedOnDay > 0 -> if (recordedOnDay == 1) "1 recorded moment" else "$recordedOnDay recorded moments"
+                    else -> if (plannedOnDay == 1) "1 planned entry" else "$plannedOnDay planned entries"
+                },
+                style = PlantupiaText.supporting,
+            )
         }
         if (!busy && !historyBusy && selectedEntries.isEmpty() && historyError == null) {
             Text(
