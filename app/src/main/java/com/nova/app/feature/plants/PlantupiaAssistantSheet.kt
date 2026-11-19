@@ -98,7 +98,7 @@ internal fun PlantupiaAssistantSheet(
             if (!fullPage) {
                 PlantupiaConversationHeader(
                     category = "AI · PLANT CARE",
-                    title = "Plantupia AI",
+                    title = "Ask Plantupia",
                     subtitle = if (plant == null) "Ask about plant care" else "Here for " + plant.name,
                     onClose = onDismiss,
                 )
@@ -165,7 +165,7 @@ internal fun PlantupiaAssistantSheet(
                         PlantupiaConversationMessage(
                             body = message.text,
                             mine = message.fromUser,
-                            sender = if (message.fromUser) "You" else "Plantupia AI",
+                            sender = if (message.fromUser) "You" else "Plantupia guide",
                             detail = if (message.fromUser) "" else if (message.scope == "plant_context") "Plant context included" else "General guidance",
                         )
                     }

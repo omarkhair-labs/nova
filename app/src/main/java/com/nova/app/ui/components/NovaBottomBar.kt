@@ -40,7 +40,7 @@ import com.nova.app.ui.theme.NovaSurface
 import com.nova.app.ui.theme.NovaType
 
 
-/** Plantupia primary navigation: Today / Plants / Create / Shop / AI.
+/** Plantupia primary navigation: Today / Plants / Create / Shop / Ask.
  * Me remains available through the top-right avatar on primary routes.
  * Create stays an intentional hub, not a second, ambiguous feed destination.
  */
@@ -100,7 +100,8 @@ fun NovaBottomBar(
             )
             NovaTabItem(
                 modifier = Modifier.weight(1f),
-                label = "AI",
+                label = "Ask",
+                displayLabel = "Ask",
                 icon = NovaIconAsset.AI,
                 selected = selected == NovaTab.AI,
                 inactiveContentColor = inactiveContentColor,

@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -72,7 +74,7 @@ internal fun PlantupiaAiRoute(
     }
     val chosenPlant = plants.firstOrNull { it.id == selectedPlantId }
     Scaffold(
-        containerColor = PlantupiaColors.paper,
+        containerColor = PlantupiaColors.cream,
         bottomBar = {
             NovaBottomBar(
                 selected = NovaTab.AI,
@@ -87,52 +89,87 @@ internal fun PlantupiaAiRoute(
             modifier = Modifier.fillMaxSize().padding(padding).statusBarsPadding(),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Column(modifier = Modifier.padding(horizontal = 17.dp)) {
+            Column(
+                modifier = Modifier.padding(horizontal = 17.dp),
+                verticalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
                 PlantupiaAccountHeader(
                     user?.name.orEmpty(), user?.username.orEmpty(), user?.avatarUrl.orEmpty(),
                     user?.id ?: 0L, user?.plantupiaAvatarVariant ?: -1,
                     onProfile = onProfile, compactBrand = true,
                 )
-                Text("ASK ABOUT YOUR PLANTS", style = PlantupiaText.sectionLabel)
+                Text("ASK PLANTUPIA / PRIVATE BY DEFAULT", style = PlantupiaText.sectionLabel)
+                Text("Start with a plant, or don't.", style = PlantupiaText.pageHeading)
+                Text(
+                    "General questions stay general. Choose a plant only when its real context would help.",
+                    style = PlantupiaText.supporting,
+                )
             }
             LazyRow(
                 modifier = Modifier.fillMaxWidth(),
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                item { Surface(
-                    onClick = { selectedPlantId = null },
-                    modifier = Modifier.heightIn(min = 48.dp),
-                    color = if (selectedPlantId == null) PlantupiaColors.forest else PlantupiaColors.softSage,
-                    border = BorderStroke(1.dp, PlantupiaColors.border),
-                    shape = RoundedCornerShape(16.dp),
-                ) {
-                    Text(
-                        "General care",
-                        modifier = Modifier.padding(horizontal = 15.dp, vertical = 13.dp),
-                        style = PlantupiaText.body.copy(
-                            color = if (selectedPlantId == null) PlantupiaColors.paper
-                            else PlantupiaColors.forest,
-                        ),
-                    )
-                } }
+                item {
+                    Surface(
+                        onClick = { selectedPlantId = null },
+                        modifier = Modifier.heightIn(min = 58.dp).widthIn(min = 138.dp),
+                        color = if (selectedPlantId == null) PlantupiaColors.forest else PlantupiaColors.paper,
+                        border = BorderStroke(1.dp, if (selectedPlantId == null) PlantupiaColors.forest else PlantupiaColors.border),
+                        shape = RoundedCornerShape(18.dp),
+                    ) {
+                        Column(Modifier.padding(horizontal = 15.dp, vertical = 10.dp)) {
+                            Text(
+                                "GENERAL",
+                                style = PlantupiaText.sectionLabel.copy(
+                                    color = if (selectedPlantId == null) PlantupiaColors.sage else PlantupiaColors.forest,
+                                ),
+                            )
+                            Text(
+                                "No plant context",
+                                style = PlantupiaText.body.copy(
+                                    color = if (selectedPlantId == null) PlantupiaColors.paper else PlantupiaColors.forestText,
+                                ),
+                            )
+                        }
+                    }
+                }
                 items(plants, key = { it.id }) { plant ->
                     val chosen = chosenPlant?.id == plant.id
                     Surface(
                         onClick = { selectedPlantId = plant.id },
-                        modifier = Modifier.heightIn(min = 48.dp),
-                        color = if (chosen) PlantupiaColors.forest else PlantupiaColors.softSage,
-                        border = BorderStroke(1.dp, PlantupiaColors.border),
-                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.heightIn(min = 58.dp).widthIn(min = 154.dp),
+                        color = if (chosen) PlantupiaColors.forest else PlantupiaColors.paper,
+                        border = BorderStroke(1.dp, if (chosen) PlantupiaColors.forest else PlantupiaColors.border),
+                        shape = RoundedCornerShape(18.dp),
                     ) {
-                        Text(
-                            plant.name,
-                            modifier = Modifier.padding(horizontal = 15.dp, vertical = 13.dp),
-                            style = PlantupiaText.body.copy(
-                                color = if (chosen) PlantupiaColors.paper
-                                else PlantupiaColors.forest,
-                            ),
-                        )
+                        Row(
+                            Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(9.dp),
+                        ) {
+                            PlantupiaEvidencePhoto(
+                                photoUrl = plant.coverPhoto,
+                                photoDescription = plant.name,
+                                modifier = Modifier.size(40.dp),
+                                compact = true,
+                            )
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    "PLANT",
+                                    style = PlantupiaText.sectionLabel.copy(
+                                        color = if (chosen) PlantupiaColors.sage else PlantupiaColors.forest,
+                                    ),
+                                )
+                                Text(
+                                    plant.name,
+                                    maxLines = 1,
+                                    style = PlantupiaText.body.copy(
+                                        color = if (chosen) PlantupiaColors.paper else PlantupiaColors.forestText,
+                                    ),
+                                )
+                            }
+                        }
                     }
                 }
             }

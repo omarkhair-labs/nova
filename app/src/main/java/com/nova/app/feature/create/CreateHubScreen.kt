@@ -134,15 +134,15 @@ fun CreateHubScreen(
         ) { openFormat("story") },
     )
     val otherFormats = listOf(
-        // Retain Nova's engines, but do not turn every format into a separate
-        // Plantupia destination until its role in a living-space journey is clear.
-        CreateHubAction("Pulse", "A short update for your community", NovaIconAsset.Orbit) { openFormat("pulse") },
-        CreateHubAction("Gathering", "Meet around shared interests", NovaIconAsset.Room) { openFormat("gathering") },
-        CreateHubAction("Memory", "Revisit moments over time", NovaIconAsset.Memory) { openFormat("memory") },
+        // Existing social engines stay available without becoming Plantupia's
+        // primary creation language.
+        CreateHubAction("Short update", "A brief community moment", NovaIconAsset.Orbit) { openFormat("pulse") },
+        CreateHubAction("Gathering", "Meet around a shared interest", NovaIconAsset.Room) { openFormat("gathering") },
+        CreateHubAction("Memory", "Return to something you chose to keep", NovaIconAsset.Memory) { openFormat("memory") },
     )
 
     Scaffold(
-        containerColor = NovaBackground,
+        containerColor = PlantupiaColors.cream,
         bottomBar = {
             NovaBottomBar(
                 selected = NovaTab.Create,
@@ -170,8 +170,12 @@ fun CreateHubScreen(
             item(key = "living-create-heading") {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     com.nova.app.feature.plants.PlantupiaAccountHeader(displayName, username, avatarUrl, userId, avatarVariant, onProfileClick)
-                    Text("A moment worth keeping", style = PlantupiaText.pageHeading)
-                    Text("Your plant records stay private. You choose what to share.", style = PlantupiaText.supporting)
+                    Text("CREATE / WITH INTENT", style = PlantupiaText.sectionLabel)
+                    Text("What are you doing?", style = PlantupiaText.pageHeading)
+                    Text(
+                        "Record something private, add to your space, ask from a plant, or choose what to share.",
+                        style = PlantupiaText.supporting,
+                    )
                 }
             }
             item(key = "living-create-private") {
@@ -200,7 +204,7 @@ fun CreateHubScreen(
             }
             item(key = "living-create-public") {
                 CreateIntentGroup(
-                    title = "SHARE BY CHOICE",
+                    title = "WITH PEOPLE",
                     hint = "",
                     actions = publicActions,
                 )
@@ -332,7 +336,7 @@ private fun CreateActionCard(action: CreateHubAction, featured: Boolean = false)
 @Composable
 private fun CreateSectionLabel(title: String, subtitle: String) {
     Column(modifier = Modifier.padding(bottom = NovaSpacing.md)) {
-        Text(title, color = NovaInk, style = NovaType.sectionTitle)
-        Text(subtitle, color = NovaMuted, style = NovaType.meta)
+        Text(title.uppercase(), style = PlantupiaText.sectionLabel)
+        Text(subtitle, style = PlantupiaText.supporting)
     }
 }
