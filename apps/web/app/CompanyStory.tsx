@@ -66,7 +66,7 @@ export default function CompanyStory({ privateReview = false }: { privateReview?
             </article>)}</div>}
           <a className="cs-link" href="/start-a-space">GET IN TOUCH ↗</a>
         </section>
-        <ChapterThreshold from="about"/>
+        <ChapterThreshold from="about" privateReview={privateReview}/>
       </main>
       <footer className="cs-footer"><a href="/">PLANTUPIA / HOME</a><a href="/living-systems">LIVING SYSTEMS ↗</a><span>DESIGN PREVIEW / 2026</span></footer>
     </div>

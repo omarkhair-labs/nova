@@ -23,3 +23,5 @@
 .of-arrangement-study .of-option-detail{padding:0;min-height:0}
 @media(max-width:850px){.of-arrangement-study{grid-template-columns:minmax(0,1fr);gap:14px}}
 @media(max-width:420px){.of-options button{flex-direction:column;align-items:flex-start;justify-content:center;font-size:13px;padding:8px;gap:5px;min-height:64px}}
+
+.of-plan-photo{margin:0}.of-plan-photo img{display:block;width:100%;height:clamp(300px,42vw,560px);object-fit:contain;background:#e7ebe0}.of-plan-photo figcaption{font-size:10px;line-height:1.5;color:#526258;padding-top:8px}

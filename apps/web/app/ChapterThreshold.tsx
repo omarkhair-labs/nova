@@ -25,13 +25,15 @@ function PassageDrawing({number}:{number:number}){
   </svg>
 }
 
-export default function ChapterThreshold({from}:{from:Chapter}){
+export default function ChapterThreshold({from,privateReview=false}:{from:Chapter;privateReview?:boolean}){
   const p=passages[from];
+  const visuals={experience:{asset:"world-spaces.webp",label:"Pixels Mall / proposal"},spaces:{asset:"mazal-option-03.webp",label:"Mazal / proposal"},studio:{asset:"sector-commercial-brand.webp",label:"Audi Cairo / proposal"},systems:{asset:"company-intro.webp",label:"Plantupia / company study"},about:{asset:"arrival-hero.webp",label:"Plantupia / arrival study"}} as const;
+  const visual=visuals[from];
   return <section className={"ch-threshold ch-passage-"+p.number} id={from === "experience" ? "next-chapter" : undefined} data-next-chapter={p.number} aria-label={"Continue to "+p.name}>
     <div className="ch-meta"><span>PLANTUPIA / THE PASSAGE</span><span>{String(p.number-1).padStart(2,"0")} — {String(p.number).padStart(2,"0")} / 06</span></div>
     <a href={p.href} className="ch-main">
       <div className="ch-copy"><span className="ch-label">NEXT CHAPTER / {String(p.number).padStart(2,"0")}</span><h2>{p.line}</h2><p>{p.note}</p><span className="ch-enter">Enter {p.name} <span aria-hidden="true">↗</span></span></div>
-      <div className="ch-art"><PassageDrawing number={p.number}/></div>
+      <div className="ch-art">{privateReview?<figure className="ch-photo"><img src={"/api/private-arrival/"+visual.asset} alt="" loading="lazy"/><figcaption>{visual.label}</figcaption></figure>:<PassageDrawing number={p.number}/>}</div>
     </a>
     <div className="ch-bottom"><div className="ch-progress" role="img" aria-label={"Chapter " + (p.number-1) + " of 6; next: " + p.name}>{[1,2,3,4,5,6].map(n=><i key={n} data-filled={n<p.number} data-next={n===p.number}/>)}</div>{p.previous?<a href={p.previous.href}>← {p.previous.name}</a>:<a href="#world">↑ Return to the chapter index</a>}</div>
   </section>

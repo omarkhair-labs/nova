@@ -22,30 +22,13 @@ export const siteSections: ReadonlyArray<{
 ] as const;
 
 const studies = [
-  { title:"Enter the place.", photo:5, word:"THRESHOLD", alignment:"center" },
-  { title:"Read the environment.", photo:0, word:"SPACE", alignment:"center" },
-  { title:"Compose with life.", photo:3, word:"INTENTION", alignment:"center" },
-  { title:"Return and observe.", photo:4, word:"TIME", alignment:"center" },
-  { title:"Meet the practice.", photo:1, word:"PEOPLE", alignment:"center" },
-  { title:"Begin a conversation.", photo:2, word:"POSSIBILITY", alignment:"center" },
+  { title:"Enter the place.", photo:5, asset:"arrival.webp", word:"THRESHOLD", credit:"Plantupia / arrival study" },
+  { title:"Read the environment.", photo:0, asset:"world-spaces.webp", word:"SPACE", credit:"Pixels Mall / proposal study" },
+  { title:"Compose with life.", photo:3, asset:"mazal-option-03.webp", word:"INTENTION", credit:"Mazal / proposal study" },
+  { title:"Return and observe.", photo:4, asset:"sector-commercial-brand.webp", word:"TIME", credit:"Audi Cairo / proposal study" },
+  { title:"Meet the practice.", photo:1, asset:"company-intro.webp", word:"PEOPLE", credit:"Plantupia / company study" },
+  { title:"Begin a conversation.", photo:2, asset:"arrival-hero.webp", word:"POSSIBILITY", credit:"Plantupia / proposal study" },
 ] as const;
-
-// A common drawing vocabulary; not an actual floor plan or business location.
-function IndexStudy({active}:{active:number}){
-  return <svg className="si-study-drawing" viewBox="0 0 320 190" aria-hidden="true" focusable="false">
-    <g stroke="currentColor" fill="none" strokeWidth=".85">
-      <path d="M12 170H308M160 8V181" opacity=".45" strokeDasharray="2 5"/>
-      <path d="M40 165V52L160 19L280 52V165M40 52L160 86L280 52M160 86V165" opacity=".7"/>
-      <path d="M78 165V76L160 52L242 76V165" opacity=".38"/>
-      {active===0&&<path d="M125 165V95L160 85L195 95V165M125 165L160 147L195 165" strokeWidth="1.4"/>}
-      {active===1&&<g strokeWidth="1.15"><path d="M40 165L160 124L280 165M78 165L160 143L242 165"/><circle cx="160" cy="124" r="5" fill="currentColor"/></g>}
-      {active===2&&<g strokeWidth="1.15"><path d="M94 98H226V153H94Z"/>{[0,1,2].map(i=><circle cx={116+i*44} cy="126" r="16" key={i} strokeDasharray="2 3"/>)}</g>}
-      {active===3&&<g strokeWidth="1.2"><path d="M160 165Q149 109 164 46M156 132Q104 124 102 87Q143 90 156 132M159 94Q211 84 215 56Q176 54 159 94M162 65Q140 49 145 25Q166 34 162 65"/><circle cx="160" cy="100" r="66" opacity=".55" strokeDasharray="2 5"/></g>}
-      {active===4&&<g strokeWidth="1.2"><path d="M83 143L128 98L160 127L202 71L243 104"/>{[[83,143],[128,98],[160,127],[202,71],[243,104]].map(([x,y],i)=><circle key={i} cx={x} cy={y} r="5"/>)}</g>}
-      {active===5&&<g strokeWidth="1.3"><path d="M114 165V89L160 76L206 89V165M114 89L160 103L206 89M160 103V165M114 165L160 145L206 165"/><path d="M160 76L206 89V165L160 145Z" fill="currentColor" fillOpacity=".13"/></g>}
-    </g>
-  </svg>
-}
 
 export default function SiteIndex({ current, tone = "light" }: { current: SiteSection | null; tone?: "light" | "dark" }) {
   const [open, setOpen] = useState(false);
@@ -98,13 +81,12 @@ export default function SiteIndex({ current, tone = "light" }: { current: SiteSe
         <div className="si-body">
           <figure className="si-atlas" aria-label="Editorial chapter preview">
             <div className="si-atlas-frame">
-              {open&&<img key={preview} className="si-atlas-photo" src={failed.includes(preview)?photo.fallback:photo.src} alt="" onError={()=>setFailed(prev=>prev.includes(preview)?prev:[...prev,preview])}/>}
+              {open&&<img key={preview} className="si-atlas-photo" src={failed.includes(preview)?photo.fallback:"/api/private-arrival/"+study.asset} alt="" onError={()=>setFailed(prev=>prev.includes(preview)?prev:[...prev,preview])}/>}
               <div className="si-atlas-veil"/>
               <div className="si-atlas-meta"><span>CHAPTER / {item.number}</span><span>{study.word}</span></div>
-              <div className="si-atlas-art"><IndexStudy active={preview}/></div>
               <div className="si-atlas-copy" key={item.id}><span>{item.name}</span><p>{study.title}</p></div>
             </div>
-            <figcaption>{failed.includes(preview)?"Generated concept illustration":<a href={photo.source} target="_blank" rel="noreferrer">{photo.credit} ↗</a>} · Editorial reference, not client work.</figcaption>
+            <figcaption>{failed.includes(preview)?<>Fallback editorial reference / {photo.credit}</>:<>{study.credit} / design proposal or catalogue study.</>}</figcaption>
           </figure>
           <div className="si-reading">
             <div className="si-reading-head"><span>THE CHAPTERS</span><span>{currentIndex>=0?"YOU ARE IN / "+siteSections[currentIndex].number:"CHOOSE A CHAPTER"}</span></div>
@@ -126,7 +108,7 @@ export default function SiteIndex({ current, tone = "light" }: { current: SiteSe
         </div>
         <div className="si-foot">
           <span>SPACE / DESIGN / TIME / PEOPLE</span>
-          <a className="si-sidepath" href="/shop" onClick={dismiss}>SHOP / AN EDITED COLLECTION ↗</a>
+          <span className="si-global-paths"><a className="si-sidepath" href="/spaces/projects" onClick={dismiss}>CASE STUDIES / 06 &#8599;</a><a className="si-sidepath" href="/shop" onClick={dismiss}>SHOP / COLLECTION &#8599;</a></span>
           <span>DESIGN STUDY · NOT THE OFFICIAL LIVE SITE</span>
         </div>
       </dialog>

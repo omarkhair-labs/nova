@@ -3,6 +3,7 @@ import { useState } from "react";
 import SiteIndex from "./SiteIndex";
 import ChapterThreshold from "./ChapterThreshold";
 import { spaces, editorialSpaces, spacePrompts } from "./space-contexts";
+import { projects } from "./project-archive-data";
 import "./space-explorer.css";
 
 const keys = ["home", "work", "gather", "industrial", "retail", "public"] as const;
@@ -14,7 +15,15 @@ export default function SpaceExplorer({ privateReview = false }: { privateReview
   const position = order.indexOf(active);
   const [failed, setFailed] = useState<number[]>([]);
   const [priorities, setPriorities] = useState<Record<number, number[]>>({});
-  const photos = editorialSpaces.map((item, i) => privateReview && i === 0 ? { ...item, src: "/api/private-arrival/spaces-residential.webp", subject: "Villa 7 / Covered Terrace / Fig & Philodendron", source: "private-villa-7-study", credit: "Plantupia proposal, page 14" } : privateReview && i === 2 ? { ...item, src: "/api/private-arrival/spaces-hospitality.webp", subject: "El Hallab / Restaurant interior / planting study", source: "private-el-hallab-study", credit: "Plantupia restaurant proposal, page 3" } : privateReview && i === 4 ? { ...item, src: "/api/private-arrival/spaces-commercial.webp", subject: "Pixels Mall / planted commercial promenade", source: "private-pixels-study", credit: "MT Architects / Plantupia proposal, page 16" } : item);
+  const privateStudies = [
+    {src:"/api/private-arrival/spaces-residential.webp",subject:"Villa 7 / covered terrace proposal",credit:"Plantupia proposal / p14"},
+    {src:"/api/private-arrival/spaces-workplace-palette.webp",subject:"Plantupia workplace planting palette",credit:"Plantupia catalogue / p28"},
+    {src:"/api/private-arrival/spaces-hospitality.webp",subject:"El Hallab / restaurant planting study",credit:"Plantupia proposal / p3"},
+    {src:"/api/private-arrival/sector-office-vessels.webp",subject:"Plantupia vessel collection study",credit:"Plantupia catalogue / p37"},
+    {src:"/api/private-arrival/spaces-commercial.webp",subject:"Pixels Mall / commercial promenade proposal",credit:"MT Architects / Plantupia proposal / p16"},
+    {src:"/api/private-arrival/spaces-shared-terrace.webp",subject:"Pixels Mall / shared terrace proposal study",credit:"Plantupia proposal / p21"},
+  ] as const;
+  const photos = editorialSpaces.map((item,i)=>privateReview?{...item,...privateStudies[i],source:"private-plantupia-study"}:item);
   const photo = photos[active];
   const space = spaces[active];
   const selected = priorities[active] ?? [];
@@ -59,9 +68,9 @@ export default function SpaceExplorer({ privateReview = false }: { privateReview
               </div>)}
             </div>
             <figcaption className="sx-caption">
-              <span>{failed.includes(active) ? "Generated concept fallback — illustrative reference" : privateReview && (active === 0 || active === 2 || active === 4) ? photo.subject + " — design proposal, not a verified installation" : photo.subject + " — illustrative reference, not client work"}</span>
-              {!failed.includes(active) && privateReview && (active === 0 || active === 2 || active === 4) && <span>{photo.credit}</span>}
-              {!failed.includes(active)&&!(privateReview && (active === 0 || active === 2 || active === 4))&&<a href={photo.source} target="_blank" rel="noreferrer">{photo.credit} ↗</a>}
+              <span>{failed.includes(active) ? "Generated concept fallback - illustrative reference" : privateReview ? photo.subject + " - proposal/catalogue study, not a verified sector installation" : photo.subject + " - illustrative reference, not client work"}</span>
+              {!failed.includes(active) && privateReview && <span>{photo.credit}</span>}
+              {!failed.includes(active)&&!privateReview&&<a href={photo.source} target="_blank" rel="noreferrer">{photo.credit} &#8599;</a>}
             </figcaption>
           </figure>
           <div className="sx-rail">
@@ -87,6 +96,7 @@ export default function SpaceExplorer({ privateReview = false }: { privateReview
             <div><p className="sx-kicker">SHARED SPACE STUDY / PIXELS MALL</p><h2 id="sx-shared-study-title">A planted edge, a shared place.</h2><p>The commercial proposal considers plazas, terraces and arrival points as distinct experiential zones. This terrace study explores planting alongside pedestrian circulation. Climate, inclusive access and site safety need to be assessed for each shared space.</p></div>
             <figure><img src="/api/private-arrival/spaces-shared-terrace.webp" alt="Design visualization of a planted curved terrace edge beside a paved circulation area" loading="lazy"/><figcaption>Pixels Mall / MT Architects / Plantupia proposal, page 21. Commercial shared-space study, not a civic commission or verified installation.</figcaption></figure>
           </section>}
+          {privateReview&&<section className="sx-case-index" aria-labelledby="sx-case-index-title"><div className="sx-case-index-head"><div><p className="sx-kicker">SELECTED CASE STUDIES / 06</p><h2 id="sx-case-index-title">See the work.<br/>Then read it.</h2></div><div><p>Open the full proposal studies directly. Each case contains the visual alternatives, not just one cover image.</p><a className="sx-underlink" href="/spaces/projects">Open the full project archive &#8599;</a></div></div><div className="sx-case-grid">{projects.map((project,i)=><a key={project.id} href={"/spaces/projects/"+project.id} className={"sx-case-card sx-case-card-"+(i+1)}><figure><img src={"/api/private-arrival/"+project.image} alt={project.alt} loading={i<2?"eager":"lazy"}/><figcaption><span>{String(i+1).padStart(2,"0")} / {project.name}</span><strong>{project.count}</strong></figcaption></figure><div><p>{project.type}</p><h3>{project.title}</h3><span>OPEN CASE STUDY &#8599;</span></div></a>)}</div></section>}
           <section className="sx-brief" aria-labelledby="sx-brief-title">
             <div className="sx-brief-intro">
               <p className="sx-kicker">FIELD NOTES / {String(position+1).padStart(2,"0")}</p>
@@ -102,7 +112,7 @@ export default function SpaceExplorer({ privateReview = false }: { privateReview
             </div>
           </section>
         </section>
-        <div className="sx-archive-link"><a href={privateReview ? "/spaces/projects" : "/about#selected-works"} className="sx-underlink">Discover our approach &amp; project archive ↗</a></div><ChapterThreshold from="spaces"/>
+        <div className="sx-archive-link"><a href={privateReview ? "/spaces/projects" : "/about#selected-works"} className="sx-underlink">Discover our approach &amp; project archive ↗</a></div><ChapterThreshold from="spaces" privateReview={privateReview}/>
       </main>
       <footer className="sx-footer"><a href="/">Plantupia</a><span>Living architecture / Design preview</span><a href="/start-a-space">Contact ↗</a></footer>
     </div>

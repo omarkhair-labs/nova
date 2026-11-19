@@ -1,6 +1,7 @@
 "use client";
 import {useMemo,useState} from "react";
 import SiteIndex from "./SiteIndex";
+import ProposalImageIndex from "./ProposalImageIndex";
 import {mazalOptions,mazalFamilies} from "./mazal-case-data";
 import "./space-explorer.css";
 import "./mazal-case.css";
@@ -20,6 +21,7 @@ export default function MazalCaseStudy(){
   <main id="mz-main" className="mz-main">
    <div className="mz-breadcrumb"><a className="sx-underlink" href="/spaces/projects">&#8592; Project archive</a><span>Hospitality / Facade planting / Proposal</span></div>
    <section className="mz-hero" aria-labelledby="mz-title"><div><p className="sx-kicker">CASE STUDY 01 / MAZAL RESTAURANT</p><h1 id="mz-title">Nine ways<br/>to <em>welcome.</em></h1></div><div><p>One facade. Nine planting designs across three visual families. The proposal studies how the first impression can shift from lush tropical planting to a minimal architectural line.</p><dl><div><dt>Site</dt><dd>Ivory Business Park</dd></div><div><dt>Proposal</dt><dd>November 2026</dd></div><div><dt>Status</dt><dd>Design proposal / installation not verified</dd></div></dl></div></section>
+   <ProposalImageIndex label="Mazal proposal visual archive" items={mazalOptions.map(o=>({id:o.id,title:o.name,image:o.image,meta:o.family+" / "+o.mood}))} active={active} onSelect={id=>{setFamily("All");setActive(Number(id));}}/>
    <section aria-labelledby="mz-explore-title">
     <div className="mz-section-head"><div><p className="sx-kicker">THE FACADE / OPTION STUDY</p><h2 id="mz-explore-title">Same architecture.<br/>Different presence.</h2></div><p>Filter by design family, then examine each proposal at full scale. Names, descriptions and planting lists below follow the source proposal.</p></div>
     <div className="mz-families" role="group" aria-label="Filter facade design family">{mazalFamilies.map(f=><button key={f} type="button" aria-pressed={family===f} onClick={()=>chooseFamily(f)}>{f}<span>{String(f==="All"?9:mazalOptions.filter(o=>o.family===f).length).padStart(2,"0")}</span></button>)}</div>

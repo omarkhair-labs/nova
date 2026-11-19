@@ -60,3 +60,14 @@
 .si-foot .si-sidepath{color:#e2eccf;text-decoration:none;border-bottom:1px solid #a4be9f;padding:4px 0;letter-spacing:.09em;white-space:normal}
 .si-foot .si-sidepath:hover{color:#fff}
 .si-foot .si-sidepath:focus-visible{outline:2px solid #dfedc7;outline-offset:4px}
+
+/* Visual-first world index: project imagery leads; diagrams are removed from the review composition. */
+.si-body{grid-template-columns:minmax(0,1.35fr) minmax(310px,.65fr)}
+.si-atlas-frame{height:clamp(390px,66dvh,760px)}
+.si-atlas-photo{object-fit:cover}
+.si-atlas-veil{background:linear-gradient(180deg,#11261b25 0%,#11261b08 42%,#10271dcf 100%)}
+.si-atlas-copy{max-width:82%}.si-atlas-copy p{font-size:clamp(42px,5.8vw,92px);max-width:12ch}
+.si-atlas-art,.si-study-drawing{display:none!important}
+@media(max-width:900px){.si-body{grid-template-columns:1fr}.si-atlas-frame{height:clamp(230px,36dvh,380px)}.si-atlas-copy{max-width:76%}}
+
+.si-global-paths{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
