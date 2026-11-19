@@ -1,35 +1,90 @@
 # Vercel Protected Preview — 2026-11-19
 
-Final corrected deployment:
-- Deployment ID: dpl_J4V4UWpEwxwBwzPMAuGx6znhYP1h
-- Preview URL: https://plantupia-public-preview-bar96mcn1-omarkhair70-droids-projects.vercel.app
-- Target: Preview (target=null), not Production.
-- Vercel Authentication / SSO protection is enabled for deployment URLs.
-- Project root remains apps/web; no project setting, billing, production alias, or master merge changed.
+## Canonical current deployment
 
-Staging discipline:
-- Deployment source was a separate review staging directory preserving monorepo path apps/web.
-- 81 private review assets were embedded only in the review staging copy, under public/private-review-assets.
-- Staging-only guards enable private review when VERCEL_ENV=preview; original source production guards were not weakened.
-- /api/private-arrival remains allowlisted and on preview redirects only allowlisted requests to the embedded protected asset path.
-- The first two newly-created review deployments were removed after discovering that Vercel project inbox environment variables made Start a Space live there.
-- Final staging explicitly forces Start a Space available=false whenever VERCEL_ENV=preview. TypeScript passed before deployment.
+- Deployment ID: `dpl_EdUK12LtLRN8m3KqbYcCgETpsy3z`
+- Preview URL: https://plantupia-public-preview-qgvrxbi89-omarkhair70-droids-projects.vercel.app
+- Target: Preview, not Production.
+- Status: READY.
+- Protection: Vercel Authentication / SSO enabled for deployment URLs.
+- Project: `plantupia-public-preview`.
+- Project root remains `apps/web`.
+- No billing, Production alias, master merge, or Production deployment was changed.
 
-Verification:
-- Vercel build READY; Next.js 16.4.6; all expected routes built.
-- Direct embedded review asset arrival.webp returns HTTP 200.
-- /shop returns HTTP 200.
-- /spaces/projects/mazal returns HTTP 200 and preloads the private proposal assets.
-- Home response contains GREEN TECHNOLOGY / BIOPHILIC INTEGRATION and private-review markup.
-- Start a Space response contains Preview mode + Sending is disabled and server-rendered submit button disabled.
-- Mazal response contains Nine ways and private proposal image references.
+This is the canonical protected visual-review deployment for the 2026-11-19 curation pass.
+
+## Source state
+
+Git branch:
+`design/plantupia-arrival-private-20261118`
+
+Relevant visual-curation commits:
+- `fe9414c` — flagship case studies become distinct visual journeys.
+- `2a09593` — complete visual-first curation for Shop, Mazal, EM Sherif and El Hallab.
+
+The Preview staging copy contains 96 allowlisted private review assets under `public/private-review-assets`.
+
+## Staging guards
+
+- Private review is enabled only for Preview or local review conditions.
+- `/api/private-arrival/[asset]` remains allowlisted.
+- On Preview, allowlisted private-review requests redirect only to embedded protected review assets.
+- `Start a Space` is forcibly unavailable whenever `VERCEL_ENV=preview`.
+- The deployed page explicitly states that sending is disabled and nothing is submitted or stored.
 - No real enquiry was sent during verification.
-- Unsafe intermediate deployments removed: dpl_3MCCbgnBqqYagSZp3DTuWANSELdy and dpl_EG6gswjzX7mLw9CWEtT4S7kFARdC.
-- Older prior GitHub preview and historical ERROR deployment remain untouched.
 
-This preview is for authenticated review. Publication permission for supplied proposal/catalogue imagery remains a release gate.
-## Visual-first update
-The protected preview was redeployed after the visual-first correction: six direct case-study cards in Spaces, 56 case-study visual frames exposed through image archives, Plantupia imagery replacing external editorial images in private Spaces, image-led Studio/Offices review, and drawings removed from the private World Index/chapter passages. Previous protected preview dpl_7p6Ktj7n6DxPPcajf6tdptoUYJBw was removed after the replacement reached READY.
+## Current visual system
 
-## Home + Shop production-set update
-The protected preview now includes the first curated production set: 15 newly extracted source assets (8 Home / 7 Shop), three curated opening scenes on Home, an eight-image Selected Work field, and a Shop material world built from Hospitality catalogue SPACE / OBJECT / PLANTS / VESSELS studies before the live catalogue. Preview staging contains 96 private review assets total. Home and Shop were verified at 390 and 1440 locally with zero page errors/overflow/broken review assets. Deployed responses were verified to contain the new visual sections, direct review assets return HTTP 200, live catalogue markup remains present, and Start a Space remains locked in Preview mode. Previous READY preview dpl_7VMF7twoU7BywynTi3ULDMnj55WQ was removed after replacement.
+### Home
+- Curated opening scenes from Pixels Mall, Audi Cairo and Villa 7.
+- Eight-image visual field linked to real proposal sources.
+- External editorial imagery is not used to lead the protected review.
+
+### Shop
+- Three spatial-condition scenes before commerce.
+- Material library structured as Condition → Vessel → Plant → Finish.
+- Augusta shown as vessel-in-space plus object study.
+- Plant collection treated as a material palette.
+- Fiberglass planter collection treated as a specification layer.
+- Live catalogue remains intact after the editorial material library.
+- Catalogue studies are explicitly distinguished from live SKU photography.
+
+### Case studies
+- Pixels Mall: eight-frame architectural journey.
+- Audi Cairo: six showroom chapters in one continuous visual sequence.
+- Villa 7: ten spatial chapters containing all 24 proposal directions.
+- Mazal: all nine facade directions visible first, grouped by three families; two-direction compare remains as a secondary tool.
+- EM Sherif: all seven planting characters visible together around one constant vessel.
+- El Hallab: all five terrace directions visible before the source comparison matrix.
+
+## Verification
+
+Local visual acceptance:
+- 320 / 390 / 768 / 1440 px.
+- Zero horizontal overflow in all tested Shop and case-study pages.
+- Zero broken private-review images in all tested visual fields.
+- TypeScript passes.
+- Mazal comparison controls were exercised with options 04 and 09.
+- El Hallab matrix preserves five options and seven source comparison measures.
+- Shop preserves the live catalogue after the private material library.
+
+Deployed verification:
+- `/shop` contains the current material-library markup.
+- All six case-study routes return their current visual-first content.
+- `/start-a-space` contains Preview mode and the disabled-submission state.
+- Sample private assets for Shop, Mazal, El Hallab, Pixels, Audi and Villa return HTTP 200 through authenticated Preview access.
+- Unauthenticated access to the deployment redirects to Vercel Authentication (HTTP 302).
+
+## Preview cleanup
+
+Removed after the canonical replacement reached READY and passed verification:
+- `plantupia-public-preview-eelstwlqr-omarkhair70-droids-projects.vercel.app`
+- `plantupia-public-preview-bar96mcn1-omarkhair70-droids-projects.vercel.app`
+
+Earlier unsafe intermediate deployments that exposed live enquiry conditions had already been removed:
+- `dpl_3MCCbgnBqqYagSZp3DTuWANSELdy`
+- `dpl_EG6gswjzX7mLw9CWEtT4S7kFARdC`
+
+## Release gate
+
+This deployment is for authenticated review only. Publication permission for supplied proposal and catalogue imagery remains a release gate before any Production publication.
