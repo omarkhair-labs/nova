@@ -1,8 +1,8 @@
 # Vercel Protected Preview — 2026-11-19
 
 Final corrected deployment:
-- Deployment ID: dpl_7p6Ktj7n6DxPPcajf6tdptoUYJBw
-- Preview URL: https://plantupia-public-preview-bl6e8tril-omarkhair70-droids-projects.vercel.app
+- Deployment ID: dpl_7UDVGRdoJ9XJTi4NgSaBDeuUGceR
+- Preview URL: https://plantupia-public-preview-pxya92ry5-omarkhair70-droids-projects.vercel.app
 - Target: Preview (target=null), not Production.
 - Vercel Authentication / SSO protection is enabled for deployment URLs.
 - Project root remains apps/web; no project setting, billing, production alias, or master merge changed.
@@ -28,3 +28,5 @@ Verification:
 - Older prior GitHub preview and historical ERROR deployment remain untouched.
 
 This preview is for authenticated review. Publication permission for supplied proposal/catalogue imagery remains a release gate.
+## Visual-first update
+The protected preview was redeployed after the visual-first correction: six direct case-study cards in Spaces, 56 case-study visual frames exposed through image archives, Plantupia imagery replacing external editorial images in private Spaces, image-led Studio/Offices review, and drawings removed from the private World Index/chapter passages. Previous protected preview dpl_7p6Ktj7n6DxPPcajf6tdptoUYJBw was removed after the replacement reached READY.
