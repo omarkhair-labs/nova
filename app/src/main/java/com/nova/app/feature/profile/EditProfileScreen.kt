@@ -5,15 +5,12 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -34,11 +31,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
-import com.nova.app.ui.components.NovaKeyboardAwareFormPage
 import com.nova.app.ui.components.NovaPrimaryButton
 import com.nova.app.ui.components.NovaTextField
 import com.nova.app.ui.components.PlantupiaAvatar
+import com.nova.app.feature.plants.PlantupiaBrandGlyph
 import com.nova.app.feature.plants.PlantupiaColors
+import com.nova.app.feature.plants.PlantupiaText
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaMuted
 
@@ -86,9 +84,9 @@ fun EditProfileScreen(
 
     BackHandler(enabled = isLoading) { }
 
-    NovaKeyboardAwareFormPage(
-        title = "Edit profile",
-        subtitle = "Your identity in Plantupia. Only the details you add here are public.",
+    PlantupiaProfileFormPage(
+        title = "Edit public identity",
+        subtitle = "Shape only what other people can see. Your spaces, plants, care and orders stay outside this profile.",
         onBack = onBack,
         action = {
             val visibleError = errorMessage ?: linkError
@@ -291,7 +289,7 @@ fun EditProfileScreen(
             value = profileLocation,
             onValueChange = { profileLocation = it.take(80) },
             label = "Location",
-            placeholder = "Seoul, KR",
+            placeholder = "City, country",
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
         )
 
@@ -335,21 +333,80 @@ fun EditProfileScreen(
             )
         }
         if (showPublicPreview) {
-            NovaProfileIdentity(
+            PlantupiaMeIdentity(
                 displayName = name,
+                userId = userId,
+                avatarVariant = selectedAvatarVariant,
                 username = handle,
                 avatarUrl = selectedPhoto?.toString() ?: avatarUrl,
                 bio = profileBio,
                 location = profileLocation,
                 link = profileLink,
                 interests = interestsText.split(',').map(String::trim).filter(String::isNotBlank).take(8),
-                profileTheme = profileTheme,
-                showOrbit = showOrbit,
                 isVerified = isVerified,
-                plantupiaIdentityId = userId,
-                plantupiaAvatarVariant = selectedAvatarVariant,
+                showLabel = false,
             )
         }
 
+    }
+}
+
+
+@Composable
+private fun PlantupiaProfileFormPage(
+    title: String,
+    subtitle: String,
+    onBack: () -> Unit,
+    action: @Composable ColumnScope.() -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(PlantupiaColors.cream)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .imePadding(),
+    ) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp),
+        ) {
+            Spacer(Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = onBack) {
+                    Text("? Back", color = PlantupiaColors.forest, fontWeight = FontWeight.SemiBold)
+                }
+                Spacer(Modifier.weight(1f))
+                PlantupiaBrandGlyph(Modifier.size(28.dp))
+                Text(
+                    "PLANTUPIA",
+                    modifier = Modifier.padding(start = 7.dp),
+                    style = PlantupiaText.sectionLabel,
+                )
+            }
+            Spacer(Modifier.height(28.dp))
+            Text("PUBLIC IDENTITY / MY PLANTUPIA", style = PlantupiaText.sectionLabel)
+            Spacer(Modifier.height(6.dp))
+            Text(title, style = PlantupiaText.pageHeading)
+            Spacer(Modifier.height(8.dp))
+            Text(subtitle, style = PlantupiaText.body, modifier = Modifier.fillMaxWidth(0.95f))
+            Spacer(Modifier.height(22.dp))
+            content()
+            Spacer(Modifier.height(24.dp))
+        }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(PlantupiaColors.cream)
+                .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 18.dp),
+            content = action,
+        )
     }
 }

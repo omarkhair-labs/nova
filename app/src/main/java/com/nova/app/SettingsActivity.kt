@@ -11,22 +11,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,21 +32,13 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nova.app.app.appContainer
-import com.nova.app.ui.components.NovaBackButton
-import com.nova.app.ui.components.NovaCard
-import com.nova.app.ui.components.NovaSecondaryButton
+import com.nova.app.feature.plants.PlantupiaBrandGlyph
+import com.nova.app.feature.plants.PlantupiaColors
+import com.nova.app.feature.plants.PlantupiaShapes
+import com.nova.app.feature.plants.PlantupiaText
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
-import com.nova.app.ui.theme.NovaAccent
-import com.nova.app.ui.theme.NovaAccentSoft
-import com.nova.app.ui.theme.NovaBorder
-import com.nova.app.ui.theme.NovaInk
-import com.nova.app.ui.theme.NovaMuted
-import com.nova.app.ui.theme.NovaSpacing
-import com.nova.app.ui.theme.NovaSurface
 import com.nova.app.ui.theme.NovaTheme
-import com.nova.app.ui.theme.NovaType
-import com.nova.app.navigation.NovaRootNavigationSignal
 
 
 private const val PRIVACY_POLICY_URL = "https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/privacy/"
@@ -136,15 +121,6 @@ class SettingsActivity : ComponentActivity() {
                             "No email app is available. Support address: $SUPPORT_EMAIL",
                         )
                     },
-                    onTonight = {
-                        NovaRootNavigationSignal.requestTonight()
-                        startActivity(
-                            Intent(this, MainActivity::class.java).addFlags(
-                                Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP,
-                            )
-                        )
-                        finish()
-                    },
                     onPrivacyPolicy = { openExternalUrl(PRIVACY_POLICY_URL) },
                     onAccountDeletion = { openExternalUrl(ACCOUNT_DELETION_URL) },
                     onLogout = {
@@ -174,7 +150,6 @@ private fun SettingsScreen(
     onBlockedAccounts: () -> Unit,
     onDataStorage: () -> Unit,
     onHelpSupport: () -> Unit,
-    onTonight: () -> Unit,
     onPrivacyPolicy: () -> Unit,
     onAccountDeletion: () -> Unit,
     onLogout: () -> Unit,
@@ -182,7 +157,7 @@ private fun SettingsScreen(
     var showAbout by rememberSaveable { mutableStateOf(false) }
 
     if (showAbout) {
-        AboutNovaDialog(
+        AboutPlantupiaDialog(
             appVersion = appVersion,
             onDismiss = { showAbout = false },
         )
@@ -191,164 +166,149 @@ private fun SettingsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(PlantupiaColors.cream)
             .verticalScroll(rememberScrollState())
             .statusBarsPadding()
-            .padding(horizontal = 18.dp, vertical = NovaSpacing.md),
+            .navigationBarsPadding()
+            .padding(horizontal = 20.dp, vertical = 16.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            NovaBackButton(onClick = onBack)
-            Spacer(modifier = Modifier.size(NovaSpacing.md))
-            Column {
-                Text(
-                    text = "Settings",
-                    color = NovaInk,
-                    style = NovaType.screenTitle,
-                )
-                if (username.isNotBlank()) {
-                    Text(
-                        text = "@$username",
-                        color = NovaMuted,
-                        style = NovaType.meta,
-                    )
-                }
+            TextButton(onClick = onBack) {
+                Text("? Back", color = PlantupiaColors.forest, fontWeight = FontWeight.SemiBold)
             }
+            Spacer(Modifier.weight(1f))
+            PlantupiaBrandGlyph(Modifier.size(28.dp))
+            Text(
+                "PLANTUPIA",
+                modifier = Modifier.padding(start = 7.dp),
+                style = PlantupiaText.sectionLabel,
+            )
         }
 
-        Spacer(modifier = Modifier.size(NovaSpacing.xxl))
-        SettingsSectionLabel("Account")
+        Spacer(Modifier.height(30.dp))
+        Text("ACCOUNT / APP", style = PlantupiaText.sectionLabel)
+        Spacer(Modifier.height(6.dp))
+        Text("Settings", style = PlantupiaText.pageHeading)
+        if (username.isNotBlank()) {
+            Spacer(Modifier.height(4.dp))
+            Text("@$username", style = PlantupiaText.supporting)
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "Control your account, privacy and device access. Your plant spaces and care records are managed where they live, not here.",
+            style = PlantupiaText.body,
+            modifier = Modifier.fillMaxWidth(0.95f),
+        )
 
-        NovaCard(modifier = Modifier.fillMaxWidth()) {
-            Column {
-                SettingsRow(
-                    icon = NovaIconAsset.Security,
-                    title = "Security",
-                    subtitle = "Password, sessions and account protection",
-                    onClick = onSecurity,
-                )
-                SettingsDivider()
-                SettingsRow(
-                    icon = NovaIconAsset.Privacy,
-                    title = "Privacy",
-                    subtitle = "Account privacy, follow requests and Close Friends",
-                    onClick = onPrivacy,
-                )
-                SettingsDivider()
-                SettingsRow(
-                    icon = NovaIconAsset.Notifications,
-                    title = "Notifications",
-                    subtitle = "Community activity and messages; care reminders are separate",
-                    onClick = onNotifications,
-                )
-                SettingsDivider()
-                SettingsRow(
-                    icon = NovaIconAsset.Blocked,
-                    title = "Blocked accounts",
-                    subtitle = "Review blocked accounts",
-                    onClick = onBlockedAccounts,
-                )
-            }
+        Spacer(Modifier.height(30.dp))
+        SettingsSectionLabel("ACCOUNT & PRIVACY")
+        SettingsGroup {
+            SettingsRow(
+                icon = NovaIconAsset.Security,
+                title = "Security",
+                subtitle = "Password, signed-in devices and app lock",
+                onClick = onSecurity,
+            )
+            SettingsDivider()
+            SettingsRow(
+                icon = NovaIconAsset.Privacy,
+                title = "Privacy",
+                subtitle = "Public account choices, requests and Close Friends",
+                onClick = onPrivacy,
+            )
+            SettingsDivider()
+            SettingsRow(
+                icon = NovaIconAsset.Blocked,
+                title = "Blocked accounts",
+                subtitle = "People who cannot find or contact you",
+                onClick = onBlockedAccounts,
+            )
         }
 
-        Spacer(modifier = Modifier.size(NovaSpacing.xxl))
-        SettingsSectionLabel("Plantupia & device")
-
-        NovaCard(modifier = Modifier.fillMaxWidth()) {
-            Column {
-                SettingsRow(
-                    icon = NovaIconAsset.Orbit,
-                    title = "Community gatherings",
-                    subtitle = "Open live community spaces (optional)",
-                    onClick = onTonight,
-                )
-                SettingsDivider()
-                SettingsRow(
-                    icon = NovaIconAsset.AccountDeletion,
-                    title = "Android app settings",
-                    subtitle = "Manage app permissions, notifications and storage in Android",
-                    onClick = onDataStorage,
-                )
-                SettingsDivider()
-                SettingsRow(
-                    icon = NovaIconAsset.Info,
-                    title = "About Plantupia",
-                    subtitle = "Version $appVersion",
-                    onClick = { showAbout = true },
-                )
-            }
+        Spacer(Modifier.height(24.dp))
+        SettingsSectionLabel("NOTIFICATIONS & DEVICE")
+        SettingsGroup {
+            SettingsRow(
+                icon = NovaIconAsset.Notifications,
+                title = "Notifications",
+                subtitle = "Messages and community activity; care reminders stay contextual",
+                onClick = onNotifications,
+            )
+            SettingsDivider()
+            SettingsRow(
+                icon = NovaIconAsset.Settings,
+                title = "Android app settings",
+                subtitle = "Permissions, notification access and storage on this device",
+                onClick = onDataStorage,
+            )
         }
 
-        Spacer(modifier = Modifier.size(NovaSpacing.xxl))
-        SettingsSectionLabel("Help & privacy")
-
-        NovaCard(modifier = Modifier.fillMaxWidth()) {
-            Column {
-                SettingsRow(
-                    icon = NovaIconAsset.Inbox,
-                    title = "Help & support",
-                    subtitle = SUPPORT_EMAIL,
-                    onClick = onHelpSupport,
-                )
-                SettingsDivider()
-                SettingsRow(
-                    icon = NovaIconAsset.Policy,
-                    title = "Privacy policy",
-                    subtitle = "Learn how account information is handled",
-                    onClick = onPrivacyPolicy,
-                )
-                SettingsDivider()
-                SettingsRow(
-                    icon = NovaIconAsset.AccountDeletion,
-                    title = "Account deletion help",
-                    subtitle = "Deletion instructions; or delete directly from Security",
-                    onClick = onAccountDeletion,
-                )
-            }
+        Spacer(Modifier.height(24.dp))
+        SettingsSectionLabel("HELP & PRODUCT")
+        SettingsGroup {
+            SettingsRow(
+                icon = NovaIconAsset.Inbox,
+                title = "Help & support",
+                subtitle = SUPPORT_EMAIL,
+                onClick = onHelpSupport,
+            )
+            SettingsDivider()
+            SettingsRow(
+                icon = NovaIconAsset.Policy,
+                title = "Privacy policy",
+                subtitle = "How Plantupia handles account and product information",
+                onClick = onPrivacyPolicy,
+            )
+            SettingsDivider()
+            SettingsRow(
+                icon = NovaIconAsset.AccountDeletion,
+                title = "Account deletion",
+                subtitle = "Read the deletion process or delete directly from Security",
+                onClick = onAccountDeletion,
+            )
+            SettingsDivider()
+            SettingsRow(
+                icon = NovaIconAsset.Info,
+                title = "About Plantupia",
+                subtitle = "Version $appVersion",
+                onClick = { showAbout = true },
+            )
         }
 
-        Spacer(modifier = Modifier.size(NovaSpacing.xxl))
-        SettingsSectionLabel("Session")
-
-        NovaCard(
+        Spacer(Modifier.height(24.dp))
+        SettingsSectionLabel("SESSION")
+        Surface(
             onClick = onLogout,
             modifier = Modifier.fillMaxWidth(),
+            color = PlantupiaColors.paper,
+            shape = PlantupiaShapes.inset,
+            border = androidx.compose.foundation.BorderStroke(1.dp, PlantupiaColors.border),
         ) {
             Row(
-                modifier = Modifier.padding(NovaSpacing.lg),
+                modifier = Modifier.padding(horizontal = 15.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(NovaSpacing.md),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Surface(
-                    shape = CircleShape,
-                    color = NovaAccentSoft,
-                ) {
-                    Box(
-                        modifier = Modifier.size(38.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        NovaIcon(
-                            asset = NovaIconAsset.Logout,
-                            contentDescription = null,
-                            tint = NovaAccent,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
+                SettingsIcon(NovaIconAsset.Logout)
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "Log out",
+                        style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
+                    )
+                    Text("Keep this account; end the session on this device.", style = PlantupiaText.supporting)
                 }
-                Text(
-                    text = "Log out",
-                    color = NovaInk,
-                    style = NovaType.bodyCompact.copy(fontWeight = FontWeight.SemiBold),
-                )
+                Text("?", style = PlantupiaText.sectionLabel)
             }
         }
+        Spacer(Modifier.height(22.dp))
     }
 }
 
-
 @Composable
-private fun AboutNovaDialog(
+private fun AboutPlantupiaDialog(
     appVersion: String,
     onDismiss: () -> Unit,
 ) {
@@ -360,52 +320,82 @@ private fun AboutNovaDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = NovaSpacing.xl),
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
-            color = NovaSurface,
-            border = androidx.compose.foundation.BorderStroke(1.dp, NovaBorder),
+                .padding(horizontal = 20.dp),
+            shape = RoundedCornerShape(26.dp),
+            color = PlantupiaColors.paper,
+            border = androidx.compose.foundation.BorderStroke(1.dp, PlantupiaColors.border),
         ) {
             Column(
-                modifier = Modifier.padding(NovaSpacing.xxl),
-                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(22.dp),
+                horizontalAlignment = Alignment.Start,
             ) {
-                Surface(shape = CircleShape, color = NovaAccentSoft) {
-                    Box(modifier = Modifier.size(56.dp), contentAlignment = Alignment.Center) {
-                        NovaIcon(
-                            asset = NovaIconAsset.Orbit,
-                            contentDescription = null,
-                            tint = NovaAccent,
-                            modifier = Modifier.size(28.dp),
-                        )
-                    }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    PlantupiaBrandGlyph(Modifier.size(38.dp))
+                    Text(
+                        "PLANTUPIA",
+                        modifier = Modifier.padding(start = 10.dp),
+                        style = PlantupiaText.editorialHeading,
+                    )
                 }
-                Spacer(modifier = Modifier.size(NovaSpacing.lg))
-                Text(text = "Plantupia", color = NovaInk, style = NovaType.screenTitle)
-                Text(text = "Version $appVersion", color = NovaMuted, style = NovaType.meta)
-                Spacer(modifier = Modifier.size(NovaSpacing.lg))
+                Spacer(Modifier.height(20.dp))
+                Text("NATURE ? ARCHITECTURE", style = PlantupiaText.sectionLabel)
+                Spacer(Modifier.height(7.dp))
                 Text(
-                    text = "Transforming Spaces. Inspiring People.",
-                    color = NovaMuted,
-                    style = NovaType.bodyCompact,
+                    "A living record for spaces, plants and the care that happens over time.",
+                    style = PlantupiaText.body,
                 )
-                Spacer(modifier = Modifier.size(NovaSpacing.xl))
-                NovaSecondaryButton(text = "Done", onClick = onDismiss)
+                Spacer(Modifier.height(14.dp))
+                Text("Version $appVersion", style = PlantupiaText.supporting)
+                Spacer(Modifier.height(20.dp))
+                Surface(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    color = PlantupiaColors.forest,
+                    shape = PlantupiaShapes.inset,
+                ) {
+                    Text(
+                        "Done",
+                        modifier = Modifier.padding(vertical = 14.dp),
+                        color = PlantupiaColors.paper,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
         }
     }
 }
 
-
 @Composable
 private fun SettingsSectionLabel(text: String) {
-    Text(
-        text = text,
-        color = NovaMuted,
-        style = NovaType.meta.copy(fontWeight = FontWeight.SemiBold),
-        modifier = Modifier.padding(start = NovaSpacing.xs, bottom = NovaSpacing.sm),
-    )
+    Text(text, style = PlantupiaText.sectionLabel, modifier = Modifier.padding(start = 2.dp, bottom = 8.dp))
 }
 
+@Composable
+private fun SettingsGroup(content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = PlantupiaColors.paper,
+        shape = PlantupiaShapes.card,
+        border = androidx.compose.foundation.BorderStroke(1.dp, PlantupiaColors.border),
+    ) {
+        Column(content = content)
+    }
+}
+
+@Composable
+private fun SettingsIcon(icon: NovaIconAsset) {
+    Surface(shape = CircleShape, color = PlantupiaColors.softSage) {
+        Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+            NovaIcon(
+                asset = icon,
+                contentDescription = null,
+                tint = PlantupiaColors.forest,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+    }
+}
 
 @Composable
 private fun SettingsRow(
@@ -416,56 +406,32 @@ private fun SettingsRow(
 ) {
     val content: @Composable () -> Unit = {
         Row(
-            modifier = Modifier.padding(horizontal = NovaSpacing.lg, vertical = NovaSpacing.md),
+            modifier = Modifier.padding(horizontal = 15.dp, vertical = 13.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(NovaSpacing.md),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Surface(
-                shape = CircleShape,
-                color = NovaAccentSoft,
-            ) {
-                Box(
-                    modifier = Modifier.size(38.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    NovaIcon(
-                        asset = icon,
-                        contentDescription = null,
-                        tint = NovaAccent,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
+            SettingsIcon(icon)
+            Column(Modifier.weight(1f)) {
+                Text(title, style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
+                Spacer(Modifier.height(2.dp))
+                Text(subtitle, style = PlantupiaText.supporting)
             }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    color = NovaInk,
-                    style = NovaType.bodyCompact.copy(fontWeight = FontWeight.SemiBold),
-                )
-                Text(
-                    text = subtitle,
-                    color = NovaMuted,
-                    style = NovaType.meta,
-                )
-            }
+            if (onClick != null) Text("?", style = PlantupiaText.sectionLabel)
         }
     }
-    if (onClick != null) {
-        Surface(onClick = onClick, modifier = Modifier.fillMaxWidth(), color = NovaSurface) { content() }
+    if (onClick == null) {
+        Box(modifier = Modifier.fillMaxWidth()) { content() }
     } else {
-        Surface(modifier = Modifier.fillMaxWidth(), color = NovaSurface) { content() }
+        Surface(onClick = onClick, color = PlantupiaColors.paper, modifier = Modifier.fillMaxWidth()) { content() }
     }
 }
-
 
 @Composable
 private fun SettingsDivider() {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 65.dp, end = 14.dp),
-        color = NovaBorder,
+        modifier = Modifier.fillMaxWidth().padding(start = 67.dp, end = 14.dp),
+        color = PlantupiaColors.border,
     ) {
-        Spacer(modifier = Modifier.size(width = 1.dp, height = 1.dp))
+        Spacer(Modifier.height(1.dp))
     }
 }
