@@ -136,7 +136,7 @@ fun PrivacyScreen(
                             text = if (state.summary?.isPrivate == true) {
                                 "Only people you approve can see your posts, followers and following."
                             } else {
-                                "Anyone on Nova can follow you and see your posts."
+                                "Anyone on Plantupia can follow you and see what you share publicly."
                             },
                             color = NovaMuted,
                             fontSize = 12.sp,
@@ -159,7 +159,7 @@ fun PrivacyScreen(
 
             PrivacyToggleRow(
                 title = "Activity status",
-                subtitle = "Show when you're active across Nova.",
+                subtitle = "Show when you're active across Plantupia.",
                 checked = state.summary?.showActivityStatus == true,
                 enabled = !state.privacyBusy,
                 onCheckedChange = owner::setActivityStatus,

@@ -123,7 +123,7 @@ fun RoomItemComposer(
 
     AlertDialog(
         onDismissRequest = { if (!submitting) onDismiss() },
-        title = { Text("Add to Room") },
+        title = { Text("Add to gathering") },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -225,7 +225,7 @@ fun RoomItemComposer(
                             NovaMediaImage(
                                 source = selected.toString(),
                                 modifier = Modifier.fillMaxWidth().height(190.dp),
-                                contentDescription = "Selected Room photo",
+                                contentDescription = "Selected gathering photo",
                             )
                         } else {
                             NovaVideoPlayer(
@@ -233,7 +233,7 @@ fun RoomItemComposer(
                                 modifier = Modifier.fillMaxWidth().height(190.dp),
                                 autoplay = false,
                                 useController = true,
-                                description = "Selected Room video",
+                                description = "Selected gathering video",
                             )
                         }
                         Spacer(modifier = Modifier.height(9.dp))
@@ -264,7 +264,7 @@ fun RoomItemComposer(
                                 text = if (kind == "photo") {
                                     "Image file · up to 12 MB"
                                 } else {
-                                    "Video · up to 60 MB · Nova prepares H.264/AAC before publishing"
+                                    "Video · up to 60 MB"
                                 },
                                 color = NovaMuted,
                                 fontSize = 8.sp,
@@ -289,7 +289,7 @@ fun RoomItemComposer(
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                             )
-                            Text("Plans can be added to Room reminders.", color = NovaMuted, fontSize = 8.sp)
+                            Text("Plans can be added to gathering reminders.", color = NovaMuted, fontSize = 8.sp)
                         }
                     }
                 }
@@ -313,7 +313,7 @@ fun RoomItemComposer(
                         )
                         Text(
                             text = when {
-                                kind != "video" -> "Publishing to this Room…"
+                                kind != "video" -> "Publishing to this gathering…"
                                 mediaProgress == null -> "Preparing video…"
                                 mediaProgress >= 100 -> "Publishing prepared video…"
                                 else -> "Preparing video · $mediaProgress%"

@@ -63,7 +63,7 @@ class AccountSecurityActivity : ComponentActivity() {
                             } else {
                                 val prompt = getSystemService(KeyguardManager::class.java)
                                     .createConfirmDeviceCredentialIntent(
-                                        "Enable Nova app lock",
+                                        "Enable Plantupia app lock",
                                         "Confirm your device screen lock.",
                                     )
                                 if (prompt != null) appLockLauncher.launch(prompt)

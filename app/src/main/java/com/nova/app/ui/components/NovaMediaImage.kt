@@ -24,7 +24,7 @@ import com.nova.app.ui.theme.NovaMuted
 fun NovaMediaImage(
     source: String,
     modifier: Modifier = Modifier,
-    contentDescription: String = "Nova photo",
+    contentDescription: String = "Photo",
     contentScale: ContentScale = ContentScale.Crop,
     failureLabel: String = "Photo unavailable",
 ) {

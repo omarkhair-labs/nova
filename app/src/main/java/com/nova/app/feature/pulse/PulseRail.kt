@@ -130,7 +130,7 @@ fun PulseRail(
         ) {
             Column {
                 Text(
-                    text = "Pulse",
+                    text = "Short updates",
                     color = NovaInk,
                     style = NovaType.title.copy(fontWeight = FontWeight.Bold),
                 )
@@ -209,13 +209,13 @@ fun PulseRail(
 
     if (composerVisible) {
         PulseComposerDialog(
-            title = "New Pulse",
+            title = "New update",
             subtitle = "Here now. Gone in 12 hours.",
             pendingMedia = pendingMedia,
             uploading = state.uploading,
             error = state.error,
             initialAudience = "followers",
-            confirmLabel = "Post Pulse",
+            confirmLabel = "Share update",
             onPickMedia = { picker.launch(arrayOf("image/*", "video/*")) },
             onDismiss = {
                 if (!state.uploading) {
@@ -320,7 +320,7 @@ private fun PulseCreateCard(
                 Spacer(modifier = Modifier.width(NovaSpacing.sm))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Your Pulse",
+                        text = "Your update",
                         color = NovaInk,
                         style = NovaType.meta.copy(fontWeight = FontWeight.Bold),
                     )
@@ -389,17 +389,17 @@ private fun PulseCard(
                 "image" -> NovaMediaImage(
                     source = pulse.mediaUrl,
                     modifier = Modifier.fillMaxSize(),
-                    contentDescription = "${pulse.author.username} Pulse",
+                    contentDescription = "${pulse.author.username} update",
                 )
                 "video" -> Box(modifier = Modifier.fillMaxSize()) {
                     NovaMediaImage(
                         source = pulse.thumbnailUrl,
                         modifier = Modifier.fillMaxSize(),
-                        contentDescription = "${pulse.author.username} Pulse video thumbnail",
+                        contentDescription = "${pulse.author.username} update video thumbnail",
                     )
                     NovaIcon(
                         asset = NovaIconAsset.Play,
-                        contentDescription = "Play ${pulse.author.username} Pulse video",
+                        contentDescription = "Play ${pulse.author.username} update video",
                         modifier = Modifier.align(Alignment.Center),
                         tint = mediaPalette.ink,
                     )

@@ -176,8 +176,8 @@ class NovaMessagingService : FirebaseMessagingService() {
             "reel_reply" -> "New Reel reply"
             "message" -> actor
             "plantupia_support_reply" -> "Plantupia team"
-            "plantupia_order_update" -> "Plantupia QA order"
-            else -> "Nova activity"
+            "plantupia_order_update" -> "Plantupia order"
+            else -> "Plantupia activity"
         }
     }
 
@@ -198,7 +198,7 @@ class NovaMessagingService : FirebaseMessagingService() {
             "reel_reply" -> "$actor replied to your Reel comment"
             "message" -> messagePreview.ifBlank { "$actor sent you a message" }
             "plantupia_support_reply" -> "You have a new reply to your support request."
-            "plantupia_order_update" -> "A separate preparation draft is ready for review. No delivery was initiated."
+            "plantupia_order_update" -> "Your order has a new status update."
             else -> "$actor interacted with you"
         }
     }

@@ -63,7 +63,7 @@ import com.nova.app.feature.calls.CallStateOwner
 import com.nova.app.feature.calls.CallUiState
 import com.nova.app.feature.calls.domain.model.NovaCallKind
 import com.nova.app.feature.calls.domain.model.NovaCallPerson
-import com.nova.app.ui.components.NovaBrandMark
+import com.nova.app.feature.plants.PlantupiaBrandGlyph
 import com.nova.app.ui.components.NovaMediaImage
 import com.nova.app.ui.components.NovaPresenceIndicator
 import com.nova.app.ui.icons.NovaIcon
@@ -453,7 +453,7 @@ private fun CallScreen(
                     .padding(top = 18.dp, start = 72.dp, end = 72.dp),
             ) {
                 Text(
-                    text = peer?.displayName ?: "Nova call",
+                    text = peer?.displayName ?: "Plantupia call",
                     color = Color.White,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -538,7 +538,7 @@ private fun CallIdentity(
         modifier = modifier,
     ) {
         Text(
-            text = if (isVideo) "NOVA VIDEO" else "NOVA VOICE",
+            text = if (isVideo) "VIDEO CALL" else "VOICE CALL",
             color = if (isVideo) Color.White.copy(alpha = 0.56f) else NovaMuted,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
@@ -576,10 +576,9 @@ private fun CallIdentity(
                                 fontWeight = FontWeight.Bold,
                             )
                         } else {
-                            NovaBrandMark(
+                            PlantupiaBrandGlyph(
                                 modifier = Modifier.size(54.dp),
-                                monochrome = true,
-                                monochromeColor = if (isVideo) Color.White else NovaAccent,
+                                color = if (isVideo) Color.White else NovaAccent,
                             )
                         }
                     }
@@ -588,7 +587,7 @@ private fun CallIdentity(
         }
         Spacer(Modifier.height(22.dp))
         Text(
-            text = peer?.displayName ?: "Nova call",
+            text = peer?.displayName ?: "Plantupia call",
             color = if (isVideo) Color.White else NovaInk,
             fontSize = 27.sp,
             fontWeight = FontWeight.Bold,

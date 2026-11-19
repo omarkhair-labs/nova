@@ -122,9 +122,9 @@ fun PulseComposerDialog(
                                             NovaIconAsset.VolumeOn
                                         },
                                         contentDescription = if (muted) {
-                                            "Turn on Pulse preview sound"
+                                            "Turn on update preview sound"
                                         } else {
-                                            "Mute Pulse preview"
+                                            "Mute update preview"
                                         },
                                         modifier = Modifier.size(22.dp),
                                         tint = Color.White,

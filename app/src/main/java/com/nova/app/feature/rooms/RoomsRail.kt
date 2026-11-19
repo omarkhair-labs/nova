@@ -84,7 +84,7 @@ fun RoomsRail(
         ) {
             Column {
                 Text(
-                    text = "Rooms",
+                    text = "Gatherings",
                     color = NovaInk,
                     style = NovaType.title.copy(fontWeight = FontWeight.Bold),
                 )
@@ -101,7 +101,7 @@ fun RoomsRail(
                 border = BorderStroke(1.dp, NovaBorder),
             ) {
                 Text(
-                    text = "All rooms",
+                    text = "All gatherings",
                     modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
                     color = NovaAccent,
                     style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
@@ -138,7 +138,7 @@ fun RoomsRail(
 
         if (!state.error.isNullOrBlank()) {
             Text(
-                text = "Couldn't refresh Rooms · tap All rooms to retry",
+                text = "Couldn't refresh gatherings · tap All gatherings to retry",
                 color = NovaMuted,
                 style = NovaType.micro,
             )
@@ -278,7 +278,7 @@ private fun EmptyRoomsCard(onClick: () -> Unit) {
                     style = NovaType.meta.copy(fontWeight = FontWeight.Bold),
                 )
                 Text(
-                    text = "A Room starts from a Nova group and grows into shared memories, plans and media.",
+                    text = "A gathering starts with a group and grows into shared memories, plans and media.",
                     color = NovaMuted,
                     style = NovaType.micro,
                 )

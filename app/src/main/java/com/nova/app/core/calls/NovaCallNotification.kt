@@ -24,7 +24,7 @@ import com.nova.app.feature.calls.domain.model.NovaCallStatus
 
 object NovaCallNotification {
     const val CHANNEL_ID = "nova_calls_incoming_v2"
-    const val CHANNEL_NAME = "Nova incoming calls"
+    const val CHANNEL_NAME = "Plantupia incoming calls"
     const val ONGOING_CHANNEL_ID = "nova_calls_ongoing_v1"
 
     fun ensureChannel(context: Context) {
@@ -37,7 +37,7 @@ object NovaCallNotification {
             CHANNEL_NAME,
             NotificationManager.IMPORTANCE_HIGH,
         ).apply {
-            description = "Incoming Nova voice and video calls"
+            description = "Incoming Plantupia voice and video calls"
             setSound(
                 ringtone,
                 AudioAttributes.Builder()
@@ -51,10 +51,10 @@ object NovaCallNotification {
 
         val ongoing = NotificationChannel(
             ONGOING_CHANNEL_ID,
-            "Ongoing Nova calls",
+            "Ongoing Plantupia calls",
             NotificationManager.IMPORTANCE_DEFAULT,
         ).apply {
-            description = "Ongoing Nova voice and video calls"
+            description = "Ongoing Plantupia voice and video calls"
             setSound(null, null)
             enableVibration(false)
             lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
@@ -79,7 +79,7 @@ object NovaCallNotification {
         ) return
 
         ensureChannel(context)
-        val displayName = callerName.ifBlank { callerUsername.ifBlank { "Nova caller" } }
+        val displayName = callerName.ifBlank { callerUsername.ifBlank { "Plantupia caller" } }
         val person = Person.Builder().setName(displayName).setImportant(true).build()
 
         val openIntent = freshIncomingIntent(
@@ -133,7 +133,7 @@ object NovaCallNotification {
             .setSmallIcon(R.drawable.ic_nova_notification)
             .setContentTitle(displayName)
             .setContentText(
-                if (callKind == NovaCallKind.Video) "Incoming Nova video call" else "Incoming Nova voice call"
+                if (callKind == NovaCallKind.Video) "Incoming video call" else "Incoming voice call"
             )
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setPriority(NotificationCompat.PRIORITY_MAX)
@@ -169,8 +169,8 @@ object NovaCallNotification {
             .setContentText(
                 when (call.status) {
                     NovaCallStatus.Ringing -> if (call.isCaller) "Calling…" else "Incoming call"
-                    NovaCallStatus.Active -> if (call.kind == NovaCallKind.Video) "Nova video call" else "Nova voice call"
-                    else -> "Nova call"
+                    NovaCallStatus.Active -> if (call.kind == NovaCallKind.Video) "Video call" else "Voice call"
+                    else -> "Plantupia call"
                 }
             )
             .setCategory(NotificationCompat.CATEGORY_CALL)

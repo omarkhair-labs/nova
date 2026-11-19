@@ -38,11 +38,11 @@ fun NovaUpdateReadyBanner(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
-                    text = "Nova update ready",
+                    text = "Plantupia update ready",
                     style = MaterialTheme.typography.titleSmall,
                 )
                 Text(
-                    text = "Restart Nova to finish installing it.",
+                    text = "Restart Plantupia to finish installing it.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
