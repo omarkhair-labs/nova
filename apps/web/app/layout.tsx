@@ -4,7 +4,7 @@ import "./base.css";
 export const metadata: Metadata = {
   title: "Plantupia — A Space Becoming Alive",
   description: "An English-only creative website exploring living architecture, plants, people and time.",
-  robots: { index: false, follow: false },
+  robots: process.env.VERCEL_ENV === "production" ? { index: true, follow: true } : { index: false, follow: false },
 };
 
 export const viewport: Viewport = {

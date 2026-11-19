@@ -4,9 +4,9 @@ import LivingContinuity from "../LivingContinuity";
 export const metadata: Metadata = {
   title: "Living Systems — Plantupia",
   description: "An exploration of how plants, place, recorded care and time connect.",
-  robots: { index: false, follow: false },
+  robots: process.env.VERCEL_ENV === "production" ? { index: true, follow: true } : { index: false, follow: false },
 };
 
 export default function LivingSystemsPage() {
-  return <LivingContinuity privateReview={process.env.NODE_ENV === "development" && !!process.env.PLANTUPIA_PRIVATE_ARRIVAL_DIR} />;
+  return <LivingContinuity privateReview={(process.env.VERCEL_ENV === "production" || (process.env.NODE_ENV === "development" && !!process.env.PLANTUPIA_PRIVATE_ARRIVAL_DIR))} />;
 }

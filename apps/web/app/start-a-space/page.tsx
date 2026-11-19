@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Get in touch — Plantupia",
   description: "Send your project, care or general enquiry to the Plantupia team.",
-  robots: { index: false, follow: false },
+  robots: process.env.VERCEL_ENV === "production" ? { index: true, follow: true } : { index: false, follow: false },
 };
 
 export default function StartASpacePage() {
