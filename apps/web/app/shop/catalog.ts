@@ -34,6 +34,11 @@ export function commerceApiOrigin(): URL | null {
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const price = /^\d{1,9}\.\d{2}$/;
 const kind = new Set(["plant", "planter", "care"]);
+function isQaFixture(item: PublicCommerceSku): boolean {
+  const visible = [item.name, item.description, item.option, item.image_alt].join(" ");
+  return /\bFICTIONAL\s+QA\b|\bQA\s+B\d{2}\b/i.test(visible);
+}
+
 function validSku(candidate: unknown): candidate is PublicCommerceSku {
   if (candidate === null || typeof candidate !== "object" || Array.isArray(candidate)) return false;
   const item = candidate as Record<string, unknown>;
@@ -73,7 +78,8 @@ export async function getPublicCatalog(): Promise<PublicCatalogResult> {
     if (!result.results.every(validSku)) {
       return { state: "unavailable", items: [] };
     }
-    const items = result.results as PublicCommerceSku[];
+    const items = (result.results as PublicCommerceSku[]).filter(item => !isQaFixture(item));
+    // Seeded QA commerce fixtures are never public catalogue content.
     return { state: items.length ? "available" : "empty", items };
   } catch {
     return { state: "unavailable", items: [] };

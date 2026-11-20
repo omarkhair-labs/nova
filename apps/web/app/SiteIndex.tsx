@@ -30,7 +30,7 @@ const studies = [
   { title:"Begin a conversation.", photo:2, asset:"arrival-hero.webp", word:"POSSIBILITY", credit:"Plantupia / proposal study" },
 ] as const;
 
-export default function SiteIndex({ current, tone = "light" }: { current: SiteSection | null; tone?: "light" | "dark" }) {
+export default function SiteIndex({ current, tone = "light" }: { current: SiteSection | "shop" | null; tone?: "light" | "dark" }) {
   const [open, setOpen] = useState(false);
   const [preview, setPreview] = useState(0);
   const [failed, setFailed] = useState<number[]>([]);
@@ -65,6 +65,9 @@ export default function SiteIndex({ current, tone = "light" }: { current: SiteSe
 
   return (
     <div className={"si-root si-tone-" + tone}>
+      <a className="si-shop-entry" href={current === "shop" ? "#shop-collection" : "/shop"} aria-current={current === "shop" ? "page" : undefined}>
+        <span>SHOP</span><i aria-hidden="true">↗</i>
+      </a>
       <button type="button" className="si-trigger" ref={trigger} aria-haspopup="dialog"
         aria-expanded={open} aria-label="Open Plantupia world index" onClick={reveal}>
         <span aria-hidden="true" className="si-plus"/>
@@ -78,6 +81,10 @@ export default function SiteIndex({ current, tone = "light" }: { current: SiteSe
             <span>CLOSE</span><i aria-hidden="true"/>
           </button>
         </div>
+        <a className="si-mobile-shop" href="/shop" onClick={dismiss}>
+          <span><small>SHOP / COLLECTION</small><strong>Objects for living.</strong></span>
+          <i aria-hidden="true">↗</i>
+        </a>
         <div className="si-body">
           <figure className="si-atlas" aria-label="Editorial chapter preview">
             <div className="si-atlas-frame">
