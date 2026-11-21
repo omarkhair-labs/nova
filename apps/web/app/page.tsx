@@ -1,14 +1,12 @@
 import type { Metadata } from "next";
-import CinematicExperience from "./CinematicExperience";
+import WorldExperience from "./WorldExperience";
 
 export const metadata: Metadata = {
-  title: "Plantupia — A Space Becoming Alive",
-  description: "A cinematic, interactive exploration of architecture, living material and the continuity of care.",
+  title: "Plantupia — Spatial Design, Living Material & Green Technology",
+  description: "Plantupia connects spatial design, living material, green technology and continuing care in one living system.",
   robots: process.env.VERCEL_ENV === "production" ? { index: true, follow: true } : { index: false, follow: false },
 };
 
 export default function HomePage() {
-  const root = process.env.PLANTUPIA_PRIVATE_ARRIVAL_DIR;
-  const privateReview = process.env.VERCEL_ENV === "production" || (process.env.NODE_ENV === "development" && !!root);
-  return <CinematicExperience privateReview={privateReview} />;
+  return <WorldExperience />;
 }
