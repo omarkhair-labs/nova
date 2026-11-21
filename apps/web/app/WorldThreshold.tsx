@@ -49,7 +49,7 @@ export default function WorldThreshold({ privateReview = false }: { privateRevie
   }
 
   return (
-    <section className="wt-section" id="world" data-private-review={privateReview} aria-labelledby="wt-title">
+    <section className="wt-section" id="world" data-private-review={privateReview} data-active={active} aria-labelledby="wt-title">
       <div className="wt-intro">
         <p>PLANTUPIA / 02—04</p>
         <h2 id="wt-title">The world beyond the frame.</h2>
