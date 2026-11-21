@@ -18,17 +18,17 @@ type VerifiedProject = {
 const projects: readonly VerifiedProject[] = [];
 
 const services = [
-  { index: "01", name: "Understand the place", text: "Light, material, people, everyday use and practical site constraints." },
-  { index: "02", name: "Introduce living material", text: "Consider planting, placement, installation and the architecture around it." },
-  { index: "03", name: "Keep the relationship alive", text: "Think about care, observation and continuity long after the first day." },
+  { index: "01", name: "Spatial Design", text: "Architecture, circulation, daylight, scale and the conditions that shape where living material can belong." },
+  { index: "02", name: "Living Material", text: "Plants, vessels, finishes and planting composition treated as part of the space rather than decoration added afterwards." },
+  { index: "03", name: "Green Technology", text: "Irrigation, maintenance, handover and digital continuity that support the living system after installation." },
 ];
 
 export function CompanyIntroduction({ privateReview = false, placement = "home" }: { privateReview?: boolean; placement?: "home" | "about" }) {
   const about = placement === "about";
   const kicker = about ? "PLANTUPIA / THE PRACTICE" : "PLANTUPIA / BETWEEN ARCHITECTURE AND CARE";
-  const title = about ? <>Wherever humans build,<br/><em>nature belongs.</em></> : <>Greenery belongs in the plan,<br/><em>not at the end.</em></>;
+  const title = about ? <>Space. Life.<br/><em>Technology.</em></> : <>Greenery belongs in the plan,<br/><em>not at the end.</em></>;
   const body = about
-    ? "Plantupia is a green technology and biophilic integration company. We work across design, planting, installation and continuing care for hospitality, commercial destinations and workplaces."
+    ? "Plantupia works across spatial design, living material and green technology — from the first reading of a place to installation, care and the record that continues afterwards."
     : "Plantupia works between architecture and living material: reading the place, designing the planting, introducing it into the site and planning for the care that follows.";
   return (
     <section className="cs-intro" id="about-plantupia" data-private-review={privateReview} aria-labelledby="cs-intro-title">
@@ -49,16 +49,16 @@ export function CompanyIntroduction({ privateReview = false, placement = "home" 
 export default function CompanyStory({ privateReview = false }: { privateReview?: boolean }) {
   const published = projects.filter(project => project.publicationApproved);
   return (
-    <div className="cs-page">
+    <div className="cs-page cs-world">
       <header className="cs-header"><a href="/" className="cs-brand">◕ Plantupia</a><SiteIndex current="about" tone="dark"/><a href="/spaces" className="cs-header-link">EXPLORE SPACES ↗</a></header>
       <main>
         <CompanyIntroduction privateReview={privateReview} placement="about" />
-        {privateReview&&<section className="cs-focus" aria-labelledby="cs-focus-title"><div className="cs-focus-head"><div><p className="cs-kicker">PRIMARY B2B FOCUS / MEETING DIRECTION</p><h2 id="cs-focus-title">Three places to begin.</h2></div><p>Hospitality, commercial destinations and offices/HQs were identified as the main business focus in the supplied meeting. Residential work remains possible, but it is not the campaign priority.</p></div><div className="cs-focus-grid"><a href="/spaces/hospitality"><figure><img src="/api/private-arrival/spaces-hospitality.webp" alt="El Hallab restaurant interior planting design proposal"/><figcaption>HOSPITALITY / PROPOSAL STUDY</figcaption></figure><span>01</span><h3>Hospitality</h3><p>Restaurants, cafés and hotels—from arrival to atmosphere and care.</p></a><a href="/spaces/commercial"><figure><img src="/api/private-arrival/world-spaces.webp" alt="Pixels Mall commercial biophilic design proposal"/><figcaption>COMMERCIAL / PROPOSAL STUDY</figcaption></figure><span>02</span><h3>Commercial</h3><p>Developers, malls and showrooms—architecture, landscape and brand identity together.</p></a><a href="/spaces/offices"><figure><img src="/api/private-arrival/spaces-workplace-palette.webp" alt="Plantupia catalogue planting and planter collection illustration"/><figcaption>OFFICES &amp; HQs / CATALOGUE STUDY</figcaption></figure><span>03</span><h3>Offices &amp; HQs</h3><p>Planting, custom vessels and continuing maintenance for working environments.</p></a></div></section>}
+        {privateReview&&<section className="cs-focus" aria-labelledby="cs-focus-title"><div className="cs-focus-head"><div><p className="cs-kicker">PRIMARY B2B FOCUS / CURRENT DIRECTION</p><h2 id="cs-focus-title">Three environments to begin.</h2></div><p>Hospitality, commercial destinations and offices/HQs were identified as the main business focus in the supplied meeting. Residential work remains possible, but it is not the campaign priority.</p></div><div className="cs-focus-grid"><a href="/spaces/hospitality"><figure><img src="/api/private-arrival/spaces-hospitality.webp" alt="El Hallab restaurant interior planting design proposal"/><figcaption>HOSPITALITY / PROPOSAL STUDY</figcaption></figure><span>01</span><h3>Hospitality</h3><p>Restaurants, cafés and hotels—from arrival to atmosphere and care.</p></a><a href="/spaces/commercial"><figure><img src="/api/private-arrival/world-spaces.webp" alt="Pixels Mall commercial biophilic design proposal"/><figcaption>COMMERCIAL / PROPOSAL STUDY</figcaption></figure><span>02</span><h3>Commercial</h3><p>Developers, malls and showrooms—architecture, landscape and brand identity together.</p></a><a href="/spaces/offices"><figure><img src="/api/private-arrival/spaces-workplace-palette.webp" alt="Plantupia catalogue planting and planter collection illustration"/><figcaption>OFFICES &amp; HQs / CATALOGUE STUDY</figcaption></figure><span>03</span><h3>Offices &amp; HQs</h3><p>Planting, custom vessels and continuing maintenance for working environments.</p></a></div></section>}
         <section className="cs-practice" aria-labelledby="cs-practice-title">
-          <p className="cs-kicker">THE APPROACH / FROM PLACE TO CARE</p>
-          <h2 id="cs-practice-title">Not just plants.<br/>A living relationship.</h2>
+          <p className="cs-kicker">THE PRACTICE / THREE CONNECTED LAYERS</p>
+          <h2 id="cs-practice-title">One practice.<br/>Three layers.</h2>
           <div className="cs-services">{services.map(item => <article key={item.index}><span>{item.index} /</span><h3>{item.name}</h3><p>{item.text}</p></article>)}</div>
-          <a className="cs-link" href="/studio">EXPLORE THE DESIGN PROCESS ↗</a>
+          <a className="cs-link" href="/studio">OPEN THE STUDIO ↗</a>
         </section>
         <section className="cs-work" id="selected-works" aria-labelledby="cs-work-title">
           <p className="cs-kicker">SELECTED WORKS / THE PROJECT ARCHIVE</p>
@@ -72,7 +72,7 @@ export default function CompanyStory({ privateReview = false }: { privateReview?
           <a className="cs-link" href="/start-a-space">GET IN TOUCH ↗</a>
         </section>
       </main>
-      <footer className="cs-footer"><a href="/">PLANTUPIA / HOME</a><a href="/living-systems">LIVING SYSTEMS ↗</a><span>DESIGN PREVIEW / 2026</span></footer>
+      <footer className="cs-footer"><a href="/">PLANTUPIA / HOME</a><a href="/living-systems">LIVING SYSTEMS ↗</a><span>SPATIAL DESIGN / LIVING MATERIAL / GREEN TECHNOLOGY</span></footer>
     </div>
   );
 }
