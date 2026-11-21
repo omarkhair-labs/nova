@@ -6,5 +6,5 @@ export const metadata: Metadata = {
   robots: process.env.VERCEL_ENV === "production" ? { index: true, follow: true } : { index: false, follow: false },
 };
 export default function AboutPage() {
-  return <CompanyStory privateReview={(process.env.VERCEL_ENV === "production" || (process.env.NODE_ENV === "development" && !!process.env.PLANTUPIA_PRIVATE_ARRIVAL_DIR))} />;
+  return <CompanyStory privateReview={(process.env.VERCEL_ENV === "preview" || process.env.VERCEL_ENV === "production" || (process.env.NODE_ENV === "development" && !!process.env.PLANTUPIA_PRIVATE_ARRIVAL_DIR))} />;
 }
