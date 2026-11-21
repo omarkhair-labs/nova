@@ -137,3 +137,54 @@
 @media(max-width:900px){.lc-care-programme{grid-template-columns:1fr;gap:22px}}
 
 .pc-studio-source{margin:0;background:#dfe6da}.pc-studio-source img{display:block;width:100%;height:min(64svh,640px);object-fit:cover}.pc-studio-source figcaption{padding:10px 12px;font-size:10px;line-height:1.5;color:#526258;border-top:1px solid #b2c1b1}@media(max-width:900px){.pc-studio-source img{height:min(42svh,430px)}}
+
+
+/* Full-world Living Systems / Green Technology */
+.pc-living-world{background:#10291f;color:#edf1e7}
+.pc-living-world .pc-header{background:#10291fe8;color:#edf1e7}
+.pc-living-world .pc-living-hero{border-bottom:1px solid #496253}
+.pc-living-world .pc-living-hero h1{max-width:10ch}
+.lc-world-system{padding:clamp(48px,7vw,100px) clamp(16px,4vw,64px);background:#10291f;color:#edf1e7;border-bottom:1px solid #496253}
+.lc-world-system>header{display:grid;grid-template-columns:.32fr 1fr .62fr;gap:clamp(20px,5vw,82px);align-items:end;margin-bottom:34px}
+.lc-world-system>header h2{margin:0;font:400 clamp(42px,5vw,78px)/.94 Georgia,serif;letter-spacing:-.06em}
+.lc-world-system>header>p:last-child{margin:0;font-size:12px;line-height:1.7;color:#b6c4b7}
+.lc-system-grid{display:grid;grid-template-columns:minmax(240px,.58fr) minmax(0,1.12fr) minmax(240px,.58fr);border:1px solid #496253}
+.lc-system-lane{padding:clamp(22px,3vw,42px);display:flex;flex-direction:column;justify-content:space-between;min-height:560px;background:#143327}
+.lc-system-lane-head{display:flex;justify-content:space-between;gap:12px;padding-bottom:14px;border-bottom:1px solid #536b5a;font:600 8px Consolas,monospace;letter-spacing:.11em}
+.lc-system-lane-head span{color:#9fb2a1}
+.lc-system-lane ol{list-style:none;margin:30px 0;padding:0;border-top:1px solid #536b5a}
+.lc-system-lane li{display:grid;grid-template-columns:30px 1fr;grid-template-areas:"n t" "n s";gap:3px 10px;padding:14px 0;border-bottom:1px solid #536b5a}
+.lc-system-lane li>span{grid-area:n;font:600 8px Consolas,monospace;color:#8ea392;padding-top:4px}
+.lc-system-lane li>strong{grid-area:t;font:400 clamp(18px,1.5vw,24px) Georgia,serif}
+.lc-system-lane li>small{grid-area:s;font:600 7px/1.35 Consolas,monospace;letter-spacing:.08em;color:#acbdad;text-transform:uppercase}
+.lc-system-lane>p{margin:0;font-size:10px;line-height:1.6;color:#a2b3a4;max-width:34ch}
+.lc-system-core{position:relative;margin:0;min-height:560px;overflow:hidden;background:#0d241b}
+.lc-system-core>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:saturate(.72) brightness(.68)}
+.lc-system-core:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#0d241b22,#0d241b78 55%,#0d241bce)}
+.lc-system-core figcaption{position:absolute;z-index:3;left:18px;right:18px;bottom:15px;font:600 7px Consolas,monospace;letter-spacing:.1em;color:#c3d0c3}
+.lc-system-axis{position:absolute;z-index:3;left:clamp(18px,3vw,40px);right:clamp(18px,3vw,40px);top:50%;transform:translateY(-50%);display:grid;grid-template-columns:auto 1fr auto 1fr auto 1fr auto;align-items:center;gap:8px}
+.lc-system-axis span{font:600 7px Consolas,monospace;letter-spacing:.11em;color:#eef1e8}
+.lc-system-axis i{height:1px;background:#d8e9a974;position:relative}
+.lc-system-axis i:after{content:"";position:absolute;right:0;top:50%;width:5px;height:5px;border:1px solid #d8e9a9;border-radius:50%;transform:translateY(-50%)}
+.pc-living-world .pc-life-story{background:#eef0e7;color:#173126}
+.pc-living-world .pc-principles{background:#f2efe6;color:#173126}
+@media(max-width:980px){
+ .lc-world-system>header{grid-template-columns:80px 1fr}
+ .lc-world-system>header>p:last-child{grid-column:2}
+ .lc-system-grid{grid-template-columns:1fr 1fr}
+ .lc-system-core{grid-column:1/-1;grid-row:1;min-height:54svh}
+ .lc-system-lane{min-height:430px}
+}
+@media(max-width:600px){
+ .lc-world-system{padding:36px 13px}
+ .lc-world-system>header{grid-template-columns:1fr;gap:12px}
+ .lc-world-system>header>p:last-child{grid-column:1}
+ .lc-world-system>header h2{font-size:43px}
+ .lc-system-grid{grid-template-columns:1fr}
+ .lc-system-core{grid-column:1;min-height:52svh}
+ .lc-system-lane{min-height:auto;padding:22px 13px}
+ .lc-system-lane ol{margin:22px 0}
+ .lc-system-axis{grid-template-columns:auto 1fr auto;grid-template-rows:auto auto auto;row-gap:11px}
+ .lc-system-axis i:nth-of-type(2),.lc-system-axis i:nth-of-type(3){display:none}
+ .lc-system-axis span:nth-of-type(4){grid-column:3}
+}
