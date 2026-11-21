@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { privateSceneOverrides } from "./arrival-private-scenes";
 import "./study/scene/scene.css";
 import "./arrival-photo-direction.css";
@@ -62,9 +62,81 @@ export default function SceneStudy({ privateReview = false }: { privateReview?: 
   const scenes = privateReview ? originalScenes.map((scene, i) => ({ ...scene, ...privateSceneOverrides[i] })) : originalScenes;
   const [stage,setStage]=useState<Stage>(0);
   const [failed,setFailed]=useState<number[]>([]);
+  const rootRef=useRef<HTMLDivElement>(null);
+  useEffect(()=>{
+    const root=rootRef.current;
+    if(!root) return;
+    const reduced=window.matchMedia("(prefers-reduced-motion: reduce)");
+    const coarse=window.matchMedia("(pointer: coarse)");
+    let lastY=window.scrollY;
+    let lastT=performance.now();
+    let raf=0;
+    let exitTimer:number|undefined;
+
+    const writePointer=(event:PointerEvent)=>{
+      if(coarse.matches) return;
+      root.style.setProperty("--pl-px",(event.clientX/window.innerWidth*100).toFixed(2)+"%");
+      root.style.setProperty("--pl-py",(event.clientY/window.innerHeight*100).toFixed(2)+"%");
+    };
+
+    const settle=()=>{
+      root.dataset.rapid="false";
+      root.style.setProperty("--pl-flow","0");
+    };
+
+    const sample=()=>{
+      raf=0;
+      const now=performance.now();
+      const y=window.scrollY;
+      const dt=Math.max(16,now-lastT);
+      const velocity=(y-lastY)/(dt/1000);
+      const abs=Math.abs(velocity);
+      const flow=Math.min(1,abs/1800);
+      root.style.setProperty("--pl-flow",flow.toFixed(3));
+      root.style.setProperty("--pl-direction",velocity>=0?"1":"-1");
+      lastY=y;
+      lastT=now;
+
+      const eligible=!reduced.matches&&!coarse.matches&&window.innerWidth>=900;
+      if(eligible&&abs>1250){
+        window.clearTimeout(exitTimer);
+        root.dataset.rapid="true";
+        exitTimer=window.setTimeout(settle,720);
+      }else if(root.dataset.rapid==="true"){
+        window.clearTimeout(exitTimer);
+        exitTimer=window.setTimeout(settle,520);
+      }else{
+        window.clearTimeout(exitTimer);
+        exitTimer=window.setTimeout(()=>root.style.setProperty("--pl-flow","0"),240);
+      }
+    };
+
+    const onScroll=()=>{
+      if(!raf) raf=window.requestAnimationFrame(sample);
+    };
+
+    const onPreference=()=>{ if(reduced.matches||coarse.matches) settle(); };
+    root.dataset.rapid="false";
+    root.style.setProperty("--pl-flow","0");
+    root.style.setProperty("--pl-px","72%");
+    root.style.setProperty("--pl-py","38%");
+
+    window.addEventListener("scroll",onScroll,{passive:true});
+    window.addEventListener("pointermove",writePointer,{passive:true});
+    reduced.addEventListener("change",onPreference);
+    coarse.addEventListener("change",onPreference);
+    return ()=>{
+      window.removeEventListener("scroll",onScroll);
+      window.removeEventListener("pointermove",writePointer);
+      reduced.removeEventListener("change",onPreference);
+      coarse.removeEventListener("change",onPreference);
+      if(raf) window.cancelAnimationFrame(raf);
+      window.clearTimeout(exitTimer);
+    };
+  },[]);
   const scene=scenes[stage];
   function move(direction:number){setStage(previous=>((previous+direction+scenes.length)%scenes.length) as Stage)}
-  return <div className="ps-site" data-stage={stage} data-private-review={privateReview}>
+  return <div ref={rootRef} className="ps-site" data-stage={stage} data-private-review={privateReview}>
     <a href="#ps-main" className="ps-skip">Skip to experience</a>
     <section className="ps-opening" aria-labelledby="ps-title">
       <div className="ps-stage-images" role="img" aria-label={failed.includes(stage)?"Generated architectural concept illustration":scene.alt}>
