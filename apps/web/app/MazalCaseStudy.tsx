@@ -17,7 +17,7 @@ function FacadeOption({item}:{item:typeof mazalOptions[number]}){
 export default function MazalCaseStudy(){
  const[left,setLeft]=useState(1);const[right,setRight]=useState(7);
  const a=mazalOptions.find(o=>o.id===left)!;const b=mazalOptions.find(o=>o.id===right)!;
- return <div className="sx-page mz-page">
+ return <div className="sx-page mz-page mz-world">
   <a className="sx-skip" href="#mz-main">Skip to Mazal study</a>
   <header className="sx-header"><a href="/" className="sx-brand">Plantupia</a><SiteIndex current="spaces"/><a className="sx-contact" href="/start-a-space?space=gather">Get in touch <span aria-hidden="true">&#8599;</span></a></header>
   <main id="mz-main" className="mz-main">
@@ -34,7 +34,7 @@ export default function MazalCaseStudy(){
     <div className="mz-compare-grid"><Comparison item={a}/><Comparison item={b}/></div>
    </section>
 
-   <section className="mz-care" aria-labelledby="mz-care-title"><div><p className="sx-kicker">INCLUDED WITH EVERY OPTION / P13</p><h2 id="mz-care-title">Planted, watered,<br/>always in shape.</h2></div><ol><li><span>01</span>Supply &amp; installation</li><li><span>02</span>Smart irrigation</li><li><span>03</span>Scheduled maintenance</li><li><span>04</span>Plant warranty</li></ol></section>
+   <section className="mz-care" aria-labelledby="mz-care-title"><div><p className="sx-kicker">INCLUDED WITH EVERY OPTION / P13</p><h2 id="mz-care-title">Planted, watered,<br/>always in shape.</h2></div><div><ol><li><span>01</span>Supply &amp; installation</li><li><span>02</span>Smart irrigation</li><li><span>03</span>Scheduled maintenance</li><li><span>04</span>Plant warranty</li></ol><a className="sx-underlink" href="/living-systems">Open Living Systems ↗</a></div></section>
    <section className="mz-source-note"><span>VISUAL SOURCE NOTE</span><p>All nine images are proposal visualizations. They are presented as design directions, not completed Mazal installations or confirmed client selections.</p></section>
    <section className="mz-next"><p className="sx-kicker">NEXT STEP / P14</p><h2>Choose your facade.</h2><p>The source proposal asks the client to select an option before a detailed quotation is sent.</p><a className="sx-underlink" href="/start-a-space?space=gather">Discuss a hospitality project &#8599;</a></section>
   </main><footer className="sx-footer"><a href="/spaces/projects">Project archive</a><span>Plantupia / Mazal proposal study</span><a href="/spaces/hospitality">Hospitality &#8599;</a></footer>
