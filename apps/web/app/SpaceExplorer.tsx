@@ -10,6 +10,7 @@ const shortNames = ["Residential", "Workplaces", "Hospitality", "Industry", "Ret
 
 export default function SpaceExplorer({ privateReview = false }: { privateReview?: boolean }) {
   const [active, setActive] = useState(privateReview ? 2 : 0);
+  const [lens, setLens] = useState<"space"|"life"|"system">("space");
   const order = privateReview ? [2, 4, 1, 0, 3, 5] : [0, 1, 2, 3, 4, 5];
   const position = order.indexOf(active);
   const [failed, setFailed] = useState<number[]>([]);
@@ -26,6 +27,9 @@ export default function SpaceExplorer({ privateReview = false }: { privateReview
   const photo = photos[active];
   const space = spaces[active];
   const selected = priorities[active] ?? [];
+  const lensPrompt = lens === "space" ? { label: space.headline, detail: privateReview && active === 4 ? "For developers, malls and showrooms, planting can become part of the architecture and visitor journey. The Pixels Mall proposal combines signature trees, layered landscapes, distinct experiential zones, custom planters and low-maintenance greenery." : space.text }
+    : lens === "life" ? { label: spacePrompts[active][1].label, detail: spacePrompts[active][1].detail }
+    : { label: spacePrompts[active][2].label, detail: spacePrompts[active][2].detail };
   const briefHref = `/start-a-space?space=${keys[active]}&focus=${selected.slice().sort().join(",")}`;
   function togglePriority(index: number) {
     setPriorities(previous => {
@@ -40,7 +44,7 @@ export default function SpaceExplorer({ privateReview = false }: { privateReview
     setActive(order[(position + delta + order.length) % order.length]);
   }
   return (
-    <div className="sx-page">
+    <div className="sx-page sx-world">
       <a className="sx-skip" href="#sx-main">Skip to spaces</a>
       <header className="sx-header">
         <a href="/" className="sx-brand" aria-label="Plantupia home">◕ Plantupia</a>
@@ -49,7 +53,7 @@ export default function SpaceExplorer({ privateReview = false }: { privateReview
       </header>
       <main id="sx-main">
         <section className="sx-exhibit" aria-label="Explore living environments">
-          <div className="sx-intro"><div><p className="sx-kicker">02 / SPACES</p><h1>Every space <em>has its own life.</em></h1></div><p>{privateReview ? "Hospitality, commercial destinations and workplaces are the current business focus. Other environments remain part of the practice." : "From a quiet home to the scale of a factory. Nature can belong wherever people build."}</p></div>
+          <div className="sx-intro sx-world-intro"><div><p className="sx-kicker">02 / SPACES / ENVIRONMENT READER</p><h1>Read the place.<br/><em>Then introduce life.</em></h1></div><p>{privateReview ? "Hospitality, commercial destinations and workplaces are the current business focus. Every environment changes the spatial, living-material and care brief." : "Every environment changes the brief: architecture, living material and the system that keeps it going."}</p></div>
           <div className="sx-environment-index" data-commercial-focus={privateReview}>
             {privateReview && <p className="sx-index-label">PRIMARY SECTORS</p>}
             <div className="sx-picker" role="group" aria-label={privateReview ? "Primary commercial sectors" : "Choose an environment"}>
@@ -76,10 +80,15 @@ export default function SpaceExplorer({ privateReview = false }: { privateReview
             <div className="sx-progress"><span>{String(position+1).padStart(2,"0")} / 06</span><div aria-hidden="true"><i style={{width:((position+1)/spaces.length*100)+"%"}}/></div></div>
             <div className="sx-arrows"><button type="button" aria-label="Previous environment" onClick={()=>move(-1)}>←</button><button type="button" aria-label="Next environment" onClick={()=>move(1)}>→</button></div>
           </div>
-          <div key={space.id} className="sx-reading" aria-live="polite">
-            <div><p className="sx-kicker">{space.type}</p><h2>{space.headline}</h2></div>
-            <div><p>{privateReview && active === 4 ? "For developers, malls and showrooms, planting can become part of the architecture and visitor journey. The Pixels Mall proposal combines signature trees, layered landscapes, distinct experiential zones, custom planters and low-maintenance greenery." : space.text}</p><a className="sx-underlink" href={"/start-a-space?space="+keys[active]}>Discuss a space like this ↗</a></div>
-          </div>
+          <section className="sx-world-reading" aria-label="Read the selected environment">
+            <div className="sx-world-lenses" role="group" aria-label="Choose a reading lens">
+              {(["space","life","system"] as const).map((item,index)=><button key={item} type="button" aria-pressed={lens===item} onClick={()=>setLens(item)}><span>{String(index+1).padStart(2,"0")}</span><strong>{item.toUpperCase()}</strong></button>)}
+            </div>
+            <div key={space.id+lens} className="sx-reading" aria-live="polite">
+              <div><p className="sx-kicker">{lens.toUpperCase()} / {space.type}</p><h2>{lensPrompt.label}</h2></div>
+              <div><p>{lensPrompt.detail}</p><div className="sx-world-reading-links"><a className="sx-underlink" href={"/start-a-space?space="+keys[active]}>Discuss this space ↗</a>{lens==="system"&&<a className="sx-underlink" href="/living-systems">See the living system ↗</a>}</div></div>
+            </div>
+          </section>
           {privateReview && active === 2 && <p className="hs-sector-link"><a className="sx-underlink" href="/spaces/hospitality">Explore the hospitality sector ↗</a></p>}
           {privateReview && active === 1 && <p className="of-sector-link"><a className="sx-underlink" href="/spaces/offices">Explore offices &amp; HQs &#8599;</a></p>}
           {privateReview && active === 1 && <section className="sx-work-palette" aria-labelledby="sx-work-palette-title">
