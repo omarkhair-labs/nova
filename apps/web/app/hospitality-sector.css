@@ -7,3 +7,9 @@
 .hs-source-note{display:grid;grid-template-columns:minmax(130px,.3fr) minmax(0,.7fr);gap:28px;border-top:1px solid #bac7ba;padding:22px 0 clamp(52px,8vw,105px)}.hs-source-note>span{font-size:10px;letter-spacing:.08em;color:#526258}.hs-source-note p{margin:0;font-size:13px!important}
 .hs-contact{border-top:1px solid #bac7ba;padding:clamp(48px,7vw,100px) 0}.hs-contact .sx-underlink{min-height:44px;align-items:center}
 @media(max-width:850px){.hs-title,.hs-moment-copy,.hs-process{grid-template-columns:1fr;gap:20px}.hs-title h1{font-size:clamp(48px,13vw,82px)}.hs-moment-2 figure,.hs-moment-3 figure{width:100%;margin-inline:0}.hs-moment-no{margin-bottom:18px}.hs-source-note{grid-template-columns:1fr;gap:10px}}
+
+/* Full-world hospitality */
+.hs-world{background:#f1efe6;color:#173126}
+.hs-world .hs-contact{background:#10291f;color:#edf1e7}
+.hs-case-link{margin-top:14px;display:inline-flex}
+.hs-contact-links{display:flex;gap:18px;flex-wrap:wrap}
