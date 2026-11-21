@@ -15,7 +15,7 @@ export default function OfficesSector(){
   const [chosen,setChosen]=useState<number[]>([]);
   const href="/start-a-space?space=work"+(chosen.length?"&focus="+[...chosen].sort().join(","):"");
   function toggle(i:number){setChosen(old=>old.includes(i)?old.filter(x=>x!==i):[...old,i]);}
-  return <div className="sx-page of-page">
+  return <div className="sx-page of-page of-world">
     <a className="sx-skip" href="#of-main">Skip to workplaces</a>
     <header className="sx-header"><a href="/" className="sx-brand">Plantupia</a><SiteIndex current="spaces"/><a className="sx-contact" href="/start-a-space?space=work">Get in touch <span aria-hidden="true">&#8599;</span></a></header>
     <main id="of-main" className="of-main">
@@ -44,8 +44,8 @@ export default function OfficesSector(){
         <div className="of-brief-sheet"><div role="group" aria-label="Workplace brief considerations">{spacePrompts[1].map((m,i)=><button className="of-note" type="button" key={m.label} aria-pressed={chosen.includes(i)} onClick={()=>toggle(i)}><span>0{i+1}</span><span><strong>{m.label}</strong><small>{m.detail}</small></span><span aria-hidden="true">{chosen.includes(i)?"✓":"+"}</span></button>)}</div><p aria-live="polite">{chosen.length?chosen.length+" of 3 considerations marked":"Nothing marked yet."}</p><a className="sx-underlink of-brief-link" href={href}>Carry these notes into a conversation &#8599;</a></div>
       </section>
 
-      <section className="of-service"><p className="sx-kicker">FROM DESIGN TO CARE</p><h2>Designed. Supplied. Installed. Maintained.</h2><p>The catalogue describes this service chain across corporate, hospitality and commercial environments. The exact maintenance scope and responsibilities are agreed per site.</p></section>
+      <section className="of-service"><div><p className="sx-kicker">FROM DESIGN TO CARE</p><h2>Designed. Supplied. Installed. Maintained.</h2><p>The catalogue describes this service chain across corporate, hospitality and commercial environments. The exact maintenance scope and responsibilities are agreed per site.</p></div><div className="of-service-links"><a className="sx-underlink" href="/shop#sr-material-title">Open the material library ↗</a><a className="sx-underlink" href="/living-systems">Open Living Systems ↗</a></div></section>
     </main>
-    <footer className="sx-footer"><a href="/spaces">Explore spaces</a><span>Plantupia / Design preview</span><a href="/studio">The Studio &#8599;</a></footer>
+    <footer className="sx-footer"><a href="/spaces">Explore spaces</a><span>Plantupia / Offices & HQs</span><a href="/shop#sr-material-title">Material library ↗</a></footer>
   </div>;
 }
