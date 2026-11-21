@@ -70,3 +70,18 @@
   .sr-hero-field-1{min-height:235px}
   .sr-hero-field figure{min-height:145px}
 }
+
+
+/* Full-world Shop / direct commerce inside the spatial system */
+.sr-full-world{background:#f1efe6;color:#173126}
+.sr-full-world .sr-header{background:#10291fe8;color:#edf1e7}
+.sr-full-world .sr-hero{background:#10291f;color:#edf1e7;border-bottom:1px solid #4c6254}
+.sr-full-world .sr-intro>p:not(.sr-eyebrow){max-width:34ch;color:#becbbf}
+.sr-full-world .sr-shop-path{border-color:#536b5a}
+.sr-full-world .sr-shop-path-primary{background:#dbe8b0;color:#173126}
+.sr-full-world .sr-collection{background:#f2efe6}
+.sr-full-world .sr-categories button[aria-pressed=true]{background:#173126;color:#f2efe6}
+.sr-full-world .sr-material-library{background:#e8ece2}
+.sr-full-world .sr-service{background:#10291f;color:#edf1e7}
+.sr-full-world .sr-service p{color:#b8c6b9}
+.sr-full-world .sr-footer{background:#0d241b;color:#edf1e7}
