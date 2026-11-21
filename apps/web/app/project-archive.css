@@ -18,3 +18,98 @@
 .pa-related h2{font:400 clamp(30px,4vw,58px)/1.03 Georgia,serif;letter-spacing:-.05em;margin:0}.pa-related p{margin-top:0}.pa-main .sx-underlink{min-height:44px;align-items:center}
 @media(max-width:850px){.pa-intro,.pa-project-copy,.pa-related{grid-template-columns:1fr;gap:18px}.pa-intro h1{font-size:clamp(48px,13vw,84px)}.pa-contexts{grid-template-columns:1fr}.pa-contexts>div{border-right:0;border-bottom:1px solid #bac7ba}.pa-contexts>div:last-child{border-bottom:0}.pa-wall{grid-template-columns:1fr;gap:70px}.pa-project:nth-child(n){grid-column:1;margin-top:0}.pa-project-copy h2{font-size:clamp(28px,8vw,42px)}}
 @media(prefers-reduced-motion:reduce){.pa-project img{transition:none}}
+
+
+/* ==========================================================================
+   Plantupia Refinement V2 / PROJECT FOLIO
+   Source-led work, disciplined layout, no arbitrary collage staggering.
+   ========================================================================== */
+.pa-page{
+  background:#f2efe6;
+  color:#173226;
+}
+.pa-intro{
+  padding-bottom:clamp(42px,6vw,82px);
+}
+.pa-intro h1{
+  font-size:clamp(50px,7vw,104px);
+  line-height:.91;
+  max-width:10ch;
+}
+.pa-contexts{
+  margin-bottom:clamp(54px,7vw,92px);
+  background:#eeece3;
+}
+.pa-wall{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:clamp(64px,8vw,112px) clamp(24px,3.2vw,48px);
+  align-items:start;
+}
+.pa-project:nth-child(n){
+  grid-column:auto;
+  margin-top:0;
+}
+.pa-project figure{
+  overflow:visible;
+  background:transparent;
+}
+.pa-project img{
+  display:block;
+  width:100%;
+  height:auto;
+  object-fit:contain;
+  background:#dde2d9;
+  filter:saturate(.93) contrast(.99);
+  transition:filter .3s var(--pl-ease);
+}
+.pa-project-link:hover img,
+.pa-project-link:focus-visible img{
+  transform:none;
+  filter:saturate(1) contrast(1);
+}
+.pa-project figcaption{
+  border-top:1px solid #aeb8ad;
+  padding:9px 0 0;
+  margin-top:0;
+  font:600 8px/1.45 Arial,sans-serif;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:#627367;
+}
+.pa-project-copy{
+  grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);
+  gap:clamp(16px,2.4vw,34px);
+  margin-top:13px;
+  padding-top:14px;
+  border-top:1px solid #aeb8ad;
+}
+.pa-project-copy h2{
+  font-size:clamp(27px,3vw,44px);
+  line-height:1;
+}
+.pa-project-copy p{
+  font-size:12px;
+  line-height:1.65;
+}
+.pa-project-copy dl>div{
+  border-top:1px solid #c6cec3;
+}
+.pa-open{
+  display:inline-block;
+  font-size:9px;
+  letter-spacing:.1em;
+}
+.pa-related{
+  border-top:1px solid #aeb8ad;
+}
+@media(max-width:850px){
+  .pa-wall{
+    grid-template-columns:1fr;
+    gap:58px;
+  }
+  .pa-project:nth-child(n){grid-column:1;margin-top:0}
+}
+@media(prefers-reduced-motion:reduce){
+  .pa-project img{transition:none!important}
+}
