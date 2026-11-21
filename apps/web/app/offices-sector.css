@@ -7,3 +7,9 @@
 .of-brief{display:grid;grid-template-columns:minmax(0,.82fr) minmax(0,1.18fr);gap:clamp(30px,7vw,105px);align-items:start;border-top:1px solid #bac7ba;padding:clamp(58px,8vw,120px) 0}.of-brief-sheet{border-top:1px solid #bac7ba}.of-note{display:grid;grid-template-columns:30px minmax(0,1fr) 24px;gap:12px;align-items:center;width:100%;min-height:72px;padding:12px 4px;border:0;border-bottom:1px solid #bac7ba;background:none;text-align:left}.of-note[aria-pressed=true]{background:#e1e7dc}.of-note>span:first-child{font-size:10px;color:#567663}.of-note strong{display:block;font:400 clamp(18px,1.7vw,24px)/1.05 Georgia,serif}.of-note small{display:block;margin-top:5px;font-size:11px;line-height:1.45;color:#5f7064}.of-brief-sheet>p{font-size:11px!important;margin:12px 0 4px!important}
 .of-service{border-top:1px solid #bac7ba;padding:clamp(50px,7vw,105px) 0}.of-service h2{max-width:13ch}
 @media(max-width:850px){.of-intro,.of-arrangements-head,.of-arrangement-field,.of-material,.of-brief{grid-template-columns:1fr;gap:22px}.of-intro h1{font-size:clamp(48px,13vw,82px)}.of-material figure{order:2}.of-material>div{order:1}}
+
+/* Full-world offices */
+.of-world{background:#f1efe6;color:#173126}
+.of-world .of-service{background:#10291f;color:#edf1e7}
+.of-world .of-service p{color:#b8c6b9}
+.of-service-links{display:grid;gap:10px;align-content:end}
