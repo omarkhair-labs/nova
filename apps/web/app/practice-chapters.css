@@ -188,3 +188,26 @@
  .lc-system-axis i:nth-of-type(2),.lc-system-axis i:nth-of-type(3){display:none}
  .lc-system-axis span:nth-of-type(4){grid-column:3}
 }
+
+
+/* Full-world Studio / working table */
+.pc-studio-world{background:#f1efe6;color:#173126}
+.pc-studio-world .pc-header{background:#f1efe6e8;color:#173126;border-bottom:1px solid #aab6a9}
+.pc-studio-intro{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(260px,.55fr);gap:clamp(30px,6vw,100px);align-items:end;border-bottom:1px solid #aab6a9}
+.pc-studio-intro h1{max-width:8ch}
+.pc-studio-intro>div:last-child{display:grid;gap:18px;justify-items:start}
+.pc-studio-intro>div:last-child>p{margin:0;font:600 9px Consolas,monospace;letter-spacing:.11em;color:#5f7162}
+.pc-studio-world .pc-reading-intro{background:#e9ede4;border-bottom:1px solid #aab6a9}
+.pc-studio-world .pc-workspace{background:#f4f1e8}
+.pc-studio-world .pc-drawing-anchor{background:#e2e8de}
+.pc-studio-world .pc-sheet{box-shadow:none;border-color:#aab6a9}
+.pc-studio-world .pc-study-nav button[aria-pressed=true]{background:#173126;color:#f2f0e7}
+.pc-studio-world .pc-reading-chapter{border-color:#aab6a9}
+.pc-studio-world .pc-reading-current{background:#eef2e8}
+.pc-studio-world .pc-material{border-color:#aab6a9}
+.pc-studio-world .pc-proof{background:#10291f;color:#edf1e7}
+.pc-studio-world .pc-proof p{color:#b7c5b8}
+.pc-studio-world .pc-footer{background:#10291f;color:#edf1e7}
+@media(max-width:760px){
+ .pc-studio-intro{grid-template-columns:1fr}
+}
