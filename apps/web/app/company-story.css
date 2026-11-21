@@ -44,3 +44,18 @@
 @media(max-width:800px){.cs-focus-head,.cs-focus-grid,.cs-archive-preview{grid-template-columns:1fr}.cs-focus-grid img{aspect-ratio:auto;max-height:390px}.cs-archive-note,.cs-archive-preview .cs-link{grid-column:1}}
 
 @media(max-width:650px){.cs-image span,.cs-focus-grid figcaption{font-size:10px;line-height:1.5}}
+
+
+/* Full-world About / practice map */
+.cs-world{background:#f1efe6;color:#173126}
+.cs-world .cs-header{background:#10291fe8;color:#edf1e7}
+.cs-world .cs-intro{background:#10291f;color:#edf1e7;border-bottom:1px solid #4d6454}
+.cs-world .cs-intro-copy>p:not(.cs-kicker){color:#b9c7ba}
+.cs-world .cs-focus{background:#eef1e8;border-bottom:1px solid #aab6a9}
+.cs-world .cs-focus-grid>a{border-color:#aab6a9}
+.cs-world .cs-practice{background:#f3f0e7}
+.cs-world .cs-services{border-top:1px solid #aab6a9}
+.cs-world .cs-services article{border-color:#aab6a9}
+.cs-world .cs-services h3{font-size:clamp(24px,2.3vw,36px)}
+.cs-world .cs-work{background:#e6ebe1}
+.cs-world .cs-footer{background:#0d241b;color:#edf1e7}
