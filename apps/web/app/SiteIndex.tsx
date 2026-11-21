@@ -13,12 +13,12 @@ export const siteSections: ReadonlyArray<{
   name: string;
   line: string;
 }> = [
-  { id: "experience", number: "01", href: "/", name: "The Experience", line: "Enter the world where space and life meet." },
-  { id: "spaces", number: "02", href: "/spaces", name: "Spaces", line: "Explore the questions behind different environments." },
-  { id: "studio", number: "03", href: "/studio", name: "The Studio", line: "Understand how our thinking becomes a living place." },
-  { id: "systems", number: "04", href: "/living-systems", name: "Living Systems", line: "Care, records and what continues after installation." },
-  { id: "about", number: "05", href: "/about", name: "About Plantupia", line: "Who we are, what we do, and the work behind it." },
-  { id: "contact", number: "06", href: "/start-a-space", name: "Get in touch", line: "Start a project or talk about an existing space." },
+  { id: "experience", number: "01", href: "/", name: "The World", line: "Spatial design, living material and green technology." },
+  { id: "spaces", number: "02", href: "/spaces", name: "Spaces", line: "Read hospitality, commercial, workplace and other environments." },
+  { id: "studio", number: "03", href: "/studio", name: "The Studio", line: "Read, compose, introduce and return." },
+  { id: "systems", number: "04", href: "/living-systems", name: "Living Systems", line: "Physical care, digital continuity and living history." },
+  { id: "about", number: "05", href: "/about", name: "About Plantupia", line: "The practice across space, life and technology." },
+  { id: "contact", number: "06", href: "/start-a-space", name: "Start a Space", line: "Build a project brief, ask for care or start a conversation." },
 ] as const;
 
 const studies = [
@@ -76,7 +76,7 @@ export default function SiteIndex({ current, tone = "light" }: { current: SiteSe
         onClose={()=>{setOpen(false);trigger.current?.focus({preventScroll:true});}}>
         <div className="si-top">
           <span>PLANTUPIA / THE WORLD INDEX</span>
-          <h2 id={titleId}>Six chapters. One living world.</h2>
+          <h2 id={titleId}>One practice. Six ways in.</h2>
           <button type="button" ref={close} onClick={dismiss} className="si-close" aria-label="Close world index">
             <span>CLOSE</span><i aria-hidden="true"/>
           </button>
@@ -114,9 +114,9 @@ export default function SiteIndex({ current, tone = "light" }: { current: SiteSe
           </div>
         </div>
         <div className="si-foot">
-          <span>SPACE / DESIGN / TIME / PEOPLE</span>
+          <span>SPACE / LIFE / TECHNOLOGY / TIME</span>
           <span className="si-global-paths"><a className="si-sidepath" href="/spaces/projects" onClick={dismiss}>CASE STUDIES / 06 &#8599;</a><a className="si-sidepath" href="/shop" onClick={dismiss}>SHOP / COLLECTION &#8599;</a></span>
-          <span>DESIGN STUDY · NOT THE OFFICIAL LIVE SITE</span>
+          <span>LIVING ARCHITECTURE / GREEN TECHNOLOGY</span>
         </div>
       </dialog>
     </div>
