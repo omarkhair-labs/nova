@@ -26,3 +26,10 @@
 .cm-hero-note dt{color:#526258}.cm-hero-note dd{margin:0;font-weight:600}.cm-hero-note a{min-height:44px;align-items:center}
 .cm-brand-pair{grid-template-columns:minmax(0,1.601fr) minmax(0,1.829fr)}
 @media(max-width:850px){.cm-hero-layout,.cm-brand-pair{grid-template-columns:minmax(0,1fr);gap:18px}.cm-hero-note{padding-top:16px}.cm-hero-note h2{margin-bottom:10px}}
+
+/* Full-world commercial */
+.cm-world{background:#f1efe6;color:#173126}
+.cm-world .cm-care{background:#10291f;color:#edf1e7}
+.cm-world .cm-care p{color:#b8c6b9}
+.cm-hero-links,.cm-contact-links{display:flex;gap:18px;flex-wrap:wrap}
+.cm-system-link{display:inline-flex;margin-top:18px}
