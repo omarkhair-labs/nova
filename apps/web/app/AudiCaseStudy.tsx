@@ -27,7 +27,7 @@ function Chapter({ chapter, index }: { chapter: (typeof audiChapters)[number]; i
 }
 
 export default function AudiCaseStudy() {
-  return <div className="sx-page au-page">
+  return <div className="sx-page au-page au-world">
     <a className="sx-skip" href="#au-main">Skip to Audi study</a>
     <header className="sx-header">
       <a href="/" className="sx-brand">Plantupia</a>
@@ -80,12 +80,12 @@ export default function AudiCaseStudy() {
           <h2 id="au-care-title">The project does not end at installation.</h2>
           <p>The source continues from design into operation, which is why care sits after the visual journey rather than as a detached service page.</p>
         </div>
-        <ol>
+        <div><ol>
           <li><span>01</span>Selection &amp; installation</li>
           <li><span>02</span>Smart irrigation</li>
           <li><span>03</span>Scheduled maintenance</li>
           <li><span>04</span>Plant warranty</li>
-        </ol>
+        </ol><a className="sx-underlink" href="/living-systems">Open Living Systems ↗</a></div>
       </section>
 
       <section className="au-source-note">
