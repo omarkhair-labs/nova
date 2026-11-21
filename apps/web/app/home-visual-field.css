@@ -111,3 +111,112 @@
 @media(prefers-reduced-motion:reduce){
   .hvf img{transition:none!important}
 }
+
+
+/* ==========================================================================
+   Refinement V2 / TEMPORAL FIELD
+   Scroll velocity changes how the same archive is read; it never hijacks scroll.
+   ========================================================================== */
+.ps-site .hvf{
+  position:relative;
+  isolation:isolate;
+  overflow:hidden;
+}
+.ps-site .hvf::before{
+  content:"";
+  position:absolute;
+  inset:-14% -8%;
+  z-index:-1;
+  pointer-events:none;
+  background:
+    radial-gradient(circle at var(--pl-px,72%) var(--pl-py,38%),rgba(180,207,171,.22),transparent 34%),
+    linear-gradient(115deg,rgba(241,239,230,0) 18%,rgba(218,228,211,.34) 54%,rgba(239,233,216,.08) 82%);
+  opacity:calc(.28 + (var(--pl-flow,0) * .34));
+  transform:translate3d(0,calc(var(--pl-direction,1) * var(--pl-flow,0) * -18px),0) scale(calc(1 + (var(--pl-flow,0) * .035)));
+  transition:opacity .38s ease,transform .55s cubic-bezier(.22,.72,.18,1);
+}
+.ps-site .hvf-head,
+.ps-site .hvf-grid,
+.ps-site .hvf footer{
+  transition:
+    opacity .5s cubic-bezier(.22,.72,.18,1),
+    transform .72s cubic-bezier(.22,.72,.18,1),
+    filter .5s ease;
+}
+
+/* Rapid index — desktop pointer devices only. */
+@media (min-width:900px) and (pointer:fine){
+  .ps-site[data-rapid="true"] .hvf{
+    background:#eceae1;
+  }
+  .ps-site[data-rapid="true"] .hvf-head{
+    opacity:.12;
+    transform:translateY(-18px) scale(.985);
+    filter:blur(1px);
+    pointer-events:none;
+  }
+  .ps-site[data-rapid="true"] .hvf footer{
+    opacity:.08;
+    transform:translateY(18px);
+    pointer-events:none;
+  }
+  .ps-site[data-rapid="true"] .hvf-grid{
+    grid-template-columns:minmax(0,780px);
+    justify-content:center;
+    gap:0;
+    transform:translateY(-10px);
+  }
+  .ps-site[data-rapid="true"] .hvf-item,
+  .ps-site[data-rapid="true"] .hvf-item:nth-child(n){
+    grid-column:1;
+    padding:0;
+    border-top:1px solid #aeb8ad;
+  }
+  .ps-site[data-rapid="true"] .hvf-item:last-child{
+    border-bottom:1px solid #aeb8ad;
+  }
+  .ps-site[data-rapid="true"] .hvf figure{
+    display:grid;
+    grid-template-columns:76px minmax(0,1fr);
+    align-items:center;
+    gap:18px;
+    min-height:64px;
+  }
+  .ps-site[data-rapid="true"] .hvf img,
+  .ps-site[data-rapid="true"] .hvf-item:nth-child(n) img{
+    width:76px;
+    height:46px;
+    object-fit:cover;
+    background:#d8ded4;
+    filter:saturate(.88) contrast(1.02);
+  }
+  .ps-site[data-rapid="true"] .hvf figcaption{
+    grid-template-columns:34px minmax(0,1fr);
+    align-items:center;
+    border-top:0;
+    padding:0;
+  }
+  .ps-site[data-rapid="true"] .hvf figcaption strong{
+    font-size:clamp(22px,2.1vw,34px);
+    letter-spacing:-.045em;
+  }
+  .ps-site[data-rapid="true"] .hvf figcaption small{
+    display:none;
+  }
+  .ps-site[data-rapid="true"] .hvf-item:hover img{
+    width:92px;
+    filter:saturate(1) contrast(1);
+  }
+}
+
+@media(prefers-reduced-motion:reduce){
+  .ps-site .hvf::before{
+    opacity:.22!important;
+    transform:none!important;
+  }
+  .ps-site .hvf-head,
+  .ps-site .hvf-grid,
+  .ps-site .hvf footer{
+    transition:none!important;
+  }
+}
