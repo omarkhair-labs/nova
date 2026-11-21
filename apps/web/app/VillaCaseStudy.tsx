@@ -35,7 +35,7 @@ function AreaChapter({ area }: { area: (typeof villaAreas)[number] }) {
 }
 
 export default function VillaCaseStudy() {
-  return <div className="sx-page vl-page">
+  return <div className="sx-page vl-page vl-world">
     <a className="sx-skip" href="#vl-main">Skip to Villa 7 study</a>
     <header className="sx-header">
       <a href="/" className="sx-brand">Plantupia</a>
@@ -97,12 +97,12 @@ export default function VillaCaseStudy() {
           <h2 id="vl-care-title">Planted, watered,<br/>always in shape.</h2>
           <p>The proposal connects every visual direction to supply, irrigation and ongoing care.</p>
         </div>
-        <ol>
+        <div><ol>
           <li><span>01</span>Supply &amp; installation</li>
           <li><span>02</span>Smart irrigation</li>
           <li><span>03</span>Scheduled maintenance</li>
           <li><span>04</span>Plant warranty</li>
-        </ol>
+        </ol><a className="sx-underlink" href="/living-systems">Open Living Systems ↗</a></div>
       </section>
 
       <section className="vl-source-note">
