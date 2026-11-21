@@ -255,3 +255,49 @@
 @media(prefers-reduced-motion:reduce){
   .wt-photo,.wt-photo.wt-visible{clip-path:none!important}
 }
+
+
+/* Temporal color continuity across chapter changes */
+.wt-section{
+  position:relative;
+  isolation:isolate;
+  overflow:hidden;
+  transition:background-color .9s cubic-bezier(.22,.72,.18,1),color .5s ease;
+}
+.wt-section::before{
+  content:"";
+  position:absolute;
+  inset:-10% -6%;
+  z-index:-1;
+  pointer-events:none;
+  background:
+    radial-gradient(circle at var(--pl-px,68%) var(--pl-py,42%),rgba(184,207,174,.24),transparent 34%),
+    linear-gradient(118deg,rgba(223,230,214,.16),transparent 42%,rgba(232,219,194,.14) 78%,transparent);
+  opacity:calc(.32 + (var(--pl-flow,0) * .2));
+  transform:translate3d(0,calc(var(--pl-direction,1) * var(--pl-flow,0) * -10px),0);
+  transition:opacity .4s ease,transform .7s cubic-bezier(.22,.72,.18,1),filter .85s ease;
+}
+.wt-section[data-active="0"]{background-color:#eeece3}
+.wt-section[data-active="1"]{background-color:#e9eee5}
+.wt-section[data-active="2"]{background-color:#eee9de}
+.wt-section[data-active="0"]::before{filter:hue-rotate(-8deg) saturate(.9)}
+.wt-section[data-active="1"]::before{filter:hue-rotate(9deg) saturate(1.05)}
+.wt-section[data-active="2"]::before{filter:hue-rotate(-18deg) saturate(.86)}
+.wt-choice-copy strong,
+.wt-choice-copy small,
+.wt-number,
+.wt-arrow{
+  transition:color .32s ease,transform .42s cubic-bezier(.22,.72,.18,1),opacity .32s ease;
+}
+.wt-choice[data-preview-active=true] .wt-choice-copy strong{
+  transform:translateX(6px);
+}
+.wt-choice[data-preview-active=true] .wt-arrow{
+  transform:translate(3px,-3px);
+}
+@media(prefers-reduced-motion:reduce){
+  .wt-section,.wt-section::before{
+    transition:none!important;
+    transform:none!important;
+  }
+}
