@@ -108,7 +108,7 @@ export default function ContactStudio({ available }: { available: boolean }) {
   }
 
   return (
-    <div className="ct-page">
+    <div className="ct-page ct-world">
       <a className="ct-skip" href="#ct-main">Skip to contact</a>
       <header className="ct-header">
         <a href="/" className="ct-brand" aria-label="Plantupia home">◕ Plantupia</a>
@@ -117,15 +117,21 @@ export default function ContactStudio({ available }: { available: boolean }) {
       </header>
       <main className="ct-main" id="ct-main">
         <div className="ct-intro">
-          <p className="ct-overline">PLANTUPIA / CONTACT</p>
-          <h1>Let&apos;s make room<br/>for <em>life.</em></h1>
-          <p>Every living space begins with a conversation.</p>
+          <p className="ct-overline">06 / START A SPACE / WORKING BRIEF</p>
+          <h1>Start with<br/><em>the place.</em></h1>
+          <p>Build the brief as you go. Project, care and general conversations stay separate so the next step stays clear.</p>
         </div>
         <section className="ct-work" aria-label="Send a message to Plantupia">
           <nav aria-label="How can we help?" className="ct-modes">
             {modes.map(item=><button key={item.id} aria-pressed={mode===item.id} type="button" disabled={pending} onClick={() => {setMode(item.id);setFeedback("");setReference("");}}>{item.title}</button>)}
           </nav>
-          <p className="ct-mode-intro" aria-live="polite">{current.intro}</p>{!available&&<div className="ct-preview-note" role="note"><strong>Preview mode</strong><span>You can complete the brief and compose a message. Sending is disabled, so nothing will be submitted or stored.</span></div>}
+          <p className="ct-mode-intro" aria-live="polite">{current.intro}</p>
+          <div className="ct-brief-pulse" aria-label="Current brief">
+            <span><small>MODE</small><strong>{current.title}</strong></span>
+            <span><small>SPACE</small><strong>{mode==="project" ? (environments.find(item=>item.id===environment)?.label || "Not selected yet") : "—"}</strong></span>
+            <span><small>FIELD NOTES</small><strong>{fieldNotes?.labels.join(" / ") || "None carried in yet"}</strong></span>
+          </div>
+          {!available&&<div className="ct-preview-note" role="note"><strong>Protected preview</strong><span>You can complete the brief and compose a message. Sending is disabled, so nothing will be submitted or stored.</span></div>}
           <form className="ct-form" onSubmit={send}>
             <fieldset className="ct-fields" disabled={pending}>
               <label htmlFor="ct-name">Your name</label>
@@ -153,9 +159,9 @@ export default function ContactStudio({ available }: { available: boolean }) {
             </div>
           </form>
         </section>
-        <section className="ct-end"><span>NOT SURE WHERE TO BEGIN?</span><a href="/spaces">See the space types ↗</a></section>
+        <section className="ct-end"><span>NOT SURE WHERE TO BEGIN?</span><a href="/spaces">Read the spaces first ↗</a><a href="/living-systems">Explore Living Systems ↗</a></section>
       </main>
-      <footer className="ct-footer"><a href="/">Plantupia</a><span>Living architecture / Design preview</span><a href="/about">About us ↗</a></footer>
+      <footer className="ct-footer"><a href="/">Plantupia</a><span>Start a Space / Working brief</span><a href="/about">About Plantupia ↗</a></footer>
     </div>
   );
 }
