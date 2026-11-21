@@ -9,6 +9,6 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
   const root = process.env.PLANTUPIA_PRIVATE_ARRIVAL_DIR;
-  const privateReview = process.env.VERCEL_ENV === "production" || (process.env.NODE_ENV === "development" && !!root);
+  const privateReview = (process.env.VERCEL_ENV === "preview" || process.env.VERCEL_ENV === "production" || (process.env.NODE_ENV === "development" && !!root));
   return <CinematicExperience privateReview={privateReview} />;
 }
