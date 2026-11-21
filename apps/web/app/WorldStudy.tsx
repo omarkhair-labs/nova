@@ -12,6 +12,8 @@ type PlaceScene={
   readings:Record<Lens,string>;
   cues:[string,string];
 };
+type RelationItem={asset:string;label:string;meta:string;href:string};
+type Relation={id:string;label:string;items:RelationItem[]};
 
 const lenses:[Lens,string][]=[["space","SPACE"],["life","LIFE"],["time","TIME"]];
 
@@ -46,23 +48,38 @@ const alternatives=[
  ["mazal-option-09.webp","09","Evergreen cones"],
 ] as const;
 
-const projectFilm=[
- ["audi-chapter-01.webp","AUDI CAIRO","ROOM / 01"],
- ["villa-choice-07.webp","VILLA 7","CHOICE / 07"],
- ["em-option-04.webp","EM SHERIF","OPTION / 04"],
- ["hallab-option-04.webp","EL HALLAB","OPTION / 04"],
- ["pixels-scene-05.webp","PIXELS MALL","UPPER LEVEL / 05"],
-] as const;
-
 const specimens=[
  ["shop-augusta-object.webp","VESSEL","Augusta planter","Hospitality catalogue / p27"],
  ["shop-plant-collection.webp","PLANT","Plant collection","Hospitality catalogue / p28"],
  ["shop-fiberglass-pots.webp","FINISH","Fiberglass family","Hospitality catalogue / p37"],
 ] as const;
 
+const relations:Relation[]=[
+ {id:"arrival",label:"ARRIVAL",items:[
+   {asset:"home-pixels-courtyard.webp",label:"Pixels Mall",meta:"COMMERCIAL / ARRIVAL",href:"/spaces/projects/pixels-mall"},
+   {asset:"audi-chapter-01.webp",label:"Audi Cairo",meta:"INTERIOR / ENTRY",href:"/spaces/projects/audi-cairo"},
+   {asset:"villa-choice-07.webp",label:"Villa 7",meta:"RESIDENTIAL / APPROACH",href:"/spaces/projects/villa-7"},
+ ]},
+ {id:"edge",label:"EDGE",items:[
+   {asset:"home-pixels-architecture.webp",label:"Pixels Mall",meta:"PLANTING / BOUNDARY",href:"/spaces/projects/pixels-mall"},
+   {asset:"mazal-option-09.webp",label:"Mazal",meta:"FACADE / FRONTAGE",href:"/spaces/projects/mazal"},
+   {asset:"hallab-option-04.webp",label:"El Hallab",meta:"PLANTING / PERIMETER",href:"/spaces/projects/el-hallab"},
+ ]},
+ {id:"vessel",label:"VESSEL",items:[
+   {asset:"shop-augusta-object.webp",label:"Augusta",meta:"CATALOGUE / OBJECT",href:"/shop#sr-material-title"},
+   {asset:"em-option-04.webp",label:"EM Sherif",meta:"PLANTER / OPTION",href:"/spaces/projects/em-sherif"},
+   {asset:"villa-choice-07.webp",label:"Villa 7",meta:"OBJECT / LANDSCAPE",href:"/spaces/projects/villa-7"},
+ ]},
+ {id:"threshold",label:"THRESHOLD",items:[
+   {asset:"pixels-scene-05.webp",label:"Pixels Mall",meta:"UPPER LEVEL / TRANSITION",href:"/spaces/projects/pixels-mall"},
+   {asset:"audi-chapter-03.webp",label:"Audi Cairo",meta:"ROOM / TRANSITION",href:"/spaces/projects/audi-cairo"},
+   {asset:"shop-indoor-greenery.webp",label:"Plantupia Shop",meta:"SETTING / INTERIOR",href:"/shop"},
+ ]},
+];
+
 const chapters=[
  ["place","01","PLACE"],["alternatives","02","ALTERNATIVES"],["object","03","OBJECT"],
- ["project","04","PROJECT"],["shop","05","SHOP"],["care","06","CARE"],
+ ["project","04","RELATIONS"],["shop","05","SHOP"],["care","06","CARE"],
 ] as const;
 
 const asset=(name:string)=>"/api/private-arrival/"+name;
@@ -71,8 +88,19 @@ export default function WorldStudy(){
  const [place,setPlace]=useState(0);
  const [lens,setLens]=useState<Lens>("space");
  const [alternative,setAlternative]=useState(0);
+ const [specimen,setSpecimen]=useState(0);
+ const [relation,setRelation]=useState(0);
  const currentPlace=placeScenes[place];
  const currentAlternative=alternatives[alternative];
+ const currentSpecimen=specimens[specimen];
+ const currentRelation=relations[relation];
+
+ function shift(update:()=>void){
+   const doc=document as Document & {startViewTransition?:(callback:()=>void)=>unknown};
+   const reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+   if(doc.startViewTransition&&!reduced) doc.startViewTransition(update);
+   else update();
+ }
 
  return <div className="ws">
    <a className="ws-skip" href="#place">Skip to the world study</a>
@@ -96,9 +124,7 @@ export default function WorldStudy(){
          <p>PRIVATE WORLD STUDY / SOURCE-LED</p>
          <h1 id="world-title">Space.<br/>Life.<br/><em>What continues.</em></h1>
        </div>
-       <div className="ws-threshold-note">
-         <span>PLACE → LIVING MATERIAL → CARE → TIME</span>
-       </div>
+       <div className="ws-threshold-note"><span>PLACE → LIVING MATERIAL → CARE → TIME</span></div>
        <a className="ws-enter" href="#place"><span>ENTER</span><i>↓</i></a>
      </section>
 
@@ -107,7 +133,7 @@ export default function WorldStudy(){
          <span>01 / PLACE</span>
          <h2 id="place-title">Read the condition.</h2>
          <div className="ws-lenses" aria-label="Read the current place through a lens">
-           {lenses.map(([id,label])=><button key={id} type="button" aria-pressed={lens===id} onClick={()=>setLens(id)}>{label}</button>)}
+           {lenses.map(([id,label])=><button key={id} type="button" aria-pressed={lens===id} onClick={()=>shift(()=>setLens(id))}>{label}</button>)}
          </div>
        </header>
 
@@ -121,7 +147,7 @@ export default function WorldStudy(){
            <div className="ws-reading-key"><span>{lens.toUpperCase()}</span><span>DESCRIPTIVE STUDY</span></div>
            <p key={currentPlace.asset+lens}>{currentPlace.readings[lens]}</p>
            <div className="ws-place-index">
-             {placeScenes.map((item,index)=><button key={item.asset} type="button" aria-pressed={place===index} onClick={()=>setPlace(index)}>
+             {placeScenes.map((item,index)=><button key={item.asset} type="button" aria-pressed={place===index} onClick={()=>shift(()=>setPlace(index))}>
                <span>{String(index+1).padStart(2,"0")}</span><strong>{item.label}</strong>
              </button>)}
            </div>
@@ -142,7 +168,7 @@ export default function WorldStudy(){
            <figcaption><span>OPTION {currentAlternative[1]}</span><strong>{currentAlternative[2]}</strong></figcaption>
          </figure>
          <div className="ws-contact-sheet">
-           {alternatives.map((item,index)=><button key={item[0]} type="button" aria-current={alternative===index?"true":undefined} onClick={()=>setAlternative(index)}>
+           {alternatives.map((item,index)=><button key={item[0]} type="button" aria-current={alternative===index?"true":undefined} onClick={()=>shift(()=>setAlternative(index))}>
              <img src={asset(item[0])} alt=""/>
              <span>{item[1]}</span><strong>{item[2]}</strong>
            </button>)}
@@ -155,38 +181,48 @@ export default function WorldStudy(){
        <header className="ws-chapter-head ws-chapter-head-tight">
          <span>03 / OBJECT</span>
          <h2 id="object-title">Setting → vessel → plant → finish.</h2>
-         <small>ONE SPECIFICATION, READ AT DIFFERENT SCALES</small>
+         <small>CHOOSE ONE / IT WILL FOLLOW YOU</small>
        </header>
        <div className="ws-object-setting">
          <figure className="ws-object-space">
            <img src={asset("shop-augusta-wide.webp")} alt="Augusta planter in a hospitality setting"/>
            <figcaption><span>SETTING</span><strong>Augusta / in space</strong></figcaption>
          </figure>
-         <div className="ws-specimen-drawer">
+         <div className="ws-specimen-drawer" role="listbox" aria-label="Choose a material trace">
            <div className="ws-drawer-mast"><span>MATERIAL DRAWER / 03</span><span>CATALOGUE STUDY</span></div>
-           {specimens.map(([src,type,name,source])=><figure key={src}>
+           {specimens.map(([src,type,name,source],index)=><button key={src} type="button" role="option" aria-selected={specimen===index} onClick={()=>shift(()=>setSpecimen(index))}>
              <img src={asset(src)} alt={name}/>
-             <figcaption><span>{type}</span><strong>{name}</strong><small>{source}</small></figcaption>
-           </figure>)}
+             <span className="ws-specimen-copy"><b>{type}</b><strong>{name}</strong><small>{source}</small></span>
+           </button>)}
          </div>
        </div>
-       <div className="ws-bridge"><span>MATERIAL</span><i>→</i><span>MEMORY</span></div>
+       <div className="ws-bridge"><span>MATERIAL</span><i>→</i><span>ASSOCIATION</span></div>
      </section>
 
      <section id="project" className="ws-chapter ws-project" aria-labelledby="project-title">
        <header className="ws-chapter-head ws-chapter-head-tight">
-         <span>04 / PROJECT</span>
-         <h2 id="project-title">One practice.<br/>Different evidence.</h2>
-         <small>PROJECTS KEEP THEIR OWN SOURCE BEHAVIOUR</small>
+         <span>04 / RELATIONS</span>
+         <h2 id="project-title">Projects meet<br/>by association.</h2>
+         <small>NOT A COMPANY TAXONOMY / A PRIVATE READING TOOL</small>
        </header>
-       <div className="ws-film" role="list">
-         {projectFilm.map(([src,title,meta],index)=><figure key={src} role="listitem">
-           <img src={asset(src)} alt={title+" proposal study"}/>
-           <figcaption><span>{String(index+1).padStart(2,"0")} / {meta}</span><strong>{title}</strong></figcaption>
-         </figure>)}
+
+       <div className="ws-relation-tabs" role="tablist" aria-label="Cross-project relations">
+         {relations.map((item,index)=><button key={item.id} type="button" role="tab" aria-selected={relation===index} onClick={()=>shift(()=>setRelation(index))}>
+           <span>{String(index+1).padStart(2,"0")}</span><strong>{item.label}</strong>
+         </button>)}
        </div>
-       <a className="ws-project-link" href="/spaces/projects">OPEN PROJECT ARCHIVE ↗</a>
-       <div className="ws-bridge"><span>PROJECT</span><i>→</i><span>CHOOSE SOMETHING REAL</span></div>
+
+       <div className="ws-relations" key={currentRelation.id}>
+         {currentRelation.items.map((item,index)=><a href={item.href} key={item.asset} className={"ws-relation-item ws-relation-"+(index+1)}>
+           <figure>
+             <img src={asset(item.asset)} alt={item.label+" / "+currentRelation.label.toLowerCase()+" relation"}/>
+             <figcaption><span>{item.meta}</span><strong>{item.label}</strong></figcaption>
+           </figure>
+         </a>)}
+       </div>
+
+       <div className="ws-relation-word" aria-hidden="true">{currentRelation.label}</div>
+       <div className="ws-bridge"><span>ASSOCIATION</span><i>→</i><span>COMMERCE</span></div>
      </section>
 
      <section id="shop" className="ws-chapter ws-shop" aria-labelledby="shop-title">
@@ -195,10 +231,7 @@ export default function WorldStudy(){
          <div><span>05 / SHOP</span><h2 id="shop-title">See it in a place.<br/><em>Then choose the object.</em></h2></div>
        </div>
        <div className="ws-shop-order">
-         <div>
-           <span>DIRECT COMMERCE</span>
-           <p>Plants. Planters. Care. No detour.</p>
-         </div>
+         <div><span>DIRECT COMMERCE</span><p>Plants. Planters. Care. No detour.</p></div>
          <nav aria-label="Shop entry points">
            <a href="/shop#shop-collection"><span>01</span><strong>SHOP THE COLLECTION</strong><i>↗</i></a>
            <a href="/shop#sr-material-title"><span>02</span><strong>MATERIAL LIBRARY</strong><i>↗</i></a>
@@ -210,9 +243,27 @@ export default function WorldStudy(){
      <section id="care" className="ws-chapter ws-care" aria-labelledby="care-title">
        <header className="ws-chapter-head ws-chapter-head-tight ws-head-dark">
          <span>06 / CARE</span>
-         <h2 id="care-title">Day one is not<br/>the whole story.</h2>
-         <small>THE CONTINUITY LAYER / NOT LIVE TELEMETRY</small>
+         <h2 id="care-title">The world remembers<br/>what you touched.</h2>
+         <small>YOUR TRACE / SESSION ONLY / NO SAVED USER DATA</small>
        </header>
+
+       <div className="ws-memory" aria-label="Your current world trace">
+         <figure>
+           <img src={asset(currentPlace.asset)} alt=""/>
+           <figcaption><span>PLACE / {lens.toUpperCase()}</span><strong>{currentPlace.label}</strong></figcaption>
+         </figure>
+         <i aria-hidden="true">→</i>
+         <figure>
+           <img src={asset(currentAlternative[0])} alt=""/>
+           <figcaption><span>ALTERNATIVE / {currentAlternative[1]}</span><strong>{currentAlternative[2]}</strong></figcaption>
+         </figure>
+         <i aria-hidden="true">→</i>
+         <figure>
+           <img src={asset(currentSpecimen[0])} alt=""/>
+           <figcaption><span>{currentSpecimen[1]}</span><strong>{currentSpecimen[2]}</strong></figcaption>
+         </figure>
+       </div>
+
        <div className="ws-care-sequence">
          <ol>
            <li><span>01</span><strong>DESIGN</strong><i>place + living material</i></li>
@@ -229,7 +280,7 @@ export default function WorldStudy(){
 
      <section className="ws-end">
        <span>WORKING SYSTEM / PRIVATE STUDY</span>
-       <p>Less explanation.<br/>More evidence.</p>
+       <p>Not pages.<br/>A world with memory.</p>
        <div><a href="/">CURRENT EXPERIENCE</a><a href="/study/visual-direction">ARCHIVE INSTRUMENT ↗</a></div>
      </section>
    </main>
