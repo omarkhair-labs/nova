@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function LivingSystemsPage() {
-  return <LivingContinuity privateReview={(process.env.VERCEL_ENV === "production" || (process.env.NODE_ENV === "development" && !!process.env.PLANTUPIA_PRIVATE_ARRIVAL_DIR))} />;
+  return <LivingContinuity privateReview={(process.env.VERCEL_ENV === "preview" || process.env.VERCEL_ENV === "production" || (process.env.NODE_ENV === "development" && !!process.env.PLANTUPIA_PRIVATE_ARRIVAL_DIR))} />;
 }
