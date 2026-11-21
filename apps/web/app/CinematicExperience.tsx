@@ -121,6 +121,15 @@ export default function SceneStudy({ privateReview = false }: { privateReview?: 
     root.style.setProperty("--pl-px","72%");
     root.style.setProperty("--pl-py","38%");
 
+    const field=root.querySelector(".hvf");
+    const fieldObserver=field ? new IntersectionObserver(entries=>{
+      const visible=entries[0]?.isIntersecting ?? false;
+      root.dataset.fieldVisible=visible?"true":"false";
+      if(!visible) settle();
+    },{threshold:.08}) : null;
+    if(field) fieldObserver?.observe(field);
+    root.dataset.fieldVisible="false";
+
     window.addEventListener("scroll",onScroll,{passive:true});
     window.addEventListener("pointermove",writePointer,{passive:true});
     reduced.addEventListener("change",onPreference);
@@ -130,6 +139,7 @@ export default function SceneStudy({ privateReview = false }: { privateReview?: 
       window.removeEventListener("pointermove",writePointer);
       reduced.removeEventListener("change",onPreference);
       coarse.removeEventListener("change",onPreference);
+      fieldObserver?.disconnect();
       if(raf) window.cancelAnimationFrame(raf);
       window.clearTimeout(exitTimer);
     };
