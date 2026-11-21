@@ -183,3 +183,52 @@
 @media(prefers-reduced-motion:reduce){
   .ps-image,.ps-image.ps-current{clip-path:none!important;transform:none!important}
 }
+
+
+/* ==========================================================================
+   Refinement V2 / TEMPORAL ATMOSPHERE
+   One light field moves through SPACE / LIFE / TIME.
+   ========================================================================== */
+.ps-opening::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:1;
+  pointer-events:none;
+  background-image:
+    radial-gradient(circle at var(--pl-px,72%) var(--pl-py,38%),rgba(231,239,205,.19) 0%,rgba(201,220,184,.08) 18%,transparent 42%),
+    linear-gradient(118deg,rgba(196,213,180,.08),transparent 34%,rgba(234,221,193,.07) 70%,transparent);
+  background-color:rgba(173,188,154,.08);
+  mix-blend-mode:soft-light;
+  opacity:calc(.34 + (var(--pl-flow,0) * .22));
+  transform:
+    translate3d(calc((var(--pl-px,72%) - 50%) * .02),calc(var(--pl-direction,1) * var(--pl-flow,0) * -12px),0)
+    scale(calc(1 + (var(--pl-flow,0) * .018)));
+  transition:
+    background-color .95s cubic-bezier(.22,.72,.18,1),
+    opacity .38s ease,
+    transform .7s cubic-bezier(.22,.72,.18,1);
+}
+.ps-site[data-stage="0"] .ps-opening::after{background-color:rgba(187,179,151,.075)}
+.ps-site[data-stage="1"] .ps-opening::after{background-color:rgba(144,188,145,.105)}
+.ps-site[data-stage="2"] .ps-opening::after{background-color:rgba(185,170,135,.09)}
+.ps-topbar,.ps-main{position:relative;z-index:2}
+.ps-stage-images{
+  transform:translate3d(0,calc(var(--pl-direction,1) * var(--pl-flow,0) * -5px),0);
+  transition:transform .72s cubic-bezier(.22,.72,.18,1);
+}
+.ps-image img{
+  filter:
+    saturate(calc(.96 + (var(--pl-flow,0) * .06)))
+    contrast(calc(.99 + (var(--pl-flow,0) * .025)));
+  transition:filter .5s ease;
+}
+@media(prefers-reduced-motion:reduce){
+  .ps-opening::after{
+    opacity:.3!important;
+    transform:none!important;
+  }
+  .ps-stage-images{
+    transform:none!important;
+  }
+}
