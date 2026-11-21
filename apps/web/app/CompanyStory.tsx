@@ -34,7 +34,7 @@ export function CompanyIntroduction({ privateReview = false, placement = "home" 
     <section className="cs-intro" id="about-plantupia" data-private-review={privateReview} aria-labelledby="cs-intro-title">
       <div className="cs-intro-copy">
         <p className="cs-kicker">{kicker}</p>
-        <h2 id="cs-intro-title">{title}</h2>
+        {about ? <h1 id="cs-intro-title">{title}</h1> : <h2 id="cs-intro-title">{title}</h2>}
         <p>{body}</p>
         <a className="cs-link" href={about ? "/studio" : "/about"}>{about ? "SEE THE DESIGN PROCESS" : "MEET PLANTUPIA"} <span aria-hidden="true">&#8599;</span></a>
       </div>
