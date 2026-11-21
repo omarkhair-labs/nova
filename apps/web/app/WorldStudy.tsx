@@ -79,7 +79,7 @@ const relations:Relation[]=[
 
 const chapters=[
  ["place","01","PLACE"],["alternatives","02","ALTERNATIVES"],["object","03","OBJECT"],
- ["project","04","RELATIONS"],["shop","05","SHOP"],["care","06","CARE"],
+ ["project","04","RELATIONS"],["shop","05","SHOP"],["system","06","SYSTEM"],
 ] as const;
 
 const asset=(name:string)=>"/api/private-arrival/"+name;
@@ -124,7 +124,7 @@ export default function WorldStudy(){
          <p>PRIVATE WORLD STUDY / SOURCE-LED</p>
          <h1 id="world-title">Space.<br/>Life.<br/><em>What continues.</em></h1>
        </div>
-       <div className="ws-threshold-note"><span>PLACE → LIVING MATERIAL → CARE → TIME</span></div>
+       <div className="ws-threshold-note"><span>SPATIAL DESIGN → LIVING MATERIAL → GREEN TECHNOLOGY</span></div>
        <a className="ws-enter" href="#place"><span>ENTER</span><i>↓</i></a>
      </section>
 
@@ -240,47 +240,73 @@ export default function WorldStudy(){
        </div>
      </section>
 
-     <section id="care" className="ws-chapter ws-care" aria-labelledby="care-title">
+     <section id="system" className="ws-chapter ws-system" aria-labelledby="system-title">
        <header className="ws-chapter-head ws-chapter-head-tight ws-head-dark">
-         <span>06 / CARE</span>
-         <h2 id="care-title">The world remembers<br/>what you touched.</h2>
-         <small>YOUR TRACE / SESSION ONLY / NO SAVED USER DATA</small>
+         <span>06 / SYSTEM</span>
+         <h2 id="system-title">A living space<br/>needs a system.</h2>
+         <small>PHYSICAL CARE + DIGITAL CONTINUITY / TWO EVIDENCE TYPES</small>
        </header>
 
-       <div className="ws-memory" aria-label="Your current world trace">
-         <figure>
-           <img src={asset(currentPlace.asset)} alt=""/>
-           <figcaption><span>PLACE / {lens.toUpperCase()}</span><strong>{currentPlace.label}</strong></figcaption>
+       <div className="ws-system-field">
+         <aside className="ws-system-lane ws-system-physical">
+           <div className="ws-system-lane-head"><span>PHYSICAL</span><strong>CARE PROGRAMME</strong></div>
+           <ol>
+             <li><span>01</span><strong>INSTALL</strong><small>selection + installation</small></li>
+             <li><span>02</span><strong>IRRIGATE</strong><small>smart irrigation</small></li>
+             <li><span>03</span><strong>RETURN</strong><small>scheduled maintenance</small></li>
+             <li><span>04</span><strong>PROTECT</strong><small>plant warranty</small></li>
+           </ol>
+           <p>Named in supplied Plantupia proposals. Exact terms stay project-specific.</p>
+         </aside>
+
+         <figure className="ws-system-core">
+           <img src={asset("sector-commercial-brand.webp")} alt="Plantupia commercial interior proposal study"/>
+           <div className="ws-system-axis" aria-hidden="true"><span>PLACE</span><i/><span>PLANT</span><i/><span>PERSON</span><i/><span>TIME</span></div>
+           <figcaption><span>GREEN TECHNOLOGY / CONTINUITY</span><strong>The system begins after the image.</strong></figcaption>
          </figure>
-         <i aria-hidden="true">→</i>
-         <figure>
-           <img src={asset(currentAlternative[0])} alt=""/>
-           <figcaption><span>ALTERNATIVE / {currentAlternative[1]}</span><strong>{currentAlternative[2]}</strong></figcaption>
-         </figure>
-         <i aria-hidden="true">→</i>
-         <figure>
-           <img src={asset(currentSpecimen[0])} alt=""/>
-           <figcaption><span>{currentSpecimen[1]}</span><strong>{currentSpecimen[2]}</strong></figcaption>
-         </figure>
+
+         <aside className="ws-system-lane ws-system-digital">
+           <div className="ws-system-lane-head"><span>DIGITAL</span><strong>LIVING RECORD</strong></div>
+           <ol>
+             <li><span>01</span><strong>HANDOVER</strong><small>authorized QR confirmation</small></li>
+             <li><span>02</span><strong>OWN</strong><small>My Plants</small></li>
+             <li><span>03</span><strong>PLAN</strong><small>Care Schedule</small></li>
+             <li><span>04</span><strong>REMEMBER</strong><small>Living History</small></li>
+           </ol>
+           <p>Current product direction. No live sensor feed, automated diagnosis or fabricated telemetry.</p>
+         </aside>
        </div>
 
-       <div className="ws-care-sequence">
-         <ol>
-           <li><span>01</span><strong>DESIGN</strong><i>place + living material</i></li>
-           <li><span>02</span><strong>INSTALL</strong><i>handover + ownership</i></li>
-           <li><span>03</span><strong>RETURN</strong><i>care + observation</i></li>
-           <li><span>04</span><strong>REMEMBER</strong><i>history + change</i></li>
-         </ol>
-         <figure>
-           <img src={asset("sector-commercial-brand.webp")} alt="Plantupia commercial interior proposal study"/>
-           <figcaption><span>CONTINUITY</span><strong>Space → life → care → time</strong></figcaption>
-         </figure>
+       <div className="ws-system-memory">
+         <div className="ws-system-memory-head"><span>YOUR TRACE / THIS SESSION</span><span>NOT SAVED</span></div>
+         <div className="ws-memory" aria-label="Your current world trace">
+           <figure>
+             <img src={asset(currentPlace.asset)} alt=""/>
+             <figcaption><span>PLACE / {lens.toUpperCase()}</span><strong>{currentPlace.label}</strong></figcaption>
+           </figure>
+           <i aria-hidden="true">→</i>
+           <figure>
+             <img src={asset(currentAlternative[0])} alt=""/>
+             <figcaption><span>ALTERNATIVE / {currentAlternative[1]}</span><strong>{currentAlternative[2]}</strong></figcaption>
+           </figure>
+           <i aria-hidden="true">→</i>
+           <figure>
+             <img src={asset(currentSpecimen[0])} alt=""/>
+             <figcaption><span>{currentSpecimen[1]}</span><strong>{currentSpecimen[2]}</strong></figcaption>
+           </figure>
+           <i className="ws-memory-to-system" aria-hidden="true">→</i>
+           <div className="ws-memory-record"><span>HANDOVER</span><strong>becomes a living record</strong></div>
+         </div>
+       </div>
+
+       <div className="ws-system-foot">
+         <span>DESIGN</span><i>→</i><span>INSTALL</span><i>→</i><span>HANDOVER</span><i>→</i><span>RETURN</span><i>→</i><span>REMEMBER</span>
        </div>
      </section>
 
      <section className="ws-end">
        <span>WORKING SYSTEM / PRIVATE STUDY</span>
-       <p>Not pages.<br/>A world with memory.</p>
+       <p>Spatial design.<br/>Living systems.</p>
        <div><a href="/">CURRENT EXPERIENCE</a><a href="/study/visual-direction">ARCHIVE INSTRUMENT ↗</a></div>
      </section>
    </main>
