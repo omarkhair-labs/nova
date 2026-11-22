@@ -22,7 +22,7 @@ const environments = [
 ] as const;
 type Mode = typeof modes[number]["id"];
 
-export default function ContactStudio({ available }: { available: boolean }) {
+export default function ContactStudio({ available, previewMode = true }: { available: boolean; previewMode?: boolean }) {
   const [mode, setMode] = useState<Mode>("project");
   const [environment, setEnvironment] = useState("");
   const [name, setName] = useState("");
@@ -125,7 +125,7 @@ export default function ContactStudio({ available }: { available: boolean }) {
           <nav aria-label="How can we help?" className="ct-modes">
             {modes.map(item=><button key={item.id} aria-pressed={mode===item.id} type="button" disabled={pending} onClick={() => {setMode(item.id);setFeedback("");setReference("");}}>{item.title}</button>)}
           </nav>
-          <p className="ct-mode-intro" aria-live="polite">{current.intro}</p>{!available&&<div className="ct-preview-note" role="note"><strong>Preview mode</strong><span>You can complete the brief and compose a message. Sending is disabled, so nothing will be submitted or stored.</span></div>}
+          <p className="ct-mode-intro" aria-live="polite">{current.intro}</p>{!available&&<div className="ct-preview-note" role="note"><strong>{previewMode ? "Preview mode" : "Online enquiries unavailable"}</strong><span>{previewMode ? "You can complete the brief and compose a message. Sending is disabled, so nothing will be submitted or stored." : "The website inbox is not accepting messages right now. Nothing entered here will be sent or stored."}</span></div>}
           <form className="ct-form" onSubmit={send}>
             <fieldset className="ct-fields" disabled={pending}>
               <label htmlFor="ct-name">Your name</label>
@@ -147,7 +147,7 @@ export default function ContactStudio({ available }: { available: boolean }) {
               <label htmlFor="ct-message">Your message</label>
               <textarea id="ct-message" disabled={pending} rows={7} required maxLength={2000} value={message} placeholder={current.placeholder} onChange={event=>update(setMessage,event.target.value)}/>
               <div hidden aria-hidden="true"><label htmlFor="ct-website">Leave this empty</label><input id="ct-website" tabIndex={-1} autoComplete="off" value={website} onChange={event => setWebsite(event.target.value)} /></div>
-              <div className="ct-action"><button type="submit" disabled={!available || pending || !!reference}>{pending ? "Sending…" : reference ? "Message received" : "Send your message"} <span aria-hidden="true">↗</span></button><p>{available ? "Your details and message will be saved in Plantupia’s private company inbox so the team can respond. Please do not include sensitive information." : "Website submissions are not enabled on this preview. Nothing is sent or stored."}</p></div>
+              <div className="ct-action"><button type="submit" disabled={!available || pending || !!reference}>{pending ? "Sending…" : reference ? "Message received" : "Send your message"} <span aria-hidden="true">↗</span></button><p>{available ? "Your details and message will be saved in Plantupia’s private company inbox so the team can respond. Please do not include sensitive information." : (previewMode ? "Website submissions are not enabled on this preview. Nothing is sent or stored." : "Online submissions are not available at the moment. Nothing is sent or stored.")}</p></div>
               <p role="status" className="ct-status">{feedback}</p>
               {reference && <p className="ct-status">Reference: {reference}</p>}
             </div>

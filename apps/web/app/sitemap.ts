@@ -1,3 +1,4 @@
+import { publicationApproved } from "./publication";
 import type { MetadataRoute } from "next";
 
 const routes = [
@@ -21,7 +22,7 @@ const routes = [
 ] as const;
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  if (process.env.VERCEL_ENV !== "production") return [];
+  if (!publicationApproved) return [];
   const productionHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || "plantupia-public-preview.vercel.app";
   const base = `https://${productionHost}`;
   return routes.map((path) => ({
