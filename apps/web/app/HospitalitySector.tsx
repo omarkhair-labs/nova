@@ -1,4 +1,5 @@
 import SiteIndex from "./SiteIndex";
+import { HospitalitySourceAlternatives } from "./ArchiveExpansion";
 import "./space-explorer.css";
 import "./hospitality-sector.css";
 
@@ -36,6 +37,8 @@ export default function HospitalitySector() {
           </div>
         </article>)}
       </section>
+
+      <HospitalitySourceAlternatives />
 
       <section className="hs-process" aria-labelledby="hs-process-title">
         <div><p className="sx-kicker">FROM CONCEPT TO CARE</p><h2 id="hs-process-title">Four decisions, in order.</h2><p>The proposals show a repeatable logic without pretending every site follows one fixed recipe.</p></div>

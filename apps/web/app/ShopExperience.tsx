@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import SiteIndex from "./SiteIndex";
+import { MaterialSourceStudies } from "./ArchiveExpansion";
 import type { PublicCatalogResult, PublicCommerceSku } from "./shop/catalog";
 import { shopField } from "./visual-production-map";
 import "./shop-retail.css";
@@ -81,6 +82,7 @@ export default function ShopExperience({catalog,privateReview=false}:{catalog:Pu
         <article className="sr-finish-study" id="sr-finish-study"><div className="sr-finish-copy"><p className="sr-eyebrow">04 / PLANTER COLLECTIONS + CUSTOM FINISHES</p><h3>Finish is a<br/>specification.</h3><p>The catalogue describes fiberglass planters as configurable through colour, finish and custom sizing. That turns the vessel collection into an architectural specification layer rather than a row of generic pots.</p><ul><li><span>01</span>Fiberglass planter families</li><li><span>02</span>RAL colour selection</li><li><span>03</span>Custom sizing</li><li><span>04</span>Specified to the interior</li></ul></div><figure><img src={"/api/private-arrival/"+shopField[6].asset} alt="Fiberglass planter collection catalogue study" loading="lazy"/><figcaption><span>VESSELS / SOURCE STUDY</span><strong>{shopField[6].label}</strong><small>{shopField[6].meta}</small></figcaption></figure></article>
         <footer className="sr-library-footer"><span>CATALOGUE STUDIES / NOT LIVE SKU PHOTOGRAPHY</span><p>Private review language only. Product availability, exact finish options and commercial terms remain governed by the live catalogue and confirmed project quotation.</p><a href="#shop-collection">Continue to the live catalogue &#8595;</a></footer>
       </section>}
+      {privateReview&&<MaterialSourceStudies />}
       <section className="sr-service"><div><p className="sr-eyebrow">MORE THAN A SINGLE PLANT</p><h2>Planning a whole space?</h2><p>For homes, hospitality and commercial interiors, move from individual objects to a designed planting system.</p></div><a className="sr-primary" href="/spaces">Explore spaces ↗</a><a className="sr-text-link" href="/living-systems">Discover ongoing care ↗</a></section>
     </main>
     <footer className="sr-footer"><a href="/">Plantupia</a><a href="/start-a-space">Contact</a><span>Plants / Planters / Care</span></footer>

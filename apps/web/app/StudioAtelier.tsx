@@ -38,7 +38,7 @@ export default function StudioAtelier({privateReview=false}:{privateReview?:bool
   const manualUntil=useRef(0);
   const step=stages[active],photo=editorialSpaces[step.photo];
   const evidence = [
-    {src:"/api/private-arrival/world-spaces.webp",title:"Read the place",meta:"Pixels Mall / architectural study",caption:"Commercial proposal / p28",note:"Study architecture, circulation and existing spatial conditions before specifying planting."},
+    {src:"/api/private-arrival/archive-pixels-p20.webp",title:"Read the place",meta:"Pixels Mall / architectural threshold",caption:"Commercial proposal / p20",note:"Study architecture, circulation and existing spatial conditions before specifying planting."},
     {src:"/api/private-arrival/mazal-option-03.webp",title:"Compose alternatives",meta:"Mazal / option study",caption:"Facade proposal / option 03 / p5",note:"Use alternatives to test how different planting directions change the character of the same architecture."},
     {src:"/api/private-arrival/sector-hospitality-seating.webp",title:"Specify the object",meta:"EM Sherif / custom planter",caption:"Planting proposal / option E / p7",note:"Move from atmosphere to dimensions, vessel construction, planting choice and practical site coordination."},
     {src:"/api/private-arrival/sector-commercial-brand.webp",title:"Design the return",meta:"Audi Cairo / Living Interiors",caption:"Proposal / Framing the Brand / p14",note:"Plan for continuing care. The Audi proposal also defines selection, irrigation, maintenance and plant warranty as an ongoing programme."},

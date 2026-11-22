@@ -3,6 +3,7 @@
 import SiteIndex from "./SiteIndex";
 import ProjectLeadImage from "./ProjectLeadImage";
 import CaseTrail from "./CaseTrail";
+import { AudiAdditionalAngle } from "./ArchiveExpansion";
 import { audiChapters, audiPalette } from "./audi-case-data";
 import "./space-explorer.css";
 import "./audi-case.css";
@@ -16,6 +17,7 @@ function Chapter({ chapter, index }: { chapter: (typeof audiChapters)[number]; i
         loading="lazy"
       />
       <figcaption>PROPOSAL P{chapter.page} / DESIGN VISUALIZATION</figcaption>
+      <AudiAdditionalAngle chapter={chapter.id}/>
     </figure>
     <div className="au-chapter-copy">
       <span className="au-chapter-no">0{chapter.id}</span>

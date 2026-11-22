@@ -3,6 +3,7 @@
 import SiteIndex from "./SiteIndex";
 import ProjectLeadImage from "./ProjectLeadImage";
 import CaseTrail from "./CaseTrail";
+import { PixelsArchiveExpansion } from "./ArchiveExpansion";
 import { pixelsPrinciples, pixelsSequence } from "./pixels-case-data";
 import "./space-explorer.css";
 import "./pixels-case.css";
@@ -71,6 +72,8 @@ export default function PixelsCaseStudy() {
       <section className="px-sequence px-sequence--continuation" aria-label="Pixels Mall proposal sequence continued">
         {pixelsSequence.slice(2).map((frame, index) => <SequenceFrame key={frame.id} frame={frame} index={index + 2} />)}
       </section>
+
+      <PixelsArchiveExpansion />
 
       <section className="px-system" aria-labelledby="px-system-title">
         <div>
