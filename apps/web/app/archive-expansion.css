@@ -78,3 +78,22 @@
  .ax-material-figure:nth-child(4) img{max-height:240px}
 }
 @media(prefers-reduced-motion:reduce){.ax-two-views-image>img,.ax-hospitality-visual>img{transition:none}}
+
+/* Pixels motion / HOLD -> RECEIVE -> SETTLE. The p08 photo is always a
+   fully opaque, visually registered backing. Only the incoming p11 layer
+   changes opacity, in either direction. No empty midway state. */
+.ax-two-views-image>img.ax-pixels-base{
+  opacity:1;
+  z-index:0;
+  transition:none;
+}
+.ax-two-views-image>img.ax-pixels-reveal{
+  z-index:1;
+  opacity:0;
+  transition:opacity .56s cubic-bezier(.22,.72,.18,1);
+}
+.ax-two-views-image>img.ax-pixels-reveal.is-current{opacity:1}
+.ax-two-views-image>.ax-image-count{z-index:2}
+@media(prefers-reduced-motion:reduce){
+  .ax-two-views-image>img.ax-pixels-reveal{transition:none}
+}

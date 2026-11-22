@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import "./archive-expansion.css";
 
 const asset=(file:string)=>"/api/private-arrival/"+file;
@@ -21,16 +21,35 @@ const pixelPairs=[
 ] as const;
 
 export function PixelsArchiveExpansion(){
-  const [active,setActive]=useState(0);
+  const [active,setActive]=useState<0|1>(0);
+  const images=useRef<(HTMLImageElement|null)[]>([null,null]);
+  const request=useRef(0);
   const choices=[
     {file:"archive-pixels-p08.webp",name:"Planted foreground",page:8},
     {file:"archive-pixels-p11.webp",name:"Flowering tree",page:11}
   ] as const;
+
+  // A fixed, fully opaque p08 image always anchors the comparison. Only p11
+  // receives opacity, so there is never a double-fade to the blank backing.
+  // Decode before switching; the last request wins if people tap rapidly.
+  function choose(next:0|1){
+    const ticket=++request.current;
+    if(next===active)return;
+    const img=images.current[next];
+    if(!img)return;
+    if(img.complete&&img.naturalWidth>0){setActive(next);return;}
+    img.loading="eager";
+    void img.decode().then(()=>{
+      if(ticket===request.current)setActive(next);
+    }).catch(()=>{
+      // Keep the previous, known-good frame if the next source fails to load.
+    });
+  }
   return <section className="ax-pixels" aria-labelledby="ax-pixels-title">
     <div className="ax-head"><p className="ax-mark">PIXELS MALL / FURTHER SOURCE STUDIES</p><h2 id="ax-pixels-title">The place stays.<br/><em>The planting changes.</em></h2><p>More images from the same architectural proposal. These are alternative visual treatments and additional viewpoints, not eight separate completed projects.</p></div>
     <div className="ax-two-views">
       <div className="ax-two-views-image" aria-live="off">
-        {choices.map((choice,i)=><img key={choice.file} src={asset(choice.file)} alt={i===active?"Pixels Mall proposed commercial promenade, "+choice.name:""} aria-hidden={i!==active} className={i===active?"is-current":""} loading="lazy" decoding="async"/>)}
+        {choices.map((choice,i)=><img key={choice.file} ref={node=>{images.current[i]=node;}} src={asset(choice.file)} alt={i===active?"Pixels Mall proposed commercial promenade, "+choice.name:""} aria-hidden={i!==active} className={"ax-pixels-"+(i===0?"base":"reveal")+(i===active?" is-current":"")} loading="lazy" decoding="async"/>)}
         <span className="ax-image-count">01 / THE SAME APPROACH</span>
       </div>
       <div className="ax-two-views-reading">
@@ -38,7 +57,7 @@ export function PixelsArchiveExpansion(){
         <h3>One promenade.<br/>Two planting languages.</h3>
         <p>Compare the presence of foliage in the foreground with the additional flowering tree. Neither image documents an approved final choice.</p>
         <div className="ax-options" role="group" aria-label="Compare Pixels Mall proposal versions">
-          {choices.map((choice,i)=><button key={choice.file} type="button" aria-pressed={i===active} onClick={()=>setActive(i)}><span>0{i+1}</span>{choice.name}</button>)}
+          {choices.map((choice,i)=><button key={choice.file} type="button" aria-pressed={i===active} onClick={()=>choose(i as 0|1)}><span>0{i+1}</span>{choice.name}</button>)}
         </div>
         <small>PIXELS MALL / SOURCE PAGE {choices[active].page} / PROPOSAL VISUAL</small>
       </div>
