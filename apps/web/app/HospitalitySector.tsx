@@ -46,6 +46,6 @@ export default function HospitalitySector() {
 
       <section className="hs-contact"><p className="sx-kicker">YOUR HOSPITALITY SPACE</p><h2>Start with the guest journey.</h2><a className="sx-underlink" href="/start-a-space?space=gather">Discuss a hospitality project &#8599;</a></section>
     </main>
-    <footer className="sx-footer"><a href="/spaces">Explore spaces</a><span>Plantupia / Design preview</span><a href="/studio">The Studio &#8599;</a></footer>
+    <footer className="sx-footer"><a href="/spaces">Explore spaces</a><span>Plantupia / Living spaces</span><a href="/studio">The Studio &#8599;</a></footer>
   </div>;
 }

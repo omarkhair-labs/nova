@@ -104,7 +104,7 @@ export default function SceneStudy({ privateReview = false }: { privateReview?: 
     <a href="#ps-main" className="ps-skip">Skip to experience</a>
     <section className="ps-opening" aria-labelledby="ps-title">
       <div className="ps-stage-images" role="img" aria-label={failed.includes(stage)?"Generated architectural concept illustration":scene.alt}>
-        {scenes.map((item,i)=><div key={item.label} className={"ps-image"+(i===stage?" ps-current":"")} aria-hidden="true"><img src={failed.includes(i)?item.fallback:item.visual} alt="" loading={i===0?"eager":"lazy"} fetchPriority={i===0?"high":"auto"} onError={()=>setFailed(old=>old.includes(i)?old:[...old,i])}/></div>)}
+        {scenes.map((item,i)=><div key={item.label} className={"ps-image"+(i===stage?" ps-current":"")} aria-hidden="true"><img src={failed.includes(i)?item.fallback:item.visual} alt="" loading="eager" decoding="async" fetchPriority={i===0?"high":"auto"} onError={()=>setFailed(old=>old.includes(i)?old:[...old,i])}/></div>)}
         <div className="ps-grading" aria-hidden="true"/>
       </div>
       <header className="ps-topbar"><a href="/" className="ps-brand" aria-label="Plantupia home">◕ Plantupia</a><SiteIndex current="experience" tone="dark"/><a className="ps-contact" href="/start-a-space">Get in touch ↗</a></header>

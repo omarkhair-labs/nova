@@ -11,7 +11,7 @@ export const homeField = [
 
 export const shopField = [
  {asset:"shop-outdoor-greenery.webp",label:"Outdoor greenery",meta:"Hospitality catalogue / p7",role:"SPACE"},
- {asset:"shop-office-greenery.webp",label:"Executive office greenery",meta:"Hospitality catalogue / p17",role:"SPACE"},
+ {asset:"shop-office-greenery.webp",label:"Café frontage planting",meta:"Hospitality catalogue / p17",role:"SPACE"},
  {asset:"shop-indoor-greenery.webp",label:"Indoor greenery",meta:"Hospitality catalogue / p20",role:"SPACE"},
  {asset:"shop-augusta-wide.webp",label:"Augusta planter / setting",meta:"Hospitality catalogue / p27",role:"OBJECT"},
  {asset:"shop-augusta-object.webp",label:"Augusta planter / object",meta:"Hospitality catalogue / p27",role:"OBJECT"},

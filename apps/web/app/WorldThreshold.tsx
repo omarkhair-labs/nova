@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { editorialSpaces } from "./space-contexts";
 import "./world-threshold.css";
 import { privateWorldStudies } from "./world-private-studies";
@@ -58,7 +59,7 @@ export default function WorldThreshold({ privateReview = false }: { privateRevie
       <div className="wt-gallery">
         <nav className="wt-choices" aria-label="Explore Plantupia chapters">
           {chapters.map((chapter, i) => (
-            <a key={chapter.href} href={chapter.href} aria-label={"Enter " + chapter.name}
+            <Link key={chapter.href} href={chapter.href} aria-label={"Enter " + chapter.name}
               data-chapter-target={chapter.href} data-preview-active={active === i}
               className="wt-choice"
               onPointerEnter={event => { if (event.pointerType === "mouse") setActive(i); }}
@@ -69,7 +70,7 @@ export default function WorldThreshold({ privateReview = false }: { privateRevie
                 <img src={imageFor(chapter, i)} alt="" loading="lazy" onError={() => onPhotoError(i)} />
               </span>
               <span className="wt-arrow" aria-hidden="true">↗</span>
-            </a>
+            </Link>
           ))}
         </nav>
         <figure className="wt-picture">
@@ -88,7 +89,7 @@ export default function WorldThreshold({ privateReview = false }: { privateRevie
         </figure>
       </div>
       <p className="wt-mobile-credit">{privateReview ? "Supplied design proposals: Pixels Mall p28, EM Sherif p4 and El Hallab p3. Not verified installations." : "Editorial references or generated concept fallbacks. Not completed Plantupia projects."}</p>
-      <div className="wt-end"><span>PLACE — DESIGN — CONTINUITY</span><a href="/about">Meet Plantupia ↗</a></div>
+      <div className="wt-end"><span>PLACE — DESIGN — CONTINUITY</span><Link href="/about">Meet Plantupia ↗</Link></div>
     </section>
   );
 }

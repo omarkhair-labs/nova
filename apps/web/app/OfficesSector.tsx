@@ -46,6 +46,6 @@ export default function OfficesSector(){
 
       <section className="of-service"><p className="sx-kicker">FROM DESIGN TO CARE</p><h2>Designed. Supplied. Installed. Maintained.</h2><p>The catalogue describes this service chain across corporate, hospitality and commercial environments. The exact maintenance scope and responsibilities are agreed per site.</p></section>
     </main>
-    <footer className="sx-footer"><a href="/spaces">Explore spaces</a><span>Plantupia / Design preview</span><a href="/studio">The Studio &#8599;</a></footer>
+    <footer className="sx-footer"><a href="/spaces">Explore spaces</a><span>Plantupia / Living spaces</span><a href="/studio">The Studio &#8599;</a></footer>
   </div>;
 }

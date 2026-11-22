@@ -155,7 +155,7 @@ export default function ContactStudio({ available, previewMode = true }: { avail
         </section>
         <section className="ct-end"><span>NOT SURE WHERE TO BEGIN?</span><a href="/spaces">See the space types ↗</a></section>
       </main>
-      <footer className="ct-footer"><a href="/">Plantupia</a><span>Living architecture / Design preview</span><a href="/about">About us ↗</a></footer>
+      <footer className="ct-footer"><a href="/">Plantupia</a><span>Design / Planting / Continuing care</span><a href="/about">About us ↗</a></footer>
     </div>
   );
 }

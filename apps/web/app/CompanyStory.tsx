@@ -30,11 +30,12 @@ export function CompanyIntroduction({ privateReview = false, placement = "home" 
   const body = about
     ? "Plantupia is a green technology and biophilic integration company. We work across design, planting, installation and continuing care for hospitality, commercial destinations and workplaces."
     : "Plantupia works between architecture and living material: reading the place, designing the planting, introducing it into the site and planning for the care that follows.";
+  const Heading = about ? "h1" : "h2";
   return (
     <section className="cs-intro" id="about-plantupia" data-private-review={privateReview} aria-labelledby="cs-intro-title">
       <div className="cs-intro-copy">
         <p className="cs-kicker">{kicker}</p>
-        <h2 id="cs-intro-title">{title}</h2>
+        <Heading id="cs-intro-title">{title}</Heading>
         <p>{body}</p>
         <a className="cs-link" href={about ? "/studio" : "/about"}>{about ? "SEE THE DESIGN PROCESS" : "MEET PLANTUPIA"} <span aria-hidden="true">&#8599;</span></a>
       </div>
@@ -72,7 +73,7 @@ export default function CompanyStory({ privateReview = false }: { privateReview?
           <a className="cs-link" href="/start-a-space">GET IN TOUCH ↗</a>
         </section>
       </main>
-      <footer className="cs-footer"><a href="/">PLANTUPIA / HOME</a><a href="/living-systems">LIVING SYSTEMS ↗</a><span>DESIGN PREVIEW / 2026</span></footer>
+      <footer className="cs-footer"><a href="/">PLANTUPIA / HOME</a><a href="/living-systems">LIVING SYSTEMS ↗</a><span>PLANTUPIA / GREEN TECHNOLOGY</span></footer>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { editorialSpaces } from "./space-contexts";
+import Link from "next/link";
 import "./site-index.css";
 
 export type SiteSection = "experience" | "spaces" | "studio" | "systems" | "about" | "contact";
@@ -65,9 +66,9 @@ export default function SiteIndex({ current, tone = "light" }: { current: SiteSe
 
   return (
     <div className={"si-root si-tone-" + tone}>
-      <a className="si-shop-entry" href={current === "shop" ? "#shop-collection" : "/shop"} aria-current={current === "shop" ? "page" : undefined}>
+      <Link className="si-shop-entry" href={current === "shop" ? "#shop-collection" : "/shop"} aria-current={current === "shop" ? "page" : undefined}>
         <span>SHOP</span><i aria-hidden="true">↗</i>
-      </a>
+      </Link>
       <button type="button" className="si-trigger" ref={trigger} aria-haspopup="dialog"
         aria-expanded={open} aria-label="Open Plantupia world index" onClick={reveal}>
         <span aria-hidden="true" className="si-plus"/>
@@ -81,10 +82,10 @@ export default function SiteIndex({ current, tone = "light" }: { current: SiteSe
             <span>CLOSE</span><i aria-hidden="true"/>
           </button>
         </div>
-        <a className="si-mobile-shop" href="/shop" onClick={dismiss}>
+        <Link className="si-mobile-shop" href="/shop" onClick={dismiss}>
           <span><small>SHOP / COLLECTION</small><strong>Objects for living.</strong></span>
           <i aria-hidden="true">↗</i>
-        </a>
+        </Link>
         <div className="si-body">
           <figure className="si-atlas" aria-label="Editorial chapter preview">
             <div className="si-atlas-frame">
@@ -99,7 +100,7 @@ export default function SiteIndex({ current, tone = "light" }: { current: SiteSe
             <div className="si-reading-head"><span>THE CHAPTERS</span><span>{currentIndex>=0?"YOU ARE IN / "+siteSections[currentIndex].number:"CHOOSE A CHAPTER"}</span></div>
             <nav aria-label="Explore the website" className="si-links" onPointerLeave={event=>{const focused=event.currentTarget.querySelector<HTMLAnchorElement>("a:focus"); const focusedIndex=siteSections.findIndex(section=>section.href===focused?.getAttribute("href"));setPreview(focusedIndex>=0?focusedIndex:initial);}}>
               {siteSections.map((entry,index) => (
-                <a key={entry.id} href={entry.href}
+                <Link key={entry.id} href={entry.href}
                   className={(entry.id===current?"si-active ":"")+(preview===index?"si-preview":"")}
                   aria-current={entry.id === current ? "page" : undefined}
                   onPointerEnter={event=>{if(event.pointerType==="mouse"||event.pointerType==="pen")setPreview(index);}}
@@ -108,15 +109,15 @@ export default function SiteIndex({ current, tone = "light" }: { current: SiteSe
                   <span className="si-number">{entry.number}</span>
                   <span className="si-link-text"><strong>{entry.name}</strong><small>{entry.line}</small></span>
                   <span className="si-link-arrow" aria-hidden="true">↗</span>
-                </a>
+                </Link>
               ))}
             </nav>
           </div>
         </div>
         <div className="si-foot">
           <span>SPACE / DESIGN / TIME / PEOPLE</span>
-          <span className="si-global-paths"><a className="si-sidepath" href="/spaces/projects" onClick={dismiss}>CASE STUDIES / 06 &#8599;</a><a className="si-sidepath" href="/shop" onClick={dismiss}>SHOP / COLLECTION &#8599;</a></span>
-          <span>DESIGN STUDY · NOT THE OFFICIAL LIVE SITE</span>
+          <span className="si-global-paths"><Link className="si-sidepath" href="/spaces/projects" onClick={dismiss}>CASE STUDIES / 06 &#8599;</Link><Link className="si-sidepath" href="/shop" onClick={dismiss}>SHOP / COLLECTION &#8599;</Link></span>
+          <span>DESIGN / PLANTING / CONTINUING CARE</span>
         </div>
       </dialog>
     </div>

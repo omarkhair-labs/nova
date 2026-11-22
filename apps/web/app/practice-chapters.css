@@ -137,3 +137,8 @@
 @media(max-width:900px){.lc-care-programme{grid-template-columns:1fr;gap:22px}}
 
 .pc-studio-source{margin:0;background:#dfe6da}.pc-studio-source img{display:block;width:100%;height:min(64svh,640px);object-fit:cover}.pc-studio-source figcaption{padding:10px 12px;font-size:10px;line-height:1.5;color:#526258;border-top:1px solid #b2c1b1}@media(max-width:900px){.pc-studio-source img{height:min(42svh,430px)}}
+
+.pc-next-links{display:flex;gap:clamp(14px,3vw,35px);flex-wrap:wrap;align-items:center}
+.pc-next-links a{color:inherit;text-decoration:none;font-size:14px;padding:10px 0;border-bottom:1px solid currentColor}
+.pc-next-links a:focus-visible{outline:2px solid #e4eaca;outline-offset:3px}
+@media(max-width:700px){.pc-next-links{width:100%}}

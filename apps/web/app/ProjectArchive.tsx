@@ -45,6 +45,6 @@ export default function ProjectArchive(){
     <div><p>The reviewed catalogue supports workplace planting, custom vessels and maintenance, but no named office commission is included in this archive. The sector page therefore uses catalogue evidence rather than presenting a fictional case study.</p><a href="/spaces/offices" className="sx-underlink">Explore offices &amp; HQs &#8599;</a></div>
    </section>
   </main>
-  <footer className="sx-footer"><a href="/spaces">Explore spaces</a><span>Plantupia / Design preview</span><a href="/studio">The Studio &#8599;</a></footer>
+  <footer className="sx-footer"><a href="/spaces">Explore spaces</a><span>Plantupia / Living spaces</span><a href="/studio">The Studio &#8599;</a></footer>
  </div>;
 }

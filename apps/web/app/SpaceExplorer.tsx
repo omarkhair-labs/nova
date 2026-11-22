@@ -50,6 +50,7 @@ export default function SpaceExplorer({ privateReview = false }: { privateReview
       <main id="sx-main">
         <section className="sx-exhibit" aria-label="Explore living environments">
           <div className="sx-intro"><div><p className="sx-kicker">02 / SPACES</p><h1>Every space <em>has its own life.</em></h1></div><p>{privateReview ? "Hospitality, commercial destinations and workplaces are the current business focus. Other environments remain part of the practice." : "From a quiet home to the scale of a factory. Nature can belong wherever people build."}</p></div>
+          <div className="sx-first-scene">
           <div className="sx-environment-index" data-commercial-focus={privateReview}>
             {privateReview && <p className="sx-index-label">PRIMARY SECTORS</p>}
             <div className="sx-picker" role="group" aria-label={privateReview ? "Primary commercial sectors" : "Choose an environment"}>
@@ -76,9 +77,10 @@ export default function SpaceExplorer({ privateReview = false }: { privateReview
             <div className="sx-progress"><span>{String(position+1).padStart(2,"0")} / 06</span><div aria-hidden="true"><i style={{width:((position+1)/spaces.length*100)+"%"}}/></div></div>
             <div className="sx-arrows"><button type="button" aria-label="Previous environment" onClick={()=>move(-1)}>←</button><button type="button" aria-label="Next environment" onClick={()=>move(1)}>→</button></div>
           </div>
+          </div>
           <div key={space.id} className="sx-reading" aria-live="polite">
             <div><p className="sx-kicker">{space.type}</p><h2>{space.headline}</h2></div>
-            <div><p>{privateReview && active === 4 ? "For developers, malls and showrooms, planting can become part of the architecture and visitor journey. The Pixels Mall proposal combines signature trees, layered landscapes, distinct experiential zones, custom planters and low-maintenance greenery." : space.text}</p><a className="sx-underlink" href={"/start-a-space?space="+keys[active]}>Discuss a space like this ↗</a></div>
+            <div><p>{privateReview && active === 4 ? "For developers, malls and showrooms, planting can become part of the architecture and visitor journey. The Pixels Mall proposal combines signature trees, layered landscapes, distinct experiential zones, custom planters and low-maintenance greenery." : space.text}</p><div className="sx-reading-paths"><a className="sx-underlink" href={"/start-a-space?space="+keys[active]}>Discuss a space like this ↗</a><a className="sx-underlink sx-reading-material" href="/shop">Explore plants & vessels ↗</a></div></div>
           </div>
           {privateReview && active === 2 && <p className="hs-sector-link"><a className="sx-underlink" href="/spaces/hospitality">Explore the hospitality sector ↗</a></p>}
           {privateReview && active === 1 && <p className="of-sector-link"><a className="sx-underlink" href="/spaces/offices">Explore offices &amp; HQs &#8599;</a></p>}
@@ -112,7 +114,7 @@ export default function SpaceExplorer({ privateReview = false }: { privateReview
           </section>
         </section>
       </main>
-      <footer className="sx-footer"><a href="/">Plantupia</a><span>Living architecture / Design preview</span><a href="/start-a-space">Contact ↗</a></footer>
+      <footer className="sx-footer"><a href="/">Plantupia</a><span>Design / Planting / Continuing care</span><a href="/start-a-space">Contact ↗</a></footer>
     </div>
   );
 }

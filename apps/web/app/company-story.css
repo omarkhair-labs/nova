@@ -6,8 +6,8 @@
 .cs-intro{display:grid;grid-template-columns:1.05fr .95fr;background:#eef0e7;color:#20362a;min-height:650px}
 .cs-intro-copy{padding:clamp(48px,8vw,130px) clamp(24px,6vw,105px);align-self:center}
 .cs-kicker{font:600 10px/1.5 Consolas,monospace;letter-spacing:.14em}
-.cs-intro h2,.cs-practice h2,.cs-work h2{font:400 clamp(48px,6vw,106px)/.98 Georgia,serif;letter-spacing:-.065em;margin:30px 0}
-.cs-intro h2 em,.cs-work h2 em{color:#65816a;font-weight:400}
+.cs-intro :is(h1,h2),.cs-practice h2,.cs-work h2{font:400 clamp(48px,6vw,106px)/.98 Georgia,serif;letter-spacing:-.065em;margin:30px 0}
+.cs-intro :is(h1,h2) em,.cs-work h2 em{color:#65816a;font-weight:400}
 .cs-intro-copy>p:not(.cs-kicker),.cs-empty{font:400 16px/1.8 Arial,sans-serif;max-width:620px}
 .cs-link{display:inline-flex;align-items:center;gap:15px;font:600 11px/1.5 Arial,sans-serif;letter-spacing:.1em;text-decoration:none!important;color:inherit!important;border-bottom:1px solid currentColor;padding:12px 0;margin-top:22px}
 .cs-link:hover{opacity:.75}

@@ -235,3 +235,22 @@
 
 /* Keep cinematic scene transforms inside their stage without creating document-level horizontal scroll. */
 .ps-opening{overflow-x:clip}
+
+
+/* Faster material handoff: keep spatial continuity without a heavy
+   full-screen clip-path animation or multiple long scaling transitions.
+   The earlier slow reveal remains a documented experiment, not live UX. */
+.ps-opening .ps-image{
+  opacity:0;
+  clip-path:none;
+  transform:scale(1.012);
+  will-change:auto;
+  transition:opacity .48s cubic-bezier(.24,.67,.22,1),transform .7s cubic-bezier(.2,.75,.2,1);
+}
+.ps-opening .ps-image.ps-current{opacity:1;clip-path:none;transform:scale(1)}
+.ps-opening .ps-stage-images{transform:none;transition:none}
+.ps-opening .ps-image img{transition:none}
+.ps-scene-caption{animation-duration:.26s}
+@media(prefers-reduced-motion:reduce){
+ .ps-opening .ps-image,.ps-opening .ps-image.ps-current{transition:none;transform:none}
+}

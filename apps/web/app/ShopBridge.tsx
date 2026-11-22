@@ -1,3 +1,4 @@
+import Link from "next/link";
 import "./shop-experience.css";
 import "./shop-bridge-photo.css";
 
@@ -10,7 +11,7 @@ export default function ShopBridge({ privateReview = false }: { privateReview?: 
           <p className="sh-micro">ANOTHER WAY IN / PLANTUPIA OBJECTS</p>
           <h2 id="shop-bridge-title">What stays<br/><em>with you.</em></h2>
           <p>Some projects begin with a whole space. Others begin with one plant, one vessel, or the care that keeps it alive.</p>
-          <a href="/shop">Explore the edited collection <span aria-hidden="true">↗</span></a>
+          <Link href="/shop">Explore plants & vessels <span aria-hidden="true">↗</span></Link>
         </div>
         {privateReview ? <figure className="sh-bridge-figure sh-bridge-catalogue"><img src="/api/private-arrival/shop-bridge.webp" alt="Two dark sculptural planters with full green Philodendron Xanadu foliage, from the Plantupia hospitality catalogue" loading="lazy"/><figcaption>PHILODENDRON XANADU / HOSPITALITY COLLECTION / CATALOGUE ILLUSTRATION</figcaption></figure> : <div className="sh-bridge-figure" aria-label="An abstract editorial composition, not an offered product image">
           <span>FIELD NOTE / PRODUCT &amp; PLACE</span>

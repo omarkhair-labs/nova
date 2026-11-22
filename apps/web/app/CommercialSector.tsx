@@ -30,6 +30,6 @@ export default function CommercialSector(){
       </section>
       <section className="cm-care" aria-labelledby="cm-care-title"><div><p className="sx-kicker">TECHNOLOGY & CARE</p><h2 id="cm-care-title">Designed for what follows.</h2><p>The Audi proposal sets out a care programme. Exact specifications, service intervals and warranty terms are agreed for each project.</p></div><ol>{care.map((item,i)=><li key={item}><span>0{i+1}</span>{item}</li>)}</ol></section>
       <section className="cm-contact"><p className="sx-kicker">YOUR COMMERCIAL DESTINATION</p><h2>Begin with the architecture.</h2><a className="sx-underlink" href="/start-a-space?space=retail">Discuss your commercial project &#8599;</a></section>
-    </main><footer className="sx-footer"><a href="/spaces">Explore spaces</a><span>Plantupia / Design preview</span><a href="/studio">The Studio &#8599;</a></footer>
+    </main><footer className="sx-footer"><a href="/spaces">Explore spaces</a><span>Plantupia / Living spaces</span><a href="/studio">The Studio &#8599;</a></footer>
   </div>;
 }
