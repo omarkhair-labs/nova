@@ -16,6 +16,7 @@ function FacadeOption({item}:{item:typeof mazalOptions[number]}){
 
 export default function MazalCaseStudy(){
  const[left,setLeft]=useState(1);const[right,setRight]=useState(7);
+ const [reveal,setReveal]=useState(50);
  const a=mazalOptions.find(o=>o.id===left)!;const b=mazalOptions.find(o=>o.id===right)!;
  return <div className="sx-page mz-page">
   <a className="sx-skip" href="#mz-main">Skip to Mazal study</a>
@@ -31,7 +32,24 @@ export default function MazalCaseStudy(){
 
    <section className="mz-compare" aria-labelledby="mz-compare-title"><div className="mz-section-head"><div><p className="sx-kicker">COMPARE / TWO DIRECTIONS</p><h2 id="mz-compare-title">Change the planting.<br/>Change the welcome.</h2></div><p>After seeing the full wall, isolate any two directions. This comparison changes only the proposal planting and adds no performance ranking.</p></div>
     <div className="mz-compare-controls"><label>Left<select value={left} onChange={e=>setLeft(Number(e.target.value))}>{mazalOptions.map(o=><option key={o.id} value={o.id}>0{o.id} / {o.name}</option>)}</select></label><button type="button" onClick={()=>{setLeft(right);setRight(left)}} aria-label="Swap comparison options">&#8646;</button><label>Right<select value={right} onChange={e=>setRight(Number(e.target.value))}>{mazalOptions.map(o=><option key={o.id} value={o.id}>0{o.id} / {o.name}</option>)}</select></label></div>
-    <div className="mz-compare-grid"><Comparison item={a}/><Comparison item={b}/></div>
+    <div className="mz-registered-study">
+     <div className="mz-registered-frame" role="group" aria-label={"Registered comparison: "+a.name+" and "+b.name}>
+      <img className="mz-registered-base" src={"/api/private-arrival/"+b.image} alt={"Right design proposal: "+b.name} />
+      <img className="mz-registered-overlay" src={"/api/private-arrival/"+a.image} alt={"Left design proposal: "+a.name} style={{clipPath:"inset(0 "+(100-reveal)+"% 0 0)"}} />
+      <span className="mz-registered-seam" aria-hidden="true" style={{left:reveal+"%"}}><i>↔</i></span>
+      <span className="mz-registered-tag mz-registered-tag-left">0{a.id} / {a.name}</span>
+      <span className="mz-registered-tag mz-registered-tag-right">0{b.id} / {b.name}</span>
+     </div>
+     <div className="mz-registered-controls">
+      <label htmlFor="mz-registered-range">MOVE BETWEEN PLANTING OPTIONS <strong>{reveal}%</strong></label>
+      <input id="mz-registered-range" type="range" min="0" max="100" step="1" value={reveal} onChange={event=>setReveal(Number(event.target.value))} aria-label="Reveal left planting option over right option" />
+      <span>ONE FACADE / TWO DESIGN PROPOSALS</span>
+     </div>
+     <div className="mz-registered-notes">
+      <article><span>LEFT / OPTION 0{a.id}</span><h3>{a.name}</h3><p>{a.description}</p></article>
+      <article><span>RIGHT / OPTION 0{b.id}</span><h3>{b.name}</h3><p>{b.description}</p></article>
+     </div>
+    </div>
    </section>
 
    <section className="mz-care" aria-labelledby="mz-care-title"><div><p className="sx-kicker">INCLUDED WITH EVERY OPTION / P13</p><h2 id="mz-care-title">Planted, watered,<br/>always in shape.</h2></div><ol><li><span>01</span>Supply &amp; installation</li><li><span>02</span>Smart irrigation</li><li><span>03</span>Scheduled maintenance</li><li><span>04</span>Plant warranty</li></ol></section>

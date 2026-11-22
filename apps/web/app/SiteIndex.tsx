@@ -88,7 +88,7 @@ export default function SiteIndex({ current, tone = "light" }: { current: SiteSe
         <div className="si-body">
           <figure className="si-atlas" aria-label="Editorial chapter preview">
             <div className="si-atlas-frame">
-              {open&&<img key={preview} className="si-atlas-photo" src={failed.includes(preview)?photo.fallback:"/api/private-arrival/"+study.asset} alt="" onError={()=>setFailed(prev=>prev.includes(preview)?prev:[...prev,preview])}/>}
+              <img key={preview} className="si-atlas-photo" src={failed.includes(preview)?photo.fallback:"/api/private-arrival/"+study.asset} alt="" fetchPriority="low" onError={()=>setFailed(prev=>prev.includes(preview)?prev:[...prev,preview])}/>
               <div className="si-atlas-veil"/>
               <div className="si-atlas-meta"><span>CHAPTER / {item.number}</span><span>{study.word}</span></div>
               <div className="si-atlas-copy" key={item.id}><span>{item.name}</span><p>{study.title}</p></div>

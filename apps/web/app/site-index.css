@@ -106,3 +106,32 @@
   .si-global-paths{width:100%;justify-content:flex-start}
   .si-global-paths .si-sidepath[href="/shop"]{display:none}
 }
+
+/* PLANTUPIA / restrained world index — living forest, plaster and archive photographs.
+   The original + stays the navigation instrument; reduce the full-screen saturated green. */
+.si-overlay{background:#e7e9df;color:#203b2d}
+.si-overlay::backdrop{background:#10281fbd}
+.si-top,.si-foot{color:#516b58}
+.si-top{border-bottom-color:#aab9a9}
+.si-top h2{color:#233c2b}
+.si-overlay .si-close{color:#25432f;border-color:#9eb1a0}
+.si-close:hover{background:#d3ddce}
+.si-reading-head{color:#597060}
+.si-links{border-top-color:#a7b8a5}
+.si-links>a{border-bottom-color:#acbcaa;color:#284333}
+.si-links>a.si-preview{background:#d2ddce;color:#183d2b}
+.si-links .si-active strong{color:#226244}
+.si-number{color:#5f8066}
+.si-links .si-active .si-number::after{background:#347755}
+.si-link-text small{color:#58725d}
+.si-link-arrow{color:#346e4b}
+.si-foot{border-top-color:#aab9a9}
+.si-foot .si-sidepath{color:#284a36;border-bottom-color:#a0b7a1}
+.si-foot .si-sidepath:hover{color:#132c1f}
+.si-mobile-shop{color:#1f422d}
+.si-mobile-shop small{color:#5b765e}
+.si-overlay :is(a,button):focus-visible{outline-color:#3a7650}
+@media(max-width:540px){
+ .si-mobile-shop{border-block-color:#a7b8a5}
+ .si-mobile-shop strong{color:#1d422d}
+}
