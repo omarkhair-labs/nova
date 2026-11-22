@@ -1,6 +1,8 @@
 "use client";
 
 import SiteIndex from "./SiteIndex";
+import ProjectLeadImage from "./ProjectLeadImage";
+import CaseTrail from "./CaseTrail";
 import { villaAreas, villaChoices } from "./villa-case-data";
 import "./space-explorer.css";
 import "./villa-case.css";
@@ -18,7 +20,7 @@ function AreaChapter({ area }: { area: (typeof villaAreas)[number] }) {
     <div className={"vl-visual-field vl-visual-field--" + choices.length}>
       {choices.map((choice, index) => <figure className="vl-option" key={choice.id}>
         <div className="vl-option-media">
-          <img src={"/api/private-arrival/" + choice.asset} alt={"Villa 7 " + choice.areaName + ", option " + choice.letter + ", " + choice.title} loading={area.id <= 2 && index === 0 ? "eager" : "lazy"} />
+          <img src={"/api/private-arrival/" + choice.asset} alt={"Villa 7 " + choice.areaName + ", option " + choice.letter + ", " + choice.title} loading="lazy" />
         </div>
         <figcaption>
           <span className="vl-option-letter">{choice.letter}</span>
@@ -62,7 +64,9 @@ export default function VillaCaseStudy() {
             <div><dt>Status</dt><dd>Design proposal / installation not verified</dd></div>
           </dl>
         </div>
-      </section>
+
+<ProjectLeadImage project="villa-7" />
+</section>
 
       <nav className="vl-area-index" aria-label="Villa 7 area index">
         <p className="sx-kicker">THE HOUSE / 01—10</p>
@@ -115,7 +119,8 @@ export default function VillaCaseStudy() {
         <h2>Shape a garden around the space.</h2>
         <a className="sx-underlink" href="/start-a-space?space=home">Discuss a residential space &#8599;</a>
       </section>
-    </main>
+    <CaseTrail current="villa-7" />
+</main>
 
     <footer className="sx-footer">
       <a href="/spaces/projects">Project archive</a>

@@ -1,6 +1,8 @@
 "use client";
 import {useState} from "react";
 import SiteIndex from "./SiteIndex";
+import ProjectLeadImage from "./ProjectLeadImage";
+import CaseTrail from "./CaseTrail";
 import {mazalOptions} from "./mazal-case-data";
 import "./space-explorer.css";
 import "./mazal-case.css";
@@ -23,7 +25,9 @@ export default function MazalCaseStudy(){
   <header className="sx-header"><a href="/" className="sx-brand">Plantupia</a><SiteIndex current="spaces"/><a className="sx-contact" href="/start-a-space?space=gather">Get in touch <span aria-hidden="true">&#8599;</span></a></header>
   <main id="mz-main" className="mz-main">
    <div className="mz-breadcrumb"><a className="sx-underlink" href="/spaces/projects">&#8592; Project archive</a><span>Hospitality / Facade planting / Proposal</span></div>
-   <section className="mz-hero" aria-labelledby="mz-title"><div><p className="sx-kicker">CASE STUDY 01 / MAZAL RESTAURANT</p><h1 id="mz-title">Nine ways<br/>to <em>welcome.</em></h1></div><div><p>One facade. Nine planting designs across three visual families. The proposal studies how the first impression can shift from lush tropical planting to a minimal architectural line.</p><dl><div><dt>Site</dt><dd>Ivory Business Park</dd></div><div><dt>Proposal</dt><dd>November 2026</dd></div><div><dt>Status</dt><dd>Design proposal / installation not verified</dd></div></dl></div></section>
+   <section className="mz-hero" aria-labelledby="mz-title"><div><p className="sx-kicker">CASE STUDY 01 / MAZAL RESTAURANT</p><h1 id="mz-title">Nine ways<br/>to <em>welcome.</em></h1></div><div><p>One facade. Nine planting designs across three visual families. The proposal studies how the first impression can shift from lush tropical planting to a minimal architectural line.</p><dl><div><dt>Site</dt><dd>Ivory Business Park</dd></div><div><dt>Proposal</dt><dd>November 2026</dd></div><div><dt>Status</dt><dd>Design proposal / installation not verified</dd></div></dl></div>
+<ProjectLeadImage project="mazal" />
+</section>
 
    <section className="mz-wall" aria-labelledby="mz-wall-title">
     <div className="mz-section-head"><div><p className="sx-kicker">THE FACADE / ALL NINE DIRECTIONS</p><h2 id="mz-wall-title">Same architecture.<br/>Nine presences.</h2></div><p>The facade stays fixed so the planting can be read as the variable. All nine proposal visuals are shown before any comparison controls.</p></div>
@@ -55,7 +59,8 @@ export default function MazalCaseStudy(){
    <section className="mz-care" aria-labelledby="mz-care-title"><div><p className="sx-kicker">INCLUDED WITH EVERY OPTION / P13</p><h2 id="mz-care-title">Planted, watered,<br/>always in shape.</h2></div><ol><li><span>01</span>Supply &amp; installation</li><li><span>02</span>Smart irrigation</li><li><span>03</span>Scheduled maintenance</li><li><span>04</span>Plant warranty</li></ol></section>
    <section className="mz-source-note"><span>VISUAL SOURCE NOTE</span><p>All nine images are proposal visualizations. They are presented as design directions, not completed Mazal installations or confirmed client selections.</p></section>
    <section className="mz-next"><p className="sx-kicker">NEXT STEP / P14</p><h2>Choose your facade.</h2><p>The source proposal asks the client to select an option before a detailed quotation is sent.</p><a className="sx-underlink" href="/start-a-space?space=gather">Discuss a hospitality project &#8599;</a></section>
-  </main><footer className="sx-footer"><a href="/spaces/projects">Project archive</a><span>Plantupia / Mazal proposal study</span><a href="/spaces/hospitality">Hospitality &#8599;</a></footer>
+  <CaseTrail current="mazal" />
+</main><footer className="sx-footer"><a href="/spaces/projects">Project archive</a><span>Plantupia / Mazal proposal study</span><a href="/spaces/hospitality">Hospitality &#8599;</a></footer>
  </div>
 }
 function Comparison({item}:{item:typeof mazalOptions[number]}){return <article className="mz-compare-item" data-compare-option={item.id}><figure><img src={"/api/private-arrival/"+item.image} alt={"Mazal comparison option "+item.id+", "+item.name}/><figcaption>0{item.id} / {item.family}</figcaption></figure><div><p className="sx-kicker">{item.mood}</p><h3>{item.name}</h3><p>{item.description}</p><ul>{item.plants.map(x=><li key={x}>{x}</li>)}</ul></div></article>}

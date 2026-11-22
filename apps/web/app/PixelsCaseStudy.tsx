@@ -1,6 +1,8 @@
 "use client";
 
 import SiteIndex from "./SiteIndex";
+import ProjectLeadImage from "./ProjectLeadImage";
+import CaseTrail from "./CaseTrail";
 import { pixelsPrinciples, pixelsSequence } from "./pixels-case-data";
 import "./space-explorer.css";
 import "./pixels-case.css";
@@ -8,7 +10,7 @@ import "./pixels-case.css";
 function SequenceFrame({ frame, index }: { frame: (typeof pixelsSequence)[number]; index: number }) {
   return <figure className={"px-frame px-frame--" + frame.tone + (index % 2 ? " px-frame--reverse" : "")}>
     <div className="px-frame-media">
-      <img src={"/api/private-arrival/" + frame.image} alt={"Pixels Mall proposal visualization, page " + frame.page} loading={index < 2 ? "eager" : "lazy"} />
+      <img src={"/api/private-arrival/" + frame.image} alt={"Pixels Mall proposal visualization, page " + frame.page} loading="lazy" />
     </div>
     <figcaption>
       <span className="px-frame-no">{frame.id}</span>
@@ -16,7 +18,6 @@ function SequenceFrame({ frame, index }: { frame: (typeof pixelsSequence)[number
         <p className="sx-kicker">PROPOSAL VISUAL / P{frame.page}</p>
         <h3>{frame.title}</h3>
         <p>{frame.note}</p>
-        <small>Descriptive visual reading — not a source chapter title.</small>
       </div>
     </figcaption>
   </figure>;
@@ -43,14 +44,16 @@ export default function PixelsCaseStudy() {
           <h1 id="px-title">A landscape<br/><em>through the building.</em></h1>
         </div>
         <div className="px-hero-copy">
-          <p>The proposal imagines planting as part of the commercial destination itself: arrival marker, circulation layer, terrace edge, facade material and interior atmosphere.</p>
+          <p>The proposal imagines planting as part of the commercial destination itself: arrival marker, circulation layer, terrace edge, facade material and interior atmosphere. The visual captions below are editorial readings of those proposal frames.</p>
           <dl>
             <div><dt>Context</dt><dd>High-end commercial destination</dd></div>
             <div><dt>Location</dt><dd>New Cairo</dd></div>
             <div><dt>Status</dt><dd>Design proposal / installation not verified</dd></div>
           </dl>
         </div>
-      </section>
+
+<ProjectLeadImage project="pixels-mall" />
+</section>
 
       <section className="px-sequence" aria-label="Pixels Mall proposal visual sequence">
         {pixelsSequence.slice(0, 2).map((frame, index) => <SequenceFrame key={frame.id} frame={frame} index={index} />)}
@@ -92,7 +95,8 @@ export default function PixelsCaseStudy() {
         <h2>Begin with the architecture.</h2>
         <a className="sx-underlink" href="/start-a-space?space=retail">Discuss a commercial project &#8599;</a>
       </section>
-    </main>
+    <CaseTrail current="pixels-mall" />
+</main>
 
     <footer className="sx-footer">
       <a href="/spaces/projects">Project archive</a>

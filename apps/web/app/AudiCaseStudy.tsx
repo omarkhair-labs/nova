@@ -1,6 +1,8 @@
 "use client";
 
 import SiteIndex from "./SiteIndex";
+import ProjectLeadImage from "./ProjectLeadImage";
+import CaseTrail from "./CaseTrail";
 import { audiChapters, audiPalette } from "./audi-case-data";
 import "./space-explorer.css";
 import "./audi-case.css";
@@ -11,7 +13,7 @@ function Chapter({ chapter, index }: { chapter: (typeof audiChapters)[number]; i
       <img
         src={"/api/private-arrival/" + chapter.image}
         alt={"Audi Cairo proposal, chapter " + chapter.id + ", " + chapter.name}
-        loading={index < 2 ? "eager" : "lazy"}
+        loading="lazy"
       />
       <figcaption>PROPOSAL P{chapter.page} / DESIGN VISUALIZATION</figcaption>
     </figure>
@@ -20,7 +22,7 @@ function Chapter({ chapter, index }: { chapter: (typeof audiChapters)[number]; i
       <div>
         <p className="sx-kicker">LIVING INTERIORS / CHAPTER 0{chapter.id}</p>
         <h3>{chapter.name}</h3>
-        <p>The chapter name comes directly from the proposal. The image remains presented as a design visualization, not as evidence of a completed installation.</p>
+        <p>{chapter.reading}</p>
       </div>
     </div>
   </article>;
@@ -54,7 +56,9 @@ export default function AudiCaseStudy() {
             <div><dt>Status</dt><dd>Design proposal / installation not verified</dd></div>
           </dl>
         </div>
-      </section>
+
+<ProjectLeadImage project="audi-cairo" />
+</section>
 
       <section className="au-sequence" aria-label="Audi Cairo proposal chapters">
         <header className="au-sequence-head">
@@ -98,7 +102,8 @@ export default function AudiCaseStudy() {
         <h2>Bring the showroom to life.</h2>
         <a className="sx-underlink" href="/start-a-space?space=retail">Discuss a commercial project &#8599;</a>
       </section>
-    </main>
+    <CaseTrail current="audi-cairo" />
+</main>
 
     <footer className="sx-footer">
       <a href="/spaces/projects">Project archive</a>
