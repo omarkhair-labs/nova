@@ -63,85 +63,39 @@ export default function SceneStudy({ privateReview = false }: { privateReview?: 
   const [stage,setStage]=useState<Stage>(0);
   const [failed,setFailed]=useState<number[]>([]);
   const rootRef=useRef<HTMLDivElement>(null);
+  // Follow the pointer only while Selected Work is visible. Scrolling must
+  // never replace or cover the content with a transient full-screen index.
   useEffect(()=>{
-    const root=rootRef.current;
-    if(!root) return;
+    const field=rootRef.current?.querySelector<HTMLElement>(".hvf");
+    if(!field) return;
     const reduced=window.matchMedia("(prefers-reduced-motion: reduce)");
-    const coarse=window.matchMedia("(pointer: coarse)");
-    let lastY=window.scrollY;
-    let lastT=performance.now();
+    const fine=window.matchMedia("(pointer: fine)");
+    let visible=false;
     let raf=0;
-    let exitTimer:number|undefined;
-
-    const writePointer=(event:PointerEvent)=>{
-      if(coarse.matches) return;
-      root.style.setProperty("--pl-px",(event.clientX/window.innerWidth*100).toFixed(2)+"%");
-      root.style.setProperty("--pl-py",(event.clientY/window.innerHeight*100).toFixed(2)+"%");
-    };
-
-    const settle=()=>{
-      root.dataset.rapid="false";
-      root.style.setProperty("--pl-flow","0");
-    };
-
-    const sample=()=>{
-      raf=0;
+    let lastUpdate=0;
+    let x="72%",y="38%";
+    const observer=new IntersectionObserver(([entry])=>{
+      visible=entry?.isIntersecting ?? false;
+    },{threshold:0});
+    observer.observe(field);
+    const follow=(event:PointerEvent)=>{
+      if(!visible||reduced.matches||!fine.matches) return;
       const now=performance.now();
-      const y=window.scrollY;
-      const dt=Math.max(16,now-lastT);
-      const velocity=(y-lastY)/(dt/1000);
-      const abs=Math.abs(velocity);
-      const flow=Math.min(1,abs/1800);
-      root.style.setProperty("--pl-flow",flow.toFixed(3));
-      root.style.setProperty("--pl-direction",velocity>=0?"1":"-1");
-      lastY=y;
-      lastT=now;
-
-      const eligible=!reduced.matches&&!coarse.matches&&window.innerWidth>=900;
-      if(eligible&&abs>1250){
-        window.clearTimeout(exitTimer);
-        root.dataset.rapid="true";
-        exitTimer=window.setTimeout(settle,720);
-      }else if(root.dataset.rapid==="true"){
-        window.clearTimeout(exitTimer);
-        exitTimer=window.setTimeout(settle,520);
-      }else{
-        window.clearTimeout(exitTimer);
-        exitTimer=window.setTimeout(()=>root.style.setProperty("--pl-flow","0"),240);
-      }
+      if(now-lastUpdate<90||raf) return;
+      lastUpdate=now;
+      x=(event.clientX/window.innerWidth*100).toFixed(1)+"%";
+      y=(event.clientY/window.innerHeight*100).toFixed(1)+"%";
+      raf=window.requestAnimationFrame(()=>{
+        field.style.setProperty("--pl-px",x);
+        field.style.setProperty("--pl-py",y);
+        raf=0;
+      });
     };
-
-    const onScroll=()=>{
-      if(!raf) raf=window.requestAnimationFrame(sample);
-    };
-
-    const onPreference=()=>{ if(reduced.matches||coarse.matches) settle(); };
-    root.dataset.rapid="false";
-    root.style.setProperty("--pl-flow","0");
-    root.style.setProperty("--pl-px","72%");
-    root.style.setProperty("--pl-py","38%");
-
-    const field=root.querySelector(".hvf");
-    const fieldObserver=field ? new IntersectionObserver(entries=>{
-      const visible=entries[0]?.isIntersecting ?? false;
-      root.dataset.fieldVisible=visible?"true":"false";
-      if(!visible) settle();
-    },{threshold:.08}) : null;
-    if(field) fieldObserver?.observe(field);
-    root.dataset.fieldVisible="false";
-
-    window.addEventListener("scroll",onScroll,{passive:true});
-    window.addEventListener("pointermove",writePointer,{passive:true});
-    reduced.addEventListener("change",onPreference);
-    coarse.addEventListener("change",onPreference);
+    window.addEventListener("pointermove",follow,{passive:true});
     return ()=>{
-      window.removeEventListener("scroll",onScroll);
-      window.removeEventListener("pointermove",writePointer);
-      reduced.removeEventListener("change",onPreference);
-      coarse.removeEventListener("change",onPreference);
-      fieldObserver?.disconnect();
+      window.removeEventListener("pointermove",follow);
+      observer.disconnect();
       if(raf) window.cancelAnimationFrame(raf);
-      window.clearTimeout(exitTimer);
     };
   },[]);
   const scene=scenes[stage];
