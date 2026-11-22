@@ -232,3 +232,6 @@
     transform:none!important;
   }
 }
+
+/* Keep cinematic scene transforms inside their stage without creating document-level horizontal scroll. */
+.ps-opening{overflow-x:clip}
