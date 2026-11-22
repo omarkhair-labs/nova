@@ -1,0 +1,74 @@
+/* Plantupia / material continuity while reading.
+   Native wheel, keyboard and touch scrolling remain browser-owned.
+   Motion uses compositor-friendly individual transform properties only.
+   The frame is the timeline subject, not the moving photograph: stable geometry. */
+
+@keyframes pl-photographic-drift{
+  from{translate:0 8px;scale:1.045}
+  to{translate:0 -8px;scale:1.045}
+}
+@keyframes pl-photographic-drift-small{
+  from{translate:0 5px;scale:1.04}
+  to{translate:0 -5px;scale:1.04}
+}
+@keyframes pl-editorial-drift{
+  from{translate:0 5px}
+  to{translate:0 -5px}
+}
+@keyframes pl-editorial-drift-small{
+  from{translate:0 3px}
+  to{translate:0 -3px}
+}
+
+/* No JS scroll handlers and no scroll hijacking. A browser lacking
+   View Timelines gets original static images without a hidden fallback. */
+@supports (animation-timeline:view(block)) and (view-timeline-name:--pl-image-view){
+  @media (prefers-reduced-motion:no-preference){
+    :is(
+      .pa-project-link figure,
+      .case-lead-photo,
+      .sx-case-card figure,
+      .ct-trail-image
+    ){
+      view-timeline-name:--pl-image-view;
+      view-timeline-axis:block;
+    }
+
+    :is(
+      .pa-project-link figure>img,
+      .case-lead:not(.case-lead--em-sherif) .case-lead-photo>img,
+      .sx-case-card figure>img,
+      .ct-trail-image>img
+    ){
+      animation:pl-photographic-drift 1ms linear both;
+      animation-timeline:--pl-image-view;
+      animation-range:cover 0% cover 100%;
+    }
+
+    :is(.hvf-project,.sh-bridge-inner,.ax-material-sequence){
+      view-timeline-name:--pl-frame-view;
+      view-timeline-axis:block;
+    }
+    :is(.hvf-project-feature,.sh-bridge-figure,.ax-material-figure){
+      animation:pl-editorial-drift 1ms linear both;
+      animation-timeline:--pl-frame-view;
+      animation-range:cover 0% cover 100%;
+    }
+
+    @media(max-width:800px){
+      :is(
+        .pa-project-link figure>img,
+        .case-lead:not(.case-lead--em-sherif) .case-lead-photo>img,
+        .sx-case-card figure>img,
+        .ct-trail-image>img
+      ){animation-name:pl-photographic-drift-small}
+
+      :is(.hvf-project-feature,.sh-bridge-figure,.ax-material-figure){
+        animation-name:pl-editorial-drift-small;
+      }
+    }
+  }
+}
+
+/* Still imagery is intentional for exact-frame planting comparisons
+   (Pixels/Mazal/Hospitality), uncropped vessel studies and sticky diagrams. */

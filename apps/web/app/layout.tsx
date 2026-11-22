@@ -1,6 +1,7 @@
 import { publicationApproved } from "./publication";
 import type { Metadata, Viewport } from "next";
 import "./base.css";
+import "./material-scroll.css";
 
 export const metadata: Metadata = {
   title: "Plantupia — A Space Becoming Alive",
