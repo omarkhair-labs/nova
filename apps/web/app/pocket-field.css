@@ -1,0 +1,467 @@
+/*
+ * PLANTUPIA — THE POCKET FIELD / Mobile edition, 23 November 2026.
+ * A unified, tactile editorial grammar for the whole public website.
+ * Body scope prevents mobile decisions from mutating the desktop art direction.
+ * For evidence-led cases see pocket-field-cases.css.
+ */
+.mrf{display:none}
+
+@media (max-width:740px){
+ body.pl-pocket-field{
+   --pf-ink:#203c2d;--pf-evergreen:#163729;--pf-paper:#f1f0e8;
+   --pf-stone:#e6e8dd;--pf-line:#aebcad;--pf-muted:#536c57;
+   --pf-gutter:19px;--pf-ease:cubic-bezier(.2,.77,.25,1);
+   background:var(--pf-paper);
+   -webkit-text-size-adjust:100%;
+ }
+ body.pl-pocket-field :is(.sx-page,.pc-page,.cs-page,.ct-page,.sr-world){
+   -webkit-font-smoothing:antialiased;
+ }
+ body.pl-pocket-field :is(.sx-page,.pc-page,.cs-page,.ct-page,.sr-world,.ps-site) :is(a,button,summary,input,select,textarea):focus-visible{
+   outline:2px solid #52794c;outline-offset:3px;
+ }
+ body.pl-pocket-field :is(.sx-page,.pc-page,.cs-page,.ct-page,.sr-world) :is(h1,h2,h3){
+   text-wrap:balance;
+ }
+ body.pl-pocket-field :is(.sx-page,.pc-page,.cs-page,.ct-page,.sr-world) :is(p,li,dd){
+   overflow-wrap:break-word;
+ }
+ body.pl-pocket-field :is(.sx-page,.pc-page,.cs-page,.ct-page,.sr-world) img{
+   max-width:100%;height:auto;
+ }
+ body.pl-pocket-field :is(.sx-page,.pc-page,.cs-page,.ct-page,.sr-world) :is(summary,a,button){
+   -webkit-tap-highlight-color:rgba(39,91,56,.13);
+ }
+ body.pl-pocket-field :is(.sx-page,.pc-page,.cs-page,.ct-page,.sr-world) :is(
+  [id$="-title"],#shop-collection,#ct-name,#ct-modes,#ct-message,#sr-service
+ ){
+  scroll-margin-top:116px;
+ }
+
+ /* A travelling chapter marker, not an app-style bottom navigation. */
+ body.pl-pocket-field .mrf{
+   position:sticky;top:0;z-index:72;display:block;
+   background:rgba(240,240,230,.96);backdrop-filter:blur(13px);
+   border-bottom:1px solid var(--pf-line);color:var(--pf-ink);
+   padding:0 var(--pf-gutter) 5px;max-width:100vw;
+   box-shadow:0 7px 16px rgba(26,60,37,.035);
+ }
+ body.pl-pocket-field .mrf-identity{
+   display:flex;align-items:center;gap:10px;
+   min-width:0;height:32px;border-bottom:1px solid #ccd3c7;
+ }
+ body.pl-pocket-field .mrf-count{font:700 9px/1 Arial,sans-serif;letter-spacing:.14em;color:#647e66}
+ body.pl-pocket-field .mrf-title{font:400 16px/1 Georgia,serif;letter-spacing:-.045em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ body.pl-pocket-field .mrf-slash{margin-left:auto;color:#809586;font:400 16px Georgia,serif}
+ body.pl-pocket-field .mrf-track{
+   display:flex;align-items:center;gap:19px;width:100%;
+   overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;
+   scroll-snap-type:x proximity;
+ }
+ body.pl-pocket-field .mrf-track::-webkit-scrollbar{display:none}
+ body.pl-pocket-field .mrf-track a{
+   flex:none;scroll-snap-align:start;display:inline-flex;align-items:center;gap:7px;
+   min-height:43px;color:inherit;text-decoration:none;white-space:nowrap;
+   font:600 11px/1.2 Arial,sans-serif;
+ }
+ body.pl-pocket-field .mrf-track a span{
+   font:700 8px/1 Consolas,monospace;letter-spacing:.045em;color:#768c75;
+ }
+ body.pl-pocket-field .mrf-track a:last-child{padding-right:13px}
+ body.pl-pocket-field .mrf-track a:hover{color:#225b39}
+ body.pl-pocket-field .mrf-return{color:#356947!important}
+
+ /* World Index: its images are meaningful, not 7 identical text rows. */
+ body.pl-pocket-field .si-overlay{background:var(--pf-paper);color:var(--pf-ink)}
+ body.pl-pocket-field .si-overlay .si-atlas-frame{height:clamp(210px,33svh,314px);background:#d7ded1}
+ body.pl-pocket-field .si-overlay .si-atlas-photo{object-position:50% 52%;filter:saturate(.93)}
+ body.pl-pocket-field .si-atlas-copy p{font-size:clamp(33px,9.8vw,47px);line-height:.94}
+ body.pl-pocket-field .si-reading-head{letter-spacing:.1em}
+ body.pl-pocket-field .si-overlay .si-links>a{min-height:78px}
+ body.pl-pocket-field .si-overlay .si-link-image{width:64px;height:59px;border-radius:0}
+ body.pl-pocket-field .si-overlay .si-links>a{grid-template-columns:20px 64px minmax(0,1fr) 19px}
+ body.pl-pocket-field .si-overlay .si-mobile-shop{
+   background:var(--pf-evergreen);color:#edf0e5;
+   border:0;padding:20px 16px;margin-top:24px;
+ }
+ body.pl-pocket-field .si-overlay .si-mobile-shop small{color:#c0d0b9}
+ body.pl-pocket-field .si-overlay .si-mobile-shop strong{color:#edf0e5}
+ body.pl-pocket-field .si-overlay .si-atlas figcaption{
+   color:#536954;line-height:1.5;font-size:10px;
+ }
+
+ /* Arrival — one deliberate photographic field, with usable exits. */
+ body.pl-pocket-field .ps-opening{min-height:100svh;min-height:100dvh;background:#153125}
+ body.pl-pocket-field .ps-main{
+   padding-inline:var(--pf-gutter);
+   padding-top:clamp(55px,10svh,100px);
+   padding-bottom:calc(23px + env(safe-area-inset-bottom,0px));
+ }
+ body.pl-pocket-field .ps-story h1{
+   font-size:clamp(54px,13.6vw,90px);
+   line-height:.9;letter-spacing:-.078em;max-width:10ch;
+   text-wrap:balance;
+ }
+ body.pl-pocket-field .ps-story>p:not(.ps-kicker){
+   font-size:clamp(13px,3.5vw,16px);
+   line-height:1.58;color:#eaf1e7;max-width:38ch;
+ }
+ body.pl-pocket-field .ps-story .ps-mobile-paths{
+   display:grid;grid-template-columns:1fr 1fr;gap:14px;
+   border-top:1px solid #dae6d66a;
+   padding-top:9px;margin-top:16px;
+ }
+ body.pl-pocket-field .ps-mobile-paths a{
+   min-height:49px;align-items:center;justify-content:space-between;
+   font-size:11px;letter-spacing:0;border-bottom:1px solid #e4efe0a8;
+ }
+ body.pl-pocket-field .ps-rail{gap:18px}
+ body.pl-pocket-field .ps-sequence{gap:9px}
+ body.pl-pocket-field .ps-chapter{
+   min-height:51px;gap:11px;color:#e0e7d9;font-size:10px!important;
+ }
+ body.pl-pocket-field .ps-chapter[aria-pressed=true]{color:#fff}
+ body.pl-pocket-field .ps-scene-caption>p:last-child{
+   max-width:36ch;font-size:clamp(18px,4.9vw,24px);
+ }
+ body.pl-pocket-field .ps-site[data-private-review="true"] .ps-system-strip{
+   margin-top:17px;padding-bottom:8px;
+ }
+ body.pl-pocket-field .ps-site[data-private-review="true"] .ps-system-strip b{font-size:9px}
+
+ /* The second arrival is a sequence of places, not cards. */
+ body.pl-pocket-field .ps-site .hvf{
+   padding:67px var(--pf-gutter) 76px;background:#e9eadf;
+ }
+ body.pl-pocket-field .hvf-head{
+   display:block;margin-bottom:50px;padding-bottom:18px;
+   border-bottom:1px solid var(--pf-line);
+ }
+ body.pl-pocket-field .hvf-head h2{
+   font-size:clamp(55px,13vw,81px);line-height:.9;max-width:12ch;
+   margin:14px 0 25px;
+ }
+ body.pl-pocket-field .hvf-head>div:last-child{
+   padding-top:20px;border-top:1px solid #aebdaa;
+ }
+ body.pl-pocket-field .hvf-project,.pl-pocket-field .hvf-project:nth-child(even){
+   display:grid;grid-template-columns:minmax(0,1fr);
+   gap:17px;padding:70px 0;
+ }
+ body.pl-pocket-field .hvf-project:first-child{padding-top:0}
+ body.pl-pocket-field .hvf-project-copy{
+   grid-column:1!important;grid-row:1!important;
+   display:grid;grid-template-columns:34px minmax(0,1fr);
+   gap:12px;align-items:start;
+ }
+ body.pl-pocket-field .hvf-project-copy>div{grid-column:2}
+ body.pl-pocket-field .hvf-project-copy h3{
+   font-size:clamp(42px,10vw,63px);line-height:.94;margin:12px 0;
+ }
+ body.pl-pocket-field .hvf-project-copy p{font-size:15px;line-height:1.65;max-width:35ch}
+ body.pl-pocket-field .hvf-project-copy>a{
+   grid-column:2;min-height:48px;margin:14px 0 0;
+ }
+ body.pl-pocket-field .hvf-project-feature{
+   grid-column:1!important;grid-row:2!important;width:100%;
+ }
+ body.pl-pocket-field .hvf-project-feature img{
+   display:block;width:100%;height:auto;object-fit:contain;animation:none;
+ }
+ body.pl-pocket-field .hvf-project-feature figcaption{
+   display:block;font-size:10px;line-height:1.55;
+ }
+ body.pl-pocket-field .hvf-project-strip{
+   grid-column:1!important;grid-row:3!important;
+   width:100%;display:flex;gap:9px;padding:5px 0 10px;
+   overflow-x:auto;overscroll-behavior-x:contain;
+   scroll-snap-type:x mandatory;scrollbar-width:thin;
+ }
+ body.pl-pocket-field .hvf-project-strip button{
+   flex:0 0 clamp(90px,28vw,150px);min-width:0;scroll-snap-align:start;
+ }
+ body.pl-pocket-field .hvf-project-strip button img{
+   height:clamp(72px,20vw,110px);width:100%;object-fit:contain;
+ }
+ body.pl-pocket-field .hvf footer{display:block}
+ body.pl-pocket-field .hvf footer span{display:block;margin-bottom:12px}
+ body.pl-pocket-field .hvf footer p{font-size:24px;line-height:1.25;margin-bottom:18px}
+
+ body.pl-pocket-field .wt-section{
+   padding:68px var(--pf-gutter) 54px;background:#efeee5;
+ }
+ body.pl-pocket-field .wt-intro h2{
+   font-size:clamp(42px,10vw,64px);line-height:.98;
+ }
+ body.pl-pocket-field .wt-choice{
+   grid-template-columns:20px minmax(0,1fr) 79px 16px;min-height:121px;gap:10px;
+ }
+ body.pl-pocket-field .wt-choice strong{font-size:clamp(27px,7vw,40px);line-height:.98}
+ body.pl-pocket-field .wt-choice small{font-size:12px;line-height:1.45}
+ body.pl-pocket-field .wt-thumb{max-height:110px;aspect-ratio:4/5}
+
+ /* Spatial index: swipe the environments, not the whole document. */
+ body.pl-pocket-field .sx-page .sx-exhibit{padding-top:43px}
+ body.pl-pocket-field .sx-page .sx-intro h1{
+   font-size:clamp(48px,11.7vw,76px);line-height:.96;letter-spacing:-.068em;
+ }
+ body.pl-pocket-field .sx-page .sx-intro>p{
+   max-width:36ch;font-size:14px;line-height:1.7;
+ }
+ body.pl-pocket-field .sx-page .sx-picker{
+   gap:8px;margin-bottom:12px;padding-bottom:10px;border-block:0;
+ }
+ body.pl-pocket-field .sx-page .sx-picker button{
+   min-height:60px;min-width:clamp(138px,41vw,200px);
+   background:#e2e7dc;border:1px solid #b4c3b2;
+   padding:11px 13px;font:500 13px/1.22 Arial,sans-serif;
+ }
+ body.pl-pocket-field .sx-page .sx-picker button[aria-pressed=true]{
+   background:#173e2b;color:#f3f1e8;border-color:#173e2b;
+ }
+ body.pl-pocket-field .sx-page .sx-picker button[aria-pressed=true] span{color:#b7d0ba}
+ body.pl-pocket-field .sx-page .sx-frame{
+   height:clamp(310px,52svh,540px);background:#dce3d7;
+ }
+ body.pl-pocket-field .sx-page .sx-frame .sx-layer img{
+   object-fit:contain;object-position:center;
+ }
+ body.pl-pocket-field .sx-page .sx-reading{
+   display:block;padding:42px var(--pf-gutter) 66px;
+   border-top:1px solid var(--pf-line);
+ }
+ body.pl-pocket-field .sx-page .sx-reading h2{
+   font-size:clamp(41px,10vw,67px);line-height:.98;
+   margin:18px 0 24px;
+ }
+ body.pl-pocket-field .sx-page .sx-reading>div:last-child p{
+   font-size:15px;line-height:1.72;
+ }
+ body.pl-pocket-field .sx-page .sx-reading-paths a{
+   min-height:48px;margin:7px 0;font-size:12px;
+ }
+ body.pl-pocket-field .sx-page .sx-case-index{
+   padding:65px var(--pf-gutter);
+ }
+ body.pl-pocket-field .sx-case-index-head h2{
+   font-size:clamp(44px,10.5vw,67px);line-height:.94;
+ }
+ body.pl-pocket-field .sx-page .sx-case-grid{
+   display:grid;grid-template-columns:1fr;gap:34px;
+ }
+ body.pl-pocket-field .sx-page .sx-case-card:nth-child(n){
+   grid-column:1;max-width:100%;
+ }
+ body.pl-pocket-field .sx-page .sx-case-card img{
+   width:100%;height:auto;aspect-ratio:auto;object-fit:contain;
+ }
+ body.pl-pocket-field .sx-page .sx-case-card>div{
+   padding:14px 2px 0;
+ }
+
+ /* Practise & continuing care — architectural notes remain selectable. */
+ body.pl-pocket-field .pc-page .pc-intro h1,
+ body.pl-pocket-field .pc-page .pc-living-hero h1{
+   font-size:clamp(54px,12.5vw,80px);line-height:.91;letter-spacing:-.07em;
+ }
+ body.pl-pocket-field .pc-page .pc-intro{padding-block:48px 36px}
+ body.pl-pocket-field .pc-page .pc-reading-chapter h2{
+   font-size:clamp(38px,9vw,58px);line-height:1.02;
+ }
+ body.pl-pocket-field .pc-page .pc-study-nav{
+   display:flex;gap:9px;overflow-x:auto;scroll-snap-type:x proximity;
+   scrollbar-width:thin;padding-bottom:10px;
+ }
+ body.pl-pocket-field .pc-page .pc-study-nav button{
+   flex:0 0 min(47vw,200px);scroll-snap-align:start;min-height:60px;
+ }
+ body.pl-pocket-field .pc-page .pc-life-steps button{
+   min-height:54px;
+ }
+ body.pl-pocket-field .pc-page .lc-timeline{
+   width:100%;max-width:100%;min-width:0;
+ }
+ body.pl-pocket-field .pc-page .lc-time-button{
+   min-height:66px;padding-block:13px;gap:12px;
+ }
+ body.pl-pocket-field .pc-page .lc-specimen{max-height:none}
+ body.pl-pocket-field .pc-page .pc-record{
+   box-shadow:none;border:1px solid #b6c5b3;
+ }
+ body.pl-pocket-field .pc-page .pc-proof{padding-block:65px}
+ body.pl-pocket-field .pc-page .pc-proof h2,
+ body.pl-pocket-field .pc-page .lc-care-programme h2{
+   font-size:clamp(43px,10vw,67px);line-height:.96;
+ }
+
+ /* About — people and spatial thinking, not another corporate card grid. */
+ body.pl-pocket-field .cs-page .cs-intro{
+   display:flex;flex-direction:column;
+ }
+ body.pl-pocket-field .cs-page .cs-intro-copy{
+   padding:55px var(--pf-gutter) 74px;background:#f0f0e8;
+ }
+ body.pl-pocket-field .cs-page .cs-image{
+   order:-1;min-height:clamp(300px,57svh,570px);
+ }
+ body.pl-pocket-field .cs-page .cs-intro :is(h1,h2){
+   font-size:clamp(55px,12.8vw,83px);line-height:.9;
+ }
+ body.pl-pocket-field .cs-page .cs-focus,
+ body.pl-pocket-field .cs-page .cs-practice,
+ body.pl-pocket-field .cs-page .cs-work{
+   padding:75px var(--pf-gutter);
+ }
+ body.pl-pocket-field .cs-page .cs-focus h2,
+ body.pl-pocket-field .cs-page .cs-practice h2,
+ body.pl-pocket-field .cs-page .cs-work h2{
+   font-size:clamp(48px,11vw,74px);line-height:.94;
+ }
+ body.pl-pocket-field .cs-page .cs-services{gap:0;margin-top:32px}
+ body.pl-pocket-field .cs-page .cs-services article{padding:23px 0}
+ body.pl-pocket-field .cs-page .cs-services h3{margin:14px 0 11px}
+ body.pl-pocket-field .cs-page .cs-focus-grid{gap:48px}
+ body.pl-pocket-field .cs-page .cs-focus-grid img{
+   width:100%;height:auto;max-height:none;aspect-ratio:auto;object-fit:contain;
+ }
+ body.pl-pocket-field .cs-page .cs-archive-preview{
+   grid-template-columns:1fr 1fr;gap:14px;
+ }
+ body.pl-pocket-field .cs-page .cs-archive-preview>div{padding-top:20px}
+ body.pl-pocket-field .cs-page .cs-archive-preview>div span{font-size:58px}
+ body.pl-pocket-field .cs-page .cs-archive-preview .cs-archive-note,
+ body.pl-pocket-field .cs-page .cs-archive-preview .cs-link{grid-column:1/-1}
+
+ /* The shop is a material library before it is a commerce catalogue. */
+ body.pl-pocket-field .sr-world .sr-hero{
+   padding:41px var(--pf-gutter) 28px;background:#e3e8dc;
+ }
+ body.pl-pocket-field .sr-world .sr-intro h1{
+   font-size:clamp(62px,14vw,90px);line-height:.89;
+ }
+ body.pl-pocket-field .sr-world .sr-shop-path{
+   min-height:125px;padding:15px;
+ }
+ body.pl-pocket-field .sr-world .sr-shop-path-primary{min-height:95px}
+ body.pl-pocket-field .sr-world .sr-hero-field{
+   display:flex;flex-direction:row;gap:10px;min-height:0;height:auto;
+   overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;
+   scrollbar-width:thin;padding-bottom:12px;
+ }
+ body.pl-pocket-field .sr-world .sr-hero-field figure,
+ body.pl-pocket-field .sr-world .sr-hero-field .sr-hero-field-1{
+   flex:0 0 min(83vw,440px);height:clamp(285px,55svh,470px);
+   min-height:0;scroll-snap-align:center;grid-row:auto;grid-column:auto;
+ }
+ body.pl-pocket-field .sr-world .sr-hero-field img{
+   width:100%;height:100%;object-fit:cover;
+ }
+ body.pl-pocket-field .sr-world .sr-hero-field figcaption{
+   padding:45px 15px 15px;gap:8px;
+ }
+ body.pl-pocket-field .sr-world .sr-hero-field figcaption strong{font-size:clamp(24px,7vw,34px)}
+ body.pl-pocket-field .sr-world .sr-hero-field figcaption small{font-size:10px}
+ body.pl-pocket-field .sr-world .sr-collection{
+   padding:60px var(--pf-gutter) 80px;
+ }
+ body.pl-pocket-field .sr-world .sr-section-head h2{
+   font-size:clamp(42px,10.3vw,64px);
+ }
+ body.pl-pocket-field .sr-world .sr-empty{
+   padding:28px 22px;background:#edf0e7;border-color:#b4c4b0;
+ }
+ body.pl-pocket-field .sr-world .sr-empty h3{font-size:30px;line-height:1.05}
+ body.pl-pocket-field .sr-world .sr-material-world{
+   padding:80px var(--pf-gutter);
+ }
+ body.pl-pocket-field .sr-world .sr-material-world h2{
+   font-size:clamp(48px,11.4vw,73px);
+   line-height:.94;
+ }
+ body.pl-pocket-field .sr-world .sr-library-head{gap:25px!important}
+ body.pl-pocket-field .sr-world .sr-vessel-study{display:flex;flex-direction:column;gap:28px}
+ body.pl-pocket-field .sr-world .sr-vessel-setting{order:1}
+ body.pl-pocket-field .sr-world .sr-vessel-copy{order:2}
+ body.pl-pocket-field .sr-world .sr-vessel-object{order:3;width:83%;margin-left:auto!important}
+ body.pl-pocket-field .sr-world .sr-plant-study{display:flex;flex-direction:column}
+ body.pl-pocket-field .sr-world .sr-plant-study figure{order:1}
+ body.pl-pocket-field .sr-world .sr-plant-study>div{order:2}
+ body.pl-pocket-field .sr-world .sr-finish-study{display:flex;flex-direction:column}
+ body.pl-pocket-field .sr-world .sr-finish-copy{order:1}
+ body.pl-pocket-field .sr-world .sr-finish-study figure{order:2}
+ body.pl-pocket-field .sr-world .sr-detail-copy{padding:38px var(--pf-gutter) 50px}
+ body.pl-pocket-field .sr-world .sr-detail-copy h2{font-size:clamp(35px,9vw,56px)}
+ body.pl-pocket-field .sr-world .sr-dialog[open]{
+   border-radius:0;max-height:94dvh;
+   padding-bottom:env(safe-area-inset-bottom,0px);
+ }
+ body.pl-pocket-field .sr-world .sr-detail>.sr-photo{max-height:42dvh}
+
+ /* The conversation is an invitation, not a corporate application form. */
+ body.pl-pocket-field .ct-page .ct-main{padding-top:53px}
+ body.pl-pocket-field .ct-page .ct-intro h1{
+   font-size:clamp(57px,13vw,83px);line-height:.9;
+ }
+ body.pl-pocket-field .ct-page .ct-work{
+   padding:0 var(--pf-gutter) 20px;
+ }
+ body.pl-pocket-field .ct-page .ct-modes{
+   gap:20px;scroll-snap-type:x proximity;
+ }
+ body.pl-pocket-field .ct-page .ct-modes button{
+   font-size:clamp(19px,5.8vw,24px);
+   min-height:57px;scroll-snap-align:start;
+ }
+ body.pl-pocket-field .ct-page .ct-form{
+   border-top:1px solid var(--pf-line);
+   padding-top:30px;gap:46px;
+ }
+ body.pl-pocket-field .ct-page .ct-form label{font-size:13px}
+ body.pl-pocket-field .ct-page .ct-form :is(input,select,textarea){
+   font-size:16px;padding-block:16px;
+   border-bottom:1px solid #9bab9e;background:transparent;
+ }
+ body.pl-pocket-field .ct-page .ct-form textarea{
+   min-height:196px;line-height:1.65;
+ }
+ body.pl-pocket-field .ct-page .ct-message{
+   border-top:1px solid var(--pf-line);padding-top:24px;
+ }
+ body.pl-pocket-field .ct-page .ct-action button{
+   width:100%;min-height:58px;background:var(--pf-evergreen);color:#f1f2e8;
+ }
+ body.pl-pocket-field .ct-page .ct-action p{max-width:39ch}
+
+ /* Native safe area and focused keyboard: avoid one-pixel page overflow. */
+ body.pl-pocket-field :is(.sr-world,.sx-page,.pc-page,.cs-page,.ct-page) :is(input,select,textarea){
+   max-width:100%;
+ }
+ body.pl-pocket-field .sx-page .sx-footer,
+ body.pl-pocket-field .pc-page .pc-footer,
+ body.pl-pocket-field .cs-page .cs-footer,
+ body.pl-pocket-field .ct-page .ct-footer,
+ body.pl-pocket-field .sr-world .sr-footer{
+   padding-bottom:calc(25px + env(safe-area-inset-bottom,0px));
+ }
+}
+@media(max-width:370px){
+ body.pl-pocket-field{--pf-gutter:16px}
+ body.pl-pocket-field .si-overlay .si-link-image{width:50px;height:54px}
+ body.pl-pocket-field .si-overlay .si-links>a{grid-template-columns:18px 50px minmax(0,1fr) 18px;gap:7px}
+ body.pl-pocket-field .si-overlay .si-atlas-frame{height:clamp(185px,26svh,240px)}
+ body.pl-pocket-field .ps-story h1{font-size:clamp(48px,13.4vw,58px)}
+ body.pl-pocket-field .mrf-track{gap:14px}
+ body.pl-pocket-field .mrf-track a{font-size:10px}
+ body.pl-pocket-field .sr-world .sr-hero-field figure{flex-basis:87vw}
+ body.pl-pocket-field .ct-page .ct-intro{padding-inline:var(--pf-gutter)}
+}
+@media(max-height:650px) and (max-width:740px){
+ body.pl-pocket-field .ps-main{padding-top:24px}
+ body.pl-pocket-field .ps-story h1{font-size:clamp(46px,11.3vw,66px);margin-block:10px}
+ body.pl-pocket-field .ps-story>p:not(.ps-kicker){font-size:12px;line-height:1.4}
+ body.pl-pocket-field .ps-rail{gap:7px}
+}
+@media(prefers-reduced-motion:reduce){
+ body.pl-pocket-field .mrf,
+ body.pl-pocket-field .mrf *{scroll-behavior:auto!important;transition:none!important;animation:none!important}
+}
