@@ -4,6 +4,7 @@ import MobileReadingRibbon from "./MobileReadingRibbon";
 import { useEffect, useRef, useState } from "react";
 import SiteIndex from "./SiteIndex";
 import { spaces, spacePrompts } from "./space-contexts";
+import { projects } from "./project-archive-data";
 import "./contact-studio.css";
 
 const modes = [
@@ -36,6 +37,7 @@ export default function ContactStudio({ available, previewMode = true }: { avail
   const [reference, setReference] = useState("");
   const [website, setWebsite] = useState("");
   const [fieldNotes, setFieldNotes] = useState<{ environment: string; labels: string[] } | null>(null);
+  const [relatedCase,setRelatedCase] = useState<(typeof projects)[number] | null>(null);
   const attempt = useRef<{ fingerprint: string; id: string } | null>(null);
   const busy = useRef(false);
 
@@ -43,6 +45,13 @@ export default function ContactStudio({ available, previewMode = true }: { avail
     const params = new URLSearchParams(window.location.search);
     const selected = params.get("space");
     const topic = params.get("topic");
+    const requestedCase = params.get("case");
+    const matchingCase = projects.find(study=>study.id===requestedCase);
+    if(matchingCase && (!topic || topic==="project")){
+      setRelatedCase(matchingCase);
+      setMode("project");
+      setMessage(previous=>previous || "I would like to explore a direction similar to the "+matchingCase.name+" design proposal ("+matchingCase.type.toLowerCase()+") for my own space. The context, location and goals are: ");
+    }
     if (topic === "care" || topic === "general" || topic === "project") setMode(topic);
     const item = params.get("item");
     if (topic === "general" && item && item.length <= 160 && !/[<>]/.test(item)) {
@@ -140,6 +149,7 @@ export default function ContactStudio({ available, previewMode = true }: { avail
               {mode!=="general"&&<><label htmlFor="ct-location">Location <span>Optional</span></label><input id="ct-location" maxLength={100} value={location} placeholder="City or area" onChange={event=>update(setLocation,event.target.value)}/></>}
             </fieldset>
             <div className="ct-message">
+              {mode==="project" && relatedCase && <aside className="ct-case-context" aria-label="Referenced design study"><a className="ct-case-image" href={"/spaces/projects/"+relatedCase.id}><img src={"/api/private-arrival/"+relatedCase.image} alt={relatedCase.alt} loading="lazy"/></a><div><span className="ct-overline">YOUR REFERENCE / DESIGN PROPOSAL</span><strong>{relatedCase.name}</strong><p>{relatedCase.type}. We will use this as a starting point, not assume an identical site or installed result.</p><a href={"/spaces/projects/"+relatedCase.id}>Return to the study ↗</a></div></aside>}
               {mode === "project" && fieldNotes && environment === fieldNotes.environment && <div className="ct-field-notes">
                 <p className="ct-field-notes-kicker">FROM YOUR SPACE STUDY</p>
                 <p>{spaces[["home", "work", "gather", "industrial", "retail", "public"].indexOf(fieldNotes.environment)].name}</p>
