@@ -1,5 +1,5 @@
-import MobileReadingRibbon from "./MobileReadingRibbon";
 "use client";
+import MobileReadingRibbon from "./MobileReadingRibbon";
 import {useState} from "react";
 import SiteIndex from "./SiteIndex";
 import ProjectLeadImage from "./ProjectLeadImage";
