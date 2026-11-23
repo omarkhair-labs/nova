@@ -135,3 +135,33 @@
 .sx-reading-paths{display:flex;align-items:center;gap:10px clamp(12px,2vw,30px);flex-wrap:wrap}
 .sx-reading-material{font-weight:400;color:#456851!important}
 @media(max-width:520px){.sx-reading-paths{align-items:start;flex-direction:column}}
+
+
+/* 23 Nov / Mobile chapter continuity: every sector and case keeps the same
+   clear INDEX, while Spaces becomes a touch-led spatial selector. */
+@media(max-width:620px){
+ .sx-page .sx-header{height:72px;padding:0 18px;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+ .sx-page .sx-brand{font-size:clamp(22px,6vw,27px);white-space:nowrap}
+ .sx-page .sx-contact{display:none}
+ .sx-page .sx-header .si-root{grid-column:2;justify-self:end}
+ .sx-page .sx-exhibit{padding:34px 0 56px}
+ .sx-page .sx-intro{padding:0 19px;margin-bottom:24px}
+ .sx-page .sx-intro h1{font-size:clamp(47px,11.5vw,71px);line-height:.99}
+ .sx-page .sx-intro>p{font-size:13px;line-height:1.6;max-width:34ch}
+ .sx-page .sx-index-label{padding-inline:19px}
+ .sx-page .sx-picker{display:flex;grid-template-columns:none;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scrollbar-width:thin;padding-left:19px;padding-right:19px;gap:9px;margin-bottom:19px}
+ .sx-page .sx-picker button{flex:none;scroll-snap-align:start;min-width:min(44vw,185px);min-height:56px;font-size:13px;text-align:left;justify-content:flex-start;padding:12px 9px;gap:8px;white-space:nowrap;border-bottom-width:2px}
+ .sx-page .sx-picker button span{font-size:10px}
+ .sx-page .sx-frame{height:clamp(265px,53svh,530px)}
+ .sx-page .sx-figure{margin:0}
+ .sx-page .sx-caption{padding:11px 19px 0;font-size:10px;line-height:1.5}
+ .sx-page .sx-rail{padding:13px 19px 20px}
+ .sx-page .sx-reading{padding:24px 19px 40px;gap:14px;margin:0}
+ .sx-page .sx-reading h2{font-size:clamp(35px,9vw,54px);line-height:1.05}
+ .sx-page .sx-reading>div:last-child p{font-size:14px;line-height:1.68}
+ .sx-page .sx-reading-paths{gap:9px}
+ .sx-page .sx-underlink{min-height:44px;align-items:center}
+ .sx-page .sx-next{padding:57px 19px}
+ .sx-page .sx-next h2{font-size:clamp(36px,9.5vw,57px)}
+ .sx-page .sx-footer{padding:24px 19px calc(24px + env(safe-area-inset-bottom,0px))}
+}
