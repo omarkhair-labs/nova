@@ -47,3 +47,25 @@ jobs:
             exit 1
           fi
           node scripts/closure-smoke.mjs
+- name: Install Chromium for functional acceptance
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser acceptance / phone and desktop
+        run: |
+          set -euo pipefail
+          npm run start -- -p 3017 >/tmp/plantupia-browser.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:3017/ -o /dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/plantupia-browser.log
+            exit 1
+          fi
+          npm run test:browser
