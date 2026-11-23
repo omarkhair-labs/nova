@@ -46,3 +46,32 @@
 .ct-preview-note strong{font:600 10px/1.5 Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#28533a}
 .ct-action button:disabled{background:#698071;color:#edf1e8}
 @media(max-width:520px){.ct-preview-note{grid-template-columns:1fr;gap:4px}}
+
+
+/* 23 Nov / Mobile conversation: readable brief, thumb-sized modes and inputs,
+   full-width action. Same real Inbox contract and no additional submission gates. */
+@media(max-width:620px){
+ .ct-page .ct-header{height:70px;grid-template-columns:minmax(0,1fr) auto;padding:0 18px;gap:7px}
+ .ct-page .ct-brand{font-size:clamp(22px,6vw,27px);white-space:nowrap}
+ .ct-page .ct-back{display:none}
+ .ct-page .ct-header .si-root{grid-column:2;justify-self:end}
+ .ct-page .ct-main{padding:34px 0 60px}
+ .ct-page .ct-intro{display:block;padding:0 20px;margin-bottom:32px}
+ .ct-page .ct-intro h1{font-size:clamp(55px,13vw,83px);line-height:.93;margin:16px 0}
+ .ct-page .ct-intro>p:last-child{font-size:14px;line-height:1.65;max-width:35ch}
+ .ct-page .ct-work{padding:0 20px;border:0;box-shadow:none;background:transparent}
+ .ct-page .ct-modes{display:flex;flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;gap:24px;padding-bottom:5px}
+ .ct-page .ct-modes button{flex:none;white-space:nowrap;scroll-snap-align:start;min-height:52px;font-size:clamp(17px,5.2vw,22px);padding:12px 0}
+ .ct-page .ct-modes button[aria-pressed=true]::after{bottom:-5px}
+ .ct-page .ct-mode-intro{font-size:13px;line-height:1.55;margin:20px 0 26px}
+ .ct-page .ct-form{display:flex;flex-direction:column;gap:34px}
+ .ct-page .ct-fields,.ct-page .ct-message{gap:10px}
+ .ct-page .ct-fields label:not(:first-child){margin-top:14px}
+ .ct-page .ct-form input,.ct-page .ct-form select,.ct-page .ct-form textarea{font-size:16px;line-height:1.5;padding:14px 0;min-height:49px}
+ .ct-page .ct-form textarea{min-height:160px}
+ .ct-page .ct-action{margin-top:13px}
+ .ct-page .ct-action button{width:100%;min-height:54px;justify-content:space-between;padding:15px 19px;font-size:14px}
+ .ct-page .ct-action p{font-size:11px;line-height:1.65}
+ .ct-page .ct-end{margin:47px 20px 0;padding-top:23px}
+ .ct-page .ct-footer{padding:25px 20px calc(25px + env(safe-area-inset-bottom,0px))}
+}
