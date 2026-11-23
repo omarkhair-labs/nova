@@ -53,7 +53,7 @@ try {
     { headers: { Accept: "image/webp" } });
   check("Unapproved proposal image blocked", privateAsset.response.status === 404,
     "HTTP " + privateAsset.response.status);
-  const invalidCover = await request("/api/commerce/products/not-a-uuid/cover/",
+  const invalidCover = await request("/api/commerce/products/not-a-uuid/cover",
     { headers: { Accept: "image/webp" } });
   check("Invalid SKU image not served", invalidCover.response.status === 404,
     "HTTP " + invalidCover.response.status);
