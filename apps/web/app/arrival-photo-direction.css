@@ -71,3 +71,47 @@
  .ps-site[data-private-review="true"] .ps-system-strip span+span{border:0;padding-left:12px}
  .ps-site[data-private-review="true"] .ps-system-strip span{padding-block:0}
 }
+
+
+/* 23 Nov / A composed phone-sized arrival: a photographic field with direct journeys,
+   not a desktop hero squeezed below a three-column header. */
+.ps-mobile-paths{display:none}
+@media(max-width:620px){
+ .ps-site .ps-opening{min-height:100svh;min-height:100dvh}
+ .ps-site .ps-topbar{height:72px;grid-template-columns:minmax(0,1fr) auto;padding-inline:20px;gap:10px}
+ .ps-site .ps-brand{font-size:clamp(22px,6vw,28px);white-space:nowrap}
+ .ps-site .ps-contact{display:none}
+ .ps-site .ps-topbar .si-root{grid-column:2;justify-self:end}
+ .ps-site .ps-main{min-height:calc(100svh - 72px);min-height:calc(100dvh - 72px);padding:clamp(54px,10svh,115px) 20px calc(18px + env(safe-area-inset-bottom,0px));}
+ .ps-site .ps-story{max-width:100%;margin:0 0 clamp(30px,7svh,72px)}
+ .ps-site .ps-story h1{font-size:clamp(53px,13.3vw,82px);line-height:.91;letter-spacing:-.075em;margin:20px 0 18px;max-width:10ch}
+ .ps-site .ps-story>p:not(.ps-kicker){font-size:clamp(13px,3.55vw,15px);line-height:1.55;max-width:37ch;margin-bottom:13px}
+ .ps-site .ps-kicker{font-size:9px;line-height:1.45;letter-spacing:.12em}
+ .ps-site .ps-cta{display:inline-flex;min-height:44px;align-items:center;font-size:9px;gap:20px;max-width:100%}
+ .ps-mobile-paths{display:flex;flex-wrap:wrap;gap:4px 24px;margin-top:13px;border-top:1px solid #d5e5cd5e;padding-top:8px}
+ .ps-mobile-paths a{min-height:44px;display:inline-flex;align-items:center;gap:9px;color:#f2f5e9;font:600 10px/1.3 Arial,sans-serif;letter-spacing:.045em;text-decoration:none;border-bottom:1px solid #d5e5cd80}
+ .ps-site .ps-rail{display:flex;flex-direction:column;gap:10px;margin-top:auto}
+ .ps-site .ps-scene-caption{margin:0}
+ .ps-site .ps-scene-caption>p:last-child{max-width:30ch;font-size:clamp(17px,4.9vw,23px);line-height:1.15;margin:7px 0 0}
+ .ps-site .ps-sequence{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;width:100%}
+ .ps-site .ps-chapter{font-size:10px!important;line-height:1.25;min-height:48px;padding:9px 0;gap:9px;align-items:flex-start}
+ .ps-site .ps-arrows{display:none}
+ .ps-site .ps-utility-row{margin-top:5px;padding-top:10px;align-items:center;font-size:9px;line-height:1.4}
+ .ps-site .ps-utility-row a{min-height:44px;display:inline-flex;align-items:center;text-align:right}
+ .ps-site[data-private-review="true"] .ps-system-strip{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:14px;margin:12px 0 4px;padding-bottom:3px;scrollbar-width:none;max-width:100%}
+ .ps-site[data-private-review="true"] .ps-system-strip span{flex:none;white-space:nowrap;font-size:8px}
+ .ps-site .ps-stage-images .ps-image img{object-position:54% center}
+ .ps-site .ps-grading{background:linear-gradient(180deg,#0b1e15b0 0%,#0b1e1540 24%,#0b1e1570 48%,#0b1e15d9 78%,#0b1e15ef 100%)}
+}
+@media(max-width:380px){
+ .ps-site .ps-main{padding-top:45px}
+ .ps-site .ps-story h1{font-size:clamp(48px,13vw,57px)}
+ .ps-site .ps-story{margin-bottom:25px}
+ .ps-site .ps-utility-row>span{max-width:19ch}
+}
+@media(max-height:700px) and (max-width:620px){
+ .ps-site .ps-main{padding-top:28px}
+ .ps-site .ps-story{margin-bottom:20px}
+ .ps-site .ps-story h1{margin:13px 0 11px;font-size:clamp(46px,11vw,65px)}
+ .ps-site .ps-story>p:not(.ps-kicker){font-size:12px;line-height:1.45}
+}
