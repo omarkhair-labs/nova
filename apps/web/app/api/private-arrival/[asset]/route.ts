@@ -10,6 +10,28 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{asset:st
   if (process.env.NODE_ENV !== "development" && allowed.has(asset) && existsSync(path.join(process.cwd(),"public","private-review-assets",asset))) {
     return Response.redirect(new URL("/private-review-assets/"+asset,request.url),307);
   }
+  // Git previews do not include the company photo files uploaded by the existing
+  // production CLI release. Read those same published assets from the stable site
+  // until this site's media are hosted independently. This is a preview-only
+  // media bridge, never a permission or publication switch.
+  if (process.env.VERCEL_ENV === "preview" && allowed.has(asset)) {
+    try {
+      const upstream = await fetch(
+        "https://plantupia-public-preview.vercel.app/api/private-arrival/" + encodeURIComponent(asset),
+        { redirect: "follow", cache: "force-cache", signal: AbortSignal.timeout(10000) }
+      );
+      if (upstream.ok && upstream.body) {
+        return new Response(upstream.body, {
+          headers: {
+            "Content-Type": upstream.headers.get("content-type") || (asset.endsWith(".woff2") ? "font/woff2" : "image/webp"),
+            "Cache-Control": "public, max-age=3600, s-maxage=86400",
+            "Access-Control-Allow-Origin": "*",
+            "X-Content-Type-Options": "nosniff"
+          }
+        });
+      }
+    } catch { /* Continue to the local-only fallback below. */ }
+  }
   const host=request.nextUrl.hostname;
   const root=process.env.PLANTUPIA_PRIVATE_ARRIVAL_DIR;
   if(process.env.NODE_ENV!=="development" || !root || !["localhost","127.0.0.1","[::1]"].includes(host) || !allowed.has(asset)) return new Response(null,{status:404});
