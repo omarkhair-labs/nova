@@ -1,5 +1,5 @@
-import MobileReadingRibbon from "./MobileReadingRibbon";
 "use client";
+import MobileReadingRibbon from "./MobileReadingRibbon";
 import {useRef,useState} from "react";
 import SiteIndex from "./SiteIndex";
 import {editorialSpaces} from "./space-contexts";
