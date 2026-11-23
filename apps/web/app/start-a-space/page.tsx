@@ -1,4 +1,4 @@
-import { publicationApproved } from "../publication";
+import { publicationApproved, websiteInboxOperational } from "../publication";
 import type { Metadata } from "next";
 import ContactStudio from "../ContactStudio";
 
@@ -11,8 +11,8 @@ export const metadata: Metadata = {
 };
 
 export default function StartASpacePage() {
-  const available = publicationApproved && process.env.PLANTUPIA_WEBSITE_INBOX_ENABLED === "1" &&
-    !!process.env.PLANTUPIA_WEBSITE_INBOX_BACKEND &&
-    (process.env.PLANTUPIA_WEBSITE_INBOX_TOKEN?.length ?? 0) >= 32;
+  // Preserve the existing production Inbox even while proposal-image
+  // publication still awaits separate rights approval.
+  const available = websiteInboxOperational;
   return <ContactStudio available={available} previewMode={process.env.VERCEL_ENV !== "production"} />;
 }
