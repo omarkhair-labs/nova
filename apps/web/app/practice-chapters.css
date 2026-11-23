@@ -142,3 +142,20 @@
 .pc-next-links a{color:inherit;text-decoration:none;font-size:14px;padding:10px 0;border-bottom:1px solid currentColor}
 .pc-next-links a:focus-visible{outline:2px solid #e4eaca;outline-offset:3px}
 @media(max-width:700px){.pc-next-links{width:100%}}
+
+
+/* 23 Nov / Mobile chapter continuity for Studio and Living Systems:
+   the + index stays usable with a full-width reading surface below it. */
+@media(max-width:620px){
+ .pc-page .pc-header{height:72px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:0 18px}
+ .pc-page .pc-brand{font-size:clamp(22px,6vw,27px);white-space:nowrap}
+ .pc-page .pc-contact{display:none}
+ .pc-page .pc-header .si-root{grid-column:2;justify-self:end}
+ .pc-page .pc-intro{gap:20px}
+ .pc-page .pc-next{padding:55px 19px;gap:25px}
+ .pc-page .pc-next-links a,.pc-page .pc-next>a{min-height:44px;display:inline-flex;align-items:center}
+ .pc-page .pc-principles{padding:55px 19px}
+ .pc-page .pc-principles article{padding-top:21px}
+ .pc-page .pc-studio-source img{height:auto;max-height:55svh;object-fit:contain}
+ .pc-page .pc-footer{padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}
+}
