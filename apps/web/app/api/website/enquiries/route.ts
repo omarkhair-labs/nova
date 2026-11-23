@@ -1,4 +1,4 @@
-import { publicationApproved } from "../../../publication";
+import { websiteInboxOperational } from "../../../publication";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -9,7 +9,7 @@ function reply(data: object, status: number) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!publicationApproved) return reply({error:"unavailable"},503);
+  if (!websiteInboxOperational) return reply({ error: "unavailable" }, 503);
   const token = process.env.PLANTUPIA_WEBSITE_INBOX_TOKEN;
   const backend = process.env.PLANTUPIA_WEBSITE_INBOX_BACKEND;
   if (process.env.PLANTUPIA_WEBSITE_INBOX_ENABLED !== "1" || !backend || !token || token.length < 32) {
