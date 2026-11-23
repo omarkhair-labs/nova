@@ -5,7 +5,7 @@ for (const variant of [
   { name: "desktop", viewport: { width: 1440, height: 900 } },
 ]) {
   test.describe("Plantupia visitor closure — " + variant.name, () => {
-    test.use({ viewport: variant.viewport, baseURL: "http://127.0.0.1:3017" });
+    test.use({ viewport: variant.viewport, baseURL: "http://127.0.0.1:3017", channel: "chrome" });
 
     test("World Index opens, navigates, and browser Back works", async ({ page }) => {
       await page.goto("/");
