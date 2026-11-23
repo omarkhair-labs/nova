@@ -465,3 +465,15 @@
  body.pl-pocket-field .mrf,
  body.pl-pocket-field .mrf *{scroll-behavior:auto!important;transition:none!important;animation:none!important}
 }
+
+
+/* The mobile stage may be swiped from the photograph/copy; desktop retains
+   its own existing scene controls and does not show mobile coaching. */
+.ps-swipe-hint{display:none}
+@media(max-width:740px){
+ body.pl-pocket-field .ps-swipe-hint{
+   display:block;color:#d5e8d5;
+   font:700 9px/1.4 Consolas,monospace;
+   letter-spacing:.1em;margin-bottom:3px;
+ }
+}
