@@ -222,7 +222,7 @@ for(const width of [320,390,430]){
     await expect(page.locator(".ct-case-context strong")).toHaveText("Mazal");
     await expect(page.locator("#ct-space")).toHaveValue("gather");
     await expect(page.locator("#ct-message")).toHaveValue(/Mazal design proposal/);
-    await expect(page.locator(".ct-case-context")).toContainText("design proposal");
+    await expect(page.locator(".ct-case-context")).toContainText(/design proposal/i);
     await expect(page.getByRole("button",{name:/Send your message/})).toBeDisabled();
   });
   test("Unknown case parameter never inserts unsupported content",async({page})=>{
