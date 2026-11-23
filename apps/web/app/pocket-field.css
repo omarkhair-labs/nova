@@ -526,3 +526,22 @@
  body.pl-pocket-field .mrf-track{gap:12px}
  body.pl-pocket-field .si-overlay .si-atlas-frame{height:140px}
 }
+
+
+/* Refinement IV / phone legibility: metadata should feel like print, not microtype. */
+@media(max-width:740px){
+ body.pl-pocket-field :is(.sx-kicker,.pc-kicker,.cs-kicker,.sr-eyebrow,.ct-overline,.ps-kicker){
+   font-size:11px;line-height:1.5;letter-spacing:.07em;
+ }
+ body.pl-pocket-field .si-overlay .si-link-text small{
+   font-size:11px;line-height:1.45;letter-spacing:0;
+ }
+ body.pl-pocket-field .si-overlay .si-atlas figcaption{
+   font-size:11px;line-height:1.5;
+ }
+ body.pl-pocket-field .si-overlay .si-reading-head{font-size:10px}
+ body.pl-pocket-field .pa-page .pa-project-folio i{font-size:10px}
+ body.pl-pocket-field .pa-page .pa-project figcaption{font-size:11px}
+ body.pl-pocket-field .mrf-count{font-size:10px}
+ body.pl-pocket-field :is(.pa-filter-line,.ps-swipe-hint){font-size:10px}
+}
