@@ -1,3 +1,4 @@
+import MobileReadingRibbon from "./MobileReadingRibbon";
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import SiteIndex from "./SiteIndex";
@@ -56,6 +57,7 @@ export default function ShopExperience({catalog,privateReview=false}:{catalog:Pu
   return <div className="sr-world">
     <a className="sr-skip" href="#shop-collection">Skip to products</a>
     <header className="sr-header"><a href="/" className="sr-wordmark">◕ Plantupia</a><SiteIndex current="shop" tone="dark"/><a className="sr-contact" href="/start-a-space?topic=general">Get in touch ↗</a></header>
+    <MobileReadingRibbon number="17" title="Plantupia Shop" stops={(privateReview ? [{label:"The collection",href:"#shop-collection"},{label:"Materials",href:"#sr-material-title"},{label:"Explore spaces",href:"#sr-service"}] : [{label:"The collection",href:"#shop-collection"},{label:"Explore spaces",href:"#sr-service"}])}/>
     <main>
       <section className={"sr-hero"+(featured?" sr-hero-with-photo":"")} aria-labelledby="shop-title">
         <div className="sr-intro"><p className="sr-eyebrow">THE PLANTUPIA SHOP</p><h1 id="shop-title">Make room<br/>for <em>life.</em></h1><p>Living plants, planters and care essentials for the spaces you inhabit.</p><nav className="sr-shop-paths" aria-label="Choose how to enter the Plantupia shop"><a className="sr-shop-path sr-shop-path-primary" href={catalog.state==="available"||!privateReview?"#shop-collection":"#sr-material-title"}><small>{catalog.state==="available"?"01 / SHOP":privateReview?"01 / PLANT + VESSEL":"01 / COLLECTION STATUS"}</small><strong>{catalog.state==="available"?"Shop the collection":privateReview?"Explore material studies":"Check collection status"}</strong><span>{catalog.state==="available"?"Published products, prices & availability ↓":privateReview?"Plants, vessels and spatial compositions ↓":"See the current catalogue status ↓"}</span></a><a className="sr-shop-path" href={privateReview?"#sr-material-title":"/studio"}><small>{privateReview?"02 / MATERIAL":"02 / APPROACH"}</small><strong>{privateReview?"Explore the library":"Explore our approach"}</strong><span>{privateReview?"Plant, vessel, finish & condition ↓":"How design, planting and care connect ↗"}</span></a><a className="sr-shop-path" href="/start-a-space?topic=project"><small>03 / SPACE</small><strong>Specify for a space</strong><span>Hospitality, commercial &amp; workplace ↗</span></a></nav></div>
@@ -83,7 +85,7 @@ export default function ShopExperience({catalog,privateReview=false}:{catalog:Pu
         <footer className="sr-library-footer"><span>CATALOGUE STUDIES / NOT LIVE SKU PHOTOGRAPHY</span><p>These are material studies, not product listings. Availability, options and commercial terms follow the live catalogue and confirmed project quotation.</p><a href="#shop-collection">Continue to the live catalogue &#8595;</a></footer>
       </section>}
       {privateReview&&<MaterialSourceStudies />}
-      <section className="sr-service"><div><p className="sr-eyebrow">MORE THAN A SINGLE PLANT</p><h2>Planning a whole space?</h2><p>For homes, hospitality and commercial interiors, move from individual objects to a designed planting system.</p></div><a className="sr-primary" href="/spaces">Explore spaces ↗</a><a className="sr-text-link" href="/living-systems">Discover ongoing care ↗</a></section>
+      <section id="sr-service" className="sr-service"><div><p className="sr-eyebrow">MORE THAN A SINGLE PLANT</p><h2>Planning a whole space?</h2><p>For homes, hospitality and commercial interiors, move from individual objects to a designed planting system.</p></div><a className="sr-primary" href="/spaces">Explore spaces ↗</a><a className="sr-text-link" href="/living-systems">Discover ongoing care ↗</a></section>
     </main>
     <footer className="sr-footer"><a href="/">Plantupia</a><a href="/start-a-space">Contact</a><span>Plants / Planters / Care</span></footer>
     <dialog className="sr-dialog" ref={dialog} aria-labelledby="sr-detail-name" onClose={()=>{setSelected(null);opener.current?.focus();}} onClick={e=>{if(e.target===e.currentTarget)dialog.current?.close();}}>

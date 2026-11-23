@@ -1,3 +1,4 @@
+import MobileReadingRibbon from "./MobileReadingRibbon";
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -115,14 +116,15 @@ export default function ContactStudio({ available, previewMode = true }: { avail
         <SiteIndex current="contact" />
         <a href="/spaces" className="ct-back">Explore spaces <span aria-hidden="true">↗</span></a>
       </header>
-      <main className="ct-main" id="ct-main">
+      <MobileReadingRibbon number="18" title="Start a space" stops={[{label:"Choose your reason",href:"#ct-modes"},{label:"Your details",href:"#ct-name"},{label:"Your message",href:"#ct-message"}]}/>
+    <main className="ct-main" id="ct-main">
         <div className="ct-intro">
           <p className="ct-overline">PLANTUPIA / CONTACT</p>
           <h1>Let&apos;s make room<br/>for <em>life.</em></h1>
           <p>Every living space begins with a conversation.</p>
         </div>
         <section className="ct-work" aria-label="Send a message to Plantupia">
-          <nav aria-label="How can we help?" className="ct-modes">
+          <nav id="ct-modes" aria-label="How can we help?" className="ct-modes">
             {modes.map(item=><button key={item.id} aria-pressed={mode===item.id} type="button" disabled={pending} onClick={() => {setMode(item.id);setFeedback("");setReference("");}}>{item.title}</button>)}
           </nav>
           <p className="ct-mode-intro" aria-live="polite">{current.intro}</p>{!available&&<div className="ct-preview-note" role="note"><strong>{previewMode ? "Preview mode" : "Online enquiries unavailable"}</strong><span>{previewMode ? "You can complete the brief and compose a message. Sending is disabled, so nothing will be submitted or stored." : "The website inbox is not accepting messages right now. Nothing entered here will be sent or stored."}</span></div>}

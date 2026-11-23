@@ -1,3 +1,4 @@
+import MobileReadingRibbon from "./MobileReadingRibbon";
 import SiteIndex from "./SiteIndex";
 import "./company-story.css";
 
@@ -52,7 +53,8 @@ export default function CompanyStory({ privateReview = false }: { privateReview?
   return (
     <div className="cs-page">
       <header className="cs-header"><a href="/" className="cs-brand">◕ Plantupia</a><SiteIndex current="about" tone="dark"/><a href="/spaces" className="cs-header-link">EXPLORE SPACES ↗</a></header>
-      <main>
+      <MobileReadingRibbon number="16" title="About Plantupia" stops={[{label:"The approach",href:"#cs-practice-title"},{label:"The work",href:"#cs-work-title"}]}/>
+    <main>
         <CompanyIntroduction privateReview={privateReview} placement="about" />
         {privateReview&&<section className="cs-focus" aria-labelledby="cs-focus-title"><div className="cs-focus-head"><div><p className="cs-kicker">PRIMARY B2B FOCUS / MEETING DIRECTION</p><h2 id="cs-focus-title">Three places to begin.</h2></div><p>Hospitality, commercial destinations and offices/HQs were identified as the main business focus in the supplied meeting. Residential work remains possible, but it is not the campaign priority.</p></div><div className="cs-focus-grid"><a href="/spaces/hospitality"><figure><img src="/api/private-arrival/spaces-hospitality.webp" alt="El Hallab restaurant interior planting design proposal"/><figcaption>HOSPITALITY / PROPOSAL STUDY</figcaption></figure><span>01</span><h3>Hospitality</h3><p>Restaurants, cafés and hotels—from arrival to atmosphere and care.</p></a><a href="/spaces/commercial"><figure><img src="/api/private-arrival/world-spaces.webp" alt="Pixels Mall commercial biophilic design proposal"/><figcaption>COMMERCIAL / PROPOSAL STUDY</figcaption></figure><span>02</span><h3>Commercial</h3><p>Developers, malls and showrooms—architecture, landscape and brand identity together.</p></a><a href="/spaces/offices"><figure><img src="/api/private-arrival/spaces-workplace-palette.webp" alt="Plantupia catalogue planting and planter collection illustration"/><figcaption>OFFICES &amp; HQs / CATALOGUE STUDY</figcaption></figure><span>03</span><h3>Offices &amp; HQs</h3><p>Planting, custom vessels and continuing maintenance for working environments.</p></a></div></section>}
         <section className="cs-practice" aria-labelledby="cs-practice-title">
