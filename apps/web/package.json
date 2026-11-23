@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test:browser": "playwright test tests/closure-ui.spec.mjs --reporter=line"
+    "test:browser": "playwright test tests/closure-ui.spec.mjs tests/mobile-journey.spec.mjs --reporter=line"
   },
   "dependencies": {
     "next": "16.4.6",
