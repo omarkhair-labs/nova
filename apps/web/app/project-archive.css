@@ -146,3 +146,16 @@
  .pa-page .pa-related h2{font-size:clamp(35px,9vw,48px)}
  .pa-page .pa-related p{font-size:13px}
 }
+
+
+/* The shared view-timeline photographic drift scales images 4% on phones.
+   The new edge-to-edge folio deliberately preserves full source compositions,
+   so disable only that conflicting archival photo effect at phone widths. */
+@media(max-width:620px){
+  .pa-page .pa-project-link figure>img{
+    animation:none!important;
+    scale:1!important;
+    translate:none!important;
+    transform:none!important;
+  }
+}
