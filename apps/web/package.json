@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "node scripts/check-production-release.mjs && next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:browser": "playwright test tests/closure-ui.spec.mjs --reporter=line"
   },
   "dependencies": {
     "next": "16.4.6",
@@ -17,7 +18,8 @@
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "@playwright/test": "1.56.1"
   },
   "engines": {
     "node": "26.x"
