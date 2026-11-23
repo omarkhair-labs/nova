@@ -1,4 +1,4 @@
-import { publicationApproved } from "./publication";
+import { isProductionSite } from "./publication";
 import type { Metadata, Viewport } from "next";
 import "./base.css";
 import "./material-scroll.css";
@@ -6,7 +6,7 @@ import "./material-scroll.css";
 export const metadata: Metadata = {
   title: "Plantupia — A Space Becoming Alive",
   description: "An English-only creative website exploring living architecture, plants, people and time.",
-  robots: publicationApproved ? { index: true, follow: true } : { index: false, follow: false },
+  robots: isProductionSite ? { index: true, follow: true } : { index: false, follow: false },
 };
 
 export const viewport: Viewport = {

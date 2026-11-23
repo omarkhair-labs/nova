@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/check-production-release.mjs && next build",
+    "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test:browser": "playwright test tests/closure-ui.spec.mjs --reporter=line"

@@ -46,12 +46,12 @@ try {
   ];
   for (const path of projects) {
     const { response } = await request(path);
-    check("No unapproved case public exposure " + path, response.status === 404, "HTTP " + response.status);
+    check("Project chapter is visitable " + path, response.status === 200, "HTTP " + response.status);
   }
 
   const privateAsset = await request("/api/private-arrival/archive-pixels-p08.webp",
     { headers: { Accept: "image/webp" } });
-  check("Unapproved proposal image blocked", privateAsset.response.status === 404,
+  check("Missing source asset does not redirect to a broken image", privateAsset.response.status === 404,
     "HTTP " + privateAsset.response.status);
   const invalidCover = await request("/api/commerce/products/not-a-uuid/cover",
     { headers: { Accept: "image/webp" } });

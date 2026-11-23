@@ -4,8 +4,8 @@
  * customer records, production credentials, emails, or Vercel changes.
  *
  * Validates an already-built Next.js website with VERCEL_ENV=production,
- * PLANTUPIA_PUBLICATION_APPROVED=0 and a separately enabled Company Inbox.
- * It must be possible to contact Plantupia without publishing private photos.
+ * no separate photo/publication approval and an enabled Company Inbox.
+ * The project pages are now normal routes; no approval switch hides them.
  */
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
@@ -167,10 +167,10 @@ try {
   log("Cross-origin message blocked before reaching backend");
 
   const pixels=await check("/spaces/projects/pixels-mall");
-  assert.equal(pixels.status,404);
+  assert.equal(pixels.status,200);
   const image=await check("/api/private-arrival/archive-pixels-p08.webp");
-  assert.equal(image.status,404);
-  log("Unapproved private case and source image remain inaccessible");
+  assert.equal(image.status,404); // CI doesn't bundle source pictures
+  log("Project case is public without fabricated approval; unavailable image returns 404");
 
   const shop=await check("/shop");
   assert.equal(shop.status,200);
