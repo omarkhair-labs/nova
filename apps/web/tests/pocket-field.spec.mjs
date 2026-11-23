@@ -207,3 +207,28 @@ test.describe("Pocket Field / reader desktop independence",()=>{
     await expect(page.locator("dialog.pf-photo-room")).toBeHidden();
   });
 });
+
+
+/** Source-to-project handoff: never send on behalf of a visitor. */
+for(const width of [320,390,430]){
+ test.describe("Pocket Field / source-backed project enquiry "+width+"px",()=>{
+  test.use({baseURL:"http://127.0.0.1:3017",viewport:{width,height:844}});
+  test("One existing proposal leads to a useful, editable draft",async({page})=>{
+    await page.goto("/spaces/projects/mazal");
+    const handoff=page.locator(".ct-trail .ct-ask");
+    await expect(handoff).toHaveAttribute("href","/start-a-space?space=gather&case=mazal");
+    await handoff.click();
+    await expect(page).toHaveURL(/\/start-a-space\?space=gather&case=mazal$/);
+    await expect(page.locator(".ct-case-context strong")).toHaveText("Mazal");
+    await expect(page.locator("#ct-space")).toHaveValue("gather");
+    await expect(page.locator("#ct-message")).toHaveValue(/Mazal design proposal/);
+    await expect(page.locator(".ct-case-context")).toContainText("design proposal");
+    await expect(page.getByRole("button",{name:/Send your message/})).toBeDisabled();
+  });
+  test("Unknown case parameter never inserts unsupported content",async({page})=>{
+    await page.goto("/start-a-space?space=gather&case=not-a-real-study");
+    await expect(page.locator(".ct-case-context")).toHaveCount(0);
+    await expect(page.locator("#ct-message")).toHaveValue("");
+  });
+ });
+}
