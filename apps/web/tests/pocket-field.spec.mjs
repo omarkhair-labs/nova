@@ -109,3 +109,53 @@ test.describe("Pocket Field / touch scene",()=>{
     await expect(stage).toHaveAttribute("data-stage","1");
   });
 });
+
+
+/** Refinement III: real sector filtering and less visual chrome on the mobile fold. */
+for(const width of [320,390,430]){
+  test.describe("Plantupia photographic archive refinement / "+width+"px",()=>{
+    test.use({baseURL:"http://127.0.0.1:3017",viewport:{width,height:844}});
+    test("Sector folios filter live without changing the six source studies",async({page})=>{
+      await page.goto("/spaces/projects");
+      const tiles=page.locator(".pa-wall .pa-project");
+      await expect(tiles).toHaveCount(6);
+      const all=page.locator('.pa-contexts button').filter({hasText:"All studies"});
+      const hospitality=page.locator('.pa-contexts button').filter({hasText:"Hospitality"});
+      const commercial=page.locator('.pa-contexts button').filter({hasText:"Commercial"});
+      const residential=page.locator('.pa-contexts button').filter({hasText:"Residential"});
+      await expect(all).toHaveAttribute("aria-pressed","true");
+      await hospitality.click();
+      await expect(hospitality).toHaveAttribute("aria-pressed","true");
+      await expect(tiles).toHaveCount(3);
+      await expect(page.getByRole("status")).toContainText("03 / 06");
+      await commercial.click();
+      await expect(tiles).toHaveCount(2);
+      await residential.click();
+      await expect(tiles).toHaveCount(1);
+      await all.click();
+      await expect(tiles).toHaveCount(6);
+      await tiles.first().locator("a.pa-project-link").click();
+      await expect(page).toHaveURL(/\/spaces\/projects\/mazal$/);
+    });
+    test("Pocket reading index is concise and avoids stacking sticky bars",async({page})=>{
+      await page.goto("/spaces/projects/mazal");
+      const ribbon=page.locator("nav.mrf");
+      await expect(ribbon).toBeVisible();
+      const metrics=await ribbon.evaluate(el=>({position:getComputedStyle(el).position,height:el.getBoundingClientRect().height}));
+      expect(metrics.position).not.toBe("sticky");
+      expect(metrics.height).toBeLessThanOrEqual(67);
+    });
+    test("World Index prioritizes chapter navigation over Shop",async({page})=>{
+      await page.goto("/");
+      await page.getByRole("button",{name:"Open Plantupia world index"}).click();
+      const menu=page.locator("dialog.si-overlay");
+      const correctOrder=await menu.evaluate(dialog=>{
+        const chapter=dialog.querySelector(".si-links");
+        const shop=dialog.querySelector(".si-mobile-shop");
+        return !!chapter&&!!shop&&!!(chapter.compareDocumentPosition(shop)&Node.DOCUMENT_POSITION_FOLLOWING);
+      });
+      expect(correctOrder).toBe(true);
+      await expect(menu.locator(".si-link-image")).toHaveCount(6);
+    });
+  });
+}
