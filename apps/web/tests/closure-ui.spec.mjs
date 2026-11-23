@@ -1,11 +1,13 @@
 import { test, expect } from "@playwright/test";
 
+test.use({ channel: "chrome" });
+
 for (const variant of [
   { name: "phone", viewport: { width: 390, height: 844 } },
   { name: "desktop", viewport: { width: 1440, height: 900 } },
 ]) {
   test.describe("Plantupia visitor closure — " + variant.name, () => {
-    test.use({ viewport: variant.viewport, baseURL: "http://127.0.0.1:3017", channel: "chrome" });
+    test.use({ viewport: variant.viewport, baseURL: "http://127.0.0.1:3017" });
 
     test("World Index opens, navigates, and browser Back works", async ({ page }) => {
       await page.goto("/");
