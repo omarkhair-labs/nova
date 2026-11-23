@@ -44,3 +44,24 @@
 @media(max-width:800px){.cs-focus-head,.cs-focus-grid,.cs-archive-preview{grid-template-columns:1fr}.cs-focus-grid img{aspect-ratio:auto;max-height:390px}.cs-archive-note,.cs-archive-preview .cs-link{grid-column:1}}
 
 @media(max-width:650px){.cs-image span,.cs-focus-grid figcaption{font-size:10px;line-height:1.5}}
+
+
+/* 23 Nov / Mobile chapter continuity for the company:
+   an image-led introduction, readable practice, and the same World Index. */
+@media(max-width:620px){
+ .cs-page .cs-header{min-height:72px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:12px 18px}
+ .cs-page .cs-brand{font-size:clamp(22px,6vw,27px);white-space:nowrap}
+ .cs-page .cs-header-link{display:none}
+ .cs-page .cs-header .si-root{grid-column:2;justify-self:end}
+ .cs-page .cs-intro{display:flex;flex-direction:column;min-height:0}
+ .cs-page .cs-image{order:-1;min-height:clamp(230px,44svh,410px)}
+ .cs-page .cs-intro-copy{padding:43px 19px 55px;align-self:stretch}
+ .cs-page .cs-intro :is(h1,h2){font-size:clamp(49px,11.5vw,76px);margin:20px 0}
+ .cs-page .cs-intro-copy>p:not(.cs-kicker){font-size:14px;line-height:1.7}
+ .cs-page .cs-practice,.cs-page .cs-work,.cs-page .cs-focus{padding:64px 19px}
+ .cs-page .cs-practice h2,.cs-page .cs-work h2,.cs-page .cs-focus h2{font-size:clamp(44px,10.5vw,66px);line-height:.98}
+ .cs-page .cs-services{margin-top:35px}
+ .cs-page .cs-services article{padding-block:21px}
+ .cs-page .cs-focus-grid{gap:33px}
+ .cs-page .cs-footer{padding:26px 19px calc(26px + env(safe-area-inset-bottom,0px))}
+}
