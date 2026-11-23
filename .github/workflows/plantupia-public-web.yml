@@ -25,6 +25,8 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Typecheck
         run: npm run typecheck
+      - name: Verify independent Inbox and image publication release gates
+        run: node scripts/check-release-modes.mjs
       - name: Production build
         run: npm run build
 
