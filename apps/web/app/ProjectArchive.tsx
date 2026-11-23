@@ -32,7 +32,7 @@ export default function ProjectArchive(){
       <a href={"/spaces/projects/"+project.id} className="pa-project-link" aria-label={"Open "+project.name+" case study"}>
         <span className="pa-project-folio" aria-hidden="true">{String(index+1).padStart(2,"0")} / {String(visible.length).padStart(2,"0")} <i>PLANTUPIA FIELD WORK</i></span>
         <figure>
-          <img src={"/api/private-arrival/"+project.image} alt={project.alt} loading={index<2?"eager":"lazy"}/>
+          <img src={"/api/private-arrival/"+project.image} alt={project.alt} loading={index===0?"eager":"lazy"} fetchPriority={index===0?"high":"auto"} decoding="async"/>
           <figcaption><span>{String(index+1).padStart(2,"0")} / {project.name}</span><span>PROPOSAL P{project.page}</span></figcaption>
         </figure>
         <div className="pa-project-copy">
