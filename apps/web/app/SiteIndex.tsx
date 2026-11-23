@@ -77,15 +77,11 @@ export default function SiteIndex({ current, tone = "light" }: { current: SiteSe
         onClose={()=>{setOpen(false);trigger.current?.focus({preventScroll:true});}}>
         <div className="si-top">
           <span>PLANTUPIA / THE WORLD INDEX</span>
-          <h2 id={titleId}>Six chapters. One living world.</h2>
+          <h2 id={titleId}>The world index.</h2>
           <button type="button" ref={close} onClick={dismiss} className="si-close" aria-label="Close world index">
             <span>CLOSE</span><i aria-hidden="true"/>
           </button>
         </div>
-        <Link className="si-mobile-shop" href="/shop" onClick={dismiss}>
-          <span><small>SHOP / COLLECTION</small><strong>Objects for living.</strong></span>
-          <i aria-hidden="true">↗</i>
-        </Link>
         <div className="si-body">
           <figure className="si-atlas" aria-label="Editorial chapter preview">
             <div className="si-atlas-frame">
@@ -115,6 +111,10 @@ export default function SiteIndex({ current, tone = "light" }: { current: SiteSe
             </nav>
           </div>
         </div>
+        <Link className="si-mobile-shop" href="/shop" onClick={dismiss}>
+          <span><small>SHOP / COLLECTION</small><strong>Objects for living.</strong></span>
+          <i aria-hidden="true">↗</i>
+        </Link>
         <div className="si-foot">
           <span>SPACE / DESIGN / TIME / PEOPLE</span>
           <span className="si-global-paths"><Link className="si-sidepath" href="/spaces/projects" onClick={dismiss}>CASE STUDIES / 06 &#8599;</Link><Link className="si-sidepath" href="/shop" onClick={dismiss}>SHOP / COLLECTION &#8599;</Link></span>
