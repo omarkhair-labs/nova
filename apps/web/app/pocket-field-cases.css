@@ -1,0 +1,425 @@
+/*
+ * PLANTUPIA — THE POCKET FIELD / Cases & sectors.
+ * The original proposal photographs are primary evidence. Their full proportions
+ * remain visible, while the interface gives each body of work its own tempo.
+ */
+@media(max-width:740px){
+ /* Case-study framing: a folio, not a miniature desktop article. */
+ body.pl-pocket-field :is(.mz-main,.emc-main,.eh-main,.au-main,.px-main,.vl-main){
+   --pf-gutter:19px;
+   padding:29px var(--pf-gutter) 0;min-width:0;
+ }
+ body.pl-pocket-field :is(.hs-main,.cm-main,.of-main){
+   padding:29px var(--pf-gutter) 0;min-width:0;
+ }
+ body.pl-pocket-field :is(.mz-breadcrumb,.emc-crumb,.eh-crumb,.au-crumb,.px-crumb,.vl-crumb){
+   margin-bottom:43px;min-height:44px;
+ }
+ body.pl-pocket-field :is(.mz-breadcrumb,.emc-crumb,.eh-crumb,.au-crumb,.px-crumb,.vl-crumb) .sx-underlink{
+   font-size:11px;min-height:44px;display:inline-flex;align-items:center;
+ }
+ body.pl-pocket-field :is(.mz-hero,.emc-hero,.eh-hero,.au-hero,.px-hero,.vl-hero,
+ .hs-title,.cm-heading,.of-intro){
+   display:grid;grid-template-columns:minmax(0,1fr);gap:22px;
+   min-height:0;padding-bottom:61px;margin-bottom:0;align-items:start;
+ }
+ body.pl-pocket-field :is(.mz-hero,.emc-hero,.eh-hero,.au-hero,.px-hero,.vl-hero,
+ .hs-title,.cm-heading,.of-intro) h1{
+   font:400 clamp(51px,12.4vw,83px)/.91 Georgia,serif;
+   letter-spacing:-.075em;max-width:12ch;overflow-wrap:normal;
+   margin:13px 0 16px;
+ }
+ body.pl-pocket-field :is(.emc-hero,.px-hero) h1{
+   font-size:clamp(45px,10.8vw,72px);max-width:14ch;
+ }
+ body.pl-pocket-field :is(.mz-hero,.emc-hero,.eh-hero,.au-hero,.px-hero,.vl-hero,
+ .hs-title,.cm-heading,.of-intro) p:not(.sx-kicker){
+   font-size:14px;line-height:1.7;max-width:39ch;
+ }
+ body.pl-pocket-field :is(.mz-main,.emc-main,.eh-main,.au-main,.px-main,.vl-main,
+ .hs-main,.cm-main,.of-main) h2{
+   font:400 clamp(39px,9.8vw,63px)/.99 Georgia,serif;
+   letter-spacing:-.06em;margin:11px 0 18px;
+ }
+ body.pl-pocket-field :is(.mz-main,.emc-main,.eh-main,.au-main,.px-main,.vl-main,
+ .hs-main,.cm-main,.of-main) h3{
+   font:400 clamp(26px,6.9vw,40px)/1.04 Georgia,serif;
+   letter-spacing:-.045em;
+ }
+ body.pl-pocket-field :is(.mz-main,.emc-main,.eh-main,.au-main,.px-main,.vl-main,
+ .hs-main,.cm-main,.of-main) p:not(.sx-kicker){
+   font-size:14px;line-height:1.7;max-width:60ch;
+ }
+ body.pl-pocket-field :is(.mz-main,.emc-main,.eh-main,.au-main,.px-main,.vl-main) :is(dt,dd){
+   font-size:12px;line-height:1.45;
+ }
+ body.pl-pocket-field :is(.mz-hero,.emc-hero,.eh-hero,.au-hero,.px-hero,.vl-hero) dl{
+   margin-top:19px;
+ }
+ body.pl-pocket-field :is(.mz-hero,.emc-hero,.eh-hero,.au-hero,.px-hero,.vl-hero) dl>div{
+   grid-template-columns:minmax(74px,.28fr) minmax(0,.72fr);
+   gap:14px;padding:12px 0;
+ }
+ body.pl-pocket-field :is(.mz-page,.emc-page,.eh-page,.au-page,.px-page,.vl-page) :is(
+ .mz-next,.emc-next,.eh-next,.au-next,.px-next,.vl-next){
+   padding:66px 0 82px;border-top:1px solid var(--pf-line);
+ }
+ body.pl-pocket-field :is(.mz-page,.emc-page,.eh-page,.au-page,.px-page,.vl-page) :is(
+ .mz-next,.emc-next,.eh-next,.au-next,.px-next,.vl-next) .sx-underlink{
+   min-height:50px;font-size:12px;display:inline-flex;align-items:center;
+ }
+ body.pl-pocket-field :is(.mz-page,.emc-page,.eh-page,.au-page,.px-page,.vl-page) :is(
+ .mz-source-note,.emc-source-note,.eh-source-note,.au-source-note,.px-source-note,.vl-source-note){
+   display:block;padding:21px 0 61px;border-top:1px solid var(--pf-line);
+ }
+ body.pl-pocket-field :is(.mz-page,.emc-page,.eh-page,.au-page,.px-page,.vl-page) :is(
+ .mz-source-note,.emc-source-note,.eh-source-note,.au-source-note,.px-source-note,.vl-source-note) span{
+   display:block;margin-bottom:14px;font:700 9px/1.4 Consolas,monospace;letter-spacing:.12em;
+ }
+ body.pl-pocket-field :is(.mz-page,.emc-page,.eh-page,.au-page,.px-page,.vl-page) :is(
+ .mz-source-note,.emc-source-note,.eh-source-note,.au-source-note,.px-source-note,.vl-source-note) p{
+   font-size:12px!important;line-height:1.6!important;
+ }
+
+ /* Case photos may be exposed edge to edge, but their content is never cropped. */
+ body.pl-pocket-field :is(.mz-page,.emc-page,.eh-page,.au-page,.px-page,.vl-page) :is(
+ .mz-wall-item img,.emc-wall-item img,.eh-direction img,.au-chapter img,.px-frame img,.vl-option img){
+   display:block;width:100%;height:auto;max-width:100%;
+   object-fit:contain;filter:none;scale:1;translate:none;animation:none!important;
+ }
+ body.pl-pocket-field :is(.mz-page,.emc-page,.eh-page,.au-page,.px-page,.vl-page) :is(
+ .mz-wall-item figcaption,.emc-wall-item figcaption,.eh-direction figcaption,.au-chapter figcaption,.px-frame figcaption,.vl-option figcaption){
+   line-height:1.55;
+ }
+
+ /* MAZAL — each family is a native-swipe sequence, followed by exact comparison. */
+ body.pl-pocket-field .mz-page .mz-wall{padding-top:65px}
+ body.pl-pocket-field .mz-page .mz-section-head{
+   display:block;padding-top:34px;margin-bottom:25px;
+ }
+ body.pl-pocket-field .mz-page .mz-family-field{
+   padding:50px 0 56px;
+ }
+ body.pl-pocket-field .mz-page .mz-family-field>header{
+   display:grid;grid-template-columns:29px minmax(0,1fr);
+   gap:10px;margin-bottom:21px;align-items:start;
+ }
+ body.pl-pocket-field .mz-page .mz-family-field>header>span{font-size:26px}
+ body.pl-pocket-field .mz-page .mz-family-field>header h3{margin:5px 0 7px}
+ body.pl-pocket-field .mz-page .mz-family-field>header>strong{
+   grid-column:2;color:#55745c;font:700 10px/1.35 Arial,sans-serif;
+   letter-spacing:.1em;
+ }
+ body.pl-pocket-field .mz-page .mz-family-field>header::after{
+   content:"SWIPE TO READ ↔";grid-column:2;
+   font:700 9px/1.2 Consolas,monospace;letter-spacing:.13em;color:#5e795f;
+ }
+ body.pl-pocket-field .mz-page .mz-family-field>div{
+   display:flex;gap:16px;
+   padding:0 var(--pf-gutter) 14px 0;
+   margin-right:calc(-1 * var(--pf-gutter));
+   overflow-x:auto;overscroll-behavior-x:contain;
+   scroll-snap-type:x mandatory;scrollbar-width:thin;
+ }
+ body.pl-pocket-field .mz-page .mz-family-field .mz-wall-item:nth-child(n){
+   grid-column:auto;margin:0;flex:0 0 min(81vw,410px);
+   scroll-snap-align:start;min-width:0;
+ }
+ body.pl-pocket-field .mz-page .mz-wall-item figcaption{
+   display:grid;grid-template-columns:32px minmax(0,1fr);
+   gap:8px;padding-top:12px;
+ }
+ body.pl-pocket-field .mz-page .mz-wall-item figcaption>span{font-size:30px}
+ body.pl-pocket-field .mz-page .mz-wall-item h3{font-size:25px}
+ body.pl-pocket-field .mz-page .mz-compare{padding:73px 0}
+ body.pl-pocket-field .mz-page .mz-compare-controls{
+   grid-template-columns:minmax(0,1fr) 44px minmax(0,1fr);
+   gap:8px;align-items:end;
+ }
+ body.pl-pocket-field .mz-page .mz-compare-controls :is(select,button){min-width:0;min-height:50px;font-size:13px}
+ body.pl-pocket-field .mz-page .mz-registered-frame{
+   aspect-ratio:1.5;min-height:190px;
+ }
+ body.pl-pocket-field .mz-page .mz-registered-frame>img{
+   object-fit:contain;
+ }
+ body.pl-pocket-field .mz-page .mz-registered-controls{
+   display:grid;grid-template-columns:minmax(0,1fr);gap:12px;
+ }
+ body.pl-pocket-field .mz-page .mz-registered-controls>span{grid-column:auto}
+ body.pl-pocket-field .mz-page .mz-registered-tag{max-width:48%;font-size:8px}
+ body.pl-pocket-field .mz-page .mz-registered-notes{display:block}
+ body.pl-pocket-field .mz-page .mz-registered-notes article+article{margin-top:35px}
+
+ /* EM SHERIF — seven different leaf languages against one constant vessel. */
+ body.pl-pocket-field .emc-page .emc-object{display:block;padding:50px 0}
+ body.pl-pocket-field .emc-page .emc-section-head{
+   display:block;padding-top:39px;margin-bottom:25px;
+ }
+ body.pl-pocket-field .emc-page .emc-visual-field{
+   display:flex;grid-template-columns:none;gap:17px;
+   overflow-x:auto;overscroll-behavior-x:contain;
+   scroll-snap-type:x mandatory;scrollbar-width:thin;
+   padding:0 var(--pf-gutter) 18px 0;
+   margin-right:calc(-1 * var(--pf-gutter));
+   padding-bottom:45px;
+ }
+ body.pl-pocket-field .emc-page .emc-visual-field::before{display:none}
+ body.pl-pocket-field .emc-page .emc-wall-item:nth-child(n){
+   flex:0 0 min(81vw,410px);grid-column:auto;margin:0;scroll-snap-align:start;
+ }
+ body.pl-pocket-field .emc-page .emc-wall-item figcaption{
+   display:grid;grid-template-columns:32px minmax(0,1fr);
+   gap:8px;padding-top:12px;
+ }
+ body.pl-pocket-field .emc-page .emc-wall-item figcaption>span{font-size:30px}
+ body.pl-pocket-field .emc-page .emc-wall-item h3{font-size:25px}
+ body.pl-pocket-field .emc-page .emc-wall::before{
+   content:"SEVEN DIRECTIONS / SWIPE THE VESSEL ↔";
+   display:block;margin:0 0 16px;font:700 9px/1.4 Consolas,monospace;
+   letter-spacing:.1em;color:#5b775d;
+ }
+ body.pl-pocket-field .emc-page :is(.emc-glance,.emc-care){
+   display:block;padding:50px 0;
+ }
+ body.pl-pocket-field .emc-page .emc-glance li{
+   grid-template-columns:24px minmax(0,1fr);
+   gap:8px;padding:16px 0;
+ }
+ body.pl-pocket-field .emc-page .emc-glance em{grid-column:2;font-size:11px}
+
+ /* EL HALLAB — read five terrace conditions, then compare the actual matrix. */
+ body.pl-pocket-field .eh-page .eh-directions{padding-top:60px}
+ body.pl-pocket-field .eh-page .eh-section-head{
+   display:block;padding-top:30px;margin-bottom:22px;
+ }
+ body.pl-pocket-field .eh-page .eh-direction{
+   padding:52px 0 66px;
+ }
+ body.pl-pocket-field .eh-page :is(.eh-direction-2,.eh-direction-4,.eh-direction-3) figure{
+   width:100%;margin-inline:0;
+ }
+ body.pl-pocket-field .eh-page .eh-direction figure{
+   width:calc(100% + 2 * var(--pf-gutter));
+   margin-left:calc(-1 * var(--pf-gutter));
+ }
+ body.pl-pocket-field .eh-page .eh-direction figure figcaption{
+   padding:13px var(--pf-gutter);
+ }
+ body.pl-pocket-field .eh-page .eh-direction-copy{
+   display:block;padding-top:26px;border-top:0;
+ }
+ body.pl-pocket-field .eh-page .eh-direction-no{
+   font-size:52px;margin-bottom:15px;
+ }
+ body.pl-pocket-field .eh-page .eh-direction-copy dl{margin-top:18px}
+ body.pl-pocket-field .eh-page .eh-matrix{padding:72px 0}
+ body.pl-pocket-field .eh-page .eh-table-wrap{
+   overflow-x:auto;max-width:calc(100% + 2 * var(--pf-gutter));
+   margin-inline:calc(-1 * var(--pf-gutter));
+   padding-inline:var(--pf-gutter);
+   overscroll-behavior-x:contain;
+   border-block:1px solid #aab8a6;scrollbar-width:thin;
+ }
+ body.pl-pocket-field .eh-page .eh-matrix table{min-width:860px;width:860px}
+ body.pl-pocket-field .eh-page .eh-table-wrap::after{
+   content:"← SWIPE TABLE FOR ALL FIVE DIRECTIONS →";
+   display:block;padding:13px 0;font:700 10px/1.2 Consolas,monospace;
+   color:#517058;letter-spacing:.08em;
+ }
+ body.pl-pocket-field .eh-page .eh-process{display:block;padding:53px 0}
+ body.pl-pocket-field .eh-page .eh-process li{padding:18px 0}
+
+ /* AUDI — six rooms with photographed evidence and a quiet numbered colophon. */
+ body.pl-pocket-field .au-page .au-sequence{padding-top:55px}
+ body.pl-pocket-field .au-page .au-sequence-head{display:block;margin:0 0 40px}
+ body.pl-pocket-field .au-page .au-chapter{
+   display:flex;flex-direction:column;gap:0;margin-bottom:73px;
+ }
+ body.pl-pocket-field .au-page .au-chapter:nth-child(n) figure{
+   order:1;width:calc(100% + 2 * var(--pf-gutter));
+   margin-inline:calc(-1 * var(--pf-gutter));
+ }
+ body.pl-pocket-field .au-page .au-chapter figure figcaption{
+   padding:12px var(--pf-gutter);font-size:10px;
+ }
+ body.pl-pocket-field .au-page .au-chapter-copy{
+   order:2;display:grid;grid-template-columns:48px minmax(0,1fr);
+   gap:9px;padding:23px 0 0;margin-top:0;max-width:none;border-top:0;
+ }
+ body.pl-pocket-field .au-page .au-chapter-no{font-size:43px;margin:0}
+ body.pl-pocket-field .au-page .au-palette,
+ body.pl-pocket-field .au-page .au-care{display:block;padding:54px 0}
+ body.pl-pocket-field .au-page .au-palette li{
+   display:grid;grid-template-columns:25px minmax(0,1fr);gap:9px;padding:15px 0;
+ }
+ body.pl-pocket-field .au-page .au-palette li em{grid-column:2;font-size:12px}
+
+ /* PIXELS — full architecture panoramas, then the design system revealed. */
+ body.pl-pocket-field .px-page .px-sequence{padding-top:55px}
+ body.pl-pocket-field .px-page .px-frame{
+   display:flex;flex-direction:column;gap:0;margin-bottom:73px;
+ }
+ body.pl-pocket-field .px-page .px-frame .px-frame-media,
+ body.pl-pocket-field .px-page .px-frame.px-frame--panorama .px-frame-media{
+   order:1;width:calc(100% + 2 * var(--pf-gutter));
+   margin-inline:calc(-1 * var(--pf-gutter));
+   min-width:0;overflow:hidden;
+ }
+ body.pl-pocket-field .px-page .px-frame figcaption{
+   order:2;display:grid;grid-template-columns:44px minmax(0,1fr);
+   gap:12px;max-width:none;margin:0;padding:16px 0 0;
+   border-top:0;justify-self:stretch;
+ }
+ body.pl-pocket-field .px-page .px-frame-no{font-size:36px}
+ body.pl-pocket-field .px-page .px-principles,
+ body.pl-pocket-field .px-page .px-system{
+   display:block;padding:62px 0;margin:0;
+ }
+ body.pl-pocket-field .px-page .px-principles ol{margin-top:30px}
+ body.pl-pocket-field .px-page .px-system-grid{
+   display:grid;grid-template-columns:1fr;gap:1px;background:#b9c7b7;
+ }
+ body.pl-pocket-field .px-page .px-system-grid article{
+   padding:24px;min-height:155px;
+ }
+ body.pl-pocket-field .px-page .px-system article h3{margin:16px 0}
+
+ /* VILLA 7 — the house is a set of small, navigable visual collections. */
+ body.pl-pocket-field .vl-page .vl-area-index{
+   padding:24px 0 35px;border-block:1px solid #b9c7b7;
+ }
+ body.pl-pocket-field .vl-page .vl-area-index>div{
+   display:flex;grid-template-columns:none;gap:8px;background:transparent;
+   overflow-x:auto;overscroll-behavior-x:contain;
+   scroll-snap-type:x proximity;scrollbar-width:thin;
+   padding-bottom:13px;
+ }
+ body.pl-pocket-field .vl-page .vl-area-index a{
+   flex:0 0 min(48vw,204px);min-height:86px;
+   background:#e4e9df;border:1px solid #b5c5b5;
+   scroll-snap-align:start;padding:14px;
+   font-size:18px;
+ }
+ body.pl-pocket-field .vl-page .vl-context-banner{
+   display:block;padding:43px 0 20px;
+ }
+ body.pl-pocket-field .vl-page .vl-context-banner>span{
+   display:block;margin-bottom:18px;font-size:35px;
+ }
+ body.pl-pocket-field .vl-page .vl-area{
+   padding:72px 0;
+ }
+ body.pl-pocket-field .vl-page .vl-area-head{
+   display:block;margin-bottom:24px;
+ }
+ body.pl-pocket-field .vl-page .vl-area-head h2{margin:14px 0 19px}
+ body.pl-pocket-field .vl-page .vl-area-head::after{
+   content:"THE AREA / SWIPE OPTIONS ↔";
+   display:block;margin-top:17px;
+   font:700 9px/1.4 Consolas,monospace;letter-spacing:.1em;color:#5e765e;
+ }
+ body.pl-pocket-field .vl-page .vl-visual-field{
+   display:flex;grid-template-columns:none;gap:15px;
+   overflow-x:auto;overscroll-behavior-x:contain;
+   scroll-snap-type:x mandatory;scrollbar-width:thin;
+   padding:0 var(--pf-gutter) 16px 0;
+   margin-right:calc(-1 * var(--pf-gutter));
+ }
+ body.pl-pocket-field .vl-page .vl-visual-field .vl-option:nth-child(n){
+   flex:0 0 min(81vw,410px);grid-column:auto;
+   margin:0;scroll-snap-align:start;min-width:0;
+ }
+ body.pl-pocket-field .vl-page .vl-option figcaption{
+   grid-template-columns:36px minmax(0,1fr);gap:10px;
+   padding-top:13px;
+ }
+ body.pl-pocket-field .vl-page .vl-option-letter{font-size:33px}
+ body.pl-pocket-field .vl-page .vl-sheet-note,
+ body.pl-pocket-field .vl-page .vl-care{
+   display:block;padding:55px 0;
+ }
+
+ /* Three sector essays: distinct visual pacing, familiar reading instruments. */
+ body.pl-pocket-field .hs-page .hs-journey{padding-top:28px}
+ body.pl-pocket-field .hs-page .hs-moment{
+   padding:57px 0 71px;
+ }
+ body.pl-pocket-field .hs-page .hs-moment figure{
+   width:calc(100% + 2 * var(--pf-gutter));
+   margin-inline:calc(-1 * var(--pf-gutter));
+ }
+ body.pl-pocket-field .hs-page .hs-moment figure figcaption{
+   padding:12px var(--pf-gutter);
+ }
+ body.pl-pocket-field .hs-page .hs-moment-copy{
+   display:block;border-top:0;padding-top:23px;
+ }
+ body.pl-pocket-field .hs-page .hs-moment-no{font-size:49px;margin-bottom:17px}
+ body.pl-pocket-field .hs-page .hs-process{display:block;padding:63px 0}
+ body.pl-pocket-field .hs-page .hs-process ol{margin-top:30px}
+ body.pl-pocket-field .hs-page .hs-source-note{display:block;padding:25px 0 61px}
+
+ body.pl-pocket-field .cm-page .cm-hero-layout{display:block}
+ body.pl-pocket-field .cm-page .cm-hero{
+   width:calc(100% + 2 * var(--pf-gutter));
+   margin-inline:calc(-1 * var(--pf-gutter));
+ }
+ body.pl-pocket-field .cm-page .cm-hero figcaption{
+   padding:13px var(--pf-gutter);
+ }
+ body.pl-pocket-field .cm-page .cm-hero-note{
+   border-top:0;padding:30px 0 18px;
+ }
+ body.pl-pocket-field .cm-page .cm-framework,
+ body.pl-pocket-field .cm-page .cm-care{display:block;padding:65px 0}
+ body.pl-pocket-field .cm-page .cm-framework-intro{margin-bottom:27px}
+ body.pl-pocket-field .cm-page .cm-principles summary{min-height:65px}
+ body.pl-pocket-field .cm-page .cm-brand{padding:67px 0}
+ body.pl-pocket-field .cm-page .cm-brand-pair{display:grid;grid-template-columns:1fr;gap:37px}
+
+ body.pl-pocket-field .of-page .of-intro{display:flex;flex-direction:column;gap:24px}
+ body.pl-pocket-field .of-page .of-intro figure{
+   order:-1;width:calc(100% + 2 * var(--pf-gutter));
+   margin-inline:calc(-1 * var(--pf-gutter));
+ }
+ body.pl-pocket-field .of-page .of-intro figcaption{
+   padding:11px var(--pf-gutter);
+ }
+ body.pl-pocket-field .of-page .of-arrangements,
+ body.pl-pocket-field .of-page .of-material,
+ body.pl-pocket-field .of-page .of-brief,
+ body.pl-pocket-field .of-page .of-service{
+   display:block;padding:64px 0;
+ }
+ body.pl-pocket-field .of-page .of-arrangement-field{display:block}
+ body.pl-pocket-field .of-page .of-arrangement-field ol{margin-top:27px}
+ body.pl-pocket-field .of-page .of-arrangement-field li{
+   padding:19px 0;
+ }
+ body.pl-pocket-field .of-page .of-brief-sheet{margin-top:26px}
+ body.pl-pocket-field .of-page .of-note{
+   min-height:78px;grid-template-columns:27px minmax(0,1fr) 26px;
+ }
+ body.pl-pocket-field .of-page .of-note strong{font-size:21px}
+
+ /* No page-wide 4% zoom: evidence never gets cropped outside the viewport. */
+ body.pl-pocket-field :is(.au-page,.px-page,.vl-page,.mz-page,.emc-page,.eh-page,
+ .hs-page,.cm-page,.of-page) :is(.case-lead-photo>img,.ct-trail-image>img){
+   animation:none!important;scale:1!important;translate:none!important;transform:none!important;
+ }
+}
+@media(max-width:370px){
+ body.pl-pocket-field :is(.mz-main,.emc-main,.eh-main,.au-main,.px-main,.vl-main,
+ .hs-main,.cm-main,.of-main){--pf-gutter:16px}
+ body.pl-pocket-field .emc-page .emc-hero h1{font-size:43px}
+ body.pl-pocket-field .px-page .px-hero h1{font-size:46px}
+ body.pl-pocket-field .mz-page .mz-compare-controls{gap:5px}
+ body.pl-pocket-field .mz-page .mz-compare-controls select{padding-inline:5px}
+ body.pl-pocket-field .vl-page .vl-area-index a{flex-basis:51vw}
+}
+@media(prefers-reduced-motion:reduce){
+ body.pl-pocket-field :is(.mz-page,.emc-page,.eh-page,.au-page,.px-page,.vl-page) *{
+   scroll-behavior:auto!important;
+ }
+}
