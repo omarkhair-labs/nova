@@ -159,3 +159,51 @@ for(const width of [320,390,430]){
     });
   });
 }
+
+
+/** Project imagery is a source-led reading experience on the phone, not a thumbnail dead end. */
+for(const width of [320,390,430]){
+  test.describe("Pocket Field / native source photo reader "+width+"px",()=>{
+    test.use({baseURL:"http://127.0.0.1:3017",viewport:{width,height:844}});
+    test("Photo opens with source and description, cycles and returns focus",async({page})=>{
+      await page.goto("/spaces/projects/em-sherif");
+      const first=page.locator(".emc-visual-field .emc-wall-item>img").first();
+      await expect(first).toHaveAttribute("data-pocket-photo","true");
+      await expect(first).toHaveAttribute("role","button");
+      const originalSrc=await first.getAttribute("src");
+      await first.click();
+      const dialog=page.getByRole("dialog",{name:"Plantupia full-size study photographs"});
+      await expect(dialog).toBeVisible();
+      await expect(dialog.locator(".pf-room-frame img")).toHaveAttribute("src",originalSrc);
+      await expect(dialog.locator(".pf-room-progress")).toContainText("01 / 07");
+      await dialog.getByRole("button",{name:"Next photograph"}).click();
+      await expect(dialog.locator(".pf-room-progress")).toContainText("02 / 07");
+      await page.keyboard.press("ArrowLeft");
+      await expect(dialog.locator(".pf-room-progress")).toContainText("01 / 07");
+      await page.keyboard.press("Escape");
+      await expect(dialog).toBeHidden();
+      await expect(first).toBeFocused();
+    });
+    test("Case compare remains separate from source photo reader",async({page})=>{
+      await page.goto("/spaces/projects/mazal");
+      const source=page.locator(".mz-wall-item>img").first();
+      await expect(source).toHaveAttribute("data-pocket-photo","true");
+      const comparison=page.locator(".mz-registered-frame img").first();
+      await expect(comparison).not.toHaveAttribute("data-pocket-photo","true");
+      await source.focus();
+      await page.keyboard.press("Enter");
+      await expect(page.locator("dialog.pf-photo-room")).toBeVisible();
+      await page.locator(".pf-room-close").click();
+      await expect(page.locator("dialog.pf-photo-room")).toBeHidden();
+    });
+  });
+}
+test.describe("Pocket Field / reader desktop independence",()=>{
+  test.use({baseURL:"http://127.0.0.1:3017",viewport:{width:1440,height:900}});
+  test("Desk project photos remain ordinary images",async({page})=>{
+    await page.goto("/spaces/projects/em-sherif");
+    const first=page.locator(".emc-visual-field .emc-wall-item>img").first();
+    await expect(first).not.toHaveAttribute("data-pocket-photo","true");
+    await expect(page.locator("dialog.pf-photo-room")).toBeHidden();
+  });
+});
