@@ -31,3 +31,11 @@
 6. Promote the verified production-configured deployment to the **same fixed alias**, with prior production deployment ID recorded for rollback. One public website, Preview URLs for QA only.
 
 **Current boundary:** code regression is fixed and testable, but a public alias switch is NOT authorized by the available company publication evidence. The old public alias has intentionally been left untouched.
+
+## Verified checkpoint after the integration guard
+- Website code head `2c3bf2d7b2b41221380f6a6f7d824e89648257fe`: [all GitHub Actions green](https://github.com/omarkhair-labs/nova/actions/runs/45110424694).
+- **6/6** synthetic release-gate modes passed, including production Inbox enabled with photo-publication approval disabled.
+- **41/41** public-route, security and publication checks passed.
+- **14/14** Chrome visitor acceptance checks passed on mobile and desktop widths.
+- The stable public alias was rechecked afterwards and still points to `dpl_F8oHRivT23nZtxevKHvpCWKjdXAK` (READY). No site promotion, backend configuration mutation or real external enquiry was performed.
+- These test results verify new-code regression safety under synthetic configurations. They do not establish that the separate operational backend is currently accepting real enquiries, nor that the 23 Nov source contains all approved source-photo files needed for a new public release.
