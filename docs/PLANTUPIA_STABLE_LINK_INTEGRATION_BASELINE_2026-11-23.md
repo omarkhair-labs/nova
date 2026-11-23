@@ -39,3 +39,10 @@
 - **14/14** Chrome visitor acceptance checks passed on mobile and desktop widths.
 - The stable public alias was rechecked afterwards and still points to `dpl_F8oHRivT23nZtxevKHvpCWKjdXAK` (READY). No site promotion, backend configuration mutation or real external enquiry was performed.
 - These test results verify new-code regression safety under synthetic configurations. They do not establish that the separate operational backend is currently accepting real enquiries, nor that the 23 Nov source contains all approved source-photo files needed for a new public release.
+
+## Follow-on checkpoint — isolated real HTTP contract / 23 November 2026
+- Added `apps/web/scripts/isolated-company-integration.mjs`. The actual built Next.js website is started with a *disposable local HTTPS* Company API. This does not contact real Plantupia production, store visitor data, or send an email.
+- The mock uses the original public `POST /api/website/enquiries` route: independently enabled production Inbox despite `PLANTUPIA_PUBLICATION_APPROVED=0`, successful 201+reference, idempotent replay, cross-origin 403, and continued 404s for unpublished case images.
+- The mock also serves a valid published-SKU catalog response and a seeded QA fixture. The website accepts the valid item and filters the QA fixture; real production SKU publication was **not** asserted.
+- Actual GitHub Actions run for **website code commit `2cf3debfacff8aa16f3519ec1ab9be3a5eca2dd3`** completed successfully: [view run 45120490802](https://github.com/omarkhair-labs/nova/actions/runs/45120490802). Checks: **6/6** release-mode cases, **8/8** isolated HTTPS integration checkpoints, **41/41** non-publication smoke checks, **14/14** browser acceptance checks, along with TypeScript and production build.
+- Still open: approved source image files not bundled in Git, explicit publication approval, actual-company Inbox message receipt/roles, real published SKU feed and app channel, physical device performance/accessibility, exact production-candidate retest, and company-approved public alias promotion. There is NO new Vercel release based on this code yet.
