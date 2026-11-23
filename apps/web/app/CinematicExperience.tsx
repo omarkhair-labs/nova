@@ -98,11 +98,25 @@ export default function SceneStudy({ privateReview = false }: { privateReview?: 
       if(raf) window.cancelAnimationFrame(raf);
     };
   },[]);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
   const scene=scenes[stage];
   function move(direction:number){setStage(previous=>((previous+direction+scenes.length)%scenes.length) as Stage)}
   return <div ref={rootRef} className="ps-site" data-stage={stage} data-private-review={privateReview}>
     <a href="#ps-main" className="ps-skip">Skip to experience</a>
-    <section className="ps-opening" aria-labelledby="ps-title">
+    <section className="ps-opening" aria-labelledby="ps-title"
+      onTouchStart={event=>{
+        const target=event.target as HTMLElement;
+        if(target.closest("button,a,nav,.ps-system-strip")) {touchStart.current=null;return;}
+        const finger=event.changedTouches[0];
+        touchStart.current={x:finger.clientX,y:finger.clientY};
+      }}
+      onTouchEnd={event=>{
+        const from=touchStart.current;touchStart.current=null;
+        if(!from)return;
+        const finger=event.changedTouches[0];
+        const dx=finger.clientX-from.x,dy=finger.clientY-from.y;
+        if(Math.abs(dx)>72 && Math.abs(dx)>Math.abs(dy)*1.8)move(dx<0?1:-1);
+      }}>
       <div className="ps-stage-images" role="img" aria-label={failed.includes(stage)?"Generated architectural concept illustration":scene.alt}>
         {scenes.map((item,i)=><div key={item.label} className={"ps-image"+(i===stage?" ps-current":"")} aria-hidden="true"><img src={failed.includes(i)?item.fallback:item.visual} alt="" loading="eager" decoding="async" fetchPriority={i===0?"high":"auto"} onError={()=>setFailed(old=>old.includes(i)?old:[...old,i])}/></div>)}
         <div className="ps-grading" aria-hidden="true"/>
@@ -110,7 +124,7 @@ export default function SceneStudy({ privateReview = false }: { privateReview?: 
       <header className="ps-topbar"><a href="/" className="ps-brand" aria-label="Plantupia home">◕ Plantupia</a><SiteIndex current="experience" tone="dark"/><a className="ps-contact" href="/start-a-space">Get in touch ↗</a></header>
       <main className="ps-main" id="ps-main">
         <div className="ps-story"><p className="ps-kicker"><span className="ps-kicker-rule"/> {privateReview?"GREEN TECHNOLOGY / BIOPHILIC INTEGRATION":"LIVING ARCHITECTURE"}</p><h1 id="ps-title">A Space<br/>Becoming <em>Alive.</em></h1><p>{privateReview?"Plantupia integrates living material into the built environment through design, installation and continuing care — with technology and sustainability treated as part of the system, not decoration.":"Plantupia brings nature into the built environment — from a single room to the places an entire city shares."}</p>{privateReview&&<div className="ps-system-strip" aria-label="Plantupia design system"><span><b>01</b> SITE CONDITIONS</span><span><b>02</b> LIVING MATERIAL</span><span><b>03</b> CONTINUING CARE</span></div>}<a className="ps-cta" href="#world">CONTINUE INTO PLANTUPIA <span aria-hidden="true">↓</span></a><nav className="ps-mobile-paths" aria-label="Explore Plantupia on mobile"><a href="/spaces/projects">Explore the work <span aria-hidden="true">↗</span></a><a href="/start-a-space">Start a space <span aria-hidden="true">↗</span></a></nav></div>
-        <div className="ps-rail">
+        <div className="ps-rail"><span className="ps-swipe-hint" aria-hidden="true">THREE PLACES / SWIPE TO EXPLORE ↔</span>
           <div className="ps-scene-caption" key={stage} aria-live="polite"><p className="ps-kicker">{String(stage+1).padStart(2,"0")} / 03 · {scene.label.toUpperCase()}</p><p>{scene.line}</p></div>
           <div className="ps-sequence" role="group" aria-label="Choose a photographic study">{scenes.map((item,i)=><button type="button" key={item.label} className="ps-chapter" aria-pressed={stage===i} onClick={()=>setStage(i as Stage)}><span aria-hidden="true"/>{item.label}</button>)}</div>
           <div className="ps-arrows"><button type="button" className="ps-circle-button" aria-label="Previous study" onClick={()=>move(-1)}>←</button><button type="button" className="ps-circle-button" aria-label="Next study" onClick={()=>move(1)}>→</button></div>

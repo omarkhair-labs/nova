@@ -18,7 +18,7 @@ function AreaChapter({ area }: { area: (typeof villaAreas)[number] }) {
       </div>
       <p>{choices.length === 1 ? "One proposal direction for this space." : choices.length + " proposal directions for the same space."}</p>
     </header>
-    <div className={"vl-visual-field vl-visual-field--" + choices.length}>
+    <div className={"vl-visual-field vl-visual-field--" + choices.length} role="region" aria-label={"Planting choices for "+area.name+". Scroll horizontally to compare."} tabIndex={0}>
       {choices.map((choice, index) => <figure className="vl-option" key={choice.id}>
         <div className="vl-option-media">
           <img src={"/api/private-arrival/" + choice.asset} alt={"Villa 7 " + choice.areaName + ", option " + choice.letter + ", " + choice.title} loading="lazy" />
