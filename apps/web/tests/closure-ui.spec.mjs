@@ -46,8 +46,9 @@ for (const variant of [
       await page.goto("/shop");
       await expect(page.getByText("The live product catalogue is currently unavailable.")).toBeVisible();
       await expect(page.locator(".sr-product")).toHaveCount(0);
-      const studies = page.locator('a[href="#sr-material-title"]').first();
-      await expect(studies).toBeVisible();
+      const statusLink = page.locator('.sr-shop-path-primary[href="#shop-collection"]');
+      await expect(statusLink).toBeVisible();
+      await expect(page.locator("#sr-material-title")).toHaveCount(0);
     });
 
     test("Shop chapter actions do not point to a missing section", async ({ page }) => {
