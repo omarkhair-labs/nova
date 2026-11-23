@@ -1,3 +1,4 @@
+import MobileReadingRibbon from "./MobileReadingRibbon";
 "use client";
 import { useState } from "react";
 import SiteIndex from "./SiteIndex";
@@ -18,6 +19,7 @@ export default function OfficesSector(){
   return <div className="sx-page of-page">
     <a className="sx-skip" href="#of-main">Skip to workplaces</a>
     <header className="sx-header"><a href="/" className="sx-brand">Plantupia</a><SiteIndex current="spaces"/><a className="sx-contact" href="/start-a-space?space=work">Get in touch <span aria-hidden="true">&#8599;</span></a></header>
+    <MobileReadingRibbon number="06" title="Offices & HQs" stops={[{label:"Compositions",href:"#of-arrangements-title"},{label:"Materials",href:"#of-material-title"},{label:"Field notes",href:"#of-brief-title"}]}/>
     <main id="of-main" className="of-main">
       <a className="sx-underlink of-back" href="/spaces">&#8592; Spaces / sector index</a>
 

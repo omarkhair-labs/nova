@@ -1,3 +1,4 @@
+import MobileReadingRibbon from "./MobileReadingRibbon";
 "use client";
 import {useEffect,useRef,useState} from "react";
 import SiteIndex from "./SiteIndex";
@@ -82,6 +83,7 @@ export default function StudioAtelier({privateReview=false}:{privateReview?:bool
     }
   }
   return <div className="pc-page pc-studio"><header className="pc-header"><a href="/" className="pc-brand">◕ Plantupia</a><SiteIndex current="studio"/><a href="/start-a-space" className="pc-contact">Get in touch ↗</a></header>
+    <MobileReadingRibbon number="14" title="The Studio" stops={[{label:"The practice",href:"#pc-grid"},{label:"The reading",href:"#pc-reading-title"},{label:"The evidence",href:"#pc-proof-title"}]}/>
     <main>
       <section className="pc-intro"><div><p className="pc-kicker">03 / THE STUDIO</p><h1>Designed <em>to belong.</em></h1></div><p>From the first site reading to the next care visit.</p></section>
       <section className="pc-reading-intro" aria-labelledby="pc-reading-title">

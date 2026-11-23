@@ -1,3 +1,4 @@
+import MobileReadingRibbon from "./MobileReadingRibbon";
 import SiteIndex from "./SiteIndex";
 import { HospitalitySourceAlternatives } from "./ArchiveExpansion";
 import "./space-explorer.css";
@@ -20,6 +21,7 @@ export default function HospitalitySector() {
   return <div className="sx-page hs-page">
     <a className="sx-skip" href="#hs-main">Skip to hospitality</a>
     <header className="sx-header"><a href="/" className="sx-brand">Plantupia</a><SiteIndex current="spaces"/><a className="sx-contact" href="/start-a-space?space=gather">Get in touch <span aria-hidden="true">&#8599;</span></a></header>
+    <MobileReadingRibbon number="04" title="Hospitality" stops={[{label:"The moments",href:"#hs-journey"},{label:"The process",href:"#hs-process-title"}]}/>
     <main id="hs-main" className="hs-main">
       <a className="sx-underlink hs-back" href="/spaces">&#8592; Spaces / sector index</a>
 
@@ -28,7 +30,7 @@ export default function HospitalitySector() {
         <p>Restaurants, cafes and hospitality spaces are experienced as a sequence. The planting should be read the same way: first impression, occupied space, outdoor condition, then care.</p>
       </section>
 
-      <section className="hs-journey" aria-label="Three hospitality design moments">
+      <section id="hs-journey" className="hs-journey" aria-label="Three hospitality design moments">
         {moments.map((m,index)=><article className={"hs-moment hs-moment-"+(index+1)} key={m.label}>
           <figure><img src={"/api/private-arrival/"+m.image} alt={m.alt} loading={index===0?"eager":"lazy"}/><figcaption><span>0{index+1} / {m.label.toUpperCase()}</span><span>{m.name} / {m.source}</span></figcaption></figure>
           <div className="hs-moment-copy">

@@ -1,3 +1,4 @@
+import MobileReadingRibbon from "./MobileReadingRibbon";
 import SiteIndex from "./SiteIndex";
 import "./space-explorer.css";
 import "./commercial-sector.css";
@@ -15,6 +16,7 @@ export default function CommercialSector(){
   return <div className="sx-page cm-page">
     <a className="sx-skip" href="#cm-main">Skip to commercial</a>
     <header className="sx-header"><a href="/" className="sx-brand">Plantupia</a><SiteIndex current="spaces"/><a className="sx-contact" href="/start-a-space?space=retail">Get in touch <span aria-hidden="true">&#8599;</span></a></header>
+    <MobileReadingRibbon number="05" title="Commercial" stops={[{label:"Design framework",href:"#cm-framework-title"},{label:"Brand",href:"#cm-brand-title"},{label:"Care",href:"#cm-care-title"}]}/>
     <main id="cm-main" className="cm-main">
       <a href="/spaces" className="sx-underlink cm-back">&#8592; Spaces / sector index</a>
       <section aria-labelledby="cm-title">

@@ -1,3 +1,4 @@
+import MobileReadingRibbon from "./MobileReadingRibbon";
 "use client";
 
 import SiteIndex from "./SiteIndex";
@@ -45,6 +46,7 @@ export default function VillaCaseStudy() {
       <a className="sx-contact" href="/start-a-space?space=home">Get in touch <span aria-hidden="true">&#8599;</span></a>
     </header>
 
+    <MobileReadingRibbon number="13" title="Villa 7" stops={[{label:"The house",href:"#vl-index"},{label:"Selection",href:"#vl-sheet-title"},{label:"Continuing care",href:"#vl-care-title"}]} returnHref="/spaces/projects"/>
     <main id="vl-main" className="vl-main">
       <div className="vl-crumb">
         <a className="sx-underlink" href="/spaces/projects">&#8592; Project archive</a>
@@ -68,7 +70,7 @@ export default function VillaCaseStudy() {
 <ProjectLeadImage project="villa-7" />
 </section>
 
-      <nav className="vl-area-index" aria-label="Villa 7 area index">
+      <nav id="vl-index" className="vl-area-index" aria-label="Villa 7 area index">
         <p className="sx-kicker">THE HOUSE / 01—10</p>
         <div>{villaAreas.map(area => <a key={area.id} href={"#villa-area-" + area.id}><span>{String(area.id).padStart(2, "0")}</span>{area.name}</a>)}</div>
       </nav>
