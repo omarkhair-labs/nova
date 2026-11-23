@@ -48,6 +48,22 @@ for (const variant of [
       await expect(studies).toBeVisible();
     });
 
+    test("Shop chapter actions do not point to a missing section", async ({ page }) => {
+      await page.goto("/shop");
+      const links = page.locator(".sr-shop-path");
+      await expect(links).toHaveCount(3);
+      for (const link of await links.all()) {
+        const href = await link.getAttribute("href");
+        expect(href).toBeTruthy();
+        if (href.startsWith("#")) {
+          await expect(page.locator(href)).toHaveCount(1);
+        } else {
+          const response = await page.request.get(href);
+          expect(response.status(), "Shop CTA target " + href).toBe(200);
+        }
+      }
+    });
+
     test("Unapproved Contact never enables submitting an enquiry", async ({ page }) => {
       await page.goto("/start-a-space");
       const send = page.getByRole("button", { name: /Send your message/ });
