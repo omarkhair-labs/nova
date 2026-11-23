@@ -47,8 +47,8 @@ jobs:
             exit 1
           fi
           node scripts/closure-smoke.mjs
-      - name: Install Chromium for functional acceptance
-        run: npx playwright install --with-deps chromium
+      - name: Verify runner-provided Chrome
+        run: google-chrome --version
 
       - name: Browser acceptance / phone and desktop
         run: |
