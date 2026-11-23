@@ -113,3 +113,36 @@
 @media(prefers-reduced-motion:reduce){
   .pa-project img{transition:none!important}
 }
+
+
+/* 23 Nov / Mobile folio: photographs lead edge-to-edge; context reads as a compact
+   horizontal index, and each proposal stays a full, legible case-study entry. */
+@media(max-width:620px){
+ .pa-page .pa-main{padding:24px 0 0}
+ .pa-page .pa-back{display:inline-flex;margin:0 20px 32px;min-height:44px;font-size:11px}
+ .pa-page .pa-intro{padding:0 20px 35px;gap:16px}
+ .pa-page .pa-intro h1{font-size:clamp(55px,13.5vw,78px);line-height:.92}
+ .pa-page .pa-intro p:not(.sx-kicker){font-size:13px;line-height:1.6;margin:0;max-width:40ch}
+ .pa-page .pa-edition{margin-top:12px;font-size:9px;line-height:1.5}
+ .pa-page .pa-contexts{display:flex;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scrollbar-width:thin;margin:0 0 42px;border-block:1px solid #aab9a9}
+ .pa-page .pa-contexts>div{flex:0 0 min(48vw,210px);scroll-snap-align:start;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:7px;min-height:82px;border-bottom:0;border-right:1px solid #bac7ba;padding:13px 20px}
+ .pa-page .pa-contexts>div:last-child{border-right:0}
+ .pa-page .pa-contexts span{font-size:17px}
+ .pa-page .pa-contexts strong{font-size:18px}
+ .pa-page .pa-wall{display:grid;grid-template-columns:1fr;gap:52px}
+ .pa-page .pa-project{margin:0}
+ .pa-page .pa-project figure{margin:0}
+ .pa-page .pa-project img{display:block;width:100%;height:auto;object-fit:contain;filter:none;background:#e0e5da}
+ .pa-page .pa-project figcaption{margin:0;padding:10px 20px 0;font-size:9px;line-height:1.5;gap:8px;border-top:0}
+ .pa-page .pa-project-copy{display:block;margin:15px 20px 0;padding-top:15px}
+ .pa-page .pa-project-copy h2{font-size:clamp(34px,9vw,47px);margin:5px 0 12px}
+ .pa-page .pa-project-copy p{font-size:13px;line-height:1.65;margin:0 0 14px}
+ .pa-page .pa-project-copy .sx-kicker{font-size:9px}
+ .pa-page .pa-project-copy dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 14px;margin:15px 0 12px}
+ .pa-page .pa-project-copy dl>div{display:block;padding:8px 0;border-top:1px solid #bac7ba;font-size:10px}
+ .pa-page .pa-project-copy dl dt{margin-bottom:5px}
+ .pa-page .pa-open{display:inline-flex;min-height:44px;align-items:center;font-size:11px;letter-spacing:.075em}
+ .pa-page .pa-related{margin:65px 20px 0;padding:42px 0 65px;gap:14px}
+ .pa-page .pa-related h2{font-size:clamp(35px,9vw,48px)}
+ .pa-page .pa-related p{font-size:13px}
+}
