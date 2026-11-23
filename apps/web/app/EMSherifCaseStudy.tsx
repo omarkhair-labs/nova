@@ -1,3 +1,4 @@
+import MobileReadingRibbon from "./MobileReadingRibbon";
 "use client";
 import SiteIndex from "./SiteIndex";
 import ProjectLeadImage from "./ProjectLeadImage";
@@ -16,7 +17,8 @@ function PlantingOption({item,index}:{item:typeof emOptions[number];index:number
 export default function EMSherifCaseStudy(){
  return <div className="sx-page emc-page"><a className="sx-skip" href="#emc-main">Skip to EM Sherif study</a>
  <header className="sx-header"><a href="/" className="sx-brand">Plantupia</a><SiteIndex current="spaces"/><a className="sx-contact" href="/start-a-space?space=gather">Get in touch <span aria-hidden="true">&#8599;</span></a></header>
- <main id="emc-main" className="emc-main"><div className="emc-crumb"><a className="sx-underlink" href="/spaces/projects">&#8592; Project archive</a><span>Hospitality / Custom vessel / Proposal</span></div>
+ <MobileReadingRibbon number="09" title="EM Sherif" stops={[{label:"The vessel",href:"#emc-object-title"},{label:"Seven ways",href:"#emc-options-title"},{label:"Care",href:"#emc-care-title"}]} returnHref="/spaces/projects"/>
+    <main id="emc-main" className="emc-main"><div className="emc-crumb"><a className="sx-underlink" href="/spaces/projects">&#8592; Project archive</a><span>Hospitality / Custom vessel / Proposal</span></div>
  <section className="emc-hero" aria-labelledby="emc-title"><div><p className="sx-kicker">CASE STUDY 02 / EM SHERIF SEA CAFE</p><h1 id="emc-title">One vessel.<br/><em>Seven personalities.</em></h1></div><div><p>The custom navy planter stays constant while seven planting characters change height, density and the relationship to the sea view.</p><dl><div><dt>Object</dt><dd>Custom planter box</dd></div><div><dt>Choices</dt><dd>Seven planting options</dd></div><div><dt>Status</dt><dd>Design proposal / installation not verified</dd></div></dl></div>
 <ProjectLeadImage project="em-sherif" />
 </section>

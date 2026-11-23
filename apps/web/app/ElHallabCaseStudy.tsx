@@ -1,3 +1,4 @@
+import MobileReadingRibbon from "./MobileReadingRibbon";
 "use client";
 import SiteIndex from "./SiteIndex";
 import ProjectLeadImage from "./ProjectLeadImage";
@@ -15,7 +16,8 @@ function TerraceOption({item,index}:{item:typeof hallabOptions[number];index:num
 
 export default function ElHallabCaseStudy(){
  return <div className="sx-page eh-page"><a className="sx-skip" href="#eh-main">Skip to El Hallab study</a><header className="sx-header"><a href="/" className="sx-brand">Plantupia</a><SiteIndex current="spaces"/><a className="sx-contact" href="/start-a-space?space=gather">Get in touch <span aria-hidden="true">&#8599;</span></a></header>
-<main id="eh-main" className="eh-main"><div className="eh-crumb"><a className="sx-underlink" href="/spaces/projects">&#8592; Project archive</a><span>Hospitality / Terrace / Proposal</span></div>
+<MobileReadingRibbon number="10" title="El Hallab" stops={[{label:"Five moods",href:"#eh-options-title"},{label:"The matrix",href:"#eh-matrix-title"},{label:"Next steps",href:"#eh-process-title"}]} returnHref="/spaces/projects"/>
+    <main id="eh-main" className="eh-main"><div className="eh-crumb"><a className="sx-underlink" href="/spaces/projects">&#8592; Project archive</a><span>Hospitality / Terrace / Proposal</span></div>
 <section className="eh-hero" aria-labelledby="eh-title"><div><p className="sx-kicker">CASE STUDY 03 / EL HALLAB TERRACE</p><h1 id="eh-title">One line.<br/><em>Five moods.</em></h1></div><div><p>The terrace planters are the first thing guests meet on arrival. The proposal keeps that edge constant and studies five planting directions for Cairo's outdoor conditions.</p><dl><div><dt>Context</dt><dd>Outdoor terrace</dd></div><div><dt>Choices</dt><dd>Five directions / mixable</dd></div><div><dt>Status</dt><dd>Design proposal / installation not verified</dd></div></dl></div>
 <ProjectLeadImage project="el-hallab" />
 </section>

@@ -1,3 +1,4 @@
+import MobileReadingRibbon from "./MobileReadingRibbon";
 "use client";
 import {useState} from "react";
 import SiteIndex from "./SiteIndex";
@@ -23,7 +24,8 @@ export default function MazalCaseStudy(){
  return <div className="sx-page mz-page">
   <a className="sx-skip" href="#mz-main">Skip to Mazal study</a>
   <header className="sx-header"><a href="/" className="sx-brand">Plantupia</a><SiteIndex current="spaces"/><a className="sx-contact" href="/start-a-space?space=gather">Get in touch <span aria-hidden="true">&#8599;</span></a></header>
-  <main id="mz-main" className="mz-main">
+  <MobileReadingRibbon number="08" title="Mazal facade" stops={[{label:"The directions",href:"#mz-wall-title"},{label:"Compare",href:"#mz-compare-title"},{label:"Continuing care",href:"#mz-care-title"}]} returnHref="/spaces/projects"/>
+    <main id="mz-main" className="mz-main">
    <div className="mz-breadcrumb"><a className="sx-underlink" href="/spaces/projects">&#8592; Project archive</a><span>Hospitality / Facade planting / Proposal</span></div>
    <section className="mz-hero" aria-labelledby="mz-title"><div><p className="sx-kicker">CASE STUDY 01 / MAZAL RESTAURANT</p><h1 id="mz-title">Nine ways<br/>to <em>welcome.</em></h1></div><div><p>One facade. Nine planting designs across three visual families. The proposal studies how the first impression can shift from lush tropical planting to a minimal architectural line.</p><dl><div><dt>Site</dt><dd>Ivory Business Park</dd></div><div><dt>Proposal</dt><dd>November 2026</dd></div><div><dt>Status</dt><dd>Design proposal / installation not verified</dd></div></dl></div>
 <ProjectLeadImage project="mazal" />

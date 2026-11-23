@@ -1,3 +1,4 @@
+import MobileReadingRibbon from "./MobileReadingRibbon";
 "use client";
 
 import SiteIndex from "./SiteIndex";
@@ -39,6 +40,7 @@ export default function AudiCaseStudy() {
       <a className="sx-contact" href="/start-a-space?space=retail">Get in touch <span aria-hidden="true">&#8599;</span></a>
     </header>
 
+    <MobileReadingRibbon number="12" title="Audi Cairo" stops={[{label:"Six rooms",href:"#au-chapters"},{label:"Plant palette",href:"#au-palette-title"},{label:"Care",href:"#au-care-title"}]} returnHref="/spaces/projects"/>
     <main id="au-main" className="au-main">
       <div className="au-crumb">
         <a className="sx-underlink" href="/spaces/projects">&#8592; Project archive</a>
@@ -62,7 +64,7 @@ export default function AudiCaseStudy() {
 <ProjectLeadImage project="audi-cairo" />
 </section>
 
-      <section className="au-sequence" aria-label="Audi Cairo proposal chapters">
+      <section id="au-chapters" className="au-sequence" aria-label="Audi Cairo proposal chapters">
         <header className="au-sequence-head">
           <p className="sx-kicker">CHAPTERS 01—06</p>
           <h2>Move through<br/>the showroom.</h2>

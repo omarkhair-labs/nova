@@ -1,3 +1,4 @@
+import MobileReadingRibbon from "./MobileReadingRibbon";
 "use client";
 
 import SiteIndex from "./SiteIndex";
@@ -33,6 +34,7 @@ export default function PixelsCaseStudy() {
       <a className="sx-contact" href="/start-a-space?space=retail">Get in touch <span aria-hidden="true">&#8599;</span></a>
     </header>
 
+    <MobileReadingRibbon number="11" title="Pixels Mall" stops={[{label:"The landscape",href:"#px-scenes"},{label:"Principles",href:"#px-principles-title"},{label:"The system",href:"#px-system-title"}]} returnHref="/spaces/projects"/>
     <main id="px-main" className="px-main">
       <div className="px-crumb">
         <a className="sx-underlink" href="/spaces/projects">&#8592; Project archive</a>
@@ -56,7 +58,7 @@ export default function PixelsCaseStudy() {
 <ProjectLeadImage project="pixels-mall" />
 </section>
 
-      <section className="px-sequence" aria-label="Pixels Mall proposal visual sequence">
+      <section id="px-scenes" className="px-sequence" aria-label="Pixels Mall proposal visual sequence">
         {pixelsSequence.slice(0, 2).map((frame, index) => <SequenceFrame key={frame.id} frame={frame} index={index} />)}
       </section>
 
