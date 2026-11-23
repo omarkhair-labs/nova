@@ -71,7 +71,7 @@ export default function SiteIndex({ current, tone = "light" }: { current: SiteSe
       </Link>
       <button type="button" className="si-trigger" ref={trigger} aria-haspopup="dialog"
         aria-expanded={open} aria-label="Open Plantupia world index" onClick={reveal}>
-        <span aria-hidden="true" className="si-plus"/>
+        <span className="si-trigger-word" aria-hidden="true">INDEX</span><span aria-hidden="true" className="si-plus"/>
       </button>
       <dialog className="si-overlay" ref={panel} aria-labelledby={titleId}
         onClose={()=>{setOpen(false);trigger.current?.focus({preventScroll:true});}}>
@@ -107,6 +107,7 @@ export default function SiteIndex({ current, tone = "light" }: { current: SiteSe
                   onFocus={()=>setPreview(index)}
                   onClick={event=>{if(event.button===0&&!event.metaKey&&!event.ctrlKey&&!event.shiftKey&&!event.altKey)dismiss();}}>
                   <span className="si-number">{entry.number}</span>
+                  <span className="si-link-image" aria-hidden="true"><img src={"/api/private-arrival/"+studies[index].asset} alt="" loading="lazy" decoding="async" onError={event=>{const fallback=editorialSpaces[studies[index].photo].fallback;if(!event.currentTarget.src.endsWith(fallback))event.currentTarget.src=fallback;}}/></span>
                   <span className="si-link-text"><strong>{entry.name}</strong><small>{entry.line}</small></span>
                   <span className="si-link-arrow" aria-hidden="true">↗</span>
                 </Link>
