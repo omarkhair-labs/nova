@@ -50,6 +50,18 @@ for (const width of [320, 360, 390, 430]) {
             const rect = element.getBoundingClientRect();
             return { selector: element.tagName.toLowerCase() + "." + String(element.className || "").replaceAll(" ", "."), x: Math.round(rect.x), right: Math.round(rect.right), width: Math.round(rect.width) };
           }).filter(item => item.right > innerWidth + 1 || item.x < -1).slice(0, 24));
+          if (route === "/spaces/projects") {
+            const lineage = await page.locator(".pa-project img").first().evaluate(element => {
+              const stack = [];
+              for(let current = element; current && stack.length < 9; current = current.parentElement) {
+                const box = current.getBoundingClientRect();
+                const computed = getComputedStyle(current);
+                stack.push({ tag: current.tagName, className: current.getAttribute("class"), width: box.width, x: box.x, scrollWidth: current.scrollWidth, clientWidth: current.clientWidth, transform: computed.transform, overflowX: computed.overflowX, cssWidth: computed.width });
+              }
+              return stack;
+            });
+            console.log("OVERFLOW_LINEAGE " + route + " " + width + " " + JSON.stringify(lineage));
+          }
           console.log("OVERFLOW_DIAG " + route + " " + width + " " + JSON.stringify(offenders));
         }
         expect(dimensions.content - dimensions.viewport, "Overflow on " + route).toBeLessThanOrEqual(1);
