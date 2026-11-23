@@ -66,3 +66,11 @@ Freeze the creative direction → run one authored page-by-page design/copy sign
 - docs/PLANTUPIA_WEBSITE_INBOX_RELEASE_2026-11-16.md
 - docs/design/PLANTUPIA_PUBLIC_COMMERCE_EDITED_COLLECTION_2026-11-18.md
 - GitHub PRs #253 and #325.
+
+## 9 / 23 Nov 2026 — Verified web engineering closure
+- Replaced stale literal-copy CI assertions with apps/web/scripts/closure-smoke.mjs: **41/41 passed** in non-publication mode. They check chapter availability, actual links, withheld unapproved cases/images, inactive inbox, robots noindex and sitemap safeguards.
+- Added Chrome acceptance in apps/web/tests/closure-ui.spec.mjs on a supported Ubuntu 24.04 runner: **14/14 passed** over 390px and 1440px. It checks World Index and browser history, four Studio stages, Living Systems timeline, Shop status and CTA targets, disabled Contact, and seven public routes for horizontal overflow.
+- Fixed a real Shop public-state dead anchor. When the private visual library is unavailable, the first action points to collection status and the second points to Studio, instead of a missing image library.
+- Latest code CI head: dd76a6e9a798a2c0937c0934291a6a6fdc265387. Successful run: https://github.com/omarkhair-labs/nova/actions/runs/45099253019 .
+- The protected Vercel photo preview remains on an older visual build, not automatically reconstructed from these source-only changes. Desktop Commander reached its monthly tool limit, so an updated photo-bundled Preview and physical-device QA could not be executed.
+- **Not public launch-ready:** image/copy publication consent, actual published SKUs/backend, authorized inbox receipts, company domain/privacy and final device/performance/accessibility/production-artifact review still await verified completion. Do not merge/promote a public alias solely on green CI.
