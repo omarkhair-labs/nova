@@ -49,6 +49,7 @@ export default function CaseTrail({ current }: { current: ProjectId }) {
   const next = projects[(i + 1) % projects.length];
   const handoff = handoffs[current];
   const wraps = i === projects.length - 1;
+  const space = projects[i].sector === "hospitality" ? "gather" : projects[i].sector === "commercial" ? "retail" : "home";
   return <aside className={"ct-trail ct-trail--" + current} aria-label="Continue through the project studies">
     <div className="ct-trail-reading">
       <span className="ct-overline">FIELD ARCHIVE / {String(i + 1).padStart(2, "0")} OF 06</span>
@@ -56,6 +57,7 @@ export default function CaseTrail({ current }: { current: ProjectId }) {
       <p>{handoff.reading}</p>
       <nav className="ct-reading-paths" aria-label="Related Plantupia readings">
         <Link href="/spaces/projects" className="ct-index">All six project studies <span aria-hidden="true">↗</span></Link>
+        <Link href={"/start-a-space?space="+space+"&case="+current} className="ct-ask">Discuss a similar space <span aria-hidden="true">↗</span></Link>
         <Link href={processPaths[current].href} className="ct-side">{processPaths[current].label} <span aria-hidden="true">↗</span></Link>
       </nav>
     </div>
