@@ -29,6 +29,8 @@ jobs:
         run: node scripts/check-release-modes.mjs
       - name: Production build
         run: npm run build
+      - name: Isolated Company Inbox and Shop HTTPS integration
+        run: node scripts/isolated-company-integration.mjs
 
       - name: Smoke-test public routes and safety gates
         run: |
