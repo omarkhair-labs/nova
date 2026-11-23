@@ -45,6 +45,13 @@ for (const width of [320, 360, 390, 430]) {
           content: document.documentElement.scrollWidth,
           viewport: window.innerWidth,
         }));
+        if (dimensions.content - dimensions.viewport > 1) {
+          const offenders = await page.evaluate(() => [...document.querySelectorAll("body *")].map(element => {
+            const rect = element.getBoundingClientRect();
+            return { selector: element.tagName.toLowerCase() + "." + String(element.className || "").replaceAll(" ", "."), x: Math.round(rect.x), right: Math.round(rect.right), width: Math.round(rect.width) };
+          }).filter(item => item.right > innerWidth + 1 || item.x < -1).slice(0, 24));
+          console.log("OVERFLOW_DIAG " + route + " " + width + " " + JSON.stringify(offenders));
+        }
         expect(dimensions.content - dimensions.viewport, "Overflow on " + route).toBeLessThanOrEqual(1);
         await expect(page.getByRole("button", { name: "Open Plantupia world index" })).toBeVisible();
       }
