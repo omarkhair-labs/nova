@@ -34,7 +34,7 @@ try {
   for (const path of ["/spaces", "/studio", "/living-systems", "/about", "/shop", "/start-a-space"]) {
     await page(path);
   }
-  check("Experience World Index reachable without JS", home.includes("Six chapters. One living world."));
+  check("Experience World Index content is present in server-rendered HTML", home.includes("The world index."));
   for (const path of ["/spaces", "/studio", "/living-systems", "/about", "/start-a-space", "/shop"]) {
     check("World navigation includes " + path, home.includes('href="' + path + '"'));
   }
