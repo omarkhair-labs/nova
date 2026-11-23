@@ -21,7 +21,7 @@
 | Privacy / response owner | Approved retention policy, anti-spam controls, response team and secure customer-data procedure | Never store visitor details just to make a demo | Plantupia + company operations | Pending |
 
 ## Review 3 — Technical gates
-- [ ] Exact latest branch GitHub web CI green: typecheck, production build, chapter/security smoke, Chromium visitor tests at 390 and 1440.
+- [x] Web code head dd76a6e tested: TypeScript, production build, 41/41 security/route smoke, 14/14 Chrome visitor tests (390 and 1440). https://github.com/omarkhair-labs/nova/actions/runs/45099253019
 - [ ] Protected preview visually approved on desktop, real Android phone, real iPhone if available, 320/390/768/1440px and short landscape.
 - [ ] Reduced motion, keyboard focus, dialogues, links, image loading/error states and accessibility pass.
 - [ ] Measure first visit LCP/INP/CLS and verify no expensive scroll handlers, image decode surprises or late shifts.
@@ -34,7 +34,7 @@
 ## Proof currently available
 - Earlier browser QA: 17 routes × 2 viewports; six-project 12-case study checks; Pixels motion and scroll checks; successful protected preview.
 - Source web closure run: https://github.com/omarkhair-labs/nova/actions/runs/45098010722 — typecheck, production build and **41/41 public publication-gate smoke checks** green.
-- Additional Chromium browser acceptance added on 23 Nov; refer to the **latest** workflow status rather than treating prior steps as signoff.
+- Latest Chromium browser acceptance completed successfully: **14/14** cases at phone and desktop widths, plus 41/41 non-publication release smoke. These tests do not replace physical-device/accessibility/performance signoff.
 - Current last photographed protected preview: https://plantupia-public-preview-du00ehney-omarkhair70-droids-projects.vercel.app ; newer source-only CI changes are not assumed present at that URL.
 - Main review concept/closure map: docs/PLANTUPIA_WEB_CLOSURE_AND_AHMED_REVIEW_2026-11-23.md.
 
