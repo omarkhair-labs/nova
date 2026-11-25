@@ -57,9 +57,7 @@ fun WelcomeScreen(
                     fontFamily = FontFamily.Serif, fontWeight = FontWeight.SemiBold,
                 )
             }
-            Spacer(Modifier.height(26.dp))
-            WelcomeLivingFrame()
-            Spacer(Modifier.height(26.dp))
+            Spacer(Modifier.height(22.dp))
             Text(
                 "A living space starts here.",
                 style = PlantupiaText.pageHeading.copy(fontSize = 36.sp, lineHeight = 43.sp),
@@ -70,7 +68,9 @@ fun WelcomeScreen(
                 "A place for your plants, the care you give them, and the life you build around them.",
                 style = PlantupiaText.body.copy(fontSize = 15.sp, lineHeight = 23.sp),
             )
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(15.dp))
+            WelcomeLivingFrame()
+            Spacer(Modifier.height(17.dp))
             NovaPrimaryButton(text = "Create account", onClick = onCreateAccount)
             Spacer(Modifier.height(10.dp))
             NovaSecondaryButton(text = "Log in", onClick = onLogin)
@@ -111,7 +111,7 @@ private fun WelcomeLivingFrame() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = PlantupiaColors.forest,
-        shape = RoundedCornerShape(19.dp),
+        shape = RoundedCornerShape(8.dp),
     ) {
         BoxWithConstraints(Modifier.fillMaxWidth().heightIn(min = 148.dp)) {
             // Decorative copy yields to the real introduction when text grows.

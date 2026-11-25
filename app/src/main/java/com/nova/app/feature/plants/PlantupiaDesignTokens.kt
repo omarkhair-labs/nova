@@ -39,7 +39,7 @@ internal object PlantupiaShapes {
 }
 
 internal object PlantupiaText {
-    val pageHeading = TextStyle(fontFamily = FontFamily.Serif, fontSize = 31.sp, lineHeight = 38.sp, color = PlantupiaColors.forestText)
+    val pageHeading = TextStyle(fontFamily = FontFamily.Serif, fontSize = 34.sp, lineHeight = 40.sp, letterSpacing = (-.35).sp, color = PlantupiaColors.forestText)
     val editorialHeading = TextStyle(
         fontFamily = FontFamily.Serif,
         fontSize = 24.sp,
@@ -58,8 +58,8 @@ internal object PlantupiaText {
         color = PlantupiaColors.forestText,
     )
     val supporting = TextStyle(
-        fontSize = 12.sp,
-        lineHeight = 18.sp,
+        fontSize = 13.sp,
+        lineHeight = 19.sp,
         color = PlantupiaColors.secondaryText,
     )
 }

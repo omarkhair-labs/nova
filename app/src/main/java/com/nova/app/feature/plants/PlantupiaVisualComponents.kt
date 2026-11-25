@@ -191,7 +191,19 @@ internal fun PlantupiaPlantInventoryCard(
             shape = RoundedCornerShape(6.dp),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                PlantupiaEvidencePhoto(
+                if (plant.coverPhoto.isBlank()) {
+                    // Abstract collection mark, never a species or specimen photograph.
+                    val marks = listOf("identity", "circle", "material")
+                    val mark = marks[Math.floorMod(plant.id.hashCode(), marks.size)]
+                    Surface(color = PlantupiaColors.softSage, shape = RoundedCornerShape(6.dp),
+                        modifier = Modifier.fillMaxWidth().height(148.dp)) {
+                        Column(Modifier.fillMaxWidth().padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center) {
+                            PlantupiaEditionArt(mark, Modifier.size(82.dp))
+                            Text("No photo added", style = PlantupiaText.supporting)
+                        }
+                    }
+                } else PlantupiaEvidencePhoto(
                     photoUrl = plant.coverPhoto,
                     photoDescription = "Uploaded photo of " + plant.name,
                     modifier = Modifier.fillMaxWidth().height(148.dp),

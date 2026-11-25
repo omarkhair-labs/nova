@@ -279,6 +279,7 @@ private fun CreateIntentGroup(
         Text(title, style = PlantupiaText.sectionLabel)
         if (hint.isNotBlank()) Text(hint, style = PlantupiaText.supporting)
         actions.forEachIndexed { index, action ->
+            if (index > 0) HorizontalDivider(color = PlantupiaColors.border)
             CreateActionCard(action, featured = featuredFirst && index == 0)
         }
     }
@@ -304,9 +305,8 @@ private fun CreateActionCard(action: CreateHubAction, featured: Boolean = false)
     Surface(
         onClick = action.onClick,
         modifier = Modifier.fillMaxWidth().heightIn(min = if (featured) 104.dp else 74.dp),
-        shape = RoundedCornerShape(if (featured) 22.dp else 16.dp),
-        color = if (featured) PlantupiaColors.forest else PlantupiaColors.paper,
-        border = BorderStroke(1.dp, if (featured) PlantupiaColors.forest else PlantupiaColors.border),
+        shape = RoundedCornerShape(6.dp),
+        color = PlantupiaColors.paper,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = if (featured) 19.dp else 13.dp),

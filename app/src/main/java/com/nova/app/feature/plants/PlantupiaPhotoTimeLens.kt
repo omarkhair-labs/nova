@@ -1,5 +1,8 @@
 package com.nova.app.feature.plants
 
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -40,6 +43,7 @@ internal fun PlantupiaPhotoTimeLens(
     var showLater by rememberSaveable(pair.earlier.id, pair.later.id) {
         mutableStateOf(true)
     }
+    var sideBySide by rememberSaveable(pair.earlier.id, pair.later.id) { mutableStateOf(false) }
     val selected = if (showLater) pair.later else pair.earlier
     Surface(
         color = PlantupiaColors.paper,
@@ -67,7 +71,7 @@ internal fun PlantupiaPhotoTimeLens(
                     val entry = if (later) pair.later else pair.earlier
                     val active = showLater == later
                     Surface(
-                        onClick = { showLater = later },
+                        onClick = { showLater = later; sideBySide = false },
                         color = if (active) PlantupiaColors.forest else PlantupiaColors.softSage,
                         border = BorderStroke(1.dp, if (active) PlantupiaColors.forest
                             else PlantupiaColors.border),
@@ -97,7 +101,33 @@ internal fun PlantupiaPhotoTimeLens(
                     }
                 }
             }
-            Crossfade(targetState = selected.id, animationSpec = tween(180),
+            TextButton(onClick = { sideBySide = !sideBySide },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Text(if (sideBySide) "Switch one photo at a time" else "View both photographs", color = PlantupiaColors.forest)
+            }
+            if (sideBySide) {
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    val portrait: @Composable (PlantupiaCareEvent, Modifier) -> Unit = { event, m ->
+                        Column(m, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            PlantupiaEvidencePhoto(event.photoUrl, "Recorded photo " + event.observedAt.take(10),
+                                Modifier.fillMaxWidth().height(178.dp), framing = PlantupiaPhotoFraming.FULL_RECORD,
+                                onOpenPhoto = { onOpenPhoto(event) })
+                            Text(event.observedAt.take(10), style = PlantupiaText.supporting)
+                        }
+                    }
+                    if (maxWidth / LocalDensity.current.fontScale >= 260.dp) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            portrait(pair.earlier, Modifier.weight(1f))
+                            portrait(pair.later, Modifier.weight(1f))
+                        }
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            portrait(pair.earlier, Modifier.fillMaxWidth())
+                            portrait(pair.later, Modifier.fillMaxWidth())
+                        }
+                    }
+                }
+            } else Crossfade(targetState = selected.id, animationSpec = tween(180),
                 label = "actual-saved-photo-time-lens") { id ->
                 val visible = if (id == pair.later.id) pair.later else pair.earlier
                 Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {

@@ -73,6 +73,7 @@ internal fun PlantupiaAiRoute(
     var plantQuery by remember(repository) { mutableStateOf("") }
     var retry by remember(repository) { mutableStateOf(0) }
     var loadingPlants by remember(repository) { mutableStateOf(true) }
+    var showContextPicker by rememberSaveable(user?.id) { mutableStateOf(false) }
 
     LaunchedEffect(repository, retry) {
         loadingPlants = true
@@ -135,11 +136,18 @@ internal fun PlantupiaAiRoute(
                         Text("ASK PLANTUPIA / PRIVATE BY DEFAULT", style = PlantupiaText.sectionLabel)
                         Text("Start with a plant, or don't.", style = PlantupiaText.pageHeading,
                             modifier = Modifier.semantics { heading() })
-                        Text(
-                            "General questions stay general. Choose a plant only when its real context would help.",
-                            style = PlantupiaText.supporting,
-                        )
+                        Surface(onClick = { showContextPicker = !showContextPicker },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            color = PlantupiaColors.forest, shape = RoundedCornerShape(8.dp)) {
+                            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(if (chosenPlant == null) "No plant context" else chosenPlant.name,
+                                    style = PlantupiaText.body.copy(color = PlantupiaColors.paper))
+                                Text(if (showContextPicker) "Hide plant chooser ↑" else "Choose a plant ↓",
+                                    style = PlantupiaText.supporting.copy(color = PlantupiaColors.cream))
+                            }
+                        }
                     }
+                    if (showContextPicker) {
                     if (loadingPlants) LinearProgressIndicator(Modifier.fillMaxWidth())
                     if (plants.size >= 8) {
                         OutlinedTextField(
@@ -157,7 +165,7 @@ internal fun PlantupiaAiRoute(
                     ) {
                         item {
                             Surface(
-                                onClick = { selectedPlantId = null },
+                                onClick = { selectedPlantId = null; showContextPicker = false },
                                 modifier = Modifier.heightIn(min = 58.dp).widthIn(min = 138.dp),
                                 color = if (selectedPlantId == null) PlantupiaColors.forest else PlantupiaColors.paper,
                                 border = BorderStroke(1.dp, if (selectedPlantId == null) PlantupiaColors.forest else PlantupiaColors.border),
@@ -182,7 +190,7 @@ internal fun PlantupiaAiRoute(
                         items(visiblePlants, key = { it.id }) { plant ->
                             val chosen = chosenPlant?.id == plant.id
                             Surface(
-                                onClick = { selectedPlantId = plant.id },
+                                onClick = { selectedPlantId = plant.id; showContextPicker = false },
                                 modifier = Modifier.heightIn(min = 58.dp).widthIn(min = 154.dp),
                                 color = if (chosen) PlantupiaColors.forest else PlantupiaColors.paper,
                                 border = BorderStroke(1.dp, if (chosen) PlantupiaColors.forest else PlantupiaColors.border),
@@ -233,6 +241,7 @@ internal fun PlantupiaAiRoute(
                             modifier = Modifier.padding(horizontal = 17.dp),
                             style = PlantupiaText.supporting,
                         )
+                    }
                     }
                 }
                 Box(Modifier.fillMaxWidth().weight(1f)) {

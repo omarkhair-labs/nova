@@ -61,8 +61,13 @@ internal fun StoreCatalog(
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val columns = plantupiaShopProductColumns(maxWidth.value, fontScale)
         val tilePhotoHeight = plantupiaShopTilePhotoHeightDp(columns, maxWidth.value).dp
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            entries.chunked(columns).forEach { row ->
+        Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            val rows = if (columns > 1 && entries.size > 1) listOf(entries.take(1)) + entries.drop(1).chunked(columns)
+                else entries.chunked(columns)
+            rows.forEachIndexed { index, row ->
+                val lead = columns > 1 && entries.size > 1 && index == 0
+                val rowColumns = if (lead) 1 else columns
+                val photoHeight = if (lead) 240.dp else tilePhotoHeight
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     row.forEach { (id, variants) ->
                         key(id) {
@@ -98,7 +103,7 @@ internal fun StoreCatalog(
                                 Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
                                     if (hasPhoto) {
                                         Box(
-                                            Modifier.fillMaxWidth().height(tilePhotoHeight)
+                                            Modifier.fillMaxWidth().height(photoHeight)
                                                 .background(PlantupiaColors.softSage),
                                             contentAlignment = Alignment.Center,
                                         ) {
@@ -109,10 +114,11 @@ internal fun StoreCatalog(
                                                 photoAlt = if (cover) product.optString("image_description")
                                                     else firstGallery?.optString("alt_text").orEmpty(),
                                                 fullObject = true,
+                                                displayHeight = photoHeight,
                                             )
                                         }
                                     } else {
-                                        PlantupiaShopObjectAwaitingPhoto(kind, height = tilePhotoHeight)
+                                        PlantupiaShopObjectAwaitingPhoto(kind, height = photoHeight)
                                     }
                                     Column(
                                         Modifier.fillMaxWidth().padding(12.dp),
@@ -124,8 +130,8 @@ internal fun StoreCatalog(
                                         )
                                         Text(
                                             product.optString("name"),
-                                            style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
-                                            minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                                            style = if (lead) PlantupiaText.pageHeading else PlantupiaText.editorialHeading,
+                                            maxLines = if (lead) 3 else 4, overflow = TextOverflow.Ellipsis,
                                         )
                                         Text(
                                             if (priced.size > 1) "From EGP $price" else "EGP $price",
@@ -145,7 +151,7 @@ internal fun StoreCatalog(
                             }
                         }
                     }
-                    repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+                    repeat(rowColumns - row.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
         }

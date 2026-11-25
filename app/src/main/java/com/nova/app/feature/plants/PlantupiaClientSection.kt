@@ -1,5 +1,6 @@
 package com.nova.app.feature.plants
 
+import androidx.compose.material3.FilterChip
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -154,6 +155,9 @@ private fun PlantupiaAccountClientSection(
     var photoToView by remember { mutableStateOf<Pair<String, String>?>(null) }
     var focusedSpaceId by rememberSaveable { mutableStateOf<String?>(null) }
     var plantSearch by rememberSaveable { mutableStateOf("") }
+    var collectionFilter by rememberSaveable(accountId, focusedSpaceId) { mutableStateOf("all") }
+    var preferGallery by rememberSaveable(accountId) { mutableStateOf(true) }
+    var collectionSearchOpen by rememberSaveable(accountId, focusedSpaceId) { mutableStateOf(false) }
     var archiveSearch by rememberSaveable { mutableStateOf("") }
     var showArchived by rememberSaveable { mutableStateOf(false) }
     var visibleArchivedCount by remember { mutableStateOf(8) }
@@ -543,7 +547,7 @@ private fun PlantupiaAccountClientSection(
             plantSearch = ""
         }
     }
-    LaunchedEffect(focusedSpaceId, plantSearch) {
+    LaunchedEffect(focusedSpaceId, plantSearch, collectionFilter) {
         // Reuse Nova's fast, progressive inventory; do not render 100+ units.
         visiblePlantCount = 8
         visibleArchivedCount = 8
@@ -552,8 +556,8 @@ private fun PlantupiaAccountClientSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(cream, RoundedCornerShape(22.dp))
-            .padding(20.dp),
+            .background(cream)
+            .padding(horizontal = 2.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         val firstArrival = !loading && error == null && spaces.isEmpty() && plants.isEmpty()
@@ -772,76 +776,43 @@ private fun PlantupiaAccountClientSection(
                 )
                 val featured = resolveFocusedSpace(spaces, focusedSpaceId) ?: spaces.first()
                 val focusedPlants = plants.filter { it.spaceId == featured.id && it.active }
-                // A plant cover is evidence of that plant, NOT an architectural site photo.
+                // Separate authentic plant media from the identity of its private place.
                 val heroPlant = focusedPlants.firstOrNull { it.coverPhoto.isNotBlank() }
                 val heroPhoto = heroPlant?.coverPhoto.orEmpty()
                 var heroPhotoLoaded by remember(featured.id, heroPhoto) { mutableStateOf(false) }
-                // Only a successfully rendered, owner-uploaded plant photo may
-                // switch the architectural card to white-on-photo treatment.
                 val photoHero = heroPhoto.isNotBlank() && heroPhotoLoaded
-                val heroInk = if (photoHero) white else deepGreen
-                val heroMuted = if (photoHero) Color(0xFFE0E7DD) else muted
-                Surface(
-                    color = Color(0xFFD6E2D4),
-                    shape = RoundedCornerShape(22.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = if (photoHero) 178.dp else 130.dp),
-                    ) {
-                        if (heroPhoto.isNotBlank()) {
-                            PlantupiaEvidencePhoto(
-                                photoUrl = heroPhoto,
-                                photoDescription = "Uploaded photo of ${heroPlant?.name.orEmpty()} in ${featured.name}",
-                                modifier = Modifier.matchParentSize(),
-                                cornerRadius = 22.dp,
-                                compact = true, // No fallback caption behind the space name.
-                                onPhotoLoadChanged = { loaded -> heroPhotoLoaded = loaded },
-                            )
-                            if (photoHero) {
-                                Box(
-                                    modifier = Modifier
-                                        .matchParentSize()
-                                        .background(
-                                            Brush.verticalGradient(
-                                                0f to Color(0x22112317),
-                                                0.35f to Color(0x66112317),
-                                                1f to Color(0xE6112317),
-                                            )
-                                        )
-                                )
+                Surface(color = PlantupiaColors.paper, shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth(), border = BorderStroke(1.dp, PlantupiaColors.border)) {
+                    Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(spaceHeroMediaEyebrow(photoHero), style = PlantupiaText.sectionLabel)
+                        BoxWithConstraints(Modifier.fillMaxWidth()) {
+                            val wide = maxWidth / LocalDensity.current.fontScale >= 245.dp
+                            val identity: @Composable () -> Unit = {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(featured.name, style = PlantupiaText.pageHeading)
+                                    if (featured.location.isNotBlank()) Text(featured.location, style = PlantupiaText.supporting)
+                                    Text(if (focusedPlants.size == 1) "1 active plant" else "${focusedPlants.size} active plants",
+                                        style = PlantupiaText.body)
+                                }
+                            }
+                            val portrait: @Composable (Modifier) -> Unit = { m ->
+                                if (heroPhoto.isNotBlank()) PlantupiaEvidencePhoto(
+                                    photoUrl = heroPhoto, photoDescription = "Uploaded photo of " + heroPlant?.name.orEmpty(),
+                                    modifier = m, compact = true, cornerRadius = 6.dp,
+                                    onPhotoLoadChanged = { heroPhotoLoaded = it })
+                                else PlantupiaEditionArt("identity", m)
+                            }
+                            if (wide) Row(verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Box(Modifier.weight(1f)) { identity() }
+                                portrait(Modifier.size(84.dp))
                             } else {
-                                // Cover even the icon-only photo fallback so the
-                                // Space title never overlays a fake photo marker.
-                                Box(Modifier.matchParentSize().background(Color(0xFFD6E2D4)))
+                                identity()
+                                if (heroPhoto.isNotBlank()) portrait(Modifier.fillMaxWidth().height(108.dp))
                             }
                         }
-                        Column(
-                            modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .padding(19.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Text(
-                                spaceHeroMediaEyebrow(photoHero),
-                                color = heroInk,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                letterSpacing = 1.2.sp,
-                            )
-                            Text(
-                                featured.name,
-                                color = heroInk,
-                                fontFamily = FontFamily.Serif,
-                                fontSize = 27.sp,
-                                lineHeight = 33.sp,
-                            )
-                            if (featured.location.isNotBlank()) {
-                                Text(featured.location, color = heroMuted, fontSize = 12.sp)
-                            }
-                         }
+                        HorizontalDivider(color = PlantupiaColors.border)
+                        Text("PRIVATE SPACE", style = PlantupiaText.sectionLabel)
                     }
                 }
                 // Editing site context belongs with its actual chosen space,
@@ -885,7 +856,17 @@ private fun PlantupiaAccountClientSection(
                             }
                         }
                     } else {
-                        if (sitePlants.size > 8) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("COLLECTION / ${sitePlants.size}", style = PlantupiaText.sectionLabel, modifier = Modifier.weight(1f))
+                            TextButton(onClick = {
+                                collectionSearchOpen = !collectionSearchOpen
+                                if (!collectionSearchOpen) plantSearch = ""
+                            }, modifier = Modifier.heightIn(min = 48.dp)) {
+                                Text(if (collectionSearchOpen) "Close search" else "Find plants", color = deepGreen)
+                            }
+                        }
+                        if (collectionSearchOpen || plantSearch.isNotBlank() || sitePlants.size > 8) {
                             OutlinedTextField(
                                 value = plantSearch,
                                 onValueChange = { plantSearch = it.take(80) },
@@ -894,14 +875,38 @@ private fun PlantupiaAccountClientSection(
                                 singleLine = true,
                             )
                         }
-                        val matchingPlants = findSpacePlants(plants, focused.id, plantSearch)
+                        val today = LocalDate.now()
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                            items(3) { index ->
+                                val filter = listOf("all", "due", "no_photo")[index]
+                                val label = listOf("All", "Check-ins due", "No portrait")[index]
+                                val count = sitePlants.count { plantupiaCollectionIncludes(filter, it.nextFollowUpOn, it.coverPhoto, today) }
+                                FilterChip(selected = collectionFilter == filter,
+                                    onClick = { collectionFilter = filter; visiblePlantCount = 8 },
+                                    label = { Text("$label · $count") })
+                            }
+                        }
+                        BoxWithConstraints(Modifier.fillMaxWidth()) {
+                            if (maxWidth / LocalDensity.current.fontScale >= 280.dp) {
+                                TextButton(onClick = { preferGallery = !preferGallery },
+                                    modifier = Modifier.heightIn(min = 48.dp)) {
+                                    Text(if (preferGallery) "Switch to list view" else "Switch to gallery view", color = deepGreen)
+                                }
+                            }
+                        }
+                        val matchingPlants = findSpacePlants(plants, focused.id, plantSearch).filter {
+                            plantupiaCollectionIncludes(collectionFilter, it.nextFollowUpOn, it.coverPhoto, today)
+                        }
                         if (matchingPlants.isEmpty()) {
-                            Text("No plants in this space match your search.", color = muted, fontSize = 12.sp)
+                            Text("No plants match this view.", style = PlantupiaText.supporting)
+                            TextButton(onClick = { collectionFilter = "all"; plantSearch = "" }) {
+                                Text("Show all plants", color = deepGreen)
+                            }
                         }
                         // A real collection gallery: two portraits at normal widths,
                         // a fully readable row sequence at narrow or large-text widths.
                         BoxWithConstraints(Modifier.fillMaxWidth()) {
-                            val gallery = maxWidth / LocalDensity.current.fontScale >= 280.dp
+                            val gallery = preferGallery && maxWidth / LocalDensity.current.fontScale >= 280.dp
                             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                                 if (gallery) {
                                     matchingPlants.take(visiblePlantCount).chunked(2).forEach { pair ->
@@ -2402,61 +2407,30 @@ private fun PlantupiaAccountClientSection(
 }
 
 @Composable
-private fun PlantupiaFirstSpaceArrival(
-    onConnectDelivery: () -> Unit,
-    onStartOwnSpace: () -> Unit,
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = PlantupiaColors.forest,
-        shape = PlantupiaShapes.card,
-    ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text(
-                "BEGIN / YOUR LIVING SPACE",
-                style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage),
-            )
-            Text(
-                "Start with a real place.",
-                style = PlantupiaText.editorialHeading.copy(color = PlantupiaColors.paper),
-            )
-            Text(
-                "Connect a Plantupia delivery, or create the first private space where your own plants live. Nothing is shared just by starting.",
-                style = PlantupiaText.supporting.copy(color = PlantupiaColors.cream),
-            )
-            Surface(
-                onClick = onConnectDelivery,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-                color = PlantupiaColors.paper,
-                shape = PlantupiaShapes.inset,
-            ) {
-                Column(Modifier.padding(horizontal = 14.dp, vertical = 11.dp)) {
-                    Text("FROM PLANTUPIA", style = PlantupiaText.sectionLabel)
-                    Text("Connect a delivery \u2192", style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
-                }
+private fun PlantupiaFirstSpaceArrival(onConnectDelivery: () -> Unit, onStartOwnSpace: () -> Unit) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("BEGIN / YOUR LIVING SPACE", style = PlantupiaText.sectionLabel)
+        Text("Start with a real place.", style = PlantupiaText.pageHeading)
+        Text("A private record for the plants you actually live with. Nothing is shared just by starting.",
+            style = PlantupiaText.body)
+        Surface(onClick = onStartOwnSpace, modifier = Modifier.fillMaxWidth(),
+            color = PlantupiaColors.forest, shape = RoundedCornerShape(8.dp)) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                PlantupiaEditionArt("day", Modifier.fillMaxWidth().height(88.dp))
+                Text("MY OWN PLANTS", style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage))
+                Text("Start my first space →", style = PlantupiaText.editorialHeading.copy(color = PlantupiaColors.paper))
             }
-            Surface(
-                onClick = onStartOwnSpace,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-                color = Color(0xFF315947),
-                shape = PlantupiaShapes.inset,
-            ) {
-                Column(Modifier.padding(horizontal = 14.dp, vertical = 11.dp)) {
-                    Text(
-                        "MY OWN PLANTS",
-                        style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage),
-                    )
-                    Text(
-                        "Start my first space \u2192",
-                        style = PlantupiaText.body.copy(
-                            color = PlantupiaColors.paper,
-                            fontWeight = FontWeight.SemiBold,
-                        ),
-                    )
+        }
+        Surface(onClick = onConnectDelivery, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+            color = PlantupiaColors.paper, shape = RoundedCornerShape(8.dp), border = BorderStroke(1.dp, PlantupiaColors.border)) {
+            Row(Modifier.padding(15.dp), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("FROM PLANTUPIA", style = PlantupiaText.sectionLabel)
+                    Text("Connect a delivery →", style = PlantupiaText.editorialHeading)
+                    Text("Review your real delivery before it joins your space.", style = PlantupiaText.supporting)
                 }
+                PlantupiaEditorialMark("plant", Modifier.size(32.dp))
             }
         }
     }

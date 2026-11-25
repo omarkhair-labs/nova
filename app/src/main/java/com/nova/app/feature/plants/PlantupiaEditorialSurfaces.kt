@@ -197,11 +197,11 @@ internal fun PlantupiaTodayMasthead(
                         Column(Modifier.weight(1f)) {
                             Text(date.dayOfMonth.toString().padStart(2, '0'),
                                 style = PlantupiaText.pageHeading.copy(color = paper,
-                                    fontSize = 70.sp, lineHeight = 76.sp))
+                                    fontSize = 54.sp, lineHeight = 60.sp))
                             Text("TODAY / YOUR LIVING RECORD",
                                 style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage))
                         }
-                        PlantupiaEditionArt("day", Modifier.size(104.dp))
+                        PlantupiaEditionArt("day", Modifier.size(80.dp))
                     }
                 } else {
                     Text(date.dayOfMonth.toString(), style = PlantupiaText.pageHeading.copy(color = paper, fontSize = 44.sp, lineHeight = 49.sp))

@@ -167,7 +167,7 @@ private fun PersonalCheckInHero(
         onClick = onOpen,
         modifier = Modifier.fillMaxWidth(),
         color = PlantupiaColors.forest,
-        shape = PlantupiaShapes.card,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
         border = BorderStroke(1.dp, PlantupiaColors.forest),
     ) {
         Row(
@@ -178,7 +178,7 @@ private fun PersonalCheckInHero(
             PlantupiaEvidencePhoto(
                 photoUrl = plant.coverPhoto,
                 photoDescription = "Uploaded photo of ${plant.name}",
-                modifier = Modifier.size(74.dp),
+                modifier = Modifier.size(90.dp),
                 compact = true,
             )
             Column(
