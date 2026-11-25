@@ -136,7 +136,7 @@ class PlantupiaEntranceInstrumentedTest {
         if (InstrumentationRegistry.getArguments().getString("plantupiaCapture") != "true") return
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val config = context.resources.configuration
-        val directory = File(context.getExternalFilesDir(null), "craft-evidence").apply { mkdirs() }
+        val directory = File(context.filesDir, "craft-evidence").apply { mkdirs() }
         val file = File(directory, "$name-${config.screenWidthDp}dp-font${config.fontScale}.png")
         val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
         file.outputStream().use { assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }

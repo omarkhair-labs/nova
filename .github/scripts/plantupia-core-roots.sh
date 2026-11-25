@@ -15,7 +15,7 @@ readonly repository
 readonly package='com.omarkhair70.nova.qa'
 readonly runner="$package.test/androidx.test.runner.AndroidJUnitRunner"
 readonly test_class='com.nova.app.feature.plants.PlantupiaCoreRootsInstrumentedTest'
-readonly remote_images="/sdcard/Android/data/$package/files/craft-evidence"
+readonly remote_images='files/craft-evidence'
 readonly output="$repository/artifacts/core-roots"
 qa_root="$(mktemp -d "$RUNNER_TEMP/plantupia-core-roots.XXXXXX")"
 readonly qa_root
@@ -144,7 +144,7 @@ if ! timeout --signal=TERM --kill-after=5s 3m python3 "$repository/backend/manag
 fi
 stage='create guarded synthetic fixture'
 if ! timeout --signal=TERM --kill-after=5s 2m python3 "$repository/backend/manage.py" seed_local_plantupia_qa \
-    --credentials-file "$credentials" > "$qa_root/seed.txt" 2>&1; then
+    --credentials-file "$credentials" --with-sample-care-guides > "$qa_root/seed.txt" 2>&1; then
   sanitize "$qa_root/seed.txt" "$output/diagnostics/seed-redacted.txt"
   exit 1
 fi
@@ -159,7 +159,7 @@ fixture = json.loads(path.read_text())
 assert fixture["synthetic"] is True and len(fixture["plant_ids"]) == 7
 assert {"staff", "customer", "stranger", "independent"} == set(fixture["accounts"])
 assert stat.S_IMODE(path.stat().st_mode) == 0o600
-print("Created seven synthetic plants in a fresh private local fixture; no delivery was claimed.")
+print("Created seven synthetic plants and three QA-only guide examples; no delivery was claimed or real botanical approval implied.")
 PY
 
 stage='start owned loopback backend'
@@ -186,7 +186,7 @@ PY
   sleep 1
 done
 if (( backend_ready != 1 )); then exit 1; fi
-printf '%s\n' 'Fresh local SQLite migrated and guarded fixture seeded.' \
+printf '%s\n' 'Fresh local SQLite migrated; guarded seed has seven synthetic plants and three QA-only guide examples.' \
   'Owned server healthy at http://127.0.0.1:8765; no hosted service configured.' \
   > "$output/test-results/backend-setup.txt"
 
@@ -247,9 +247,51 @@ run_pass() {
     echo "::error::Refusing stale screenshot evidence for $label." >&2
     exit 1
   fi
+  local archive
+  archive="$(mktemp "${RUNNER_TEMP:?}/plantupia-native-captures.XXXXXX.tar")"
   local pull_status=0
-  timeout --signal=TERM --kill-after=5s 90s adb pull "$remote_images" "$images" \
-    > "$directory/capture.txt" 2>&1 || pull_status=$?
+  # API30 scoped storage blocks shell reads of Android/data. run-as accesses
+  # only this owned debuggable app's private capture directory.
+  timeout --signal=TERM --kill-after=5s 90s adb exec-out run-as "$package" \
+    tar -C "$remote_images" -cf - . > "$archive" 2> "$directory/capture.txt" || pull_status=$?
+  if (( pull_status == 0 )); then
+    python3 - "$archive" "$images" >> "$directory/capture.txt" 2>&1 <<'PY' || pull_status=$?
+import re
+import shutil
+import sys
+import tarfile
+from pathlib import Path, PurePosixPath
+
+archive, destination = map(Path, sys.argv[1:])
+if destination.exists():
+    raise ValueError("Refusing an existing capture destination.")
+with tarfile.open(archive, "r:") as stream:
+    files = []
+    seen = set()
+    total = 0
+    for member in stream.getmembers():
+        if member.isdir() and member.name in (".", "./"):
+            continue
+        path = PurePosixPath(member.name)
+        if (not member.isfile() or path.is_absolute() or len(path.parts) != 1
+                or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*\.png", path.name)
+                or path.name in seen):
+            raise ValueError("Capture archive contains an unsafe or duplicate non-PNG entry.")
+        total += member.size
+        if member.size <= 0 or member.size > 64 * 1024 * 1024 or total > 256 * 1024 * 1024:
+            raise ValueError("Capture archive exceeds image size limits.")
+        seen.add(path.name)
+        files.append((member, path.name))
+    if not files or len(files) > 128:
+        raise ValueError("Capture archive must contain 1 to 128 PNG files.")
+    destination.mkdir()
+    for member, name in files:
+        with stream.extractfile(member) as source, (destination / name).open("xb") as target:
+            shutil.copyfileobj(source, target)
+print(f"Collected {len(files)} app-private PNG captures.")
+PY
+  fi
+  rm -f -- "$archive"
   diagnostics "$label"
 
   if ! python3 - "$directory" "$images" "$width" "$font" "$instrument_status" "$pull_status" <<'PY'
@@ -273,12 +315,13 @@ if lines.count("OK (2 tests)") != 1 or "INSTRUMENTATION_CODE: -1" not in lines:
 if re.search(r"^INSTRUMENTATION_STATUS_CODE: -\d+\s*$", raw, re.MULTILINE):
     errors.append("The runner reported a failed, ignored or assumption-skipped test.")
 if pull_status:
-    errors.append(f"Required screenshot pull exited {pull_status}.")
+    errors.append(f"Required app-private screenshot collection exited {pull_status}.")
 names = [
     "01-customer-today", "02-customer-plants", "03-create", "04-create-public",
     "05-circle", "06-circle-moments", "07-profile", "08-profile-public",
     "09-settings", "10-settings-about", "11-shop-empty", "12-shop-cart",
     "13-ask", "14-today-return", "15-owner-today", "16-owner-plants", "17-owner-profile",
+    "18-owner-plant-detail", "19-owner-plant-care", "20-owner-plant-history", "21-owner-plant-guide",
 ]
 captures = []
 for name in names:

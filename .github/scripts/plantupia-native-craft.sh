@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run only callback-based entrance and signed-out draft tests on a fresh CI AVD.
-# Direct instrumentation retains external screenshots until they have been pulled;
+# Direct instrumentation retains app-private screenshots until they are collected;
 # Gradle's connected-test cleanup can uninstall the app before that evidence is read.
 set -euo pipefail
 
@@ -11,7 +11,7 @@ esac
 
 readonly package='com.omarkhair70.nova'
 readonly runner="$package.test/androidx.test.runner.AndroidJUnitRunner"
-readonly remote_images="/sdcard/Android/data/$package/files/craft-evidence"
+readonly remote_images='files/craft-evidence'
 readonly output='artifacts/native-craft'
 readonly entrance='com.nova.app.feature.auth.PlantupiaEntranceInstrumentedTest'
 readonly drafts='com.nova.app.feature.plants.PlantupiaCreationDraftInstrumentedTest'
@@ -101,17 +101,57 @@ run_pass() {
   local pipeline_status=("${PIPESTATUS[@]}")
   set -e
 
-  # Pull before another pass clears app data, including when a test has failed.
-  # A pull failure or missing/invalid expected image is a failing result.
-  # Keep this per-pass path absent: adb's do_sync_pull copies a remote directory
-  # directly to a new destination, but nests its basename under an existing one.
+  # Collect before another pass clears app data, including after test failure.
+  # A collection failure or missing/invalid expected image is a failing result.
   if [[ -e "$images" ]]; then
     echo "::error::Refusing to reuse existing screenshot evidence for $label." >&2
     exit 1
   fi
+  local archive
+  archive="$(mktemp "${RUNNER_TEMP:?}/plantupia-native-captures.XXXXXX.tar")"
   local pull_status=0
-  timeout --signal=TERM --kill-after=5s 90s adb pull "$remote_images" "$images" \
-    > "$directory/capture.txt" 2>&1 || pull_status=$?
+  # API30 scoped storage blocks shell reads of Android/data. run-as accesses
+  # only this owned debuggable app's private capture directory.
+  timeout --signal=TERM --kill-after=5s 90s adb exec-out run-as "$package" \
+    tar -C "$remote_images" -cf - . > "$archive" 2> "$directory/capture.txt" || pull_status=$?
+  if (( pull_status == 0 )); then
+    python3 - "$archive" "$images" >> "$directory/capture.txt" 2>&1 <<'PY' || pull_status=$?
+import re
+import shutil
+import sys
+import tarfile
+from pathlib import Path, PurePosixPath
+
+archive, destination = map(Path, sys.argv[1:])
+if destination.exists():
+    raise ValueError("Refusing an existing capture destination.")
+with tarfile.open(archive, "r:") as stream:
+    files = []
+    seen = set()
+    total = 0
+    for member in stream.getmembers():
+        if member.isdir() and member.name in (".", "./"):
+            continue
+        path = PurePosixPath(member.name)
+        if (not member.isfile() or path.is_absolute() or len(path.parts) != 1
+                or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*\.png", path.name)
+                or path.name in seen):
+            raise ValueError("Capture archive contains an unsafe or duplicate non-PNG entry.")
+        total += member.size
+        if member.size <= 0 or member.size > 64 * 1024 * 1024 or total > 256 * 1024 * 1024:
+            raise ValueError("Capture archive exceeds image size limits.")
+        seen.add(path.name)
+        files.append((member, path.name))
+    if not files or len(files) > 128:
+        raise ValueError("Capture archive must contain 1 to 128 PNG files.")
+    destination.mkdir()
+    for member, name in files:
+        with stream.extractfile(member) as source, (destination / name).open("xb") as target:
+            shutil.copyfileobj(source, target)
+print(f"Collected {len(files)} app-private PNG captures.")
+PY
+  fi
+  rm -f -- "$archive"
   if (( pull_status != 0 )); then
     echo "::error::ADB could not collect $label craft images (exit $pull_status)."
     cat "$directory/capture.txt"
@@ -144,7 +184,7 @@ if lines.count(expected_summary) != 1:
 if "INSTRUMENTATION_CODE: -1" not in lines:
     errors.append("AndroidJUnitRunner did not report a completed instrumentation result.")
 if pull_status != 0:
-    errors.append(f"Required ADB screenshot pull failed with exit {pull_status}.")
+    errors.append(f"Required app-private screenshot collection failed with exit {pull_status}.")
 
 names = ["welcome", "create-account", "create-profile", "login", "login-error"]
 if expected_tests == 9:

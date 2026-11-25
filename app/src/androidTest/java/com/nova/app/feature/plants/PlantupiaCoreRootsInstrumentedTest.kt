@@ -183,9 +183,62 @@ class PlantupiaCoreRootsInstrumentedTest {
         compose.onNodeWithContentDescription("Messages").assertIsDisplayed()
         scrollToText("${spaces.size} spaces · ${plants.count { it.active }} plants")
         capture("17-owner-profile")
+
+        // The existing seed attaches its first sample guide to this exact UUID.
+        // Read the real specimen and source note; never fabricate a guide topic.
+        val specimen = plants.single { it.id == fixture.getJSONArray("plant_ids").getString(0) }
+        val guideResponse = runBlocking { repository.careGuide(specimen.id) }
+        assertTrue("The disposable sample guide must load from the local API.",
+            guideResponse is ApiResult.Success)
+        val guide = (guideResponse as ApiResult.Success).value
+        assertTrue("The sample source note must remain explicitly synthetic and unapproved.",
+            guide.version != null && guide.instructions.startsWith("SYNTHETIC QA DEMO — NOT APPROVED BY PLANTUPIA.") &&
+                guide.sourceReference.contains("SYNTHETIC QA"))
+        val initialHistory = runBlocking { repository.historyPage(specimen.id) }
+        assertTrue("The original sample plant has no saved care events.",
+            initialHistory is ApiResult.Success && initialHistory.value.events.isEmpty())
+
+        tab("Plants")
+        clickDescription("Open plant: ${specimen.name}")
+        val chapterRole = SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)
+        awaitNode(hasText("Overview") and chapterRole).assertIsSelected()
+        // Keep the actual tab row in the frame: large-text clipping must be
+        // reviewed in the original image, not hidden by a lower-body capture.
+        scrollToText("Overview", clickable = true).assertIsSelected()
+        compose.onNode(hasText("Care") and chapterRole).assertIsDisplayed()
+        compose.onNode(hasText("History") and chapterRole).assertIsDisplayed()
+        awaitText(specimen.name)
+        capture("18-owner-plant-detail")
+
+        clickText("Care")
+        compose.onNode(hasText("Care") and chapterRole).assertIsSelected()
+        scrollToText("CARE & OBSERVATIONS")
+        capture("19-owner-plant-care")
+
+        clickText("History")
+        compose.onNode(hasText("History") and chapterRole).assertIsSelected()
+        scrollToText("No field notes yet")
+        capture("20-owner-plant-history")
+
+        clickText("Care")
+        clickText("Care guide")
+        awaitText("Reviewed care")
+        clickText("Read complete care notes")
+        awaitText("Show less")
+        scrollToText("SYNTHETIC QA DEMO — NOT APPROVED BY PLANTUPIA.", substring = true)
+        capture("21-owner-plant-guide")
+        pressBack()
+        clickText("Overview")
+        clickText("← Back to space")
+        awaitNode(hasContentDescription("Open plant: ${specimen.name}"))
+
+        val finalHistory = runBlocking { repository.historyPage(specimen.id) }
+        assertTrue("Reading care chapters and the guide must not record care.",
+            finalHistory is ApiResult.Success && finalHistory.value.events.isEmpty())
         val after = runBlocking { repository.plants() }
         assertTrue("Read-only navigation must retain the original inventory.",
-            after is ApiResult.Success && after.value.map { it.id }.toSet() == expectedIds)
+            after is ApiResult.Success && after.value.map { it.id }.toSet() == expectedIds &&
+                after.value.associate { it.id to it.active } == plants.associate { it.id to it.active })
     }
 
     private fun openSeedAccount(role: String): PlantupiaRepository {
@@ -273,7 +326,7 @@ class PlantupiaCoreRootsInstrumentedTest {
         // Semantics can settle before the native window/navigation frame does.
         SystemClock.sleep(350)
         val config = context.resources.configuration
-        val directory = File(context.getExternalFilesDir(null), "craft-evidence").apply { mkdirs() }
+        val directory = File(context.filesDir, "craft-evidence").apply { mkdirs() }
         val screenshot = requireNotNull(instrumentation.uiAutomation.takeScreenshot()) {
             "The actual emulator frame must be capturable."
         }

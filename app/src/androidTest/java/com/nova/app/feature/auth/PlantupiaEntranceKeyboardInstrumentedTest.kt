@@ -91,7 +91,7 @@ class PlantupiaEntranceKeyboardInstrumentedTest {
                 if (InstrumentationRegistry.getArguments().getString("plantupiaCapture") == "true") {
                     val context = instrumentation.targetContext
                     val config = context.resources.configuration
-                    val directory = File(context.getExternalFilesDir(null), "craft-evidence").apply { mkdirs() }
+                    val directory = File(context.filesDir, "craft-evidence").apply { mkdirs() }
                     File(directory, "login-keyboard-${config.screenWidthDp}dp-font${config.fontScale}.png")
                         .outputStream().use { requireNotNull(automation.takeScreenshot()).compress(Bitmap.CompressFormat.PNG, 100, it) }
                 }
