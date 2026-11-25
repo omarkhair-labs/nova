@@ -100,6 +100,7 @@ internal fun PlantupiaPhotoTimeLens(
             Crossfade(targetState = selected.id, animationSpec = tween(180),
                 label = "actual-saved-photo-time-lens") { id ->
                 val visible = if (id == pair.later.id) pair.later else pair.earlier
+                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 PlantupiaEvidencePhoto(
                     photoUrl = visible.photoUrl,
                     photoDescription = "Actual recorded plant photograph from " +
@@ -109,6 +110,9 @@ internal fun PlantupiaPhotoTimeLens(
                     framing = PlantupiaPhotoFraming.FULL_RECORD,
                     onOpenPhoto = { onOpenPhoto(visible) },
                 )
+                Text("Recorded on " + visible.observedAt.take(10),
+                    style = PlantupiaText.sectionLabel)
+                }
             }
             if (hasOlderPages) {
                 Text("Only photos loaded so far. Earlier pages may add older moments.",

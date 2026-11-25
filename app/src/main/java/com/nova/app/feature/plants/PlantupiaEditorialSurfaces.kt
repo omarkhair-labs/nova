@@ -421,41 +421,35 @@ internal fun PlantupiaNutritionEvidenceCard(
  * a new plant ID. It does not impersonate staff botanical verification.
  */
 @Composable
-internal fun PlantupiaArrivalCard(onOpenCare: () -> Unit, onDismiss: () -> Unit) {
+internal fun PlantupiaArrivalCard(onOpenCare: () -> Unit, onDismiss: () -> Unit, plantName: String = "") {
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }
-    AnimatedVisibility(visible = visible, enter = fadeIn() + expandVertically()) {
+    AnimatedVisibility(visible = visible, enter = fadeIn(animationSpec = androidx.compose.animation.core.tween(260))) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = Color(0xFFE6EDE2),
-            border = BorderStroke(1.dp, PlantupiaColors.border),
-            shape = RoundedCornerShape(21.dp),
+            color = PlantupiaColors.forest,
+            shape = RoundedCornerShape(18.dp),
         ) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(13.dp),
-                ) {
-                    PlantupiaEditorialMark("plant", Modifier.size(59.dp))
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("A RECORD BEGINS", style = PlantupiaText.sectionLabel)
-                        Text("A place for this plant", style = PlantupiaText.editorialHeading)
-                        Text(
-                            "Your plant is saved in your private space. You can add a real observation or choose a check-in day.",
-                            style = PlantupiaText.supporting,
-                        )
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    PlantupiaEditorialMark("plant", Modifier.size(54.dp), ink = PlantupiaColors.sage)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Text("A RECORD BEGINS", style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage))
+                        Text("A place for this plant", style = PlantupiaText.editorialHeading.copy(color = PlantupiaColors.paper))
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    androidx.compose.material3.TextButton(
-                        onClick = onOpenCare,
-                        modifier = Modifier.heightIn(min = 48.dp),
-                    ) { Text("Explore care →", color = PlantupiaColors.forest) }
-                    androidx.compose.material3.TextButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.heightIn(min = 48.dp),
-                    ) { Text("Not now", color = PlantupiaColors.secondaryText) }
-                }
+                if (plantName.isNotBlank()) Text(plantName, style = PlantupiaText.body.copy(color = PlantupiaColors.paper))
+                Text("Your plant is saved in your private space. You can add a real observation or choose a check-in day.",
+                    style = PlantupiaText.body.copy(color = PlantupiaColors.paper))
+                androidx.compose.material3.Button(
+                    onClick = onOpenCare,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = PlantupiaColors.paper, contentColor = PlantupiaColors.forest),
+                ) { Text("Explore care →") }
+                androidx.compose.material3.TextButton(
+                    onClick = onDismiss, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                ) { Text("Not now", color = PlantupiaColors.paper) }
             }
         }
     }

@@ -85,7 +85,7 @@ internal fun PlantupiaSpeciesPicker(
                     Text(selectedName, color = forest, fontWeight = FontWeight.SemiBold)
                     Text("Based on your selection · Your individual plant is not verified.",
                         color = quiet, fontSize = 12.sp)
-                    TextButton(enabled = enabled, onClick = { onUnknown() }) {
+                    TextButton(enabled = enabled, onClick = onBrowse) {
                         Text("Change plant type", color = forest)
                     }
                 }

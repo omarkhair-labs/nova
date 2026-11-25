@@ -67,7 +67,7 @@ internal fun PlantupiaCareChapterGallery(
     if (topics.isEmpty()) return
     val chapter = selectedReviewedCareTopic(topics, selectedTopic)
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text("CHAPTERS / SELECT WHAT TO READ", style = PlantupiaText.sectionLabel)
+        Text("THE FIELD GUIDE / CHAPTER INDEX", style = PlantupiaText.sectionLabel)
         androidx.compose.foundation.lazy.LazyRow(
             horizontalArrangement = Arrangement.spacedBy(7.dp),
         ) {
@@ -79,7 +79,7 @@ internal fun PlantupiaCareChapterGallery(
                     onClick = { onSelect(item.topic) },
                     modifier = Modifier
                         .widthIn(min = 134.dp)
-                        .heightIn(min = 132.dp)
+                        .heightIn(min = 100.dp)
                         .semantics {
                             selected = active
                             contentDescription = "Read reviewed " + palette.label + " chapter"
@@ -96,7 +96,7 @@ internal fun PlantupiaCareChapterGallery(
                         verticalArrangement = Arrangement.SpaceBetween,
                     ) {
                         CareChapterIllustration(
-                            item.topic, palette.ink, Modifier.size(53.dp),
+                            item.topic, palette.ink, Modifier.size(36.dp).clearAndSetSemantics { },
                         )
                         Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text(palette.label, fontSize = 15.sp,
@@ -127,6 +127,7 @@ internal fun PlantupiaCareChapterGallery(
                     Text(palette.label.uppercase(),
                         style = PlantupiaText.sectionLabel.copy(color = palette.ink))
                     Text(item.title, style = PlantupiaText.editorialHeading)
+                    PlantupiaSignatureFieldPlate(item.topic)
                     Text(item.instructions, style = PlantupiaText.body)
                     if (item.contextNotes.isNotBlank()) {
                         Text("CONTEXT & CAUTIONS",

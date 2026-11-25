@@ -294,8 +294,9 @@ fun PlantupiaSelfServiceForms(
         if (plantOpen) {
             Surface(color = paper, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("New plant", modifier = Modifier.bringIntoViewRequester(creationEditorHeading), color = ink, fontSize = 22.sp)
-                    Text("Every plant has a name, a place, and a history that grows over time.", color = textMuted, fontSize = 12.sp)
+                    Text("New plant", modifier = Modifier.bringIntoViewRequester(creationEditorHeading), style = PlantupiaText.pageHeading)
+                    Text("A living record begins with one plant.", style = PlantupiaText.body)
+                    Text("01 / KNOW ITS TYPE", style = PlantupiaText.sectionLabel)
                     PlantupiaSpeciesPicker(
                         repository = repository,
                         selectedKey = selectedSpeciesKey,
@@ -313,10 +314,14 @@ fun PlantupiaSelfServiceForms(
                             unknownPlantType = true
                         },
                         onBrowse = {
+                            selectedSpeciesKey = null
                             unknownPlantType = false
                             species = ""
                         },
                     )
+                    if (signatureTypeChosen(selectedSpeciesKey, unknownPlantType)) {
+                    Text("02 / MAKE IT YOURS", style = PlantupiaText.sectionLabel)
+                    Text("Name and place are yours to choose. A photo can be added later.", style = PlantupiaText.supporting)
                     OutlinedButton(
                         onClick = { spaceMenuOpen = true },
                         modifier = Modifier.fillMaxWidth(), enabled = !saving,
@@ -354,6 +359,7 @@ fun PlantupiaSelfServiceForms(
                         label = { Text("Placement within the space") }, singleLine = true,
                         modifier = Modifier.fillMaxWidth(), enabled = !saving,
                     )
+                    Text("03 / ITS REAL PORTRAIT", style = PlantupiaText.sectionLabel)
                     OutlinedButton(
                         onClick = { photoPickerOrigin = repository; photoPicker.launch("image/*") }, enabled = !saving,
                         modifier = Modifier.fillMaxWidth(),
@@ -368,10 +374,11 @@ fun PlantupiaSelfServiceForms(
                             Text("Remove photo", color = textMuted)
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Button(
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                             enabled = !saving && plantName.isNotBlank() && selectedSpaceId != null &&
-                                (selectedSpeciesKey != null || unknownPlantType),
+                                signatureTypeChosen(selectedSpeciesKey, unknownPlantType),
                             onClick = {
                                 val targetSpace = selectedSpaceId ?: return@Button
                                 val submittedName = plantName
@@ -405,10 +412,12 @@ fun PlantupiaSelfServiceForms(
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = ink),
                         ) { Text(if (saving) "Saving…" else "Add plant") }
-                        TextButton(onClick = { plantOpen = false; error = null }, enabled = !saving) {
-                            Text("Cancel", color = ink)
-                        }
                     }
+                    }
+                    TextButton(
+                        onClick = { plantOpen = false; error = null }, enabled = !saving,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    ) { Text("Cancel", color = ink) }
                 }
             }
         }

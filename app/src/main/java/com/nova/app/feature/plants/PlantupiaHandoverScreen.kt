@@ -120,6 +120,7 @@ internal fun PlantupiaHandoverScreen(
         }
     }
 
+    val stage = signatureDeliveryStage(delivery != null, delivery?.claimed == true, delivery?.spaceId)
     Dialog(onDismissRequest = onClose, properties = DialogProperties(
         usePlatformDefaultWidth = false, securePolicy = SecureFlagPolicy.SecureOn,
     )) {
@@ -148,14 +149,19 @@ internal fun PlantupiaHandoverScreen(
 
                 Text("DELIVERY / PRIVATE CONNECTION", style = PlantupiaText.sectionLabel)
                 Text(
-                    if (delivery == null) "Connect what arrived." else "Review before you connect.",
+                    when (stage) {
+                        SignatureDeliveryStage.SCAN -> "Connect what arrived."
+                        SignatureDeliveryStage.REVIEW -> "Review before you connect."
+                        SignatureDeliveryStage.CONNECTED -> "A new space in your life."
+                    },
                     style = PlantupiaText.pageHeading,
                 )
                 Text(
-                    if (delivery == null)
-                        "Scan the delivery QR or enter its code. Nothing is added to your account until you review and confirm it."
-                    else
-                        "Check the space and plant count first. Confirmation is the moment these plants become part of your private Plantupia space.",
+                    when (stage) {
+                        SignatureDeliveryStage.SCAN -> "Scan the delivery QR or enter its code. Nothing is added to your account until you review and confirm it."
+                        SignatureDeliveryStage.REVIEW -> "Check the space and plant count first. Confirmation is the moment these plants become part of your private Plantupia space."
+                        SignatureDeliveryStage.CONNECTED -> "Plantupia has confirmed the connection. Your living records are ready to open."
+                    },
                     style = PlantupiaText.body,
                 )
 
@@ -168,9 +174,9 @@ internal fun PlantupiaHandoverScreen(
                         modifier = Modifier.fillMaxWidth().padding(12.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        HandoverStep("01", "SCAN", active = delivery == null, modifier = Modifier.weight(1f))
-                        HandoverStep("02", "REVIEW", active = delivery != null && delivery?.spaceId == null, modifier = Modifier.weight(1f))
-                        HandoverStep("03", "CONNECT", active = delivery?.spaceId != null, modifier = Modifier.weight(1f))
+                        HandoverStep("01", "SCAN", active = stage == SignatureDeliveryStage.SCAN, modifier = Modifier.weight(1f))
+                        HandoverStep("02", "REVIEW", active = stage == SignatureDeliveryStage.REVIEW, modifier = Modifier.weight(1f))
+                        HandoverStep("03", "CONNECT", active = stage == SignatureDeliveryStage.CONNECTED, modifier = Modifier.weight(1f))
                     }
                 }
 
@@ -261,23 +267,27 @@ internal fun PlantupiaHandoverScreen(
                     }
                 } else {
                     val summary = requireNotNull(delivery)
+                    val connected = stage == SignatureDeliveryStage.CONNECTED
+                    val receiptInk = if (connected) PlantupiaColors.paper else PlantupiaColors.forestText
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        color = PlantupiaColors.paper,
+                        color = if (connected) PlantupiaColors.forest else PlantupiaColors.paper,
                         shape = PlantupiaShapes.card,
                         border = BorderStroke(1.dp, PlantupiaColors.border),
                     ) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
-                                if (summary.spaceId != null) "CONNECTED" else "READY TO CONFIRM",
-                                style = PlantupiaText.sectionLabel,
+                                if (connected) "CONNECTED / PRIVATE DELIVERY" else "READY TO CONFIRM",
+                                style = PlantupiaText.sectionLabel.copy(color = receiptInk),
                             )
-                            Text(summary.spaceLabel, style = PlantupiaText.editorialHeading)
-                            Text("${summary.plantCount} individual plants prepared", style = PlantupiaText.body)
+                            if (connected) PlantupiaEditorialMark("plant", Modifier.size(52.dp), ink = PlantupiaColors.sage)
+                            Text(summary.spaceLabel, style = PlantupiaText.editorialHeading.copy(color = receiptInk))
+                            Text("${summary.plantCount} individual plants " + if (connected) "connected" else "prepared",
+                                style = PlantupiaText.body.copy(color = receiptInk))
                         }
                     }
 
-                    if (summary.spaceId != null) {
+                    if (connected) {
                         Text(
                             "Next, open a plant in My Plants and add its first real photo. Care and Living History begin only when you record something that actually happened.",
                             style = PlantupiaText.supporting,
@@ -291,7 +301,7 @@ internal fun PlantupiaHandoverScreen(
                             },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = PlantupiaColors.forest),
-                        ) { Text("Open My Plants ?") }
+                        ) { Text("Open My Plants") }
                     } else {
                         Text(
                             "Reviewing does not add anything yet. Confirm only after checking the account, space and plant count.",
