@@ -58,9 +58,10 @@ for required in (
     'title = "Security"',
     'title = "Blocked accounts"',
     'title = "Privacy policy"',
-    'title = "Account deletion help"',
-    'text = "Log out"',
-    "AboutNovaDialog(",
+    'title = "Account deletion"',
+    '"Log out"',
+    "onClick = onLogout",
+    "AboutPlantupiaDialog(",
     'title = "Android app settings"',
 ):
     if required not in settings:

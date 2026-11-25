@@ -356,7 +356,7 @@ for seam in (
     "NovaPersonRow(",
     "NovaLoadingState(",
     "NovaEmptyState(",
-    "PlantupiaText.editorialHeading",
+    "PlantupiaText.pageHeading",
     "PlantupiaEmptyPeopleArt(",
     "plantupiaStyle = true",
     "NovaSpacing.xl",

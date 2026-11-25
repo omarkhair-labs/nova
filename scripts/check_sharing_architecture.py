@@ -199,7 +199,7 @@ for required in (
     "owner.sendToPerson(person)",
     "state.message?.takeIf",
     "state.error?.takeIf",
-    'Text("Share outside Nova"',
+    'Text("Share outside Plantupia"',
     'Text("Use Android\'s share menu"',
     "onExternalShare()",
 ):

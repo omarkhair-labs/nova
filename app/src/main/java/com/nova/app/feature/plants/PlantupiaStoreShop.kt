@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.selected
@@ -17,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.plants.data.PlantupiaRepository
 import kotlinx.coroutines.launch
@@ -45,6 +47,24 @@ internal fun PlantupiaStoreShop(
     repository: PlantupiaRepository,
     accountId: Long,
     modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val loginGeneration = remember(context, repository, accountId) {
+        NovaSessionStore(context).identity().generation
+    }
+    // Saved entry/address fields belong to this login only. Recreating the same
+    // Activity keeps the draft; another account or a fresh login starts empty.
+    // key also cancels the previous screen's in-flight composition-owned work.
+    key(accountId, loginGeneration) {
+        PlantupiaAccountStoreShop(repository, accountId, modifier)
+    }
+}
+
+@Composable
+private fun PlantupiaAccountStoreShop(
+    repository: PlantupiaRepository,
+    accountId: Long,
+    modifier: Modifier,
 ) {
     val scope = rememberCoroutineScope()
     var screen by rememberSaveable { mutableStateOf("catalog") }
@@ -128,41 +148,9 @@ internal fun PlantupiaStoreShop(
             feedback = "This earlier test-order link is not a commercial purchase."
         }
     }
-    // Switching accounts must not show a previous customer's cart or collection
-    // while the new account's authenticated data is still loading.
-    LaunchedEffect(accountId) {
-        products = emptyList()
-        cart = null
-        orders = emptyList()
-        selectedProductId = null
-        if (screen == "product" || screen == "checkout" || screen == "business") {
-            screen = "catalog"
-        }
-        category = "all"
-        visibleCount = 8
-        search = ""
-        feedback = null
-        quoteToAccept = null
-        cartReceipt = null
-        productAddFailure = null
-        addingSku = null
-        cartPendingSku = null
-        cartActionError = null
-        cartActionNotice = null
-        lastRemoved = null
-        // Delivery information is private to the signed-in customer. Saved
-        // Compose state from another account must never cross this boundary.
-        name = ""; phone = ""; city = ""; address = ""
-        building = ""; landmark = ""; latitude = null; longitude = null
-        pinConfirmed = false; paymentMethod = "cod"; deliveryNote = ""
-        deliveryStep = "details"; deliveryReceipt = null
-        deliveryError = null; showDeliveryIssues = false
-        deliveryPrice = null; deliveryPriceBusy = false
-        deliveryPriceChecked = false; deliveryPriceError = null
-        deliveryPriceCity = ""; deliveryPriceFingerprint = ""
-        focusedOrderId = null
-        busy = false
-    }
+    // Authorized catalog/cart/order data, prices, receipts and submit state are
+    // deliberately transient. They reload after restoration; a saved draft is
+    // never evidence of a saved order, accepted price or completed payment.
     val dataPage = if (screen == "product") "catalog" else screen
     LaunchedEffect(accountId, dataPage, refresh) {
         loaded = false

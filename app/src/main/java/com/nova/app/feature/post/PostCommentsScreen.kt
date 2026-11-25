@@ -25,7 +25,6 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -35,6 +34,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
+import com.nova.app.ui.components.NovaBackButton
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -285,15 +287,14 @@ private fun CommentsTopBar(
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onBack) {
-                Text("? Back", color = PlantupiaColors.forest, fontWeight = FontWeight.SemiBold)
-            }
+            NovaBackButton(onClick = onBack)
             Spacer(modifier = Modifier.size(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text("SHARED MOMENT / CONVERSATION", style = PlantupiaText.sectionLabel)
                 Text(
                     text = "Comments",
                     style = PlantupiaText.editorialHeading,
+                    modifier = Modifier.semantics { heading() },
                 )
                 if (count != null) {
                     Text(

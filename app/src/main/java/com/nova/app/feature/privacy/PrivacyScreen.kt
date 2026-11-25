@@ -37,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -148,6 +149,7 @@ fun PrivacyScreen(
                         onCheckedChange = owner::togglePrivate,
                         enabled = !state.privacyBusy,
                         modifier = Modifier.semantics {
+                            contentDescription = "Private account"
                             stateDescription = if (state.summary?.isPrivate == true) "Private" else "Public"
                         },
                         colors = SwitchDefaults.colors(checkedThumbColor = NovaBackground, checkedTrackColor = NovaAccent),
@@ -412,6 +414,7 @@ private fun PrivacyToggleRow(
                 onCheckedChange = onCheckedChange,
                 enabled = enabled,
                 modifier = Modifier.semantics {
+                    contentDescription = title
                     stateDescription = if (checked) "On" else "Off"
                 },
                 colors = SwitchDefaults.colors(checkedTrackColor = NovaAccent),

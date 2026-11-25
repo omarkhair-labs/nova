@@ -13,7 +13,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
+import com.nova.app.ui.components.NovaBackButton
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -137,14 +141,16 @@ internal fun PlantupiaHandoverScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    TextButton(onClick = onClose) { Text("? Back", color = PlantupiaColors.forest) }
+                    NovaBackButton(onClick = onClose)
                     Spacer(Modifier.weight(1f))
                     PlantupiaBrandGlyph(Modifier.size(28.dp))
-                    Text(
-                        "PLANTUPIA",
-                        modifier = Modifier.padding(start = 7.dp),
-                        style = PlantupiaText.sectionLabel,
-                    )
+                    if (LocalDensity.current.fontScale < 1.5f) {
+                        Text(
+                            "PLANTUPIA",
+                            modifier = Modifier.padding(start = 7.dp),
+                            style = PlantupiaText.sectionLabel,
+                        )
+                    }
                 }
 
                 Text("DELIVERY / PRIVATE CONNECTION", style = PlantupiaText.sectionLabel)
@@ -155,6 +161,7 @@ internal fun PlantupiaHandoverScreen(
                         SignatureDeliveryStage.CONNECTED -> "A new space in your life."
                     },
                     style = PlantupiaText.pageHeading,
+                    modifier = Modifier.semantics { heading() },
                 )
                 Text(
                     when (stage) {

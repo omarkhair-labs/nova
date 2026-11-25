@@ -1,5 +1,6 @@
 package com.nova.app.feature.auth
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -33,12 +35,16 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -55,6 +61,8 @@ import com.nova.app.ui.components.NovaInlineLoading
 import com.nova.app.ui.components.NovaPrimaryButton
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.components.NovaTextField
+import com.nova.app.ui.components.NovaPasswordField
+import com.nova.app.ui.components.NovaBackButton
 import com.nova.app.ui.theme.NovaAccentSoft
 import com.nova.app.ui.theme.NovaBackground
 import com.nova.app.ui.theme.NovaBorder
@@ -67,6 +75,7 @@ import com.nova.app.ui.theme.NovaSurface
 @Composable
 fun PasswordRecoveryScreen(
     onBack: () -> Unit,
+    initialEmail: String = "",
 ) {
     val context = LocalContext.current
     val container = context.applicationContext.appContainer
@@ -79,6 +88,19 @@ fun PasswordRecoveryScreen(
     }
     val state = owner.state
 
+    LaunchedEffect(owner) {
+        if (owner.state.stage == PasswordRecoveryStage.Email && owner.state.email.isBlank()) {
+            owner.setEmail(initialEmail.trim())
+        }
+    }
+
+    fun recoveryBack() {
+        if (!state.loading) {
+            if (state.stage == PasswordRecoveryStage.Code) owner.editEmail() else onBack()
+        }
+    }
+    BackHandler(enabled = state.stage == PasswordRecoveryStage.Code || state.loading) { recoveryBack() }
+
     SecurityPage(
         title = when (state.stage) {
             PasswordRecoveryStage.Email -> "Reset your password"
@@ -90,7 +112,7 @@ fun PasswordRecoveryScreen(
             PasswordRecoveryStage.Code -> "Enter the code sent to ${state.email} and choose a new password."
             PasswordRecoveryStage.Done -> "Your old password and previous Plantupia sessions can no longer be used."
         },
-        onBack = onBack,
+        onBack = ::recoveryBack,
     ) {
         when (state.stage) {
             PasswordRecoveryStage.Email -> {
@@ -99,6 +121,11 @@ fun PasswordRecoveryScreen(
                     onValueChange = owner::setEmail,
                     label = "Email",
                     placeholder = "you@example.com",
+                    enabled = !state.loading,
+                    modifier = Modifier.semantics { contentType = ContentType.EmailAddress },
+                    keyboardActions = KeyboardActions(onDone = {
+                        if (!state.loading && state.email.contains('@')) owner.requestResetCode()
+                    }),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Email,
                         imeAction = ImeAction.Done,
@@ -106,7 +133,7 @@ fun PasswordRecoveryScreen(
                 )
                 Spacer(Modifier.height(14.dp))
                 StatusText(error = state.error, info = state.info)
-                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.height(24.dp))
                 NovaPrimaryButton(
                     text = if (state.loading) "Sending…" else "Send reset code",
                     enabled = !state.loading && state.email.contains('@'),
@@ -115,45 +142,56 @@ fun PasswordRecoveryScreen(
             }
 
             PasswordRecoveryStage.Code -> {
+                TextButton(onClick = owner::editEmail, enabled = !state.loading) {
+                    Text("Use a different email", color = PlantupiaColors.forest)
+                }
                 NovaTextField(
                     value = state.code,
                     onValueChange = owner::setCode,
                     label = "6-digit code",
                     placeholder = "000000",
+                    enabled = !state.loading,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.NumberPassword,
                         imeAction = ImeAction.Next,
                     ),
                 )
                 Spacer(Modifier.height(12.dp))
-                NovaTextField(
+                NovaPasswordField(
                     value = state.newPassword,
                     onValueChange = owner::setNewPassword,
                     label = "New password",
                     placeholder = "At least 8 characters",
+                    enabled = !state.loading,
+                    autofillType = ContentType.NewPassword,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Password,
                         imeAction = ImeAction.Next,
                     ),
-                    visualTransformation = PasswordVisualTransformation(),
                 )
                 Spacer(Modifier.height(12.dp))
-                NovaTextField(
+                NovaPasswordField(
                     value = state.confirmPassword,
                     onValueChange = owner::setConfirmPassword,
                     label = "Confirm new password",
                     placeholder = "Repeat your password",
+                    enabled = !state.loading,
+                    autofillType = ContentType.NewPassword,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Password,
                         imeAction = ImeAction.Done,
                     ),
-                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardActions = KeyboardActions(onDone = {
+                        if (!state.loading && state.code.length == 6 && state.newPassword.length >= 8 &&
+                            state.newPassword == state.confirmPassword) owner.resetPassword()
+                    }),
                 )
                 Spacer(Modifier.height(12.dp))
                 StatusText(error = state.error, info = state.info)
-                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.height(24.dp))
                 NovaSecondaryButton(
                     text = "Send a new code",
+                    enabled = !state.loading,
                     onClick = owner::requestResetCode,
                 )
                 Spacer(Modifier.height(10.dp))
@@ -187,7 +225,7 @@ fun PasswordRecoveryScreen(
                         )
                     }
                 }
-                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.height(24.dp))
                 NovaPrimaryButton(text = "Back to log in", onClick = onBack)
             }
         }
@@ -232,7 +270,7 @@ fun AccountSecurityScreen(
                 shape = MaterialTheme.shapes.extraLarge,
                 border = BorderStroke(1.dp, NovaBorder),
             ) {
-                Column(modifier = Modifier.padding(22.dp)) {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(22.dp)) {
                     Text(
                         "Delete your Plantupia account?",
                         color = NovaInk,
@@ -276,7 +314,7 @@ fun AccountSecurityScreen(
     ) {
         Text("Password", color = NovaInk, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(12.dp))
-        NovaTextField(
+        NovaPasswordField(
             value = state.currentPassword,
             onValueChange = owner::setCurrentPassword,
             label = "Current password",
@@ -285,10 +323,10 @@ fun AccountSecurityScreen(
                 keyboardType = KeyboardType.Password,
                 imeAction = ImeAction.Next,
             ),
-            visualTransformation = PasswordVisualTransformation(),
+            enabled = state.loadingAction == null,
         )
         Spacer(Modifier.height(12.dp))
-        NovaTextField(
+        NovaPasswordField(
             value = state.newPassword,
             onValueChange = owner::setNewPassword,
             label = "New password",
@@ -297,10 +335,11 @@ fun AccountSecurityScreen(
                 keyboardType = KeyboardType.Password,
                 imeAction = ImeAction.Next,
             ),
-            visualTransformation = PasswordVisualTransformation(),
+            enabled = state.loadingAction == null,
+            autofillType = ContentType.NewPassword,
         )
         Spacer(Modifier.height(12.dp))
-        NovaTextField(
+        NovaPasswordField(
             value = state.confirmPassword,
             onValueChange = owner::setConfirmPassword,
             label = "Confirm new password",
@@ -309,7 +348,8 @@ fun AccountSecurityScreen(
                 keyboardType = KeyboardType.Password,
                 imeAction = ImeAction.Done,
             ),
-            visualTransformation = PasswordVisualTransformation(),
+            enabled = state.loadingAction == null,
+            autofillType = ContentType.NewPassword,
         )
         Spacer(Modifier.height(12.dp))
         StatusText(error = state.error, info = state.info)
@@ -468,6 +508,7 @@ private fun SecurityPage(
             .statusBarsPadding()
             .navigationBarsPadding()
             .imePadding()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 16.dp),
     ) {
         PlantupiaSecurityHeader(title, subtitle, onBack)
@@ -510,9 +551,7 @@ private fun PlantupiaSecurityHeader(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        TextButton(onClick = onBack) {
-            Text("? Back", color = PlantupiaColors.forest, fontWeight = FontWeight.SemiBold)
-        }
+        NovaBackButton(onClick = onBack)
         Spacer(Modifier.weight(1f))
         PlantupiaBrandGlyph(Modifier.size(28.dp))
         Text(
@@ -524,7 +563,7 @@ private fun PlantupiaSecurityHeader(
     Spacer(Modifier.height(28.dp))
     Text("ACCOUNT / SECURITY", style = PlantupiaText.sectionLabel)
     Spacer(Modifier.height(6.dp))
-    Text(title, style = PlantupiaText.pageHeading)
+    Text(title, style = PlantupiaText.pageHeading, modifier = Modifier.semantics { heading() })
     Spacer(Modifier.height(8.dp))
     Text(subtitle, style = PlantupiaText.body)
 }
@@ -538,6 +577,7 @@ private fun StatusText(
     if (!error.isNullOrBlank()) {
         Text(
             text = error,
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             color = MaterialTheme.colorScheme.error,
             fontSize = 12.sp,
             lineHeight = 18.sp,
@@ -546,6 +586,7 @@ private fun StatusText(
     } else if (!info.isNullOrBlank()) {
         Text(
             text = info,
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             color = NovaMuted,
             fontSize = 12.sp,
             lineHeight = 18.sp,

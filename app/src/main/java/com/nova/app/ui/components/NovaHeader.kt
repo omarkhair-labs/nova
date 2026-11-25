@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.nova.app.ui.theme.NovaInk
 import com.nova.app.ui.theme.NovaMuted
@@ -28,6 +30,7 @@ fun NovaHeader(
 
         Text(
             text = title,
+            modifier = Modifier.semantics { heading() },
             color = NovaInk,
             style = NovaType.pageTitle,
         )

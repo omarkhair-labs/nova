@@ -220,9 +220,10 @@ for forbidden in (
 for required in (
     'const val EXTRA_MODE = "account_security_mode"',
     'const val MODE_RECOVERY = "recovery"',
+    'const val EXTRA_RECOVERY_EMAIL = "recovery_email"',
     'const val MODE_SECURITY = "security"',
     'const val MODE_BLOCKED = "blocked"',
-    "MODE_RECOVERY -> PasswordRecoveryScreen(onBack = { finish() })",
+    "MODE_RECOVERY -> PasswordRecoveryScreen(",
     "MODE_BLOCKED -> BlockedAccountsScreen(",
     "else -> AccountSecurityScreen(",
     "Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK",
@@ -230,10 +231,21 @@ for required in (
     if required not in activity:
         errors.append(f"AccountSecurityActivity protected seam changed or disappeared: {required}")
 
+# The recovery branch accepts only an email draft and retains its own back action.
+recovery_branch = activity.partition("MODE_RECOVERY ->")[2].partition("MODE_BLOCKED ->")[0]
+for required in (
+    "PasswordRecoveryScreen(",
+    "onBack = { finish() }",
+    "initialEmail = intent.getStringExtra(EXTRA_RECOVERY_EMAIL).orEmpty()",
+):
+    if required not in recovery_branch:
+        errors.append(f"Recovery entry lost its email/back contract: {required}")
+
 for required in (
     'secondaryActionText = "Forgot password?"',
     "Intent(context, AccountSecurityActivity::class.java)",
     "AccountSecurityActivity.MODE_RECOVERY",
+    ".putExtra(AccountSecurityActivity.EXTRA_RECOVERY_EMAIL, email.trim())",
 ):
     if required not in auth_screens:
         errors.append(f"Password-recovery entry seam changed or disappeared: {required}")

@@ -1,4 +1,5 @@
 import SiteIndex from "./SiteIndex";
+import ChapterPassage from "./ChapterPassage";
 import "./company-story.css";
 
 type VerifiedProject = {
@@ -72,6 +73,7 @@ export default function CompanyStory({ privateReview = false }: { privateReview?
           <a className="cs-link" href="/start-a-space">GET IN TOUCH ↗</a>
         </section>
       </main>
+      <ChapterPassage current="about"/>
       <footer className="cs-footer"><a href="/">PLANTUPIA / HOME</a><a href="/living-systems">LIVING SYSTEMS ↗</a><span>DESIGN PREVIEW / 2026</span></footer>
     </div>
   );

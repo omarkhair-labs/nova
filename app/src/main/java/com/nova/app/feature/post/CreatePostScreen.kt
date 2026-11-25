@@ -14,7 +14,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -22,6 +21,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.text.style.TextAlign
+import com.nova.app.ui.components.NovaBackButton
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -82,14 +85,17 @@ fun CreatePostScreen(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = { if (!isLoading) onBack() }, enabled = !isLoading) {
-                Text("? Back", color = PlantupiaColors.forest, fontWeight = FontWeight.SemiBold)
-            }
-            Spacer(Modifier.weight(1f))
-            Text("SHARED MOMENT / PUBLIC", style = PlantupiaText.sectionLabel)
+            NovaBackButton(onClick = onBack, enabled = !isLoading)
+            Spacer(Modifier.width(16.dp))
+            Text(
+                "SHARED MOMENT / PUBLIC",
+                style = PlantupiaText.sectionLabel,
+                modifier = Modifier.weight(1f),
+                textAlign = TextAlign.End,
+            )
         }
         Spacer(modifier = Modifier.height(24.dp))
-        Text("Share a moment", style = PlantupiaText.pageHeading)
+        Text("Share a moment", style = PlantupiaText.pageHeading, modifier = Modifier.semantics { heading() })
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             "Choose one photo or video that you intentionally want other people to see.",

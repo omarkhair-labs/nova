@@ -20,9 +20,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
@@ -31,6 +36,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.nova.app.ui.components.NovaBackButton
 import com.nova.app.ui.components.NovaPrimaryButton
 import com.nova.app.ui.components.NovaTextField
 import com.nova.app.ui.components.PlantupiaAvatar
@@ -59,15 +65,15 @@ fun EditProfileScreen(
     onBack: () -> Unit,
     onSave: (String, String, Uri?, String, String, String, List<String>, String, Boolean, Int) -> Unit,
 ) {
-    var name by remember(displayName) { mutableStateOf(displayName) }
-    var handle by remember(username) { mutableStateOf(username) }
-    var selectedPhoto by remember { mutableStateOf<Uri?>(null) }
-    var profileBio by remember(bio) { mutableStateOf(bio) }
-    var profileLocation by remember(location) { mutableStateOf(location) }
-    var profileLink by remember(link) { mutableStateOf(link) }
-    var interestsText by remember(interests) { mutableStateOf(interests.joinToString(", ")) }
-    var selectedAvatarVariant by remember(userId, avatarVariant) { mutableStateOf(avatarVariant) }
-    var showPublicPreview by remember(userId) { mutableStateOf(false) }
+    var name by rememberSaveable(userId, displayName) { mutableStateOf(displayName) }
+    var handle by rememberSaveable(userId, username) { mutableStateOf(username) }
+    var selectedPhoto by remember(userId) { mutableStateOf<Uri?>(null) }
+    var profileBio by rememberSaveable(userId, bio) { mutableStateOf(bio) }
+    var profileLocation by rememberSaveable(userId, location) { mutableStateOf(location) }
+    var profileLink by rememberSaveable(userId, link) { mutableStateOf(link) }
+    var interestsText by rememberSaveable(userId, interests) { mutableStateOf(interests.joinToString(", ")) }
+    var selectedAvatarVariant by rememberSaveable(userId, avatarVariant) { mutableStateOf(avatarVariant) }
+    var showPublicPreview by rememberSaveable(userId) { mutableStateOf(false) }
     val linkError = if (
         profileLink.isNotBlank() && normalizedProfileExternalUrl(profileLink) == null
     ) {
@@ -88,6 +94,7 @@ fun EditProfileScreen(
         title = "Edit public identity",
         subtitle = "Shape only what other people can see. Your spaces, plants, care and orders stay outside this profile.",
         onBack = onBack,
+        backEnabled = !isLoading,
         action = {
             val visibleError = errorMessage ?: linkError
             if (visibleError != null) {
@@ -97,7 +104,7 @@ fun EditProfileScreen(
                     fontSize = 13.sp,
                     lineHeight = 19.sp,
                     fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(bottom = 8.dp),
+                    modifier = Modifier.padding(bottom = 8.dp).semantics { liveRegion = LiveRegionMode.Polite },
                 )
             }
             NovaPrimaryButton(
@@ -357,6 +364,7 @@ private fun PlantupiaProfileFormPage(
     title: String,
     subtitle: String,
     onBack: () -> Unit,
+    backEnabled: Boolean,
     action: @Composable ColumnScope.() -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -367,10 +375,12 @@ private fun PlantupiaProfileFormPage(
             .statusBarsPadding()
             .navigationBarsPadding()
             .imePadding(),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Column(
             modifier = Modifier
                 .weight(1f)
+                .widthIn(max = 640.dp)
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp),
@@ -380,21 +390,21 @@ private fun PlantupiaProfileFormPage(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                TextButton(onClick = onBack) {
-                    Text("? Back", color = PlantupiaColors.forest, fontWeight = FontWeight.SemiBold)
-                }
+                NovaBackButton(onClick = onBack, enabled = backEnabled)
                 Spacer(Modifier.weight(1f))
                 PlantupiaBrandGlyph(Modifier.size(28.dp))
-                Text(
-                    "PLANTUPIA",
-                    modifier = Modifier.padding(start = 7.dp),
-                    style = PlantupiaText.sectionLabel,
-                )
+                if (LocalDensity.current.fontScale < 1.5f) {
+                    Text(
+                        "PLANTUPIA",
+                        modifier = Modifier.padding(start = 7.dp),
+                        style = PlantupiaText.sectionLabel,
+                    )
+                }
             }
             Spacer(Modifier.height(28.dp))
             Text("PUBLIC IDENTITY / MY PLANTUPIA", style = PlantupiaText.sectionLabel)
             Spacer(Modifier.height(6.dp))
-            Text(title, style = PlantupiaText.pageHeading)
+            Text(title, style = PlantupiaText.pageHeading, modifier = Modifier.semantics { heading() })
             Spacer(Modifier.height(8.dp))
             Text(subtitle, style = PlantupiaText.body, modifier = Modifier.fillMaxWidth(0.95f))
             Spacer(Modifier.height(22.dp))
@@ -403,6 +413,7 @@ private fun PlantupiaProfileFormPage(
         }
         Column(
             modifier = Modifier
+                .widthIn(max = 640.dp)
                 .fillMaxWidth()
                 .background(PlantupiaColors.cream)
                 .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 18.dp),

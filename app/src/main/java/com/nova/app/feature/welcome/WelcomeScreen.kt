@@ -15,10 +15,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.Role
+import com.nova.app.ui.components.NovaPrimaryButton
+import com.nova.app.ui.components.NovaSecondaryButton
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.feature.plants.PlantupiaBrandGlyph
@@ -34,110 +39,67 @@ fun WelcomeScreen(
     onPrivacy: () -> Unit,
     onConnectPlants: () -> Unit = {},
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(PlantupiaColors.cream)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(0.dp),
+    Box(
+        Modifier.fillMaxSize().background(PlantupiaColors.cream)
+            .statusBarsPadding().navigationBarsPadding(),
+        contentAlignment = Alignment.TopCenter,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            Modifier.widthIn(max = 480.dp).fillMaxSize()
+                .verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 22.dp),
         ) {
-            PlantupiaBrandGlyph(modifier = Modifier.size(32.dp))
-            Text(
-                text = "PLANTUPIA",
-                modifier = Modifier.padding(start = 10.dp),
-                color = PlantupiaColors.forestText,
-                fontSize = 24.sp,
-                fontFamily = FontFamily.Serif,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            if (LocalDensity.current.fontScale < 1.3f) Text("LIVING SPACES", style = PlantupiaText.sectionLabel)
-        }
-
-        Spacer(modifier = Modifier.height(18.dp))
-
-        Text(
-            text = "A living space starts here.",
-            style = PlantupiaText.pageHeading.copy(fontSize = 34.sp, lineHeight = 40.sp),
-            modifier = Modifier.fillMaxWidth(0.92f),
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            text = "Connect what Plantupia prepared for you, or begin with the plants already around you. Care stays private. Sharing is always your choice.",
-            style = PlantupiaText.body.copy(fontSize = 15.sp, lineHeight = 23.sp),
-            modifier = Modifier.fillMaxWidth(0.94f),
-        )
-
-        Spacer(modifier = Modifier.height(14.dp))
-        WelcomeLivingFrame()
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text("CHOOSE HOW YOU'RE ARRIVING", style = PlantupiaText.sectionLabel)
-        Spacer(modifier = Modifier.height(10.dp))
-
-        WelcomeJourneyCard(
-            eyebrow = "FROM PLANTUPIA",
-            title = "I received Plantupia plants",
-            body = "Scan the delivery QR, review exactly what was prepared, then connect those plants to your account.",
-            action = "Connect delivery",
-            primary = true,
-            onClick = onConnectPlants,
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        WelcomeJourneyCard(
-            eyebrow = "MY OWN SPACE",
-            title = "I'm starting with my own plants",
-            body = "Create an account, make a space, add your plants and let their care history grow from real moments.",
-            action = "Create account",
-            primary = false,
-            onClick = onCreateAccount,
-        )
-
-        Spacer(modifier = Modifier.height(18.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("Already have a Plantupia space?", style = PlantupiaText.supporting)
-            TextButton(onClick = onLogin) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                PlantupiaBrandGlyph(Modifier.size(30.dp))
                 Text(
-                    "Log in",
-                    color = PlantupiaColors.forest,
-                    fontWeight = FontWeight.Bold,
+                    "PLANTUPIA", modifier = Modifier.padding(start = 10.dp),
+                    color = PlantupiaColors.forestText, fontSize = 23.sp,
+                    fontFamily = FontFamily.Serif, fontWeight = FontWeight.SemiBold,
                 )
             }
-        }
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-        Text(
-            text = "By continuing, you agree to Plantupia's Terms of Use and Privacy Policy.",
-            modifier = Modifier.fillMaxWidth(),
-            style = PlantupiaText.supporting.copy(fontSize = 10.sp, lineHeight = 15.sp),
-            textAlign = TextAlign.Center,
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TextButton(onClick = onTerms) {
-                Text("Terms", color = PlantupiaColors.forest, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(26.dp))
+            WelcomeLivingFrame()
+            Spacer(Modifier.height(26.dp))
+            Text(
+                "A living space starts here.",
+                style = PlantupiaText.pageHeading.copy(fontSize = 36.sp, lineHeight = 43.sp),
+                modifier = Modifier.semantics { heading() },
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "A place for your plants, the care you give them, and the life you build around them.",
+                style = PlantupiaText.body.copy(fontSize = 15.sp, lineHeight = 23.sp),
+            )
+            Spacer(Modifier.height(24.dp))
+            NovaPrimaryButton(text = "Create account", onClick = onCreateAccount)
+            Spacer(Modifier.height(10.dp))
+            NovaSecondaryButton(text = "Log in", onClick = onLogin)
+            Spacer(Modifier.height(22.dp))
+            Surface(
+                onClick = onConnectPlants,
+                color = PlantupiaColors.softSage,
+                shape = PlantupiaShapes.card,
+                modifier = Modifier.fillMaxWidth().semantics { role = Role.Button },
+            ) {
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Text("RECEIVED PLANTUPIA PLANTS?", style = PlantupiaText.sectionLabel)
+                    Text("Your delivery has a story.", style = PlantupiaText.editorialHeading)
+                    Text("Scan its QR to review your plants and connect them to your account.", style = PlantupiaText.supporting)
+                    Text("Connect delivery", style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
+                }
             }
-            Text("·", color = PlantupiaColors.secondaryText, fontSize = 11.sp)
-            TextButton(onClick = onPrivacy) {
-                Text("Privacy", color = PlantupiaColors.forest, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(20.dp))
+            Text("Your care records stay private. Sharing is your choice.",
+                style = PlantupiaText.supporting, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+            Spacer(Modifier.height(12.dp))
+            Text("By creating an account, you agree to our Terms of Use and Privacy Policy.",
+                style = PlantupiaText.supporting, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                TextButton(onClick = onTerms, modifier = Modifier.heightIn(min = 48.dp)) {
+                    Text("Terms", color = PlantupiaColors.forest)
+                }
+                TextButton(onClick = onPrivacy, modifier = Modifier.heightIn(min = 48.dp)) {
+                    Text("Privacy", color = PlantupiaColors.forest)
+                }
             }
         }
     }
@@ -145,14 +107,13 @@ fun WelcomeScreen(
 
 @Composable
 private fun WelcomeLivingFrame() {
-    val largeText = LocalDensity.current.fontScale >= 1.5f
     Surface(
-        modifier = Modifier.fillMaxWidth().height(if (largeText) 190.dp else 132.dp),
+        modifier = Modifier.fillMaxWidth(),
         color = PlantupiaColors.forest,
         shape = RoundedCornerShape(19.dp),
     ) {
-        Box(Modifier.fillMaxSize()) {
-            Canvas(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxWidth().heightIn(min = 148.dp)) {
+            Canvas(Modifier.matchParentSize()) {
                 fun p(x: Float, y: Float) = Offset(size.width * x, size.height * y)
                 val mineral = Color(0xFFC5D5A9)
                 val moss = Color(0xFF72966B)
@@ -193,54 +154,12 @@ private fun WelcomeLivingFrame() {
                 },clay)
             }
             Column(
-                modifier = Modifier.align(Alignment.CenterStart).fillMaxWidth(.49f).padding(13.dp),
+                modifier = Modifier.align(Alignment.CenterStart).fillMaxWidth(.49f).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(5.dp),
             ) {
-                if (!largeText) Text("LIVING FORM", style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage))
+                Text("LIVING FORM", style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage))
                 Text("A place for life.", style = PlantupiaText.editorialHeading.copy(color = PlantupiaColors.paper, fontSize = 21.sp, lineHeight = 26.sp))
             }
-        }
-    }
-}
-
-@Composable
-private fun WelcomeJourneyCard(
-    eyebrow: String,
-    title: String,
-    body: String,
-    action: String,
-    primary: Boolean,
-    onClick: () -> Unit,
-) {
-    val background = if (primary) PlantupiaColors.forest else PlantupiaColors.paper
-    val titleColor = if (primary) PlantupiaColors.paper else PlantupiaColors.forestText
-    val bodyColor = if (primary) PlantupiaColors.cream else PlantupiaColors.secondaryText
-    val eyebrowColor = if (primary) PlantupiaColors.sage else PlantupiaColors.forest
-
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        color = background,
-        shape = PlantupiaShapes.card,
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 17.dp),
-            verticalArrangement = Arrangement.spacedBy(7.dp),
-        ) {
-            Text(eyebrow, style = PlantupiaText.sectionLabel.copy(color = eyebrowColor))
-            Text(
-                title,
-                style = PlantupiaText.editorialHeading.copy(color = titleColor),
-            )
-            Text(
-                body,
-                style = PlantupiaText.supporting.copy(color = bodyColor, fontSize = 12.5.sp, lineHeight = 19.sp),
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                "$action →",
-                style = PlantupiaText.sectionLabel.copy(color = titleColor),
-            )
         }
     }
 }

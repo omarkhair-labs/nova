@@ -126,6 +126,7 @@ fun NovaApp(
 
     var authLoading by remember { mutableStateOf(false) }
     var authError by remember { mutableStateOf<String?>(null) }
+    var authEmail by rememberSaveable(appState.currentUser?.id) { mutableStateOf("") }
     val handoverStore = remember(context) { com.nova.app.feature.plants.data.PlantupiaHandoverStore(context) }
     var showHandover by remember { mutableStateOf(false) }
     val handoverRequest = com.nova.app.feature.plants.PlantupiaHandoverNavigation.requestVersion
@@ -431,6 +432,14 @@ fun NovaApp(
                     CreateAccountScreen(
                         isLoading = authLoading,
                         errorMessage = authError,
+                        initialEmail = authEmail,
+                        onEmailChanged = { authEmail = it; authError = null },
+                        onLogin = { email ->
+                            authEmail = email
+                            authError = null
+                            backStack.removeLastOrNull()
+                            backStack.add(NovaRoute.Login)
+                        },
                         onBack = { backStack.removeLastOrNull() },
                         onCreate = { email, password, handle, name ->
                             if (!authLoading) {
@@ -466,6 +475,14 @@ fun NovaApp(
                     LoginScreen(
                         isLoading = authLoading,
                         errorMessage = authError,
+                        initialEmail = authEmail,
+                        onEmailChanged = { authEmail = it; authError = null },
+                        onCreateAccount = { email ->
+                            authEmail = email
+                            authError = null
+                            backStack.removeLastOrNull()
+                            backStack.add(NovaRoute.CreateAccount)
+                        },
                         onBack = {
                             if (!authLoading) {
                                 authError = null

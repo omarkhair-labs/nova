@@ -27,16 +27,20 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.key
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.plants.data.PlantupiaRepository
 import com.nova.app.feature.plants.data.PlantupiaSpace
@@ -62,25 +66,53 @@ fun PlantupiaSelfServiceForms(
     showEmptyStartCard: Boolean = true,
     onRequestConsumed: () -> Unit = {},
 ) {
+    val context = LocalContext.current
+    val loginGeneration = remember(context, repository) {
+        NovaSessionStore(context).identity().generation
+    }
+    key(loginGeneration) {
+        PlantupiaAccountSelfServiceForms(
+            spaces, repository, onCreated, onRefreshSpaces, onPlantCreated,
+            preferredSpaceId, enabled, creationRequest, showEmptyStartCard,
+            onRequestConsumed,
+        )
+    }
+}
+
+@Composable
+private fun PlantupiaAccountSelfServiceForms(
+    spaces: List<PlantupiaSpace>,
+    repository: PlantupiaRepository,
+    onCreated: () -> Unit,
+    onRefreshSpaces: () -> Unit,
+    onPlantCreated: (plantId: String, spaceId: String) -> Unit,
+    preferredSpaceId: String?,
+    enabled: Boolean,
+    creationRequest: PlantupiaCreateMode?,
+    showEmptyStartCard: Boolean,
+    onRequestConsumed: () -> Unit,
+) {
     val scope = rememberCoroutineScope()
     // Create → Home opens a real editor below the photo-led space hero.
     // Bring only its heading into view; avoid trying to scroll a long form in full.
     val creationEditorHeading = remember { BringIntoViewRequester() }
     val writableSpaces = spaces.filter { it.canAddPlant }
-    var spaceOpen by remember { mutableStateOf(false) }
-    var plantOpen by remember { mutableStateOf(false) }
+    // Only unfinished form text/selection survives Activity recreation. This
+    // never restores a save, a URI permission or authority to write a space.
+    var spaceOpen by rememberSaveable { mutableStateOf(false) }
+    var plantOpen by rememberSaveable { mutableStateOf(false) }
     var accessNotice by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    var spaceName by remember { mutableStateOf("") }
-    var spaceLocation by remember { mutableStateOf("") }
-    var spaceDescription by remember { mutableStateOf("") }
-    var plantName by remember { mutableStateOf("") }
-    var species by remember { mutableStateOf("") }
-    var selectedSpeciesKey by remember { mutableStateOf<String?>(null) }
-    var unknownPlantType by remember { mutableStateOf(false) }
-    var placement by remember { mutableStateOf("") }
-    var selectedSpaceId by remember { mutableStateOf<String?>(null) }
+    var spaceName by rememberSaveable { mutableStateOf("") }
+    var spaceLocation by rememberSaveable { mutableStateOf("") }
+    var spaceDescription by rememberSaveable { mutableStateOf("") }
+    var plantName by rememberSaveable { mutableStateOf("") }
+    var species by rememberSaveable { mutableStateOf("") }
+    var selectedSpeciesKey by rememberSaveable { mutableStateOf<String?>(null) }
+    var unknownPlantType by rememberSaveable { mutableStateOf(false) }
+    var placement by rememberSaveable { mutableStateOf("") }
+    var selectedSpaceId by rememberSaveable { mutableStateOf<String?>(null) }
     // The newly returned UUID is authorized, but may precede the refreshing list.
     var justCreatedSpace by remember { mutableStateOf<Pair<String, String>?>(null) }
     var spaceMenuOpen by remember { mutableStateOf(false) }
@@ -91,7 +123,10 @@ fun PlantupiaSelfServiceForms(
         photoPickerOrigin = null
     }
 
-    LaunchedEffect(spaces) {
+    LaunchedEffect(spaces, enabled) {
+        // Restored selections must wait for the current authorized list. An
+        // initial loading/failed response is not proof that a space was revoked.
+        if (!enabled) return@LaunchedEffect
         if (writableSpaces.isNotEmpty()) accessNotice = false
         if (justCreatedSpace != null &&
             writableSpaces.any { it.id == justCreatedSpace?.first }
@@ -147,8 +182,8 @@ fun PlantupiaSelfServiceForms(
         }
     }
 
-    LaunchedEffect(spaceOpen, plantOpen, accessNotice) {
-        if (spaceOpen || plantOpen || accessNotice) {
+    LaunchedEffect(spaceOpen, plantOpen, accessNotice, enabled) {
+        if (enabled && (spaceOpen || plantOpen || accessNotice)) {
             // Wait for the newly visible heading to enter composition/layout.
             withFrameNanos { }
             creationEditorHeading.bringIntoView()

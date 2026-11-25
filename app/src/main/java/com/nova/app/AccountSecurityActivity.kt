@@ -41,7 +41,10 @@ class AccountSecurityActivity : ComponentActivity() {
         setContent {
             NovaTheme {
                 when (mode) {
-                    MODE_RECOVERY -> PasswordRecoveryScreen(onBack = { finish() })
+                    MODE_RECOVERY -> PasswordRecoveryScreen(
+                        onBack = { finish() },
+                        initialEmail = intent.getStringExtra(EXTRA_RECOVERY_EMAIL).orEmpty(),
+                    )
                     MODE_BLOCKED -> BlockedAccountsScreen(
                         onBack = { finish() },
                         onSessionExpired = {
@@ -87,6 +90,7 @@ class AccountSecurityActivity : ComponentActivity() {
     companion object {
         const val EXTRA_MODE = "account_security_mode"
         const val MODE_RECOVERY = "recovery"
+        const val EXTRA_RECOVERY_EMAIL = "recovery_email"
         const val MODE_SECURITY = "security"
         const val MODE_BLOCKED = "blocked"
     }

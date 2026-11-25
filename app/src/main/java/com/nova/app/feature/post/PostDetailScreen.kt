@@ -10,7 +10,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -20,6 +19,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
+import com.nova.app.ui.components.NovaBackButton
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -80,11 +81,14 @@ fun PostDetailScreen(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onBack) {
-                Text("? Back", color = PlantupiaColors.forest, fontWeight = FontWeight.SemiBold)
-            }
-            Spacer(Modifier.weight(1f))
-            Text("SHARED MOMENT", style = PlantupiaText.sectionLabel)
+            NovaBackButton(onClick = onBack)
+            Spacer(Modifier.width(16.dp))
+            Text(
+                "SHARED MOMENT",
+                style = PlantupiaText.sectionLabel,
+                modifier = Modifier.weight(1f),
+                textAlign = TextAlign.End,
+            )
         }
 
         Spacer(modifier = Modifier.height(18.dp))

@@ -38,6 +38,18 @@ class PasswordRecoveryStateOwner(
         state = state.copy(email = value.trim())
     }
 
+    fun editEmail() {
+        if (state.loading) return
+        state = state.copy(
+            stage = PasswordRecoveryStage.Email,
+            code = "",
+            newPassword = "",
+            confirmPassword = "",
+            error = null,
+            info = null,
+        )
+    }
+
     fun setCode(value: String) {
         state = state.copy(code = value.filter(Char::isDigit).take(6))
     }

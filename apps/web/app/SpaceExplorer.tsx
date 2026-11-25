@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import SiteIndex from "./SiteIndex";
+import ChapterPassage from "./ChapterPassage";
 import { spaces, editorialSpaces, spacePrompts } from "./space-contexts";
 import { projects } from "./project-archive-data";
 import "./space-explorer.css";
@@ -112,6 +113,7 @@ export default function SpaceExplorer({ privateReview = false }: { privateReview
           </section>
         </section>
       </main>
+      <ChapterPassage current="spaces"/>
       <footer className="sx-footer"><a href="/">Plantupia</a><span>Living architecture / Design preview</span><a href="/start-a-space">Contact ↗</a></footer>
     </div>
   );

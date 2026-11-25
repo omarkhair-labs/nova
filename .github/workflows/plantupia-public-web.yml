@@ -60,11 +60,17 @@ jobs:
           grep -q 'MEET PLANTUPIA' /tmp/plantupia-world-_.html
           # Commerce remains a separate, understated edited collection.
           # With no backend configured this build must show a truthful empty/offline state.
-          grep -q 'Things to' /tmp/plantupia-world-_shop.html
-          grep -q 'THE COLLECTION' /tmp/plantupia-world-_shop.html
-          grep -q 'PUBLIC COLLECTION PREVIEW' /tmp/plantupia-world-_shop.html
+          grep -q 'THE PLANTUPIA SHOP' /tmp/plantupia-world-_shop.html
+          grep -q 'id="shop-title"' /tmp/plantupia-world-_shop.html
+          grep -q 'The collection is temporarily unavailable.' /tmp/plantupia-world-_shop.html
+          grep -q 'href="/start-a-space?topic=general"' /tmp/plantupia-world-_shop.html
+          grep -q 'Ordering and final delivery pricing are confirmed through the Plantupia customer app.' /tmp/plantupia-world-_shop.html
+          if grep -q 'class="sr-product-open"' /tmp/plantupia-world-_shop.html; then
+            echo "Unconfigured commerce must not fabricate purchasable products"
+            exit 1
+          fi
           grep -q 'Explore the edited collection' /tmp/plantupia-world-_.html
-          grep -q 'SHOP / AN EDITED COLLECTION' /tmp/plantupia-world-_.html
+          grep -q 'ANOTHER WAY IN / PLANTUPIA OBJECTS' /tmp/plantupia-world-_.html
           test "$(curl -Ls -o /dev/null -w '%{http_code}' http://127.0.0.1:3017/api/commerce/products/not-a-uuid/cover/)" = 404
 
           # Each authored passage has a real next-chapter link, independent of JS.
@@ -80,7 +86,7 @@ jobs:
           grep -q 'Day one' /tmp/plantupia-world-_living-systems.html
           # Phase 03: one coherent photographic language, but distinct chapter interactions.
           grep -q 'Choose an environment' /tmp/plantupia-world-_spaces.html
-          grep -q 'Illustrative reference, not client work' /tmp/plantupia-world-_spaces.html
+          grep -q 'illustrative reference, not client work' /tmp/plantupia-world-_spaces.html
           grep -q 'Previous environment' /tmp/plantupia-world-_spaces.html
           grep -q 'Design prompts for this space' /tmp/plantupia-world-_spaces.html
           grep -q 'What matters' /tmp/plantupia-world-_spaces.html

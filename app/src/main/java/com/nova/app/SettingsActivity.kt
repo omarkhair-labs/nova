@@ -19,7 +19,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,6 +26,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.text.font.FontWeight
@@ -36,6 +39,7 @@ import com.nova.app.feature.plants.PlantupiaBrandGlyph
 import com.nova.app.feature.plants.PlantupiaColors
 import com.nova.app.feature.plants.PlantupiaShapes
 import com.nova.app.feature.plants.PlantupiaText
+import com.nova.app.ui.components.NovaBackButton
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaTheme
@@ -163,147 +167,154 @@ private fun SettingsScreen(
         )
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(PlantupiaColors.cream)
-            .verticalScroll(rememberScrollState())
             .statusBarsPadding()
-            .navigationBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 16.dp),
+            .navigationBarsPadding(),
+        contentAlignment = Alignment.TopCenter,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TextButton(onClick = onBack) {
-                Text("? Back", color = PlantupiaColors.forest, fontWeight = FontWeight.SemiBold)
-            }
-            Spacer(Modifier.weight(1f))
-            PlantupiaBrandGlyph(Modifier.size(28.dp))
-            Text(
-                "PLANTUPIA",
-                modifier = Modifier.padding(start = 7.dp),
-                style = PlantupiaText.sectionLabel,
-            )
-        }
-
-        Spacer(Modifier.height(30.dp))
-        Text("ACCOUNT / APP", style = PlantupiaText.sectionLabel)
-        Spacer(Modifier.height(6.dp))
-        Text("Settings", style = PlantupiaText.pageHeading)
-        if (username.isNotBlank()) {
-            Spacer(Modifier.height(4.dp))
-            Text("@$username", style = PlantupiaText.supporting)
-        }
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "Control your account, privacy and device access. Your plant spaces and care records are managed where they live, not here.",
-            style = PlantupiaText.body,
-            modifier = Modifier.fillMaxWidth(0.95f),
-        )
-
-        Spacer(Modifier.height(30.dp))
-        SettingsSectionLabel("ACCOUNT & PRIVACY")
-        SettingsGroup {
-            SettingsRow(
-                icon = NovaIconAsset.Security,
-                title = "Security",
-                subtitle = "Password, signed-in devices and app lock",
-                onClick = onSecurity,
-            )
-            SettingsDivider()
-            SettingsRow(
-                icon = NovaIconAsset.Privacy,
-                title = "Privacy",
-                subtitle = "Public account choices, requests and Close Friends",
-                onClick = onPrivacy,
-            )
-            SettingsDivider()
-            SettingsRow(
-                icon = NovaIconAsset.Blocked,
-                title = "Blocked accounts",
-                subtitle = "People who cannot find or contact you",
-                onClick = onBlockedAccounts,
-            )
-        }
-
-        Spacer(Modifier.height(24.dp))
-        SettingsSectionLabel("NOTIFICATIONS & DEVICE")
-        SettingsGroup {
-            SettingsRow(
-                icon = NovaIconAsset.Notifications,
-                title = "Notifications",
-                subtitle = "Messages and community activity; care reminders stay contextual",
-                onClick = onNotifications,
-            )
-            SettingsDivider()
-            SettingsRow(
-                icon = NovaIconAsset.Settings,
-                title = "Android app settings",
-                subtitle = "Permissions, notification access and storage on this device",
-                onClick = onDataStorage,
-            )
-        }
-
-        Spacer(Modifier.height(24.dp))
-        SettingsSectionLabel("HELP & PRODUCT")
-        SettingsGroup {
-            SettingsRow(
-                icon = NovaIconAsset.Inbox,
-                title = "Help & support",
-                subtitle = SUPPORT_EMAIL,
-                onClick = onHelpSupport,
-            )
-            SettingsDivider()
-            SettingsRow(
-                icon = NovaIconAsset.Policy,
-                title = "Privacy policy",
-                subtitle = "How Plantupia handles account and product information",
-                onClick = onPrivacyPolicy,
-            )
-            SettingsDivider()
-            SettingsRow(
-                icon = NovaIconAsset.AccountDeletion,
-                title = "Account deletion",
-                subtitle = "Read the deletion process or delete directly from Security",
-                onClick = onAccountDeletion,
-            )
-            SettingsDivider()
-            SettingsRow(
-                icon = NovaIconAsset.Info,
-                title = "About Plantupia",
-                subtitle = "Version $appVersion",
-                onClick = { showAbout = true },
-            )
-        }
-
-        Spacer(Modifier.height(24.dp))
-        SettingsSectionLabel("SESSION")
-        Surface(
-            onClick = onLogout,
-            modifier = Modifier.fillMaxWidth(),
-            color = PlantupiaColors.paper,
-            shape = PlantupiaShapes.inset,
-            border = androidx.compose.foundation.BorderStroke(1.dp, PlantupiaColors.border),
+        Column(
+            modifier = Modifier
+                .widthIn(max = 640.dp)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 16.dp),
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 15.dp, vertical = 14.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                SettingsIcon(NovaIconAsset.Logout)
-                Column(Modifier.weight(1f)) {
+                NovaBackButton(onClick = onBack)
+                Spacer(Modifier.weight(1f))
+                PlantupiaBrandGlyph(Modifier.size(28.dp))
+                if (LocalDensity.current.fontScale < 1.5f) {
                     Text(
-                        "Log out",
-                        style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
+                        "PLANTUPIA",
+                        modifier = Modifier.padding(start = 7.dp),
+                        style = PlantupiaText.sectionLabel,
                     )
-                    Text("Keep this account; end the session on this device.", style = PlantupiaText.supporting)
                 }
-                Text("?", style = PlantupiaText.sectionLabel)
             }
+
+            Spacer(Modifier.height(30.dp))
+            Text("ACCOUNT / APP", style = PlantupiaText.sectionLabel)
+            Spacer(Modifier.height(6.dp))
+            Text("Settings", style = PlantupiaText.pageHeading, modifier = Modifier.semantics { heading() })
+            if (username.isNotBlank()) {
+                Spacer(Modifier.height(4.dp))
+                Text("@$username", style = PlantupiaText.supporting)
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Your account, your privacy, your choices. Manage how you sign in, what you share and how Plantupia reaches you.",
+                style = PlantupiaText.body,
+                modifier = Modifier.fillMaxWidth(0.95f),
+            )
+
+            Spacer(Modifier.height(30.dp))
+            SettingsSectionLabel("ACCOUNT & PRIVACY")
+            SettingsGroup {
+                SettingsRow(
+                    icon = NovaIconAsset.Security,
+                    title = "Security",
+                    subtitle = "Password, signed-in devices and app lock",
+                    onClick = onSecurity,
+                )
+                SettingsDivider()
+                SettingsRow(
+                    icon = NovaIconAsset.Privacy,
+                    title = "Privacy",
+                    subtitle = "Public account choices, requests and Close Friends",
+                    onClick = onPrivacy,
+                )
+                SettingsDivider()
+                SettingsRow(
+                    icon = NovaIconAsset.Blocked,
+                    title = "Blocked accounts",
+                    subtitle = "People who cannot find or contact you",
+                    onClick = onBlockedAccounts,
+                )
+            }
+
+            Spacer(Modifier.height(24.dp))
+            SettingsSectionLabel("NOTIFICATIONS & DEVICE")
+            SettingsGroup {
+                SettingsRow(
+                    icon = NovaIconAsset.Notifications,
+                    title = "Notifications",
+                    subtitle = "Messages and community activity; care reminders stay contextual",
+                    onClick = onNotifications,
+                )
+                SettingsDivider()
+                SettingsRow(
+                    icon = NovaIconAsset.Settings,
+                    title = "Android app settings",
+                    subtitle = "Permissions, notification access and storage on this device",
+                    onClick = onDataStorage,
+                )
+            }
+
+            Spacer(Modifier.height(24.dp))
+            SettingsSectionLabel("HELP & PRODUCT")
+            SettingsGroup {
+                SettingsRow(
+                    icon = NovaIconAsset.Inbox,
+                    title = "Help & support",
+                    subtitle = SUPPORT_EMAIL,
+                    onClick = onHelpSupport,
+                )
+                SettingsDivider()
+                SettingsRow(
+                    icon = NovaIconAsset.Policy,
+                    title = "Privacy policy",
+                    subtitle = "How Plantupia handles account and product information",
+                    onClick = onPrivacyPolicy,
+                )
+                SettingsDivider()
+                SettingsRow(
+                    icon = NovaIconAsset.AccountDeletion,
+                    title = "Account deletion",
+                    subtitle = "Read the deletion process or delete directly from Security",
+                    onClick = onAccountDeletion,
+                )
+                SettingsDivider()
+                SettingsRow(
+                    icon = NovaIconAsset.Info,
+                    title = "About Plantupia",
+                    subtitle = "Version $appVersion",
+                    onClick = { showAbout = true },
+                )
+            }
+
+            Spacer(Modifier.height(24.dp))
+            SettingsSectionLabel("SESSION")
+            Surface(
+                onClick = onLogout,
+                modifier = Modifier.fillMaxWidth(),
+                color = PlantupiaColors.paper,
+                shape = PlantupiaShapes.inset,
+                border = androidx.compose.foundation.BorderStroke(1.dp, PlantupiaColors.border),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 15.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    SettingsIcon(NovaIconAsset.Logout)
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "Log out",
+                            style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
+                        )
+                        Text("Keep this account; end the session on this device.", style = PlantupiaText.supporting)
+                    }
+                    SettingsForwardIcon()
+                }
+            }
+            Spacer(Modifier.height(22.dp))
         }
-        Spacer(Modifier.height(22.dp))
     }
 }
 
@@ -318,27 +329,28 @@ private fun AboutPlantupiaDialog(
     ) {
         Surface(
             modifier = Modifier
-                .fillMaxWidth()
+                .statusBarsPadding()
                 .navigationBarsPadding()
-                .padding(horizontal = 20.dp),
+                .padding(horizontal = 20.dp, vertical = 16.dp)
+                .widthIn(max = 560.dp)
+                .fillMaxWidth(),
             shape = RoundedCornerShape(26.dp),
             color = PlantupiaColors.paper,
             border = androidx.compose.foundation.BorderStroke(1.dp, PlantupiaColors.border),
         ) {
             Column(
-                modifier = Modifier.padding(22.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()).padding(22.dp),
                 horizontalAlignment = Alignment.Start,
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    PlantupiaBrandGlyph(Modifier.size(38.dp))
-                    Text(
-                        "PLANTUPIA",
-                        modifier = Modifier.padding(start = 10.dp),
-                        style = PlantupiaText.editorialHeading,
-                    )
-                }
+                PlantupiaBrandGlyph(Modifier.size(42.dp))
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    "Plantupia",
+                    modifier = Modifier.semantics { heading() },
+                    style = PlantupiaText.editorialHeading,
+                )
                 Spacer(Modifier.height(20.dp))
-                Text("NATURE ? ARCHITECTURE", style = PlantupiaText.sectionLabel)
+                Text("NATURE & ARCHITECTURE", style = PlantupiaText.sectionLabel)
                 Spacer(Modifier.height(7.dp))
                 Text(
                     "A living record for spaces, plants and the care that happens over time.",
@@ -368,7 +380,11 @@ private fun AboutPlantupiaDialog(
 
 @Composable
 private fun SettingsSectionLabel(text: String) {
-    Text(text, style = PlantupiaText.sectionLabel, modifier = Modifier.padding(start = 2.dp, bottom = 8.dp))
+    Text(
+        text,
+        style = PlantupiaText.sectionLabel,
+        modifier = Modifier.padding(start = 2.dp, bottom = 8.dp).semantics { heading() },
+    )
 }
 
 @Composable
@@ -416,7 +432,7 @@ private fun SettingsRow(
                 Spacer(Modifier.height(2.dp))
                 Text(subtitle, style = PlantupiaText.supporting)
             }
-            if (onClick != null) Text("?", style = PlantupiaText.sectionLabel)
+            if (onClick != null) SettingsForwardIcon()
         }
     }
     if (onClick == null) {
@@ -424,6 +440,16 @@ private fun SettingsRow(
     } else {
         Surface(onClick = onClick, color = PlantupiaColors.paper, modifier = Modifier.fillMaxWidth()) { content() }
     }
+}
+
+@Composable
+private fun SettingsForwardIcon() {
+    NovaIcon(
+        asset = NovaIconAsset.Back,
+        contentDescription = null,
+        tint = PlantupiaColors.secondaryText,
+        modifier = Modifier.size(18.dp).graphicsLayer { rotationZ = 180f },
+    )
 }
 
 @Composable
