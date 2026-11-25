@@ -898,12 +898,37 @@ private fun PlantupiaAccountClientSection(
                         if (matchingPlants.isEmpty()) {
                             Text("No plants in this space match your search.", color = muted, fontSize = 12.sp)
                         }
-                        matchingPlants.take(visiblePlantCount).forEach { plant ->
-                            PlantupiaPlantInventoryCard(
-                                plant = plant,
-                                eventLabel = eventLabel(plant.lastEventKind),
-                                onClick = { scope.launch { openPlant(plant) } },
-                            )
+                        // A real collection gallery: two portraits at normal widths,
+                        // a fully readable row sequence at narrow or large-text widths.
+                        BoxWithConstraints(Modifier.fillMaxWidth()) {
+                            val gallery = maxWidth / LocalDensity.current.fontScale >= 280.dp
+                            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                if (gallery) {
+                                    matchingPlants.take(visiblePlantCount).chunked(2).forEach { pair ->
+                                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                            pair.forEach { plant ->
+                                                Box(Modifier.weight(1f)) {
+                                                    PlantupiaPlantInventoryCard(
+                                                        plant = plant,
+                                                        eventLabel = eventLabel(plant.lastEventKind),
+                                                        onClick = { scope.launch { openPlant(plant) } },
+                                                        portrait = true,
+                                                    )
+                                                }
+                                            }
+                                            if (pair.size == 1) Spacer(Modifier.weight(1f))
+                                        }
+                                    }
+                                } else {
+                                    matchingPlants.take(visiblePlantCount).forEach { plant ->
+                                        PlantupiaPlantInventoryCard(
+                                            plant = plant,
+                                            eventLabel = eventLabel(plant.lastEventKind),
+                                            onClick = { scope.launch { openPlant(plant) } },
+                                        )
+                                    }
+                                }
+                            }
                         }
                         if (matchingPlants.size > visiblePlantCount) {
                             TextButton(onClick = { visiblePlantCount += 8 }) {

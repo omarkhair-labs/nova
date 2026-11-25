@@ -4,6 +4,9 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.platform.LocalDensity
+import com.nova.app.feature.plants.PlantupiaEditionArt
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -58,7 +61,7 @@ internal fun PlantupiaMeIdentity(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = PlantupiaColors.paper,
-        shape = RoundedCornerShape(26.dp),
+        shape = RoundedCornerShape(8.dp),
         border = BorderStroke(1.dp, PlantupiaColors.border),
     ) {
         Column(
@@ -73,19 +76,28 @@ internal fun PlantupiaMeIdentity(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
             }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                NovaAvatar(
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                if (maxWidth / LocalDensity.current.fontScale >= 200.dp) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween) {
+                        NovaAvatar(source = avatarUrl,
+                            fallbackText = displayName.ifBlank { username }.ifBlank { "Plantupia" },
+                            size = 94.dp, plantupiaUserId = userId, plantupiaAvatarVariant = avatarVariant)
+                        PlantupiaEditionArt("identity", Modifier.size(88.dp))
+                    }
+                } else {
+                    NovaAvatar(
                     source = avatarUrl,
                     fallbackText = displayName.ifBlank { username }.ifBlank { "Plantupia" },
                     size = 80.dp,
                     plantupiaUserId = userId,
                     plantupiaAvatarVariant = avatarVariant,
                 )
+                }
+            }
+            run {
                 Column(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(3.dp),
                 ) {
                     Row(
@@ -95,7 +107,7 @@ internal fun PlantupiaMeIdentity(
                         Text(
                             text = displayName.ifBlank { username }.ifBlank { "Your profile" },
                             color = PlantupiaColors.forestText,
-                            style = NovaType.sectionTitle,
+                            style = PlantupiaText.pageHeading,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f, fill = false),

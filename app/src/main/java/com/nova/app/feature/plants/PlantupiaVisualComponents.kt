@@ -181,7 +181,36 @@ internal fun PlantupiaPlantInventoryCard(
     plant: PlantupiaPlant,
     eventLabel: String,
     onClick: () -> Unit,
+    portrait: Boolean = false,
 ) {
+    if (portrait) {
+        Surface(
+            onClick = onClick,
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Open plant: " + plant.name },
+            color = paper,
+            shape = RoundedCornerShape(6.dp),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                PlantupiaEvidencePhoto(
+                    photoUrl = plant.coverPhoto,
+                    photoDescription = "Uploaded photo of " + plant.name,
+                    modifier = Modifier.fillMaxWidth().height(148.dp),
+                    cornerRadius = 6.dp,
+                    compact = false,
+                )
+                Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp).padding(bottom = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text(plant.name, style = PlantupiaText.editorialHeading.copy(fontSize = 20.sp, lineHeight = 24.sp))
+                    val context = listOf(plant.placement, plant.species).filter(String::isNotBlank).joinToString(" · ")
+                    if (context.isNotBlank()) Text(context, style = PlantupiaText.supporting)
+                    Text(if (plant.lastEventAt.isNotBlank()) eventLabel + " · " + plant.lastEventAt.take(10) else "No moments recorded",
+                        style = PlantupiaText.supporting)
+                    if (plant.nextFollowUpOn.isNotBlank()) Text("Next check · " + plant.nextFollowUpOn, style = PlantupiaText.sectionLabel)
+                }
+            }
+        }
+        return
+    }
     Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Open plant: " + plant.name },

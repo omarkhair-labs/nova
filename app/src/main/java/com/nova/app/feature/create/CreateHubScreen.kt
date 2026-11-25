@@ -33,6 +33,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import com.nova.app.feature.plants.PlantupiaColors
+import com.nova.app.feature.plants.PlantupiaEditionArt
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.HorizontalDivider
 import com.nova.app.feature.plants.PlantupiaText
 import com.nova.app.feature.plants.PlantupiaCreateIntent
 import com.nova.app.navigation.NovaRootNavigationSignal
@@ -283,6 +286,20 @@ private fun CreateIntentGroup(
 
 @Composable
 private fun CreateActionCard(action: CreateHubAction, featured: Boolean = false) {
+    if (featured) {
+        Surface(onClick = action.onClick, modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(8.dp), color = PlantupiaColors.forest) {
+            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("PRIVATE / LIVING JOURNAL", style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage))
+                PlantupiaEditionArt("journal", Modifier.fillMaxWidth().height(112.dp))
+                Text(action.title, style = PlantupiaText.pageHeading.copy(color = PlantupiaColors.paper))
+                Text(action.subtitle, style = PlantupiaText.body.copy(color = PlantupiaColors.cream))
+                HorizontalDivider(color = PlantupiaColors.sage.copy(alpha = .45f))
+                Text("Begin →", style = PlantupiaText.body.copy(color = PlantupiaColors.paper))
+            }
+        }
+        return
+    }
     val foreground = if (featured) PlantupiaColors.paper else PlantupiaColors.forest
     Surface(
         onClick = action.onClick,

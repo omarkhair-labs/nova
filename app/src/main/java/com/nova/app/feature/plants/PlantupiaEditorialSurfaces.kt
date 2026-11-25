@@ -43,6 +43,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -185,88 +186,56 @@ internal fun PlantupiaTodayMasthead(
     onOpenCalendar: () -> Unit,
     date: LocalDate = LocalDate.now(),
 ) {
-    Surface(
-        color = PlantupiaColors.forest,
-        shape = RoundedCornerShape(22.dp),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 17.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            val dateLabel = date.format(DateTimeFormatter.ofPattern("EEE · d MMM", Locale.ENGLISH))
-                .uppercase(Locale.ENGLISH)
-            val dateStyle = PlantupiaText.sectionLabel.copy(color = Color(0xFFD5DEC5))
-            val scheduleAction: @Composable () -> Unit = {
-                Surface(
-                    onClick = onOpenCalendar,
-                    shape = RoundedCornerShape(14.dp),
-                    color = Color(0xFF315446),
-                    border = BorderStroke(1.dp, Color(0xFF819C88)),
-                ) {
-                    Row(
-                        modifier = Modifier.heightIn(min = 48.dp)
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(7.dp),
-                    ) {
-                        PlantupiaEditorialMark("today", Modifier.size(19.dp), Color(0xFFE1EADB))
-                        Text("Schedule ↗", style = PlantupiaText.sectionLabel.copy(
-                            color = PlantupiaColors.paper))
-                    }
-                }
-            }
+    val paper = PlantupiaColors.paper
+    Surface(color = PlantupiaColors.forest, shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text(date.format(DateTimeFormatter.ofPattern("EEEE · MMMM yyyy", Locale.ENGLISH)).uppercase(Locale.ENGLISH),
+                style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage))
             BoxWithConstraints(Modifier.fillMaxWidth()) {
-                if (maxWidth / LocalDensity.current.fontScale < 240.dp) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(dateLabel, style = dateStyle)
-                        scheduleAction()
+                if (maxWidth / LocalDensity.current.fontScale >= 235.dp) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(date.dayOfMonth.toString().padStart(2, '0'),
+                                style = PlantupiaText.pageHeading.copy(color = paper,
+                                    fontSize = 70.sp, lineHeight = 76.sp))
+                            Text("TODAY / YOUR LIVING RECORD",
+                                style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage))
+                        }
+                        PlantupiaEditionArt("day", Modifier.size(104.dp))
                     }
                 } else {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text(dateLabel, style = dateStyle, modifier = Modifier.weight(1f))
-                        scheduleAction()
-                    }
+                    Text(date.dayOfMonth.toString(), style = PlantupiaText.pageHeading.copy(color = paper, fontSize = 44.sp, lineHeight = 49.sp))
                 }
             }
-            Text(
-                if (dueCount > 0) "A little care is due"
-                else if (activeCount == 0) "It begins with a plant"
-                else "One day, one living space",
-                style = PlantupiaText.editorialHeading.copy(color = PlantupiaColors.paper),
-            )
-            Text(todayCareBrief(activeCount, dueCount),
-                style = PlantupiaText.supporting.copy(color = PlantupiaColors.cream))
+            androidx.compose.material3.HorizontalDivider(color = PlantupiaColors.sage.copy(alpha = .35f))
+            Text(if (dueCount > 0) "A little care is due" else if (activeCount == 0) "It begins with a plant" else "One day, one living space",
+                style = PlantupiaText.editorialHeading.copy(color = paper))
+            Text(todayCareBrief(activeCount, dueCount), style = PlantupiaText.body.copy(color = PlantupiaColors.cream))
+            Surface(onClick = onOpenCalendar, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                color = paper, shape = RoundedCornerShape(7.dp)) {
+                Row(Modifier.padding(13.dp), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    PlantupiaEditorialMark("today", Modifier.size(24.dp))
+                    Text("Schedule ↗", modifier = Modifier.weight(1f), style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
+                }
+            }
         }
     }
 }
 
 @Composable
 internal fun PlantupiaCircleEditorialIntro() {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = Color(0xFFE6EDE3),
-        shape = RoundedCornerShape(23.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(17.dp),
-            horizontalArrangement = Arrangement.spacedBy(15.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                Text("THE CIRCLE · HUMAN STORIES", style = PlantupiaText.sectionLabel)
-                Text("Better together", style = PlantupiaText.editorialHeading)
-                Text(
-                    "Questions and experiences people choose to share. Your private plant record stays yours.",
-                    style = PlantupiaText.supporting,
-                )
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("THE CIRCLE · HUMAN STORIES", style = PlantupiaText.sectionLabel)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Better together", style = PlantupiaText.pageHeading.copy(fontSize = 36.sp, lineHeight = 40.sp))
+                Text("Questions and experiences people choose to share. Your private plant record stays yours.",
+                    style = PlantupiaText.body)
             }
-            PlantupiaEditorialMark("circle", Modifier.size(68.dp), PlantupiaColors.forest)
+            if (LocalDensity.current.fontScale < 1.3f) PlantupiaEditionArt("circle", Modifier.size(84.dp))
         }
+        androidx.compose.material3.HorizontalDivider(color = PlantupiaColors.forest)
     }
 }
 

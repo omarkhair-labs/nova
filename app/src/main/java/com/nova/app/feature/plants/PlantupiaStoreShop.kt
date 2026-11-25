@@ -512,16 +512,10 @@ private fun PlantupiaAccountStoreShop(
 
         when (screen) {
             "catalog" -> {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        "OBJECTS / PLACES / CONTINUITY",
-                        style = PlantupiaText.sectionLabel,
-                    )
-                    Text(
-                        "Plants, vessels and simple things for their care.",
-                        style = PlantupiaText.supporting,
-                    )
-                }
+                // Editorial catalogue introduction, not a promotional banner.
+                Text("OBJECTS / PLACES / CONTINUITY", style = PlantupiaText.sectionLabel)
+                Text("Plants, vessels and simple things for their care.", style = PlantupiaText.body)
+                HorizontalDivider(color = PlantupiaColors.forest)
                 OutlinedTextField(
                     search, { search = it.take(100); visibleCount = 8 },
                     modifier = Modifier.fillMaxWidth(),
@@ -576,9 +570,13 @@ private fun PlantupiaAccountStoreShop(
                     }
                     if (families.isEmpty()) {
                         Column(
-                            Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                            Modifier.fillMaxWidth().padding(vertical = 18.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
+                            if (allFamilies.isEmpty()) {
+                                PlantupiaEditionArt("material", Modifier.fillMaxWidth().height(152.dp))
+                                Text("CATALOGUE STUDY / NOT PRODUCT PHOTOGRAPHY", style = PlantupiaText.sectionLabel)
+                            }
                             Text(
                                 if (allFamilies.isEmpty()) "The collection is growing."
                                 else "Nothing matching that selection.",
