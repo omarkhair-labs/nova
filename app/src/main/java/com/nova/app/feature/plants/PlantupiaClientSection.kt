@@ -779,7 +779,7 @@ private fun PlantupiaAccountClientSection(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(if (photoHero) 178.dp else 130.dp),
+                            .heightIn(min = if (photoHero) 178.dp else 130.dp),
                     ) {
                         if (heroPhoto.isNotBlank()) {
                             PlantupiaEvidencePhoto(

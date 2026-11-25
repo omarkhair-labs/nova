@@ -52,10 +52,9 @@ trap 'exit 130' INT
 ensure_offline() {
   adb_bounded shell svc wifi disable
   adb_bounded shell svc data disable
-  adb_bounded shell settings put global airplane_mode_on 1
-  adb_bounded shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state true
   # API 30's ConnectivityService reports this exact line when no default network
-  # exists. Do not install/launch the app until the fresh AVD is offline.
+  # exists. Use the supported radio controls; shell cannot send the protected
+  # AIRPLANE_MODE broadcast on this image. Do not launch before verifying offline.
   for attempt in {1..10}; do
     adb_bounded shell dumpsys connectivity > "$output/diagnostics/connectivity.txt"
     if grep -Eq '^[[:space:]]*Active default network: none[[:space:]]*$' "$output/diagnostics/connectivity.txt"; then

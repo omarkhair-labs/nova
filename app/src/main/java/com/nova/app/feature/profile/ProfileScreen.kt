@@ -25,6 +25,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nova.app.SettingsActivity
@@ -77,6 +80,7 @@ fun ProfileScreen(
     onEditProfile: () -> Unit,
 ) {
     val context = LocalContext.current
+    val largeText = LocalDensity.current.fontScale > 1.3f
     var showCarePlans by remember(userId) { mutableStateOf(false) }
 
     fun openSocialGraph(mode: String) {
@@ -110,12 +114,16 @@ fun ProfileScreen(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column {
+                Column(Modifier.weight(1f)) {
                     Text(text = "PLANTUPIA / ME", style = PlantupiaText.sectionLabel)
-                    Text(text = "My Plantupia", style = PlantupiaText.editorialHeading)
+                    if (!largeText) Text(
+                        text = "My Plantupia",
+                        style = PlantupiaText.editorialHeading,
+                        modifier = Modifier.semantics { heading() },
+                    )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box {
@@ -137,6 +145,12 @@ fun ProfileScreen(
                     )
                 }
             }
+
+            if (largeText) Text(
+                text = "My Plantupia",
+                style = PlantupiaText.editorialHeading,
+                modifier = Modifier.padding(top = 8.dp).semantics { heading() },
+            )
 
             Spacer(modifier = Modifier.height(8.dp))
             Text(

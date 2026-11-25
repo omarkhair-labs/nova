@@ -22,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import com.nova.app.feature.plants.PlantupiaColors
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.semantics
@@ -130,11 +131,12 @@ private fun NovaCreateTabItem(
                 shape = CircleShape, color = containerColor) {
                 Box(contentAlignment = Alignment.Center) {
                     NovaIcon(asset = NovaIconAsset.SignatureCreate,
-                        contentDescription = "Record a private moment or share publicly",
+                        contentDescription = null,
                         tint = PlantupiaColors.paper, modifier = Modifier.size(25.dp))
                 }
             }
-            Text("Create", color = PlantupiaColors.forest, style = NovaType.navigationLabel)
+            Text("Create", color = PlantupiaColors.forest, style = NovaType.navigationLabel,
+                textAlign = TextAlign.Center)
         }
     }
 
@@ -176,7 +178,8 @@ private fun NovaTabItem(
                     shape = CircleShape,
                 ) {
                     Box(Modifier.padding(horizontal = 10.dp, vertical = 5.dp)) {
-                        NovaIcon(asset = icon, contentDescription = displayLabel,
+                        // The visible label already names this merged tab for accessibility.
+                        NovaIcon(asset = icon, contentDescription = null,
                             tint = contentColor, modifier = Modifier.size(21.dp))
                     }
                 }
@@ -196,6 +199,7 @@ private fun NovaTabItem(
                 text = displayLabel,
                 color = contentColor,
                 style = if (selected) NovaType.navigationLabelSelected else NovaType.navigationLabel,
+                textAlign = TextAlign.Center,
             )
         }
     }
