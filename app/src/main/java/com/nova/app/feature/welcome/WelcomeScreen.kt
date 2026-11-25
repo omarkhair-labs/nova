@@ -12,6 +12,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -54,17 +58,14 @@ fun WelcomeScreen(
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(modifier = Modifier.weight(1f))
-            Text(
-                text = "NATURE × ARCHITECTURE",
-                style = PlantupiaText.sectionLabel,
-            )
+            Text("LIVING SPACES", style = PlantupiaText.sectionLabel)
         }
 
-        Spacer(modifier = Modifier.height(42.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
         Text(
             text = "A living space starts here.",
-            style = PlantupiaText.pageHeading.copy(fontSize = 39.sp, lineHeight = 45.sp),
+            style = PlantupiaText.pageHeading.copy(fontSize = 34.sp, lineHeight = 40.sp),
             modifier = Modifier.fillMaxWidth(0.92f),
         )
         Spacer(modifier = Modifier.height(12.dp))
@@ -74,9 +75,9 @@ fun WelcomeScreen(
             modifier = Modifier.fillMaxWidth(0.94f),
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(14.dp))
         WelcomeLivingFrame()
-        Spacer(modifier = Modifier.height(26.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         Text("CHOOSE HOW YOU'RE ARRIVING", style = PlantupiaText.sectionLabel)
         Spacer(modifier = Modifier.height(10.dp))
@@ -145,33 +146,57 @@ fun WelcomeScreen(
 @Composable
 private fun WelcomeLivingFrame() {
     Surface(
-        modifier = Modifier.fillMaxWidth().height(178.dp),
-        color = PlantupiaColors.softSage,
-        shape = RoundedCornerShape(26.dp),
+        modifier = Modifier.fillMaxWidth().height(132.dp),
+        color = PlantupiaColors.forest,
+        shape = RoundedCornerShape(19.dp),
     ) {
         Box(Modifier.fillMaxSize()) {
             Canvas(Modifier.fillMaxSize()) {
-                val line = PlantupiaColors.mutedSage.copy(alpha = 0.48f)
-                val strong = PlantupiaColors.forest.copy(alpha = 0.72f)
-                drawLine(line, start = androidx.compose.ui.geometry.Offset(size.width * .08f, size.height * .28f),
-                    end = androidx.compose.ui.geometry.Offset(size.width * .92f, size.height * .28f), strokeWidth = 1.5f)
-                drawLine(line, start = androidx.compose.ui.geometry.Offset(size.width * .32f, size.height * .10f),
-                    end = androidx.compose.ui.geometry.Offset(size.width * .32f, size.height * .90f), strokeWidth = 1.5f)
-                drawLine(line, start = androidx.compose.ui.geometry.Offset(size.width * .68f, size.height * .10f),
-                    end = androidx.compose.ui.geometry.Offset(size.width * .68f, size.height * .90f), strokeWidth = 1.5f)
-                drawCircle(strong, radius = size.minDimension * .14f,
-                    center = androidx.compose.ui.geometry.Offset(size.width * .32f, size.height * .54f))
-                drawCircle(PlantupiaColors.cream, radius = size.minDimension * .09f,
-                    center = androidx.compose.ui.geometry.Offset(size.width * .68f, size.height * .58f))
-                drawLine(strong, start = androidx.compose.ui.geometry.Offset(size.width * .50f, size.height * .28f),
-                    end = androidx.compose.ui.geometry.Offset(size.width * .50f, size.height * .80f), strokeWidth = 4f)
+                fun p(x: Float, y: Float) = Offset(size.width * x, size.height * y)
+                val mineral = Color(0xFFC5D5A9)
+                val moss = Color(0xFF72966B)
+                val clay = Color(0xFFC08C6B)
+                drawPath(Path().apply {
+                    moveTo(size.width * .53f, size.height)
+                    lineTo(size.width * .53f, size.height * .37f)
+                    cubicTo(size.width * .53f, -size.height * .02f, size.width * .94f, -size.height * .02f, size.width * .94f, size.height * .37f)
+                    lineTo(size.width * .94f, size.height)
+                    close()
+                }, Color(0xFF315947))
+                drawCircle(mineral.copy(alpha = .72f), size.height * .17f, p(.83f,.26f))
+                drawLine(mineral.copy(alpha = .35f), p(.08f,.83f), p(.95f,.83f), 1.dp.toPx())
+                val base = p(.72f,.8f)
+                drawLine(mineral, base, p(.71f,.14f), 1.5.dp.toPx())
+                val leafShapes = listOf(
+                    listOf(.72f,.50f,.55f,.42f,.58f,.18f,.72f,.50f),
+                    listOf(.72f,.42f,.78f,.10f,.93f,.17f,.72f,.42f),
+                    listOf(.72f,.66f,.52f,.59f,.52f,.38f,.72f,.66f),
+                    listOf(.72f,.60f,.79f,.35f,.94f,.41f,.72f,.60f),
+                )
+                leafShapes.forEachIndexed { i, a ->
+                    val path = Path().apply {
+                        moveTo(size.width*a[0],size.height*a[1])
+                        quadraticBezierTo(size.width*a[2],size.height*a[3],size.width*a[4],size.height*a[5])
+                        quadraticBezierTo(size.width*(a[4]+(if(i%2==0) .13f else -.12f)),size.height*(a[5]+.18f),size.width*a[6],size.height*a[7])
+                        close()
+                    }
+                    drawPath(path, if(i%2==0) moss else mineral)
+                    drawLine(PlantupiaColors.forest.copy(alpha=.55f),p(a[0],a[1]),p(a[4],a[5]),1.dp.toPx())
+                }
+                drawPath(Path().apply {
+                    moveTo(size.width*.65f,size.height*.75f)
+                    lineTo(size.width*.79f,size.height*.75f)
+                    lineTo(size.width*.77f,size.height*.92f)
+                    lineTo(size.width*.67f,size.height*.92f)
+                    close()
+                },clay)
             }
             Column(
-                modifier = Modifier.align(Alignment.BottomStart).padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(3.dp),
+                modifier = Modifier.align(Alignment.CenterStart).fillMaxWidth(.49f).padding(13.dp),
+                verticalArrangement = Arrangement.spacedBy(5.dp),
             ) {
-                Text("SPACE  /  PLANT  /  CARE  /  HISTORY", style = PlantupiaText.sectionLabel)
-                Text("The app remembers the relationship, not just the plant.", style = PlantupiaText.supporting)
+                Text("LIVING FORM", style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage))
+                Text("A place for life.", style = PlantupiaText.editorialHeading.copy(color = PlantupiaColors.paper, fontSize = 21.sp, lineHeight = 26.sp))
             }
         }
     }

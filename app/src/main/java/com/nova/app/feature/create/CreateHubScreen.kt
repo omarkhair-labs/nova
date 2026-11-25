@@ -181,7 +181,7 @@ fun CreateHubScreen(
             item(key = "living-create-private") {
                 CreateIntentGroup(
                     title = "IN YOUR SPACE",
-                    hint = "",
+                    hint = "Private records · nothing here is published",
                     featuredFirst = true,
                     actions = listOf(
                         CreateHubAction(
@@ -205,7 +205,7 @@ fun CreateHubScreen(
             item(key = "living-create-public") {
                 CreateIntentGroup(
                     title = "WITH PEOPLE",
-                    hint = "",
+                    hint = "Choose what becomes visible to other people",
                     actions = publicActions,
                 )
             }

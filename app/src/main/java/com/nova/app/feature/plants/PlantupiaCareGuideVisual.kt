@@ -66,6 +66,7 @@ internal fun PlantupiaCareChapterGallery(
 ) {
     if (topics.isEmpty()) return
     val chapter = selectedReviewedCareTopic(topics, selectedTopic)
+    val chapterIndex = topics.indexOfFirst { it.topic == chapter?.topic }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text("THE FIELD GUIDE / CHAPTER INDEX", style = PlantupiaText.sectionLabel)
         androidx.compose.foundation.lazy.LazyRow(
@@ -124,7 +125,7 @@ internal fun PlantupiaCareChapterGallery(
                     modifier = Modifier.padding(18.dp),
                     verticalArrangement = Arrangement.spacedBy(13.dp),
                 ) {
-                    Text(palette.label.uppercase(),
+                    Text("${chapterIndex + 1} / ${topics.size}  ·  " + palette.label.uppercase(),
                         style = PlantupiaText.sectionLabel.copy(color = palette.ink))
                     Text(item.title, style = PlantupiaText.editorialHeading)
                     PlantupiaSignatureFieldPlate(item.topic)
@@ -145,6 +146,21 @@ internal fun PlantupiaCareChapterGallery(
                     } else if (item.sourceReference.isNotBlank()) {
                         Text("Source: " + item.sourceReference,
                             style = PlantupiaText.supporting)
+                    }
+                    if (topics.size > 1) {
+                        androidx.compose.material3.HorizontalDivider(color = PlantupiaColors.border)
+                        topics.getOrNull(chapterIndex + 1)?.let { next ->
+                            TextButton(onClick = { onSelect(next.topic) },
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                                Text("Next · " + careChapterPalette(next.topic).label, color = palette.ink)
+                            }
+                        }
+                        topics.getOrNull(chapterIndex - 1)?.let { previous ->
+                            TextButton(onClick = { onSelect(previous.topic) },
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                                Text("Previous · " + careChapterPalette(previous.topic).label, color = palette.ink)
+                            }
+                        }
                     }
                 }
             }

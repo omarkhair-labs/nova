@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -53,12 +55,17 @@ internal fun PlantupiaAiRoute(
     onProfile: () -> Unit,
 ) {
     val context = LocalContext.current
-    val repository = remember(context) { PlantupiaRepository(context.applicationContext) }
+    val repository = remember(context, user?.id) { PlantupiaRepository(context.applicationContext) }
     var plants by remember(repository) { mutableStateOf(emptyList<PlantupiaPlant>()) }
     var plantsUnavailable by remember(repository) { mutableStateOf(false) }
-    var selectedPlantId by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedPlantId by rememberSaveable(user?.id) { mutableStateOf<String?>(null) }
+    var plantQuery by remember(repository) { mutableStateOf("") }
+    var retry by remember(repository) { mutableStateOf(0) }
+    var loadingPlants by remember(repository) { mutableStateOf(true) }
 
-    LaunchedEffect(repository) {
+    LaunchedEffect(repository, retry) {
+        loadingPlants = true
+        plantsUnavailable = false
         when (val response = repository.plants()) {
             is ApiResult.Success -> if (repository.isCurrentSession()) {
                 plants = response.value.filter { it.active }
@@ -71,8 +78,13 @@ internal fun PlantupiaAiRoute(
                 plantsUnavailable = true
             }
         }
+        if (repository.isCurrentSession()) loadingPlants = false
     }
     val chosenPlant = plants.firstOrNull { it.id == selectedPlantId }
+    val visiblePlants = plants.filter { plant ->
+        plantQuery.isBlank() || listOf(plant.name, plant.species, plant.placement)
+            .any { it.contains(plantQuery.trim(), ignoreCase = true) }
+    }
     Scaffold(
         containerColor = PlantupiaColors.cream,
         bottomBar = {
@@ -105,6 +117,16 @@ internal fun PlantupiaAiRoute(
                     style = PlantupiaText.supporting,
                 )
             }
+            if (loadingPlants) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (plants.size >= 8) {
+                OutlinedTextField(
+                    value = plantQuery, onValueChange = { plantQuery = it.take(80) },
+                    label = { Text("Find a plant for context") }, singleLine = true,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 17.dp),
+                )
+                if (visiblePlants.isEmpty()) Text("No matching plants. General questions are still available.",
+                    modifier = Modifier.padding(horizontal = 17.dp), style = PlantupiaText.supporting)
+            }
             LazyRow(
                 modifier = Modifier.fillMaxWidth(),
                 contentPadding = PaddingValues(horizontal = 16.dp),
@@ -134,7 +156,7 @@ internal fun PlantupiaAiRoute(
                         }
                     }
                 }
-                items(plants, key = { it.id }) { plant ->
+                items(visiblePlants, key = { it.id }) { plant ->
                     val chosen = chosenPlant?.id == plant.id
                     Surface(
                         onClick = { selectedPlantId = plant.id },
@@ -179,6 +201,9 @@ internal fun PlantupiaAiRoute(
                     modifier = Modifier.padding(horizontal = 17.dp),
                     style = PlantupiaText.supporting,
                 )
+                TextButton(onClick = { retry++ }, modifier = Modifier.padding(horizontal = 17.dp)) {
+                    Text("Retry loading plants")
+                }
             } else if (chosenPlant != null) {
                 Text(
                     "Choose whether to share this plant’s context during the chat. You can switch it off anytime.",

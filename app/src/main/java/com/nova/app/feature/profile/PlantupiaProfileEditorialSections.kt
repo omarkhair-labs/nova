@@ -12,6 +12,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -59,7 +61,16 @@ fun PlantupiaProfileSocialStats(
         shape = PlantupiaShapes.card,
         border = BorderStroke(1.dp, PlantupiaColors.border),
     ) {
-        Row(
+        if (LocalDensity.current.fontScale >= 1.5f) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                PlantupiaProfileStat(moments, "Moments", Modifier.fillMaxWidth(), null)
+                PlantupiaProfileStat(followers, "Followers", Modifier.fillMaxWidth(), onFollowersClick)
+                PlantupiaProfileStat(following, "Following", Modifier.fillMaxWidth(), onFollowingClick)
+            }
+        } else Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 15.dp),
             horizontalArrangement = Arrangement.spacedBy(3.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -79,7 +90,7 @@ private fun PlantupiaProfileStat(
     onClick: (() -> Unit)?,
 ) {
     Column(
-        modifier = modifier
+        modifier = modifier.heightIn(min = 48.dp)
             .then(
                 if (onClick != null) Modifier.clickable(
                     onClick = onClick,

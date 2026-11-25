@@ -1,7 +1,7 @@
 package com.nova.app.feature.plants
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,8 +16,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.painterResource
+import com.nova.app.R
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 
@@ -69,22 +69,28 @@ internal fun PlantupiaSignatureFieldPlate(topic: String) {
         ) {
             Text("FIELD PLATE / " + palette.label.uppercase(),
                 style = PlantupiaText.sectionLabel.copy(color = palette.ink))
-            Box(
-                Modifier.fillMaxWidth().height(110.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Canvas(Modifier.fillMaxWidth().height(110.dp).clearAndSetSemantics { }) {
-                    val r = size.height * .45f
-                    val c = Offset(size.width / 2f, size.height / 2f)
-                    drawCircle(palette.ink.copy(alpha = .12f), r, c, style = Stroke(1.dp.toPx()))
-                    drawCircle(palette.ink.copy(alpha = .08f), r * .75f, c, style = Stroke(1.dp.toPx()))
-                    for (i in 0..4) {
-                        val y = size.height * (i + 1) / 6f
-                        drawLine(palette.ink.copy(alpha = .15f), Offset(0f, y), Offset(size.width * .1f, y), 1.dp.toPx())
-                        drawLine(palette.ink.copy(alpha = .15f), Offset(size.width * .9f, y), Offset(size.width, y), 1.dp.toPx())
-                    }
+            val resource = when (topic) {
+                "water" -> R.drawable.plantupia_signature_plate_water
+                "light" -> R.drawable.plantupia_signature_plate_light
+                "soil" -> R.drawable.plantupia_signature_plate_soil
+                "humidity" -> R.drawable.plantupia_signature_plate_humidity
+                "fertilizing" -> R.drawable.plantupia_signature_plate_fertilizing
+                "pruning" -> R.drawable.plantupia_signature_plate_pruning
+                "repotting" -> R.drawable.plantupia_signature_plate_repotting
+                "inspection" -> R.drawable.plantupia_signature_plate_inspection
+                "warnings" -> R.drawable.plantupia_signature_plate_warnings
+                else -> null
+            }
+            if (resource != null) {
+                Image(
+                    painter = painterResource(resource),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxWidth().height(172.dp),
+                )
+            } else {
+                Box(Modifier.fillMaxWidth().height(96.dp), contentAlignment = Alignment.Center) {
+                    CareChapterIllustration(topic, palette.ink, Modifier.size(80.dp).clearAndSetSemantics { })
                 }
-                CareChapterIllustration(topic, palette.ink, Modifier.size(88.dp).clearAndSetSemantics { })
             }
             Text("Topic illustration · read the reviewed instructions below",
                 style = PlantupiaText.supporting.copy(color = palette.ink))

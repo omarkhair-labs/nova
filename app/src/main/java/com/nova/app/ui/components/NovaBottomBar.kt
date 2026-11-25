@@ -9,12 +9,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,6 +25,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.painterResource
+import com.nova.app.R
+import com.nova.app.feature.plants.PlantupiaColors
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
@@ -53,8 +58,8 @@ fun NovaBottomBar(
     onProfileClick: () -> Unit,
     onInboxClick: (() -> Unit)? = null,
     messagesUnreadCount: Int? = null,
-    containerColor: Color = NovaSurface,
-    inactiveContentColor: Color = NovaMuted,
+    containerColor: Color = PlantupiaColors.paper,
+    inactiveContentColor: Color = PlantupiaColors.secondaryText,
 ) {
     Surface(
         color = containerColor,
@@ -118,26 +123,23 @@ private fun NovaCreateTabItem(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val scale by animateFloatAsState(
-        targetValue = if (selected) 1.08f else 1f,
-        label = "nova-create-tab-scale",
-    )
     val containerColor by animateColorAsState(
-        targetValue = if (selected) MaterialTheme.colorScheme.primary else NovaAccent,
-        label = "nova-create-tab-color",
+        targetValue = if (selected) PlantupiaColors.forestText else PlantupiaColors.forest,
+        label = "plantupia-create-tab-color",
     )
 
-    Surface(onClick = onClick, modifier = modifier.semantics { this.selected = selected; role = Role.Tab },
+    Surface(onClick = onClick, modifier = modifier.heightIn(min = 48.dp).semantics { this.selected = selected; role = Role.Tab },
         color = Color.Transparent, shape = MaterialTheme.shapes.medium) {
         Column(Modifier.padding(vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Surface(modifier = Modifier.size(48.dp).graphicsLayer { scaleX = scale; scaleY = scale },
-                shape = CircleShape, color = containerColor, shadowElevation = NovaElevation.raised) {
+            Surface(modifier = Modifier.size(43.dp),
+                shape = CircleShape, color = containerColor) {
                 Box(contentAlignment = Alignment.Center) {
-                    NovaIcon(asset = NovaIconAsset.Create, contentDescription = "Record a private moment or share publicly",
-                        tint = Color.White, modifier = Modifier.size(25.dp))
+                    Icon(painterResource(R.drawable.plantupia_signature_nav_create),
+                        contentDescription = "Record a private moment or share publicly",
+                        tint = PlantupiaColors.paper, modifier = Modifier.size(25.dp))
                 }
             }
-            Text("Create", color = NovaAccent, style = NovaType.navigationLabel)
+            Text("Create", color = PlantupiaColors.forest, style = NovaType.navigationLabel)
         }
     }
 
@@ -156,17 +158,20 @@ private fun NovaTabItem(
     inactiveContentColor: Color = NovaMuted,
 ) {
     val contentColor by animateColorAsState(
-        targetValue = if (selected) NovaAccent else inactiveContentColor,
+        targetValue = if (selected) PlantupiaColors.forest else inactiveContentColor,
         label = "nova-tab-content",
     )
-    val iconScale by animateFloatAsState(
-        targetValue = if (selected) 1.08f else 1f,
-        label = "nova-tab-icon-scale",
-    )
+    val signatureResource = when (icon) {
+        NovaIconAsset.Today -> R.drawable.plantupia_signature_nav_today
+        NovaIconAsset.Plants -> R.drawable.plantupia_signature_nav_plants
+        NovaIconAsset.Shop -> R.drawable.plantupia_signature_nav_shop
+        NovaIconAsset.AI -> R.drawable.plantupia_signature_nav_ai
+        else -> null
+    }
 
     Surface(
         onClick = onClick,
-        modifier = modifier.semantics { this.selected = selected; role = Role.Tab },
+        modifier = modifier.heightIn(min = 48.dp).semantics { this.selected = selected; role = Role.Tab },
         color = Color.Transparent,
         shape = MaterialTheme.shapes.medium,
     ) {
@@ -178,17 +183,18 @@ private fun NovaTabItem(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(3.dp),
             ) {
-                NovaIcon(
-                    asset = icon,
-                    contentDescription = displayLabel,
-                    tint = contentColor,
-                    modifier = Modifier
-                        .size(21.dp)
-                        .graphicsLayer {
-                            scaleX = iconScale
-                            scaleY = iconScale
-                        },
-                )
+                Surface(
+                    color = if (selected) PlantupiaColors.softSage else Color.Transparent,
+                    shape = CircleShape,
+                ) {
+                    Box(Modifier.padding(horizontal = 10.dp, vertical = 5.dp)) {
+                        if (signatureResource != null) Icon(
+                            painterResource(signatureResource), contentDescription = displayLabel,
+                            tint = contentColor, modifier = Modifier.size(21.dp),
+                        ) else NovaIcon(asset = icon, contentDescription = displayLabel,
+                            tint = contentColor, modifier = Modifier.size(21.dp))
+                    }
+                }
                 if (badgeCount > 0) {
                     Surface(shape = CircleShape, color = NovaAccent) {
                         Text(

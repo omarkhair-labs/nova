@@ -161,6 +161,7 @@ private fun PlantupiaAccountClientSection(
     var visiblePlantCount by remember { mutableStateOf(8) }
     var events by remember { mutableStateOf<List<PlantupiaCareEvent>>(emptyList()) }
     var historyFilter by remember(currentPlantId) { mutableStateOf(PlantupiaHistoryFilter.ALL) }
+    var historyQuery by remember(currentPlantId, repository) { mutableStateOf("") }
     var pendingState by remember { mutableStateOf<PlantupiaPendingCheckInsState>(PlantupiaPendingCheckInsState.Loading) }
     val pendingFollowUps = (pendingState as? PlantupiaPendingCheckInsState.Loaded)?.events.orEmpty()
     val nextPendingOffset = (pendingState as? PlantupiaPendingCheckInsState.Loaded)?.nextOffset
@@ -2193,13 +2194,15 @@ private fun PlantupiaAccountClientSection(
                     else "Your latest saved observations and care",
                     color = muted, fontSize = 12.sp,
                 )
-                if (showFullHistory) PlantupiaPhotoIndex(
-                    events = events,
-                    hasOlderPages = nextHistoryOffset != null,
-                    onOpenPhoto = { photo ->
-                        photoToView = photo.photoUrl to selectedPlant.name
-                    },
-                )
+                if (showFullHistory) key(selectedPlant.id, repository) {
+                    PlantupiaPhotoIndex(
+                        events = events,
+                        hasOlderPages = nextHistoryOffset != null,
+                        onOpenPhoto = { photo ->
+                            photoToView = photo.photoUrl to selectedPlant.name
+                        },
+                    )
+                }
             }
             }
             val historyReady = !detailLoading && !historyRetryLoading && !historyLoadFailed
@@ -2208,6 +2211,18 @@ private fun PlantupiaAccountClientSection(
                     "EXPLORE HISTORY",
                     color = muted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
                 )
+                OutlinedTextField(
+                    value = historyQuery,
+                    onValueChange = { historyQuery = it.take(120) },
+                    label = { Text("Find a saved note or date") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    trailingIcon = if (historyQuery.isNotBlank()) {
+                        { TextButton(onClick = { historyQuery = "" }) { Text("Clear") } }
+                    } else null,
+                )
+                Text("Searches records loaded for this plant, including linked outcomes.",
+                    style = PlantupiaText.supporting)
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(PlantupiaHistoryFilter.entries.size) { index ->
                         val filter = PlantupiaHistoryFilter.entries[index]
@@ -2231,14 +2246,15 @@ private fun PlantupiaAccountClientSection(
                     events,
                     if (showFullHistory) historyFilter else PlantupiaHistoryFilter.ALL,
                 )
-                if (showFullHistory) matching else matching.take(2)
+                if (showFullHistory) searchLoadedPlantupiaHistory(matching, historyQuery) else matching.take(2)
             } else {
                 emptyList()
             }
             if (showFullHistory && historyReady && events.isNotEmpty() && visibleHistory.isEmpty()) {
                 Text(
-                    "No ${historyFilter.label.lowercase()} in the loaded history. " +
-                        "Load older moments to explore earlier records.",
+                    (if (historyQuery.isNotBlank()) "No matching notes or dates in the loaded history."
+                    else "No ${historyFilter.label.lowercase()} in the loaded history.") +
+                        if (nextHistoryOffset != null) " Load older moments to explore earlier records." else "",
                     color = muted, fontSize = 12.sp, lineHeight = 19.sp,
                 )
             }

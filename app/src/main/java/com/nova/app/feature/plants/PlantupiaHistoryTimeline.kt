@@ -112,3 +112,35 @@ internal fun plantupiaLoadedPhotoPair(events: List<PlantupiaCareEvent>): Plantup
     } ?: return null
     return PlantupiaLoadedPhotoPair(earlier = earlier, later = later)
 }
+
+/** Search is local to the already-authorized, loaded moments, preserving linked outcomes. */
+internal fun searchLoadedPlantupiaHistory(
+    moments: List<PlantupiaHistoryMoment>,
+    query: String,
+): List<PlantupiaHistoryMoment> {
+    val terms = query.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+    if (terms.isEmpty()) return moments
+    return moments.filter { moment ->
+        val fields = (listOf(moment.event) + moment.outcomes).flatMap {
+            listOf(it.note, it.observedAt, it.kind, it.followUpOn)
+        }
+        terms.all { term -> fields.any { it.contains(term, ignoreCase = true) } }
+    }
+}
+
+/** A user may select any two loaded evidence photos, never a generated or cross-plant image. */
+internal fun signatureComparisonPair(
+    events: List<PlantupiaCareEvent>,
+    firstId: String?,
+    secondId: String?,
+): PlantupiaLoadedPhotoPair? {
+    if (firstId.isNullOrBlank() || secondId.isNullOrBlank() || firstId == secondId) return null
+    val photos = recordedPlantPhotos(events)
+    val first = photos.firstOrNull { it.id == firstId } ?: return null
+    val second = photos.firstOrNull { it.id == secondId } ?: return null
+    val a = runCatching { LocalDate.parse(first.observedAt.take(10)) }.getOrNull() ?: return null
+    val b = runCatching { LocalDate.parse(second.observedAt.take(10)) }.getOrNull() ?: return null
+    if (a == b || first.photoUrl == second.photoUrl) return null
+    return if (a.isBefore(b)) PlantupiaLoadedPhotoPair(first, second)
+        else PlantupiaLoadedPhotoPair(second, first)
+}

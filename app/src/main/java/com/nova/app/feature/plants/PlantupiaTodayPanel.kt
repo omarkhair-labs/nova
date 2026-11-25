@@ -166,9 +166,9 @@ private fun PersonalCheckInHero(
     Surface(
         onClick = onOpen,
         modifier = Modifier.fillMaxWidth(),
-        color = PlantupiaColors.softSage,
+        color = PlantupiaColors.forest,
         shape = PlantupiaShapes.card,
-        border = BorderStroke(1.dp, PlantupiaColors.border),
+        border = BorderStroke(1.dp, PlantupiaColors.forest),
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
@@ -185,10 +185,10 @@ private fun PersonalCheckInHero(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text(eyebrow, style = PlantupiaText.sectionLabel)
-                Text(plant.name, style = PlantupiaText.editorialHeading)
-                Text(supporting, style = PlantupiaText.supporting)
-                Text("Review plant \u2192", style = PlantupiaText.sectionLabel)
+                Text(eyebrow, style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage))
+                Text(plant.name, style = PlantupiaText.editorialHeading.copy(color = PlantupiaColors.paper))
+                Text(supporting, style = PlantupiaText.supporting.copy(color = PlantupiaColors.cream))
+                Text("Review plant \u2192", style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.paper))
             }
         }
     }
