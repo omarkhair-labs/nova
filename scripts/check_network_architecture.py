@@ -70,7 +70,7 @@ require_all(client, "NovaApiClient final shared boundary", (
     'suspend fun refresh(refreshToken: String): ApiResult<String>',
     'JSONObject().put("refresh", refreshToken)',
     'requestJson("auth/refresh/", "POST", body)',
-    'ApiResult.Failure("Nova returned an invalid session response.")',
+    'ApiResult.Failure("Plantupia returned an invalid session response.")',
 ))
 forbid_all(client, "feature-owned core network seam", (
     'data class NovaUser(',
@@ -125,7 +125,7 @@ require_all(auth_parser, "feature Auth parser", (
     'internal fun parseAuthSession(',
     'internal fun parseNovaUser(',
     'if (access.isBlank() || refresh.isBlank() || userJson == null)',
-    'ApiResult.Failure("Nova returned an invalid authentication response.")',
+    'ApiResult.Failure("Plantupia returned an invalid authentication response.")',
     'avatarUrl = resolveMediaUrl(json.optString("avatar_url"))',
 ))
 require_all(auth_remote, "feature Auth remote", (
@@ -137,7 +137,7 @@ require_all(auth_remote, "feature Auth remote", (
     'method = "PUT"',
     'fileField = "avatar"',
     'api.requestJson("auth/refresh/", "POST", body)',
-    'ApiResult.Failure("Nova returned an invalid session response.")',
+    'ApiResult.Failure("Plantupia returned an invalid session response.")',
 ))
 require_all(auth_repository, "NovaAuthRepository feature remote ownership", (
     'private val remote: AuthRemoteDataSource',
@@ -211,9 +211,9 @@ require_all(people_paging, "feature People paging transport", (
     'setRequestProperty("Authorization", "Bearer $bearerToken")',
     '401 -> "Your session expired. Please log in again."',
     '403 -> "Follow this private account to see this content."',
-    '404 -> "Nova couldn\'t find that profile."',
-    'in 500..599 -> "Nova\'s server had a problem. Try again in a moment."',
-    'ApiResult.Failure("Can\'t reach Nova right now. Check your connection and try again.")',
+    '404 -> "Plantupia couldn\'t find that profile."',
+    'in 500..599 -> "Plantupia\'s server had a problem. Try again in a moment."',
+    'ApiResult.Failure("Can\'t reach Plantupia right now. Check your connection and try again.")',
     'val person = parseNovaPerson(item, ::resolveMediaUrl)',
     'add(parseNovaPost(it, ::resolveMediaUrl))',
     'nextCursor = optionalString(response.value, "next_cursor")',
@@ -269,7 +269,7 @@ require_all(posts_remote, "feature Posts transport", (
     'payload.put("parent_id", it)',
     'deleteCommentResource(accessToken, "comments/$commentId/")',
     'deleteCommentResource(accessToken, "comment-replies/$replyId/")',
-    'ApiResult.Failure("Nova returned an invalid comment response.")',
+    'ApiResult.Failure("Plantupia returned an invalid comment response.")',
     'parseNovaPostPage(response.value, api::resolveMediaUrl)',
     'parseNovaPost(response.value, api::resolveMediaUrl)',
     'add(parseNovaComment(it, api::resolveMediaUrl))',
@@ -321,7 +321,7 @@ require_all(client, "JSON transport", (
     'bearerToken?.let { setRequestProperty("Authorization", "Bearer $it") }',
     'setRequestProperty("Content-Type", "application/json; charset=utf-8")',
     'writer.write(body.toString())',
-    'message = "Can\'t reach Nova right now. Check your connection and try again."',
+    'message = "Can\'t reach Plantupia right now. Check your connection and try again."',
     'connection?.disconnect()',
 ))
 require_all(client, "multipart transport", (
@@ -340,7 +340,7 @@ require_all(client, "multipart transport", (
     'addFormDataPart(fieldName, file.fileName, file.asRequestBody())',
     '.method(method.uppercase(), multipart)',
     'contentLength = multipart.contentLength()',
-    'message = "Nova couldn\'t upload that right now. Check your connection and try again."',
+    'message = "Plantupia couldn\'t upload that right now. Check your connection and try again."',
 ))
 forbid_all(client, "superseded chunked multipart transport", (
     'setChunkedStreamingMode(',
@@ -356,9 +356,9 @@ require_all(client, "network response/error behavior", (
     'return if (statusCode == 401) "Email or password is incorrect." else detail',
     '400 -> "Check your details and try again."',
     '401 -> "Your session expired. Please log in again."',
-    '404 -> "Nova couldn\'t find that resource."',
-    '429 -> "Too many requests. Give Nova a moment and try again."',
-    'in 500..599 -> "Nova\'s server had a problem. Try again in a moment."',
+    '404 -> "Plantupia couldn\'t find that resource."',
+    '429 -> "Too many requests. Give Plantupia a moment and try again."',
+    'in 500..599 -> "Plantupia\'s server had a problem. Try again in a moment."',
     'else -> "Something went wrong. Please try again."',
 ))
 

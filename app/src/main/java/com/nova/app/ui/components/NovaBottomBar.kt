@@ -1,7 +1,6 @@
 package com.nova.app.ui.components
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,7 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,9 +22,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.res.painterResource
-import com.nova.app.R
 import com.nova.app.feature.plants.PlantupiaColors
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.semantics
@@ -134,7 +129,7 @@ private fun NovaCreateTabItem(
             Surface(modifier = Modifier.size(43.dp),
                 shape = CircleShape, color = containerColor) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(painterResource(R.drawable.plantupia_signature_nav_create),
+                    NovaIcon(asset = NovaIconAsset.SignatureCreate,
                         contentDescription = "Record a private moment or share publicly",
                         tint = PlantupiaColors.paper, modifier = Modifier.size(25.dp))
                 }
@@ -161,13 +156,6 @@ private fun NovaTabItem(
         targetValue = if (selected) PlantupiaColors.forest else inactiveContentColor,
         label = "nova-tab-content",
     )
-    val signatureResource = when (icon) {
-        NovaIconAsset.Today -> R.drawable.plantupia_signature_nav_today
-        NovaIconAsset.Plants -> R.drawable.plantupia_signature_nav_plants
-        NovaIconAsset.Shop -> R.drawable.plantupia_signature_nav_shop
-        NovaIconAsset.AI -> R.drawable.plantupia_signature_nav_ai
-        else -> null
-    }
 
     Surface(
         onClick = onClick,
@@ -188,10 +176,7 @@ private fun NovaTabItem(
                     shape = CircleShape,
                 ) {
                     Box(Modifier.padding(horizontal = 10.dp, vertical = 5.dp)) {
-                        if (signatureResource != null) Icon(
-                            painterResource(signatureResource), contentDescription = displayLabel,
-                            tint = contentColor, modifier = Modifier.size(21.dp),
-                        ) else NovaIcon(asset = icon, contentDescription = displayLabel,
+                        NovaIcon(asset = icon, contentDescription = displayLabel,
                             tint = contentColor, modifier = Modifier.size(21.dp))
                     }
                 }

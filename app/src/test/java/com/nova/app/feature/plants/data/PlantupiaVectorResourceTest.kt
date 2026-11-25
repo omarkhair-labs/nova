@@ -13,6 +13,9 @@ class PlantupiaVectorResourceTest {
         val folder = listOf(File("src/main/res/drawable"), File("app/src/main/res/drawable")).first { it.isDirectory }
         val resources = folder.listFiles()!!.filter { it.name.startsWith("plantupia_") && it.extension == "xml" }
         assertTrue(resources.isNotEmpty())
+        val signatureAssets = resources.filter { it.name.startsWith("plantupia_signature_") }
+        assertTrue("Five navigation glyphs must be present", signatureAssets.count { it.name.startsWith("plantupia_signature_nav_") } == 5)
+        assertTrue("Nine field plates must be present", signatureAssets.count { it.name.startsWith("plantupia_signature_plate_") } == 9)
         val factory = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
         resources.forEach { file ->
             val document = factory.newDocumentBuilder().parse(file)

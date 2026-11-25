@@ -2,6 +2,8 @@ package com.nova.app.feature.plants
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,6 +17,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.withFrameNanos
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -67,6 +73,16 @@ internal fun PlantupiaCareChapterGallery(
     if (topics.isEmpty()) return
     val chapter = selectedReviewedCareTopic(topics, selectedTopic)
     val chapterIndex = topics.indexOfFirst { it.topic == chapter?.topic }
+    val readingAnchor = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
+    fun chooseChapter(topic: String) {
+        if (topic == chapter?.topic) return
+        onSelect(topic)
+        scope.launch {
+            withFrameNanos { }
+            readingAnchor.bringIntoView()
+        }
+    }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text("THE FIELD GUIDE / CHAPTER INDEX", style = PlantupiaText.sectionLabel)
         androidx.compose.foundation.lazy.LazyRow(
@@ -77,7 +93,7 @@ internal fun PlantupiaCareChapterGallery(
                 val palette = careChapterPalette(item.topic)
                 val active = chapter?.topic == item.topic
                 Surface(
-                    onClick = { onSelect(item.topic) },
+                    onClick = { chooseChapter(item.topic) },
                     modifier = Modifier
                         .widthIn(min = 134.dp)
                         .heightIn(min = 100.dp)
@@ -126,6 +142,7 @@ internal fun PlantupiaCareChapterGallery(
                     verticalArrangement = Arrangement.spacedBy(13.dp),
                 ) {
                     Text("${chapterIndex + 1} / ${topics.size}  ·  " + palette.label.uppercase(),
+                        modifier = Modifier.bringIntoViewRequester(readingAnchor),
                         style = PlantupiaText.sectionLabel.copy(color = palette.ink))
                     Text(item.title, style = PlantupiaText.editorialHeading)
                     PlantupiaSignatureFieldPlate(item.topic)
@@ -150,13 +167,13 @@ internal fun PlantupiaCareChapterGallery(
                     if (topics.size > 1) {
                         androidx.compose.material3.HorizontalDivider(color = PlantupiaColors.border)
                         topics.getOrNull(chapterIndex + 1)?.let { next ->
-                            TextButton(onClick = { onSelect(next.topic) },
+                            TextButton(onClick = { chooseChapter(next.topic) },
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                                 Text("Next · " + careChapterPalette(next.topic).label, color = palette.ink)
                             }
                         }
                         topics.getOrNull(chapterIndex - 1)?.let { previous ->
-                            TextButton(onClick = { onSelect(previous.topic) },
+                            TextButton(onClick = { chooseChapter(previous.topic) },
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                                 Text("Previous · " + careChapterPalette(previous.topic).label, color = palette.ink)
                             }

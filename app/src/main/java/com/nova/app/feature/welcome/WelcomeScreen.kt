@@ -15,7 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -58,7 +58,7 @@ fun WelcomeScreen(
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(modifier = Modifier.weight(1f))
-            Text("LIVING SPACES", style = PlantupiaText.sectionLabel)
+            if (LocalDensity.current.fontScale < 1.3f) Text("LIVING SPACES", style = PlantupiaText.sectionLabel)
         }
 
         Spacer(modifier = Modifier.height(18.dp))
@@ -145,8 +145,9 @@ fun WelcomeScreen(
 
 @Composable
 private fun WelcomeLivingFrame() {
+    val largeText = LocalDensity.current.fontScale >= 1.5f
     Surface(
-        modifier = Modifier.fillMaxWidth().height(132.dp),
+        modifier = Modifier.fillMaxWidth().height(if (largeText) 190.dp else 132.dp),
         color = PlantupiaColors.forest,
         shape = RoundedCornerShape(19.dp),
     ) {
@@ -195,7 +196,7 @@ private fun WelcomeLivingFrame() {
                 modifier = Modifier.align(Alignment.CenterStart).fillMaxWidth(.49f).padding(13.dp),
                 verticalArrangement = Arrangement.spacedBy(5.dp),
             ) {
-                Text("LIVING FORM", style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage))
+                if (!largeText) Text("LIVING FORM", style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage))
                 Text("A place for life.", style = PlantupiaText.editorialHeading.copy(color = PlantupiaColors.paper, fontSize = 21.sp, lineHeight = 26.sp))
             }
         }

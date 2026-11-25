@@ -9,3 +9,5 @@ Draft, not production-approved. Built on the same signature implementation branc
 - Today: dark editorial personal-check stage using actual date/name/photo; Create: private/public intention; Profile: adaptive stats for larger text.
 - Added JVM tests for journal filtering and explicit photo-pair validation.
 Full exact-head Android build, instrumented test execution, screenshot/RTL/large-text/accessibility and live QA remain mandatory. No app deployment, new paid feature, backend or private customer data.
+
+Follow-up: original glyphs now use the existing semantic NovaIcon owner. Guide navigation brings the selected chapter back into view. Settings/Activity/Circle and transport CI characterization follows the actual renamed native presentation rather than requiring removed Nova copy or the retired Orbit constellation. Existing route, transport, privacy, state-owner and icon-catalog checks are retained; public-web smoke assertions remain intact and now log the failing command. Vector-parser regression explicitly requires all 14 signature drawable resources. Exact-head CI is still required.

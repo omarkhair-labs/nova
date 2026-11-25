@@ -127,7 +127,7 @@ for required_text in (
     'payload.put("parent_id", it)',
     'deleteCommentResource(accessToken, "comments/$commentId/")',
     'deleteCommentResource(accessToken, "comment-replies/$replyId/")',
-    'ApiResult.Failure("Nova returned an invalid comment response.")',
+    'ApiResult.Failure("Plantupia returned an invalid comment response.")',
     'parseNovaPostPage(response.value, api::resolveMediaUrl)',
     'parseNovaPost(response.value, api::resolveMediaUrl)',
     'add(parseNovaComment(it, api::resolveMediaUrl))',

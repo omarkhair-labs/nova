@@ -206,7 +206,7 @@ internal fun PlantupiaAiRoute(
                 }
             } else if (chosenPlant != null) {
                 Text(
-                    "Choose whether to share this plant’s context during the chat. You can switch it off anytime.",
+                    "Selected: ${chosenPlant.name}. Choose whether to share its context for a question.",
                     modifier = Modifier.padding(horizontal = 17.dp),
                     style = PlantupiaText.supporting,
                 )

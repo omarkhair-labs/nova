@@ -30,7 +30,8 @@ jobs:
 
       - name: Smoke-test site routes and scene
         run: |
-          set -euo pipefail
+          set -eEuo pipefail
+          trap 'printf "Smoke assertion failed at line %s: %s\n" "$LINENO" "$BASH_COMMAND" >&2' ERR
           npm run start -- -p 3017 >/tmp/plantupia-web-start.log 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT

@@ -67,12 +67,12 @@ MIGRATED_COMPONENT_SEAMS = {
         "NovaIconAsset.Today",
         "NovaIconAsset.Plants",
         "NovaIconAsset.AI",
-        "NovaIconAsset.Create",
+        "NovaIconAsset.SignatureCreate",
         "NovaIconAsset.Shop",
         'label = "Today"',
         'label = "Plants"',
         'label = "Shop"',
-        'label = "AI"',
+        'label = "Ask"',
     ),
     "NovaFeedback.kt": ("MaterialTheme.shapes.extraLarge", "NovaType.bodyCompact", "NovaSpacing.xxxl"),
     "NovaCard.kt": ("MaterialTheme.shapes.large", "NovaSurface", "NovaBorder"),
@@ -174,8 +174,12 @@ else:
         "fun NovaIcon(",
         "Home(R.drawable.ic_nova_home)",
         "Orbit(R.drawable.ic_nova_orbit)",
-        "AI(R.drawable.ic_plantupia_ai)",
+        "Today(R.drawable.plantupia_signature_nav_today)",
+        "Plants(R.drawable.plantupia_signature_nav_plants)",
+        "Shop(R.drawable.plantupia_signature_nav_shop)",
+        "AI(R.drawable.plantupia_signature_nav_ai)",
         "Create(R.drawable.ic_nova_add)",
+        "SignatureCreate(R.drawable.plantupia_signature_nav_create)",
         "Search(R.drawable.ic_nova_search)",
         "Notifications(R.drawable.ic_nova_notifications)",
         "Back(R.drawable.ic_nova_back)",
@@ -227,7 +231,7 @@ else:
         "NovaInlineLoading(",
         "NovaInlineRetry(",
         "NovaUnreadDot()",
-        "NovaType.screenTitle",
+        'Text("What changed", style = PlantupiaText.pageHeading)',
     ):
         if seam not in notifications_text:
             errors.append(f"Notifications bypassed migrated Nova feedback/chrome/status seam: {seam}")
@@ -235,7 +239,7 @@ else:
         errors.append("Notifications restored a local text Back control after design-system migration")
 
 settings_text = SETTINGS_ACTIVITY.read_text(encoding="utf-8")
-for seam in ("NovaCard(", "NovaType.screenTitle", "NovaSpacing.xxl", "SettingsSectionLabel"):
+for seam in ("Surface(", "PlantupiaText.pageHeading", "PlantupiaColors.paper", "SettingsSectionLabel"):
     if seam not in settings_text:
         errors.append(f"Settings bypassed Nova container/type/spacing seam: {seam}")
 

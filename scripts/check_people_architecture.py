@@ -147,7 +147,7 @@ for required in (
     'connectTimeout = 12_000',
     'readTimeout = 15_000',
     '403 -> "Follow this private account to see this content."',
-    '404 -> "Nova couldn\'t find that profile."',
+    '404 -> "Plantupia couldn\'t find that profile."',
     'val person = parseNovaPerson(item, ::resolveMediaUrl)',
     'add(parseNovaPost(it, ::resolveMediaUrl))',
 ):
