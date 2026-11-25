@@ -275,7 +275,7 @@ if not new_identity.is_file():
     errors.append("missing Plantupia Me identity owner")
 else:
     identity_text = new_identity.read_text(encoding="utf-8")
-    for seam in ("NovaAvatar(", "normalizedProfileExternalUrl(", "NovaIconAsset.Verified", "NovaType.sectionTitle"):
+    for seam in ("NovaAvatar(", "normalizedProfileExternalUrl(", "NovaIconAsset.Verified", "PlantupiaText.pageHeading", "PlantupiaEditionArt(\"identity\""):
         if seam not in identity_text:
             errors.append(f"Plantupia Me lost real identity or safe profile metadata: {seam}")
 
