@@ -110,7 +110,7 @@ class PlantupiaEntranceInstrumentedTest {
         compose.onNodeWithContentDescription("Hide Password").assertExists().performClick()
         field("Password").performImeAction()
         compose.onNodeWithText("Opening your space…").assertIsNotEnabled()
-        field("Email").assertIsNotEnabled()
+        compose.onNodeWithText("Email").assertIsNotEnabled()
         compose.runOnIdle { assertEquals(listOf("fictional@example.com" to "test-password"), submitted) }
     }
 

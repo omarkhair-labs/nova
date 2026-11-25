@@ -268,7 +268,10 @@ private fun AuthPage(
     val errorAnchor = remember { BringIntoViewRequester() }
     val scrollState = key(title) { rememberScrollState() }
     LaunchedEffect(errorMessage) {
-        if (!errorMessage.isNullOrBlank()) errorAnchor.bringIntoView()
+        if (!errorMessage.isNullOrBlank()) {
+            withFrameNanos { }
+            errorAnchor.bringIntoView()
+        }
     }
     Box(
         Modifier.fillMaxSize().background(PlantupiaColors.cream)
