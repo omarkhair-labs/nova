@@ -103,7 +103,8 @@ internal fun PlantupiaAssistantSheet(
                     onClose = onDismiss,
                 )
             }
-            PlantupiaDemoAccessGate(repository, human = false, scrollPaywall = true, paywallModifier = Modifier.weight(1f)) { accessLost ->
+            PlantupiaDemoAccessGate(repository, human = false, scrollPaywall = true,
+                paywallModifier = Modifier.weight(1f), compactPresentation = true) { accessLost ->
                 LazyColumn(
                     state = chatListState,
                     modifier = Modifier.fillMaxWidth().weight(1f),
@@ -120,10 +121,9 @@ internal fun PlantupiaAssistantSheet(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Share context in this chat", style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
+                            Text("Include plant context", style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
                             Text(
-                                if (includeContext) "On · plant name, placement and recent notes. Turn off whenever you want."
-                                else "Off · share only if you choose. No photos or address.",
+                                "Name, placement and recent notes. No photos or address.",
                                 style = PlantupiaText.supporting,
                             )
                         }
@@ -140,8 +140,7 @@ internal fun PlantupiaAssistantSheet(
                     if (bubbles.isEmpty()) item {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (plant == null) PlantupiaAiIntro()
-                            else Text("What's happening with " + plant.name + "?", style = PlantupiaText.editorialHeading)
-                            Text("Describe what you see, or start with a question.", style = PlantupiaText.supporting)
+                            else Text("Ask about " + plant.name, style = PlantupiaText.editorialHeading)
                             listOf(
                                 "What should I check before watering?",
                                 "Why are the leaf tips turning brown?",
@@ -156,7 +155,7 @@ internal fun PlantupiaAssistantSheet(
                             }
                             if (plant == null) {
                                 TextButton(onClick = onCircle) {
-                                    Text("Prefer people? Explore the Circle →", color = PlantupiaColors.forest)
+                                    Text("Ask the Circle", color = PlantupiaColors.forest)
                                 }
                             }
                         }
@@ -165,8 +164,8 @@ internal fun PlantupiaAssistantSheet(
                         PlantupiaConversationMessage(
                             body = message.text,
                             mine = message.fromUser,
-                            sender = if (message.fromUser) "You" else "Plantupia guide",
-                            detail = if (message.fromUser) "" else if (message.scope == "plant_context") "Plant context included" else "General guidance",
+                            sender = if (message.fromUser) "You" else "Plantupia AI",
+                            detail = if (!message.fromUser && message.scope == "plant_context") "Plant context included" else "",
                         )
                     }
                     if (pending) item {
@@ -178,7 +177,7 @@ internal fun PlantupiaAssistantSheet(
                     }
                 } }
                 item { Text(
-                    "AI guidance, not a confirmed diagnosis. No care record is created automatically.",
+                    "AI guidance, not a diagnosis. Nothing saved automatically.",
                     style = PlantupiaText.supporting,
                 ) }
                 }

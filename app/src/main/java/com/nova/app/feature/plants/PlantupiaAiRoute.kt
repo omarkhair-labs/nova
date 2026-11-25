@@ -1,49 +1,22 @@
 package com.nova.app.feature.plants
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
-import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.auth.domain.model.NovaUser
 import com.nova.app.feature.plants.data.PlantupiaPlant
@@ -51,11 +24,8 @@ import com.nova.app.feature.plants.data.PlantupiaRepository
 import com.nova.app.ui.components.NovaBottomBar
 import com.nova.app.ui.components.NovaTab
 
-/**
- * AI is an actual native root and a personal-context chooser, not Circle.
- * No plant information is included in a prompt merely because a plant chip
- * is selected. Explicit consent applies within this chat until switched off
- * or another plant is selected. Authorized context goes only to the protected backend.
+/** Data and conversation lifetime stay here; the presentation has no repository.
+ * Selecting a plant does not grant permission to share its context.
  */
 @Composable
 internal fun PlantupiaAiRoute(
@@ -70,10 +40,10 @@ internal fun PlantupiaAiRoute(
     var plants by remember(repository) { mutableStateOf(emptyList<PlantupiaPlant>()) }
     var plantsUnavailable by remember(repository) { mutableStateOf(false) }
     var selectedPlantId by rememberSaveable(user?.id) { mutableStateOf<String?>(null) }
-    var plantQuery by remember(repository) { mutableStateOf("") }
     var retry by remember(repository) { mutableStateOf(0) }
     var loadingPlants by remember(repository) { mutableStateOf(true) }
-    var showContextPicker by rememberSaveable(user?.id) { mutableStateOf(false) }
+    var showPicker by rememberSaveable(user?.id) { mutableStateOf(false) }
+    var query by remember(repository) { mutableStateOf("") }
 
     LaunchedEffect(repository, retry) {
         loadingPlants = true
@@ -81,10 +51,7 @@ internal fun PlantupiaAiRoute(
         when (val response = repository.plants()) {
             is ApiResult.Success -> if (repository.isCurrentSession()) {
                 plants = response.value.filter { it.active }
-                plantsUnavailable = false
-                if (selectedPlantId != null && plants.none { it.id == selectedPlantId }) {
-                    selectedPlantId = null
-                }
+                if (selectedPlantId != null && plants.none { it.id == selectedPlantId }) selectedPlantId = null
             }
             is ApiResult.Failure -> if (repository.isCurrentSession()) {
                 plantsUnavailable = true
@@ -92,15 +59,19 @@ internal fun PlantupiaAiRoute(
         }
         if (repository.isCurrentSession()) loadingPlants = false
     }
-    val contextScroll = rememberScrollState()
-    val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
-    val chosenPlant = plants.firstOrNull { it.id == selectedPlantId }
+
+    val selected = plants.firstOrNull { it.id == selectedPlantId }
     val visiblePlants = plants.filter { plant ->
-        plantQuery.isBlank() || listOf(plant.name, plant.species, plant.placement)
-            .any { it.contains(plantQuery.trim(), ignoreCase = true) }
+        query.isBlank() || listOf(plant.name, plant.species, plant.placement)
+            .any { it.contains(query.trim(), ignoreCase = true) }
     }
+    fun closePicker() {
+        showPicker = false
+        query = ""
+    }
+
     Scaffold(
-        containerColor = PlantupiaColors.cream,
+        containerColor = PlantupiaColors.paper,
         bottomBar = {
             NovaBottomBar(
                 selected = NovaTab.AI,
@@ -111,153 +82,39 @@ internal fun PlantupiaAiRoute(
             )
         },
     ) { padding ->
-        BoxWithConstraints(
-            modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)
-                .statusBarsPadding().imePadding(),
-        ) {
-            // Context must remain reachable without taking the conversation's
-            // entire viewport on small screens, large text or an open keyboard.
-            val contextMaxHeight = maxHeight * if (keyboardVisible) 0.3f else 0.42f
-            Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().heightIn(max = contextMaxHeight)
-                        .verticalScroll(contextScroll),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(horizontal = 17.dp),
-                        verticalArrangement = Arrangement.spacedBy(5.dp),
-                    ) {
-                        PlantupiaAccountHeader(
-                            user?.name.orEmpty(), user?.username.orEmpty(), user?.avatarUrl.orEmpty(),
-                            user?.id ?: 0L, user?.plantupiaAvatarVariant ?: -1,
-                            onProfile = onProfile, compactBrand = true,
-                        )
-                        Text("ASK PLANTUPIA / PRIVATE BY DEFAULT", style = PlantupiaText.sectionLabel)
-                        Text("Start with a plant, or don't.", style = PlantupiaText.pageHeading,
-                            modifier = Modifier.semantics { heading() })
-                        Surface(onClick = { showContextPicker = !showContextPicker },
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                            color = PlantupiaColors.forest, shape = RoundedCornerShape(8.dp)) {
-                            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(if (chosenPlant == null) "No plant context" else chosenPlant.name,
-                                    style = PlantupiaText.body.copy(color = PlantupiaColors.paper))
-                                Text(if (showContextPicker) "Hide plant chooser ↑" else "Choose a plant ↓",
-                                    style = PlantupiaText.supporting.copy(color = PlantupiaColors.cream))
-                            }
-                        }
-                    }
-                    if (showContextPicker) {
-                    if (loadingPlants) LinearProgressIndicator(Modifier.fillMaxWidth())
-                    if (plants.size >= 8) {
-                        OutlinedTextField(
-                            value = plantQuery, onValueChange = { plantQuery = it.take(80) },
-                            label = { Text("Find a plant for context") }, singleLine = true,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 17.dp),
-                        )
-                        if (visiblePlants.isEmpty()) Text("No matching plants. General questions are still available.",
-                            modifier = Modifier.padding(horizontal = 17.dp), style = PlantupiaText.supporting)
-                    }
-                    LazyRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        item {
-                            Surface(
-                                onClick = { selectedPlantId = null; showContextPicker = false },
-                                modifier = Modifier.heightIn(min = 58.dp).widthIn(min = 138.dp),
-                                color = if (selectedPlantId == null) PlantupiaColors.forest else PlantupiaColors.paper,
-                                border = BorderStroke(1.dp, if (selectedPlantId == null) PlantupiaColors.forest else PlantupiaColors.border),
-                                shape = RoundedCornerShape(18.dp),
-                            ) {
-                                Column(Modifier.padding(horizontal = 15.dp, vertical = 10.dp)) {
-                                    Text(
-                                        "GENERAL",
-                                        style = PlantupiaText.sectionLabel.copy(
-                                            color = if (selectedPlantId == null) PlantupiaColors.sage else PlantupiaColors.forest,
-                                        ),
-                                    )
-                                    Text(
-                                        "No plant context",
-                                        style = PlantupiaText.body.copy(
-                                            color = if (selectedPlantId == null) PlantupiaColors.paper else PlantupiaColors.forestText,
-                                        ),
-                                    )
-                                }
-                            }
-                        }
-                        items(visiblePlants, key = { it.id }) { plant ->
-                            val chosen = chosenPlant?.id == plant.id
-                            Surface(
-                                onClick = { selectedPlantId = plant.id; showContextPicker = false },
-                                modifier = Modifier.heightIn(min = 58.dp).widthIn(min = 154.dp),
-                                color = if (chosen) PlantupiaColors.forest else PlantupiaColors.paper,
-                                border = BorderStroke(1.dp, if (chosen) PlantupiaColors.forest else PlantupiaColors.border),
-                                shape = RoundedCornerShape(18.dp),
-                            ) {
-                                Row(
-                                    Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(9.dp),
-                                ) {
-                                    PlantupiaEvidencePhoto(
-                                        photoUrl = plant.coverPhoto,
-                                        photoDescription = plant.name,
-                                        modifier = Modifier.size(40.dp),
-                                        compact = true,
-                                    )
-                                    Column(Modifier.weight(1f)) {
-                                        Text(
-                                            "PLANT",
-                                            style = PlantupiaText.sectionLabel.copy(
-                                                color = if (chosen) PlantupiaColors.sage else PlantupiaColors.forest,
-                                            ),
-                                        )
-                                        Text(
-                                            plant.name,
-                                            maxLines = 1,
-                                            style = PlantupiaText.body.copy(
-                                                color = if (chosen) PlantupiaColors.paper else PlantupiaColors.forestText,
-                                            ),
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    if (plantsUnavailable) {
-                        Text(
-                            "Your plants couldn't load. General questions still work.",
-                            modifier = Modifier.padding(horizontal = 17.dp),
-                            style = PlantupiaText.supporting,
-                        )
-                        TextButton(onClick = { retry++ }, modifier = Modifier.padding(horizontal = 17.dp)) {
-                            Text("Retry loading plants")
-                        }
-                    } else if (chosenPlant != null) {
-                        Text(
-                            "Selected: ${chosenPlant.name}. Choose whether to share its context in this chat.",
-                            modifier = Modifier.padding(horizontal = 17.dp),
-                            style = PlantupiaText.supporting,
-                        )
-                    }
-                    }
-                }
-                Box(Modifier.fillMaxWidth().weight(1f)) {
-                    // Recreate chat state and cancel an old in-flight request on scope
-                    // switch, never carry another plant's private conversation across.
-                    key(chosenPlant?.id) {
-                        PlantupiaAssistantSheet(
-                            plant = chosenPlant,
-                            repository = repository,
-                            onDismiss = onToday,
-                            fullPage = true,
-                            onCircle = onCircle,
-                        )
-                    }
+        Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)
+            .statusBarsPadding().imePadding()) {
+            PlantupiaAskPresentation(
+                user = user,
+                selected = selected,
+                onProfile = onProfile,
+                onChoosePlant = { showPicker = true },
+            ) {
+                // A different account or plant cancels the prior chat and consent.
+                key(repository, selected?.id) {
+                    PlantupiaAssistantSheet(
+                        plant = selected,
+                        repository = repository,
+                        onDismiss = onToday,
+                        fullPage = true,
+                        onCircle = onCircle,
+                    )
                 }
             }
         }
+    }
+    if (showPicker) {
+        PlantupiaAskPlantPicker(
+            plants = visiblePlants,
+            selectedId = selected?.id,
+            showSearch = plants.size >= 8 || query.isNotBlank(),
+            query = query,
+            onQuery = { query = it.take(80) },
+            loading = loadingPlants,
+            unavailable = plantsUnavailable,
+            onRetry = { retry++ },
+            onChoose = { selectedPlantId = it; closePicker() },
+            onDismiss = { closePicker() },
+        )
     }
 }

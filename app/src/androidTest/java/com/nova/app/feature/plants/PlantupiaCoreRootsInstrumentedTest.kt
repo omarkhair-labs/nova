@@ -134,12 +134,17 @@ class PlantupiaCoreRootsInstrumentedTest {
         capture("12-shop-cart")
 
         tab("Ask")
-        awaitText("Start with a plant, or don't.")
+        awaitText("Ask Plantupia")
         // This seed has no paid/preview entitlement or configured AI provider.
         // Capture its real unavailable/access surface, without sending a question.
         awaitNoProgress()
         revealGeneralContext()
         capture("13-ask")
+        clickText("General care")
+        awaitText("Choose a plant")
+        capture("13a-ask-picker")
+        clickText("Done")
+        awaitText("Ask Plantupia")
         tab("Today")
         awaitText("Start with a real place.")
         capture("14-today-return")
@@ -315,7 +320,7 @@ class PlantupiaCoreRootsInstrumentedTest {
     }
 
     private fun revealGeneralContext() {
-        val label = hasText("No plant context")
+        val label = hasText("General care")
         val scroller = SemanticsMatcher.keyIsDefined(SemanticsProperties.VerticalScrollAxisRange) and
             hasAnyDescendant(label)
         repeat(4) {

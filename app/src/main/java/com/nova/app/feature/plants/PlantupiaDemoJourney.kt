@@ -84,6 +84,7 @@ internal fun PlantupiaDemoAccessGate(
     human: Boolean,
     scrollPaywall: Boolean = false,
     paywallModifier: Modifier = Modifier,
+    compactPresentation: Boolean = false,
     content: @Composable (onAccessLost: () -> Unit) -> Unit,
 ) {
     var access by remember { mutableStateOf<JSONObject?>(null) }
@@ -105,13 +106,20 @@ internal fun PlantupiaDemoAccessGate(
         content { access = null; refresh++ }
     } else {
         Column(paywallModifier.then(if (scrollPaywall) Modifier.verticalScroll(rememberScrollState()) else Modifier), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Care, when you need it.", fontFamily = FontFamily.Serif, fontSize = 28.sp, color = demoForest)
-        Text("Your plants and care schedule are always free.", color = demoForest)
-        Text("Provisional concept prices · QA only · no payment", style = PlantupiaText.supporting)
+        if (!compactPresentation) {
+            Text("Care, when you need it.", fontFamily = FontFamily.Serif, fontSize = 28.sp, color = demoForest)
+            Text("Your plants and care schedule are always free.", color = demoForest)
+            Text("Provisional concept prices · QA only · no payment", style = PlantupiaText.supporting)
+        }
         if (access == null && error == null) LinearProgressIndicator(Modifier.fillMaxWidth())
         access?.let { state ->
             val offers = state.demoRows("offers")
             if (offers.isEmpty()) Text("Care plans are not available yet.", style = PlantupiaText.supporting)
+            else if (compactPresentation) {
+                Text("Care plans", style = PlantupiaText.editorialHeading)
+                Text("Your plants and care schedule are always free.", style = PlantupiaText.body)
+                Text("Provisional concept prices · QA only · no payment", style = PlantupiaText.supporting)
+            }
             offers.forEach { offer ->
                 val teamCare = offer.getInt("human_limit") > 0
                 val canChoose = !human || teamCare

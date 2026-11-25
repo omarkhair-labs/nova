@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -29,14 +30,20 @@ internal fun PlantupiaAccountHeader(
     userId: Long, avatarVariant: Int, onProfile: () -> Unit,
     onNotifications: () -> Unit = { NovaRootNavigationSignal.requestActivity() },
     compactBrand: Boolean = false,
+    screenTitle: String? = null,
 ) {
     val context = LocalContext.current
     val largeText = LocalDensity.current.fontScale > 1.3f
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
-            PlantupiaBrandGlyph(Modifier.size(26.dp))
-            if (!largeText && !compactBrand) Text("Plantupia", fontFamily = FontFamily.Serif, fontSize = 20.sp, color = PlantupiaColors.forest)
+            if (screenTitle == null) {
+                PlantupiaBrandGlyph(Modifier.size(26.dp))
+                if (!largeText && !compactBrand) Text("Plantupia", fontFamily = FontFamily.Serif, fontSize = 20.sp, color = PlantupiaColors.forest)
+            } else {
+                Text(screenTitle, style = PlantupiaText.body.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
+                    modifier = Modifier.semantics { heading() })
+            }
         }
         Box {
         NovaIconButton(asset = NovaIconAsset.Inbox, contentDescription = "Social inbox",
