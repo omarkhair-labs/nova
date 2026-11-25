@@ -83,6 +83,7 @@ private fun ShopCartDestination(
 }
 
 /** The one Shop header stays legible at 320dp and 200% font sizes. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun PlantupiaShopNavigation(
     screen: String,
@@ -96,14 +97,14 @@ internal fun PlantupiaShopNavigation(
         val stacked = plantupiaShopNavigationStacked(maxWidth.value, LocalDensity.current.fontScale)
         if (stacked) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(
+                FlowRow(
                     Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     TextButton(onClick = onCollection, enabled = enabled, modifier = Modifier.heightIn(min = 48.dp)) {
                         Text(if (screen == "catalog") "Collection" else "← Collection", color = PlantupiaColors.forest)
                     }
-                    Spacer(Modifier.weight(1f))
                     TextButton(onClick = onOrders, enabled = enabled, modifier = Modifier.heightIn(min = 48.dp)) {
                         Text("Orders", color = PlantupiaColors.forest)
                     }

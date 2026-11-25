@@ -701,30 +701,38 @@ private fun PlantupiaAccountClientSection(
                     plants = plants,
                     onOpenPlant = { plant -> scope.launch { openPlant(plant) } },
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(9.dp),
-                ) {
-                    if (plants.any { it.active && it.canRecord }) {
-                        Button(
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    val actionButtons: @Composable (Modifier) -> Unit = { actionModifier ->
+                        if (plants.any { it.active && it.canRecord }) {
+                            Button(
+                                onClick = {
+                                    PlantupiaCreateIntent.request(PlantupiaCreateMode.OBSERVATION)
+                                    NovaRootNavigationSignal.request(NovaRootTab.Plants)
+                                },
+                                modifier = actionModifier.heightIn(min = 48.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
+                            ) {
+                                Text("Record care", color = white)
+                            }
+                        }
+                        OutlinedButton(
                             onClick = {
-                                PlantupiaCreateIntent.request(PlantupiaCreateMode.OBSERVATION)
+                                PlantupiaCreateIntent.request(PlantupiaCreateMode.ADD_PLANT)
                                 NovaRootNavigationSignal.request(NovaRootTab.Plants)
                             },
-                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
+                            modifier = actionModifier.heightIn(min = 48.dp),
                         ) {
-                            Text("Record care", color = white)
+                            Text("+ Add plant", color = deepGreen)
                         }
                     }
-                    OutlinedButton(
-                        onClick = {
-                            PlantupiaCreateIntent.request(PlantupiaCreateMode.ADD_PLANT)
-                            NovaRootNavigationSignal.request(NovaRootTab.Plants)
-                        },
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                    ) {
-                        Text("+ Add plant", color = deepGreen)
+                    if (maxWidth / LocalDensity.current.fontScale < 280.dp) {
+                        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                            actionButtons(Modifier.fillMaxWidth())
+                        }
+                    } else {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                            actionButtons(Modifier.weight(1f))
+                        }
                     }
                 }
                 // Community is a contextual relationship, no longer a permanent bottom tab.
