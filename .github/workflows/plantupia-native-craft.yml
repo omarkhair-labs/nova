@@ -51,7 +51,16 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-          test -r /dev/kvm && test -w /dev/kvm
+          # Trigger queues a device event; wait for its permission rule before
+          # checking access, otherwise a healthy runner can fail in this race.
+          sudo udevadm settle --timeout=15
+          if ! test -r /dev/kvm || ! test -w /dev/kvm; then
+            ls -l /dev/kvm || true
+            id
+            lscpu
+            echo '::error::The hosted runner did not provide usable KVM after udev settled.'
+            exit 1
+          fi
 
       - name: Create disposable CI Firebase config
         timeout-minutes: 1
