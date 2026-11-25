@@ -583,25 +583,27 @@ private fun PlantupiaAccountClientSection(
                             }) { Text("+ Add plant", color = deepGreen) }
                         }
                     } else {
-                        Text("My plants", fontFamily = FontFamily.Serif,
-                            fontSize = 31.sp, color = deepGreen)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            com.nova.app.ui.components.NovaIconButton(
-                                asset = com.nova.app.ui.icons.NovaIconAsset.CareCalendar,
-                                contentDescription = "Open care schedule",
-                                onClick = { PlantupiaCareCalendarOpenSignal.open(accountId) },
-                                size = 48.dp,
-                                contentColor = PlantupiaColors.forest,
-                            )
-                            Text("Schedule", style = PlantupiaText.body)
-                            Spacer(Modifier.weight(1f))
-                            if (!loading && error == null) TextButton(onClick = {
-                                PlantupiaCreateIntent.request(PlantupiaCreateMode.ADD_PLANT)
-                            }) { Text("+ Add plant", color = deepGreen) }
+                        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("My plants", fontFamily = FontFamily.Serif,
+                                fontSize = 31.sp, lineHeight = 38.sp, color = deepGreen)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                com.nova.app.ui.components.NovaIconButton(
+                                    asset = com.nova.app.ui.icons.NovaIconAsset.CareCalendar,
+                                    contentDescription = "Open care schedule",
+                                    onClick = { PlantupiaCareCalendarOpenSignal.open(accountId) },
+                                    size = 48.dp,
+                                    contentColor = PlantupiaColors.forest,
+                                )
+                                Text("Schedule", style = PlantupiaText.body, modifier = Modifier.weight(1f))
+                            }
+                            if (!loading && error == null) TextButton(
+                                onClick = { PlantupiaCreateIntent.request(PlantupiaCreateMode.ADD_PLANT) },
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            ) { Text("+ Add plant", color = deepGreen) }
                         }
                     }
                 }
@@ -826,6 +828,7 @@ private fun PlantupiaAccountClientSection(
                                 color = heroInk,
                                 fontFamily = FontFamily.Serif,
                                 fontSize = 27.sp,
+                                lineHeight = 33.sp,
                             )
                             if (featured.location.isNotBlank()) {
                                 Text(featured.location, color = heroMuted, fontSize = 12.sp)
@@ -1250,11 +1253,7 @@ private fun PlantupiaAccountClientSection(
                     style = PlantupiaText.supporting,
                 )
                 Text(
-                    when (selectedPlant.identityState) {
-                        "staff_verified" -> "Botanical identity verified by Plantupia"
-                        "user_selected" -> "Based on the type you selected · not individually verified"
-                        else -> "Plant type not confirmed"
-                    },
+                    signatureIdentityLabel(selectedPlant.identityState, qa = BuildConfig.BUILD_TYPE == "qa"),
                     style = PlantupiaText.supporting,
                 )
             }

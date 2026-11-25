@@ -66,7 +66,7 @@ fun NovaBottomBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = NovaSpacing.sm, vertical = NovaSpacing.xs),
+                .padding(horizontal = NovaSpacing.xs, vertical = NovaSpacing.xs),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -166,7 +166,7 @@ private fun NovaTabItem(
         shape = MaterialTheme.shapes.medium,
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 2.dp, vertical = 6.dp),
+            modifier = Modifier.padding(vertical = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(

@@ -125,7 +125,10 @@ fun ProfileScreen(
                         modifier = Modifier.semantics { heading() },
                     )
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Box {
                         NovaIconButton(
                             asset = NovaIconAsset.Inbox,

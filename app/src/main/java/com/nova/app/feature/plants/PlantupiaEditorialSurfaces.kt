@@ -194,17 +194,10 @@ internal fun PlantupiaTodayMasthead(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 17.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    date.format(DateTimeFormatter.ofPattern("EEE · d MMM", Locale.ENGLISH))
-                        .uppercase(Locale.ENGLISH),
-                    style = PlantupiaText.sectionLabel.copy(color = Color(0xFFD5DEC5)),
-                    modifier = Modifier.weight(1f),
-                )
+            val dateLabel = date.format(DateTimeFormatter.ofPattern("EEE · d MMM", Locale.ENGLISH))
+                .uppercase(Locale.ENGLISH)
+            val dateStyle = PlantupiaText.sectionLabel.copy(color = Color(0xFFD5DEC5))
+            val scheduleAction: @Composable () -> Unit = {
                 Surface(
                     onClick = onOpenCalendar,
                     shape = RoundedCornerShape(14.dp),
@@ -220,6 +213,23 @@ internal fun PlantupiaTodayMasthead(
                         PlantupiaEditorialMark("today", Modifier.size(19.dp), Color(0xFFE1EADB))
                         Text("Schedule ↗", style = PlantupiaText.sectionLabel.copy(
                             color = PlantupiaColors.paper))
+                    }
+                }
+            }
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                if (maxWidth / LocalDensity.current.fontScale < 240.dp) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(dateLabel, style = dateStyle)
+                        scheduleAction()
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(dateLabel, style = dateStyle, modifier = Modifier.weight(1f))
+                        scheduleAction()
                     }
                 }
             }

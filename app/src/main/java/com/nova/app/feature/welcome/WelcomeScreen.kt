@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -112,21 +113,27 @@ private fun WelcomeLivingFrame() {
         color = PlantupiaColors.forest,
         shape = RoundedCornerShape(19.dp),
     ) {
-        Box(Modifier.fillMaxWidth().heightIn(min = 148.dp)) {
+        BoxWithConstraints(Modifier.fillMaxWidth().heightIn(min = 148.dp)) {
+            // Decorative copy yields to the real introduction when text grows.
+            // The illustration keeps its proportions without making entry harder to reach.
+            val showCaption = maxWidth / LocalDensity.current.fontScale >= 240.dp
             Canvas(Modifier.matchParentSize()) {
-                fun p(x: Float, y: Float) = Offset(size.width * x, size.height * y)
+                fun artX(value: Float) = size.width *
+                    (if (showCaption) value else .5f + (value - .72f) * 1.3f)
+                fun p(x: Float, y: Float) = Offset(artX(x), size.height * y)
                 val mineral = Color(0xFFC5D5A9)
                 val moss = Color(0xFF72966B)
                 val clay = Color(0xFFC08C6B)
                 drawPath(Path().apply {
-                    moveTo(size.width * .53f, size.height)
-                    lineTo(size.width * .53f, size.height * .37f)
-                    cubicTo(size.width * .53f, -size.height * .02f, size.width * .94f, -size.height * .02f, size.width * .94f, size.height * .37f)
-                    lineTo(size.width * .94f, size.height)
+                    moveTo(artX(.53f), size.height)
+                    lineTo(artX(.53f), size.height * .37f)
+                    cubicTo(artX(.53f), -size.height * .02f, artX(.94f), -size.height * .02f, artX(.94f), size.height * .37f)
+                    lineTo(artX(.94f), size.height)
                     close()
                 }, Color(0xFF315947))
                 drawCircle(mineral.copy(alpha = .72f), size.height * .17f, p(.83f,.26f))
-                drawLine(mineral.copy(alpha = .35f), p(.08f,.83f), p(.95f,.83f), 1.dp.toPx())
+                drawLine(mineral.copy(alpha = .35f), Offset(size.width * .08f, size.height * .83f),
+                    Offset(size.width * .95f, size.height * .83f), 1.dp.toPx())
                 val base = p(.72f,.8f)
                 drawLine(mineral, base, p(.71f,.14f), 1.5.dp.toPx())
                 val leafShapes = listOf(
@@ -137,23 +144,23 @@ private fun WelcomeLivingFrame() {
                 )
                 leafShapes.forEachIndexed { i, a ->
                     val path = Path().apply {
-                        moveTo(size.width*a[0],size.height*a[1])
-                        quadraticBezierTo(size.width*a[2],size.height*a[3],size.width*a[4],size.height*a[5])
-                        quadraticBezierTo(size.width*(a[4]+(if(i%2==0) .13f else -.12f)),size.height*(a[5]+.18f),size.width*a[6],size.height*a[7])
+                        moveTo(artX(a[0]),size.height*a[1])
+                        quadraticBezierTo(artX(a[2]),size.height*a[3],artX(a[4]),size.height*a[5])
+                        quadraticBezierTo(artX(a[4]+(if(i%2==0) .13f else -.12f)),size.height*(a[5]+.18f),artX(a[6]),size.height*a[7])
                         close()
                     }
                     drawPath(path, if(i%2==0) moss else mineral)
                     drawLine(PlantupiaColors.forest.copy(alpha=.55f),p(a[0],a[1]),p(a[4],a[5]),1.dp.toPx())
                 }
                 drawPath(Path().apply {
-                    moveTo(size.width*.65f,size.height*.75f)
-                    lineTo(size.width*.79f,size.height*.75f)
-                    lineTo(size.width*.77f,size.height*.92f)
-                    lineTo(size.width*.67f,size.height*.92f)
+                    moveTo(artX(.65f),size.height*.75f)
+                    lineTo(artX(.79f),size.height*.75f)
+                    lineTo(artX(.77f),size.height*.92f)
+                    lineTo(artX(.67f),size.height*.92f)
                     close()
                 },clay)
             }
-            Column(
+            if (showCaption) Column(
                 modifier = Modifier.align(Alignment.CenterStart).fillMaxWidth(.49f).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(5.dp),
             ) {

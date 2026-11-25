@@ -181,7 +181,7 @@ class PlantupiaCoreRootsInstrumentedTest {
         awaitText("My Plantupia")
         compose.onNodeWithContentDescription("Settings").assertIsDisplayed()
         compose.onNodeWithContentDescription("Messages").assertIsDisplayed()
-        scrollToText("${spaces.size} spaces · ${plants.count { it.active }} plants")
+        scrollToText("${spaces.size} ${if (spaces.size == 1) "space" else "spaces"} · ${plants.count { it.active }} plants")
         capture("17-owner-profile")
 
         // The existing seed attaches its first sample guide to this exact UUID.
@@ -264,7 +264,11 @@ class PlantupiaCoreRootsInstrumentedTest {
     private fun awaitText(text: String): SemanticsNodeInteraction = awaitNode(hasText(text))
 
     private fun awaitNode(matcher: SemanticsMatcher): SemanticsNodeInteraction {
-        compose.waitUntil(30_000) { compose.onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty() }
+        // An Activity transition can briefly have no Compose root. Keep polling
+        // within this deadline; actual missing content still fails the proof.
+        compose.waitUntil(30_000) {
+            compose.onAllNodes(matcher).fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
         return compose.onAllNodes(matcher).onFirst()
     }
 

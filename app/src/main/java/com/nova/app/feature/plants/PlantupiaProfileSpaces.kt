@@ -82,10 +82,11 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("YOUR LIVING PLACES · PRIVATE", style = PlantupiaText.sectionLabel)
+            Text("YOUR LIVING PLACES · PRIVATE", style = PlantupiaText.sectionLabel,
+                modifier = Modifier.weight(1f))
             if (state is PrivateSpacesSummary.Loaded) {
                 TextButton(onClick = { retry += 1 }) {
                     Text("Refresh", color = PlantupiaColors.forest)
@@ -166,7 +167,8 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
                             EmptySpacesIllustration()
                         } else {
                             Text(
-                                "${current.spaces.size} spaces · ${activePlants.size} plants",
+                                "${current.spaces.size} ${if (current.spaces.size == 1) "space" else "spaces"} · " +
+                                    "${activePlants.size} ${if (activePlants.size == 1) "plant" else "plants"}",
                                 style = PlantupiaText.supporting,
                             )
                             if (photos.isNotEmpty()) {
@@ -242,11 +244,12 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
                         }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
                                 if (current.spaces.isEmpty()) "Create first space" else "Explore your spaces",
+                                modifier = Modifier.weight(1f),
                                 color = PlantupiaColors.forest,
                                 style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
                             )
