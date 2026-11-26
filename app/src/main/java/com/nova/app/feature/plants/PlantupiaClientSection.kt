@@ -221,7 +221,7 @@ private fun PlantupiaAccountClientSection(
     var carePhotoRequestGeneration by remember { mutableStateOf<Int?>(null) }
     var captureRequestGeneration by remember { mutableStateOf<Int?>(null) }
     val carePhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (lifetime.isCurrent() && carePhotoRequestGeneration == detailRequestGeneration) carePhotoUri = uri
+        if (uri != null && lifetime.isCurrent() && carePhotoRequestGeneration == detailRequestGeneration) carePhotoUri = uri
         carePhotoRequestGeneration = null
     }
 
@@ -1422,10 +1422,14 @@ private fun PlantupiaAccountClientSection(
                         minLines = 2,
                         enabled = !saving,
                     )
+                    val guidedCapture = spaces.any { it.id == selectedPlant.spaceId && it.livingSystemsEnabled }
                     OutlinedButton(
                         onClick = {
-                            carePhotoRequestGeneration = detailRequestGeneration
-                            carePhotoPicker.launch("image/*")
+                            if (guidedCapture) captureRequestGeneration = detailRequestGeneration
+                            else {
+                                carePhotoRequestGeneration = detailRequestGeneration
+                                carePhotoPicker.launch("image/*")
+                            }
                         },
                         enabled = !saving,
                         modifier = Modifier.fillMaxWidth(),
@@ -1441,16 +1445,12 @@ private fun PlantupiaAccountClientSection(
                             color = deepGreen,
                         )
                     }
-                    if (spaces.any { it.id == selectedPlant.spaceId && it.livingSystemsEnabled }) {
-                        TextButton(
-                            enabled = !saving,
-                            onClick = { captureRequestGeneration = detailRequestGeneration },
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                        ) { Text("Photograph this plant", color = deepGreen) }
+                    if (guidedCapture) {
                         if (captureRequestGeneration == detailRequestGeneration) {
                             val generation = detailRequestGeneration
                             PlantupiaCaptureStudio(
                                 plantName = selectedPlant.name,
+                                reference = recordedPlantPhotos(events).firstOrNull(),
                                 onClose = { captureRequestGeneration = null },
                                 onCapture = { photo ->
                                     val accepted = isCurrentRequest(selectedPlant.id, generation) &&

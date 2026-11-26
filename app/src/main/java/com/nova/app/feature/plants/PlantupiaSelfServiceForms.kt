@@ -1,8 +1,6 @@
 package com.nova.app.feature.plants
 
 import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -146,16 +144,6 @@ private fun PlantupiaAccountSelfServiceForms(
     DisposableEffect(repository) {
         onDispose { latestPhoto.value?.let { ownedCaptureFile(context.cacheDir, it)?.delete() } }
     }
-    var photoPickerOrigin by remember { mutableStateOf<PlantupiaRepository?>(null) }
-    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {
-        if (it != null && photoPickerOrigin === repository && repository.isCurrentSession()) replacePhoto(it)
-        photoPickerOrigin = null
-    }
-    fun browsePhoto() {
-        photoPickerOrigin = repository
-        photoPicker.launch("image/*")
-    }
-
     LaunchedEffect(spaces, enabled) {
         // Restored selections must wait for the current authorized list. An
         // initial loading/failed response is not proof that a space was revoked.
@@ -394,7 +382,7 @@ private fun PlantupiaAccountSelfServiceForms(
                 onBack = if (currentChapter > 0) ({ plantChapter = currentChapter - 1; error = null }) else null,
             ) {
                 if (currentChapter == 0) {
-                    PlantupiaCreationPhotograph(plantPhoto, saving, { cameraOpen = true }, ::browsePhoto) {
+                    PlantupiaCreationPhotograph(plantPhoto, saving, { cameraOpen = true }) {
                         replacePhoto(null)
                     }
                     HorizontalDivider(color = PlantupiaColors.border)
@@ -482,7 +470,7 @@ private fun PlantupiaAccountSelfServiceForms(
                     Text(plantName, style = PlantupiaText.pageHeading)
                     Text(spaceLabel ?: "Space access needs to be refreshed", style = PlantupiaText.supporting)
                     Text(if (unknownPlantType) "Type not confirmed" else species, style = PlantupiaText.supporting)
-                    PlantupiaCreationPhotograph(plantPhoto, saving, { cameraOpen = true }, ::browsePhoto) {
+                    PlantupiaCreationPhotograph(plantPhoto, saving, { cameraOpen = true }) {
                         replacePhoto(null)
                     }
                     Button(
@@ -553,7 +541,6 @@ private fun PlantupiaCreationPhotograph(
     photo: Uri?,
     busy: Boolean,
     openCamera: () -> Unit,
-    browse: () -> Unit,
     remove: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -593,11 +580,7 @@ private fun PlantupiaCreationPhotograph(
         Button(enabled = !busy, onClick = openCamera,
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
             colors = ButtonDefaults.buttonColors(containerColor = ink)) {
-            Text(if (photo == null) "Take a plant photo" else "Retake plant photo")
-        }
-        OutlinedButton(enabled = !busy, onClick = browse,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-            Text(if (photo == null) "Choose existing photo" else "Change photo")
+            Text(if (photo == null) "Add plant photo" else "Change plant photo")
         }
         if (photo != null) TextButton(onClick = remove, enabled = !busy) {
             Text("Remove photo", color = textMuted)

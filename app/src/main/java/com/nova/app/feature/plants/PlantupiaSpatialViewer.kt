@@ -71,7 +71,7 @@ internal fun PlantupiaSpatialViewer(spaceName: String, onBack: () -> Unit) {
     Text("Point cloud study", style = PlantupiaText.editorialHeading)
     Text("Open a Plantupia reconstruction export to examine it alongside $spaceName.", style = PlantupiaText.body)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        TextButton(enabled = !busy, onClick = onBack) { Text("Return to floor plan") }
+        TextButton(enabled = !busy, onClick = onBack) { Text("Return to room") }
         TextButton(enabled = !busy, onClick = { picker.launch(arrayOf("*/*")) }) { Text("Open PLY scene") }
     }
     if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())

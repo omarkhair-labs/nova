@@ -75,6 +75,7 @@ internal fun PlantupiaCaptureStudio(
     plantName: String,
     onClose: () -> Unit,
     onCapture: (Uri) -> Boolean,
+    reference: com.nova.app.feature.plants.data.PlantupiaCareEvent? = null,
 ) {
     val context = LocalContext.current
     var permission by remember {
@@ -88,6 +89,12 @@ internal fun PlantupiaCaptureStudio(
     // The preview owns a temporary file until the caller explicitly accepts it.
     // Activity/session disposal cannot publish or retain an abandoned candidate.
     val owned = remember(context) { AtomicReference<Uri?>(null) }
+    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { picked ->
+        if (picked != null) {
+            rejected = false
+            candidate = picked
+        }
+    }
     fun discard() {
         owned.getAndSet(null)?.let { ownedCaptureFile(context.cacheDir, it)?.delete() }
         candidate = null
@@ -100,17 +107,26 @@ internal fun PlantupiaCaptureStudio(
         close = { if (candidate != null) discard() else onClose() },
         navigationKey = candidate != null) {
         val current = candidate
+        if (current == null) {
+            TextButton(enabled = !writing, onClick = { gallery.launch("image/*") }) { Text("Choose existing photo") }
+        }
         if (current != null) {
-            AsyncImage(model = current, contentDescription = "Captured photograph preview",
+            val fromCamera = owned.get() == current
+            var previewReady by remember(current) { mutableStateOf(false) }
+            var previewError by remember(current) { mutableStateOf(false) }
+            AsyncImage(model = current, contentDescription = "Selected photograph preview",
+                onSuccess = { previewReady = true; previewError = false },
+                onError = { previewReady = false; previewError = true },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 220.dp, max = 420.dp)
                     .clip(PlantupiaShapes.card).background(PlantupiaColors.softSage),
                 contentScale = ContentScale.Fit)
             Text("Keep this photograph?", style = PlantupiaText.editorialHeading)
-            Text(view.title + " · " + view.guidance, style = PlantupiaText.supporting)
+            if (fromCamera) Text(view.title + " · " + view.guidance, style = PlantupiaText.supporting)
+            if (previewError) Text("This photo could not be opened. Choose another photograph.")
             if (rejected) Text("The draft is no longer available. Return and try again.",
                 color = PlantupiaColors.forestText)
-            Button(onClick = {
-                if (owned.get() == current && ownedCaptureFile(context.cacheDir, current)?.isFile == true &&
+            Button(enabled = previewReady, onClick = {
+                if ((!fromCamera || ownedCaptureFile(context.cacheDir, current)?.isFile == true) &&
                     onCapture(current)) {
                     // Transfer to the private draft. The caller owns subsequent cleanup.
                     owned.compareAndSet(current, null)
@@ -122,7 +138,7 @@ internal fun PlantupiaCaptureStudio(
                 Text("Use photograph")
             }
             OutlinedButton(onClick = { discard() }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                Text("Retake")
+                Text(if (fromCamera) "Retake" else "Choose another photograph")
             }
             TextButton(onClick = { discard(); onClose() }) { Text("Cancel photograph") }
             Text("Nothing is uploaded until you save the plant or care record.", style = PlantupiaText.supporting)
@@ -133,6 +149,14 @@ internal fun PlantupiaCaptureStudio(
             Button(modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                 onClick = { requestPermission.launch(Manifest.permission.CAMERA) }) { Text("Allow camera") }
         } else {
+            if (reference != null && reference.photoUrl.isNotBlank()) {
+                var compare by remember(reference.id) { mutableStateOf(false) }
+                TextButton(onClick = { compare = !compare }) {
+                    Text(if (compare) "Hide earlier view" else "Match the view from " + reference.observedAt.take(10))
+                }
+                if (compare) AsyncImage(model = reference.photoUrl, contentDescription = "Earlier view of this plant",
+                    modifier = Modifier.fillMaxWidth().height(164.dp), contentScale = ContentScale.Fit)
+            }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 CaptureView.entries.forEach { option ->
                     FilterChip(selected = view == option, enabled = !writing, onClick = { view = option },
@@ -215,15 +239,15 @@ private fun PlantupiaCameraPreview(
             val initialized = controller.initializationFuture
             initialized.addListener({
                 if (active.get() && runCatching { initialized.get() }.isFailure) {
-                    error = "A compatible rear camera is unavailable. Go back to choose a photo."
+                    error = "A compatible rear camera is unavailable. Choose an existing photo."
                 }
             }, main)
         } catch (_: IllegalStateException) {
-            error = "Camera preview could not start. Go back to choose a photo."
+            error = "Camera preview could not start. Choose an existing photo."
         } catch (_: IllegalArgumentException) {
-            error = "This camera cannot run the preview and inspection together. Go back to choose a photo."
+            error = "This camera cannot run the preview and inspection together. Choose an existing photo."
         } catch (_: SecurityException) {
-            error = "Camera permission is unavailable. Go back to choose a photo."
+            error = "Camera permission is unavailable. Choose an existing photo."
         }
         onDispose {
             active.set(false)

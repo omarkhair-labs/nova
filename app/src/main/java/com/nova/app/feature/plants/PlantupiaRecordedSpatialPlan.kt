@@ -10,9 +10,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -33,9 +31,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import com.nova.app.feature.plants.data.PlantupiaPlant
 import com.nova.app.feature.plants.data.PlantupiaRoom
-import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sin
@@ -61,13 +57,13 @@ internal class RecordedRoomProjection(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun PlantupiaRecordedSpatialPlan(
-    room: PlantupiaRoom, width: Double, length: Double, plants: List<PlantupiaPlant>,
-    onOpenPlant: (PlantupiaPlant) -> Unit, onReturn: () -> Unit,
+    room: PlantupiaRoom, width: Double, length: Double, selected: String?,
+    onSelect: (String?) -> Unit,
 ) {
     var yaw by remember(room) { mutableFloatStateOf(-.65f) }
     var elevation by remember(room) { mutableFloatStateOf(.67f) }
     var zoom by remember(room) { mutableFloatStateOf(1f) }
-    var selected by remember(room) { mutableStateOf<String?>(null) }
+    val selectPlant = rememberUpdatedState(onSelect)
     val pose = rememberUpdatedState(Triple(yaw, elevation, zoom))
     val selectable = rememberUpdatedState(room.plants)
     val gestures = rememberTransformableState { ratio, pan, _ ->
@@ -79,12 +75,6 @@ internal fun PlantupiaRecordedSpatialPlan(
     val ink = PlantupiaColors.forest
     val paper = PlantupiaColors.paper
     val windowInk = Color(0xFF477F83)
-    Text("Recorded spatial plan", style = PlantupiaText.editorialHeading)
-    Text("Revision ${room.revision} · " + (if (room.historical) "Earlier layout" else "Current layout"),
-        style = PlantupiaText.supporting)
-    Text(String.format(Locale.ROOT, "%.2f × %.2f m", width, length) +
-        (height?.let { String.format(Locale.ROOT, " × %.2f m", it) } ?: ""),
-        style = PlantupiaText.itemTitle)
     Canvas(Modifier.fillMaxWidth().height(340.dp).clip(PlantupiaShapes.inset)
         .background(PlantupiaColors.cream).padding(12.dp)
         .semantics { contentDescription = "3D view of recorded room geometry" }
@@ -94,8 +84,8 @@ internal fun PlantupiaRecordedSpatialPlan(
                 val (a,b,c) = pose.value
                 val projection = RecordedRoomProjection(width,length,height,
                     Size(size.width.toFloat(),size.height.toFloat()),a,b,c)
-                selected = selectable.value.map { it.id to (projection.point(it.x,it.y) - tap).getDistance() }
-                    .filter { it.second <= 27.dp.toPx() }.minByOrNull { it.second }?.first
+                selectPlant.value(selectable.value.map { it.id to (projection.point(it.x,it.y) - tap).getDistance() }
+                    .filter { it.second <= 27.dp.toPx() }.minByOrNull { it.second }?.first)
             }
         }) {
         val projection = RecordedRoomProjection(width,length,height,size,yaw,elevation,zoom)
@@ -148,19 +138,4 @@ internal fun PlantupiaRecordedSpatialPlan(
         else "Wireframe uses the reported width, length and height.", style=PlantupiaText.supporting)
     Text("Circles are recorded plant positions; squares mark window centres projected on the floor. Drag to orbit or pinch to zoom. No plant shape or camera scan is inferred.",
         style=PlantupiaText.supporting)
-    if(room.plants.isEmpty()) Text("No recorded plant positions.",style=PlantupiaText.supporting)
-    room.plants.forEach { point ->
-        plants.find { it.id==point.id }?.let { plant ->
-            PlantupiaActionRow(icon=com.nova.app.ui.icons.NovaIconAsset.Home,
-                title=plant.name,
-                detail=(if(selected==plant.id) "Selected · " else "")+
-                    String.format(Locale.ROOT,"%.2f, %.2f m",point.x,point.y)+
-                    (point.latest.takeIf{it.isNotBlank()}?.let{" · "+it.take(10)}?:""),
-                accent=selected==plant.id,onClick={selected=point.id})
-        }
-    }
-    val focused=plants.firstOrNull{it.id==selected}
-    if(focused!=null) OutlinedButton(onClick={onOpenPlant(focused)},
-        modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) { Text("Open "+focused.name) }
-    TextButton(onClick=onReturn) { Text("Return to floor plan") }
 }

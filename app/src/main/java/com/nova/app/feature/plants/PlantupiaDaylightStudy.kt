@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.plants.data.PlantupiaRepository
 import com.nova.app.feature.plants.data.PlantupiaRoom
+import com.nova.app.feature.plants.data.RoomPlant
 import com.nova.app.feature.plants.data.RoomDaylightSample
 import com.nova.app.feature.plants.data.RoomDaylightScenario
 import com.nova.app.feature.plants.data.daylightSampleTimes
@@ -50,6 +51,8 @@ internal fun PlantupiaDaylightStudy(
     width: Double,
     length: Double,
     repository: PlantupiaRepository,
+    initialPlacement: RoomPlant?,
+    plantName: String?,
 ) {
     val windows = remember(room.windows, width, length) {
         room.windows.filter { (it.x == 0.0 || it.x == width) != (it.y == 0.0 || it.y == length) }
@@ -60,8 +63,8 @@ internal fun PlantupiaDaylightStudy(
     }
 
     var windowId by remember(windows) { mutableStateOf(windows.first().id) }
-    var xText by remember(width) { mutableStateOf((width / 2).toString()) }
-    var yText by remember(length) { mutableStateOf((length / 2).toString()) }
+    var xText by remember(width, initialPlacement) { mutableStateOf((initialPlacement?.x ?: (width / 2)).toString()) }
+    var yText by remember(length, initialPlacement) { mutableStateOf((initialPlacement?.y ?: (length / 2)).toString()) }
     var height by remember { mutableStateOf("0") }
     var bearing by remember { mutableStateOf("") }
     var aperture by remember { mutableStateOf("") }
@@ -120,7 +123,7 @@ internal fun PlantupiaDaylightStudy(
             else -> "No direct ray at this point"
         }
     }
-    Text("Light in this room", style = PlantupiaText.editorialHeading)
+    Text(plantName?.let { "Light at $it" } ?: "Light in this room", style = PlantupiaText.editorialHeading)
     if (active != null && clock != null && status != null) {
         Text(clock, style = PlantupiaText.display)
         Text(status, style = PlantupiaText.itemTitle)
@@ -186,6 +189,11 @@ internal fun PlantupiaDaylightStudy(
     DaylightField("Sill above floor (m)", sill, !busy) { sill = it }
     DaylightField("Head above floor (m)", head, !busy) { head = it }
     DaylightField("Top wall outward bearing from true north (°)", bearing, !busy) { bearing = it }
+    if (initialPlacement != null && plantName != null) {
+        Text("Recorded position of $plantName · ${initialPlacement.x}, ${initialPlacement.y} m", style = PlantupiaText.supporting)
+        if (initialPlacement.x !in 0.0..width || initialPlacement.y !in 0.0..length || initialPlacement.x == 0.0 || initialPlacement.y == 0.0 || initialPlacement.x == width || initialPlacement.y == length)
+            Text("Choose a point inside the room to run this study.", style = PlantupiaText.supporting)
+    }
     Text("Sample point", style = PlantupiaText.itemTitle)
     Text("Tap inside the plan, or specify offsets from its top-left corner.", style = PlantupiaText.supporting)
     DaylightField("Along width (m)", xText, !busy) { xText = it }
