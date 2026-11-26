@@ -32,6 +32,13 @@
   </article>
   {% endif %}
 </section>
+{% if can_field_evidence %}
+<section class="company-attention" aria-label="Authorized field evidence review">
+  <div><p class="eyebrow">LIVING SYSTEMS / PRIVATE PILOT</p><h2>Look closely at a real record.</h2>
+    <p>Review photographs, traced regions and reported issues for places where you have explicit care access. Your findings stay in the plant's history, not its public profile.</p></div>
+  <a class="button" href="{% url 'company:field-evidence' %}">Explore field evidence ↗</a>
+</section>
+{% endif %}
 {% if ceo_demo_enabled %}
 <details class="qa-archive">
   <summary><span><strong>Testing tools · أدوات الاختبار</strong>

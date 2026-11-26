@@ -5,6 +5,7 @@ from . import catalog_bulk_import as catalog_import
 from . import commerce_bulk_import as commercial_import
 from . import commerce_company as commerce
 from . import company_operations as operations
+from . import company_evidence as evidence
 from . import commerce_requests_company as commerce_requests
 from . import commerce_order_company as actual_orders
 from . import commerce_rfq_company as business
@@ -19,6 +20,9 @@ urlpatterns = [
     path("website/inbox/<uuid:enquiry_id>/status/", website.website_enquiry_status, name="website-enquiry-status"),
     path("projects/", operations.projects_home, name="projects-home"),
     path("care-workspace/", operations.care_home, name="care-home"),
+    path("care-workspace/evidence/", evidence.evidence_queue, name="field-evidence"),
+    path("care-workspace/evidence/<uuid:event_id>/", evidence.evidence_detail, name="field-evidence-detail"),
+    path("care-workspace/evidence/<uuid:event_id>/photo/", evidence.evidence_photo, name="field-evidence-photo"),
     path("projects/business/", actual_business.real_business_inquiries, name="business-inquiries"),
     path("projects/business/<uuid:inquiry_id>/", actual_business.real_business_inquiry, name="business-inquiry"),
     path("projects/business/<uuid:inquiry_id>/quote/", actual_business.real_business_quote_decision, name="business-inquiry-quote"),

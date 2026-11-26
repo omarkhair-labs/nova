@@ -68,6 +68,8 @@ def page(request, template, context=None, status=200):
         "can_switch_b2b": full_company_access or can_b2b_requests,
         "can_switch_b2c": full_company_access or can_b2c_orders,
         "can_switch_care": full_company_access,
+        "can_field_evidence": full_company_access and settings.PLANTUPIA_LIVING_SYSTEMS_ENABLED
+            and user.has_perm("plants.review_visual_evidence"),
         "can_shared_inbox": full_company_access and user.has_perm("plants.view_websiteenquiry"),
         "b2b_entry": "company:projects-home" if full_company_access else "company:business-inquiries",
         "b2c_entry": "company:commerce-home" if full_company_access else "company:commerce-orders",
@@ -80,7 +82,7 @@ def page(request, template, context=None, status=200):
     elif section in {"commerce_home", "commerce_products", "commerce_stock", "commerce_orders",
                      "commerce_qa_requests", "catalog", "orders", "commerce_delivery_rates"}:
         context["workspace_area"] = "b2c"
-    elif section in {"care_home", "care", "plans", "support", "access"}:
+    elif section in {"care_home", "care", "plans", "support", "access", "field_evidence"}:
         context["workspace_area"] = "care"
     elif section == "website_inbox":
         context["workspace_area"] = "shared"

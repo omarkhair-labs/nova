@@ -183,6 +183,27 @@ class ReviewInput(serializers.Serializer):
     rationale = serializers.CharField(max_length=1000)
 
 
+class EvidenceReviewConflict(Exception):
+    """A review cannot change a previous acknowledged record or an archive."""
+
+
+@transaction.atomic
+def save_evidence_review(user, plant_id, event_id, fields):
+    """One append-only specialist review transaction, shared by Android and staff web."""
+    if not settings.PLANTUPIA_LIVING_SYSTEMS_ENABLED:
+        raise Http404
+    event = get_object_or_404(PlantEvent.objects.select_for_update(), pk=event_id, plant_id=plant_id)
+    if not user.has_perm("plants.review_visual_evidence") or not can_record(user, event.plant):
+        raise PermissionDenied
+    if not event.plant.is_active:
+        raise EvidenceReviewConflict("Archived history is read-only.")
+    review, created = EvidenceReview.objects.get_or_create(event=event, reviewer=user,
+        submission_id=fields["submission_id"], defaults=fields)
+    if not created and any(getattr(review, k) != v for k, v in fields.items()):
+        raise EvidenceReviewConflict("Submission ID already used for another review.")
+    return review, created
+
+
 class ReviewView(FieldEvidenceView):
     http_method_names = ["post", "options"]
 
@@ -195,11 +216,10 @@ class ReviewView(FieldEvidenceView):
             return Response({"detail": "Archived history is read-only."}, status=409)
         data = ReviewInput(data=request.data)
         data.is_valid(raise_exception=True)
-        PlantEvent.objects.select_for_update().get(pk=event.pk)
-        review, created = EvidenceReview.objects.get_or_create(event=event, reviewer=request.user,
-            submission_id=data.validated_data["submission_id"], defaults=data.validated_data)
-        if not created and any(getattr(review, k) != v for k, v in data.validated_data.items()):
-            return Response({"detail": "Submission ID already used for another review."}, status=409)
+        try:
+            review, created = save_evidence_review(request.user, plant_id, event.pk, data.validated_data)
+        except EvidenceReviewConflict as exc:
+            return Response({"detail": str(exc)}, status=409)
         return Response({"id": review.pk}, status=201 if created else 200)
 
 
