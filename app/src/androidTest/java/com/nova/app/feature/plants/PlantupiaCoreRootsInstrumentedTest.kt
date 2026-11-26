@@ -270,6 +270,7 @@ class PlantupiaCoreRootsInstrumentedTest {
         tab("Plants")
         clickText("Explore this place")
         scrollToText("Reported room", substring = true)
+        compose.onNodeWithContentDescription("Floor plan with 1 recorded plants and 1 windows").assertExists()
         capture("22-room-placements")
         clickText("Browse layout history")
         clickText("Revision 1", substring = true)
@@ -294,6 +295,10 @@ class PlantupiaCoreRootsInstrumentedTest {
         scrollToText("Direct sun reaches this point", substring = true)
         capture("23-room-daylight")
         clickText("Return to placements")
+        val unchanged = runBlocking { repository.room(id) }
+        assertTrue("Exploring light, history and reconstruction must not write a layout.",
+            unchanged is ApiResult.Success && unchanged.value.revision == 2 &&
+                unchanged.value.plants.single().id == specimenId && unchanged.value.plants.single().x == 3.7)
         clickText("Synthetic plant 01 ·", substring = true)
         clickText("Care")
         clickText("Record care")

@@ -112,7 +112,20 @@ internal fun PlantupiaDaylightStudy(
     val active = samples.getOrNull(index)
     fun reaches(sample: RoomDaylightSample): Boolean =
         position?.let { if (it == submittedPoint) sample.direct else inDirectSunFootprint(it, sample.footprint) } == true
+    val clock = active?.at?.format(DateTimeFormatter.ofPattern("HH:mm xxx"))
+    val status = active?.let {
+        when {
+            it.elevation <= 0 -> "Sun below the horizon"
+            reaches(it) -> "Direct sun reaches this point"
+            else -> "No direct ray at this point"
+        }
+    }
     Text("Light in this room", style = PlantupiaText.editorialHeading)
+    if (active != null && clock != null && status != null) {
+        Text(clock, style = PlantupiaText.display)
+        Text(status, style = PlantupiaText.itemTitle)
+        Text("Simulated direct rays · " + active.at.toLocalDate(), style = PlantupiaText.supporting)
+    }
     PlantupiaRoomDrawing(
         width, length, room.plants, room.windows,
         selectedWindow = windowId, beam = active?.footprint.orEmpty(), sample = position,
@@ -123,14 +136,7 @@ internal fun PlantupiaDaylightStudy(
     )
     if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
     if (message.isNotBlank()) Text(message, style = PlantupiaText.supporting)
-    if (active != null) {
-        val clock = active.at.format(DateTimeFormatter.ofPattern("HH:mm xxx"))
-        val status = when {
-            active.elevation <= 0 -> "Sun below the horizon"
-            reaches(active) -> "Direct sun reaches this point"
-            else -> "No direct ray at this point"
-        }
-        Text("$clock · $status", style = PlantupiaText.itemTitle)
+    if (active != null && clock != null && status != null) {
         Text("Amber shows where direct rays reach the ${scenario?.height} m plane.", style = PlantupiaText.supporting)
         val ink = Color(0xFFAD6732)
         Canvas(Modifier.fillMaxWidth().height(10.dp)) {
@@ -140,16 +146,24 @@ internal fun PlantupiaDaylightStudy(
                 drawRect(color, Offset(i * tick, 0f), Size(tick, size.height))
             }
         }
-        Slider(
-            value = index.toFloat(),
-            onValueChange = { index = it.roundToInt() },
-            valueRange = 0f..samples.lastIndex.toFloat(),
-            steps = samples.size - 2,
-            modifier = Modifier.semantics {
-                contentDescription = "Simulation time"
-                stateDescription = "$clock, $status"
-            },
-        )
+        if (samples.size > 1) {
+            Slider(
+                value = index.toFloat(),
+                onValueChange = { index = it.roundToInt().coerceIn(0, samples.lastIndex) },
+                valueRange = 0f..samples.lastIndex.toFloat(),
+                steps = samples.size - 2,
+                modifier = Modifier.fillMaxWidth().semantics {
+                    contentDescription = "Simulation time"
+                    stateDescription = "$clock, $status"
+                },
+            )
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text("From " + samples.first().at.format(DateTimeFormatter.ofPattern("HH:mm")),
+                    style = PlantupiaText.supporting)
+                Text("To " + samples.last().at.format(DateTimeFormatter.ofPattern("HH:mm")),
+                    style = PlantupiaText.supporting)
+            }
+        }
         Text("One clear opening and unobstructed rays. Glass, shade, diffuse light and lamps are outside this simulation.",
             style = PlantupiaText.supporting)
         TextButton(onClick = { editing = !editing }) { Text(if (editing) "Hide scenario inputs" else "Change date or placement") }

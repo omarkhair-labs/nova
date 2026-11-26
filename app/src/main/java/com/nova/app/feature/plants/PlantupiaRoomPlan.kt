@@ -9,6 +9,7 @@ import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.plants.data.*
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun PlantupiaRoomPlan(
     space: PlantupiaSpace, plants: List<PlantupiaPlant>, repository: PlantupiaRepository,
@@ -24,84 +25,143 @@ internal fun PlantupiaRoomPlan(
         var saving by remember { mutableStateOf(false) }
         var editing by remember { mutableStateOf(false) }
         var spatialStudy by remember { mutableStateOf(false) }
+        var daylight by remember { mutableStateOf(false) }
+        var focusedId by remember { mutableStateOf<String?>(null) }
         val scope = rememberCoroutineScope()
+        fun returnToPlan() {
+            editing = false
+            spatialStudy = false
+            daylight = false
+        }
         LaunchedEffect(generation, revision) {
             room = null
+            focusedId = null
             message = ""
             when (val response = repository.room(space.id, revision)) {
                 is ApiResult.Failure -> message = response.message
                 is ApiResult.Success -> if (repository.isCurrentSession()) room = response.value
             }
         }
-        PlantupiaLivingWorkspace("LIVING SPACE", space.name, "A map of recorded placements", saving, {
-            if (spatialStudy) spatialStudy = false else expanded = false
-        }) {
+        PlantupiaLivingWorkspace(
+            "LIVING SPACE", space.name, "", saving,
+            close = {
+                if (editing || spatialStudy || daylight) returnToPlan() else expanded = false
+            },
+            navigationKey = listOf(revision, generation, editing, spatialStudy, daylight),
+        ) {
             if (spatialStudy && repository.isCurrentSession()) {
-                PlantupiaSpatialViewer(space.name) { spatialStudy = false }
+                PlantupiaSpatialViewer(space.name) { returnToPlan() }
                 return@PlantupiaLivingWorkspace
             }
-            TextButton(enabled = !saving, onClick = { editing = false; revision = null; generation++ }) {
-                Text(if (revision == null) "Refresh floor plan" else "Return to current layout")
-            }
-            if (message.isNotBlank()) Text(message)
+            if (message.isNotBlank()) Text(message, color = MaterialTheme.colorScheme.error)
             val current = room
-            if (current != null) {
+            if (current == null) {
+                if (message.isEmpty()) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                else TextButton(enabled = !saving, onClick = { generation++ }) { Text("Refresh floor plan") }
+                return@PlantupiaLivingWorkspace
+            }
+            if (editing && space.canAddPlant && !current.historical) {
+                Text("Record this room", style = PlantupiaText.editorialHeading)
+                TextButton(enabled = !saving, onClick = { returnToPlan() }) { Text("Cancel edit") }
+                RoomEditor(current, plants, saving) { w, l, positions, openings ->
+                    saving = true
+                    scope.launch {
+                        when (val result = repository.saveRoom(space.id, current.submission(w, l, positions, openings))) {
+                            is ApiResult.Failure -> message = result.message
+                            is ApiResult.Success -> { returnToPlan(); generation++ }
+                        }
+                        saving = false
+                    }
+                }
+                return@PlantupiaLivingWorkspace
+            }
+            val width = current.width
+            val length = current.length
+            if (width != null && length != null) {
+                if (daylight && !current.historical) {
+                    TextButton(enabled = !saving, onClick = { returnToPlan() }) { Text("Return to placements") }
+                    PlantupiaDaylightStudy(space.id, current, width, length, repository)
+                    return@PlantupiaLivingWorkspace
+                }
+                // The saved geometry is the first object, not a destination buried under a menu.
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Reported room · ${width} × ${length} m · revision ${current.revision}",
+                        style = PlantupiaText.itemTitle)
+                    val stamp = current.revisions.firstOrNull { it.number == current.revision }
+                    if (current.historical) Text(
+                        "Earlier layout · care history as of that revision" +
+                            (stamp?.let { " · " + it.recordedAt.take(10) } ?: ""),
+                        style = PlantupiaText.supporting)
+                    else Text("Current layout" + (stamp?.let { " · " + it.recordedAt.take(10) } ?: ""),
+                        style = PlantupiaText.supporting)
+                }
+                PlantupiaRoomDrawing(width, length, current.plants, current.windows,
+                    selectedPlant = focusedId, onSelectPlant = { focusedId = it })
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("● ${current.plants.size} recorded plant(s)", style = PlantupiaText.supporting)
+                    Text("— ${current.windows.size} window centre(s)", style = PlantupiaText.supporting)
+                }
+                Text("Reported dimensions, not a camera survey.", style = PlantupiaText.supporting)
+                val selectedPoint = current.plants.firstOrNull { it.id == focusedId }
+                val selectedPlant = selectedPoint?.let { point -> plants.find { it.id == point.id } }
+                if (selectedPoint != null && selectedPlant != null) {
+                    PlantupiaActionRow(
+                        icon = com.nova.app.ui.icons.NovaIconAsset.Home,
+                        title = selectedPlant.name,
+                        detail = "Open plant · ${selectedPoint.x}, ${selectedPoint.y} m",
+                        accent = true, enabled = !saving,
+                        onClick = { expanded = false; openPlant(selectedPlant) },
+                    )
+                }
+                if (!current.historical) {
+                    if (current.windows.isNotEmpty()) {
+                        PlantupiaActionRow(
+                            icon = com.nova.app.ui.icons.NovaIconAsset.Home,
+                            title = "Explore direct sunlight",
+                            detail = "Study a date and a point on this plan",
+                            enabled = !saving, onClick = { daylight = true },
+                        )
+                    } else {
+                        Text("Record a window centre to study direct sunlight.", style = PlantupiaText.supporting)
+                    }
+                }
+                HorizontalDivider(color = PlantupiaColors.border)
+                Text("In this room", style = PlantupiaText.editorialHeading)
+                if (current.plants.isEmpty()) Text("No recorded plant placements yet.", style = PlantupiaText.supporting)
+                current.plants.forEach { point ->
+                    plants.find { it.id == point.id }?.let { plant ->
+                        PlantupiaActionRow(
+                            icon = com.nova.app.ui.icons.NovaIconAsset.Home,
+                            title = "${plant.name} · ${point.x}, ${point.y} m",
+                            detail = point.latest.takeIf { it.isNotEmpty() }?.let { "Last record " + it.take(10) },
+                            enabled = !saving, onClick = { expanded = false; openPlant(plant) },
+                        )
+                    }
+                }
+            } else {
+                Text("This space has no recorded room dimensions.", style = PlantupiaText.editorialHeading)
+            }
+            HorizontalDivider(color = PlantupiaColors.border)
+            Text("Layout", style = PlantupiaText.itemTitle)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(enabled = !saving, onClick = { returnToPlan(); revision = null; generation++ }) {
+                    Text(if (revision == null) "Refresh floor plan" else "Return to current layout")
+                }
                 if (current.revisions.size > 1) LayoutRevisionPicker(current, saving) {
-                    editing = false
+                    returnToPlan()
                     revision = it
                 }
-                if (!current.historical) TextButton(enabled = !saving, onClick = { spatialStudy = true }) { Text("Explore a 3D reconstruction") }
-                val width = current.width
-                val length = current.length
-                if (width != null && length != null) {
-                    Text("Reported room · $width × $length m · revision ${current.revision}")
-                    if (current.historical) Text("Earlier layout · care history as of that revision",
-                        style = PlantupiaText.supporting)
-                    var focusedId by remember(current.revision) { mutableStateOf<String?>(null) }
-                    var daylight by remember(current.revision) { mutableStateOf(false) }
-                    if (!current.historical) TextButton(enabled = !saving && current.windows.isNotEmpty(), onClick = { daylight = !daylight }) {
-                        Text(if (daylight) "Return to placements" else "Explore direct sunlight")
-                    }
-                    if (daylight) {
-                        PlantupiaDaylightStudy(space.id, current, width, length, repository)
-                    } else {
-                        PlantupiaRoomDrawing(width, length, current.plants, current.windows,
-                            selectedPlant = focusedId, onSelectPlant = { focusedId = it })
-                        Text("Tap a plant marker, or choose from the list below. Dimensions are reported, not camera measurements.", style = PlantupiaText.supporting)
-                        current.plants.firstOrNull { it.id == focusedId }?.let { point ->
-                            plants.find { it.id == point.id }?.let { plant ->
-                                Text(plant.name, style = PlantupiaText.editorialHeading)
-                                Button(onClick = { expanded = false; openPlant(plant) }, enabled = !saving) { Text("Open plant") }
-                            }
-                        }
-                        HorizontalDivider(color = PlantupiaColors.border)
-                        Text("In this room", style = PlantupiaText.itemTitle)
-                        current.plants.forEach { point ->
-                            plants.find { it.id == point.id }?.let { plant ->
-                                TextButton(enabled = !saving, onClick = { expanded = false; openPlant(plant) }) {
-                                    Text("${plant.name} · ${point.x}, ${point.y} m" +
-                                        if (point.latest.isEmpty()) "" else " · last record ${point.latest.take(10)}")
-                                }
-                            }
-                        }
-                    }
-                } else Text("This space has no recorded room dimensions.")
-                if (space.canAddPlant && !current.historical) {
-                    TextButton(enabled = !saving, onClick = { editing = !editing }) {
-                        Text(if (editing) "Cancel edit" else "Record dimensions or placement")
-                    }
-                    if (editing) RoomEditor(current, plants, saving) { w, l, positions, openings ->
-                        saving = true
-                        scope.launch {
-                            when (val result = repository.saveRoom(space.id, current.submission(w, l, positions, openings))) {
-                                is ApiResult.Failure -> message = result.message
-                                is ApiResult.Success -> { editing = false; generation++ }
-                            }
-                            saving = false
-                        }
-                    }
+            }
+            if (space.canAddPlant && !current.historical) {
+                OutlinedButton(enabled = !saving, onClick = { editing = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Record dimensions or placement")
                 }
-            } else if (message.isEmpty()) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+            if (!current.historical) {
+                TextButton(enabled = !saving, onClick = { spatialStudy = true }) { Text("Explore a 3D reconstruction") }
+                Text("Reconstruction study is separate from reported layout.", style = PlantupiaText.supporting)
+            }
         }
     }
 }

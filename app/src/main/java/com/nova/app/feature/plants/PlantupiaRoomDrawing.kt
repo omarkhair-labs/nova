@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -51,9 +52,11 @@ internal fun PlantupiaRoomDrawing(
     val ink = PlantupiaColors.forest
     val paper = PlantupiaColors.paper
     val accent = Color(0xFFAD6732)
+    val windowInk = Color(0xFF3E7478)
     Canvas(
-        Modifier.fillMaxWidth().height(264.dp)
-            .background(PlantupiaColors.softSage)
+        Modifier.fillMaxWidth().height(284.dp)
+            .clip(PlantupiaShapes.inset)
+            .background(PlantupiaColors.cream)
             .padding(22.dp)
             .semantics { contentDescription = "Floor plan with ${plants.size} recorded plants and ${windows.size} windows" }
             .pointerInput(width, length, plants) {
@@ -75,7 +78,7 @@ internal fun PlantupiaRoomDrawing(
             },
     ) {
         val frame = RoomDrawingFrame(width, length, size)
-        drawRect(paper, frame.origin, frame.footprint)
+        drawRect(PlantupiaColors.softSage.copy(alpha = 0.45f), frame.origin, frame.footprint)
         // Divide the known room into halves and quarters to aid visual orientation.
         for (quarter in 1..3) {
             val x = width * quarter / 4
@@ -94,21 +97,22 @@ internal fun PlantupiaRoomDrawing(
             drawPath(outline, accent.copy(alpha = 0.23f))
             drawPath(outline, accent, style = Stroke(1.2.dp.toPx()))
         }
-        drawRect(ink, frame.origin, frame.footprint, style = Stroke(1.5.dp.toPx()))
+        drawRect(ink, frame.origin, frame.footprint, style = Stroke(2.dp.toPx()))
         windows.forEach { window ->
             val p = frame.project(window.x, window.y)
             val span = if (window.y == 0.0 || window.y == length) Offset(8.dp.toPx(), 0f)
                 else Offset(0f, 8.dp.toPx())
-            drawLine(paper, p - span, p + span, 6.dp.toPx(), StrokeCap.Round)
-            drawLine(if (window.id == selectedWindow) accent else ink, p - span, p + span, 2.dp.toPx(), StrokeCap.Round)
+            drawLine(paper, p - span, p + span, 7.dp.toPx(), StrokeCap.Round)
+            drawLine(if (window.id == selectedWindow) accent else windowInk, p - span, p + span, 3.dp.toPx(), StrokeCap.Round)
         }
         plants.forEach { plant ->
             val p = frame.project(plant.x, plant.y)
             if (selectedPlant == plant.id) {
                 drawCircle(ink.copy(alpha = 0.2f), 15.dp.toPx(), p)
             }
-            drawCircle(ink, 7.dp.toPx(), p)
-            drawCircle(PlantupiaColors.softSage, 3.dp.toPx(), p)
+            drawCircle(paper, 10.dp.toPx(), p)
+            drawCircle(ink, 8.dp.toPx(), p, style = Stroke(1.5.dp.toPx()))
+            drawCircle(if (selectedPlant == plant.id) ink else PlantupiaColors.mutedSage, 4.5.dp.toPx(), p)
         }
         sample?.let { (x, y) ->
             val p = frame.project(x, y)
