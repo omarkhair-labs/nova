@@ -23,7 +23,7 @@ from rest_framework.views import APIView
 from django.db.models.functions import TruncDate
 from .calendar_time import calendar_zone
 from .living_calibration import METHOD as PLANAR_CALIBRATION
-from .models import EvidenceReview, PlantEvent, TracedRegion
+from .models import CareGuideVersion, EvidenceReview, PlantEvent, TracedRegion
 from .views import accessible_plants
 from .demo_services import require_access, DemoProblem
 
@@ -164,6 +164,35 @@ def recorded_evidence(plant, events, zone):
                                     for stamp, finding in reviews]}
 
 
+def guide_and_placement(plant, notes, zone):
+    """Use a published botanical source and the layout known at the most recent shared visit."""
+    facts = {}
+    species_id = plant.verified_species_id or plant.selected_species_id
+    if species_id:
+        guide = CareGuideVersion.objects.filter(species_id=species_id, published=True).order_by("-version").first()
+        if guide:
+            section = guide.sections.order_by("position", "pk").first() if not guide.instructions else None
+            instructions = section.instructions if section else guide.instructions
+            source = (section.source_url if section else "") or guide.source_url
+            if instructions and source.startswith("https://"):
+                facts["current_reviewed_guide"] = {
+                    "version": guide.version, "excerpt": instructions[:900], "source_url": source,
+                    "species_basis": "verified" if plant.verified_species_id else "self_selected",
+                }
+    if notes:
+        visit = notes[0]["observed_at"]
+        layout = plant.space.room_revisions.filter(created_at__lte=visit).order_by("-revision").first()
+        if layout:
+            point = next((p for p in layout.geometry.get("plants", []) if p.get("plant_id") == str(plant.pk)), None)
+            if point and point.get("nearest_window_distance_m") is not None:
+                facts["reported_placement_at_visit"] = {
+                    "visit_date": timezone.localdate(visit, zone).isoformat(),
+                    "nearest_recorded_window_m": point["nearest_window_distance_m"],
+                    "source": "reported_layout", "illuminance": "not_measured",
+                }
+    return facts
+
+
 class PlantAssistantView(APIView):
     """Read-only context; user consent is per request, checked on the server."""
 
@@ -185,7 +214,8 @@ class PlantAssistantView(APIView):
             return Response({"detail": "Invalid plant ID."}, status=400)
 
         share_evidence = raw.get("include_recorded_evidence", False)
-        if not isinstance(share_evidence, bool):
+        share_guide_layout = raw.get("include_guide_and_layout", False)
+        if not isinstance(share_guide_layout, bool) or not isinstance(share_evidence, bool):
             return Response({"detail": "Evidence consent must be a boolean."}, status=400)
         zone = calendar_zone(raw.get("calendar_zone"))
         observed_on = None
@@ -265,6 +295,7 @@ class PlantAssistantView(APIView):
             return Response({"detail": "QA assistant capacity reached. Try again tomorrow.", "code": "rate_limit"}, status=429)
 
         context = None
+        source_links = []
         if plant is not None and include_context:
             nickname = next(
                 (name.nickname for name in plant.nicknames.all() if name.user_id == request.user.pk),
@@ -293,6 +324,11 @@ class PlantAssistantView(APIView):
 
             if share_evidence and settings.PLANTUPIA_LIVING_SYSTEMS_ENABLED:
                 context.update(recorded_evidence(plant, notes, zone))
+                if share_guide_layout:
+                    facts = guide_and_placement(plant, notes, zone)
+                    context.update(facts)
+                    if "current_reviewed_guide" in facts:
+                        source_links.append(facts["current_reviewed_guide"]["source_url"])
             if observed_on is not None:
                 context["selected_history_date"] = observed_on.isoformat()
 
@@ -307,7 +343,7 @@ class PlantAssistantView(APIView):
         return Response({
             "answer": answer,
             "scope": "plant_context" if context is not None else "general",
-            "source_links": [],  # No RAG corpus is connected; do not invent citations.
+            "source_links": source_links,
             "uncertainty": "AI-generated educational guidance; not a confirmed diagnosis.",
             "can_write_care_history": False,
         })

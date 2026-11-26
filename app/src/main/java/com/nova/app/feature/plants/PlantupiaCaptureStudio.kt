@@ -167,10 +167,18 @@ internal fun PlantupiaCaptureStudio(
                     Text(if (compare) "Hide earlier view" else "Match the view from " + reference.observedAt.take(10))
                 }
             }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CaptureView.entries.forEach { option ->
-                    FilterChip(selected = view == option, enabled = !writing, onClick = { view = option },
-                        label = { Text(option.title) })
+            var showFraming by remember { mutableStateOf(false) }
+            Box {
+                OutlinedButton(enabled = !writing, onClick = { showFraming = true }) {
+                    Text("Framing · " + view.title)
+                }
+                androidx.compose.material3.DropdownMenu(expanded = showFraming, onDismissRequest = { showFraming = false }) {
+                    CaptureView.entries.forEach { option ->
+                        androidx.compose.material3.DropdownMenuItem(text = { Text(option.title) }, onClick = {
+                            view = option
+                            showFraming = false
+                        })
+                    }
                 }
             }
             PlantupiaCameraPreview(view, reference?.photoUrl.takeIf { compare }, writing, { writing = it }) { photo ->

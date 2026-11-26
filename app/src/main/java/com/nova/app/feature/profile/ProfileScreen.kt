@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.semantics.Role
-import com.nova.app.ui.components.NovaAvatar
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -166,6 +165,21 @@ fun ProfileScreen(
             )
 
             Spacer(modifier = Modifier.height(NovaSpacing.lg))
+            PlantupiaMeIdentity(
+                displayName = displayName,
+                userId = userId,
+                avatarVariant = avatarVariant,
+                username = username,
+                avatarUrl = avatarUrl,
+                bio = if (publicProfile) bio else "",
+                location = if (publicProfile) location else "",
+                link = if (publicProfile) link else "",
+                interests = if (publicProfile) interests else emptyList(),
+                isVerified = isVerified,
+                showLabel = false,
+                framed = false,
+            )
+            Spacer(Modifier.height(NovaSpacing.md))
             Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(false to "Private world", true to "Circle profile").forEach { (isPublic, label) ->
                     val selected = publicProfile == isPublic
@@ -185,25 +199,6 @@ fun ProfileScreen(
             }
             Spacer(Modifier.height(NovaSpacing.lg))
             if (!publicProfile) {
-                BoxWithConstraints(Modifier.fillMaxWidth()) {
-                    val name = displayName.ifBlank { username }.ifBlank { "Your living world" }
-                    if (maxWidth / LocalDensity.current.fontScale >= 220.dp) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                            NovaAvatar(source = avatarUrl, fallbackText = name, size = 56.dp,
-                                plantupiaUserId = userId, plantupiaAvatarVariant = avatarVariant)
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(name, style = PlantupiaText.pageHeading)
-                            }
-                        }
-                    } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            NovaAvatar(source = avatarUrl, fallbackText = name, size = 56.dp,
-                                plantupiaUserId = userId, plantupiaAvatarVariant = avatarVariant)
-                            Text(name, style = PlantupiaText.pageHeading)
-                        }
-                    }
-                }
-                Spacer(Modifier.height(NovaSpacing.lg))
                 PlantupiaProfileSpaces(accountId = userId, onOpenSpaces = onPlantsClick)
 
             Spacer(modifier = Modifier.height(NovaSpacing.lg))
@@ -230,20 +225,6 @@ fun ProfileScreen(
                 description = "Your plants and care records stay private.",
             )
             Spacer(modifier = Modifier.height(NovaSpacing.sm))
-            PlantupiaMeIdentity(
-                displayName = displayName,
-                userId = userId,
-                avatarVariant = avatarVariant,
-                username = username,
-                avatarUrl = avatarUrl,
-                bio = bio,
-                location = location,
-                link = link,
-                interests = interests,
-                isVerified = isVerified,
-                showLabel = false,
-                framed = false,
-            )
             Spacer(modifier = Modifier.height(NovaSpacing.md))
             PlantupiaProfileSocialStats(
                 moments = postsCount,

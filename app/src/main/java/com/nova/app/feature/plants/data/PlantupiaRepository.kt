@@ -153,6 +153,7 @@ class PlantupiaRepository(
             .put("message", message.trim())
             .put("include_my_plant_context", includeContext)
             .put("include_recorded_evidence", includeContext)
+            .put("include_guide_and_layout", includeContext)
         if (!plantId.isNullOrBlank()) payload.put("plant_id", plantId)
         if (includeContext) payload.put("calendar_zone", java.time.ZoneId.systemDefault().id)
         if (includeContext && historyDay != null) payload.put("observed_on", historyDay)
