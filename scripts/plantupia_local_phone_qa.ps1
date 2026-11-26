@@ -3,7 +3,8 @@
 param(
     [Parameter(Mandatory = $true)]
     [string]$ApkPath,
-    [switch]$CreateLocalQr
+    [switch]$CreateLocalQr,
+    [switch]$LivingSystems
 )
 $ErrorActionPreference = "Stop"
 
@@ -12,6 +13,9 @@ function Check-NativeExit([string]$label) {
 }
 $repo = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $apk = (Resolve-Path $ApkPath -ErrorAction Stop).Path
+$port = if ($LivingSystems) { 8876 } else { 8765 }
+$env:PLANTUPIA_LIVING_SYSTEMS_ENABLED = if ($LivingSystems) { "1" } else { "0" }
+$env:PLANTUPIA_AI_ENABLED = "0"
 if (-not (Get-Command adb -ErrorAction SilentlyContinue)) {
     throw "ADB not found. Install Android SDK Platform Tools, enable USB debugging and authorize this computer."
 }
@@ -33,6 +37,10 @@ if (-not (Test-Path $venvPython)) {
 }
 & $venvPython -m pip install -r (Join-Path $repo "backend\requirements.txt")
 Check-NativeExit "Installing isolated Python dependencies"
+if ($LivingSystems) {
+    & $venvPython -m pip install -r (Join-Path $repo "backend\requirements-living-vision.txt")
+    Check-NativeExit "Installing private field inspection dependencies"
+}
 if ($CreateLocalQr) {
     & $venvPython -m pip install "qrcode[pil]"
     Check-NativeExit "Installing optional offline QR encoder"
@@ -68,16 +76,16 @@ try {
     }
     & adb get-state
     Check-NativeExit "ADB authorized phone"
-    & adb reverse tcp:8765 tcp:8765
+    & adb reverse "tcp:$port" "tcp:$port"
     Check-NativeExit "USB-to-PC reverse tunnel"
     & adb install -r $apk
     Check-NativeExit "Installing the QA APK on the phone"
     Write-Host ""
-    Write-Host "Local protected staff Admin: http://127.0.0.1:8765/admin/"
+    Write-Host "Local protected staff Admin: http://127.0.0.1:$port/admin/"
     Write-Host "Private QA accounts + code are in: $credentials"
     Write-Host "This server is LOCAL ONLY. Keep the USB cable connected."
     Write-Host "Press Ctrl+C to stop the QA server. Delete $dataDir after testing."
-    & $venvPython (Join-Path $repo "backend\manage.py") runserver 127.0.0.1:8765
+    & $venvPython (Join-Path $repo "backend\manage.py") runserver "127.0.0.1:$port" --noreload
 } finally {
     Pop-Location
 }
