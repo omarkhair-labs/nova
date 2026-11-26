@@ -155,6 +155,13 @@ class PlantAssistantView(APIView):
         if plant_id is not None and not isinstance(plant_id, str):
             return Response({"detail": "Invalid plant ID."}, status=400)
 
+        observed_on = None
+        if include_context and "observed_on" in raw:
+            try:
+                observed_on = date.fromisoformat(raw["observed_on"])
+            except (TypeError, ValueError):
+                return Response({"detail": "Invalid observation date."}, status=400)
+
         if not isinstance(conversation, list) or len(conversation) > 8:
             return Response({"detail": "Conversation must have up to 8 turns."}, status=400)
         for turn in conversation:
@@ -228,9 +235,11 @@ class PlantAssistantView(APIView):
                 (name.nickname for name in plant.nicknames.all() if name.user_id == request.user.pk),
                 plant.label,
             )
+            observations = PlantEvent.objects.filter(plant=plant)
+            if observed_on is not None:
+                observations = observations.filter(observed_at__date=observed_on)
             notes = list(
-                PlantEvent.objects.filter(plant=plant)
-                .order_by("-observed_at", "-created_at")
+                observations.order_by("-observed_at", "-created_at", "-pk")
                 .values("kind", "note", "observed_at")[:6]
             )
             context = {
@@ -246,6 +255,9 @@ class PlantAssistantView(APIView):
                     for event in notes
                 ],
             }
+
+            if observed_on is not None:
+                context["selected_history_date"] = observed_on.isoformat()
 
         try:
             answer = call_provider(message.strip(), context, conversation)

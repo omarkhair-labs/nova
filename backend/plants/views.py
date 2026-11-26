@@ -304,6 +304,12 @@ class PlantEventsView(APIView):
         # Years of observed history must not silently end after 100 entries.
         size = 20
         events_qs = plant.events.all()
+        if "observed_on" in request.query_params:
+            try:
+                day = date.fromisoformat(request.query_params["observed_on"])
+            except ValueError:
+                return Response({"detail": "Invalid observation date."}, status=400)
+            events_qs = events_qs.filter(observed_at__date=day)
         if request.query_params.get("pending_followups") == "1":
             events_qs = events_qs.filter(
                 follow_up_on__isnull=False, follow_up_completed_at__isnull=True,

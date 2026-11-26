@@ -78,6 +78,8 @@ internal fun PlantupiaAssistantSheet(
     plant: PlantupiaPlant?,
     repository: PlantupiaRepository,
     onDismiss: () -> Unit,
+    historyDay: String? = null,
+    onOpenHistory: (() -> Unit)? = null,
     fullPage: Boolean = false,
     onCircle: () -> Unit = {},
 ) {
@@ -123,9 +125,13 @@ internal fun PlantupiaAssistantSheet(
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Include plant context", style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
                             Text(
-                                "Name, placement and recent notes. No photos or address.",
+                                if (historyDay == null) "Name, placement and recent notes. No photos or address."
+                                else "Name, placement and notes recorded on $historyDay. No photos or address.",
                                 style = PlantupiaText.supporting,
                             )
+                            if (onOpenHistory != null) TextButton(onClick = onOpenHistory, enabled = !pending) {
+                                Text("View plant history")
+                            }
                         }
                         Switch(
                             checked = includeContext,
@@ -202,6 +208,7 @@ internal fun PlantupiaAssistantSheet(
                                     message = question, plantId = plant?.id,
                                     includeContext = consent && plant != null,
                                     conversation = dialogue,
+                                    historyDay = historyDay,
                                 )) {
                                     is ApiResult.Success -> {
                                         bubbles = bubbles + CareChatBubble(

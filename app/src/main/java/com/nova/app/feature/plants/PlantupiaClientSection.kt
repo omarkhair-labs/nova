@@ -146,7 +146,8 @@ private fun PlantupiaAccountClientSection(
     var creationAccessNotice by remember { mutableStateOf<String?>(null) }
     var showPlantManagement by remember(currentPlantId) { mutableStateOf(false) }
     var showPlantSharing by remember(currentPlantId) { mutableStateOf(false) }
-    var showFullHistory by remember(currentPlantId) { mutableStateOf(false) }
+    var selectedHistoryDay by rememberSaveable(accountId) { mutableStateOf<String?>(null) }
+    var showFullHistory by rememberSaveable(accountId) { mutableStateOf(false) }
     // One shared plant context; the chapter selects visible intent, not a new screen/database.
     var selectedDetailChapter by rememberSaveable { mutableStateOf(PlantupiaDetailChapter.OVERVIEW.name) }
     var showAssistant by remember { mutableStateOf(false) }
@@ -209,7 +210,7 @@ private fun PlantupiaAccountClientSection(
     var historyLoadFailed by remember(currentPlantId) { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     var confirmDiscard by remember { mutableStateOf(false) }
-    var pendingPlantAfterDiscard by remember { mutableStateOf<String?>(null) }
+    var pendingPlantAfterDiscard by remember { mutableStateOf<PlantupiaPlantDestination?>(null) }
     var pendingTicketAfterDiscard by remember { mutableStateOf<String?>(null) }
     var plantName by remember { mutableStateOf("") }
     var note by rememberSaveable { mutableStateOf("") }
@@ -267,15 +268,22 @@ private fun PlantupiaAccountClientSection(
         )
     }
 
-    suspend fun openPlant(plant: PlantupiaPlant) {
+    suspend fun openPlant(plant: PlantupiaPlant, destination: PlantupiaPlantDestination? = null) {
         if (!lifetime.isCurrent()) return
         if (section == PlantupiaPrimarySection.TODAY) {
             PlantupiaPlantOpenSignal.open(accountId, plant.id)
             return
         }
+        if (currentPlantId == plant.id && destination?.chapter != null && PlantupiaCreateIntent.pending == null) {
+            openDetailMode = null
+            selectedDetailChapter = destination.chapter.name
+            selectedHistoryDay = destination.recordedDay?.toString()
+            showFullHistory = destination.chapter == PlantupiaDetailChapter.HISTORY
+            return
+        }
         if (currentPlantId != null && (note.isNotBlank() || carePhotoUri != null || selectedCareAction != null)) {
             if (currentPlantId == plant.id && PlantupiaCreateIntent.pending == null) return
-            pendingPlantAfterDiscard = plant.id
+            pendingPlantAfterDiscard = destination ?: PlantupiaPlantDestination(accountId, plant.id)
             confirmDiscard = true
             return
         }
@@ -295,9 +303,11 @@ private fun PlantupiaAccountClientSection(
         sharedSpecies = plant.species
         sharedPlacement = plant.placement
         showCareEditor = openDetailMode == PlantupiaCreateMode.OBSERVATION
-        selectedDetailChapter = plantupiaOpeningChapter(
+        selectedHistoryDay = destination?.recordedDay?.toString()
+        showFullHistory = destination?.chapter == PlantupiaDetailChapter.HISTORY
+        selectedDetailChapter = (destination?.chapter ?: plantupiaOpeningChapter(
             observationIntent = openDetailMode == PlantupiaCreateMode.OBSERVATION,
-        ).name
+        )).name
         PlantupiaCreateIntent.clear()
         currentPlantId = plant.id
         saving = false
@@ -463,8 +473,8 @@ private fun PlantupiaAccountClientSection(
             val ticket = pendingTicketAfterDiscard
             confirmDiscard = false; pendingPlantAfterDiscard = null; pendingTicketAfterDiscard = null; note = ""; carePhotoUri = null; selectedCareAction = null; showCareEditor = false
             if (next == null) closePlant() else scope.launch {
-                plants.firstOrNull { it.id == next }?.let { openPlant(it) }
-                if (ticket != null && lifetime.isCurrent() && currentPlantId == next) { supportTicketId = ticket; showTeam = true }
+                plants.firstOrNull { it.id == next.plantId }?.let { openPlant(it, next) }
+                if (ticket != null && lifetime.isCurrent() && currentPlantId == next.plantId) { supportTicketId = ticket; showTeam = true }
             }
         }) { Text("Discard draft") } },
         dismissButton = { TextButton(onClick = { confirmDiscard = false; pendingPlantAfterDiscard = null; pendingTicketAfterDiscard = null }) { Text("Keep editing") } })
@@ -501,7 +511,11 @@ private fun PlantupiaAccountClientSection(
         val requested = plantOpen ?: return@LaunchedEffect
         if (section != PlantupiaPrimarySection.PLANTS || loading || error != null) return@LaunchedEffect
         PlantupiaPlantOpenSignal.consume()
-        if (requested.first == accountId) plants.firstOrNull { it.id == requested.second }?.let { plant -> scope.launch { openPlant(plant) } }
+        if (requested.accountId == accountId) {
+            plants.firstOrNull { it.id == requested.plantId }?.let { plant ->
+                scope.launch { openPlant(plant, requested) }
+            }
+        }
     }
     var restoredDetailId by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(loading, currentPlantId) {
@@ -2173,6 +2187,22 @@ private fun PlantupiaAccountClientSection(
             if (openDetailMode != PlantupiaCreateMode.QUESTION &&
                 activeChapter == PlantupiaDetailChapter.HISTORY
             ) {
+            TextButton(onClick = { showAssistant = true }) {
+                Text("Ask about this history", color = deepGreen)
+            }
+            val calendarDay = selectedHistoryDay
+            if (calendarDay != null) {
+                key(repository, selectedPlant.id, calendarDay) {
+                    PlantupiaDayHistory(repository, selectedPlant.id, calendarDay,
+                        onShowAll = { selectedHistoryDay = null; showFullHistory = true }) { event ->
+                        PlantupiaHistoryEventCard(event, eventLabel(event.kind), evidenceLabel(event.evidence),
+                            onPhotoClick = { photoToView = event.photoUrl to selectedPlant.name })
+                        if (spaces.any { it.id == selectedPlant.spaceId && it.livingSystemsEnabled }) {
+                            PlantupiaFieldInspection(repository, selectedPlant, event)
+                        }
+                    }
+                }
+            } else {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -2375,6 +2405,7 @@ private fun PlantupiaAccountClientSection(
                     )
                 }
             }
+            } // Full history outside the selected calendar day.
             } // End of the normal private plant detail (not the Ask Circle flow).
         }
     }
@@ -2439,6 +2470,12 @@ private fun PlantupiaAccountClientSection(
             plant = selectedPlant,
             repository = repository,
             onDismiss = { showAssistant = false },
+            historyDay = selectedHistoryDay.takeIf { selectedDetailChapter == PlantupiaDetailChapter.HISTORY.name },
+            onOpenHistory = {
+                showAssistant = false
+                selectedDetailChapter = PlantupiaDetailChapter.HISTORY.name
+                showFullHistory = true
+            },
         )
     }
 }

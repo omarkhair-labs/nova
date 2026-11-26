@@ -75,7 +75,7 @@ fun PlantupiaPlantsRoute(
     // not leave the user trapped behind an independent calendar overlay.
     val pendingPlant = PlantupiaPlantOpenSignal.target
     LaunchedEffect(pendingPlant) {
-        if (showingCareCalendar && pendingPlant?.first == accountId) {
+        if (showingCareCalendar && pendingPlant?.accountId == accountId) {
             showingCareCalendar = false
             calendarReturnToToday = false
         }

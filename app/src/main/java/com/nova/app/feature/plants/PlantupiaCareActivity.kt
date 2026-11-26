@@ -375,7 +375,13 @@ internal fun PlantupiaCareActivity(accountId: Long, onViewChanged: () -> Unit = 
                 style = PlantupiaText.itemTitle)
             group.forEach { entry ->
             Surface(
-                onClick = { PlantupiaPlantOpenSignal.open(accountId, entry.plantId) },
+                onClick = {
+                    PlantupiaPlantOpenSignal.open(
+                        accountId, entry.plantId,
+                        if (entry.recorded) PlantupiaDetailChapter.HISTORY else PlantupiaDetailChapter.CARE,
+                        recordedDay = entry.date.takeIf { entry.recorded },
+                    )
+                },
                 color = PlantupiaColors.paper,
                 shape = PlantupiaShapes.inset,
                 border = BorderStroke(1.dp, PlantupiaColors.border),

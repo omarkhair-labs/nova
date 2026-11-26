@@ -147,11 +147,13 @@ class PlantupiaRepository(
         plantId: String? = null,
         includeContext: Boolean = false,
         conversation: List<PlantupiaAssistantTurn> = emptyList(),
+        historyDay: String? = null,
     ): ApiResult<PlantupiaAssistantReply> = authorized { token ->
         val payload = JSONObject()
             .put("message", message.trim())
             .put("include_my_plant_context", includeContext)
         if (!plantId.isNullOrBlank()) payload.put("plant_id", plantId)
+        if (includeContext && historyDay != null) payload.put("observed_on", historyDay)
         if (conversation.isNotEmpty()) {
             payload.put("conversation", JSONArray().apply {
                 conversation.takeLast(8).forEach { turn ->
@@ -480,12 +482,13 @@ class PlantupiaRepository(
             }
         }
 
-    suspend fun historyPage(plantId: String, offset: Int = 0, pendingOnly: Boolean = false): ApiResult<PlantupiaHistoryPage> =
+    suspend fun historyPage(plantId: String, offset: Int = 0, pendingOnly: Boolean = false, observedOn: java.time.LocalDate? = null): ApiResult<PlantupiaHistoryPage> =
         authorized { token ->
             val pageOffset = offset.coerceAtLeast(0)
             when (val response = api.requestJson(
                 path = "plantupia/plants/$plantId/events/?offset=$pageOffset" +
-                    if (pendingOnly) "&pending_followups=1" else "",
+                    (if (pendingOnly) "&pending_followups=1" else "") +
+                    (observedOn?.let { "&observed_on=$it" } ?: ""),
                 bearerToken = token,
             )) {
                 is ApiResult.Failure -> response

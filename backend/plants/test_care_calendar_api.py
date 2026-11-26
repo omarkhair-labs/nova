@@ -88,6 +88,19 @@ class CalendarHistoryTests(TestCase):
         )
         self.assertFalse(any(row["plant_name"] == "Hidden fern" for row in response.data["results"]))
 
+    def test_open_calendar_day_reads_only_that_plants_records_and_supports_paging(self):
+        self.api.force_authenticate(self.owner)
+        url = reverse("plantupia-events", args=[self.plant.pk])
+        params = {"observed_on": self.today.isoformat()}
+        result = self.api.get(url, params)
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(len(result.data["results"]), 3)
+        self.assertEqual(len(self.api.get(url, {**params, "offset": 2}).data["results"]), 1)
+        self.assertEqual(self.api.get(url, {"observed_on": (self.today - timedelta(days=4)).isoformat()}).data["results"], [])
+        self.assertEqual(self.api.get(url, {"observed_on": "bad"}).status_code, 400)
+        self.api.force_authenticate(self.other)
+        self.assertEqual(self.api.get(url, params).status_code, 404)
+
     def test_invalid_dates_cannot_trigger_unbounded_history_scan(self):
         self.api.force_authenticate(self.owner)
         for query in [

@@ -84,6 +84,25 @@ class PlantAssistantSecurityTests(TestCase):
             self.assertEqual(with_context.json()["source_links"], [])
         self.assertEqual(PlantEvent.objects.filter(plant=self.plant).count(), 1)
 
+    def test_selected_history_day_limits_context_and_still_needs_consent(self):
+        now = timezone.now()
+        for days, note in [(0, "Today"), (3, "Earlier visit")]:
+            PlantEvent.objects.create(plant=self.plant, actor=self.owner, kind="care",
+                                      note=note, observed_at=now - timedelta(days=days))
+        self.client.force_authenticate(user=self.owner)
+        day = timezone.localdate(now - timedelta(days=3)).isoformat()
+        data = {"message": "What happened?", "plant_id": str(self.plant.pk), "observed_on": day}
+        with patch.dict(os.environ, {"PLANTUPIA_AI_ENABLED": "1", "PLANTUPIA_AI_API_KEY": "test-only"}), patch(
+            "plants.assistant.call_provider", return_value="Check the record."
+        ) as provider:
+            self.assertEqual(self.client.post(self.url, data, format="json").status_code, 200)
+            self.assertIsNone(provider.call_args.args[1])
+            data["include_my_plant_context"] = True
+            self.assertEqual(self.client.post(self.url, data, format="json").status_code, 200)
+            context = provider.call_args.args[1]
+            self.assertEqual(context["selected_history_date"], day)
+            self.assertEqual([e["note"] for e in context["recent_person_observations"]], ["Earlier visit"])
+
     def test_multi_turn_history_is_validated_and_bounded(self):
         self.client.force_authenticate(user=self.owner)
         with patch.dict(
