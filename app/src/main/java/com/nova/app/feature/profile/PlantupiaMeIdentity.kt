@@ -22,6 +22,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
@@ -58,17 +59,18 @@ internal fun PlantupiaMeIdentity(
     interests: List<String>,
     isVerified: Boolean,
     showLabel: Boolean = true,
+    framed: Boolean = true,
 ) {
     val uriHandler = LocalUriHandler.current
     val verifiedUrl = remember(link) { normalizedProfileExternalUrl(link) }
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = PlantupiaColors.paper,
+        color = if (framed) PlantupiaColors.paper else Color.Transparent,
         shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(1.dp, PlantupiaColors.border),
+        border = if (framed) BorderStroke(1.dp, PlantupiaColors.border) else null,
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 22.dp),
+            modifier = Modifier.padding(horizontal = if (framed) 20.dp else 0.dp, vertical = if (framed) 22.dp else 6.dp),
             verticalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
         ) {
             if (showLabel) {

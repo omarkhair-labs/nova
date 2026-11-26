@@ -114,8 +114,13 @@ class PlantupiaCoreRootsInstrumentedTest {
         compose.onNodeWithContentDescription("Settings").assertIsDisplayed()
         compose.onNodeWithContentDescription("Messages").assertIsDisplayed()
         capture("07-profile")
+        clickText("Circle profile")
+        compose.onNodeWithText("Your private places").assertDoesNotExist()
         scrollToText("Edit public profile")
         capture("08-profile-public")
+        clickText("Private world")
+        awaitText("Your private places")
+        compose.onNodeWithText("Edit public profile").assertDoesNotExist()
 
         clickDescription("Settings")
         awaitText("Settings")

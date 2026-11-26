@@ -29,6 +29,7 @@ android {
 
     defaultConfig {
         applicationId = "com.omarkhair70.nova"
+        manifestPlaceholders["novaAppLabel"] = "@string/app_name"
         minSdk = 26
         targetSdk = 36
         versionCode = 20113
@@ -57,6 +58,15 @@ android {
             versionNameSuffix = "-qa"
             matchingFallbacks += listOf("debug")
             val localQaUrl = providers.gradleProperty("plantupiaQaApiUrl").orNull
+            if (providers.gradleProperty("plantupiaIsolatedQa").orNull == "true") {
+                val isolatedUri = localQaUrl?.let { URI(it) }
+                require(isolatedUri != null && isolatedUri.host == "127.0.0.1" && isolatedUri.port in 1024..65535) {
+                    "Living QA requires an explicit local USB-loopback API origin and port"
+                }
+                applicationIdSuffix = ".qa.living"
+                versionNameSuffix = "-qa-living"
+                manifestPlaceholders["novaAppLabel"] = "Plantupia Living QA"
+            }
             if (localQaUrl != null) {
                 val uri = URI(localQaUrl)
                 require(uri.scheme == "http" && uri.host in listOf("10.0.2.2", "127.0.0.1", "localhost") &&
