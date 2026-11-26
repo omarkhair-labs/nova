@@ -26,12 +26,14 @@ internal fun PlantupiaRoomPlan(
         var editing by remember { mutableStateOf(false) }
         var spatialStudy by remember { mutableStateOf(false) }
         var daylight by remember { mutableStateOf(false) }
+        var spatialPlan by remember { mutableStateOf(false) }
         var focusedId by remember { mutableStateOf<String?>(null) }
         val scope = rememberCoroutineScope()
         fun returnToPlan() {
             editing = false
             spatialStudy = false
             daylight = false
+            spatialPlan = false
         }
         LaunchedEffect(generation, revision) {
             room = null
@@ -45,9 +47,9 @@ internal fun PlantupiaRoomPlan(
         PlantupiaLivingWorkspace(
             "LIVING SPACE", space.name, "", saving,
             close = {
-                if (editing || spatialStudy || daylight) returnToPlan() else expanded = false
+                if (editing || spatialStudy || daylight || spatialPlan) returnToPlan() else expanded = false
             },
-            navigationKey = listOf(revision, generation, editing, spatialStudy, daylight),
+            navigationKey = listOf(revision, generation, editing, spatialStudy, daylight, spatialPlan),
         ) {
             if (spatialStudy && repository.isCurrentSession()) {
                 PlantupiaSpatialViewer(space.name) { returnToPlan() }
@@ -63,10 +65,10 @@ internal fun PlantupiaRoomPlan(
             if (editing && space.canAddPlant && !current.historical) {
                 Text("Record this room", style = PlantupiaText.editorialHeading)
                 TextButton(enabled = !saving, onClick = { returnToPlan() }) { Text("Cancel edit") }
-                RoomEditor(current, plants, saving) { w, l, positions, openings ->
+                RoomEditor(current, plants, saving) { w, l, h, positions, openings ->
                     saving = true
                     scope.launch {
-                        when (val result = repository.saveRoom(space.id, current.submission(w, l, positions, openings))) {
+                        when (val result = repository.saveRoom(space.id, current.submission(w, l, positions, openings, h))) {
                             is ApiResult.Failure -> message = result.message
                             is ApiResult.Success -> { returnToPlan(); generation++ }
                         }
@@ -81,6 +83,12 @@ internal fun PlantupiaRoomPlan(
                 if (daylight && !current.historical) {
                     TextButton(enabled = !saving, onClick = { returnToPlan() }) { Text("Return to placements") }
                     PlantupiaDaylightStudy(space.id, current, width, length, repository)
+                    return@PlantupiaLivingWorkspace
+                }
+                if (spatialPlan) {
+                    PlantupiaRecordedSpatialPlan(current, width, length, plants,
+                        onOpenPlant = { plant -> expanded = false; openPlant(plant) },
+                        onReturn = { returnToPlan() })
                     return@PlantupiaLivingWorkspace
                 }
                 // The saved geometry is the first object, not a destination buried under a menu.
@@ -103,6 +111,10 @@ internal fun PlantupiaRoomPlan(
                     Text("— ${current.windows.size} window centre(s)", style = PlantupiaText.supporting)
                 }
                 Text("Reported dimensions, not a camera survey.", style = PlantupiaText.supporting)
+                OutlinedButton(enabled = !saving, onClick = { spatialPlan = true },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Text("Explore room in 3D")
+                }
                 val selectedPoint = current.plants.firstOrNull { it.id == focusedId }
                 val selectedPlant = selectedPoint?.let { point -> plants.find { it.id == point.id } }
                 if (selectedPoint != null && selectedPlant != null) {
@@ -191,10 +203,11 @@ private fun LayoutRevisionPicker(room: PlantupiaRoom, saving: Boolean, onSelect:
 @Composable
 private fun RoomEditor(
     room: PlantupiaRoom, plants: List<PlantupiaPlant>, saving: Boolean,
-    save: (Double, Double, List<RoomPlant>, List<RoomWindow>) -> Unit,
+    save: (Double, Double, Double?, List<RoomPlant>, List<RoomWindow>) -> Unit,
 ) {
     var width by remember(room) { mutableStateOf(room.width?.toString().orEmpty()) }
     var length by remember(room) { mutableStateOf(room.length?.toString().orEmpty()) }
+    var height by remember(room) { mutableStateOf(room.height?.toString().orEmpty()) }
     var selected by remember(room) { mutableStateOf<PlantupiaPlant?>(null) }
     var addWindow by remember(room) { mutableStateOf(false) }
     var wall by remember(room) { mutableStateOf("Top") }
@@ -208,6 +221,8 @@ private fun RoomEditor(
         Text("Use metres from the same marked corner. Follow the same two walls on every visit.")
         OutlinedTextField(width, { width = it }, label = { Text("Width (m)") }, singleLine = true)
         OutlinedTextField(length, { length = it }, label = { Text("Length (m)") }, singleLine = true)
+        OutlinedTextField(height, { height = it.take(32) }, label = { Text("Measured height (m, optional)") },
+            singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !saving)
         Box {
             TextButton(onClick = { choose = true }) { Text(selected?.name ?: "Choose a plant to position") }
             DropdownMenu(expanded = choose, onDismissRequest = { choose = false }) {
@@ -223,6 +238,8 @@ private fun RoomEditor(
         }
         val w = width.toDoubleOrNull()
         val l = length.toDoubleOrNull()
+        val h = height.trim().takeIf { it.isNotEmpty() }?.toDoubleOrNull()
+        val heightValid = height.isBlank() || h != null && h.isFinite() && h > 0 && h <= 1000
         val px = x.toDoubleOrNull()
         val py = y.toDoubleOrNull()
         TextButton(onClick = { addWindow = !addWindow }) { Text(if (addWindow) "Cancel window" else "Add window centre") }
@@ -244,7 +261,7 @@ private fun RoomEditor(
         val span = if (wall == "Top" || wall == "Bottom") w else l
         val windowValid = !addWindow || (distance != null && span != null && distance > 0 && distance < span &&
             windowName.isNotBlank() && room.windows.none { it.id == windowName.trim() })
-        val valid = windowValid && w != null && l != null && w > 0 && l > 0 && w <= 1000 && l <= 1000 &&
+        val valid = heightValid && windowValid && w != null && l != null && w > 0 && l > 0 && w <= 1000 && l <= 1000 &&
             (id == null || (px != null && py != null && px in 0.0..w && py in 0.0..l))
         Button(enabled = valid && !saving, onClick = {
             if (w != null && l != null) {
@@ -255,7 +272,7 @@ private fun RoomEditor(
                     val wy = when (wall) { "Top" -> 0.0; "Bottom" -> l; else -> distance }
                     room.windows + RoomWindow(windowName.trim(), wx, wy)
                 } else room.windows
-                save(w, l, points, windows)
+                save(w, l, h, points, windows)
             }
         }) { Text(if (saving) "Saving…" else "Save room revision") }
     }

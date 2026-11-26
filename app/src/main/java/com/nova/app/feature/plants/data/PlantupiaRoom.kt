@@ -12,9 +12,12 @@ internal data class PlantupiaRoom(
     val plants: List<RoomPlant>, val windows: List<RoomWindow>,
     val historical: Boolean = false,
     val revisions: List<RoomRevisionStamp> = emptyList(),
+    val height: Double? = null,
 ) {
-    fun submission(width: Double, length: Double, placements: List<RoomPlant>, openings: List<RoomWindow>) = JSONObject()
+    fun submission(width: Double, length: Double, placements: List<RoomPlant>, openings: List<RoomWindow>,
+        height: Double? = this.height) = JSONObject()
         .put("base_revision", revision).put("width_m", width).put("length_m", length)
+        .put("height_m", height ?: JSONObject.NULL)
         .put("plants", JSONArray().apply {
             placements.forEach { put(JSONObject().put("plant_id", it.id).put("x_m", it.x).put("y_m", it.y)) }
         })
@@ -36,6 +39,9 @@ internal fun parseRoom(body: JSONObject, spaceId: String): PlantupiaRoom {
     val width = geometry.getDouble("width_m")
     val length = geometry.getDouble("length_m")
     require(width > 0 && length > 0 && width.isFinite() && length.isFinite())
+    val height = if (geometry.isNull("height_m")) null else geometry.getDouble("height_m").also {
+        require(it.isFinite() && it > 0 && it <= 1000)
+    }
     val plants = geometry.getJSONArray("plants")
     val windows = geometry.getJSONArray("windows")
     val entries = body.optJSONArray("layout_revisions")
@@ -52,5 +58,5 @@ internal fun parseRoom(body: JSONObject, spaceId: String): PlantupiaRoom {
     }, List(windows.length()) { i ->
         val w = windows.getJSONObject(i)
         RoomWindow(requiredPlantupiaString(w, "id"), w.getDouble("x_m"), w.getDouble("y_m"))
-    }, historical = body.optBoolean("historical"), revisions = revisions)
+    }, historical = body.optBoolean("historical"), revisions = revisions, height = height)
 }

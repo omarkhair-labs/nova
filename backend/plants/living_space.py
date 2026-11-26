@@ -14,12 +14,15 @@ def _identity(value):
     return value
 
 
-def build_room(room_id, width_m, length_m, plants, windows):
+def build_room(room_id, width_m, length_m, plants, windows, *, height_m=None):
     """A rectangular local coordinate system in meters, with explicitly reported positions."""
     room_id = _identity(room_id)
     width, length = _number(width_m), _number(length_m)
     if not 0 < width <= 1000 or not 0 < length <= 1000:
         raise ValueError("Invalid room dimensions.")
+    height = _number(height_m) if height_m is not None else None
+    if height is not None and not 0 < height <= 1000:
+        raise ValueError("Invalid reported room height.")
     if len(plants) > 1000 or len(windows) > 100:
         raise ValueError("Room entity limit exceeded.")
 
@@ -57,6 +60,7 @@ def build_room(room_id, width_m, length_m, plants, windows):
     return {
         "version": "room-rectangle-01", "room_id": room_id,
         "width_m": width, "length_m": length, "area_m2": width * length,
+        **({"height_m": height} if height is not None else {}),
         "geometry_source": "operator_reported",
         "plants": units, "windows": openings,
         "geometry_validation": "not_independently_verified",

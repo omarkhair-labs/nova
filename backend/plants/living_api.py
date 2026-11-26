@@ -54,6 +54,7 @@ class RoomInput(serializers.Serializer):
     base_revision = serializers.IntegerField(min_value=0)
     width_m = serializers.FloatField()
     length_m = serializers.FloatField()
+    height_m = serializers.FloatField(required=False, allow_null=True)
     plants = serializers.ListField(child=Placement(), max_length=1000)
     windows = serializers.ListField(child=Window(), max_length=100)
 
@@ -108,7 +109,11 @@ class RoomView(ResearchView):
         revision = latest.revision if latest else 0
         placements = [{**row, "plant_id": str(row["plant_id"])} for row in fields["plants"]]
         try:
-            room = build_room(str(space.pk), fields["width_m"], fields["length_m"], placements, fields["windows"])
+            # Older clients omit height; preserve a reported height instead of
+            # silently discarding it. Explicit null clears that measurement.
+            height = fields.get("height_m", latest.geometry.get("height_m") if latest else None)
+            room = build_room(str(space.pk), fields["width_m"], fields["length_m"], placements,
+                              fields["windows"], height_m=height)
         except ValueError as error:
             raise serializers.ValidationError(str(error)) from error
         ids = [row["plant_id"] for row in placements]

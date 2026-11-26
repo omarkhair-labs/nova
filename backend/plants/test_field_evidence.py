@@ -107,6 +107,23 @@ class FieldWorkflowTests(TestCase):
         self.assertEqual(self.client.get(self.room).data["room"]["plants"], [])
         self.assertEqual(self.client.post(self.room, {**self.geometry, "base_revision": 1}, format="json").status_code, 400)
 
+    def test_room_height_is_versioned_and_preserved_by_older_clients(self):
+        initial = self.client.post(self.room, {**self.geometry, "height_m": 2.8}, format="json")
+        self.assertEqual(initial.status_code, 201, initial.data)
+        self.assertEqual(self.client.get(self.room).data["room"]["height_m"], 2.8)
+        invalid = self.client.post(self.room, {**self.geometry, "base_revision": 1,
+                                             "height_m": -1}, format="json")
+        self.assertEqual(invalid.status_code, 400)
+        legacy = self.client.post(self.room, {**self.geometry, "base_revision": 1}, format="json")
+        self.assertEqual(legacy.status_code, 201)
+        self.assertEqual(self.client.get(self.room).data["room"]["height_m"], 2.8)
+        cleared = self.client.post(self.room, {**self.geometry, "base_revision": 2,
+                                             "height_m": None}, format="json")
+        self.assertEqual(cleared.status_code, 201)
+        self.assertNotIn("height_m", self.client.get(self.room).data["room"])
+        historical = self.client.get(self.room + "?revision=1")
+        self.assertEqual(historical.data["room"]["height_m"], 2.8)
+
     def test_room_layout_history_stays_private_and_excludes_backdated_late_care(self):
         stamp = timezone.now()
         PlantEvent.objects.create(plant=self.plant, actor=self.owner, kind="care", observed_at=stamp)
