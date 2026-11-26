@@ -10,6 +10,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
@@ -31,6 +33,7 @@ import java.time.format.DateTimeFormatter
  * follow-ups used by Today and Living History. Tapping an entry opens its plant.
  * Scheduling, completion, opt-in and evidence stay in the existing plant flow.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun PlantupiaCareActivity(accountId: Long, onViewChanged: () -> Unit = {}) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -127,34 +130,7 @@ internal fun PlantupiaCareActivity(accountId: Long, onViewChanged: () -> Unit = 
     val dayFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEE d MMM yyyy", locale) }
 
     Column(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Top,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("CARE SCHEDULE", style = PlantupiaText.sectionLabel)
-                Text(
-                    if (weekMode) "Week of ${visible.first().format(DateTimeFormatter.ofPattern("d MMM", locale))}"
-                    else month.format(dateFormatter),
-                    style = PlantupiaText.editorialHeading,
-                )
-                Text(
-                    "Dates you planned and moments you actually recorded stay distinct.",
-                    style = PlantupiaText.supporting,
-                )
-            }
-            Surface(
-                color = PlantupiaColors.softSage,
-                shape = PlantupiaShapes.badge,
-            ) {
-                Text(
-                    if (weekMode) "WEEK" else "MONTH",
-                    Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                    style = PlantupiaText.sectionLabel,
-                )
-            }
-        }
+        Text("Care schedule", style = PlantupiaText.pageHeading)
         if (busy || historyBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
 
         Surface(
@@ -206,17 +182,16 @@ internal fun PlantupiaCareActivity(accountId: Long, onViewChanged: () -> Unit = 
                         modifier = Modifier.semantics { contentDescription = if (weekMode) "Next week" else "Next month" },
                     ) { Text("\u203A", style = PlantupiaText.editorialHeading) }
                 }
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     TextButton(onClick = {
                         selected = LocalDate.now()
                         month = YearMonth.from(selected)
                         onViewChanged()
                     }) { Text("Today", color = PlantupiaColors.forest) }
-                    Spacer(Modifier.weight(1f))
                     FilterChip(selected = weekMode, onClick = {
                         if (!weekMode) {
                             weekMode = true
@@ -233,87 +208,141 @@ internal fun PlantupiaCareActivity(accountId: Long, onViewChanged: () -> Unit = 
                 }
             }
         }
-        Row(
+        FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text("\u2022 Planned", style = PlantupiaText.supporting.copy(color = PlantupiaColors.mutedSage))
-            Text("\u2713 Recorded", style = PlantupiaText.supporting.copy(color = PlantupiaColors.forest))
+            Text("• Planned", style = PlantupiaText.supporting)
+            Text("✓ Recorded", style = PlantupiaText.supporting.copy(color = PlantupiaColors.forest))
         }
-        // One weekday ruler, then a compact navigable grid. Month cells stay
-        // 48dp tappable without a wall of outlined rectangular cards.
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-            visible.take(7).forEach { day ->
-                Text(
-                    day.format(DateTimeFormatter.ofPattern("EEEEE", locale)),
-                    modifier = Modifier.weight(1f),
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = PlantupiaColors.secondaryText,
-                )
-            }
-        }
-        Column(Modifier.animateContentSize(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            visible.chunked(7).forEach { week ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                    week.forEach { day ->
-                        val items = entries.count { it.date == day }
-                        val recordedCount = entries.count { it.date == day && it.recorded }
-                        val highlighted = day == selected
-                        val inMonth = YearMonth.from(day) == month
-                        val today = day == LocalDate.now()
-                        val dayTint by animateColorAsState(
-                            targetValue = when {
-                                highlighted -> PlantupiaColors.softSage
-                                weekMode -> PlantupiaColors.paper
-                                else -> Color.Transparent
-                            },
-                            label = "care-day-selection",
-                        )
-                        Surface(
-                            modifier = Modifier.weight(1f)
-                                .heightIn(min = if (weekMode) 56.dp else 48.dp)
-                                .clickable {
-                                    selected = day
-                                    month = YearMonth.from(day)
-                                }
-                                .semantics {
-                                    this.selected = highlighted
-                                    contentDescription =
-                                        day.format(DateTimeFormatter.ofPattern("EEEE d MMMM yyyy", locale)) +
-                                        ", $items care entries, $recordedCount recorded"
-                                },
-                            shape = RoundedCornerShape(if (weekMode) 12.dp else 10.dp),
-                            color = dayTint,
-                            border = BorderStroke(
-                                if (highlighted) 1.5.dp else if (today) 1.dp else 0.dp,
-                                if (highlighted) PlantupiaColors.forest
-                                else if (today) PlantupiaColors.mutedSage
-                                else Color.Transparent,
-                            ),
-                        ) {
-                            Column(
-                                modifier = Modifier.fillMaxWidth()
-                                    .padding(vertical = 3.dp, horizontal = 1.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(1.dp),
-                            ) {
-                                Text(
-                                    day.dayOfMonth.toString(),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = if (highlighted || today) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (inMonth || weekMode) PlantupiaColors.forest
-                                        else PlantupiaColors.secondaryText.copy(alpha = .5f),
-                                )
-                                if (items > 0) {
-                                    Text(
-                                        if (recordedCount > 0) "✓" else "•",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = if (recordedCount > 0) PlantupiaColors.forest
-                                        else PlantupiaColors.mutedSage,
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            if (maxWidth >= 354.dp && LocalDensity.current.fontScale <= 1.3f) {
+                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    // One weekday ruler, then a compact navigable grid. Month cells stay
+                    // 48dp tappable without a wall of outlined rectangular cards.
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                        visible.take(7).forEach { day ->
+                            Text(
+                                day.format(DateTimeFormatter.ofPattern("EEEEE", locale)),
+                                modifier = Modifier.weight(1f),
+                                textAlign = TextAlign.Center,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = PlantupiaColors.secondaryText,
+                            )
+                        }
+                    }
+                    Column(Modifier.animateContentSize(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        visible.chunked(7).forEach { week ->
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                week.forEach { day ->
+                                    val items = entries.count { it.date == day }
+                                    val recordedCount = entries.count { it.date == day && it.recorded }
+                                    val plannedCount = items - recordedCount
+                                    val highlighted = day == selected
+                                    val inMonth = YearMonth.from(day) == month
+                                    val today = day == LocalDate.now()
+                                    val dayTint by animateColorAsState(
+                                        targetValue = when {
+                                            highlighted -> PlantupiaColors.softSage
+                                            weekMode -> PlantupiaColors.paper
+                                            else -> Color.Transparent
+                                        },
+                                        label = "care-day-selection",
                                     )
+                                    Surface(
+                                        modifier = Modifier.weight(1f)
+                                            .heightIn(min = if (weekMode) 56.dp else 48.dp)
+                                            .clickable(role = Role.Button) {
+                                                selected = day
+                                                month = YearMonth.from(day)
+                                            }
+                                            .semantics {
+                                                this.selected = highlighted
+                                                contentDescription =
+                                                    day.format(DateTimeFormatter.ofPattern("EEEE d MMMM yyyy", locale)) +
+                                                    ", $items care entries, $recordedCount recorded"
+                                            },
+                                        shape = RoundedCornerShape(if (weekMode) 12.dp else 10.dp),
+                                        color = dayTint,
+                                        border = BorderStroke(
+                                            if (highlighted) 1.5.dp else if (today) 1.dp else 0.dp,
+                                            if (highlighted) PlantupiaColors.forest
+                                            else if (today) PlantupiaColors.mutedSage
+                                            else Color.Transparent,
+                                        ),
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth()
+                                                .padding(vertical = 3.dp, horizontal = 1.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(1.dp),
+                                        ) {
+                                            Text(
+                                                day.dayOfMonth.toString(),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                fontWeight = if (highlighted || today) FontWeight.Bold else FontWeight.Normal,
+                                                color = if (inMonth || weekMode) PlantupiaColors.forest
+                                                    else PlantupiaColors.secondaryText.copy(alpha = .5f),
+                                            )
+                                            if (items > 0) {
+                                                Text(
+                                                    when {
+                                                        plannedCount > 0 && recordedCount > 0 -> "•✓"
+                                                        recordedCount > 0 -> "✓"
+                                                        else -> "•"
+                                                    },
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = if (recordedCount > 0) PlantupiaColors.forest
+                                                    else PlantupiaColors.mutedSage,
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
+                        }
+                    }
+
+                }
+            } else {
+                // Keep every day selectable when seven 48 dp targets cannot fit.
+                // This is the same displayed period and the same server-owned records.
+                var dateMenu by remember(visibleStart, visibleEnd) { mutableStateOf(false) }
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    OutlinedButton(onClick = { dateMenu = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                        Text("Choose date · " + selected.format(dayFormatter))
+                    }
+                    Box(Modifier.fillMaxWidth()) {
+                        DropdownMenu(expanded = dateMenu, onDismissRequest = { dateMenu = false }) {
+                            visible.forEach { day ->
+                                val count = entries.count { it.date == day }
+                                val recorded = entries.count { it.date == day && it.recorded }
+                                DropdownMenuItem(
+                                    text = {
+                                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                            Text(day.format(dayFormatter))
+                                            if (count > 0) Text("${count - recorded} planned · $recorded recorded",
+                                                style = PlantupiaText.supporting)
+                                        }
+                                    },
+                                    onClick = {
+                                        dateMenu = false
+                                        selected = day
+                                        month = YearMonth.from(day)
+                                    },
+                                    modifier = Modifier.semantics { this.selected = day == selected },
+                                )
+                            }
+                        }
+                    }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        TextButton(onClick = { selected = selected.minusDays(1); month = YearMonth.from(selected) }) {
+                            Text("Previous day")
+                        }
+                        TextButton(onClick = { selected = selected.plusDays(1); month = YearMonth.from(selected) }) {
+                            Text("Next day")
                         }
                     }
                 }
@@ -321,12 +350,13 @@ internal fun PlantupiaCareActivity(accountId: Long, onViewChanged: () -> Unit = 
         }
         HorizontalDivider(color = PlantupiaColors.border)
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("SELECTED DAY", style = PlantupiaText.sectionLabel)
             Text(selected.format(dayFormatter), style = PlantupiaText.editorialHeading)
             val recordedOnDay = selectedEntries.count { it.recorded }
             val plannedOnDay = selectedEntries.size - recordedOnDay
             Text(
                 when {
+                    busy || historyBusy -> "Checking this day…"
+                    error != null || historyError != null -> "Some records could not be loaded."
                     selectedEntries.isEmpty() -> "Nothing planned or recorded."
                     recordedOnDay > 0 && plannedOnDay > 0 -> "$recordedOnDay recorded \u00B7 $plannedOnDay planned"
                     recordedOnDay > 0 -> if (recordedOnDay == 1) "1 recorded moment" else "$recordedOnDay recorded moments"
@@ -335,16 +365,15 @@ internal fun PlantupiaCareActivity(accountId: Long, onViewChanged: () -> Unit = 
                 style = PlantupiaText.supporting,
             )
         }
-        if (!busy && !historyBusy && selectedEntries.isEmpty() && historyError == null) {
-            Text(
-                if (entries.isEmpty()) "No care dates yet. Open a plant to plan a check-in."
-                else "A clear day. Nothing planned or recorded here.",
-                style = PlantupiaText.supporting,
-            )
+        if (!busy && !historyBusy && selectedEntries.isEmpty() && historyError == null && error == null &&
+            entries.isEmpty()) {
+            Text("Open a plant to plan a check-in.", style = PlantupiaText.supporting)
         }
-        selectedEntries.sortedWith(
-            compareByDescending<CareCalendarEntry> { it.recorded }.thenBy { it.plantName }
-        ).forEach { entry ->
+        listOf(false, true).forEach { recorded ->
+            val group = selectedEntries.filter { it.recorded == recorded }.sortedBy { it.plantName }
+            if (group.isNotEmpty()) Text(if (recorded) "Recorded" else "Planned",
+                style = PlantupiaText.itemTitle)
+            group.forEach { entry ->
             Surface(
                 onClick = { PlantupiaPlantOpenSignal.open(accountId, entry.plantId) },
                 color = PlantupiaColors.paper,
@@ -365,20 +394,17 @@ internal fun PlantupiaCareActivity(accountId: Long, onViewChanged: () -> Unit = 
                         compact = true,
                     )
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(entry.plantName, style = MaterialTheme.typography.titleSmall)
-                        Text(entry.title, style = MaterialTheme.typography.bodyMedium)
-                        Text(entry.origin, style = MaterialTheme.typography.labelSmall)
+                        Text(entry.plantName, style = PlantupiaText.itemTitle)
+                        Text(entry.title, style = PlantupiaText.body)
+                        Text(entry.origin + when {
+                            entry.recorded -> " · Recorded ✓"
+                            entry.date < LocalDate.now() -> " · Due"
+                            else -> " · Planned"
+                        }, style = PlantupiaText.supporting)
                     }
-                    Text(
-                        if (entry.recorded) "Recorded ✓"
-                        else if (entry.date < LocalDate.now()) "Due"
-                        else "Planned",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (entry.recorded) PlantupiaColors.forest
-                            else PlantupiaColors.secondaryText,
-                    )
                 }
             }
+        }
         }
         historyError?.let { message ->
             Text("Recorded care history is unavailable: $message", color = MaterialTheme.colorScheme.error)

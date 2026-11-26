@@ -153,13 +153,23 @@ internal fun PlantupiaOrderTracking(order: JSONObject) {
             Modifier.fillMaxWidth().padding(15.dp),
             verticalArrangement = Arrangement.spacedBy(9.dp),
         ) {
-            Text("ORDER PROGRESS", style = PlantupiaText.sectionLabel)
+            Text("Order progress", style = PlantupiaText.itemTitle)
             Column(
                 Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                 verticalArrangement = Arrangement.spacedBy(5.dp),
             ) {
-                Text(tracking.stageTitle, style = PlantupiaText.body,
-                    fontWeight = FontWeight.SemiBold)
+                Text(tracking.stageTitle, style = PlantupiaText.editorialHeading)
+                val recorded = tracking.steps.count { it.recorded }
+                if (tracking.steps.isNotEmpty()) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        tracking.steps.forEach { step ->
+                            Surface(Modifier.weight(1f).height(5.dp),
+                                shape = PlantupiaShapes.badge,
+                                color = if (step.recorded) PlantupiaColors.forest else PlantupiaColors.border) {}
+                        }
+                    }
+                    Text("$recorded of ${tracking.steps.size} stages recorded", style = PlantupiaText.supporting)
+                }
                 Text(tracking.description, style = PlantupiaText.supporting)
             }
             TextButton(
@@ -180,7 +190,7 @@ internal fun PlantupiaOrderTracking(order: JSONObject) {
                     verticalAlignment = Alignment.Top,
                 ) {
                     Surface(
-                        modifier = Modifier.size(28.dp),
+                        modifier = Modifier.widthIn(min = 36.dp).heightIn(min = 36.dp),
                         shape = RoundedCornerShape(50),
                         color = if (step.recorded) PlantupiaColors.forest else PlantupiaColors.softSage,
                     ) {

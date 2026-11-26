@@ -140,7 +140,7 @@ internal fun PlantupiaCareGuidePanel(
                                 style = PlantupiaText.supporting,
                             )
                         } else {
-                            Text(value.species, style = MaterialTheme.typography.titleMedium)
+                            Text(value.species, style = PlantupiaText.display)
                             if (value.identityBasis == "user_selected") {
                                 Text(
                                     "General care for the type you selected. Plantupia has not verified the identity of your individual plant.",
@@ -185,7 +185,7 @@ internal fun PlantupiaCareGuidePanel(
                                         }
                                         Text(
                                             value.instructions,
-                                            style = PlantupiaText.body,
+                                            style = PlantupiaText.body.copy(lineHeight = PlantupiaText.body.fontSize * 1.65f),
                                             maxLines = if (legacyOpen) Int.MAX_VALUE else 4,
                                             overflow = TextOverflow.Ellipsis,
                                         )
@@ -222,12 +222,13 @@ internal fun PlantupiaCareGuidePanel(
                                     ) {
                                         Text(if (narrativeOpen) "Hide full reviewed notes" else "Read full reviewed notes")
                                     }
-                                    if (narrativeOpen) Text(value.legacyInstructions)
+                                    if (narrativeOpen) Text(value.legacyInstructions,
+                                        style = PlantupiaText.body.copy(lineHeight = PlantupiaText.body.fontSize * 1.65f))
                                 }
                             }
                             if (value.contextNotes.isNotBlank()) {
                                 Text("Context for this plant", style = PlantupiaText.sectionLabel)
-                                Text(value.contextNotes)
+                                Text(value.contextNotes, style = PlantupiaText.body)
                             }
                             OutlinedButton(
                                 onClick = { provenanceOpen = !provenanceOpen },

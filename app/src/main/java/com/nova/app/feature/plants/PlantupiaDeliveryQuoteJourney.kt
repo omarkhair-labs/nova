@@ -71,7 +71,7 @@ internal fun PlantupiaDeliveryQuoteJourney(
                     shape = PlantupiaShapes.badge) {}
             }
         }
-        Text(if (reviewing) "Review your total" else "Delivery details", style = PlantupiaText.editorialHeading)
+        Text(if (reviewing) "Review your total" else "Delivery details", style = PlantupiaText.pageHeading)
 
         if (step == "details") {
             DeliverySection("01 / ADDRESS", "Recipient and delivery point") {
@@ -126,10 +126,10 @@ internal fun PlantupiaDeliveryQuoteJourney(
                 }
                 Text(
                     when {
+                        priceError != null -> "Delivery price unavailable; retry before continuing."
+                        priceLoading || !priceChecked -> "Checking the delivery price for this city…"
                         exactPrice != null -> "Delivery · EGP " + exactPrice.shippingFee +
                             " · Total EGP " + exactPrice.total
-                        priceLoading || !priceChecked -> "Checking the delivery price for this city…"
-                        priceError != null -> "Delivery price unavailable; retry before continuing."
                         else -> "No set delivery fee for this city. The team can review a request."
                     },
                     style = PlantupiaText.supporting,
@@ -156,6 +156,7 @@ internal fun PlantupiaDeliveryQuoteJourney(
                 }
             }
         } else if (step == "review") {
+            DeliveryTotalReview(cart, exactPrice, priceChecked, priceLoading, priceError)
             DeliverySection("01 / ITEMS", "Your cart") {
                 val lines = shopCartObjects(cart)
                 lines.forEach { item ->
@@ -172,22 +173,6 @@ internal fun PlantupiaDeliveryQuoteJourney(
                         }
                         Text("EGP " + item.lineTotal, style = PlantupiaText.body)
                     }
-                }
-                HorizontalDivider(color = PlantupiaColors.border)
-                PlantupiaAmountRow(label = "Items only") {
-                    Text("EGP " + (cart?.optString("subtotal") ?: "—"),
-                        style = PlantupiaText.editorialHeading)
-                }
-                if (exactPrice != null) {
-                    PlantupiaAmountRow(label = "Delivery") {
-                        Text("EGP " + exactPrice.shippingFee, style = PlantupiaText.body)
-                    }
-                    PlantupiaAmountRow(label = "Total to confirm") {
-                        Text("EGP " + exactPrice.total, style = PlantupiaText.editorialHeading)
-                    }
-                } else {
-                    Text("Delivery · To be confirmed. No final total yet.",
-                        style = PlantupiaText.supporting)
                 }
             }
             DeliverySection("02 / DELIVERY", "Send to") {
@@ -223,10 +208,12 @@ internal fun PlantupiaDeliveryQuoteJourney(
             DeliverySection("03 / CONFIRMATION",
                 if (exactPrice != null) "Place your order" else "Delivery needs review") {
                 Text(
-                    if (exactPrice != null)
-                        "This confirms the total shown above. Payment is handled separately."
-                    else
-                        "No approved fee for this city yet. The team must confirm a final total before you can place an order.",
+                    when {
+                        priceLoading || !priceChecked || priceError != null ->
+                            "Confirm only after the delivery price check finishes."
+                        exactPrice != null -> "This confirms the total shown above. Payment is handled separately."
+                        else -> "No approved fee for this city yet. The team must confirm a final total before you can place an order."
+                    },
                     style = PlantupiaText.body,
                 )
                 if (priceLoading || !priceChecked) {
@@ -281,6 +268,39 @@ internal fun PlantupiaDeliveryQuoteJourney(
                 TextButton(onClick = onCart, enabled = !busy) {
                     Text("← Review saved cart", color = PlantupiaColors.forest)
                 }
+            }
+        }
+    }
+}
+
+/** The checked server amount leads the review. Unverified rates never become a displayed final total. */
+@Composable
+private fun DeliveryTotalReview(
+    cart: JSONObject?,
+    exactPrice: ShopDeliveryExactPrice?,
+    priceChecked: Boolean,
+    priceLoading: Boolean,
+    priceError: String?,
+) {
+    Surface(color = PlantupiaColors.softSage, shape = PlantupiaShapes.card,
+        modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite }) {
+        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            PlantupiaAmountRow(label = "Items only") {
+                Text("EGP " + (cart?.optString("subtotal") ?: "—"), style = PlantupiaText.itemTitle)
+            }
+            when {
+                priceError != null -> Text("Delivery price could not be checked.", style = PlantupiaText.supporting)
+                priceLoading || !priceChecked -> Text("Checking delivery…", style = PlantupiaText.supporting)
+                exactPrice != null -> {
+                    PlantupiaAmountRow(label = "Delivery") {
+                        Text("EGP " + exactPrice.shippingFee, style = PlantupiaText.body)
+                    }
+                    HorizontalDivider(color = PlantupiaColors.border)
+                    Text("Total to confirm", style = PlantupiaText.itemTitle)
+                    Text("EGP " + exactPrice.total, style = PlantupiaText.display)
+                }
+                else -> Text("Delivery · To be confirmed. No final total yet.",
+                    style = PlantupiaText.supporting)
             }
         }
     }
